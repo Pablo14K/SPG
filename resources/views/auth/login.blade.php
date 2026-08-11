@@ -1,0 +1,145 @@
+{{--
+    Ingreso al sistema.
+
+    No usa el layout general a propósito: acá no hay barra de módulos, ni
+    migas, ni pie con secciones, porque todavía no se sabe quién está del otro
+    lado.
+
+    TODO — el panel de ingreso con huella (WebAuthn) se agrega al portar
+    webauthn.php, en la tarea de autenticación. El formulario de abajo es el
+    camino que siempre tiene que funcionar.
+--}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ingresar · {{ config('app.name') }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
+</head>
+<body>
+<div class="spg-login-wrap">
+    {{-- Panel de la huella: aparece solo si ESTE navegador tiene una cuenta con
+         huella activada y el equipo tiene sensor. Si no, ni se dibuja. --}}
+    <div class="spg-login" id="bioPanel" style="display:none;text-align:center">
+        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <h1 style="font-size:1.2rem;font-weight:500;margin-bottom:.2rem;">{{ config('app.name') }}</h1>
+        <p class="text-muted-warm" style="font-size:.85rem;margin-bottom:1.1rem;">Ingresá con tu huella</p>
+        <div style="font-size:.95rem;margin-bottom:1rem">
+            <i class="bi bi-person-circle"></i> <span id="bioEmail"></span>
+        </div>
+        <button id="bioBtn" class="btn btn-oro" aria-label="Entrar con huella"
+                style="width:74px;height:74px;border-radius:50%;font-size:2rem">
+            <i class="bi bi-fingerprint"></i></button>
+        <div id="bioMsg" class="text-muted-warm mt-2" style="font-size:.8rem">Tocá para entrar</div>
+        <p class="mt-3 mb-0">
+            <a href="#" id="usarClave" class="link-oro" style="font-size:.85rem">Usar contraseña</a>
+        </p>
+    </div>
+
+    <form class="spg-login" id="formLogin" method="post" action="{{ route('login') }}">
+        @csrf
+        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <h1 class="text-center" style="font-size:1.25rem;font-weight:500;margin-bottom:.2rem;">
+            {{ config('app.name') }}
+        </h1>
+        <p class="text-center text-muted-warm" style="font-size:.85rem;margin-bottom:1.3rem;">
+            Sistema de gestión
+        </p>
+
+        @if ($errors->any())
+            <div class="alert alert-danger py-2" style="font-size:.85rem;">
+                {{ $errors->first() }}
+            </div>
+        @endif
+
+        <div class="mb-3">
+            <label class="form-label" for="usuario">Usuario o email</label>
+            <input type="text" name="usuario" id="usuario" class="form-control" autofocus required
+                   value="{{ old('usuario') }}">
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="pass">Contraseña</label>
+            <div class="input-group">
+                <input type="password" name="password" id="pass" class="form-control" required>
+                <button class="btn btn-outline-neutro" type="button" id="togglePass" tabindex="-1"
+                        aria-label="Mostrar u ocultar contraseña">
+                    <i class="bi bi-eye" id="eyeIcon"></i>
+                </button>
+            </div>
+        </div>
+
+        <button class="btn btn-oro w-100 py-2" type="submit">Ingresar</button>
+
+        <p class="text-center mt-3 mb-1" style="font-size:.85rem;">
+            @if (Route::has('recuperar'))
+                <a class="link-oro" href="{{ route('recuperar') }}">¿Olvidaste tu contraseña?</a>
+            @endif
+        </p>
+        <p class="text-center mb-0" style="font-size:.85rem;color:var(--gris-oscuro)">
+            @if (Route::has('registro'))
+                ¿Sos cliente nuevo? <a class="link-oro" href="{{ route('registro') }}">Creá tu cuenta</a>
+            @endif
+        </p>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var btn = document.getElementById('togglePass'),
+            pass = document.getElementById('pass'),
+            icon = document.getElementById('eyeIcon');
+        btn.addEventListener('click', function () {
+            var ver = pass.type === 'password';
+            pass.type = ver ? 'text' : 'password';
+            icon.className = ver ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    })();
+</script>
+
+<script src="{{ recurso('js/webauthn.js') }}"></script>
+<script>
+(function () {
+    var csrf = @json(csrf_token());
+    var urls = {
+        options: @json(route('webauthn.auth_options')),
+        verify:  @json(route('webauthn.login'))
+    };
+
+    var guardado = SPGBio.guardado();
+    var panel = document.getElementById('bioPanel'),
+        formL = document.getElementById('formLogin'),
+        msg = document.getElementById('bioMsg');
+
+    function mostrarClave() { panel.style.display = 'none'; formL.style.display = 'block'; }
+
+    // Solo se ofrece si este navegador recuerda una cuenta con huella activa
+    if (guardado && guardado.login) {
+        SPGBio.available().then(function (ok) {
+            if (!ok) { mostrarClave(); return; }
+            document.getElementById('bioEmail').textContent = guardado.email || guardado.login;
+            formL.style.display = 'none';
+            panel.style.display = 'block';
+        });
+    }
+
+    document.getElementById('usarClave').addEventListener('click', function (e) {
+        e.preventDefault(); mostrarClave();
+    });
+
+    document.getElementById('bioBtn').addEventListener('click', function () {
+        msg.textContent = 'Esperando tu huella…';
+        SPGBio.login(urls, guardado.login, csrf).then(function (res) {
+            if (!res.ok) { throw new Error(res.error || 'No se pudo validar.'); }
+            window.location.href = res.redirect;
+        }).catch(function () {
+            msg.textContent = 'No se pudo entrar con huella. Probá con tu contraseña.';
+        });
+    });
+})();
+</script>
+</body>
+</html>

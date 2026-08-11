@@ -1,0 +1,87 @@
+/* =====================================================================
+   SPG — Informe para papel
+   Se usa solo en reportes/imprimir. En pantalla simula la hoja; al
+   imprimir (o al «Guardar como PDF») desaparece todo lo que no es el
+   informe: la barra de acciones, los fondos y las sombras.
+   ===================================================================== */
+
+.spg-imp-body{
+  background:var(--gris-calido);
+  color:#000;
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+  margin:0;padding:0 0 3rem;
+}
+
+/* Barra de acciones: solo en pantalla */
+.spg-imp-barra{
+  position:sticky;top:0;z-index:10;
+  background:var(--negro);padding:.6rem 1rem;
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;
+}
+.spg-imp-barra a{color:var(--gris-calido);text-decoration:none;font-size:.85rem;}
+.spg-imp-barra a:hover{color:var(--oro-claro);}
+.spg-imp-barra button{
+  background:var(--oro);color:var(--negro);border:none;border-radius:8px;
+  padding:.4rem 1rem;font-size:.87rem;font-weight:500;cursor:pointer;
+}
+.spg-imp-barra button:hover{background:var(--oro-claro);}
+
+/* La hoja */
+.spg-hoja{
+  background:#fff;max-width:21cm;margin:1.2rem auto;padding:1.6cm 1.5cm;
+  box-shadow:0 2px 14px rgba(0,0,0,.14);font-size:10.5pt;line-height:1.45;
+}
+
+.spg-imp-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;
+  border-bottom:2px solid #000;padding-bottom:.5rem;margin-bottom:1rem;
+}
+.spg-imp-salon{font-size:14pt;font-weight:600;}
+.spg-imp-datos{font-size:8.5pt;color:#444;margin-top:.15rem;}
+.spg-imp-meta{font-size:8.5pt;color:#444;text-align:right;white-space:nowrap;}
+
+.spg-imp-titulo{font-size:16pt;font-weight:600;margin:0 0 .2rem;}
+.spg-imp-periodo{font-size:10pt;color:#333;margin-bottom:1.2rem;}
+
+.spg-imp-bloque{margin-bottom:1.3rem;break-inside:avoid;}
+.spg-imp-bloque h2{
+  font-size:11pt;font-weight:600;margin:0 0 .4rem;
+  border-bottom:1px solid #999;padding-bottom:.15rem;
+}
+.spg-imp-vacio{font-size:9.5pt;color:#666;font-style:italic;margin:.3rem 0;}
+.spg-imp-nota{font-size:8.5pt;color:#555;margin:.3rem 0 0;}
+
+/* Indicadores en dos filas de tres */
+.spg-imp-kpis{width:100%;border-collapse:collapse;}
+.spg-imp-kpis td{border:1px solid #bbb;padding:.4rem .6rem;width:33.33%;}
+.spg-imp-kpis span{display:block;font-size:8pt;color:#555;text-transform:uppercase;letter-spacing:.03em;}
+.spg-imp-kpis strong{font-size:12pt;font-weight:600;}
+
+.spg-imp-tabla{width:100%;border-collapse:collapse;font-size:9.5pt;}
+.spg-imp-tabla th,.spg-imp-tabla td{border:1px solid #bbb;padding:.25rem .45rem;text-align:left;}
+.spg-imp-tabla thead th{background:#eee;font-weight:600;}
+.spg-imp-tabla tfoot th{background:#f6f6f6;font-weight:600;}
+.spg-imp-tabla .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.spg-imp-barrita{display:block;height:8px;background:#666;min-width:1px;}
+
+.spg-imp-pie{
+  margin-top:1.5rem;border-top:1px solid #999;padding-top:.4rem;
+  font-size:8pt;color:#666;text-align:center;
+}
+
+/* ---- Al imprimir ---- */
+@media print{
+  @page{size:A4;margin:1.4cm;}
+  .spg-imp-body{background:#fff;padding:0;}
+  .spg-imp-barra{display:none;}
+  .spg-hoja{box-shadow:none;margin:0;padding:0;max-width:none;}
+  /* Los fondos de las cabeceras de tabla se imprimen igual: sin esto,
+     los navegadores los descartan y la tabla pierde la separación visual. */
+  .spg-imp-tabla thead th,.spg-imp-tabla tfoot th{
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .spg-imp-barrita{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* Que una tabla no se corte dejando la cabecera sola al pie de la hoja */
+  .spg-imp-bloque{break-inside:avoid;page-break-inside:avoid;}
+  thead{display:table-header-group;}
+}

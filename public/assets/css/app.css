@@ -1,0 +1,786 @@
+/* =====================================================================
+   SPG — Identidad visual
+   Neutros cálidos + acento oro champagne. El oro solo en acción/jerarquía.
+   ===================================================================== */
+:root{
+  /* Base — neutros de la identidad (nada de blancos ni grises puros:
+     los cálidos combinan con el oro, los fríos lo apagan) */
+  --negro:#0D0D0D;         /* nav · footer            */
+  --carbon:#1A1A1A;        /* hero · secciones        */
+  --gris-oscuro:#555555;   /* texto muted             */
+  --gris-calido:#E0DDD8;   /* bordes                  */
+  --blanco-hueso:#F7F5F2;  /* fondo de página         */
+  --blanco:#FFFFFF;        /* cards                   */
+
+  /* Acento — oro champagne. SOLO donde hay acción o jerarquía. */
+  --oro:#C9A84C;           /* botones · logo          */
+  --oro-claro:#E8CC80;     /* hover · íconos          */
+  --oro-oscuro:#8A6C1E;    /* activo · pressed        */
+
+  /* Semánticos — los únicos colores fuera de la identidad, y solo para
+     comunicar estado (nunca decoración). Los tintes son versiones cálidas,
+     mezcladas hacia el blanco hueso, no pasteles fríos. */
+  --verde:#2F5D2F;         --verde-tinte:#E9EFE6;   /* algo salió bien   */
+  --rojo:#993535;          --rojo-tinte:#F7ECEC;    /* algo se anuló     */
+  --oro-tinte:#FBF1D8;                              /* acento suave: badges y avisos */
+
+  /* Fondo de las acciones secundarias en reposo. Es el oro claro llevado
+     hacia el blanco hueso: tiene que leerse dorado de una, no casi blanco
+     como el tinte de los badges. El blanco queda reservado para el clic. */
+  --oro-suave:#F1E3B9;
+  /* Mismo oro, un paso más oscuro. Va SOLO para texto e íconos sobre
+     --oro-suave: con --oro-oscuro el contraste queda en 3,9:1 y la letra
+     chica no se lee bien; con este llega a 5,7:1 y cumple AA. */
+  --oro-texto:#6B5314;
+
+  --radius:12px;
+
+  /* ---------------------------------------------------------------
+     Bootstrap trae su propio azul (#0d6efd) y grises fríos. Acá se
+     reemplazan por la paleta de la identidad, así los componentes del
+     framework (checkboxes, pestañas, menús, enlaces, foco) salen en
+     los colores del salón sin tener que pisar cada uno a mano.
+     --------------------------------------------------------------- */
+  --bs-body-bg:var(--blanco-hueso);
+  --bs-body-color:var(--carbon);
+  --bs-emphasis-color:var(--negro);
+  --bs-border-color:var(--gris-calido);
+  --bs-border-color-translucent:var(--gris-calido);
+  --bs-secondary-color:var(--gris-oscuro);
+  --bs-secondary-bg:var(--gris-calido);
+  --bs-tertiary-bg:var(--blanco-hueso);
+  --bs-tertiary-color:var(--gris-oscuro);
+
+  --bs-primary:var(--oro);
+  --bs-primary-rgb:201,168,76;
+
+  /* Los enlaces usan el oro oscuro, que es casi marrón: se distingue
+     del texto sin robarle protagonismo al oro de los botones. */
+  --bs-link-color:var(--oro-oscuro);
+  --bs-link-color-rgb:138,108,30;
+  --bs-link-hover-color:var(--negro);
+
+  --bs-focus-ring-color:rgba(201,168,76,.22);
+  --bs-form-invalid-color:var(--rojo);
+  --bs-form-invalid-border-color:var(--rojo);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--blanco-hueso);
+  color:var(--carbon);
+  font-family:-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;
+  min-height:100vh;
+}
+
+/* ---- Barra superior ---- */
+.spg-topbar{
+  background:var(--negro);
+  padding:.7rem 1.4rem;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:1030;
+}
+.spg-brand{display:flex;align-items:center;gap:.7rem;text-decoration:none;}
+.spg-logo{
+  width:34px;height:34px;border-radius:9px;background:var(--oro);
+  display:flex;align-items:center;justify-content:center;color:var(--negro);font-size:1.2rem;
+}
+.spg-brand-name{color:var(--oro);font-size:1.05rem;font-weight:500;letter-spacing:.3px;}
+.spg-topbar .spg-user{color:var(--gris-calido);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
+/* Sin restringir a "a": en la barra hay enlaces y también botones (Módulos),
+   y un <button> no hereda el color, se queda con el del navegador. */
+.spg-topbar .spg-user-link{
+  color:var(--gris-calido);text-decoration:none;
+  background:none;border:none;padding:0;font:inherit;line-height:1;
+  display:inline-flex;align-items:center;gap:.35rem;transition:color .15s;
+}
+.spg-topbar .spg-user-link:hover,
+.spg-topbar .spg-user-link:focus-visible,
+.spg-topbar .spg-user-link[aria-expanded="true"]{color:var(--oro-claro);}
+/* El rol se muestra con el oro en contorno, no en relleno: en la barra ya
+   están el logo y el nombre del local en oro sólido, y tres bloques dorados
+   juntos le quitan fuerza al acento. */
+.spg-rol-chip{
+  background:transparent;color:var(--oro-claro);border:1px solid var(--oro-oscuro);
+  font-size:.72rem;font-weight:500;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
+}
+
+/* El desplegable abierto se marca con el oro claro, igual que el hover */
+.spg-modulos-btn{font-size:.85rem;cursor:pointer;}
+.spg-modulos-btn::after{display:none;}
+.spg-dropdown{--bs-dropdown-link-active-bg:var(--oro);font-size:.88rem;}
+.spg-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
+
+/* ---- Accesos rápidos ---- */
+.spg-rapidos{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding:.7rem 0 .1rem;}
+.spg-rapidos-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--gris-oscuro);margin-right:.15rem;}
+.spg-rapidos-lbl i{color:var(--oro);}
+/* Atajos de navegación y altas rápidas. Son acción, así que van en oro, con
+   tres estados bien distintos:
+     reposo    oro suave + contorno oro   (se lee dorado de una)
+     hover     oro macizo + texto negro   (igual que el botón principal)
+     al tocar  blanco + texto negro       (confirma el clic con un destello)
+   El contorno en reposo es lo que evita que compitan con el botón primario
+   de la pantalla, que sí es oro macizo de entrada. */
+.spg-chip{
+  display:inline-flex;align-items:center;gap:.3rem;
+  background:var(--oro-suave);border:1px solid var(--oro);border-radius:20px;
+  padding:.2rem .7rem;font-size:.78rem;color:var(--oro-texto);text-decoration:none;
+  transition:background .12s,color .12s,border-color .12s;white-space:nowrap;
+}
+.spg-chip:hover,.spg-chip:focus-visible{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);}
+.spg-chip:active{background:var(--blanco);border-color:var(--oro-oscuro);color:var(--negro);}
+.spg-chip i{font-size:.85rem;}
+
+/* Alta rápida dentro de un formulario: "Nuevo cliente", "Nueva sucursal",
+   "Agregar fila". Mismo lenguaje que los chips. Se define con las variables
+   de Bootstrap para que el estado activo del framework no lo pise. */
+.btn-rapido{
+  --bs-btn-bg:var(--oro-suave);
+  --bs-btn-border-color:var(--oro);
+  --bs-btn-color:var(--oro-texto);
+  --bs-btn-hover-bg:var(--oro);
+  --bs-btn-hover-border-color:var(--oro-oscuro);
+  --bs-btn-hover-color:var(--negro);
+  --bs-btn-active-bg:var(--blanco);
+  --bs-btn-active-border-color:var(--oro-oscuro);
+  --bs-btn-active-color:var(--negro);
+  --bs-btn-disabled-bg:var(--blanco-hueso);
+  --bs-btn-disabled-border-color:var(--gris-calido);
+  --bs-btn-disabled-color:var(--gris-oscuro);
+  font-weight:500;
+}
+
+/* ---- Migas / encabezado de página ---- */
+.spg-page-head{padding:1.3rem 0 .3rem;}
+.spg-page-head h1{font-size:1.3rem;font-weight:500;margin:0;}
+.spg-page-head .sub{font-size:.85rem;color:var(--gris-oscuro);margin-top:.15rem;}
+.spg-back{color:var(--oro-oscuro);text-decoration:none;font-size:.85rem;}
+.spg-back:hover{text-decoration:underline;}
+
+/* ---- Grilla de tarjetas de módulos ---- */
+.spg-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;padding:.6rem 0 2rem;}
+.spg-card{
+  background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);
+  padding:1.1rem;text-decoration:none;color:var(--carbon);display:block;transition:border-color .15s,transform .15s;
+}
+.spg-card:hover{border-color:var(--oro);transform:translateY(-2px);}
+.spg-card .ic{
+  width:42px;height:42px;border-radius:10px;background:var(--blanco-hueso);
+  display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gris-oscuro);
+}
+.spg-card:hover .ic{color:var(--oro-oscuro);}
+.spg-card h3{font-size:1rem;font-weight:500;margin:.8rem 0 .35rem;}
+.spg-card p{font-size:.78rem;color:var(--gris-oscuro);margin:0;line-height:1.5;}
+.spg-card.dark{background:var(--carbon);border-color:var(--carbon);}
+.spg-card.dark .ic{background:var(--negro);color:var(--oro);}
+.spg-card.dark h3{color:var(--blanco-hueso);}
+.spg-card.dark p{color:var(--gris-calido);}
+
+/* ---- Contenedores de contenido ---- */
+.spg-panel{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1.2rem;}
+
+/* ---- Tablas ---- */
+.table thead th{background:var(--blanco-hueso);color:var(--gris-oscuro);font-weight:500;font-size:.8rem;
+  text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--gris-calido);}
+.table td{vertical-align:middle;}
+
+/* ---- Botones ---- */
+.btn-oro{background:var(--oro);border:none;color:var(--negro);font-weight:500;}
+.btn-oro:hover{background:var(--oro-oscuro);color:var(--blanco);}
+.btn-outline-neutro{background:var(--blanco);border:1px solid var(--gris-calido);color:var(--gris-oscuro);}
+.btn-outline-neutro:hover{border-color:var(--gris-oscuro);color:var(--carbon);}
+.btn-cancelar{background:var(--blanco);border:1px solid var(--gris-calido);color:var(--rojo);}
+.btn-cancelar:hover{background:#f7ecec;border-color:var(--rojo);color:var(--rojo);}
+/* Sirve tanto para <a> como para <button class="btn btn-link link-oro"> */
+.link-oro{color:var(--oro-oscuro);text-decoration:none;}
+.link-oro:hover,.link-oro:focus{color:var(--oro-oscuro);text-decoration:underline;}
+
+/* ---- Badges de estado ---- */
+.badge-estado{font-size:.72rem;font-weight:500;padding:.2rem .6rem;border-radius:20px;display:inline-block;}
+/* El oro se reserva para el estado VIVO (En proceso): es lo único que está
+   pasando ahora y lo que merece la mirada. Lo que está simplemente agendado
+   o cerrado va en neutros cálidos, y el resultado (bien / anulado) en los
+   semánticos. Así el badge dorado señala algo, en vez de ser decoración. */
+.e-ok{background:var(--verde-tinte);color:var(--verde);}
+.e-prog{background:var(--blanco-hueso);color:var(--gris-oscuro);box-shadow:inset 0 0 0 1px var(--gris-calido);}
+.e-proc{background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;}
+.e-warn{background:transparent;color:var(--oro-oscuro);box-shadow:inset 0 0 0 1px var(--oro);}
+.e-no{background:var(--rojo-tinte);color:var(--rojo);}
+.e-muted{background:var(--gris-calido);color:var(--gris-oscuro);}
+
+/* ---- Barra de caja del panel ---- */
+.spg-caja-barra{
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  background:var(--blanco);border:1px solid var(--gris-calido);border-left:4px solid var(--oro);
+  border-radius:var(--radius);padding:.75rem 1rem;margin-top:.9rem;
+}
+.spg-caja-estado{display:flex;align-items:center;gap:.6rem;font-size:.87rem;flex-wrap:wrap;}
+.spg-caja-estado > i{font-size:1.3rem;color:var(--oro-oscuro);}
+.spg-caja-saldo{font-weight:500;color:var(--oro-oscuro);background:var(--blanco-hueso);
+  border-radius:20px;padding:.1rem .7rem;font-size:.85rem;}
+
+/* ---- Métricas del dashboard ---- */
+.spg-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:.4rem;}
+.spg-metric{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1rem 1.1rem;}
+.spg-metric .lbl{font-size:.75rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
+.spg-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
+.spg-metric .val.oro{color:var(--oro-oscuro);}
+
+/* ---- Login ---- */
+.spg-login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.spg-login{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:16px;padding:2rem;width:100%;max-width:390px;}
+.spg-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
+  justify-content:center;color:var(--negro);font-size:1.9rem;margin:0 auto 1rem;}
+
+/* ---- Form ---- */
+.form-label{font-size:.82rem;color:var(--gris-oscuro);font-weight:500;}
+.form-control:focus,.form-select:focus{border-color:var(--oro);box-shadow:0 0 0 .18rem rgba(201,168,76,.18);}
+
+/* =====================================================================
+   Componentes de Bootstrap que traen el azul compilado y no salen con
+   variables. Se pisan uno por uno para que no quede nada frío.
+   ===================================================================== */
+
+/* Casillas, radios e interruptores: marcados en oro, no en azul */
+.form-check-input{border-color:#c9c4bc;}
+.form-check-input:checked{background-color:var(--oro);border-color:var(--oro-oscuro);}
+.form-check-input:focus{border-color:var(--oro);box-shadow:0 0 0 .18rem rgba(201,168,76,.22);}
+.form-check-input:focus:not(:checked){background-image:none;}
+.form-switch .form-check-input:focus{
+  --bs-form-switch-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23C9A84C'/%3e%3c/svg%3e");
+}
+.form-switch .form-check-input:checked{
+  --bs-form-switch-bg:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* Pestañas tipo pastilla (Cargar stock) */
+.nav-pills{--bs-nav-pills-link-active-bg:var(--oro);--bs-nav-pills-link-active-color:var(--negro);}
+.nav-pills .nav-link{color:var(--gris-oscuro);}
+.nav-pills .nav-link:hover{color:var(--oro-oscuro);}
+.nav-pills .nav-link.active{font-weight:500;}
+.nav-link{color:var(--carbon);}
+.nav-link:hover,.nav-link:focus{color:var(--oro-oscuro);}
+
+/* Menú desplegable de módulos */
+.dropdown-menu{
+  --bs-dropdown-bg:var(--blanco);
+  --bs-dropdown-border-color:var(--gris-calido);
+  --bs-dropdown-link-color:var(--carbon);
+  --bs-dropdown-link-hover-bg:var(--blanco-hueso);
+  --bs-dropdown-link-hover-color:var(--oro-oscuro);
+  --bs-dropdown-link-active-bg:var(--oro);
+  --bs-dropdown-link-active-color:var(--negro);
+  --bs-dropdown-divider-bg:var(--gris-calido);
+}
+
+/* Foco: anillo dorado tenue en vez del azul */
+.btn:focus-visible,.btn-close:focus,.form-check-input:focus-visible,
+.page-link:focus,.accordion-button:focus{
+  box-shadow:0 0 0 .18rem rgba(201,168,76,.22)!important;outline:none;
+}
+.btn-oro:focus-visible{box-shadow:0 0 0 .2rem rgba(138,108,30,.35)!important;}
+
+/* Tablas y tarjetas sobre neutros cálidos */
+.table{
+  --bs-table-bg:transparent;
+  --bs-table-color:var(--carbon);
+  --bs-table-border-color:var(--gris-calido);
+  --bs-table-striped-bg:var(--blanco-hueso);
+  --bs-table-hover-bg:var(--blanco-hueso);
+}
+.card,.modal-content,.list-group-item{
+  background-color:var(--blanco);border-color:var(--gris-calido);
+}
+.modal-header,.modal-footer{border-color:var(--gris-calido);}
+.nav-tabs{--bs-nav-tabs-link-active-border-color:var(--gris-calido) var(--gris-calido) var(--blanco);}
+
+/* Avisos: los mismos tonos que los badges de estado, sin colores nuevos */
+.alert{border-radius:var(--radius);border-width:1px;}
+.alert-success{background:var(--verde-tinte);border-color:#CBDCC6;color:var(--verde);}
+.alert-danger{background:var(--rojo-tinte);border-color:#E8D2D2;color:var(--rojo);}
+.alert-warning{background:var(--oro-tinte);border-color:#EEDDB4;color:var(--oro-oscuro);}
+.alert-info{background:var(--blanco-hueso);border-color:var(--gris-calido);color:var(--gris-oscuro);}
+
+/* Texto secundario, siempre en el gris cálido de la identidad.
+   #C9C4BC y #A8A29A son el gris cálido llevado a más contraste para
+   bordes de control y placeholder: siguen siendo cálidos, no fríos. */
+.form-text,.text-muted{color:var(--gris-oscuro)!important;}
+.input-group-text{background:var(--blanco-hueso);border-color:var(--gris-calido);color:var(--gris-oscuro);}
+.form-control,.form-select{border-color:var(--gris-calido);color:var(--carbon);}
+.form-control::placeholder{color:#A8A29A;}
+.form-control:disabled,.form-select:disabled{background:var(--blanco-hueso);}
+
+/* ---- Utilidades ---- */
+.text-muted-warm{color:var(--gris-oscuro)!important;}
+.hr-warm{border-top:1px solid var(--gris-calido);}
+/* Para no escribir colores a mano en las vistas */
+.txt-ok{color:var(--verde);}
+.txt-no{color:var(--rojo);}
+.txt-oro{color:var(--oro-oscuro);}
+
+/* ---- Selector de disponibilidad ----
+   Los días y las horas son atajos de navegación, así que usan el nivel
+   secundario del oro (.spg-chip) con sus tres estados. El elegido queda en
+   oro macizo, que es lo único seleccionado de la pantalla. */
+.agenda-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--gris-oscuro);margin:.9rem 0 .35rem;}
+.agenda-grupo{display:flex;flex-wrap:wrap;gap:.4rem;max-height:190px;overflow-y:auto;
+  padding:.15rem;}
+.agenda-grupo:empty:after{content:'—';color:var(--gris-oscuro);font-size:.85rem;}
+.agenda-grupo .spg-chip{border:0;cursor:pointer;font-variant-numeric:tabular-nums;}
+.agenda-grupo .spg-chip.activo{background:var(--oro);color:var(--negro);font-weight:600;}
+.agenda-aviso{margin:.3rem 0;}
+
+/* ---- Comprobante (detalle e impresión de factura) ----
+   El oro aparece solo en el número del comprobante y en el total: son los dos
+   datos que se buscan primero. El resto va en los neutros cálidos. */
+.spg-comprobante{border-top:3px solid var(--oro);position:relative;}
+.comp-cab{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;
+  padding-bottom:1rem;border-bottom:1px solid var(--gris-calido);font-size:.85rem;}
+.comp-emisor{font-size:1.05rem;font-weight:600;color:var(--oro-oscuro);margin-bottom:.2rem;}
+.comp-datos{text-align:right;font-size:.82rem;}
+.comp-tipo{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gris-oscuro);}
+.comp-nro{font-size:1.15rem;font-weight:600;color:var(--oro-oscuro);margin-bottom:.35rem;}
+.comp-cliente{display:flex;gap:2rem;flex-wrap:wrap;padding:.9rem 0;
+  border-bottom:1px solid var(--gris-calido);font-size:.85rem;margin-bottom:.5rem;}
+.comp-lbl{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gris-oscuro);}
+.comp-tabla thead th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--gris-oscuro);}
+.comp-pie{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;
+  margin-top:1rem;padding-top:1rem;border-top:1px solid var(--gris-calido);}
+.comp-iva{font-size:.8rem;min-width:260px;}
+.comp-iva-tabla td{padding:.15rem .7rem .15rem 0;}
+.comp-totales{min-width:240px;margin-left:auto;font-size:.88rem;}
+.comp-totales>div{display:flex;justify-content:space-between;gap:2rem;padding:.2rem 0;}
+.comp-totales .comp-total{border-top:1px solid var(--gris-calido);margin-top:.3rem;padding-top:.45rem;
+  font-size:1.1rem;}
+.comp-totales .comp-total strong{color:var(--oro-oscuro);}
+/* Sello de anulada: no debe poder confundirse con un comprobante válido */
+.comp-anulada{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%) rotate(-16deg);
+  border:4px solid var(--rojo);color:var(--rojo);font-size:2.6rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;padding:.2rem 1.6rem;border-radius:8px;
+  opacity:.35;pointer-events:none;z-index:2;}
+
+/* ---- Impresión ----
+   Se imprime solo el comprobante: fuera la barra superior, los accesos rápidos,
+   los botones y el listado de cobros (que es información interna). */
+@media print{
+  .spg-topbar,.spg-rapidos,.no-imprimir,.alert,footer,.spg-footer{display:none !important;}
+  body{background:var(--blanco);}
+  main.container{padding:0 !important;max-width:100% !important;}
+  .spg-comprobante{border:none;padding:0;}
+  .comp-anulada{opacity:.45;}
+  a[href]:after{content:none !important;}
+  .table{font-size:.82rem;}
+}
+
+/* ---- Responsive (móviles) ---- */
+html,body{max-width:100%;overflow-x:hidden;}
+@media (max-width:768px){
+  .spg-cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;}
+}
+@media (max-width:576px){
+  .spg-topbar{padding:.6rem .9rem;}
+  .spg-brand-name{font-size:.95rem;}
+  .spg-user{gap:.55rem;font-size:.8rem;}
+  .spg-user .spg-user-nombre{display:none;}      /* en móvil, solo ícono + rol + salir */
+  .spg-page-head h1{font-size:1.15rem;}
+  .spg-cards{grid-template-columns:1fr 1fr;gap:.6rem;}
+  .spg-card{padding:.9rem;}
+  .spg-card .ic{width:38px;height:38px;font-size:1.2rem;}
+  .spg-card h3{font-size:.92rem;margin-top:.6rem;}
+  .spg-card p{font-size:.72rem;}
+  .spg-metric .val{font-size:1.35rem;}
+  .spg-panel{padding:.9rem;}
+  .table{font-size:.85rem;}
+  .btn{font-size:.9rem;}
+}
+@media (max-width:380px){
+  .spg-cards{grid-template-columns:1fr;}
+}
+
+/* ---------------------------------------------------------------------
+   Días de la semana de un turno
+   Es una casilla marcada, no un atajo: por eso usa el oro de
+   .form-check-input:checked y no los tres estados de .spg-chip.
+   La casilla real queda oculta pero sigue ahí, así el teclado y el lector
+   de pantalla la encuentran igual.
+   --------------------------------------------------------------------- */
+.spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;}
+.spg-dia{cursor:pointer;user-select:none;}
+.spg-dia input{position:absolute;opacity:0;width:0;height:0;}
+.spg-dia span{
+  display:inline-block;min-width:2.6rem;text-align:center;
+  border:1px solid var(--gris-calido);border-radius:20px;
+  padding:.22rem .55rem;font-size:.78rem;color:var(--gris-oscuro);
+  background:var(--blanco);transition:.12s;
+}
+.spg-dia input:checked + span{
+  background:var(--oro-suave);border-color:var(--oro);color:var(--oro-texto);font-weight:600;
+}
+.spg-dia input:focus-visible + span{outline:2px solid var(--oro);outline-offset:2px;}
+.spg-dia:hover span{border-color:var(--oro);}
+
+/* =====================================================================
+   PROTOTIPO DE LISTADO
+   Migas · encabezado · barra de filtros · paginación.
+   Las tres piezas salen de parciales de layout/, así que este bloque es
+   el único lugar donde se les toca el aspecto: cambiarlo acá lo cambia
+   en las treinta pantallas.
+   ===================================================================== */
+
+/* ---- Migas de pan: dónde estoy y cómo vuelvo ---- */
+.spg-migas{
+  display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;
+  font-size:.78rem;color:var(--gris-oscuro);padding:.55rem 0 .1rem;
+}
+.spg-migas a{color:var(--gris-oscuro);text-decoration:none;display:inline-flex;align-items:center;gap:.28rem;}
+.spg-migas a:hover,.spg-migas a:focus-visible{color:var(--oro-oscuro);text-decoration:underline;}
+.spg-migas span[aria-current]{color:var(--carbon);font-weight:500;}
+.spg-miga-sep{font-size:.62rem;color:var(--gris-calido);}
+
+/* ---- Encabezado de pantalla ---- */
+.spg-head-flex{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.8rem;}
+.spg-head-txt{min-width:0;}
+.spg-head-acciones{display:flex;gap:.5rem;flex-wrap:wrap;}
+
+/* ---- Barra de filtros ---- */
+.spg-filtros{
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;
+  background:var(--blanco-hueso);border:1px solid var(--gris-calido);
+  border-radius:var(--radius);padding:.75rem .9rem;margin-bottom:1rem;
+}
+.spg-filtros .form-label{
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--gris-oscuro);margin-bottom:.2rem;font-weight:500;
+}
+.spg-filtro{min-width:130px;}
+.spg-filtro-btns{display:flex;gap:.4rem;align-items:center;padding-bottom:.05rem;margin-left:auto;}
+/* El aviso va en --oro-tinte, no en --oro-suave: es información, no acción.
+   (Ver la regla del oro: el tinte es para badges y avisos.) */
+.spg-filtro-aviso{
+  flex-basis:100%;font-size:.75rem;color:var(--oro-oscuro);
+  background:var(--oro-tinte);border-radius:6px;padding:.25rem .6rem;
+  display:inline-flex;align-items:center;gap:.35rem;width:fit-content;
+}
+
+/* ---- Pie del listado: conteo + páginas ---- */
+.spg-paginacion{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.7rem;
+  border-top:1px solid var(--gris-calido);margin-top:.2rem;padding-top:.8rem;
+}
+.spg-pag-conteo{font-size:.82rem;color:var(--gris-oscuro);}
+.spg-pag-conteo strong{color:var(--carbon);font-variant-numeric:tabular-nums;}
+.spg-pag-botones{display:flex;gap:.25rem;flex-wrap:wrap;}
+.spg-pag{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:2rem;height:2rem;padding:0 .45rem;
+  border:1px solid var(--gris-calido);border-radius:7px;background:var(--blanco);
+  color:var(--gris-oscuro);text-decoration:none;font-size:.82rem;
+  font-variant-numeric:tabular-nums;transition:.12s;
+}
+.spg-pag:hover,.spg-pag:focus-visible{border-color:var(--oro);color:var(--oro-texto);background:var(--oro-suave);}
+/* La página actual es jerarquía, no adorno: por eso lleva el oro macizo */
+.spg-pag.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
+.spg-pag.inactivo{opacity:.4;pointer-events:none;}
+.spg-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
+
+/* ---- Fila vacía de una tabla ---- */
+.spg-vacio{text-align:center;color:var(--gris-oscuro);padding:2.2rem 1rem;}
+.spg-vacio i{font-size:1.7rem;color:var(--gris-calido);display:block;margin-bottom:.4rem;}
+.spg-vacio .t{font-size:.92rem;color:var(--carbon);margin-bottom:.15rem;}
+.spg-vacio .d{font-size:.8rem;}
+
+/* Resumen de lo que está mostrando el filtro (total cobrado, stock actual…).
+   Va en oro tinte porque informa, no es un botón. */
+.spg-resumen-filtro{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;
+  background:var(--oro-tinte);border-radius:8px;padding:.5rem .85rem;margin-bottom:.9rem;
+  font-size:.85rem;color:var(--carbon);
+}
+
+/* Aviso de bloque (caja cerrada, sin timbrado…). El color del borde
+   izquierdo es el que comunica: rojo si algo está mal, oro si es un aviso. */
+.spg-aviso{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.7rem;
+  background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);
+  padding:.8rem 1rem;margin-bottom:1rem;
+}
+.spg-aviso-no{border-left:4px solid var(--rojo);}
+.spg-aviso-no strong{color:var(--rojo);}
+.spg-aviso-oro{border-left:4px solid var(--oro);}
+.spg-aviso-oro strong{color:var(--oro-oscuro);}
+
+/* ---- Informes: atajos de período y cabecera de bloque ---- */
+.spg-atajos{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin-top:.2rem;}
+.spg-atajos-lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gris-oscuro);margin-right:.2rem;}
+.spg-atajos .spg-chip.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
+.spg-periodo{
+  margin-top:.7rem;font-size:.83rem;color:var(--gris-oscuro);
+  border-top:1px dashed var(--gris-calido);padding-top:.6rem;
+}
+.spg-periodo i{color:var(--oro-oscuro);}
+.spg-periodo strong{color:var(--carbon);}
+.spg-bloque-head{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap;}
+.spg-bloque-head h2{font-size:1rem;font-weight:500;margin:0;}
+
+/* =====================================================================
+   ENCABEZADO, NAVEGACIÓN Y PIE
+   ===================================================================== */
+
+/* ---- Marca con bajada ---- */
+.spg-brand-txt{display:flex;flex-direction:column;line-height:1.15;}
+.spg-brand-sub{font-size:.68rem;color:var(--gris-oscuro);letter-spacing:.04em;text-transform:uppercase;}
+
+/* Cabecera del desplegable de la cuenta */
+.spg-drop-cabecera{display:flex;flex-direction:column;line-height:1.3;padding:.25rem 1rem;}
+.spg-drop-cabecera strong{font-size:.88rem;color:var(--carbon);}
+.spg-drop-cabecera span{font-size:.75rem;color:var(--gris-oscuro);}
+
+/* ---- Panel de navegación: los módulos siempre a la vista ----
+   Va en carbón, un escalón más claro que la barra negra de arriba, para que
+   se lean como dos niveles y no como una sola franja negra. El módulo actual
+   se marca con el oro: es jerarquía —dónde estoy—, no decoración. */
+.spg-nav{background:var(--carbon);border-bottom:1px solid #2a2a2a;position:sticky;top:52px;z-index:1020;}
+.spg-nav-in{
+  display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:thin;
+  max-width:1320px;margin:0 auto;padding:0 .8rem;
+}
+.spg-nav-item{
+  display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
+  padding:.6rem .8rem;color:var(--gris-calido);text-decoration:none;font-size:.82rem;
+  border-bottom:2px solid transparent;transition:color .13s,border-color .13s;
+}
+.spg-nav-item i{font-size:.95rem;opacity:.85;}
+.spg-nav-item:hover,.spg-nav-item:focus-visible{color:var(--oro-claro);}
+.spg-nav-item.activo{color:var(--oro);border-bottom-color:var(--oro);font-weight:500;}
+.spg-nav-item.activo i{opacity:1;}
+
+/* ---- Pie ---- */
+.spg-footer{background:var(--negro);color:var(--gris-calido);margin-top:2.5rem;}
+/* Las secciones van en tres columnas, no en una lista larga: apiladas
+   estiraban el pie y dejaban una franja negra enorme abajo. */
+/* Con solo dos bloques, una grilla a lo ancho de 1320px los tiraba contra los
+   bordes opuestos y dejaba un vacío enorme en el medio. Se los trata como un
+   par centrado y con ancho acotado: se leen juntos, sin hueco. */
+.spg-footer-in{
+  max-width:1240px;margin:0 auto;padding:1.7rem 1.2rem 1.1rem;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;
+  gap:1.5rem 2.5rem;
+}
+.spg-footer-marca{flex:0 1 230px;}
+.spg-footer-secciones{flex:0 1 440px;}
+.spg-footer-ayuda{flex:0 1 200px;}
+.spg-footer-version{flex:0 1 160px;}
+.spg-footer-col h3{
+  font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--oro);margin:0 0 .6rem;font-weight:600;
+}
+.spg-footer-col ul{list-style:none;margin:0;padding:0;}
+.spg-footer-col li{margin-bottom:.3rem;font-size:.82rem;}
+.spg-footer-col a{color:var(--gris-calido);text-decoration:none;}
+.spg-footer-col a:hover,.spg-footer-col a:focus-visible{color:var(--oro-claro);text-decoration:underline;}
+/* 3 columnas: con 8 secciones quedan 3 + 3 + 2.
+   `minmax(0,1fr)` y no `1fr` a secas: dentro de un contenedor que se encoge,
+   `1fr` se resuelve como max-content y cada columna toma el ancho de su enlace
+   más largo, así que los nombres quedaban desparejos en vez de alineados. */
+.spg-footer-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.2rem 1rem;width:100%;
+}
+.spg-footer-logo{
+  display:flex;align-items:center;gap:.45rem;
+  color:var(--oro);font-size:1rem;font-weight:500;margin-bottom:.35rem;
+}
+.spg-footer-tcc{font-size:.75rem;color:#6f6f6f;margin:0;max-width:30ch;line-height:1.45;}
+/* El rótulo va centrado sobre la grilla de enlaces, no pegado al borde de la
+   columna. Se centra con flex y no con text-align para que el eje sea el mismo
+   para los dos: si se centrara cada uno por su cuenta respecto de la columna,
+   el título quedaría corrido cuando la grilla no ocupa todo el ancho. */
+.spg-footer-secciones{display:flex;flex-direction:column;align-items:center;}
+.spg-footer-secciones h3{text-align:center;}
+/* El contacto es una acción —abre el chat—, así que lleva el ícono en oro.
+   El texto se queda en el neutro del pie: si el renglón entero fuera dorado
+   competiría con el rótulo de la columna. */
+.spg-contacto{display:inline-flex;align-items:center;gap:.4rem;}
+.spg-contacto i{color:var(--oro);font-size:.95rem;}
+.spg-contacto:hover i,.spg-contacto:focus-visible i{color:var(--oro-claro);}
+
+/* Versión del sistema. El número va en oro porque es jerarquía —es el dato
+   del bloque—, y la fecha en el gris del pie. */
+.spg-version-nro{
+  color:var(--oro);font-size:1.05rem;font-weight:500;
+  font-variant-numeric:tabular-nums;line-height:1.1;
+}
+.spg-version-fecha{font-size:.75rem;color:#8a8a8a;margin-top:.2rem;}
+.spg-footer-pie{
+  border-top:1px solid #232323;text-align:center;
+  padding:.85rem 1rem;font-size:.75rem;color:#6f6f6f;
+  display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;
+}
+.spg-footer-sep{color:#3a3a3a;}
+
+@media (max-width:820px){
+  .spg-footer-in{justify-content:flex-start;gap:1.2rem;}
+  .spg-footer-marca,.spg-footer-secciones,
+  .spg-footer-ayuda,.spg-footer-version{flex:1 1 100%;}
+  .spg-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .spg-footer-secciones{align-items:flex-start;}
+  .spg-footer-secciones h3{text-align:left;}
+  .spg-nav{top:0;position:static;}
+  .spg-brand-sub{display:none;}
+}
+
+/* Subtítulo de una sección dentro de un formulario largo */
+.spg-form-titulo{font-size:.95rem;font-weight:500;margin:0 0 .3rem;}
+.spg-form-titulo i{color:var(--oro-oscuro);}
+
+/* Vista previa de cómo va a quedar el bloque del pie, dentro de Configuración.
+   Repite el fondo negro para que se vea tal cual, no como una lista suelta. */
+.spg-previo-pie{background:var(--negro);border-radius:var(--radius);padding:1rem 1.1rem;}
+.spg-previo-pie h3{
+  font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--oro);margin:0 0 .6rem;font-weight:600;
+}
+.spg-previo-pie ul{list-style:none;margin:0;padding:0;}
+.spg-previo-pie li{margin-bottom:.3rem;font-size:.82rem;}
+.spg-previo-pie a{color:var(--gris-calido);text-decoration:none;}
+.spg-previo-pie a:hover{color:var(--oro-claro);text-decoration:underline;}
+
+/* Campo de código de verificación. Antes cada pantalla lo estilaba con estilos
+   sueltos en el HTML; ahora es una clase y sale igual en las tres. */
+.spg-codigo{
+  text-align:center;font-size:1.4rem;letter-spacing:.4rem;
+  font-variant-numeric:tabular-nums;padding-block:.5rem;
+}
+
+/* Niveles de fidelización: se leen como una escalera, de menos a más visitas */
+.spg-niveles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;}
+.spg-nivel{
+  border:1px solid var(--gris-calido);border-radius:10px;padding:.65rem .8rem;background:var(--blanco);
+}
+.spg-nivel-nombre{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
+.spg-nivel-req{font-size:.75rem;color:var(--gris-oscuro);}
+.spg-nivel-desc{font-size:.78rem;margin-top:.25rem;}
+.spg-nivel-clientes{
+  font-size:.72rem;color:var(--gris-oscuro);margin-top:.35rem;
+  border-top:1px dashed var(--gris-calido);padding-top:.3rem;
+}
+
+/* Vuelto del mostrador. Es una cuenta de apoyo, no un dato que se guarde:
+   por eso va separado del resto del formulario con un borde punteado. */
+.spg-vuelto{border-top:1px dashed var(--gris-calido);padding-top:.8rem;}
+.spg-vuelto-res{font-size:.87rem;min-height:1.2rem;}
+.spg-vuelto-monto{
+  background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;
+  border-radius:8px;padding:.35rem .7rem;display:inline-block;font-size:1rem;
+}
+
+/* Aviso de stock por reponer: los nombres de los productos en línea, para
+   que se sepa QUÉ falta sin tener que entrar a la lista. */
+.spg-aviso-stock .spg-aviso-lista{display:flex;flex-wrap:wrap;gap:.3rem .5rem;margin-top:.4rem;}
+.spg-aviso-item{
+  font-size:.78rem;background:var(--rojo-tinte);color:var(--rojo);
+  border-radius:6px;padding:.15rem .5rem;
+}
+.spg-aviso-item em{font-style:normal;opacity:.75;}
+.spg-aviso-mas{background:var(--blanco-hueso);color:var(--gris-oscuro);}
+
+/* Filas de medios de contacto: medio · valor · etiqueta · quitar */
+.spg-medio-fila{
+  display:grid;grid-template-columns:150px 1fr 170px auto;gap:.4rem;
+  align-items:center;margin-bottom:.45rem;
+}
+@media (max-width:700px){
+  .spg-medio-fila{grid-template-columns:1fr 1fr;}
+  .spg-medio-fila .spg-medio-valor{grid-column:1 / -1;}
+}
+
+/* Servicio elegible, con su selector de quién lo hace */
+.spg-serv-item{border:1px solid var(--gris-calido);border-radius:8px;padding:.5rem .6rem;cursor:pointer;}
+.spg-serv-item.elegido{border-color:var(--oro);background:var(--blanco);}
+.spg-serv-prof{display:flex;align-items:center;gap:.4rem;margin-top:.45rem;padding-left:1.6rem;}
+.spg-serv-prof .form-label{font-size:.72rem;color:var(--gris-oscuro);white-space:nowrap;}
+
+/* Aviso de dos servicios que no pueden ir a la vez */
+.spg-aviso-exclusivo{
+  background:var(--rojo-tinte);border-left:4px solid var(--rojo);border-radius:8px;
+  padding:.6rem .8rem;font-size:.83rem;color:var(--rojo);
+}
+
+/* ---- Portal: la atención en curso ---- */
+.spg-encurso{
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  background:var(--blanco);border:1px solid var(--oro);border-left:4px solid var(--oro);
+  border-radius:var(--radius);padding:.8rem 1rem;margin-bottom:.9rem;
+}
+.spg-encurso-lbl{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
+.spg-encurso-det{font-size:.8rem;color:var(--gris-oscuro);}
+.spg-encurso-monto{text-align:right;}
+.spg-encurso-monto span{display:block;font-size:.72rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
+.spg-encurso-monto strong{font-size:1.25rem;color:var(--oro-oscuro);font-variant-numeric:tabular-nums;}
+
+.spg-prod-lista{list-style:none;margin:0;padding:0;}
+.spg-prod-lista li{
+  font-size:.86rem;padding:.3rem 0;border-bottom:1px dashed var(--gris-calido);
+  display:flex;justify-content:space-between;gap:1rem;
+}
+.spg-prod-lista li:last-child{border-bottom:none;}
+
+.spg-cuenta-fila{display:flex;justify-content:space-between;padding:.35rem 0;font-size:.9rem;}
+.spg-cuenta-total{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:2px solid var(--gris-calido);margin-top:.4rem;padding-top:.6rem;
+}
+.spg-cuenta-total span{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gris-oscuro);}
+.spg-cuenta-total strong{font-size:1.5rem;color:var(--oro-oscuro);font-variant-numeric:tabular-nums;}
+
+/* --- Matriz de permisos (Configuración → Roles) -----------------------
+   Un bloque por rol, y adentro un recuadro por módulo con sus submódulos.
+   Reemplaza a la tabla rol × módulo: con los ocho módulos desglosados son
+   28 columnas, que no entran en ninguna pantalla y obligan a leer de
+   costado para saber qué se está marcando.
+   Todo en neutros cálidos; el oro queda para el módulo que tiene algo
+   marcado, que es la única jerarquía que hace falta ver de un vistazo. */
+.spg-perm-rol{
+  border:1px solid var(--gris-calido);border-radius:10px;
+  padding:.8rem .9rem;margin-bottom:1rem;
+}
+.spg-perm-rol-cab{
+  display:flex;align-items:baseline;justify-content:space-between;
+  flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem;
+  border-bottom:1px solid var(--gris-calido);padding-bottom:.5rem;
+}
+.spg-perm-grid{
+  display:grid;gap:.6rem;
+  grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+}
+.spg-perm-mod{
+  border:1px solid var(--gris-calido);border-radius:8px;
+  padding:.5rem .6rem;background:var(--blanco);
+}
+/* El recuadro se tiñe cuando el módulo tiene algo dado: así se ve de lejos
+   el alcance del rol sin leer casilla por casilla. */
+.spg-perm-mod:has(input:checked){border-color:var(--oro);background:var(--oro-tinte);}
+.spg-perm-cab{
+  display:flex;align-items:center;gap:.45rem;
+  font-size:.83rem;font-weight:500;cursor:pointer;
+}
+.spg-perm-cab input{margin-top:0;flex:none;}
+.spg-perm-solo{
+  font-size:.7rem;color:var(--gris-oscuro);
+  margin-left:1.55rem;margin-top:.15rem;font-style:italic;
+}
+.spg-perm-hijos{
+  display:flex;flex-direction:column;gap:.18rem;
+  margin-top:.4rem;margin-left:1.55rem;
+  border-left:2px solid var(--gris-calido);padding-left:.5rem;
+}
+.spg-perm-hijos label{
+  display:flex;align-items:center;gap:.4rem;
+  font-size:.79rem;cursor:pointer;color:var(--gris-oscuro);
+}
+.spg-perm-hijos input{margin-top:0;flex:none;}
+.spg-perm-hijos input:checked + span{color:var(--negro);}
+.spg-perm-mod input:disabled,
+.spg-perm-mod input:disabled + span{cursor:default;opacity:.75;}

@@ -1,0 +1,453 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Servicios;
+
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Motor de disponibilidad de la agenda.
+ *
+ * Arma los huecos reales de un profesional cruzando su turno laboral con sus
+ * ausencias y sus citas ya tomadas.
+ *
+ * IMPORTANTE — quién decide qué:
+ *
+ *  · Para **pintar** la pantalla, los huecos se calculan acá, en memoria.
+ *    Antes se le preguntaba a `fn_verificar_disponibilidad` hueco por hueco:
+ *    el calendario de 60 días daba unas 12.000 consultas y tardaba 38 segundos
+ *    (medido), y bajo concurrencia cortaba peticiones por timeout. Trayendo
+ *    turnos, citas y ausencias en tres consultas, tarda 0,11 s.
+ *
+ *  · Para **guardar**, la autoridad sigue siendo `fn_verificar_disponibilidad`,
+ *    que se consulta de nuevo dentro del candado del procedimiento.
+ *
+ * Es la única parte del sistema donde PHP replica una regla de la base, y se
+ * hace a propósito por costo. **Si cambian las reglas de disponibilidad en la
+ * base, hay que reflejarlas en slotsProfesional()**, o la pantalla va a
+ * ofrecer horarios que el servidor después rechaza.
+ */
+class Agenda
+{
+    /** Profesionales que pueden atender (personal activo). */
+    public static function profesionales(): array
+    {
+        return DB::select(
+            "SELECT u.id_usuario, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS nombre
+               FROM usuario u
+               JOIN persona pe_u ON pe_u.id_persona = u.id_persona
+               JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1
+              ORDER BY pe_u.nombre, pe_u.apellido"
+        );
+    }
+
+    /** Duración total, en minutos, de una lista de servicios. */
+    public static function duracion(array $idsServicio): int
+    {
+        $ids = array_values(array_filter(array_map('intval', $idsServicio)));
+        if (! $ids) {
+            return 0;
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+
+        return (int) DB::scalar(
+            "SELECT COALESCE(SUM(duracion_min),0) FROM servicio WHERE activo=1 AND id_servicio IN ($in)",
+            $ids
+        );
+    }
+
+    /**
+     * Toda la agenda de un profesional en un rango, en tres consultas.
+     *
+     * `dia` va de 1 (lunes) a 7 (domingo), que es lo que dan date('N') en PHP y
+     * WEEKDAY()+1 en la base. NO es el DAYOFWEEK() de MySQL, que arranca en
+     * domingo: si se mezclan, la agenda se corre un día.
+     */
+    public static function datosProfesional(int $idUsuario, string $desde, string $hasta): array
+    {
+        $turnos = [];
+        foreach (DB::select(
+            'SELECT td.dia_semana AS dia, t.hora_inicio, t.hora_fin
+               FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td    ON td.id_turno = t.id_turno
+              WHERE ut.id_usuario = ?
+              ORDER BY td.dia_semana, t.hora_inicio',
+            [$idUsuario]
+        ) as $t) {
+            $turnos[(int) $t->dia][] = [$t->hora_inicio, $t->hora_fin];
+        }
+
+        // ¿Tiene turnos asignados? Si no, se aplica el criterio permisivo de
+        // fn_verificar_disponibilidad: se entiende que el salón todavía no usa
+        // la agenda de turnos y no se le bloquea nada.
+        $usaTurnos = $turnos !== [];
+
+        // Citas que le ocupan la agenda: las suyas y aquellas en las que solo
+        // hace algunos servicios. Se mide con SU bloque (fn_cita_duracion_de),
+        // no con la cita entera: si la clienta está 90 minutos pero él solo
+        // hace el lavado de 20, a los 20 queda libre.
+        $ocupado = [];
+        foreach (DB::select(
+            'SELECT c.fecha_hora, fn_cita_duracion_de(c.id_cita, :u) AS dur
+               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1
+                AND (c.id_usuario = :u2
+                     OR EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = c.id_cita AND cs.id_usuario = :u3))
+                AND c.fecha_hora >= :d AND c.fecha_hora < DATE_ADD(:h, INTERVAL 1 DAY)',
+            ['u' => $idUsuario, 'u2' => $idUsuario, 'u3' => $idUsuario,
+             'd' => $desde . ' 00:00:00', 'h' => $hasta]
+        ) as $c) {
+            $dur = (int) $c->dur;
+            if ($dur <= 0) {
+                continue;   // no hace nada en esa cita
+            }
+            $ini = strtotime((string) $c->fecha_hora);
+            $ocupado[] = [$ini, $ini + $dur * 60];
+        }
+
+        foreach (DB::select(
+            'SELECT fecha_inicio, fecha_fin FROM ausencia_agenda
+              WHERE activo=1 AND (id_usuario=? OR id_usuario IS NULL)
+                AND fecha_fin >= ? AND fecha_inicio < DATE_ADD(?, INTERVAL 1 DAY)',
+            [$idUsuario, $desde . ' 00:00:00', $hasta]
+        ) as $a) {
+            $ocupado[] = [strtotime((string) $a->fecha_inicio), strtotime((string) $a->fecha_fin)];
+        }
+
+        return ['turnos' => $turnos, 'ocupado' => $ocupado, 'usaTurnos' => $usaTurnos];
+    }
+
+    /**
+     * Huecos libres de un profesional en un día, para una duración dada.
+     * Devuelve ['09:00', '09:15', …]: las horas en que la cita ENTERA entra.
+     */
+    public static function slotsProfesional(int $idUsuario, string $fecha, int $duracion, ?array $datos = null): array
+    {
+        if ($duracion <= 0) {
+            return [];
+        }
+        $datos ??= self::datosProfesional($idUsuario, $fecha, $fecha);
+
+        $turnos = $datos['turnos'][(int) date('N', strtotime($fecha))] ?? [];
+        if (! $turnos) {
+            // Sin turno ese día no atiende. Salvo que no use turnos en
+            // absoluto: ahí se ofrece la jornada por defecto, como la base.
+            if ($datos['usaTurnos']) {
+                return [];
+            }
+            $turnos = [['08:00:00', '20:00:00']];
+        }
+
+        $paso = (int) config('spg.agenda.paso_min', 15);
+        $libres = [];
+        $ahora = time();
+
+        foreach ($turnos as [$hIni, $hFin]) {
+            $ini = strtotime($fecha . ' ' . $hIni);
+            $fin = strtotime($fecha . ' ' . $hFin);
+            for ($m = $ini; $m + $duracion * 60 <= $fin; $m += $paso * 60) {
+                if ($m <= $ahora) {
+                    continue;   // no se ofrece un horario que ya pasó
+                }
+                $hasta = $m + $duracion * 60;
+                $choca = false;
+                foreach ($datos['ocupado'] as [$oIni, $oFin]) {
+                    if ($oIni < $hasta && $m < $oFin) {
+                        $choca = true;
+                        break;
+                    }
+                }
+                if (! $choca) {
+                    $libres[] = date('H:i', $m);
+                }
+            }
+        }
+
+        return $libres;
+    }
+
+    /**
+     * Huecos del día. Con $idUsuario en null junta los de todo el equipo: el
+     * cliente que no tiene profesional de preferencia ve todos los horarios y
+     * el sistema le asigna a quien esté libre.
+     */
+    public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null): array
+    {
+        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales();
+        $porHora = [];
+        foreach ($profs as $p) {
+            $idp = (int) $p->id_usuario;
+            foreach (self::slotsProfesional($idp, $fecha, $duracion, $cache[$idp] ?? null) as $h) {
+                $porHora[$h][] = $idp;
+            }
+        }
+        ksort($porHora);
+
+        $out = [];
+        foreach ($porHora as $hora => $ids) {
+            $out[] = ['hora' => $hora, 'profesionales' => $ids];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Días con al menos un hueco. Es lo que pinta el calendario: los días sin
+     * cupo ni se ofrecen.
+     */
+    public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion): array
+    {
+        if ($duracion <= 0) {
+            return [];
+        }
+        $dias = max(1, min($dias, (int) config('spg.agenda.dias_vista', 60)));
+        $d = strtotime($desde);
+        $hasta = date('Y-m-d', strtotime('+' . ($dias - 1) . ' day', $d));
+
+        // Toda la agenda del rango de una sola vez: tres consultas por
+        // profesional en lugar de una por cada hueco candidato.
+        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales();
+        $cache = [];
+        foreach ($profs as $p) {
+            $cache[(int) $p->id_usuario] = self::datosProfesional((int) $p->id_usuario, $desde, $hasta);
+        }
+
+        $out = [];
+        for ($i = 0; $i < $dias; $i++) {
+            $fecha = date('Y-m-d', strtotime("+$i day", $d));
+            if (self::slots($idUsuario, $fecha, $duracion, $cache)) {
+                $out[] = $fecha;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * ¿Ese horario exacto sigue libre? Se vuelve a preguntar al guardar:
+     * entre que se dibujó la pantalla y se apretó el botón pudo tomarlo otro.
+     * Acá SÍ decide la base.
+     */
+    public static function huecoLibre(int $idUsuario, string $fechaHora, int $duracion, ?int $excluirCita = null): bool
+    {
+        return (bool) (int) Bd::funcion(
+            'fn_verificar_disponibilidad(?,?,?,?)',
+            [$idUsuario, $fechaHora, $duracion, $excluirCita]
+        );
+    }
+
+    /**
+     * ¿Por qué se perdió el hueco?
+     *
+     * Cuando alguien elige un horario que la pantalla mostraba libre y al
+     * guardar ya no lo está, no alcanza con decir «no disponible»: la persona
+     * necesita saber si se lo ganó otro —y entonces cambia de hora— o si el
+     * profesional directamente no atiende —y entonces cambia de profesional—.
+     */
+    public static function motivoHuecoPerdido(int $idUsuario, string $fechaHora, int $duracion, ?int $excluirCita = null): string
+    {
+        $nombre = (string) DB::scalar(
+            "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
+               JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario=?",
+            [$idUsuario]
+        );
+
+        // 1) ¿Otra cita ocupó el lugar? Es la carrera entre dos personas.
+        $choque = DB::selectOne(
+            'SELECT c.fecha_hora
+               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE c.id_usuario = :u AND ec.bloquea_agenda = 1
+                AND (:x IS NULL OR c.id_cita <> :x2)
+                AND c.fecha_hora < DATE_ADD(:f, INTERVAL :d MINUTE)
+                AND :f2 < DATE_ADD(c.fecha_hora, INTERVAL fn_cita_duracion(c.id_cita) MINUTE)
+              LIMIT 1',
+            ['u' => $idUsuario, 'x' => $excluirCita, 'x2' => $excluirCita,
+             'f' => $fechaHora, 'd' => $duracion, 'f2' => $fechaHora]
+        );
+        if ($choque) {
+            return 'Ese horario lo tomó otra persona mientras completabas la reserva. '
+                . $nombre . ' ya tiene una cita a las ' . fecha($choque->fecha_hora, 'H:i')
+                . '. Elegí otro de los horarios que quedan libres.';
+        }
+
+        // 2) ¿Se cargó una ausencia? (licencia, feriado, llegada tardía)
+        $aus = DB::selectOne(
+            'SELECT a.motivo, ta.nombre AS tipo
+               FROM ausencia_agenda a JOIN tipo_ausencia ta ON ta.id_tipo_ausencia = a.id_tipo_ausencia
+              WHERE a.activo = 1 AND (a.id_usuario = :u OR a.id_usuario IS NULL)
+                AND a.fecha_inicio < DATE_ADD(:f, INTERVAL :d MINUTE)
+                AND :f2 < a.fecha_fin LIMIT 1',
+            ['u' => $idUsuario, 'f' => $fechaHora, 'd' => $duracion, 'f2' => $fechaHora]
+        );
+        if ($aus) {
+            return $nombre . ' no va a estar en ese horario (' . mb_strtolower((string) ($aus->motivo ?: $aus->tipo)) . '). '
+                . 'Elegí otra fecha o pedí que te atienda otro profesional.';
+        }
+
+        // 3) Queda el turno laboral
+        return $nombre . ' no atiende en ese horario. Elegí uno de los horarios que se muestran disponibles.';
+    }
+
+    // -----------------------------------------------------------------
+    //  Varios profesionales en una misma cita
+    //
+    //  Una clienta puede pedir lavado y pedicura a la vez: dos personas
+    //  trabajando en partes distintas, las dos empezando a la hora de la
+    //  cita. Pero coloración y keratina no se pueden repartir así — las dos
+    //  necesitan la cabeza, así que una espera a la otra.
+    // -----------------------------------------------------------------
+
+    /** Duración de cada bloque: [id_usuario => minutos]. */
+    public static function bloques(array $asignacion, int $idPrincipal): array
+    {
+        $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
+        if (! $ids) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $dur = [];
+        foreach (DB::select("SELECT id_servicio, duracion_min FROM servicio WHERE activo=1 AND id_servicio IN ($in)", $ids) as $s) {
+            $dur[(int) $s->id_servicio] = (int) $s->duracion_min;
+        }
+
+        $bloques = [];
+        foreach ($asignacion as $idServicio => $idProf) {
+            $idProf = (int) $idProf ?: $idPrincipal;
+            $bloques[$idProf] = ($bloques[$idProf] ?? 0) + ($dur[(int) $idServicio] ?? 0);
+        }
+
+        return $bloques;
+    }
+
+    /**
+     * ¿Se puede armar esta cita? Devuelve el mensaje del problema, o null.
+     * $asignacion es [id_servicio => id_usuario] (0 = el principal).
+     */
+    public static function validarReparto(array $asignacion, int $idPrincipal, string $fechaHora, ?int $excluirCita = null): ?string
+    {
+        $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
+        if (! $ids) {
+            return 'Elegí al menos un servicio.';
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $servicios = DB::select(
+            "SELECT id_servicio, nombre, duracion_min, requiere_exclusividad
+               FROM servicio WHERE activo=1 AND id_servicio IN ($in)",
+            $ids
+        );
+        if (count($servicios) !== count($ids)) {
+            return 'Alguno de los servicios elegidos ya no está disponible.';
+        }
+
+        // --- Regla de la exclusividad ---
+        // Dos servicios que ocupan a la clienta entera no pueden ir en
+        // paralelo. Con el mismo profesional no hay problema: los hace uno
+        // después del otro.
+        $exclusivos = [];
+        foreach ($servicios as $s) {
+            if (! (int) $s->requiere_exclusividad) {
+                continue;
+            }
+            $prof = (int) ($asignacion[(int) $s->id_servicio] ?? 0) ?: $idPrincipal;
+            $exclusivos[$prof][] = $s->nombre;
+        }
+        if (count($exclusivos) > 1) {
+            $nombres = [];
+            foreach ($exclusivos as $lista) {
+                $nombres[] = $lista[0];
+            }
+
+            return 'No se pueden hacer «' . implode('» y «', array_slice($nombres, 0, 2)) . '» al mismo tiempo: '
+                . 'las dos ocupan a la clienta, así que una tiene que esperar a la otra. '
+                . 'Poné las dos con el mismo profesional (se hacen una después de la otra) '
+                . 'o reservá la segunda para otro horario.';
+        }
+
+        // --- Cada profesional tiene que estar libre por su bloque completo ---
+        foreach (self::bloques($asignacion, $idPrincipal) as $idProf => $minutos) {
+            if ($minutos <= 0) {
+                continue;
+            }
+            if (! self::huecoLibre($idProf, $fechaHora, $minutos, $excluirCita)) {
+                return self::motivoHuecoPerdido($idProf, $fechaHora, $minutos, $excluirCita);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Cuánto dura la cita entera: el bloque más largo, porque los
+     * profesionales trabajan en paralelo. Color de 45 min + uñas de 30 min a
+     * la vez son 45 minutos de cita, no 75.
+     */
+    public static function duracionReparto(array $asignacion, int $idPrincipal): int
+    {
+        $bloques = self::bloques($asignacion, $idPrincipal);
+
+        return $bloques ? max($bloques) : 0;
+    }
+
+    /** Primer profesional libre en ese horario (para el «sin preferencia»). */
+    public static function profesionalLibre(string $fechaHora, int $duracion): ?int
+    {
+        foreach (self::profesionales() as $p) {
+            if (self::huecoLibre((int) $p->id_usuario, $fechaHora, $duracion)) {
+                return (int) $p->id_usuario;
+            }
+        }
+
+        return null;
+    }
+
+    // -----------------------------------------------------------------
+    //  Escritura: agendar, reprogramar, cancelar
+    // -----------------------------------------------------------------
+
+    /**
+     * Agenda la cita y guarda el reparto de servicios.
+     *
+     * Todo va dentro de una transacción porque `sp_agendar_cita` toma un
+     * candado sobre la fila del profesional antes de consultar disponibilidad,
+     * y ese candado se suelta al confirmar. Sin la transacción, dos peticiones
+     * simultáneas reciben las dos «está libre» y se quedan con el mismo hueco.
+     *
+     * @param  array  $asignacion  [id_servicio => id_usuario] (0 = el principal)
+     */
+    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion): int
+    {
+        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion) {
+            $idCita = Bd::idDe('sp_agendar_cita', [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones]);
+
+            foreach ($asignacion as $idServicio => $idProf) {
+                $otro = (int) $idProf;
+                DB::insert(
+                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario) VALUES (?,?,?)',
+                    [$idCita, (int) $idServicio, ($otro && $otro !== $idUsuario) ? $otro : null]
+                );
+            }
+
+            return $idCita;
+        });
+    }
+
+    /** Reprograma. Mismo motivo que arriba para la transacción. */
+    public static function reprogramar(int $idCita, string $nuevaFechaHora, ?int $nuevoProfesional = null): void
+    {
+        Bd::enTransaccion(function () use ($idCita, $nuevaFechaHora, $nuevoProfesional) {
+            if ($nuevoProfesional) {
+                DB::update('UPDATE cita SET id_usuario=? WHERE id_cita=?', [$nuevoProfesional, $idCita]);
+            }
+            Bd::procedimiento('sp_reprogramar_cita', [$idCita, $nuevaFechaHora]);
+        });
+    }
+
+    public static function cancelar(int $idCita): void
+    {
+        Bd::procedimiento('sp_cancelar_cita', [$idCita]);
+    }
+}

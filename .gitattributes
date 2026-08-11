@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+# Los volcados de la base salen tal cual entraron: son el entregable del
+# sistema y lo que se importa en el servidor, así que no se les normaliza el
+# fin de línea. Lo que se clona tiene que ser byte por byte lo que se probó.
+*.sql -text
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore

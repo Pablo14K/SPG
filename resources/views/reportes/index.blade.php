@@ -1,0 +1,162 @@
+@extends('layout.app')
+
+@section('titulo', 'Reportes')
+
+@section('contenido')
+    <x-encabezado
+        :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'"
+        :accion="['ruta' => 'reportes.imprimir', 't' => 'Ver para imprimir', 'ic' => 'printer']" />
+
+    <div class="spg-panel mb-3">
+        <x-filtros :f="$f" />
+        <div class="mt-2">
+            <a class="btn btn-sm btn-outline-neutro"
+               href="{{ route('reportes.index', ['desde' => $inicio, 'hasta' => date('Y-m-d')]) }}">
+                <i class="bi bi-clock-history"></i> Histórico (todo lo que haya)</a>
+            <a class="btn btn-sm btn-outline-neutro"
+               href="{{ route('reportes.index', ['desde' => date('Y-m-01'), 'hasta' => date('Y-m-t')]) }}">
+                Este mes</a>
+            <a class="btn btn-sm btn-outline-neutro"
+               href="{{ route('reportes.index', ['desde' => date('Y-m-01', strtotime('-1 month')), 'hasta' => date('Y-m-t', strtotime('-1 month'))]) }}">
+                Mes pasado</a>
+        </div>
+    </div>
+
+    <div class="spg-metrics mb-3">
+        <div class="spg-metric"><div class="lbl">Citas del período</div><div class="val">{{ (int) $citas->total }}</div></div>
+        <div class="spg-metric"><div class="lbl">Atendidas</div><div class="val">{{ (int) $citas->atendidas }}</div></div>
+        <div class="spg-metric">
+            <div class="lbl">Canceladas / ausentes</div>
+            <div class="val">{{ (int) $citas->canceladas }} / {{ (int) $citas->ausencias }}</div>
+        </div>
+        <div class="spg-metric"><div class="lbl">Ingresos cobrados</div><div class="val oro">{{ money($ingresos) }}</div></div>
+        <div class="spg-metric"><div class="lbl">Ticket promedio</div><div class="val">{{ money($ticket) }}</div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="spg-panel">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios más solicitados</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Servicio</th><th>Categoría</th><th class="text-end">Veces</th>
+                            <th class="text-end">Ingreso</th></tr></thead>
+                        <tbody>
+                            @forelse ($servicios as $s)
+                                <tr>
+                                    <td>{{ $s->servicio }}</td>
+                                    <td class="text-muted-warm">{{ $s->categoria }}</td>
+                                    <td class="text-end">{{ (int) $s->veces_realizado }}</td>
+                                    <td class="text-end">{{ money($s->ingreso_generado) }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="text-center text-muted-warm py-3">Sin servicios en el período.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="spg-panel">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cómo pagó la gente</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Medio</th><th class="text-end">Cobros</th><th class="text-end">Total</th></tr></thead>
+                        <tbody>
+                            @forelse ($medios as $m)
+                                <tr>
+                                    <td>
+                                        {{ $m->medio }}
+                                        @if ($m->tipo === 'EFECTIVO')
+                                            <span class="badge-estado e-ok">efectivo</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">{{ (int) $m->cantidad }}</td>
+                                    <td class="text-end">{{ money($m->total) }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="3" class="text-center text-muted-warm py-3">Sin cobros en el período.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="spg-panel">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
+                            <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
+                        <tbody>
+                            @forelse ($equipo as $e)
+                                <tr>
+                                    <td>{{ $e->profesional }}</td>
+                                    <td class="text-end">{{ (int) $e->citas }}</td>
+                                    <td class="text-end">{{ (int) $e->atendidas }}</td>
+                                    <td class="text-end">{{ (int) $e->servicios }}</td>
+                                    <td class="text-end txt-oro">{{ $e->puntaje ? cant($e->puntaje) . ' ★' : '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="spg-panel">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Demanda por hora</h2>
+                @forelse ($demanda as $h)
+                    @php $ancho = $maxDemanda ? round((int) $h->citas * 100 / $maxDemanda) : 0; @endphp
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span style="width:48px;font-size:.8rem" class="text-muted-warm">
+                            {{ sprintf('%02d:00', (int) $h->hora) }}</span>
+                        <div style="flex:1;background:var(--gris-calido);border-radius:4px;height:14px;overflow:hidden">
+                            <div style="width:{{ $ancho }}%;background:var(--oro);height:100%"></div>
+                        </div>
+                        <span style="width:28px;text-align:right;font-size:.8rem">{{ (int) $h->citas }}</span>
+                    </div>
+                @empty
+                    <p class="text-muted-warm mb-0" style="font-size:.85rem">Sin citas en el período.</p>
+                @endforelse
+            </div>
+        </div>
+
+        @if ($prov)
+            <div class="col-12">
+                <div class="spg-panel">
+                    <h2 class="spg-form-titulo mb-2">
+                        <i class="bi bi-truck"></i> Deuda con proveedores
+                        <span class="text-muted-warm" style="font-weight:400;font-size:.8rem">
+                            — no depende del período: es deuda viva</span>
+                    </h2>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Proveedor</th><th>Vencimiento</th><th class="text-end">Saldo</th></tr></thead>
+                            <tbody>
+                                @foreach ($prov as $p)
+                                    <tr>
+                                        <td>{{ $p->proveedor }}</td>
+                                        <td>
+                                            @if ($p->vencida)<span class="badge-estado e-no">vencida</span>@endif
+                                            <span class="text-muted-warm">
+                                                {{ $p->vencimiento ? fecha($p->vencimiento, 'd/m/Y') : '—' }}</span>
+                                        </td>
+                                        <td class="text-end">{{ money($p->saldo) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
+    </div>
+@endsection

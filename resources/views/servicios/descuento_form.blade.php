@@ -1,0 +1,96 @@
+@extends('layout.app')
+
+@section('titulo', $d ? 'Editar descuento' : 'Nuevo descuento')
+
+@section('contenido')
+    @php $id = $d->id_descuento ?? 0; @endphp
+
+    <div class="spg-page-head">
+        <a class="spg-back" href="{{ route('servicios.descuentos') }}"><i class="bi bi-arrow-left"></i> Descuentos</a>
+        <h1 class="mt-1">{{ $id ? 'Editar descuento' : 'Nuevo descuento' }}</h1>
+    </div>
+
+    @if ($nivel)
+        <div class="alert alert-warning">
+            Este descuento está atado al nivel <strong>{{ $nivel }}</strong> de fidelización: lo aplica el
+            sistema por cantidad de visitas y vale para toda la factura. Elegirle servicios no cambia nada.
+        </div>
+    @endif
+
+    <div class="spg-panel" style="max-width:820px">
+        <form method="post" action="{{ route('servicios.descuento.guardar') }}">
+            @csrf
+            <input type="hidden" name="id_descuento" value="{{ $id }}">
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="nombre">Nombre *</label>
+                    <input class="form-control" id="nombre" name="nombre" required maxlength="80"
+                           value="{{ old('nombre', $d->nombre ?? '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="tipo">Tipo</label>
+                    <select class="form-select" id="tipo" name="tipo">
+                        <option value="PORCENTAJE" @selected(old('tipo', $d->tipo ?? 'PORCENTAJE') === 'PORCENTAJE')>Porcentaje</option>
+                        <option value="MONTO" @selected(old('tipo', $d->tipo ?? '') === 'MONTO')>Monto fijo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="valor">Valor</label>
+                    <input class="form-control input-miles" id="valor" name="valor" data-decimales="2" data-min="0"
+                           value="{{ old('valor', $d->valor ?? '') }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label" for="fecha_inicio">Vigente desde</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio"
+                           value="{{ old('fecha_inicio', $d->fecha_inicio ?? '') }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="fecha_fin">Vigente hasta</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin"
+                           value="{{ old('fecha_fin', $d->fecha_fin ?? '') }}">
+                    <div class="form-text">Dejalas vacías si la promoción no vence.</div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label" for="descripcion">Descripción</label>
+                    <input class="form-control" id="descripcion" name="descripcion" maxlength="150"
+                           value="{{ old('descripcion', $d->descripcion ?? '') }}">
+                </div>
+            </div>
+
+            @unless ($nivel)
+                <hr class="my-4">
+
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿A qué servicios aplica?</h2>
+                <p class="text-muted-warm" style="font-size:.8rem">
+                    Si no marcás ninguno, el descuento se aplica al <strong>total de la factura</strong>.
+                    Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.
+                </p>
+
+                <input class="form-control form-control-sm mb-2" data-filtra="#listaServicios"
+                       placeholder="Buscar un servicio…" autocomplete="off">
+
+                <div id="listaServicios" class="spg-check-lista">
+                    @foreach ($servicios as $s)
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="servicios[]"
+                                   value="{{ $s->id_servicio }}" id="srv{{ $s->id_servicio }}"
+                                   @checked(in_array((int) $s->id_servicio, $elegidos, true))>
+                            <label class="form-check-label" for="srv{{ $s->id_servicio }}">
+                                {{ $s->nombre }}
+                                <span class="text-muted-warm">· {{ money($s->precio) }}</span>
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
+            @endunless
+
+            <div class="mt-4 d-flex gap-2">
+                <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
+                <a class="btn btn-outline-neutro" href="{{ route('servicios.descuentos') }}">Cancelar</a>
+            </div>
+        </form>
+    </div>
+@endsection

@@ -1,0 +1,91 @@
+# Entorno de desarrollo en contenedores.
+#
+# Es una ALTERNATIVA a instalar PHP 8.3 y XAMPP a mano, no un reemplazo: quien
+# ya tenga el entorno andando puede seguir con `php artisan serve` y ni mirar
+# este archivo. Tampoco es como se despliega en el VPS — allá va con Hestia y
+# el panel; para eso está DESPLIEGUE.md.
+#
+# Lo que resuelve, en orden de importancia:
+#
+#   1. **Fija MariaDB 10.4.** Es lo que más importa y lo que menos se ve venir:
+#      las 54 restricciones CHECK y las 50 rutinas están escritas para MariaDB.
+#      Con MySQL 8 no fallan al importar, fallan después y de a poco.
+#   2. **Importa las dos bases solo**, en el primer arranque.
+#   3. **Clava la zona horaria en America/Asuncion**, en la base y en PHP. Es la
+#      trampa documentada del proyecto: `ahora_bd()` sella el fichaje con la
+#      hora de la base, y una hora corrida no sirve para nada.
+#
+#   docker compose up          arranca (la primera vez tarda: importa las bases)
+#   docker compose down        apaga, conservando los datos
+#   docker compose down -v     apaga y BORRA las bases, para empezar de cero
+#
+# La base queda publicada en el puerto 3307, no en el 3306, para que conviva
+# con un XAMPP ya instalado sin pelearse por el puerto.
+
+services:
+  bd:
+    image: mariadb:10.4
+    container_name: spg_bd
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      TZ: America/Asuncion
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # Paraguay quedó fijo en UTC-3 desde que dejó sin efecto el horario de
+      # verano, así que este valor no cambia en marzo ni en octubre.
+      - --default-time-zone=-03:00
+      # Sin esto, si el servidor tuviera el binlog activo, las funciones NO se
+      # crean y el import termina «bien» igual.
+      - --log-bin-trust-function-creators=1
+    ports:
+      - "3307:3306"
+    volumes:
+      - datos_bd:/var/lib/mysql
+      # Los guiones de arranque: MariaDB los corre una sola vez, cuando la base
+      # está vacía.
+      - ./docker/bd:/docker-entrypoint-initdb.d:ro
+      # Los .sql viven DENTRO del proyecto, en basededatos/. Antes se montaba
+      # la carpeta de arriba, y eso ataba el proyecto a estar adentro de
+      # Sistema_Gestion_Peluqueria: movido a otro lado, importaba dos bases
+      # vacías sin avisar.
+      - ./basededatos:/sql:ro
+    healthcheck:
+      # Por TCP a propósito: durante la importación el servidor temporal
+      # escucha solo por socket, así que esto no lo da por sano antes de tiempo.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 90s
+
+  app:
+    build: ./docker/php
+    container_name: spg_app
+    restart: unless-stopped
+    depends_on:
+      bd:
+        condition: service_healthy
+    environment:
+      TZ: America/Asuncion
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      # El .env del contenedor, montado ENCIMA del de la computadora: así quien
+      # trabaja sin Docker conserva el suyo intacto.
+      #
+      # No alcanza con poner las credenciales como variables de entorno acá
+      # arriba: `php artisan serve` le reenvía al servidor que atiende las
+      # peticiones solo una lista blanca (APP_ENV, PATH, las de Xdebug…), así
+      # que DB_HOST no llegaba y la web se conectaba a 127.0.0.1. Los comandos
+      # de consola sí andaban, que es lo que lo hace difícil de ver.
+      - ./docker/php/env.docker:/app/.env
+      # `vendor` queda en un volumen propio: si se compartiera con Windows, cada
+      # arranque tardaría una eternidad recorriendo miles de archivos.
+      - vendor_app:/app/vendor
+
+volumes:
+  datos_bd:
+  vendor_app:

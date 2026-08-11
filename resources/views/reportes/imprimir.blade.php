@@ -1,0 +1,133 @@
+{{--
+    Informe listo para papel.
+
+    No usa el layout general a propósito: sin barra de módulos, sin migas y sin
+    pie, maquetado para hoja A4. El botón abre el diálogo de impresión del
+    navegador, donde se elige «Guardar como PDF». No hay librería de PDF: sería
+    una dependencia más para hacer lo que el navegador ya hace.
+--}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Informe {{ fecha($desde, 'd/m/Y') }} – {{ fecha($hasta, 'd/m/Y') }} · {{ config('app.name') }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
+    <link href="{{ recurso('css/imprimir.css') }}" rel="stylesheet" media="print">
+</head>
+<body class="spg-imprimir">
+
+<div class="container py-3" style="max-width:900px">
+
+    <div class="no-imprimir mb-3 d-flex gap-2">
+        <button class="btn btn-oro" onclick="window.print()"><i class="bi bi-printer"></i> Descargar PDF</button>
+        <a class="btn btn-outline-neutro" href="{{ route('reportes.index', request()->query()) }}">Volver</a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 style="font-size:1.2rem;margin-bottom:.1rem">{{ $emisor->nombre }}</h1>
+            <div class="text-muted-warm" style="font-size:.8rem">
+                @if ($emisor->ruc ?? null)RUC {{ $emisor->ruc }} · @endif
+                {{ $emisor->ciudad ?? '' }}
+            </div>
+        </div>
+        <div class="text-end" style="font-size:.8rem">
+            <strong>Informe de gestión</strong><br>
+            {{ fecha($desde, 'd/m/Y') }} – {{ fecha($hasta, 'd/m/Y') }}<br>
+            <span class="text-muted-warm">Emitido el {{ $emitido }} por {{ $porQuien }}</span>
+        </div>
+    </div>
+
+    <hr>
+
+    <h2 style="font-size:1rem;margin:1rem 0 .5rem">Resumen del período</h2>
+    <table class="table table-sm">
+        <tbody>
+            <tr><td>Citas del período</td><td class="text-end">{{ (int) $citas->total }}</td></tr>
+            <tr><td>Atendidas</td><td class="text-end">{{ (int) $citas->atendidas }}</td></tr>
+            <tr><td>Canceladas</td><td class="text-end">{{ (int) $citas->canceladas }}</td></tr>
+            <tr><td>Ausencias</td><td class="text-end">{{ (int) $citas->ausencias }}</td></tr>
+            <tr><td><strong>Ingresos cobrados</strong></td>
+                <td class="text-end"><strong>{{ money($ingresos) }}</strong></td></tr>
+            <tr><td>Ticket promedio</td><td class="text-end">{{ money($ticket) }}</td></tr>
+        </tbody>
+    </table>
+
+    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Servicios más solicitados</h2>
+    <table class="table table-sm">
+        <thead><tr><th>Servicio</th><th>Categoría</th><th class="text-end">Veces</th><th class="text-end">Ingreso</th></tr></thead>
+        <tbody>
+            @forelse ($servicios as $s)
+                <tr>
+                    <td>{{ $s->servicio }}</td>
+                    <td>{{ $s->categoria }}</td>
+                    <td class="text-end">{{ (int) $s->veces_realizado }}</td>
+                    <td class="text-end">{{ money($s->ingreso_generado) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="4">Sin servicios en el período.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Medios de pago</h2>
+    <table class="table table-sm">
+        <thead><tr><th>Medio</th><th class="text-end">Cobros</th><th class="text-end">Total</th></tr></thead>
+        <tbody>
+            @forelse ($medios as $m)
+                <tr>
+                    <td>{{ $m->medio }}{{ $m->tipo === 'EFECTIVO' ? ' (efectivo)' : '' }}</td>
+                    <td class="text-end">{{ (int) $m->cantidad }}</td>
+                    <td class="text-end">{{ money($m->total) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="3">Sin cobros en el período.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">El equipo</h2>
+    <table class="table table-sm">
+        <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
+            <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
+        <tbody>
+            @forelse ($equipo as $e)
+                <tr>
+                    <td>{{ $e->profesional }}</td>
+                    <td class="text-end">{{ (int) $e->citas }}</td>
+                    <td class="text-end">{{ (int) $e->atendidas }}</td>
+                    <td class="text-end">{{ (int) $e->servicios }}</td>
+                    <td class="text-end">{{ $e->puntaje ? cant($e->puntaje) : '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5">Sin actividad en el período.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    @if ($prov)
+        <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Deuda con proveedores</h2>
+        <table class="table table-sm">
+            <thead><tr><th>Proveedor</th><th>Vencimiento</th><th class="text-end">Saldo</th></tr></thead>
+            <tbody>
+                @foreach ($prov as $p)
+                    <tr>
+                        <td>{{ $p->proveedor }}</td>
+                        <td>{{ $p->vencimiento ? fecha($p->vencimiento, 'd/m/Y') : '—' }}{{ $p->vencida ? ' (vencida)' : '' }}</td>
+                        <td class="text-end">{{ money($p->saldo) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    <p class="text-muted-warm mt-4" style="font-size:.72rem">
+        {{ config('app.name') }} · Sistema de gestión v{{ config('spg.version') }} ·
+        Los ingresos corresponden a cobros registrados en el período.
+    </p>
+</div>
+
+</body>
+</html>
