@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Servicios\Agenda;
 use App\Servicios\Bd;
+use App\Servicios\Calendario;
 use App\Servicios\Permisos;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -379,6 +380,44 @@ class ReglasDeNegocioTest extends TestCase
         // Y la ruta lo rechaza, no solo la pantalla lo esconde
         session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
+    }
+
+    #[Test]
+    public function la_cita_se_puede_agendar_en_el_calendario_del_telefono(): void
+    {
+        // Son DOS caminos y hacen falta los dos: el .ics lo abre el iPhone, y
+        // el enlace de Google es el que anda en Android, donde el archivo se
+        // baja a la carpeta de descargas y no pasa nada más.
+        $cal = DB::selectOne('SELECT id_cita, fecha_hora, duracion_min, servicios, profesional
+                                FROM vw_agenda_citas ORDER BY id_cita DESC LIMIT 1');
+        if (! $cal) {
+            $this->markTestSkipped('No hay citas en la base de prueba.');
+        }
+
+        // --- El .ics, con la estructura que pide el RFC 5545 ---
+        $ics = Calendario::deCita($cal, 120, 'Salón, Luque');
+        foreach (['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'BEGIN:VALARM', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'] as $bloque) {
+            $this->assertStringContainsString($bloque, $ics, "Al .ics le falta $bloque.");
+        }
+        $this->assertStringContainsString("\r\n", $ics, 'El .ics tiene que separar con CRLF.');
+
+        // La hora va FLOTANTE: sin la Z de UTC. Si se convirtiera, al teléfono
+        // le llegaría la cita una hora corrida.
+        $this->assertMatchesRegularExpression('/DTSTART:\d{8}T\d{6}\r\n/', $ics,
+            'DTSTART tiene que ir en hora flotante, sin Z.');
+        $this->assertStringContainsString('DTSTART:' . date('Ymd\THis', strtotime((string) $cal->fecha_hora)), $ics,
+            'La hora del .ics no coincide con la de la cita.');
+
+        // --- El enlace de Google: misma hora local, con el huso declarado ---
+        $url = Calendario::urlGoogle($cal, 'Salón, Luque');
+        $this->assertStringStartsWith('https://calendar.google.com/calendar/render', $url);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+        $this->assertSame('America/Asuncion', $q['ctz'] ?? null,
+            'Sin ctz, Google interpreta la hora en el huso del visitante.');
+        $this->assertStringNotContainsString('Z', $q['dates'] ?? '',
+            'Las fechas van en hora local: la conversión la hace Google con ctz.');
+        $this->assertStringStartsWith(date('Ymd\THis', strtotime((string) $cal->fecha_hora)), $q['dates'] ?? '',
+            'La hora del enlace de Google no coincide con la de la cita.');
     }
 
     #[Test]

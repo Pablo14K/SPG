@@ -65,6 +65,36 @@ class Calendario
         return implode("\r\n", $lineas) . "\r\n";
     }
 
+    /**
+     * Enlace para agregar la cita a Google Calendar, sin descargar nada.
+     *
+     * **Es el camino que de verdad funciona en el celular.** El .ics se sirve
+     * como archivo adjunto, y Android lo baja a la carpeta de descargas en vez
+     * de abrirlo con el calendario: la clienta toca el botón, no ve pasar nada
+     * y da por hecho que está roto. Este enlace abre la app o la web de Google
+     * con la cita ya cargada, y sólo hay que confirmar.
+     *
+     * La hora va en local con `ctz=America/Asuncion`, y es a propósito: la base
+     * de zonas horarias de Google sí está al día, así que conviene que la
+     * conversión la haga él. Es la contraparte de la hora flotante del .ics —
+     * las dos evitan el mismo desfase, cada una a su manera.
+     */
+    public static function urlGoogle(object $cita, string $lugar = ''): string
+    {
+        $inicio = strtotime((string) $cita->fecha_hora);
+        $fin = $inicio + max(15, (int) ($cita->duracion_min ?? 60)) * 60;
+
+        return 'https://calendar.google.com/calendar/render?' . http_build_query([
+            'action' => 'TEMPLATE',
+            'text' => trim((string) ($cita->servicios ?: 'Cita en el salón')),
+            // Sin la `Z` final: es hora local, y `ctz` dice de qué huso.
+            'dates' => date('Ymd\THis', $inicio) . '/' . date('Ymd\THis', $fin),
+            'ctz' => 'America/Asuncion',
+            'details' => 'Con ' . ($cita->profesional ?? 'el equipo') . '. Si necesitás cambiarla, escribinos.',
+            'location' => $lugar,
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
     /** Dirección del salón para el campo LOCATION. */
     public static function lugar(): string
     {

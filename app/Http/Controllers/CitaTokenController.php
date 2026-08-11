@@ -36,8 +36,14 @@ class CitaTokenController extends Controller
         $cita = Notificaciones::citaPorToken($codigo);
 
         if (! $cita) {
-            return view('cita_token.ver', ['cita' => null, 'codigo' => '', 'profs' => [], 'servicios' => [], 'cal' => null]);
+            return view('cita_token.ver', ['cita' => null, 'codigo' => '', 'profs' => [], 'servicios' => [],
+                'cal' => null, 'urlGoogle' => null]);
         }
+
+        $cal = DB::selectOne(
+            'SELECT id_cita, fecha_hora, duracion_min, servicios, profesional
+               FROM vw_agenda_citas WHERE id_cita = ?', [$cita->id_cita]
+        );
 
         return view('cita_token.ver', [
             'cita' => $cita,
@@ -48,10 +54,10 @@ class CitaTokenController extends Controller
                    FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
                   WHERE cs.id_cita = ?', [$cita->id_cita]
             ),
-            'cal' => DB::selectOne(
-                'SELECT id_cita, fecha_hora, duracion_min, servicios, profesional
-                   FROM vw_agenda_citas WHERE id_cita = ?', [$cita->id_cita]
-            ),
+            'cal' => $cal,
+            // El .ics no alcanza en el celular: Android lo baja como archivo y
+            // no lo abre. Se ofrecen las dos vías.
+            'urlGoogle' => $cal ? Calendario::urlGoogle($cal, Calendario::lugar()) : null,
         ]);
     }
 

@@ -34,6 +34,13 @@
                                     <a class="btn btn-sm btn-oro" href="{{ route('portal.atencion', ['id' => $c->id_cita]) }}">
                                         <i class="bi bi-eye"></i> Ver</a>
                                 @elseif (! in_array($c->estado, ['Atendida', 'Cancelada'], true))
+                                    {{-- Agendar en el calendario del teléfono: hasta ahora esto
+                                         sólo estaba en la pantalla que se abre desde el correo,
+                                         así que la clienta con cuenta no tenía cómo hacerlo. --}}
+                                    <a class="btn btn-sm btn-rapido" target="_blank" rel="noopener"
+                                       title="Agregar a mi calendario"
+                                       href="{{ \App\Servicios\Calendario::urlGoogle($c, $lugar) }}">
+                                        <i class="bi bi-calendar-plus"></i></a>
                                     <form method="post" action="{{ route('portal.cancelar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">

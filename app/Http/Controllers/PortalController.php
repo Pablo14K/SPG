@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Agenda;
 use App\Servicios\Auditoria;
+use App\Servicios\Calendario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -204,6 +205,10 @@ class PortalController extends Controller
                 "SELECT v.* FROM vw_agenda_citas v JOIN cita c ON c.id_cita = v.id_cita
                   WHERE c.id_cliente = ? $excluir ORDER BY v.fecha_hora DESC LIMIT 50", [$idc]
             ),
+            // Para el enlace de «agendar en mi calendario». Se resuelve acá y
+            // no en la vista: es una consulta, y en la vista correría una vez
+            // por cita.
+            'lugar' => Calendario::lugar(),
         ]);
     }
 

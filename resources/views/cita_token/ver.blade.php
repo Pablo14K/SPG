@@ -46,10 +46,26 @@
                 </p>
             @endif
 
-            <a class="btn btn-sm btn-rapido"
-               href="{{ route('cita.calendario', ['t' => $codigo]) }}">
-                <i class="bi bi-calendar-plus"></i> Agendar en mi calendario</a>
-            <div class="form-text">Así tu teléfono también te avisa.</div>
+            {{-- Dos caminos, porque uno solo no alcanza. El .ics se descarga y
+                 lo abre el calendario del teléfono —anda bien en iPhone—, pero
+                 en Android suele quedar en la carpeta de descargas sin que pase
+                 nada: ahí es donde la clienta cree que el botón está roto. El
+                 enlace de Google no descarga nada y abre la cita ya cargada. --}}
+            <div class="d-flex gap-2 flex-wrap">
+                @if ($urlGoogle)
+                    <a class="btn btn-sm btn-oro" href="{{ $urlGoogle }}" target="_blank" rel="noopener">
+                        <i class="bi bi-calendar-plus"></i> Agendar en mi calendario</a>
+                @endif
+                <a class="btn btn-sm btn-outline-neutro"
+                   href="{{ route('cita.calendario', ['t' => $codigo]) }}">
+                    <i class="bi bi-download"></i> Bajar el archivo (.ics)</a>
+            </div>
+            <div class="form-text">
+                Así tu teléfono también te avisa.
+                @if ($urlGoogle)
+                    El primer botón usa Google Calendar; el segundo sirve para iPhone y Outlook.
+                @endif
+            </div>
         </div>
 
         <div class="spg-panel mb-3">

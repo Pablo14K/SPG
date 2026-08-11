@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.6.0 | 11/08/2026 | **Agendar la cita en el calendario del celular no funcionaba, y el motivo estaba en el teléfono, no en el archivo.** El `.ics` se genera perfecto —CRLF, `VALARM`, hora flotante, todo según el RFC 5545— pero se sirve con `Content-Disposition: attachment`, y **Android lo baja a la carpeta de descargas sin abrirlo**: la clienta toca el botón, no ve pasar nada y da por hecho que está roto. Ahora hay **dos caminos**: el enlace a Google Calendar, que no descarga nada y abre la cita ya cargada, y el `.ics` de siempre para iPhone y Outlook. Ese enlace **CLAUDE.md ya lo daba por hecho desde la 5.3.0 y no existía en el código**: se documentaba `ctz=America/Asuncion` de algo que nunca se había escrito. De paso, el botón **faltaba entero en el portal** —también documentado como existente—, así que la clienta con cuenta no tenía forma de agendar salvo entrando por el enlace del correo. Las dos vías mandan la misma hora local sin convertir a UTC: el `.ics` en hora flotante y Google con el huso declarado, que son las dos caras de la misma decisión. **52 pruebas** |
 | 6.5.0 | 11/08/2026 | **La espera se ve.** El sistema navega a la vieja usanza —cada clic pide una página entera— y el navegador **no muestra nada** entre el clic y la respuesta: con la base cargada, una lista con filtros o un informe tardan, y esa espera en blanco se lee como «se colgó» cuando en realidad está trabajando. Entran tres piezas, todas en oro y sin un color nuevo: una **barra de 3 px arriba de todo** mientras la página va y viene, el **ícono del botón que se vuelve spinner** sin cambiar de ancho (así la fila no salta), y un **spinner suelto** para los bloques que se llenan por `fetch` —los días y horas de la agenda, que son el peor caso: el cálculo mira turnos, citas y ausencias de 60 días—. Cuatro detalles que no son adorno: la barra **no aparece hasta los 250 ms**, porque si la respuesta llega antes el parpadeo molesta más que la espera; **las descargas no la encienden**, que si no un `?export=csv` la dejaba girando para siempre porque la página no navega; se apaga en `pageshow`, porque volver con «atrás» restaura la página con la barra tal como quedó; y **es un adorno que puede faltar** — las vistas con JS propio declaran su respaldo, así que si `app.js` no carga, agendar sigue funcionando. El refresco del portal cada 20 segundos no enciende nada a propósito. Respeta `prefers-reduced-motion` |
 | 6.4.0 | 11/08/2026 | **Correcciones de la auditoría de QA del 11/08/2026** (486 operaciones sobre la base vacía, 88/100, APTO CON OBSERVACIONES). La grave: **el Profesional podía fijar cuánto cobra el salón.** El rol traía `servicios.catalogo`, `.categorias` y `.descuentos` de fábrica, y con eso bajó una coloración de 280.000 a **1.000**, la dio de baja y puso una promo al **99 %** — que `sp_emitir_factura` aplica sola. El middleware funcionaba perfecto: sobraba el permiso. Se quitan los tres del `.sql` que se entrega; sigue viendo los servicios donde los necesita (Nueva cita y Registrar atención son de `citas.*`). También: **el fichaje retroactivo sellaba la hora del reloj** —quedó registrada una entrada a las 15:06 de un día en que nadie apretó nada—, así que ahora se pide la hora y tiene que caer dentro del turno; **el teléfono no se validaba** y entraba `abc-!!!`; **`persona.direccion` no la capturaba ninguna pantalla**; y la auditoría de un cambio de precio decía sólo el nombre del servicio, ahora deja **de cuánto a cuánto**, igual que la matriz de permisos, que anota qué clave ganó y cuál perdió cada rol. Entra **`.env.produccion.example`**, porque desplegar con el `.env` de desarrollo deja `APP_DEBUG=true` (traza con la contraseña de la base a la vista) y enlaces de correo apuntando a `localhost`. **La contraseña de Gmail sale del repositorio**: `env.docker` vuelve a `MAIL_MAILER=log`. **51 pruebas** |
 | 6.3.2 | 11/08/2026 | **Registrar atención dejaba de andar por dos motivos distintos, y los dos mentían.** Uno: cargar un producto sin stock contestaba «marcaste un producto en un servicio que no quedó como realizado» —un mensaje que no tiene nada que ver y manda a corregir lo que no está mal—. La causa es de manual: **`QueryException` hereda de `PDOException`, que hereda de `RuntimeException`**, así que el `catch (RuntimeException)` se comía todos los errores de la base y el `catch (Throwable)` de abajo, que sí tenía el mensaje de stock, era **código inalcanzable**. Dos: para una cita futura pedía fichar el día de la cita, y Asistencia rechaza fichar un día que no llegó — la persona quedaba dando vueltas entre dos pantallas, y en el mes simulado eso pasa en **83 de 172 citas**. Ahora se distingue «la cita todavía no llegó» de «falta el fichaje», y cuando falta de verdad **se ficha desde la misma pantalla**, sin ir a Asistencia y volver. De paso, el aviso decía «se agregaron N servicios que no estaban en la cita» **siempre**, porque `DB::insert()` devuelve si la consulta corrió, no si escribió una fila, y con `INSERT IGNORE` eso es `true` igual. El checkbox de Servicios pasa a llamarse **«Requiere atención exclusiva»**. Notas de crédito **verificadas** de punta a punta: numeran con el timbrado del tipo 5, copian el detalle, van con signo −1 y revierten los puntos. **50 pruebas** |
@@ -215,7 +216,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 51 pruebas
+tests/Feature/             Las 52 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -961,8 +962,30 @@ cliente eligió en *Portal → Mis recordatorios* (2 horas si no configuró nada
 
 Así el recordatorio queda por dos vías independientes: el correo que despacha
 `Notificaciones` y la alerta del propio teléfono, que suena aunque no abra el correo.
-El botón está en el portal (`portal/index`, `portal/citas`) y en la pantalla que se abre
-desde el enlace del correo, donde la credencial es el `token_cita` y no hay sesión.
+El botón está en **`portal/citas`** y en la pantalla que se abre desde el enlace del correo
+(`cita_token/ver`), donde la credencial es el `token_cita` y no hay sesión.
+
+### Son DOS botones, y hacen falta los dos
+
+**El `.ics` solo no alcanza en el celular, y ése era el bug.** Se sirve con
+`Content-Disposition: attachment`, así que **Android lo baja a la carpeta de descargas y no
+lo abre**: la clienta toca el botón, no ve pasar nada y da por hecho que está roto. En iPhone
+sí funciona, que es por lo que puede pasar mucho tiempo sin que nadie lo note.
+
+| Botón | Qué hace | Para quién |
+|---|---|---|
+| **Agendar en mi calendario** | `Calendario::urlGoogle()` — abre Google Calendar con la cita cargada, sin descargar nada | Android, y cualquiera con cuenta de Google |
+| **Bajar el archivo (.ics)** | `cita.calendario` — el archivo de siempre | iPhone, Outlook, escritorio |
+
+**Las dos mandan la misma hora local, sin convertir a UTC**, cada una a su manera: el `.ics`
+en hora flotante y Google con `ctz=America/Asuncion`. Son las dos caras de la misma decisión
+—ver el aviso de abajo—, así que si tocás una, mirá la otra.
+
+> El enlace de Google **estuvo documentado acá desde la 5.3.0 sin existir en el código**: se
+> describía el `ctz` de algo que nunca se había escrito, y el botón del portal figuraba como
+> presente cuando tampoco estaba. Se detectó recién en la 6.6.0, probando el flujo completo
+> con un token real. Vale como recordatorio de que esta documentación describe lo que el
+> sistema **hace**, y conviene comprobarlo antes de darlo por cierto.
 
 > **Las horas van en «hora flotante»: sin `Z` y sin convertir a UTC.** Es a propósito y no
 > hay que "corregirlo". La base de zonas horarias de PHP en este XAMPP es la **2023.3**,
@@ -1358,7 +1381,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 51 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 52 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1403,7 +1426,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**51 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**52 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
