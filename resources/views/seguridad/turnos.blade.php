@@ -12,7 +12,7 @@
                     <i class="bi bi-clock"></i> {{ $editar ? 'Editar turno' : 'Nuevo turno' }}
                 </h2>
 
-                <form method="post" action="{{ route('personal.turno.guardar') }}">
+                <form method="post" action="{{ route('seguridad.turno.guardar') }}">
                     @csrf
                     <input type="hidden" name="id_turno" value="{{ $editar->id_turno ?? 0 }}">
 
@@ -66,7 +66,7 @@
                     <div class="d-flex gap-2">
                         <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
                         @if ($editar)
-                            <a class="btn btn-outline-neutro" href="{{ route('personal.turnos') }}">Cancelar</a>
+                            <a class="btn btn-outline-neutro" href="{{ route('seguridad.turnos') }}">Cancelar</a>
                         @endif
                     </div>
                 </form>
@@ -102,9 +102,9 @@
                                     </td>
                                     <td class="text-end" style="white-space:nowrap">
                                         <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                           href="{{ route('personal.turnos', ['editar' => $t->id_turno]) }}">
+                                           href="{{ route('seguridad.turnos', ['editar' => $t->id_turno]) }}">
                                             <i class="bi bi-pencil"></i></a>
-                                        <form method="post" action="{{ route('personal.turno.baja') }}" class="d-inline">
+                                        <form method="post" action="{{ route('seguridad.turno.baja') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="id_turno" value="{{ $t->id_turno }}">
                                             <button class="btn btn-sm btn-outline-neutro" title="Dar de baja"

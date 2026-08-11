@@ -614,7 +614,7 @@ class CitasController extends Controller
                 "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
                    JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [(int) $cita->id_usuario]);
             flash($quien . ' todavía no marcó su entrada del ' . fecha($diaCita, 'd/m/Y')
-                . '. Fichá la entrada en Personal → Asistencia y volvé a intentarlo.', 'error');
+                . '. Fichá la entrada en Seguridad → Asistencia y volvé a intentarlo.', 'error');
 
             return $volver;
         }
@@ -855,7 +855,7 @@ class CitasController extends Controller
      */
     private function veTodaLaAgenda(): bool
     {
-        return Permisos::esAdmin() || Permisos::puede('personal.turnos');
+        return Permisos::esAdmin() || Permisos::puede('seguridad.turnos');
     }
 
     /**

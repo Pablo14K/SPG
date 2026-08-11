@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado
         sub="Los locales del salón. El RUC y la dirección de la sucursal son los que se imprimen en el comprobante."
-        :accion="['ruta' => 'configuracion.sucursal_form', 't' => 'Nueva sucursal', 'ic' => 'plus-lg']" />
+        :accion="['ruta' => 'seguridad.sucursal_form', 't' => 'Nueva sucursal', 'ic' => 'plus-lg']" />
 
     <div class="spg-panel">
         <div class="table-responsive">
@@ -31,9 +31,9 @@
                             </td>
                             <td class="text-end" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                   href="{{ route('configuracion.sucursal_form', $s->id_sucursal) }}">
+                                   href="{{ route('seguridad.sucursal_form', $s->id_sucursal) }}">
                                     <i class="bi bi-pencil"></i></a>
-                                <form method="post" action="{{ route('configuracion.sucursal.baja') }}" class="d-inline">
+                                <form method="post" action="{{ route('seguridad.sucursal.baja') }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="id_sucursal" value="{{ $s->id_sucursal }}">
                                     <button class="btn btn-sm btn-outline-neutro"

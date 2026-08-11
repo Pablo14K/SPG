@@ -29,8 +29,11 @@ return [
         ['mod' => 'inventario',    'ruta' => 'inventario.index',    'ic' => 'box-seam',       'titulo' => 'Inventario',         'sub' => 'Productos · Categorías · Stock · Compras'],
         ['mod' => 'facturacion',   'ruta' => 'facturacion.index',   'ic' => 'cash-stack',     'titulo' => 'Facturación y caja', 'sub' => 'Cobros · Facturas · Caja · Timbrados'],
         ['mod' => 'reportes',      'ruta' => 'reportes.index',      'ic' => 'bar-chart',      'titulo' => 'Reportes',           'sub' => 'Servicios top · Demanda · Ingresos'],
-        ['mod' => 'personal',      'ruta' => 'personal.index',      'ic' => 'person-badge',   'titulo' => 'Personal',           'sub' => 'Usuarios · Turnos · Comisiones · Asistencia'],
-        ['mod' => 'configuracion', 'ruta' => 'configuracion.index', 'ic' => 'gear',           'titulo' => 'Configuración',      'sub' => 'Roles · Sucursales · Contacto · Auditoría', 'dark' => true],
+        // Seguridad es Personal + Configuración en una sola tarjeta: quién es
+        // quién, qué puede hacer cada uno y qué quedó registrado. Conserva el
+        // fondo oscuro que tenía Configuración, que la separa de la operación
+        // diaria del salón.
+        ['mod' => 'seguridad',     'ruta' => 'seguridad.index',     'ic' => 'shield-lock',    'titulo' => 'Seguridad',          'sub' => 'Usuarios · Roles · Turnos · Asistencia · Auditoría', 'dark' => true],
     ],
 
     // -----------------------------------------------------------------
@@ -71,15 +74,15 @@ return [
         'facturacion.timbrados'     => ['Timbrados',             'file-earmark-text',  'facturacion.timbrados'],
         'reportes.index'            => ['Reportes',              'bar-chart',          'reportes'],
         'reportes.imprimir'         => ['Informe para imprimir', 'printer',            'reportes'],
-        'personal.usuarios'         => ['Usuarios',              'person-badge',       'personal.usuarios'],
-        'personal.usuario_form'     => ['Nuevo usuario',         'person-plus',        'personal.usuarios'],
-        'personal.turnos'           => ['Turnos',                'clock',              'personal.turnos'],
-        'personal.asistencia'       => ['Asistencia',            'calendar-check',     'personal.asistencia'],
-        'personal.comisiones'       => ['Comisiones',            'percent',            'personal.comisiones'],
-        'configuracion.sucursales'  => ['Sucursales',            'shop',               'configuracion.sucursales'],
-        'configuracion.roles'       => ['Roles',                 'shield-lock',        'configuracion.roles'],
-        'configuracion.contacto'    => ['Contacto y soporte',    'headset',            'configuracion.contacto'],
-        'configuracion.auditoria'   => ['Auditoría',             'journal-text',       'configuracion.auditoria'],
+        'seguridad.usuarios'        => ['Usuarios',              'person-badge',       'seguridad.usuarios'],
+        'seguridad.usuario_form'    => ['Nuevo usuario',         'person-plus',        'seguridad.usuarios'],
+        'seguridad.roles'           => ['Roles',                 'shield-check',       'seguridad.roles'],
+        'seguridad.turnos'          => ['Turnos',                'clock',              'seguridad.turnos'],
+        'seguridad.asistencia'      => ['Asistencia',            'calendar-check',     'seguridad.asistencia'],
+        'seguridad.comisiones'      => ['Comisiones',            'percent',            'seguridad.comisiones'],
+        'seguridad.sucursales'      => ['Sucursales',            'shop',               'seguridad.sucursales'],
+        'seguridad.contacto'        => ['Contacto y soporte',    'headset',            'seguridad.contacto'],
+        'seguridad.auditoria'       => ['Auditoría',             'journal-text',       'seguridad.auditoria'],
     ],
 
     // -----------------------------------------------------------------
@@ -88,9 +91,9 @@ return [
     // -----------------------------------------------------------------
     'relaciones' => [
         'citas.agenda'            => ['citas.form', 'clientes.lista', 'facturacion.emitir', 'citas.ausencias'],
-        'citas.form'              => ['citas.agenda', 'clientes.form', 'servicios.lista', 'personal.turnos'],
+        'citas.form'              => ['citas.agenda', 'clientes.form', 'servicios.lista', 'seguridad.turnos'],
         'citas.atender'           => ['citas.agenda', 'inventario.stock', 'facturacion.emitir'],
-        'citas.ausencias'         => ['citas.agenda', 'personal.turnos'],
+        'citas.ausencias'         => ['citas.agenda', 'seguridad.turnos'],
         'clientes.lista'          => ['clientes.form', 'citas.form', 'clientes.fidelizacion', 'clientes.valoraciones'],
         'clientes.form'           => ['clientes.lista', 'citas.form'],
         'clientes.historial'      => ['clientes.lista', 'citas.form', 'facturacion.facturas'],
@@ -112,19 +115,19 @@ return [
         'facturacion.factura_ver' => ['facturacion.facturas', 'facturacion.cobros', 'facturacion.emitir'],
         'facturacion.cobros'      => ['facturacion.facturas', 'facturacion.caja'],
         'facturacion.caja'        => ['facturacion.cobros', 'facturacion.facturas', 'facturacion.proveedores'],
-        'facturacion.pagos'       => ['personal.comisiones', 'facturacion.caja'],
+        'facturacion.pagos'       => ['seguridad.comisiones', 'facturacion.caja'],
         'facturacion.proveedores' => ['inventario.compras', 'inventario.proveedores', 'facturacion.caja'],
-        'facturacion.timbrados'   => ['facturacion.facturas', 'facturacion.emitir', 'configuracion.sucursales'],
+        'facturacion.timbrados'   => ['facturacion.facturas', 'facturacion.emitir', 'seguridad.sucursales'],
         'reportes.index'          => ['facturacion.facturas', 'clientes.fidelizacion', 'inventario.stock', 'citas.agenda'],
-        'personal.usuarios'       => ['personal.turnos', 'personal.comisiones', 'configuracion.roles', 'configuracion.sucursales'],
-        'personal.usuario_form'   => ['personal.usuarios', 'personal.turnos', 'configuracion.sucursales', 'configuracion.roles'],
-        'personal.turnos'         => ['personal.asistencia', 'personal.usuarios', 'citas.ausencias'],
-        'personal.asistencia'     => ['personal.turnos', 'personal.usuarios'],
-        'personal.comisiones'     => ['facturacion.pagos', 'personal.usuarios', 'servicios.lista'],
-        'configuracion.roles'     => ['personal.usuarios', 'configuracion.sucursales'],
-        'configuracion.sucursales'=> ['personal.usuarios', 'facturacion.timbrados'],
-        'configuracion.contacto'  => ['configuracion.sucursales', 'configuracion.roles'],
-        'configuracion.auditoria' => ['personal.usuarios', 'configuracion.roles'],
+        'seguridad.usuarios'      => ['seguridad.usuario_form', 'seguridad.roles', 'seguridad.turnos', 'seguridad.auditoria'],
+        'seguridad.usuario_form'  => ['seguridad.usuarios', 'seguridad.turnos', 'seguridad.sucursales', 'seguridad.roles'],
+        'seguridad.roles'         => ['seguridad.usuarios', 'seguridad.auditoria', 'seguridad.sucursales'],
+        'seguridad.turnos'        => ['seguridad.asistencia', 'seguridad.usuarios', 'citas.ausencias'],
+        'seguridad.asistencia'    => ['seguridad.turnos', 'seguridad.usuarios'],
+        'seguridad.comisiones'    => ['facturacion.pagos', 'seguridad.usuarios', 'servicios.lista'],
+        'seguridad.sucursales'    => ['seguridad.usuarios', 'facturacion.timbrados'],
+        'seguridad.contacto'      => ['seguridad.sucursales', 'seguridad.roles'],
+        'seguridad.auditoria'     => ['seguridad.usuarios', 'seguridad.roles'],
     ],
 
     // -----------------------------------------------------------------

@@ -315,7 +315,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertTrue(Permisos::rolPuede($rol, 'facturacion.cobros'),
             'Quien tiene el módulo entero tiene todos sus submódulos.');
         $this->assertTrue(Permisos::rolPuede($rol, 'facturacion'));
-        $this->assertFalse(Permisos::rolPuede($rol, 'personal.turnos'),
+        $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.turnos'),
             'No debería alcanzar a un módulo que no tiene.');
     }
 
@@ -326,14 +326,38 @@ class ReglasDeNegocioTest extends TestCase
         $rol = (int) DB::scalar('SELECT MAX(id_rol) + 2 FROM rol');
         DB::insert('INSERT INTO rol (id_rol, nombre, es_personal, activo) VALUES (?,?,1,1)',
             [$rol, 'Rol de prueba ' . $rol]);
-        DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rol, 'personal.asistencia']);
+        DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rol, 'seguridad.asistencia']);
         Permisos::olvidar($rol);
 
-        $this->assertTrue(Permisos::rolPuede($rol, 'personal'),
+        $this->assertTrue(Permisos::rolPuede($rol, 'seguridad'),
             'Con un submódulo tiene que poder abrir el landing del módulo.');
-        $this->assertTrue(Permisos::rolPuede($rol, 'personal.asistencia'));
-        $this->assertFalse(Permisos::rolPuede($rol, 'personal.usuarios'),
+        $this->assertTrue(Permisos::rolPuede($rol, 'seguridad.asistencia'));
+        $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.usuarios'),
             'Pero no los otros submódulos del mismo módulo.');
+    }
+
+    #[Test]
+    public function un_rol_guardado_con_las_claves_viejas_no_pierde_ni_gana_permisos(): void
+    {
+        // Personal y Configuración se unieron en Seguridad en la 6.2.0. Las
+        // bases ya instaladas siguen teniendo las claves viejas en rol_modulo,
+        // y traducirlas mal se paga de las dos formas: quedarse corto le saca
+        // en silencio una pantalla a quien la usaba, y pasarse le regala los
+        // roles y la auditoría a quien solo administraba al personal.
+        $rol = (int) DB::scalar('SELECT MAX(id_rol) + 3 FROM rol');
+        DB::insert('INSERT INTO rol (id_rol, nombre, es_personal, activo) VALUES (?,?,1,1)',
+            [$rol, 'Rol de prueba ' . $rol]);
+        DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rol, 'personal']);
+        Permisos::olvidar($rol);
+
+        foreach (['usuarios', 'turnos', 'comisiones', 'asistencia'] as $tenia) {
+            $this->assertTrue(Permisos::rolPuede($rol, 'seguridad.' . $tenia),
+                "El módulo Personal incluía $tenia: no puede perderlo.");
+        }
+        foreach (['roles', 'sucursales', 'contacto', 'auditoria'] as $noTenia) {
+            $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.' . $noTenia),
+                "$noTenia era de Configuración: no puede aparecer de la nada.");
+        }
     }
 
     #[Test]

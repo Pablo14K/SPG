@@ -4,12 +4,12 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('personal.comisiones') }}"><i class="bi bi-arrow-left"></i> Comisiones</a>
+        <a class="spg-back" href="{{ route('seguridad.comisiones') }}"><i class="bi bi-arrow-left"></i> Comisiones</a>
         <h1 class="mt-1">Nueva comisión</h1>
     </div>
 
     <div class="spg-panel" style="max-width:640px">
-        <form method="post" action="{{ route('personal.comision.guardar') }}">
+        <form method="post" action="{{ route('seguridad.comision.guardar') }}">
             @csrf
 
             <div class="mb-3">
@@ -57,7 +57,7 @@
 
             <div class="d-flex gap-2">
                 <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
-                <a class="btn btn-outline-neutro" href="{{ route('personal.comisiones') }}">Cancelar</a>
+                <a class="btn btn-outline-neutro" href="{{ route('seguridad.comisiones') }}">Cancelar</a>
             </div>
         </form>
     </div>

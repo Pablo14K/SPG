@@ -17,7 +17,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
- * Personal: usuarios, turnos, comisiones y asistencia.
+ * La mitad del módulo Seguridad que trata de la gente del salón: usuarios,
+ * turnos, comisiones y asistencia. La otra mitad —sucursales, roles, contacto y
+ * auditoría— está en `ConfiguracionController`, y la portada del módulo en
+ * `SeguridadController`.
  *
  * Dos cosas que conviene tener presentes:
  *
@@ -36,22 +39,6 @@ class PersonalController extends Controller
         1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
         5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo',
     ];
-
-    public function index(): View
-    {
-        return view('personal.index', [
-            'subs' => Permisos::tarjetasPermitidas([
-                ['p' => 'personal.usuarios', 'ruta' => 'personal.usuarios', 'ic' => 'person-badge',
-                 't' => 'Usuarios', 'd' => 'Cuentas y roles del personal'],
-                ['p' => 'personal.turnos', 'ruta' => 'personal.turnos', 'ic' => 'clock',
-                 't' => 'Turnos', 'd' => 'Horarios y días de trabajo'],
-                ['p' => 'personal.comisiones', 'ruta' => 'personal.comisiones', 'ic' => 'percent',
-                 't' => 'Comisiones', 'd' => 'Porcentaje por servicio'],
-                ['p' => 'personal.asistencia', 'ruta' => 'personal.asistencia', 'ic' => 'calendar-check',
-                 't' => 'Asistencia', 'd' => 'Quién trabaja hoy · entradas y salidas'],
-            ]),
-        ]);
-    }
 
     // ---------- Usuarios ----------
 
@@ -113,7 +100,7 @@ class PersonalController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
-        return view('personal.usuarios', [
+        return view('seguridad.usuarios', [
             'rows' => DB::select("SELECT $cols $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
@@ -131,10 +118,10 @@ class PersonalController extends Controller
         if ($id && ! $u) {
             flash('Usuario no encontrado.', 'error');
 
-            return redirect()->route('personal.usuarios');
+            return redirect()->route('seguridad.usuarios');
         }
 
-        return view('personal.usuario_form', [
+        return view('seguridad.usuario_form', [
             'u' => $u,
             'roles' => DB::select('SELECT * FROM rol WHERE es_personal = 1 AND activo = 1 ORDER BY id_rol'),
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
@@ -163,7 +150,7 @@ class PersonalController extends Controller
         $pass = (string) $request->input('password', '');
         $sucs = array_values(array_unique(array_map('intval', (array) $request->input('sucursales', []))));
         $turnos = array_values(array_unique(array_map('intval', (array) $request->input('turnos', []))));
-        $volver = $id ? redirect()->route('personal.usuario_form', $id) : redirect()->route('personal.usuario_form');
+        $volver = $id ? redirect()->route('seguridad.usuario_form', $id) : redirect()->route('seguridad.usuario_form');
 
         $error = null;
         if ($d['username'] === '' || $d['nombre'] === '' || $d['apellido'] === '' || $d['email'] === '') {
@@ -270,13 +257,13 @@ class PersonalController extends Controller
             return $volver->withInput();
         }
 
-        return redirect()->route('personal.usuarios');
+        return redirect()->route('seguridad.usuarios');
     }
 
     public function usuarioBaja(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_usuario', 0);
-        $volver = redirect()->route('personal.usuarios');
+        $volver = redirect()->route('seguridad.usuarios');
 
         if ($id === (int) session('uid')) {
             flash('No podés desactivar tu propia cuenta.', 'warning');
@@ -344,7 +331,7 @@ class PersonalController extends Controller
                 DB::select('SELECT dia_semana FROM turno_dia WHERE id_turno = ?', [$idEdit]));
         }
 
-        return view('personal.turnos', [
+        return view('seguridad.turnos', [
             'rows' => $this->turnosDisponibles(),
             'gente' => $gente,
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
@@ -366,7 +353,7 @@ class PersonalController extends Controller
             array_map('intval', (array) $request->input('dias', [])),
             fn ($x) => $x >= 1 && $x <= 7
         )));
-        $volver = redirect()->route('personal.turnos', $id ? ['editar' => $id] : []);
+        $volver = redirect()->route('seguridad.turnos', $id ? ['editar' => $id] : []);
 
         if ($error = $this->turnoValidar($d, $dias, $id)) {
             flash($error, 'error');
@@ -409,7 +396,7 @@ class PersonalController extends Controller
             return $volver->withInput();
         }
 
-        return redirect()->route('personal.turnos');
+        return redirect()->route('seguridad.turnos');
     }
 
     public function turnoBaja(Request $request): RedirectResponse
@@ -419,7 +406,7 @@ class PersonalController extends Controller
         if (! $t) {
             flash('Ese turno no existe o ya fue dado de baja.', 'error');
 
-            return redirect()->route('personal.turnos');
+            return redirect()->route('seguridad.turnos');
         }
 
         // Baja lógica: no se borra, porque la asistencia lo referencia
@@ -431,7 +418,7 @@ class PersonalController extends Controller
             . ($asignados ? " Lo trabajaban $asignados persona(s): revisá que les quede otro turno o no van a aparecer en la agenda." : ''),
             $asignados ? 'warning' : 'success');
 
-        return redirect()->route('personal.turnos');
+        return redirect()->route('seguridad.turnos');
     }
 
     /** Alta rápida de turno desde la ficha del usuario o desde Asistencia. */
@@ -439,8 +426,8 @@ class PersonalController extends Controller
     {
         $idUsuario = (int) $request->input('id_usuario', 0);
         $destino = $idUsuario
-            ? redirect()->route('personal.usuario_form', $idUsuario)
-            : redirect()->route('personal.usuario_form');
+            ? redirect()->route('seguridad.usuario_form', $idUsuario)
+            : redirect()->route('seguridad.usuario_form');
 
         $d = [
             'id_sucursal' => (int) $request->input('id_sucursal', 0),
@@ -493,8 +480,8 @@ class PersonalController extends Controller
     {
         $idUsuario = (int) $request->input('id_usuario', 0);
         $destino = $idUsuario
-            ? redirect()->route('personal.usuario_form', $idUsuario)
-            : redirect()->route('personal.usuario_form');
+            ? redirect()->route('seguridad.usuario_form', $idUsuario)
+            : redirect()->route('seguridad.usuario_form');
 
         $nombre = trim((string) $request->input('nombre', ''));
         $ciudad = trim((string) $request->input('ciudad', '')) ?: null;
@@ -525,7 +512,7 @@ class PersonalController extends Controller
 
     public function comisiones(): View
     {
-        return view('personal.comisiones', [
+        return view('seguridad.comisiones', [
             'rows' => DB::select(
                 "SELECT c.*, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS profesional,
                         COALESCE(s.nombre,'Todos los servicios') AS servicio
@@ -540,7 +527,7 @@ class PersonalController extends Controller
 
     public function comisionForm(): View
     {
-        return view('personal.comision_form', [
+        return view('seguridad.comision_form', [
             'profs' => DB::select(
                 "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
                    FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
@@ -560,7 +547,7 @@ class PersonalController extends Controller
             'valor' => num($request->input('valor')),
             'vigente_desde' => (string) $request->input('vigente_desde', date('Y-m-d')) ?: date('Y-m-d'),
         ];
-        $volver = redirect()->route('personal.comision_form');
+        $volver = redirect()->route('seguridad.comision_form');
 
         $error = null;
         if (! $d['id_usuario'] || ! DB::scalar(
@@ -599,7 +586,7 @@ class PersonalController extends Controller
             return $volver->withInput();
         }
 
-        return redirect()->route('personal.comisiones');
+        return redirect()->route('seguridad.comisiones');
     }
 
     // ---------- Asistencia ----------
@@ -643,7 +630,7 @@ class PersonalController extends Controller
             $filas = array_values(array_filter($filas, fn ($f) => (int) $f->id_usuario === (int) session('uid')));
         }
 
-        return view('personal.asistencia', [
+        return view('seguridad.asistencia', [
             'filas' => $filas,
             'rows' => DB::select(
                 "SELECT a.*, t.nombre AS turno, t.hora_inicio, t.hora_fin,
@@ -678,12 +665,12 @@ class PersonalController extends Controller
         $idQuien = (int) $request->input('id_usuario', 0);
         $fecha = (string) $request->input('fecha', ahora_bd('Y-m-d'));
         $motivo = trim((string) $request->input('motivo_ausencia', '')) ?: null;
-        $volver = redirect()->route('personal.asistencia', ['fecha' => $fecha]);
+        $volver = redirect()->route('seguridad.asistencia', ['fecha' => $fecha]);
 
         $error = null;
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || ! strtotime($fecha)) {
             $error = 'La fecha no es válida.';
-            $volver = redirect()->route('personal.asistencia');
+            $volver = redirect()->route('seguridad.asistencia');
         } elseif (! in_array($accion, ['entrada', 'salida', 'falta_con', 'falta_sin', 'limpiar'], true)) {
             $error = 'Acción no válida.';
         } elseif (! $idQuien || ! $idTurno) {
@@ -824,7 +811,7 @@ class PersonalController extends Controller
      */
     private function registraPorOtros(): bool
     {
-        return Permisos::esAdmin() || Permisos::puede('personal.turnos');
+        return Permisos::esAdmin() || Permisos::puede('seguridad.turnos');
     }
 
     /**

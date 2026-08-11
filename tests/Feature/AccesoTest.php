@@ -115,13 +115,35 @@ class AccesoTest extends TestCase
     }
 
     #[Test]
-    public function el_administrador_ve_los_ocho_modulos(): void
+    public function el_administrador_ve_los_siete_modulos(): void
     {
         $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
 
         $respuesta = $this->get(route('panel'))->assertOk();
         foreach (config('permisos.modulos') as $etiqueta) {
             $respuesta->assertSee($etiqueta);
+        }
+    }
+
+    #[Test]
+    public function las_pantallas_de_seguridad_se_dibujan_enteras(): void
+    {
+        // Seguridad junta lo que eran Personal y Configuración, así que sus
+        // pantallas cambiaron de nombre de ruta en masa. Un `route()` que quedó
+        // con el nombre viejo no se nota hasta que alguien abre la pantalla:
+        // revienta al dibujarla, no al arrancar. Por eso se abren todas.
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+
+        $pantallas = [
+            'seguridad.index', 'seguridad.usuarios', 'seguridad.usuario_form',
+            'seguridad.roles', 'seguridad.turnos', 'seguridad.asistencia',
+            'seguridad.comisiones', 'seguridad.comision_form',
+            'seguridad.sucursales', 'seguridad.sucursal_form',
+            'seguridad.contacto', 'seguridad.auditoria',
+        ];
+
+        foreach ($pantallas as $p) {
+            $this->get(route($p))->assertOk("La pantalla $p no se dibujó.");
         }
     }
 

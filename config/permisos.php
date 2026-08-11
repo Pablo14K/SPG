@@ -26,8 +26,7 @@ return [
         'inventario' => 'Inventario',
         'facturacion' => 'Facturación y caja',
         'reportes' => 'Reportes',
-        'personal' => 'Personal',
-        'configuracion' => 'Configuración',
+        'seguridad' => 'Seguridad',
     ],
 
     // Reportes no figura acá: es una sola pantalla y no se divide.
@@ -61,18 +60,49 @@ return [
             'facturacion.proveedores' => 'Pagos a proveedores',
             'facturacion.timbrados' => 'Timbrados',
         ],
+        // Seguridad junta lo que antes eran Personal y Configuración: quién es
+        // quién en el salón, qué puede hacer cada uno y qué quedó registrado.
+        'seguridad' => [
+            'seguridad.usuarios' => 'Usuarios',
+            'seguridad.roles' => 'Roles',
+            'seguridad.turnos' => 'Turnos',
+            'seguridad.asistencia' => 'Asistencia',
+            'seguridad.comisiones' => 'Comisiones',
+            'seguridad.sucursales' => 'Sucursales',
+            'seguridad.contacto' => 'Contacto y soporte',
+            'seguridad.auditoria' => 'Auditoría',
+        ],
+    ],
+
+    /**
+     * Claves viejas → claves nuevas, para los roles guardados antes de que
+     * Personal y Configuración se unieran en Seguridad.
+     *
+     * `Permisos::leer()` las traduce al vuelo, así una base ya instalada no
+     * pierde permisos en silencio al actualizar el sistema. Al guardar la
+     * matriz de Roles quedan escritas con el nombre nuevo, y el día que ninguna
+     * base tenga claves viejas este arreglo se puede vaciar.
+     *
+     * OJO: el módulo padre viejo NO se traduce a `seguridad` a secas, sino a la
+     * lista de los submódulos que ese módulo tenía. Traducirlo al padre nuevo
+     * le regalaría a quien administraba el personal los roles, la auditoría y
+     * las sucursales, que nunca tuvo.
+     */
+    'equivalencias' => [
         'personal' => [
-            'personal.usuarios' => 'Usuarios',
-            'personal.turnos' => 'Turnos',
-            'personal.comisiones' => 'Comisiones',
-            'personal.asistencia' => 'Asistencia',
+            'seguridad.usuarios', 'seguridad.turnos', 'seguridad.comisiones', 'seguridad.asistencia',
         ],
         'configuracion' => [
-            'configuracion.sucursales' => 'Sucursales',
-            'configuracion.roles' => 'Roles',
-            'configuracion.contacto' => 'Contacto y soporte',
-            'configuracion.auditoria' => 'Auditoría',
+            'seguridad.sucursales', 'seguridad.roles', 'seguridad.contacto', 'seguridad.auditoria',
         ],
+        'personal.usuarios' => ['seguridad.usuarios'],
+        'personal.turnos' => ['seguridad.turnos'],
+        'personal.comisiones' => ['seguridad.comisiones'],
+        'personal.asistencia' => ['seguridad.asistencia'],
+        'configuracion.sucursales' => ['seguridad.sucursales'],
+        'configuracion.roles' => ['seguridad.roles'],
+        'configuracion.contacto' => ['seguridad.contacto'],
+        'configuracion.auditoria' => ['seguridad.auditoria'],
     ],
 
     // El rol 1 es superadministrador y el 4 es el cliente del portal. El código

@@ -7,7 +7,7 @@
 
     <x-encabezado
         sub="Las cuentas del personal. <strong>Crear y editar cuentas es exclusivo del Administrador</strong>, sin importar lo que diga la matriz de roles: quien puede editar la matriz podría darse permisos a sí mismo."
-        :accion="Permisos::esAdmin() ? ['ruta' => 'personal.usuario_form', 't' => 'Nuevo usuario', 'ic' => 'person-plus'] : null" />
+        :accion="Permisos::esAdmin() ? ['ruta' => 'seguridad.usuario_form', 't' => 'Nuevo usuario', 'ic' => 'person-plus'] : null" />
 
     <div class="spg-panel">
         <x-filtros :f="$f" />
@@ -47,9 +47,9 @@
                             <td class="text-end" style="white-space:nowrap">
                                 @if (Permisos::esAdmin())
                                     <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                       href="{{ route('personal.usuario_form', $u->id_usuario) }}">
+                                       href="{{ route('seguridad.usuario_form', $u->id_usuario) }}">
                                         <i class="bi bi-pencil"></i></a>
-                                    <form method="post" action="{{ route('personal.usuario.baja') }}" class="d-inline">
+                                    <form method="post" action="{{ route('seguridad.usuario.baja') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_usuario" value="{{ $u->id_usuario }}">
                                         <button class="btn btn-sm btn-outline-neutro"

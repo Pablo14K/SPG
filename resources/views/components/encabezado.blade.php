@@ -21,7 +21,7 @@
     $pantalla = Navegacion::pantalla($ruta);
     $tituloFinal = $titulo ?? ($pantalla['titulo'] ?? config('app.name'));
 
-    // El módulo sale del permiso de la pantalla: `personal.turnos` → `personal`
+    // El módulo sale del permiso de la pantalla: `seguridad.turnos` → `seguridad`
     $modClave = strtok((string) ($pantalla['permiso'] ?? $ruta), '.');
     $modEtiqueta = config('permisos.modulos.' . $modClave);
 

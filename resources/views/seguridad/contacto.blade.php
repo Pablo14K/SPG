@@ -6,7 +6,7 @@
     <x-encabezado sub="Los medios por los que la clienta le escribe al salón. Salen en el pie de todas las pantallas, bajo «Centro de Ayuda y Soporte». Si no cargás ninguno, el bloque no se dibuja." />
 
     <div class="spg-panel" style="max-width:860px">
-        <form method="post" action="{{ route('configuracion.contacto.guardar') }}">
+        <form method="post" action="{{ route('seguridad.contacto.guardar') }}">
             @csrf
 
             <p class="text-muted-warm mb-3" style="font-size:.82rem">

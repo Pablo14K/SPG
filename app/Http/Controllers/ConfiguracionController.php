@@ -14,29 +14,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
 
+/**
+ * La mitad del módulo Seguridad que trata del sistema: sucursales, roles,
+ * contacto y auditoría. La otra mitad —usuarios, turnos, comisiones y
+ * asistencia— está en `PersonalController`, y la portada del módulo en
+ * `SeguridadController`.
+ */
 class ConfiguracionController extends Controller
 {
-    public function index(): View
-    {
-        return view('configuracion.index', [
-            'subs' => Permisos::tarjetasPermitidas([
-                ['p' => 'configuracion.sucursales', 'ruta' => 'configuracion.sucursales', 'ic' => 'shop',
-                 't' => 'Sucursales', 'd' => 'Locales del salón'],
-                ['p' => 'configuracion.roles', 'ruta' => 'configuracion.roles', 'ic' => 'shield-lock',
-                 't' => 'Roles', 'd' => 'Quién puede entrar a qué'],
-                ['p' => 'configuracion.contacto', 'ruta' => 'configuracion.contacto', 'ic' => 'headset',
-                 't' => 'Contacto y soporte', 'd' => 'Los medios que salen en el pie'],
-                ['p' => 'configuracion.auditoria', 'ruta' => 'configuracion.auditoria', 'ic' => 'journal-text',
-                 't' => 'Auditoría', 'd' => 'Qué se hizo, quién y cuándo'],
-            ]),
-        ]);
-    }
-
     // ---------- Sucursales ----------
 
     public function sucursales(): View
     {
-        return view('configuracion.sucursales', [
+        return view('seguridad.sucursales', [
             'rows' => DB::select(
                 'SELECT s.*, (SELECT COUNT(*) FROM usuario u WHERE u.id_sucursal = s.id_sucursal) AS personal
                    FROM sucursal s ORDER BY s.nombre'
@@ -50,10 +40,10 @@ class ConfiguracionController extends Controller
         if ($id && ! $s) {
             flash('Esa sucursal no existe.', 'error');
 
-            return redirect()->route('configuracion.sucursales');
+            return redirect()->route('seguridad.sucursales');
         }
 
-        return view('configuracion.sucursal_form', ['s' => $s]);
+        return view('seguridad.sucursal_form', ['s' => $s]);
     }
 
     public function sucursalGuardar(Request $request): RedirectResponse
@@ -66,7 +56,7 @@ class ConfiguracionController extends Controller
             'direccion' => trim((string) $request->input('direccion', '')) ?: null,
             'ciudad' => trim((string) $request->input('ciudad', '')) ?: null,
         ];
-        $volver = $id ? redirect()->route('configuracion.sucursal_form', $id) : redirect()->route('configuracion.sucursal_form');
+        $volver = $id ? redirect()->route('seguridad.sucursal_form', $id) : redirect()->route('seguridad.sucursal_form');
 
         if ($d['nombre'] === '') {
             flash('El nombre de la sucursal es obligatorio.', 'error');
@@ -101,7 +91,7 @@ class ConfiguracionController extends Controller
             return $volver->withInput();
         }
 
-        return redirect()->route('configuracion.sucursales');
+        return redirect()->route('seguridad.sucursales');
     }
 
     public function sucursalBaja(Request $request): RedirectResponse
@@ -110,7 +100,7 @@ class ConfiguracionController extends Controller
             [(int) $request->input('id_sucursal', 0)]);
         flash('Estado de la sucursal actualizado.');
 
-        return redirect()->route('configuracion.sucursales');
+        return redirect()->route('seguridad.sucursales');
     }
 
     // ---------- Contacto y soporte ----------
@@ -124,7 +114,7 @@ class ConfiguracionController extends Controller
             // la tabla se crea en la migración del sistema anterior
         }
 
-        return view('configuracion.contacto', [
+        return view('seguridad.contacto', [
             'contactos' => $contactos,
             'canales' => Contacto::canales(),
         ]);
@@ -136,7 +126,7 @@ class ConfiguracionController extends Controller
         $valores = (array) $request->input('valor', []);
         $etiquetas = (array) $request->input('etiqueta', []);
         $definidos = Contacto::canales();
-        $volver = redirect()->route('configuracion.contacto');
+        $volver = redirect()->route('seguridad.contacto');
 
         // Se valida ANTES de tocar la base: si el valor no forma un enlace
         // usable, se avisa en vez de guardar algo que no lleva a ninguna parte.
@@ -219,9 +209,17 @@ class ConfiguracionController extends Controller
             ['admin' => $admin]
         );
 
-        $perm = [];
+        // Las claves se traducen igual que al comprobar un permiso: si un rol
+        // quedó guardado con los nombres viejos, la matriz tiene que mostrar
+        // las casillas que ese rol realmente tiene, no todas en blanco.
+        $crudo = [];
         foreach (DB::select('SELECT id_rol, modulo FROM rol_modulo') as $p) {
-            $perm[(int) $p->id_rol][$p->modulo] = true;
+            $crudo[(int) $p->id_rol][] = (string) $p->modulo;
+        }
+
+        $perm = [];
+        foreach ($crudo as $idRol => $claves) {
+            $perm[$idRol] = array_fill_keys(Permisos::equivaler($claves), true);
         }
 
         $claves = Permisos::claves();
@@ -231,7 +229,7 @@ class ConfiguracionController extends Controller
                 : count(array_filter($claves, fn ($c) => Permisos::marcado($perm[(int) $r->id_rol] ?? [], $c)));
         }
 
-        return view('configuracion.roles', [
+        return view('seguridad.roles', [
             'roles' => $roles,
             'matriz' => Permisos::matriz(),
             'perm' => $perm,
@@ -246,7 +244,7 @@ class ConfiguracionController extends Controller
         $nombre = trim((string) $request->input('nombre', ''));
         $desc = trim((string) $request->input('descripcion', '')) ?: null;
         $esPersonal = $request->boolean('es_personal') ? 1 : 0;
-        $volver = redirect()->route('configuracion.roles');
+        $volver = redirect()->route('seguridad.roles');
 
         if ($nombre === '') {
             flash('El nombre del rol es obligatorio.', 'error');
@@ -293,7 +291,7 @@ class ConfiguracionController extends Controller
         $id = (int) $request->input('id_rol', 0);
         $nombre = trim((string) $request->input('nombre', ''));
         $desc = trim((string) $request->input('descripcion', '')) ?: null;
-        $volver = redirect()->route('configuracion.roles');
+        $volver = redirect()->route('seguridad.roles');
 
         $rol = DB::selectOne('SELECT * FROM rol WHERE id_rol = ?', [$id]);
         if (! $rol) {
@@ -334,7 +332,7 @@ class ConfiguracionController extends Controller
     public function rolBorrar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_rol', 0);
-        $volver = redirect()->route('configuracion.roles');
+        $volver = redirect()->route('seguridad.roles');
 
         $rol = DB::selectOne('SELECT * FROM rol WHERE id_rol = ?', [$id]);
         if (! $rol) {
@@ -382,7 +380,7 @@ class ConfiguracionController extends Controller
     {
         $matriz = (array) $request->input('perm', []);   // perm[id_rol][modulo] = 1
         $modulos = Permisos::claves();
-        $volver = redirect()->route('configuracion.roles');
+        $volver = redirect()->route('seguridad.roles');
 
         // Solo roles de personal, excepto el Administrador (acceso total siempre)
         $editables = DB::select('SELECT id_rol FROM rol WHERE es_personal = 1 AND id_rol <> ?',
@@ -449,12 +447,14 @@ class ConfiguracionController extends Controller
             $w[] = 'a.modulo = :mo';
             $par['mo'] = Listado::valor($f, 'modulo');
         }
+        // OJO: la columna de `auditoria` es `fecha_hora`, no `fecha`. Escrita
+        // como `a.fecha` la pantalla contestaba 500 en todas sus consultas.
         if (Listado::hay($f, 'desde')) {
-            $w[] = 'DATE(a.fecha) >= :d';
+            $w[] = 'DATE(a.fecha_hora) >= :d';
             $par['d'] = Listado::valor($f, 'desde');
         }
         if (Listado::hay($f, 'hasta')) {
-            $w[] = 'DATE(a.fecha) <= :h';
+            $w[] = 'DATE(a.fecha_hora) <= :h';
             $par['h'] = Listado::valor($f, 'hasta');
         }
 
@@ -462,7 +462,7 @@ class ConfiguracionController extends Controller
                   JOIN usuario u  ON u.id_usuario = a.id_usuario
                   JOIN persona pe ON pe.id_persona = u.id_persona
                   WHERE ' . implode(' AND ', $w);
-        $cols = "a.fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
+        $cols = "a.fecha_hora AS fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
                  CONCAT(pe.nombre,' ',pe.apellido) AS usuario";
 
         if (Listado::pideCsv()) {
@@ -470,14 +470,14 @@ class ConfiguracionController extends Controller
                 ['Fecha', 'Usuario', 'Acción', 'Módulo', 'Tabla', 'Registro', 'Detalle'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y H:i'), $r->usuario, $r->accion,
                     $r->modulo, $r->tabla_afectada, $r->id_registro, $r->detalle],
-                    DB::select("SELECT $cols $desde ORDER BY a.fecha DESC", $par))
+                    DB::select("SELECT $cols $desde ORDER BY a.fecha_hora DESC", $par))
             );
         }
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par), 30);
 
-        return view('configuracion.auditoria', [
-            'rows' => DB::select("SELECT $cols $desde ORDER BY a.fecha DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+        return view('seguridad.auditoria', [
+            'rows' => DB::select("SELECT $cols $desde ORDER BY a.fecha_hora DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
         ]);

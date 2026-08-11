@@ -95,7 +95,7 @@ class Permisos
         return $out;
     }
 
-    /** La matriz de Configuración → Roles, ya armada: módulo con sus hijos. */
+    /** La matriz de Seguridad → Roles, ya armada: módulo con sus hijos. */
     public static function matriz(): array
     {
         $subs = config('permisos.submodulos', []);
@@ -166,17 +166,41 @@ class Permisos
         unset(self::$cache[$rol]);
     }
 
+    /**
+     * Traduce las claves que quedaron guardadas con el nombre viejo.
+     *
+     * Cuando dos módulos se juntan o uno se parte, las filas de `rol_modulo` de
+     * las bases ya instaladas siguen diciendo lo de antes. Sin esto, el rol no
+     * daría error: perdería el permiso en silencio, que es peor.
+     *
+     * Se traduce al leer y no con un UPDATE porque el `.sql` que se entrega ya
+     * viene con los nombres nuevos: esto es solo para las bases que están
+     * andando. Al guardar la matriz de Roles quedan escritas como corresponde.
+     */
+    public static function equivaler(array $claves): array
+    {
+        $mapa = config('permisos.equivalencias', []);
+        $out = [];
+        foreach ($claves as $c) {
+            foreach ($mapa[$c] ?? [$c] as $nueva) {
+                $out[$nueva] = true;
+            }
+        }
+
+        return array_keys($out);
+    }
+
     private static function leer(int $rol): array
     {
         try {
-            return array_map(
+            return self::equivaler(array_map(
                 fn ($f) => (string) $f->modulo,
                 DB::select('SELECT modulo FROM rol_modulo WHERE id_rol = ?', [$rol])
-            );
+            ));
         } catch (Throwable) {
             // Si la tabla todavía no existe no se bloquea al personal: se
-            // aplica el criterio por defecto, todo menos Configuración.
-            return array_values(array_diff(array_keys(config('permisos.modulos', [])), ['configuracion']));
+            // aplica el criterio por defecto, todo menos Seguridad.
+            return array_values(array_diff(array_keys(config('permisos.modulos', [])), ['seguridad']));
         }
     }
 }

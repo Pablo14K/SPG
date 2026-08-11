@@ -104,6 +104,7 @@ Tres cosas en la misma tanda, siempre juntas:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.2.0 | 11/08/2026 | **Personal y Configuración se unen en un solo módulo, Seguridad**, con el fondo oscuro que tenía Configuración: las dos tarjetas contestaban la misma pregunta —quién entra, qué puede hacer y qué quedó registrado— y separadas obligaban a saltar de una a la otra para dar de alta a alguien y darle permisos. Los módulos pasan de 8 a 7 y los permisos siguen siendo **28**, ahora ocho submódulos de `seguridad`. Las rutas quedan bajo `/seguridad` y las trece vistas en una sola carpeta. **Lo que estaba guardado no se pierde ni crece**: `permisos.equivalencias` traduce las claves viejas al leerlas, y el módulo padre viejo se traduce a **sus** submódulos, no a `seguridad` a secas — traducirlo al padre nuevo le habría regalado los roles y la auditoría a quien solo administraba al personal. De paso, la prueba nueva que abre las doce pantallas destapó que **Auditoría nunca había funcionado en Laravel**: consultaba `a.fecha` y la columna es `fecha_hora`, así que devolvía 500 desde la 6.1.1 |
 | 6.1.5 | 11/08/2026 | **Se termina de pasar esta documentación a Laravel.** En la 6.1.1 se reescribieron las secciones de arquitectura, pero en las demás quedaban 16 referencias a archivos y funciones del sistema archivado —`canales_contacto()` de `helpers.php`, `relaciones_pantallas()` de `view.php`, los `migrar_*()`, `personal_activo()`, `install.php`—, que mandaban a buscar código que en este proyecto no existe. Ahora nombran lo real: `Contacto::canales()`, `config/navegacion.php`, `Permisos::esAdmin()`, `FacturacionController::pagarProveedor`. Cada nombre se verificó contra el código antes de escribirlo. Las únicas menciones al sistema viejo que quedan están marcadas como historia, a propósito |
 | 6.1.4 | 11/08/2026 | **El aviso del ingreso con huella dejaba de mentir.** Desde el celular, entrando por la IP de red de la PC, decía «este equipo no tiene lector» — falso, y manda a buscar un problema de hardware inexistente. Lo real es que los navegadores **sólo exponen WebAuthn en contexto seguro** (HTTPS o `localhost`), así que por `http://192.168.x.x` la API no existe; y detrás hay una segunda pared: el `rpId` sale del dominio y la especificación **no admite direcciones IP**. `SPGBio.estado()` ahora distingue los cuatro casos —sin HTTPS, por IP, navegador viejo, sin sensor— y cada uno dice qué pasa y si va a andar en el servidor |
 | 6.1.3 | 11/08/2026 | **El correo del contenedor sale de verdad**: `docker/php/env.docker` pasa de `log` a SMTP por Gmail, así que el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios llegan al buzón. Al configurarlo aparecieron **tres nombres de variable obsoletos** que circulan en apuntes viejos: Laravel 13 lee `MAIL_MAILER`, `MAIL_SCHEME` y `MAIL_FROM_ADDRESS`, **no** `MAIL_TRANSPORT`, `MAIL_ENCRYPTION` ni `MAIL_FROM_EMAIL` — con los viejos el sistema se queda en `log` y no manda nada sin dar ningún error. El remitente además tiene que ser la misma cuenta que se autentica, porque Gmail rechaza un `From` de otro dominio. **Ojo: este archivo lleva ahora una contraseña de aplicación de Google**; se revoca desde `myaccount.google.com/apppasswords` sin tocar la cuenta |
@@ -121,7 +122,7 @@ Tres cosas en la misma tanda, siempre juntas:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **149 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **150 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -155,7 +156,12 @@ app/
     Navegacion.php         Migas, accesos rápidos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
-  Http/Controllers/        Uno por módulo, más Auth, Cuenta, Portal, CitaToken, Webauthn
+  Http/Controllers/        Uno por módulo, más Auth, Cuenta, Portal, CitaToken, Webauthn.
+                           La excepción es Seguridad: son 1500 líneas y no gana nada
+                           juntarlas, así que SeguridadController tiene sólo el landing y
+                           las pantallas siguen repartidas entre PersonalController
+                           (usuarios, turnos, comisiones, asistencia) y
+                           ConfiguracionController (sucursales, roles, contacto, auditoría)
   Http/Middleware/         ExigeSesion · ExigePersonal · ExigeModulo · ExigeAdmin
   Mail/                    AvisoCita · CodigoSeguridad
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
@@ -168,11 +174,11 @@ resources/views/
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 149 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 150 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 38 pruebas
+tests/Feature/             Las 40 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -313,13 +319,13 @@ nuevo de Bootstrap, revisá que no aparezca azul**; si aparece, sumá el overrid
   | Accesos rápidos (`.spg-chip`) | bajo las migas | *¿qué suelo hacer después de esto?* |
   Los dos primeros salen solos del encabezado; los accesos rápidos se configuran en
   `config/navegacion.php`, no en cada vista.
-- El **pie** tiene cuatro bloques: identidad, **Secciones** (los módulos del rol, en 3×3),
+- El **pie** tiene cuatro bloques: identidad, **Secciones** (los módulos del rol, en tres columnas),
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
 
 ### Centro de Ayuda y Soporte
 
-Por dónde el cliente le escribe al salón. Se cargan en **Configuración → Contacto y soporte**
+Por dónde el cliente le escribe al salón. Se cargan en **Seguridad → Contacto y soporte**
 y salen en el pie; si no hay ninguno, el bloque no se dibuja.
 
 **Son varios, no uno.** `contacto_soporte` es una lista (`id_contacto`, `canal`, `valor`,
@@ -455,11 +461,11 @@ en el campo Nombre—. Blade tiene su propio ámbito por componente, así que no
 | id | Rol | Alcance |
 |---|---|---|
 | 1 | Administrador | Superadministrador: ve todo, único que gestiona cuentas, roles y excepciones de agenda |
-| 2 | Profesional | El empleado que atiende: citas, clientes, servicios · de Personal, **solo su asistencia** |
-| 3 | Asistente administrativo | Operación diaria: citas, clientes, servicios, inventario, facturación, reportes · de Personal, turnos, comisiones y asistencia |
+| 2 | Profesional | El empleado que atiende: citas, clientes, servicios · de Seguridad, **solo su asistencia** |
+| 3 | Asistente administrativo | Operación diaria: citas, clientes, servicios, inventario, facturación, reportes · de Seguridad, turnos, comisiones y asistencia |
 | 4 | Cliente | Portal del cliente. No es personal (`rol.es_personal = 0`) |
 
-Se pueden crear, editar y eliminar roles desde **Configuración → Roles** (tabla `rol_modulo`).
+Se pueden crear, editar y eliminar roles desde **Seguridad → Roles** (tabla `rol_modulo`).
 Los roles 1 y 4 están protegidos porque el código los referencia.
 
 **Nunca escribas `id_rol IN (1,2,3)`**: filtrá con `JOIN rol r … WHERE r.es_personal = 1`, así
@@ -468,7 +474,7 @@ los roles nuevos funcionan sin tocar código. El Administrador se detecta con
 
 ### Submódulos: ningún módulo es todo o nada
 
-**Los ocho módulos se dan por partes**: son **28 permisos**, no 8. Quien registra la atención
+**Los siete módulos se dan por partes**: son **28 permisos**, no 7. Quien registra la atención
 no tiene por qué agendar; quien cobra no tiene por qué anular una liquidación al personal;
 el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La clave es
 `modulo.submodulo` y sigue siendo **un valor atómico por fila**, así que la 1FN se mantiene.
@@ -481,10 +487,9 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
 | `facturacion` | `.facturas` · `.cobros` · `.caja` · `.pagos` · `.proveedores` · `.timbrados` |
 | `reportes` | no se divide: es una sola pantalla |
-| `personal` | `.usuarios` · `.turnos` · `.comisiones` · `.asistencia` |
-| `configuracion` | `.sucursales` · `.roles` · `.contacto` · `.auditoria` |
+| `seguridad` | `.usuarios` · `.roles` · `.turnos` · `.asistencia` · `.comisiones` · `.sucursales` · `.contacto` · `.auditoria` |
 
-Todo sale de **`config/permisos.php`**: la matriz de Configuración → Roles
+Todo sale de **`config/permisos.php`**: la matriz de Seguridad → Roles
 (`Permisos::matriz()`), las claves que acepta el POST (`Permisos::claves()`) y las etiquetas
 de los mensajes «Sin permiso» (`Permisos::nombreModulo()`). **Lo único que NO sale solo son
 los guardias**: cada ruta tiene que pedir su clave a mano.
@@ -493,9 +498,9 @@ los guardias**: cada ruta tiene que pedir su clave a mano.
 
 ```php
 Route::middleware(['sesion', 'personal'])->group(function () {
-    Route::prefix('personal')->name('personal.')->group(function () {
-        Route::get('/', [PersonalController::class, 'index'])->middleware('modulo:personal');
-        Route::get('turnos', [PersonalController::class, 'turnos'])->middleware('modulo:personal.turnos');
+    Route::prefix('seguridad')->name('seguridad.')->group(function () {
+        Route::get('/', [SeguridadController::class, 'index'])->middleware('modulo:seguridad');
+        Route::get('turnos', [PersonalController::class, 'turnos'])->middleware('modulo:seguridad.turnos');
     });
 });
 ```
@@ -504,14 +509,14 @@ Route::middleware(['sesion', 'personal'])->group(function () {
 
 - quien tiene el módulo padre (`facturacion`) tiene **todos** sus submódulos — es la red que
   deja andar a un rol guardado antes de que ese módulo se dividiera;
-- quien tiene **algún** submódulo (`personal.asistencia`) entra al módulo, porque si no no
+- quien tiene **algún** submódulo (`seguridad.asistencia`) entra al módulo, porque si no no
   tendría cómo llegar hasta él. Por eso los `index` piden el padre y todo lo demás la clave
   fina.
 
 Tres reglas al dividir un módulo nuevo, y las tres se olvidan fácil:
 
-1. **La ruta pide la clave específica**: `->middleware('modulo:personal.turnos')`, nunca
-   `modulo:personal`. El único que pide el padre es el landing del módulo.
+1. **La ruta pide la clave específica**: `->middleware('modulo:seguridad.turnos')`, nunca
+   `modulo:seguridad`. El único que pide el padre es el landing del módulo.
 2. **La tarjeta del landing se filtra** con `Permisos::tarjetasPermitidas()`, que recibe la
    lista de tarjetas con la clave en el campo `'p'` (va como campo y no como clave del arreglo
    porque Agenda y Nueva cita son las dos `citas.agenda`, y un arreglo no admite la clave
@@ -534,8 +539,30 @@ solo ofrece el botón a quien tenga `facturacion.timbrados`.
 > al alcance de cualquiera con ese módulo. Por eso es su propio submódulo.
 
 **La creación de cuentas sigue siendo del Administrador y punto** (middleware `admin` en la
-ruta del formulario de usuario), sin importar la matriz. Y ojo con `configuracion.roles`:
+ruta del formulario de usuario), sin importar la matriz. Y ojo con `seguridad.roles`:
 quien lo tenga puede editar la matriz, incluida la suya.
+
+### Renombrar o juntar módulos: lo que quedó guardado
+
+Los permisos de cada rol viven en `rol_modulo`, así que **cambiarle el nombre a un módulo deja
+huérfanas las filas que ya estaban escritas**. No dan error: el rol simplemente pierde la
+pantalla, en silencio, que es la peor forma de romperlo.
+
+Por eso `config/permisos.php` tiene **`equivalencias`**, que `Permisos::leer()` aplica al leer
+—y `ConfiguracionController::roles()` al dibujar la matriz, o las casillas saldrían en blanco—.
+Al guardar la matriz las filas quedan escritas con el nombre nuevo, así que es un puente, no
+una capa permanente: cuando ninguna base tenga claves viejas, el arreglo se puede vaciar.
+
+**La regla al juntar dos módulos: el padre viejo se traduce a SUS submódulos, nunca al padre
+nuevo.** `personal` no equivale a `seguridad`, equivale a los cuatro submódulos que Personal
+tenía. Traducirlo al padre nuevo le regalaría los roles, las sucursales y la auditoría a quien
+solo administraba al personal — un permiso de más es tan grave como uno de menos.
+`ReglasDeNegocioTest::un_rol_guardado_con_las_claves_viejas_no_pierde_ni_gana_permisos` lo
+comprueba en las dos direcciones.
+
+Y hay que hacer las dos cosas, no una: traducir para las bases que están andando **y** dejar
+`basededatos/peluqueria_bd(base).sql` con las claves nuevas, que es el archivo con el que se
+instala.
 
 ## La hora
 
@@ -634,7 +661,7 @@ los cobros, después la factura. Toda anulación pide un motivo, que va a `audit
 
 **El turno es una plantilla, no una fecha**: un nombre, un horario y los días de la semana en
 que se trabaja. *Turno Mañana · 08:00 a 12:00 · lunes a sábado.* Se define una vez en
-**Personal → Turnos** y se le asigna a cada persona desde su ficha.
+**Seguridad → Turnos** y se le asigna a cada persona desde su ficha.
 
 ```
 turno_laboral   id_turno · id_sucursal · nombre · hora_inicio · hora_fin · activo
@@ -656,7 +683,7 @@ los dos, la agenda se corre un día.
 `asistencia` cuelga de (persona, turno, fecha) — `uq_asistencia_dia` — y guarda `justificada`:
 NULL presente · 1 falta con permiso · 0 falta sin permiso.
 
-**Personal → Asistencia es el listado de quiénes trabajan ese día**, sacado de los turnos
+**Seguridad → Asistencia es el listado de quiénes trabajan ese día**, sacado de los turnos
 asignados. **No se escriben horarios a mano**: se ficha con un botón y queda la hora del clic
 (`ahora_bd()`, ver la sección *La hora*). El botón de Entrada se habilita solo dentro de la
 franja del turno, con una hora de gracia antes y dos después. Quien administra los turnos
@@ -1178,7 +1205,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 38 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 40 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1223,16 +1250,16 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**38 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**40 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
 |---|---|
-| `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos y no se pueda sacar de más; y las cuatro reglas de permisos, incluido el 403 real de una ruta |
+| `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos y no se pueda sacar de más; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | el resto | ingreso, permisos por rol, pantallas que responden |
 
-Tres cosas que hay que saber antes de tocarlas:
+Cuatro cosas que hay que saber antes de tocarlas:
 
 - **Nunca `RefreshDatabase`.** Borraría el esquema con sus 50 rutinas. Las que escriben usan
   `DatabaseTransactions`.
@@ -1242,6 +1269,11 @@ Tres cosas que hay que saber antes de tocarlas:
 - **Una cita sin filas en `cita_servicio` dura CERO minutos** (`fn_cita_duracion` sale de ahí),
   así que no se pisa con nada. Una prueba de solapes que agende sin servicios pasa siempre sin
   medir nada — ya pasó al escribirla.
+- **`AccesoTest::las_pantallas_de_seguridad_se_dibujan_enteras` abre las doce pantallas del
+  módulo.** Un `route()` con el nombre viejo o una columna mal escrita no se notan hasta que
+  alguien abre la pantalla: revientan al dibujarla, no al arrancar. Fue lo que destapó que
+  **Auditoría consultaba `a.fecha` y la columna es `fecha_hora`**, o sea que devolvía 500 desde
+  la 6.1.1 sin que nadie lo viera. Si sumás una pantalla al módulo, agregala a esa lista.
 
 ## Fuera de alcance del TCC
 

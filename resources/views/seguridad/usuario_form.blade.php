@@ -6,14 +6,14 @@
     @php $id = $u->id_usuario ?? 0; @endphp
 
     <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('personal.usuarios') }}"><i class="bi bi-arrow-left"></i> Usuarios</a>
+        <a class="spg-back" href="{{ route('seguridad.usuarios') }}"><i class="bi bi-arrow-left"></i> Usuarios</a>
         <h1 class="mt-1">{{ $id ? 'Editar usuario' : 'Nuevo usuario' }}</h1>
     </div>
 
     <div class="row g-3">
         <div class="col-lg-8">
             <div class="spg-panel">
-                <form method="post" action="{{ route('personal.usuario.guardar') }}" id="formUsuario">
+                <form method="post" action="{{ route('seguridad.usuario.guardar') }}" id="formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
 
@@ -130,7 +130,7 @@
 
                     <div class="d-flex gap-2">
                         <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
-                        <a class="btn btn-outline-neutro" href="{{ route('personal.usuarios') }}">Cancelar</a>
+                        <a class="btn btn-outline-neutro" href="{{ route('seguridad.usuarios') }}">Cancelar</a>
                     </div>
                 </form>
             </div>
@@ -142,7 +142,7 @@
                  a cargar todo de cero. --}}
             <div class="spg-panel mb-3">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Turno nuevo</h2>
-                <form method="post" action="{{ route('personal.turno.rapido') }}">
+                <form method="post" action="{{ route('seguridad.turno.rapido') }}">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">
@@ -188,7 +188,7 @@
 
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursal nueva</h2>
-                <form method="post" action="{{ route('personal.sucursal.rapida') }}">
+                <form method="post" action="{{ route('seguridad.sucursal.rapida') }}">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">

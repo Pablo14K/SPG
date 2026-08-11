@@ -12,7 +12,7 @@
                 <input type="date" class="form-control form-control-sm" id="fecha" name="fecha" value="{{ $fecha }}">
             </div>
             <button class="btn btn-sm btn-oro"><i class="bi bi-calendar-check"></i> Ver</button>
-            <a class="btn btn-sm btn-outline-neutro" href="{{ route('personal.asistencia') }}">Hoy</a>
+            <a class="btn btn-sm btn-outline-neutro" href="{{ route('seguridad.asistencia') }}">Hoy</a>
             <span class="ms-auto text-muted-warm" style="font-size:.85rem">
                 {{ fecha_larga($fecha) }} · son las {{ substr($ahora, 0, 5) }}
             </span>
@@ -64,7 +64,7 @@
                                 @php $mio = (int) $f->id_usuario === $yo; @endphp
                                 @if ($porOtros || $mio)
                                     @if (! $f->hora_entrada && $f->justificada === null)
-                                        <form method="post" action="{{ route('personal.asistencia.marcar') }}" class="d-inline">
+                                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="accion" value="entrada">
                                             <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
@@ -73,7 +73,7 @@
                                             <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
                                         </form>
                                     @elseif ($f->hora_entrada && ! $f->hora_salida)
-                                        <form method="post" action="{{ route('personal.asistencia.marcar') }}" class="d-inline">
+                                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="accion" value="salida">
                                             <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
@@ -89,7 +89,7 @@
                                             <i class="bi bi-person-x"></i></button>
 
                                         @if ($f->id_asistencia)
-                                            <form method="post" action="{{ route('personal.asistencia.marcar') }}" class="d-inline">
+                                            <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                                 @csrf
                                                 <input type="hidden" name="accion" value="limpiar">
                                                 <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
@@ -129,7 +129,7 @@
             <div class="modal fade" id="modalFalta{{ $f->id_usuario }}_{{ $f->id_turno }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form method="post" action="{{ route('personal.asistencia.marcar') }}">
+                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}">
                             @csrf
                             <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
                             <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">

@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado
         sub="Lo que le toca a cada profesional por servicio. La comisión de cada atención la calcula <code>fn_comision_servicio</code> en la base, tomando la vigente a esa fecha."
-        :accion="['ruta' => 'personal.comision_form', 't' => 'Nueva comisión', 'ic' => 'plus-lg']" />
+        :accion="['ruta' => 'seguridad.comision_form', 't' => 'Nueva comisión', 'ic' => 'plus-lg']" />
 
     <div class="spg-panel">
         <div class="table-responsive">

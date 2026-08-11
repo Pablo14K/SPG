@@ -6,13 +6,13 @@
     @php $id = $s->id_sucursal ?? 0; @endphp
 
     <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('configuracion.sucursales') }}">
+        <a class="spg-back" href="{{ route('seguridad.sucursales') }}">
             <i class="bi bi-arrow-left"></i> Sucursales</a>
         <h1 class="mt-1">{{ $id ? 'Editar sucursal' : 'Nueva sucursal' }}</h1>
     </div>
 
     <div class="spg-panel" style="max-width:640px">
-        <form method="post" action="{{ route('configuracion.sucursal.guardar') }}">
+        <form method="post" action="{{ route('seguridad.sucursal.guardar') }}">
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $id }}">
 
@@ -46,7 +46,7 @@
 
             <div class="mt-4 d-flex gap-2">
                 <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
-                <a class="btn btn-outline-neutro" href="{{ route('configuracion.sucursales') }}">Cancelar</a>
+                <a class="btn btn-outline-neutro" href="{{ route('seguridad.sucursales') }}">Cancelar</a>
             </div>
         </form>
     </div>

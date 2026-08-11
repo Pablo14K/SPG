@@ -8,12 +8,12 @@
     <x-encabezado sub="Quién puede entrar a qué. <strong>Ningún módulo es todo o nada</strong>: son 28 permisos, no 8. Quien registra la atención no tiene por qué agendar, y quien cobra no tiene por qué anular una liquidación." />
 
     <div class="alert alert-warning">
-        Ojo con <strong>Configuración → Roles</strong>: quien tenga este permiso puede editar la matriz,
+        Ojo con <strong>Seguridad → Roles</strong>: quien tenga este permiso puede editar la matriz,
         <strong>incluida la suya</strong>. La creación de cuentas, en cambio, es siempre del Administrador.
     </div>
 
     {{-- Un bloque por rol, con su casilla maestra por módulo --}}
-    <form method="post" action="{{ route('configuracion.permisos.guardar') }}">
+    <form method="post" action="{{ route('seguridad.permisos.guardar') }}">
         @csrf
 
         @foreach ($roles as $rol)
@@ -50,12 +50,17 @@
                 @else
                     <div class="row g-2">
                         @foreach ($matriz as $m)
-                            <div class="col-md-4 col-lg-3">
-                                <div style="border:1px solid var(--gris-calido);border-radius:8px;padding:.5rem .7rem">
+                            {{-- Seguridad tiene ocho submódulos: ocupa el doble
+                                 de ancho y sus casillas van en dos columnas, o
+                                 la fila queda con una torre al lado de cajas
+                                 de cuatro renglones. --}}
+                            <div class="{{ count($m['hijos']) > 6 ? 'col-md-8 col-lg-6' : 'col-md-4 col-lg-3' }}">
+                                <div class="h-100" style="border:1px solid var(--gris-calido);border-radius:8px;padding:.5rem .7rem">
                                     <div style="font-weight:500;font-size:.85rem">{{ $m['etiqueta'] }}</div>
                                     @if ($m['hijos'])
+                                        <div style="{{ count($m['hijos']) > 6 ? 'columns:2;column-gap:1rem' : '' }}">
                                         @foreach ($m['hijos'] as $clave => $etiqueta)
-                                            <div class="form-check">
+                                            <div class="form-check" style="break-inside:avoid">
                                                 <input class="form-check-input" type="checkbox"
                                                        name="perm[{{ $rol->id_rol }}][{{ $clave }}]" value="1"
                                                        id="p{{ $rol->id_rol }}_{{ str_replace('.', '_', $clave) }}"
@@ -65,6 +70,7 @@
                                                     {{ $etiqueta }}</label>
                                             </div>
                                         @endforeach
+                                        </div>
                                     @else
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox"
@@ -95,7 +101,7 @@
         <div class="col-lg-6">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> Rol nuevo</h2>
-                <form method="post" action="{{ route('configuracion.rol.crear') }}">
+                <form method="post" action="{{ route('seguridad.rol.crear') }}">
                     @csrf
                     <div class="mb-2">
                         <label class="form-label" for="rn_nombre">Nombre *</label>
@@ -127,7 +133,7 @@
                 </p>
                 @foreach ($roles as $rol)
                     @continue (in_array((int) $rol->id_rol, $protegidos, true))
-                    <form method="post" action="{{ route('configuracion.rol.borrar') }}"
+                    <form method="post" action="{{ route('seguridad.rol.borrar') }}"
                           class="d-flex justify-content-between align-items-center py-1">
                         @csrf
                         <input type="hidden" name="id_rol" value="{{ $rol->id_rol }}">

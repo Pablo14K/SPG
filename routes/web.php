@@ -14,6 +14,7 @@ use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\SeguridadController;
 use App\Http\Controllers\ServiciosController;
 use App\Http\Controllers\WebauthnController;
 use Illuminate\Support\Facades\Route;
@@ -171,43 +172,18 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         Route::get('reportes/imprimir', [ReportesController::class, 'imprimir'])->name('reportes.imprimir');
     });
 
-    // --- Configuración ----------------------------------------------------
-    Route::prefix('configuracion')->name('configuracion.')->group(function () {
-        Route::get('/', [ConfiguracionController::class, 'index'])->name('index')->middleware('modulo:configuracion');
-
-        Route::middleware('modulo:configuracion.sucursales')->group(function () {
-            Route::get('sucursales', [ConfiguracionController::class, 'sucursales'])->name('sucursales');
-            Route::get('sucursales/form/{id?}', [ConfiguracionController::class, 'sucursalForm'])
-                ->whereNumber('id')->name('sucursal_form');
-            Route::post('sucursales/guardar', [ConfiguracionController::class, 'sucursalGuardar'])->name('sucursal.guardar');
-            Route::post('sucursales/baja', [ConfiguracionController::class, 'sucursalBaja'])->name('sucursal.baja');
-        });
-
-        Route::middleware('modulo:configuracion.contacto')->group(function () {
-            Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
-            Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
-        });
-
-        Route::middleware('modulo:configuracion.roles')->group(function () {
-            Route::get('roles', [ConfiguracionController::class, 'roles'])->name('roles');
-            Route::post('roles/crear', [ConfiguracionController::class, 'rolCrear'])->name('rol.crear');
-            Route::post('roles/editar', [ConfiguracionController::class, 'rolEditar'])->name('rol.editar');
-            Route::post('roles/borrar', [ConfiguracionController::class, 'rolBorrar'])->name('rol.borrar');
-            Route::post('roles/permisos', [ConfiguracionController::class, 'permisosGuardar'])->name('permisos.guardar');
-        });
-
-        Route::get('auditoria', [ConfiguracionController::class, 'auditoria'])
-            ->name('auditoria')->middleware('modulo:configuracion.auditoria');
-    });
-
-    // --- Personal ---------------------------------------------------------
-    Route::prefix('personal')->name('personal.')->group(function () {
-        Route::get('/', [PersonalController::class, 'index'])->name('index')->middleware('modulo:personal');
+    // --- Seguridad --------------------------------------------------------
+    // Las cuentas del personal y lo que cada rol puede hacer, en un solo
+    // módulo. Las pantallas se reparten entre dos controladores: PersonalController
+    // (usuarios, turnos, comisiones, asistencia) y ConfiguracionController
+    // (sucursales, roles, contacto, auditoría).
+    Route::prefix('seguridad')->name('seguridad.')->group(function () {
+        Route::get('/', [SeguridadController::class, 'index'])->name('index')->middleware('modulo:seguridad');
 
         // Ver la lista pide el submódulo; crear y editar cuentas es exclusivo
         // del Administrador, sin importar lo que diga la matriz de roles.
         Route::get('usuarios', [PersonalController::class, 'usuarios'])
-            ->name('usuarios')->middleware('modulo:personal.usuarios');
+            ->name('usuarios')->middleware('modulo:seguridad.usuarios');
 
         Route::middleware('admin')->group(function () {
             Route::get('usuarios/form/{id?}', [PersonalController::class, 'usuarioForm'])
@@ -217,23 +193,47 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('sucursal-rapida', [PersonalController::class, 'sucursalRapida'])->name('sucursal.rapida');
         });
 
-        Route::middleware('modulo:personal.turnos')->group(function () {
+        Route::middleware('modulo:seguridad.turnos')->group(function () {
             Route::get('turnos', [PersonalController::class, 'turnos'])->name('turnos');
             Route::post('turnos/guardar', [PersonalController::class, 'turnoGuardar'])->name('turno.guardar');
             Route::post('turnos/baja', [PersonalController::class, 'turnoBaja'])->name('turno.baja');
             Route::post('turnos/rapido', [PersonalController::class, 'turnoRapido'])->name('turno.rapido');
         });
 
-        Route::middleware('modulo:personal.comisiones')->group(function () {
+        Route::middleware('modulo:seguridad.comisiones')->group(function () {
             Route::get('comisiones', [PersonalController::class, 'comisiones'])->name('comisiones');
             Route::get('comisiones/nueva', [PersonalController::class, 'comisionForm'])->name('comision_form');
             Route::post('comisiones/guardar', [PersonalController::class, 'comisionGuardar'])->name('comision.guardar');
         });
 
-        Route::middleware('modulo:personal.asistencia')->group(function () {
+        Route::middleware('modulo:seguridad.asistencia')->group(function () {
             Route::get('asistencia', [PersonalController::class, 'asistencia'])->name('asistencia');
             Route::post('asistencia', [PersonalController::class, 'asistenciaMarcar'])->name('asistencia.marcar');
         });
+
+        Route::middleware('modulo:seguridad.sucursales')->group(function () {
+            Route::get('sucursales', [ConfiguracionController::class, 'sucursales'])->name('sucursales');
+            Route::get('sucursales/form/{id?}', [ConfiguracionController::class, 'sucursalForm'])
+                ->whereNumber('id')->name('sucursal_form');
+            Route::post('sucursales/guardar', [ConfiguracionController::class, 'sucursalGuardar'])->name('sucursal.guardar');
+            Route::post('sucursales/baja', [ConfiguracionController::class, 'sucursalBaja'])->name('sucursal.baja');
+        });
+
+        Route::middleware('modulo:seguridad.contacto')->group(function () {
+            Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
+            Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
+        });
+
+        Route::middleware('modulo:seguridad.roles')->group(function () {
+            Route::get('roles', [ConfiguracionController::class, 'roles'])->name('roles');
+            Route::post('roles/crear', [ConfiguracionController::class, 'rolCrear'])->name('rol.crear');
+            Route::post('roles/editar', [ConfiguracionController::class, 'rolEditar'])->name('rol.editar');
+            Route::post('roles/borrar', [ConfiguracionController::class, 'rolBorrar'])->name('rol.borrar');
+            Route::post('roles/permisos', [ConfiguracionController::class, 'permisosGuardar'])->name('permisos.guardar');
+        });
+
+        Route::get('auditoria', [ConfiguracionController::class, 'auditoria'])
+            ->name('auditoria')->middleware('modulo:seguridad.auditoria');
     });
 
     // --- Inventario -------------------------------------------------------

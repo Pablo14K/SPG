@@ -180,7 +180,7 @@ http://localhost:8000
 
 | Usuario | Contraseña | Qué ve |
 |---|---|---|
-| `admin` | `admin123` | todo: los 8 módulos |
+| `admin` | `admin123` | todo: los 7 módulos |
 | `cliente` | `cliente123` | el portal de la clienta |
 
 ---
