@@ -69,7 +69,7 @@
                                name="requiere_exclusividad"
                                @checked(old('requiere_exclusividad', $s->requiere_exclusividad ?? 0))>
                         <label class="form-check-label" for="requiere_exclusividad">
-                            Ocupa a la clienta entera
+                            Requiere atención exclusiva
                         </label>
                         <div class="form-text">
                             Marcalo cuando el servicio no se pueda hacer al mismo tiempo que otro igual: una

@@ -11,6 +11,7 @@ use App\Servicios\Borrador;
 use App\Servicios\Caja;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -546,6 +547,8 @@ class CitasController extends Controller
 
         return view('citas.atender', [
             'cita' => $cita,
+            // Para avisar ANTES de que cargue todo y le rebote al guardar.
+            'fichaje' => $this->estadoFichaje($cita),
             // Todos los servicios activos: los agendados vienen marcados y el
             // resto se puede sumar sobre la marcha si la clienta pide algo más.
             'servicios' => DB::select(
@@ -611,13 +614,24 @@ class CitasController extends Controller
         // Sin fichaje de entrada no se atiende: la asistencia dejaría de
         // reflejar quién estuvo de verdad en el salón, y la comisión se le
         // cargaría igual a quien no trabajó.
-        $diaCita = substr((string) $cita->fecha_hora, 0, 10);
-        if ($this->usaTurnos((int) $cita->id_usuario) && ! $this->ficho((int) $cita->id_usuario, $diaCita)) {
+        $fichaje = $this->estadoFichaje($cita);
+        if (! $fichaje['ok']) {
+            if ($fichaje['futura']) {
+                // No falta fichar: falta que llegue el día. Mandarla a fichar
+                // era mandarla a algo que Asistencia rechaza.
+                flash('Esa cita es del ' . fecha($fichaje['dia'], 'd/m/Y')
+                    . ', todavía no llegó ese día: recién se le puede registrar la atención cuando se atienda.', 'error');
+
+                return $volver;
+            }
+
             $quien = (string) DB::scalar(
                 "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
                    JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [(int) $cita->id_usuario]);
-            flash($quien . ' todavía no marcó su entrada del ' . fecha($diaCita, 'd/m/Y')
-                . '. Fichá la entrada en Seguridad → Asistencia y volvé a intentarlo.', 'error');
+            flash($quien . ' todavía no marcó su entrada del ' . fecha($fichaje['dia'], 'd/m/Y')
+                . ($fichaje['turno']
+                    ? '. Marcá la entrada con el botón de arriba y volvé a guardar.'
+                    : '. Corregí la asistencia de ese día en Seguridad → Asistencia y volvé a intentarlo.'), 'error');
 
             return $volver;
         }
@@ -657,10 +671,19 @@ class CitasController extends Controller
                 foreach ($validos as $sid) {
                     // Un servicio agregado durante la atención se suma también a
                     // la cita, así la factura y el historial quedan coherentes.
-                    $nuevoEnCita = DB::insert(
-                        'INSERT IGNORE INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)', [$idCita, $sid]
+                    //
+                    // Se pregunta ANTES de insertar: `DB::insert()` devuelve si
+                    // la consulta corrió, no si escribió una fila, así que con
+                    // INSERT IGNORE daba `true` aunque el servicio ya estuviera
+                    // en la cita y el aviso terminaba diciendo «se agregaron N
+                    // servicios que no estaban» cada vez.
+                    $yaEnCita = (bool) DB::scalar(
+                        'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sid]
                     );
-                    if ($nuevoEnCita) {
+                    if (! $yaEnCita) {
+                        DB::insert(
+                            'INSERT IGNORE INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)', [$idCita, $sid]
+                        );
                         $agregados++;
                     }
 
@@ -775,20 +798,33 @@ class CitasController extends Controller
                 . ($resumen['agregados'] ? " Se agregaron {$resumen['agregados']} servicio(s) que no estaban en la cita original." : '')
                 . ($resumen['quitados'] ? " Se quitaron {$resumen['quitados']} servicio(s) agendado(s) que no se realizaron: no se van a facturar." : '')
                 . ($resumen['productos'] ? ' El stock de los productos usados fue descontado.' : ''));
-        } catch (RuntimeException $ex) {
-            flash($ex->getMessage() === 'cantidad_muy_chica'
-                ? 'Una de las cantidades es tan chica que no llega a descontar nada del stock. Revisala.'
-                : 'Marcaste un producto en un servicio que no quedó como realizado. '
-                  . 'Marcá ese servicio o elegí otro para el producto.', 'error');
+        } catch (QueryException $ex) {
+            // OJO CON EL ORDEN: este catch va ANTES que el de RuntimeException.
+            // `QueryException` hereda de `PDOException`, que hereda de
+            // `RuntimeException`, así que al revés el de abajo se comía todos
+            // los errores de la base y los mostraba como «marcaste un producto
+            // en un servicio que no quedó como realizado» — un mensaje que no
+            // tiene nada que ver y manda a corregir lo que no está mal. Cargar
+            // un producto sin stock daba exactamente eso.
+            flash(Bd::traducir($ex, [
+                'stock' => 'No hay stock suficiente de alguno de los productos cargados. '
+                           . 'Fijate la cantidad, o cargá stock desde Inventario antes de registrar la atención.',
+                'habilitado' => 'El profesional no está habilitado para alguno de esos servicios.',
+            ], 'No se pudo registrar la atención.'), 'error');
 
             return $volver;
-        } catch (Throwable $ex) {
-            $msg = $ex->getMessage();
-            flash(str_contains($msg, 'stock')
-                ? 'No hay stock suficiente de alguno de los productos cargados.'
-                : (str_contains($msg, 'habilitado')
-                    ? 'El profesional no está habilitado para alguno de esos servicios.'
-                    : 'No se pudo registrar la atención.'), 'error');
+        } catch (RuntimeException $ex) {
+            // Los avisos que levanta esta misma función, por su nombre.
+            flash(match ($ex->getMessage()) {
+                'cantidad_muy_chica' => 'Una de las cantidades es tan chica que no llega a descontar nada del stock. Revisala.',
+                'servicio_no_realizado' => 'Marcaste un producto en un servicio que no quedó como realizado. '
+                                           . 'Marcá ese servicio o elegí otro para el producto.',
+                default => 'No se pudo registrar la atención.',
+            }, 'error');
+
+            return $volver;
+        } catch (Throwable) {
+            flash('No se pudo registrar la atención.', 'error');
 
             return $volver;
         }
@@ -826,6 +862,53 @@ class CitasController extends Controller
     // -----------------------------------------------------------------
 
     /** ¿El profesional fichó su entrada ese día? */
+    /**
+     * ¿Se puede registrar la atención de esta cita, y si no, por qué?
+     *
+     * Son DOS cosas distintas y antes se contestaban con el mismo mensaje:
+     *
+     *  · La cita es de un día que todavía no llegó. Ahí no falta fichar —
+     *    faltan días—. Decir «fichá la entrada» mandaba a Seguridad →
+     *    Asistencia, que contesta «no se puede registrar asistencia de un día
+     *    que todavía no llegó»: la persona daba vueltas sin salida. Con el mes
+     *    simulado pasaba en 83 de las 172 citas.
+     *  · La cita es de hoy y falta el fichaje de verdad. Eso sí se resuelve, y
+     *    desde esta misma pantalla.
+     *
+     * Devuelve `turno` cuando el fichaje se puede hacer acá, para dibujar el
+     * botón; si viene null, hay que ir a Asistencia (por ejemplo, una cita de
+     * ayer, que ya no es fichar sino corregir la planilla).
+     */
+    private function estadoFichaje(object $cita): array
+    {
+        $dia = substr((string) $cita->fecha_hora, 0, 10);
+        $hoy = ahora_bd('Y-m-d');
+        $idU = (int) $cita->id_usuario;
+
+        if (! $this->usaTurnos($idU) || $this->ficho($idU, $dia)) {
+            return ['ok' => true];
+        }
+
+        if ($dia > $hoy) {
+            return ['ok' => false, 'futura' => true, 'dia' => $dia, 'turno' => null];
+        }
+
+        // Sólo se ficha el día en curso. Un día pasado se corrige desde
+        // Asistencia, que es lo que ya hace `asistenciaMarcar`.
+        $turno = $dia === $hoy
+            ? DB::selectOne(
+                'SELECT t.id_turno, t.nombre, t.hora_inicio, t.hora_fin
+                   FROM usuario_turno ut
+                   JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                   JOIN turno_dia td    ON td.id_turno = t.id_turno AND td.dia_semana = ?
+                  WHERE ut.id_usuario = ? ORDER BY t.hora_inicio LIMIT 1',
+                [(int) date('N', strtotime($dia)), $idU]
+            )
+            : null;
+
+        return ['ok' => false, 'futura' => false, 'dia' => $dia, 'turno' => $turno];
+    }
+
     private function ficho(int $idUsuario, string $fecha): bool
     {
         return (bool) DB::scalar(

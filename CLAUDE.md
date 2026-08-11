@@ -94,16 +94,48 @@ contacto (un empleado externo, un contacto de proveedor), **no le agregues `nomb
 Al subir un dígito, los de la derecha vuelven a cero: después de `5.1.4`, una función
 nueva da `5.2.0`, no `5.2.4`.
 
-Tres cosas en la misma tanda, siempre juntas:
+Cuatro cosas en la misma tanda, siempre juntas:
 
 1. `version` en `config/spg.php`;
 2. `version_fecha`, con la fecha del cambio;
-3. una fila en el historial de acá abajo, diciendo **qué** cambió (no «varios ajustes»).
+3. una fila en el historial de acá abajo, diciendo **qué** cambió (no «varios ajustes»);
+4. **el commit** — ver acá abajo.
+
+### Al terminar un cambio, commitealo sin que haya que pedirlo
+
+**Terminar un cambio incluye commitearlo.** No hay que esperar a que lo pidan: cuando el
+cambio está hecho, probado y con la versión subida, se commitea. Un árbol de trabajo con
+veinte archivos sueltos de tres cambios distintos ya no se puede separar en commits que se
+entiendan, y este repositorio es el respaldo del TCC.
+
+Qué es «terminado»: las pruebas en verde (`php artisan test`), `spg:diagnostico` sin
+observaciones si se tocó la base, y los cuatro puntos de arriba hechos.
+
+**El mensaje sigue el formato del proyecto** — mirá `git log` antes de escribirlo:
+
+```
+X.Y.Z — qué cambió, en minúscula y en español
+
+El porqué, no el qué: el diff ya dice qué líneas cambiaron. Lo que no se puede
+recuperar después es por qué estaba mal, qué se probó y qué se decidió no hacer.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+```
+
+Dos cosas que ya salieron mal y conviene no repetir:
+
+- **Escribí el mensaje en un archivo y usá `git commit -F archivo`.** Con `-m` y comillas, un
+  mensaje largo en español se corta o se le cuelan caracteres: los commits `3860155` y el
+  primer intento de la 6.3.0 quedaron con un `@` pegado al título por usar sintaxis de
+  PowerShell en Bash.
+- **Si estás en `master`, abrí una rama antes** (`claude/<versión>-<tema>`). El merge a
+  `master` lo decide el usuario, no se hace solo.
 
 ### Historial
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.3.2 | 11/08/2026 | **Registrar atención dejaba de andar por dos motivos distintos, y los dos mentían.** Uno: cargar un producto sin stock contestaba «marcaste un producto en un servicio que no quedó como realizado» —un mensaje que no tiene nada que ver y manda a corregir lo que no está mal—. La causa es de manual: **`QueryException` hereda de `PDOException`, que hereda de `RuntimeException`**, así que el `catch (RuntimeException)` se comía todos los errores de la base y el `catch (Throwable)` de abajo, que sí tenía el mensaje de stock, era **código inalcanzable**. Dos: para una cita futura pedía fichar el día de la cita, y Asistencia rechaza fichar un día que no llegó — la persona quedaba dando vueltas entre dos pantallas, y en el mes simulado eso pasa en **83 de 172 citas**. Ahora se distingue «la cita todavía no llegó» de «falta el fichaje», y cuando falta de verdad **se ficha desde la misma pantalla**, sin ir a Asistencia y volver. De paso, el aviso decía «se agregaron N servicios que no estaban en la cita» **siempre**, porque `DB::insert()` devuelve si la consulta corrió, no si escribió una fila, y con `INSERT IGNORE` eso es `true` igual. El checkbox de Servicios pasa a llamarse **«Requiere atención exclusiva»**. Notas de crédito **verificadas** de punta a punta: numeran con el timbrado del tipo 5, copian el detalle, van con signo −1 y revierten los puntos. **50 pruebas** |
 | 6.3.1 | 11/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_test`**, el mes simulado, para poder mirar las pantallas con datos de verdad: una lista vacía no muestra si la paginación, los filtros y las dos exportaciones andan. Es la línea `DB_DATABASE` de `docker/php/env.docker`, y se documenta en los dos lados **cómo se cambia** —basta `docker compose restart app`, sin `down -v`, que además borraría las bases— porque el contenedor ya crea e importa las dos al arrancar. **Antes de entregar hay que volver a `peluqueria_bd`**, que es la que se instala en el salón |
 | 6.3.0 | 11/08/2026 | **Los listados también bajan en PDF**, con la misma decisión que ya estaba tomada en Informes: no hay librería, se maqueta para A4 y el navegador guarda como PDF. Una sola vista (`listado/imprimir`) sirve a las doce listas y deja escritos los filtros en el papel, porque si no dos PDF de la misma pantalla salen idénticos de encabezado. De paso aparecieron **dos pantallas rotas de verdad**: `webauthn/preguntar` se dibujaba **sin una línea de JavaScript** —`auth/marco` no tenía `@stack('scripts')`, así que todo el `@push` se perdía en silencio— y dejaba al usuario nuevo **encerrado** entre el ingreso y el panel, con los dos botones muertos; y **exportar la auditoría devolvía 500** desde siempre, porque `auditoria()` declaraba `: View` y devolvía un archivo. Además, **las altas rápidas dejan de borrar lo cargado**: la migración a Laravel se quedó a mitad de camino —`app.js` seguía adjuntando el borrador y ya no lo leía nadie—, así que crear una sucursal desde la ficha vaciaba nombre, apellido, usuario y email. Lo resuelve `App\Servicios\Borrador`, que **no** es `withInput()` a secas: el alta rápida manda su propio formulario, y varios de sus campos se llaman igual que los del grande (`nombre` está en los dos). Se corrigen los días **Mié** y **Sáb**, que salían cortados a mitad de byte por `substr`, y se sacan dos avisos que le explicaban a la persona un permiso que ya tenía. En el portal, el «¿Con quién?» de toda la cita se va: cada servicio ya trae el suyo. **49 pruebas** |
 | 6.2.0 | 11/08/2026 | **Personal y Configuración se unen en un solo módulo, Seguridad**, con el fondo oscuro que tenía Configuración: las dos tarjetas contestaban la misma pregunta —quién entra, qué puede hacer y qué quedó registrado— y separadas obligaban a saltar de una a la otra para dar de alta a alguien y darle permisos. Los módulos pasan de 8 a 7 y los permisos siguen siendo **28**, ahora ocho submódulos de `seguridad`. Las rutas quedan bajo `/seguridad` y las trece vistas en una sola carpeta. **Lo que estaba guardado no se pierde ni crece**: `permisos.equivalencias` traduce las claves viejas al leerlas, y el módulo padre viejo se traduce a **sus** submódulos, no a `seguridad` a secas — traducirlo al padre nuevo le habría regalado los roles y la auditoría a quien solo administraba al personal. De paso, la prueba nueva que abre las doce pantallas destapó que **Auditoría nunca había funcionado en Laravel**: consultaba `a.fecha` y la columna es `fecha_hora`, así que devolvía 500 desde la 6.1.1 |
@@ -181,7 +213,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 49 pruebas
+tests/Feature/             Las 50 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -214,6 +246,15 @@ tests/Feature/             Las 49 pruebas
   (que dejan puesto los `sp_anular_*` / `sp_revertir_*`). En esos casos llamar a `registrar()`
   deja **dos filas por la misma acción**: usá `Auditoria::anotarMotivo($tabla, $id, $motivo)`,
   que le agrega el motivo a la fila que escribió el trigger.
+- **Cuidado con `catch (RuntimeException)`: se come los errores de la base.**
+  `Illuminate\Database\QueryException` hereda de `PDOException`, que hereda de
+  `RuntimeException`. Así que un `catch (RuntimeException)` puesto para atrapar los avisos
+  propios **también atrapa todo lo que levantan los disparadores y procedimientos**, y un
+  `catch (Throwable)` escrito debajo para traducirlos queda **inalcanzable**: no se ejecuta
+  nunca y no hay forma de notarlo leyendo el código. Le pasó a «Registrar atención», donde un
+  producto sin stock contestaba «marcaste un producto en un servicio que no quedó como
+  realizado». **El `catch (QueryException)` va primero**, con `Bd::traducir()`, y después el
+  de las excepciones propias.
 - **Verificá pertenencia**: que la cita sea de ese cliente, que la factura no esté anulada, etc.
   No confíes en los campos ocultos del formulario (ej. el cliente se toma de la cita, no del POST).
 - Los `id` de catálogos se validan contra la base antes de usarlos.
@@ -1265,7 +1306,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 49 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 50 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1310,7 +1351,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**49 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**50 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

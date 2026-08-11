@@ -382,6 +382,44 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     #[Test]
+    public function dos_servicios_exclusivos_no_pueden_ir_en_paralelo(): void
+    {
+        // «Requiere atención exclusiva» significa que ese servicio no se puede
+        // hacer al mismo tiempo que otro igual: una coloración y una keratina
+        // se pisan, las dos son sobre el pelo. La regla se aplica ENTRE
+        // profesionales distintos — si los hace la misma persona van uno
+        // después del otro y no hay conflicto.
+        $ex = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 AND requiere_exclusividad = 1 LIMIT 2');
+        if (count($ex) < 2) {
+            $this->markTestSkipped('Hacen falta dos servicios exclusivos en la base de prueba.');
+        }
+        [$a, $b] = [(int) $ex[0]->id_servicio, (int) $ex[1]->id_servicio];
+
+        $profs = DB::select(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1 LIMIT 2'
+        );
+        if (count($profs) < 2) {
+            $this->markTestSkipped('Hacen falta dos profesionales en la base de prueba.');
+        }
+        [$p1, $p2] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
+
+        $cuando = date('Y-m-d', strtotime('+40 days')) . ' 10:00:00';
+
+        // Dos exclusivos, uno con cada profesional: se pisan sobre la clienta.
+        $this->assertNotNull(
+            Agenda::validarReparto([$a => $p1, $b => $p2], $p1, $cuando),
+            'Dos servicios exclusivos en paralelo tendrían que rechazarse.'
+        );
+
+        // Los mismos dos, con la misma persona: van uno después del otro.
+        $this->assertNull(
+            Agenda::validarReparto([$a => $p1, $b => $p1], $p1, $cuando),
+            'Con un solo profesional no hay paralelo, así que no hay conflicto.'
+        );
+    }
+
+    #[Test]
     public function el_portal_pregunta_el_profesional_una_sola_vez(): void
     {
         // La pantalla tenía dos formas de contestar lo mismo: un selector por

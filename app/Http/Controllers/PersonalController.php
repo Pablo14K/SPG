@@ -677,7 +677,16 @@ class PersonalController extends Controller
         $idQuien = (int) $request->input('id_usuario', 0);
         $fecha = (string) $request->input('fecha', ahora_bd('Y-m-d'));
         $motivo = trim((string) $request->input('motivo_ausencia', '')) ?: null;
-        $volver = redirect()->route('seguridad.asistencia', ['fecha' => $fecha]);
+
+        // Se puede fichar desde la pantalla de atención, que es donde se nota
+        // que falta. En ese caso se vuelve ahí y no a Asistencia: el trabajo a
+        // medio cargar estaba allá. Va el ID de la cita y la ruta la arma el
+        // servidor — una URL de vuelta que venga del formulario sería un
+        // redirect abierto.
+        $volverCita = (int) $request->input('volver_cita', 0);
+        $volver = $volverCita
+            ? redirect()->route('citas.atender', ['id' => $volverCita])
+            : redirect()->route('seguridad.asistencia', ['fecha' => $fecha]);
 
         $error = null;
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || ! strtotime($fecha)) {

@@ -8,6 +8,45 @@
     <x-encabezado :sub="'Cita de <strong>' . e($cita->cliente) . '</strong> con ' . e($cita->profesional)
                         . ' · ' . e(fecha($cita->fecha_hora))" />
 
+    {{-- El fichaje se avisa ACÁ, antes de que la persona cargue todo y le
+         rebote al guardar. Y se distinguen los dos casos, que antes salían con
+         el mismo texto: si la cita todavía no llegó no falta fichar, faltan
+         días, y mandarla a Asistencia era mandarla a un rechazo seguro. --}}
+    @if (! $fichaje['ok'])
+        <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+            @if ($fichaje['futura'])
+                <span>
+                    Esta cita es del <strong>{{ fecha($fichaje['dia'], 'd/m/Y') }}</strong>: todavía no llegó ese día.
+                    Vas a poder registrar la atención cuando se atienda.
+                </span>
+            @elseif ($fichaje['turno'])
+                <span>
+                    <strong>{{ $cita->profesional }}</strong> todavía no marcó su entrada de hoy, y sin eso no se
+                    puede registrar la atención: la comisión se le liquidaría a alguien que no figura trabajando.
+                </span>
+                <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
+                    @csrf
+                    <input type="hidden" name="accion" value="entrada">
+                    <input type="hidden" name="id_usuario" value="{{ $cita->id_usuario }}">
+                    <input type="hidden" name="id_turno" value="{{ $fichaje['turno']->id_turno }}">
+                    <input type="hidden" name="fecha" value="{{ $fichaje['dia'] }}">
+                    {{-- Vuelve acá en vez de a Asistencia: el trabajo estaba acá --}}
+                    <input type="hidden" name="volver_cita" value="{{ $cita->id_cita }}">
+                    <button class="btn btn-sm btn-oro">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Marcar entrada ({{ substr((string) $fichaje['turno']->hora_inicio, 0, 5) }}
+                        a {{ substr((string) $fichaje['turno']->hora_fin, 0, 5) }})</button>
+                </form>
+            @else
+                <span>
+                    <strong>{{ $cita->profesional }}</strong> no tiene marcada la entrada del
+                    <strong>{{ fecha($fichaje['dia'], 'd/m/Y') }}</strong>. Como es un día que ya pasó, no se ficha:
+                    se corrige la planilla en <strong>Seguridad → Asistencia</strong>.
+                </span>
+            @endif
+        </div>
+    @endif
+
     @if ($factura)
         <div class="alert alert-warning">
             Esta cita ya fue facturada con el comprobante <strong>{{ $factura->nro }}</strong>.
