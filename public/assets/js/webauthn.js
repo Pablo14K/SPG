@@ -19,11 +19,53 @@ window.SPGBio = (function () {
     return { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: b };
   }
 
-  async function available() {
-    if (!window.PublicKeyCredential || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) return false;
-    try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
-    catch (e) { return false; }
+  // ¿Se puede usar la huella acá? Devuelve el MOTIVO, no un sí o un no, porque
+  // cada "no" se resuelve de una forma distinta: decirle a alguien que su
+  // equipo no tiene lector cuando en realidad falta HTTPS lo manda a buscar un
+  // problema de hardware que no existe. Pasó con el celular entrando por la IP
+  // de la red.
+  async function estado() {
+    // WebAuthn sólo existe en contexto seguro: HTTPS, o localhost / 127.0.0.1.
+    // Entrando por http://192.168.x.x:8000 el navegador ni siquiera define la
+    // API, por más sensor que tenga el teléfono.
+    if (!window.isSecureContext || !window.PublicKeyCredential) {
+      return { ok: false, motivo: 'inseguro' };
+    }
+    // El rpId sale del dominio, y la especificación no admite direcciones IP:
+    // aunque se sirviera por HTTPS, el navegador rechazaría el registro.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname)) {
+      return { ok: false, motivo: 'ip' };
+    }
+    if (!PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+      return { ok: false, motivo: 'navegador' };
+    }
+    try {
+      var hay = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return hay ? { ok: true, motivo: '' } : { ok: false, motivo: 'sin_sensor' };
+    } catch (e) {
+      return { ok: false, motivo: 'sin_sensor' };
+    }
   }
+
+  // Lo que hay que decirle a la persona en cada caso, en su idioma y sin
+  // mandarla a revisar lo que no es.
+  var MOTIVOS = {
+    inseguro: 'El ingreso con huella necesita una conexión segura (HTTPS). Estás entrando por la '
+            + 'dirección de red del equipo, y por ahí el navegador no habilita el lector aunque tu '
+            + 'dispositivo lo tenga. Publicado en el servidor, con HTTPS, va a funcionar.',
+    ip: 'El ingreso con huella no funciona entrando por una dirección IP: necesita un dominio. '
+      + 'Publicado en el servidor, con su subdominio y HTTPS, va a funcionar.',
+    navegador: 'Este navegador no admite el ingreso con huella. Probá con Chrome, Edge, Firefox o '
+             + 'Safari actualizados.',
+    sin_sensor: 'Este dispositivo no tiene lector de huella ni reconocimiento facial disponible '
+              + 'para el navegador.'
+  };
+
+  function motivoTexto(motivo) {
+    return MOTIVOS[motivo] || MOTIVOS.sin_sensor;
+  }
+
+  async function available() { return (await estado()).ok; }
 
   // Registro (activar huella). urls = {options, verify}
   async function register(urls, csrf) {
@@ -67,5 +109,6 @@ window.SPGBio = (function () {
   function olvidar() { try { localStorage.removeItem('spg_bio'); } catch (e) {} }
   function guardado() { try { return JSON.parse(localStorage.getItem('spg_bio') || 'null'); } catch (e) { return null; } }
 
-  return { available: available, register: register, login: login, recordar: recordar, olvidar: olvidar, guardado: guardado };
+  return { available: available, estado: estado, motivoTexto: motivoTexto, register: register,
+           login: login, recordar: recordar, olvidar: olvidar, guardado: guardado };
 })();

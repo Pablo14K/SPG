@@ -109,10 +109,10 @@
 
     function decir(txt) { aviso.textContent = txt; aviso.classList.remove('d-none'); }
 
-    SPGBio.available().then(function (ok) {
-        if (!ok) {
+    SPGBio.estado().then(function (e) {
+        if (!e.ok) {
             document.getElementById('btnBioActivar').disabled = true;
-            decir('Este equipo no tiene lector de huella ni reconocimiento facial disponible para el navegador.');
+            decir(SPGBio.motivoTexto(e.motivo));
         }
     });
 

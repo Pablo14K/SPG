@@ -40,11 +40,13 @@
 
     function decir(txt) { aviso.textContent = txt; aviso.classList.remove('d-none'); }
 
-    // Si el equipo no tiene sensor, no tiene sentido ofrecerlo
-    SPGBio.available().then(function (ok) {
-        if (!ok) {
+    // Si acá no se puede usar la huella, no tiene sentido ofrecerla — pero hay
+    // que decir POR QUÉ: no es lo mismo un equipo sin lector que una conexión
+    // sin HTTPS, y confundirlos manda a revisar lo que no es.
+    SPGBio.estado().then(function (e) {
+        if (!e.ok) {
             document.getElementById('btnActivar').disabled = true;
-            decir('Este equipo no tiene lector de huella ni reconocimiento facial disponible para el navegador.');
+            decir(SPGBio.motivoTexto(e.motivo));
         }
     });
 
