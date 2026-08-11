@@ -190,6 +190,9 @@
     var campoFecha = document.getElementById('fecha_hora');
     var btn        = document.getElementById('btnAgendar');
     var diaElegido = null;
+    // Si app.js no cargó, agendar tiene que seguir andando igual: la señal
+    // de carga es un adorno, no parte del funcionamiento.
+    var SPGCarga   = window.SPGCarga || { envolver: function (p) { return p; } };
 
     function serviciosElegidos() {
         return Array.prototype.slice
@@ -218,9 +221,13 @@
             avisoEl.textContent = 'Elegí primero los servicios para ver los horarios disponibles.';
             return;
         }
-        avisoEl.textContent = 'Buscando días con lugar…';
+        // El cálculo mira turnos, citas y ausencias de 60 días: con la agenda
+        // cargada tarda, y sin señal parece que el sistema se quedó.
+        avisoEl.innerHTML = '<span class="spg-cargando-texto">'
+            + '<span class="spg-spinner"></span> Buscando días con lugar…</span>';
 
-        fetch(url + '?' + parametros().toString(), { headers: { 'Accept': 'application/json' } })
+        SPGCarga.envolver(
+            fetch(url + '?' + parametros().toString(), { headers: { 'Accept': 'application/json' } }), diasEl)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (!d.ok) { avisoEl.textContent = d.motivo || 'No se pudo consultar la agenda.'; return; }
@@ -247,11 +254,13 @@
         diaElegido = f;
         Array.prototype.forEach.call(diasEl.children, function (c) { c.classList.remove('activo'); });
         boton.classList.add('activo');
-        horasEl.innerHTML = 'Buscando horarios…';
+        horasEl.innerHTML = '<span class="spg-cargando-texto">'
+            + '<span class="spg-spinner"></span> Buscando horarios…</span>';
         campoFecha.value = '';
         btn.disabled = true;
 
-        fetch(url + '?' + parametros({ fecha: f }).toString(), { headers: { 'Accept': 'application/json' } })
+        SPGCarga.envolver(
+            fetch(url + '?' + parametros({ fecha: f }).toString(), { headers: { 'Accept': 'application/json' } }), horasEl)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 horasEl.innerHTML = '';

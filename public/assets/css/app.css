@@ -784,3 +784,84 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-perm-hijos input:checked + span{color:var(--negro);}
 .spg-perm-mod input:disabled,
 .spg-perm-mod input:disabled + span{cursor:default;opacity:.75;}
+
+/* =====================================================================
+   Señales de carga
+
+   Con navegación tradicional el navegador no da ninguna señal entre el
+   clic y la respuesta: con muchos datos cargados esa espera se lee como
+   «el sistema no responde», cuando en realidad está trabajando. Son tres
+   piezas, y cada una responde a una espera distinta:
+
+     .spg-barra-carga   la página entera se está yendo a buscar
+     .btn.cargando      ese botón concreto disparó algo y está esperando
+     .spg-spinner       un pedazo de pantalla se está llenando por fetch
+
+   Todo en oro, que es donde el sistema ya pone la acción.
+   ===================================================================== */
+
+/* --- Barra superior: la página se está cargando --------------------- */
+.spg-barra-carga{
+  position:fixed;top:0;left:0;right:0;height:3px;z-index:2000;
+  background:transparent;pointer-events:none;
+  opacity:0;transition:opacity .15s ease;
+}
+.spg-barra-carga.visible{opacity:1;}
+.spg-barra-carga::before{
+  content:"";display:block;height:100%;width:40%;
+  background:linear-gradient(90deg,
+    transparent, var(--oro-claro) 30%, var(--oro) 50%, var(--oro-claro) 70%, transparent);
+  animation:spg-barra 1.1s ease-in-out infinite;
+}
+@keyframes spg-barra{
+  0%  {transform:translateX(-100%);}
+  100%{transform:translateX(350%);}
+}
+
+/* --- Botón esperando ------------------------------------------------ */
+/* El ícono se reemplaza por el spinner en su lugar: el botón no cambia
+   de ancho, así la fila no salta cuando hay varios en línea. */
+.btn.cargando{position:relative;pointer-events:none;}
+.btn.cargando > i{visibility:hidden;}
+.btn.cargando::after{
+  content:"";position:absolute;
+  top:50%;margin-top:-.45rem;
+  left:.75rem;
+  width:.9rem;height:.9rem;
+  border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;opacity:.85;
+  animation:spg-giro .6s linear infinite;
+}
+/* Sin ícono adentro el spinner no tiene dónde ir: se centra y se apaga
+   el texto, que si no queda montado encima. */
+.btn.cargando.sin-icono{color:transparent;}
+.btn.cargando.sin-icono::after{left:50%;margin-left:-.45rem;color:var(--negro);}
+.btn-oro.cargando.sin-icono::after{border-color:var(--negro);border-right-color:transparent;}
+
+@keyframes spg-giro{to{transform:rotate(360deg);}}
+
+/* --- Spinner suelto, para bloques que se llenan por fetch ----------- */
+.spg-spinner{
+  display:inline-block;vertical-align:-.15em;
+  width:1rem;height:1rem;
+  border:2px solid var(--oro-suave);border-right-color:var(--oro);
+  border-radius:50%;
+  animation:spg-giro .6s linear infinite;
+}
+.spg-spinner.grande{width:1.6rem;height:1.6rem;border-width:3px;}
+
+/* Línea de «buscando…»: spinner + texto, en el tono de los muted */
+.spg-cargando-texto{
+  display:inline-flex;align-items:center;gap:.5rem;
+  color:var(--gris-oscuro);font-size:.85rem;
+}
+
+/* Bloque que se está actualizando: se apaga un poco y no se puede tocar,
+   así no se hace clic sobre datos que están por cambiar. */
+.spg-actualizando{opacity:.5;pointer-events:none;transition:opacity .2s ease;}
+
+/* --- Respeto por quien pidió menos movimiento ----------------------- */
+@media (prefers-reduced-motion:reduce){
+  .spg-barra-carga::before{animation:none;width:100%;opacity:.5;}
+  .btn.cargando::after,.spg-spinner{animation-duration:2.5s;}
+}

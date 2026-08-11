@@ -70,6 +70,9 @@
 <script>
 (function () {
     var url = @json(route('portal.disponibilidad'));
+    // Si app.js no cargó, la reserva tiene que seguir andando igual: la
+    // señal de carga es un adorno, no parte del funcionamiento.
+    var SPGCarga = window.SPGCarga || { envolver: function (p) { return p; } };
     var avisoEl = document.getElementById('avisoAgenda'),
         diasEl = document.getElementById('dias'),
         horasEl = document.getElementById('horas'),
@@ -110,9 +113,11 @@
             avisoEl.textContent = 'Elegí primero los servicios para ver los horarios disponibles.';
             return;
         }
-        avisoEl.textContent = 'Buscando días con lugar…';
+        avisoEl.innerHTML = '<span class="spg-cargando-texto">'
+            + '<span class="spg-spinner"></span> Buscando días con lugar…</span>';
 
-        fetch(url + '?' + params().toString(), { headers: { 'Accept': 'application/json' } })
+        SPGCarga.envolver(
+            fetch(url + '?' + params().toString(), { headers: { 'Accept': 'application/json' } }), diasEl)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (!d.ok) { avisoEl.textContent = d.motivo || 'No se pudo consultar la agenda.'; return; }
@@ -135,9 +140,12 @@
         diaElegido = f;
         Array.prototype.forEach.call(diasEl.children, function (c) { c.classList.remove('activo'); });
         boton.classList.add('activo');
-        horasEl.textContent = 'Buscando horarios…'; campo.value = ''; btn.disabled = true;
+        horasEl.innerHTML = '<span class="spg-cargando-texto">'
+            + '<span class="spg-spinner"></span> Buscando horarios…</span>';
+        campo.value = ''; btn.disabled = true;
 
-        fetch(url + '?' + params({ fecha: f }).toString(), { headers: { 'Accept': 'application/json' } })
+        SPGCarga.envolver(
+            fetch(url + '?' + params({ fecha: f }).toString(), { headers: { 'Accept': 'application/json' } }), horasEl)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 horasEl.innerHTML = '';

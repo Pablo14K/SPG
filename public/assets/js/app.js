@@ -4,7 +4,148 @@
 //  2. Confirmación en botones marcados con data-confirmar
 //  3. Evita el doble envío accidental de un formulario
 //  4. Selector de disponibilidad de la agenda
+//  5. Señales de carga
 // =====================================================================
+
+// ---------------------------------------------------------------------
+//  Señales de carga
+//
+//  El sistema navega a la vieja usanza: cada clic pide una página nueva y
+//  el navegador no muestra NADA hasta que llega la respuesta. Con la base
+//  cargada, una lista con filtros o un informe tardan lo suyo, y esa
+//  espera en blanco se lee como «se colgó» cuando en realidad está
+//  trabajando. Acá se le pone cara a esa espera.
+//
+//  Se expone como `SPGCarga` para que las pantallas que traen su propio
+//  JavaScript (la agenda, el portal) lo usen en vez de inventar el suyo.
+//
+//  Nada de esto es funcional: si el JS no carga, todo sigue andando igual.
+// ---------------------------------------------------------------------
+window.SPGCarga = (function () {
+  'use strict';
+
+  var barra = null;
+  var pendientes = 0;
+  var reloj = null;
+
+  function elemento() {
+    if (!barra) {
+      barra = document.createElement('div');
+      barra.className = 'spg-barra-carga';
+      barra.setAttribute('role', 'status');
+      barra.setAttribute('aria-live', 'polite');
+      barra.setAttribute('aria-label', 'Cargando');
+      document.body.appendChild(barra);
+    }
+    return barra;
+  }
+
+  // La barra no aparece de inmediato: si la respuesta llega en 200 ms, un
+  // parpadeo molesta más que la espera. Recién a partir de ahí hay algo
+  // que avisar.
+  function mostrar() {
+    pendientes++;
+    if (reloj) return;
+    reloj = setTimeout(function () {
+      reloj = null;
+      if (pendientes > 0) elemento().classList.add('visible');
+    }, 250);
+  }
+
+  function ocultar() {
+    pendientes = Math.max(0, pendientes - 1);
+    if (pendientes > 0) return;
+    if (reloj) { clearTimeout(reloj); reloj = null; }
+    if (barra) barra.classList.remove('visible');
+  }
+
+  function todoListo() {
+    pendientes = 0;
+    if (reloj) { clearTimeout(reloj); reloj = null; }
+    if (barra) barra.classList.remove('visible');
+  }
+
+  // Marca un botón como «esperando»: el ícono se convierte en spinner.
+  function ocupar(boton) {
+    if (!boton || boton.classList.contains('cargando')) return;
+    if (!boton.querySelector('i')) boton.classList.add('sin-icono');
+    boton.classList.add('cargando');
+  }
+
+  function liberar(boton) {
+    if (boton) boton.classList.remove('cargando', 'sin-icono');
+  }
+
+  // Envuelve un fetch: prende la barra, atenúa el bloque que se va a
+  // rehacer y lo devuelve a la normalidad pase lo que pase.
+  function envolver(promesa, bloque) {
+    mostrar();
+    if (bloque) bloque.classList.add('spg-actualizando');
+
+    return promesa.finally(function () {
+      ocultar();
+      if (bloque) bloque.classList.remove('spg-actualizando');
+    });
+  }
+
+  // Volver con el botón «atrás» restaura la página desde la caché del
+  // navegador, con la barra tal como quedó: hay que apagarla a mano.
+  window.addEventListener('pageshow', todoListo);
+  window.addEventListener('pagehide', todoListo);
+
+  return {
+    mostrar: mostrar, ocultar: ocultar, todoListo: todoListo,
+    ocupar: ocupar, liberar: liberar, envolver: envolver,
+  };
+})();
+
+// ---------------------------------------------------------------------
+//  Cuándo se muestra la barra
+// ---------------------------------------------------------------------
+(function () {
+  'use strict';
+
+  // Un enlace que NO va a cambiar de página no tiene que encender nada:
+  // descargas, anclas, pestañas nuevas, `mailto:`, y el clic con Ctrl o
+  // rueda del mouse, que abre en otra pestaña y deja ésta quieta.
+  function navegaDeVerdad(a, ev) {
+    if (!a || !a.href) return false;
+    if (ev && (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey || ev.button !== 0)) return false;
+    if (a.target && a.target !== '_self') return false;
+    if (a.hasAttribute('download')) return false;
+    if (a.getAttribute('href').indexOf('#') === 0) return false;
+    if (!/^https?:/i.test(a.href)) return false;              // mailto:, tel:, javascript:
+    if (a.origin !== window.location.origin) return false;
+    // Las exportaciones bajan un archivo y la página se queda donde está:
+    // la barra se quedaría prendida para siempre.
+    if (/[?&]export=csv\b/.test(a.href)) return false;
+
+    return true;
+  }
+
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest ? ev.target.closest('a') : null;
+    if (!navegaDeVerdad(a, ev)) return;
+    // Si algo canceló el clic (una confirmación que se respondió que no),
+    // no hay navegación que anunciar.
+    setTimeout(function () { if (!ev.defaultPrevented) window.SPGCarga.mostrar(); }, 0);
+  });
+
+  // Al enviar un formulario. Va en la fase de captura y ANTES que el
+  // bloqueo de doble envío, pero se difiere para leer `defaultPrevented`:
+  // si la validación de miles o un `data-confirmar` cortaron el envío, no
+  // hay nada esperando.
+  document.addEventListener('submit', function (ev) {
+    var form = ev.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    setTimeout(function () {
+      if (ev.defaultPrevented) return;
+      window.SPGCarga.mostrar();
+      if (ev.submitter) window.SPGCarga.ocupar(ev.submitter);
+    }, 0);
+  });
+})();
 
 // ---------------------------------------------------------------------
 //  Campo de celular
@@ -349,6 +490,10 @@
     setTimeout(function () {
       form.dataset.enviando = '';
       form.querySelectorAll('button[disabled]').forEach(function (b) { b.disabled = false; });
+      // Y se apaga la señal de carga: dejarla girando sobre un formulario
+      // que ya no está esperando nada es peor que no haberla puesto.
+      form.querySelectorAll('.btn.cargando').forEach(function (b) { window.SPGCarga.liberar(b); });
+      window.SPGCarga.todoListo();
     }, 8000);
   });
 

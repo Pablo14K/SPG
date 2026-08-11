@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.5.0 | 11/08/2026 | **La espera se ve.** El sistema navega a la vieja usanza —cada clic pide una página entera— y el navegador **no muestra nada** entre el clic y la respuesta: con la base cargada, una lista con filtros o un informe tardan, y esa espera en blanco se lee como «se colgó» cuando en realidad está trabajando. Entran tres piezas, todas en oro y sin un color nuevo: una **barra de 3 px arriba de todo** mientras la página va y viene, el **ícono del botón que se vuelve spinner** sin cambiar de ancho (así la fila no salta), y un **spinner suelto** para los bloques que se llenan por `fetch` —los días y horas de la agenda, que son el peor caso: el cálculo mira turnos, citas y ausencias de 60 días—. Cuatro detalles que no son adorno: la barra **no aparece hasta los 250 ms**, porque si la respuesta llega antes el parpadeo molesta más que la espera; **las descargas no la encienden**, que si no un `?export=csv` la dejaba girando para siempre porque la página no navega; se apaga en `pageshow`, porque volver con «atrás» restaura la página con la barra tal como quedó; y **es un adorno que puede faltar** — las vistas con JS propio declaran su respaldo, así que si `app.js` no carga, agendar sigue funcionando. El refresco del portal cada 20 segundos no enciende nada a propósito. Respeta `prefers-reduced-motion` |
 | 6.4.0 | 11/08/2026 | **Correcciones de la auditoría de QA del 11/08/2026** (486 operaciones sobre la base vacía, 88/100, APTO CON OBSERVACIONES). La grave: **el Profesional podía fijar cuánto cobra el salón.** El rol traía `servicios.catalogo`, `.categorias` y `.descuentos` de fábrica, y con eso bajó una coloración de 280.000 a **1.000**, la dio de baja y puso una promo al **99 %** — que `sp_emitir_factura` aplica sola. El middleware funcionaba perfecto: sobraba el permiso. Se quitan los tres del `.sql` que se entrega; sigue viendo los servicios donde los necesita (Nueva cita y Registrar atención son de `citas.*`). También: **el fichaje retroactivo sellaba la hora del reloj** —quedó registrada una entrada a las 15:06 de un día en que nadie apretó nada—, así que ahora se pide la hora y tiene que caer dentro del turno; **el teléfono no se validaba** y entraba `abc-!!!`; **`persona.direccion` no la capturaba ninguna pantalla**; y la auditoría de un cambio de precio decía sólo el nombre del servicio, ahora deja **de cuánto a cuánto**, igual que la matriz de permisos, que anota qué clave ganó y cuál perdió cada rol. Entra **`.env.produccion.example`**, porque desplegar con el `.env` de desarrollo deja `APP_DEBUG=true` (traza con la contraseña de la base a la vista) y enlaces de correo apuntando a `localhost`. **La contraseña de Gmail sale del repositorio**: `env.docker` vuelve a `MAIL_MAILER=log`. **51 pruebas** |
 | 6.3.2 | 11/08/2026 | **Registrar atención dejaba de andar por dos motivos distintos, y los dos mentían.** Uno: cargar un producto sin stock contestaba «marcaste un producto en un servicio que no quedó como realizado» —un mensaje que no tiene nada que ver y manda a corregir lo que no está mal—. La causa es de manual: **`QueryException` hereda de `PDOException`, que hereda de `RuntimeException`**, así que el `catch (RuntimeException)` se comía todos los errores de la base y el `catch (Throwable)` de abajo, que sí tenía el mensaje de stock, era **código inalcanzable**. Dos: para una cita futura pedía fichar el día de la cita, y Asistencia rechaza fichar un día que no llegó — la persona quedaba dando vueltas entre dos pantallas, y en el mes simulado eso pasa en **83 de 172 citas**. Ahora se distingue «la cita todavía no llegó» de «falta el fichaje», y cuando falta de verdad **se ficha desde la misma pantalla**, sin ir a Asistencia y volver. De paso, el aviso decía «se agregaron N servicios que no estaban en la cita» **siempre**, porque `DB::insert()` devuelve si la consulta corrió, no si escribió una fila, y con `INSERT IGNORE` eso es `true` igual. El checkbox de Servicios pasa a llamarse **«Requiere atención exclusiva»**. Notas de crédito **verificadas** de punta a punta: numeran con el timbrado del tipo 5, copian el detalle, van con signo −1 y revierten los puntos. **50 pruebas** |
 | 6.3.1 | 11/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_test`**, el mes simulado, para poder mirar las pantallas con datos de verdad: una lista vacía no muestra si la paginación, los filtros y las dos exportaciones andan. Es la línea `DB_DATABASE` de `docker/php/env.docker`, y se documenta en los dos lados **cómo se cambia** —basta `docker compose restart app`, sin `down -v`, que además borraría las bases— porque el contenedor ya crea e importa las dos al arrancar. **Antes de entregar hay que volver a `peluqueria_bd`**, que es la que se instala en el salón |
@@ -403,6 +404,44 @@ guardado su contacto: el enlace entero, un usuario o canal, o el número.
 - **Solo se aceptan `http` y `https`.** El valor termina en un `href` del pie de todas las
   pantallas: sin esa comprobación, alguien con acceso a Configuración podría guardar un
   `javascript:` y dejarlo inyectado en todo el sistema.
+### La espera tiene que verse
+
+El sistema navega a la vieja usanza: cada clic pide una página nueva y **el navegador no
+muestra nada** entre el clic y la respuesta. Con la base cargada, una lista con filtros o un
+informe tardan lo suyo, y esa espera en blanco se lee como «se colgó» cuando en realidad
+está trabajando. Son tres piezas, y cada una responde a una espera distinta:
+
+| Pieza | Cuándo | Qué hace |
+|---|---|---|
+| `.spg-barra-carga` | la página entera se está yendo a buscar | barra de 3 px arriba de todo, en oro |
+| `.btn.cargando` | ese botón disparó algo y está esperando | el ícono se vuelve spinner, sin cambiar el ancho |
+| `.spg-spinner` | un pedazo de pantalla se llena por `fetch` | spinner suelto, con `.spg-cargando-texto` al lado |
+
+Se maneja con **`SPGCarga`** (`app.js`), y las pantallas con JS propio lo usan en vez de
+inventar el suyo:
+
+```js
+SPGCarga.envolver(fetch(url), bloqueQueSeVaARehacer)   // barra + atenúa el bloque
+SPGCarga.ocupar(boton) / SPGCarga.liberar(boton)
+```
+
+Cuatro detalles que no son adorno y conviene no perder al tocarlo:
+
+- **La barra no aparece hasta los 250 ms.** Si la respuesta llega antes, un parpadeo molesta
+  más que la espera.
+- **Las descargas no la encienden.** Un `?export=csv` baja un archivo y la página se queda
+  donde está: la barra quedaría girando para siempre. Tampoco la encienden las anclas, los
+  `target="_blank"`, `mailto:`, ni el clic con Ctrl.
+- **Se apaga en `pageshow`.** Volver con «atrás» restaura la página desde la caché del
+  navegador con la barra tal como quedó.
+- **Es un adorno, y tiene que poder faltar.** Las vistas con JS propio declaran
+  `var SPGCarga = window.SPGCarga || { envolver: function (p) { return p; } };`, así que si
+  `app.js` no cargó, agendar sigue funcionando. Misma idea que la salida de la pantalla de la
+  huella.
+
+El refresco automático del portal durante la atención **no** enciende nada: pasa cada 20
+segundos por su cuenta, y una barra parpadeando sola sería peor que el silencio.
+
 - **Un `@push('scripts')` sólo llega si el layout tiene `@stack('scripts')`.** Si no, Blade
   **no avisa**: la pantalla se dibuja entera y sin una línea de JavaScript. Hoy lo declaran
   `layout/app.blade.php` y `auth/marco.blade.php`; **si agregás un layout, acordate del
