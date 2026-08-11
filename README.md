@@ -66,7 +66,19 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
 | `docker compose exec app php artisan test` | corre las 38 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
-| `docker compose exec bd mysql -uroot -proot peluqueria_test` | entrar a la base |
+| `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
+
+**El contenedor crea las dos bases, y la aplicación usa `peluqueria_bd`, la vacía** — el
+sistema tal como lo encuentra el salón el primer día: sin citas, sin facturas y sin clientas
+de nadie, con los catálogos cargados y las cuentas para entrar. `peluqueria_test` queda
+igual de disponible, con el mes simulado del QA, y es contra ella que corren las 38 pruebas.
+
+Para trabajar con los datos de prueba en pantalla, cambiá una línea de
+`docker/php/env.docker` y reiniciá con `docker compose up -d`:
+
+```dotenv
+DB_DATABASE=peluqueria_test
+```
 
 La base queda publicada en **el puerto 3307**, no en el 3306, para que conviva con un XAMPP
 ya instalado sin pelearse por el puerto. Desde afuera del contenedor (por ejemplo con
