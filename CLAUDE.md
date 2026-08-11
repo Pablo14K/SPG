@@ -404,6 +404,7 @@ guardado su contacto: el enlace entero, un usuario o canal, o el número.
 - **Solo se aceptan `http` y `https`.** El valor termina en un `href` del pie de todas las
   pantallas: sin esa comprobación, alguien con acceso a Configuración podría guardar un
   `javascript:` y dejarlo inyectado en todo el sistema.
+
 ### La espera tiene que verse
 
 El sistema navega a la vieja usanza: cada clic pide una página nueva y **el navegador no
