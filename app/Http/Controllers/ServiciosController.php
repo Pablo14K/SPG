@@ -130,6 +130,11 @@ class ServiciosController extends Controller
             return $volver->withInput();
         }
 
+        // El precio anterior se lee ANTES de escribir: es lo único que no se
+        // puede reconstruir después, y es el dato que se va a querer mirar si
+        // una factura sale por un importe que no cuadra.
+        $previo = $id ? DB::selectOne('SELECT precio, duracion_min FROM servicio WHERE id_servicio = ?', [$id]) : null;
+
         try {
             if ($id) {
                 DB::update(
@@ -138,7 +143,15 @@ class ServiciosController extends Controller
                         tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad
                       WHERE id_servicio=:id', $d + ['id' => $id]
                 );
-                Auditoria::registrar('MODIFICACION', 'Servicios', 'servicio', $id, $d['nombre']);
+                $cambios = [];
+                if ($previo && (float) $previo->precio !== (float) $d['precio']) {
+                    $cambios[] = 'precio ' . money($previo->precio) . ' → ' . money($d['precio']);
+                }
+                if ($previo && (int) $previo->duracion_min !== (int) $d['duracion_min']) {
+                    $cambios[] = 'duración ' . (int) $previo->duracion_min . ' → ' . (int) $d['duracion_min'] . ' min';
+                }
+                Auditoria::registrar('MODIFICACION', 'Servicios', 'servicio', $id,
+                    $d['nombre'] . ($cambios ? ' · ' . implode(', ', $cambios) : ''));
                 flash('Servicio actualizado.');
             } else {
                 DB::insert(

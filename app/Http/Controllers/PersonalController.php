@@ -722,6 +722,12 @@ class PersonalController extends Controller
         // el botón fuera de hora, pero eso es una ayuda visual: un POST armado a
         // mano la saltea y deja fichada una entrada a cualquier hora, que es
         // justo lo que el fichaje tiene que impedir.
+        // Corregir un día pasado NO es fichar, así que la hora no puede salir
+        // del reloj: quedaría registrado que entró a las 15:06 de un día en el
+        // que nadie apretó nada. La pide, y tiene que caer dentro del turno.
+        $horaPedida = trim((string) $request->input('hora', ''));
+        $esCorreccion = $fecha < ahora_bd('Y-m-d');
+
         if (! $error && $trabaja && in_array($accion, ['entrada', 'salida'], true)) {
             if ($fecha === ahora_bd('Y-m-d')) {
                 $error = $this->fueraDeFranja($trabaja);
@@ -729,6 +735,16 @@ class PersonalController extends Controller
                 // Fichar un día pasado no es fichar: es corregir la planilla.
                 $error = 'No podés fichar una fecha que ya pasó. Pedile a quien administra '
                        . 'los turnos que corrija tu asistencia del ' . fecha($fecha, 'd/m/Y') . '.';
+            } elseif ($horaPedida === '') {
+                $error = 'Para corregir la planilla del ' . fecha($fecha, 'd/m/Y')
+                       . ' indicá a qué hora fue: la del reloj de ahora no sirve, es de otro día.';
+            } elseif (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $horaPedida)) {
+                $error = 'La hora tiene que ir en formato HH:MM.';
+            } elseif ($horaPedida . ':00' < (string) $trabaja->hora_inicio
+                   || $horaPedida . ':00' > (string) $trabaja->hora_fin) {
+                $error = 'Esa hora queda fuera del turno «' . $trabaja->nombre . '» ('
+                       . substr((string) $trabaja->hora_inicio, 0, 5) . ' a '
+                       . substr((string) $trabaja->hora_fin, 0, 5) . ').';
             }
         }
 
@@ -743,7 +759,9 @@ class PersonalController extends Controller
                JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [$idQuien]);
         $ya = DB::selectOne('SELECT * FROM asistencia WHERE id_usuario = ? AND id_turno = ? AND fecha = ?',
             [$idQuien, $idTurno, $fecha]);
-        $ahora = ahora_bd('H:i:s');
+        // Hoy: la hora del clic. Un día pasado: la que indicó quien corrige —
+        // el reloj de ahora pertenece a otro día y falsearía la planilla.
+        $ahora = $esCorreccion && $horaPedida !== '' ? $horaPedida . ':00' : ahora_bd('H:i:s');
 
         try {
             if ($accion === 'limpiar') {
@@ -781,8 +799,11 @@ class PersonalController extends Controller
 
                     return $volver;
                 }
-                if ($ahora <= (string) $ya->hora_entrada && $fecha === ahora_bd('Y-m-d')) {
-                    flash('La salida no puede ser anterior a la entrada.', 'error');
+                // Vale para hoy y para una corrección: una salida anterior a la
+                // entrada no es un caso posible en ninguno de los dos.
+                if ($ahora <= (string) $ya->hora_entrada) {
+                    flash('La salida no puede ser anterior a la entrada ('
+                        . substr((string) $ya->hora_entrada, 0, 5) . ').', 'error');
 
                     return $volver;
                 }

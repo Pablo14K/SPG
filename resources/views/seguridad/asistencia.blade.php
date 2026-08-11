@@ -61,7 +61,12 @@
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
-                                @php $mio = (int) $f->id_usuario === $yo; @endphp
+                                @php
+                                    $mio = (int) $f->id_usuario === $yo;
+                                    // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
+                                    // la hora la pone quien corrige. La del reloj es de otro día.
+                                    $corrige = $fecha < $hoy;
+                                @endphp
                                 @if ($porOtros || $mio)
                                     @if (! $f->hora_entrada && $f->justificada === null)
                                         <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
@@ -70,6 +75,14 @@
                                             <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
                                             <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
                                             <input type="hidden" name="fecha" value="{{ $fecha }}">
+                                            @if ($corrige)
+                                                <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
+                                                       style="width:105px" required
+                                                       min="{{ substr((string) $f->hora_inicio, 0, 5) }}"
+                                                       max="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                       value="{{ substr((string) $f->hora_inicio, 0, 5) }}"
+                                                       title="Hora real de entrada de ese día">
+                                            @endif
                                             <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
                                         </form>
                                     @elseif ($f->hora_entrada && ! $f->hora_salida)
@@ -79,6 +92,14 @@
                                             <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
                                             <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
                                             <input type="hidden" name="fecha" value="{{ $fecha }}">
+                                            @if ($corrige)
+                                                <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
+                                                       style="width:105px" required
+                                                       min="{{ substr((string) $f->hora_entrada, 0, 5) }}"
+                                                       max="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                       value="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                       title="Hora real de salida de ese día">
+                                            @endif
                                             <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-right"></i> Salida</button>
                                         </form>
                                     @endif

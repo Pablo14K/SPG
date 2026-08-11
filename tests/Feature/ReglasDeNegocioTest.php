@@ -382,6 +382,40 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     #[Test]
+    public function el_profesional_no_administra_precios_ni_promociones(): void
+    {
+        // La auditoría del 11/08/2026 lo encontró cambiando una coloración de
+        // 280.000 a 1.000 y poniendo una promo al 99 % — que `sp_emitir_factura`
+        // aplica sola. El rol traía `servicios.catalogo` y `servicios.descuentos`
+        // de fábrica: el middleware funcionaba, el permiso sobraba.
+        $rolProf = (int) DB::scalar("SELECT id_rol FROM rol WHERE nombre = 'Profesional' LIMIT 1");
+        if (! $rolProf) {
+            $this->markTestSkipped('No hay rol Profesional en la base de prueba.');
+        }
+
+        // La caché de permisos es estática y sobrevive entre pruebas del mismo
+        // proceso: otra prueba le agrega módulos a este rol dentro de su
+        // transacción, y aunque la fila se revierta el arreglo en memoria queda.
+        Permisos::olvidar();
+
+        foreach (['servicios.catalogo', 'servicios.categorias', 'servicios.descuentos'] as $clave) {
+            // Las llaves no son adorno: `»` es multibyte y PHP se lo come como
+            // parte del nombre de la variable si va pegado.
+            $this->assertFalse(Permisos::rolPuede($rolProf, $clave),
+                "El Profesional no tendría que tener «{$clave}»: con eso fija cuánto cobra el salón.");
+        }
+
+        // Y la ruta lo rechaza de verdad, no sólo esconde el botón.
+        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        $this->get(route('servicios.form'))->assertForbidden();
+        $this->get(route('servicios.descuentos'))->assertForbidden();
+
+        // Lo que sí necesita para trabajar sigue abierto.
+        $this->get(route('citas.agenda'))->assertOk();
+        $this->get(route('citas.form'))->assertOk();
+    }
+
+    #[Test]
     public function dos_servicios_exclusivos_no_pueden_ir_en_paralelo(): void
     {
         // «Requiere atención exclusiva» significa que ese servicio no se puede

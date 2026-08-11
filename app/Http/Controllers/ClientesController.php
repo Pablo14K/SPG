@@ -107,6 +107,9 @@ class ClientesController extends Controller
             'telefono' => trim((string) $request->input('telefono', '')) ?: null,
             'email' => trim((string) $request->input('email', '')) ?: null,
             'fecha_nacimiento' => $request->input('fecha_nacimiento') ?: null,
+            // `persona.direccion` existía y no la capturaba ninguna pantalla:
+            // la columna quedaba siempre vacía.
+            'direccion' => trim((string) $request->input('direccion', '')) ?: null,
             'observaciones' => trim((string) $request->input('observaciones', '')) ?: null,
         ];
         $volver = $id ? redirect()->route('clientes.form', $id) : redirect()->route('clientes.form');
@@ -345,7 +348,8 @@ class ClientesController extends Controller
     private function cliente(int $id): ?object
     {
         return DB::selectOne(
-            'SELECT c.*, pe.nombre, pe.apellido, pe.cedula, pe.ruc, pe.telefono, pe.email, pe.fecha_nacimiento
+            'SELECT c.*, pe.nombre, pe.apellido, pe.cedula, pe.ruc, pe.telefono, pe.email,
+                    pe.fecha_nacimiento, pe.direccion
                FROM cliente c JOIN persona pe ON pe.id_persona = c.id_persona
               WHERE c.id_cliente = ?', [$id]
         );

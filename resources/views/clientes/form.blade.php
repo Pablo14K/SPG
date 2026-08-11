@@ -50,6 +50,11 @@
                     <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento"
                            value="{{ old('fecha_nacimiento', $c->fecha_nacimiento ?? '') }}">
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="direccion">Dirección</label>
+                    <input class="form-control" id="direccion" name="direccion" maxlength="255"
+                           value="{{ old('direccion', $c->direccion ?? '') }}">
+                </div>
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label>
                     <textarea class="form-control" id="observaciones" name="observaciones"

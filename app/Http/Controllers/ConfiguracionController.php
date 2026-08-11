@@ -391,6 +391,14 @@ class ConfiguracionController extends Controller
         $editables = DB::select('SELECT id_rol FROM rol WHERE es_personal = 1 AND id_rol <> ?',
             [(int) config('permisos.rol_admin', 1)]);
 
+        // Foto de cómo estaba ANTES: un cambio de permisos es lo que hay que
+        // poder reconstruir después («¿quién le dio Timbrados al Profesional, y
+        // cuándo?»), y con «Actualizó permisos de roles» a secas no se puede.
+        $antes = [];
+        foreach (DB::select('SELECT id_rol, modulo FROM rol_modulo') as $p) {
+            $antes[(int) $p->id_rol][] = (string) $p->modulo;
+        }
+
         try {
             DB::transaction(function () use ($editables, $modulos, $matriz) {
                 foreach ($editables as $r) {
@@ -410,7 +418,27 @@ class ConfiguracionController extends Controller
         }
 
         Permisos::olvidar();
-        Auditoria::registrar('MODIFICACION', 'Configuracion', 'rol_modulo', null, 'Actualizó permisos de roles');
+
+        // Qué cambió, rol por rol y clave por clave.
+        $nombres = [];
+        foreach (DB::select('SELECT id_rol, nombre FROM rol') as $r) {
+            $nombres[(int) $r->id_rol] = (string) $r->nombre;
+        }
+        $detalle = [];
+        foreach ($editables as $r) {
+            $idr = (int) $r->id_rol;
+            $viejo = $antes[$idr] ?? [];
+            $nuevo = array_values(array_filter($modulos, fn ($m) => ! empty($matriz[$idr][$m])));
+            $mas = array_diff($nuevo, $viejo);
+            $menos = array_diff($viejo, $nuevo);
+            if ($mas || $menos) {
+                $detalle[] = ($nombres[$idr] ?? "rol $idr") . ':'
+                    . ($mas ? ' +' . implode(' +', $mas) : '')
+                    . ($menos ? ' −' . implode(' −', $menos) : '');
+            }
+        }
+        Auditoria::registrar('MODIFICACION', 'Configuracion', 'rol_modulo', null,
+            $detalle ? implode(' | ', $detalle) : 'Se guardó la matriz sin cambios');
         flash('Permisos de los roles actualizados.');
 
         return $volver;

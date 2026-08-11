@@ -65,6 +65,25 @@ class Persona
             return 'El RUC no tiene un formato válido (ej: 80012345-6).';
         }
 
+        // El teléfono es un número, no un texto libre: entraba «abc-!!!» y el
+        // día que se encienda el aviso por WhatsApp ese contacto no existe.
+        // Se admiten +, espacios, guiones y paréntesis porque la gente los
+        // escribe, pero tiene que haber al menos 6 dígitos de verdad.
+        $tel = trim((string) ($d['telefono'] ?? ''));
+        if ($tel !== '') {
+            if (! preg_match('/^[+()0-9\.\s-]+$/', $tel)) {
+                return 'El teléfono sólo puede tener números (se admiten +, espacios, guiones y paréntesis).';
+            }
+            if (strlen(preg_replace('/\D/', '', $tel)) < 6) {
+                return 'El teléfono es demasiado corto: escribilo completo, con el código de la ciudad o el 09…';
+            }
+        }
+
+        $mail = trim((string) ($d['email'] ?? ''));
+        if ($mail !== '' && ! filter_var($mail, FILTER_VALIDATE_EMAIL)) {
+            return 'El email no tiene un formato válido.';
+        }
+
         return null;
     }
 
