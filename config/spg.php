@@ -12,7 +12,7 @@ return [
     // Versión del sistema, con versionado semántico X.Y.Z. Se muestra en el pie
     // de todas las pantallas. La migración a Laravel es un cambio estructural,
     // de los que rompen la compatibilidad: por eso 6.0.0.
-    'version' => '6.1.4',
+    'version' => '6.1.5',
     'version_fecha' => '2026-08-10',
 
     'moneda' => 'Gs.',

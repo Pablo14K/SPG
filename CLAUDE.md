@@ -66,7 +66,7 @@ Las tres cosas que hay que evitar, con el ejemplo de este proyecto:
 
 | Qué evitar | Por qué falla | Cómo se resuelve acá |
 |---|---|---|
-| **Valores no atómicos** (1FN) | una columna con una lista adentro no se puede consultar ni indexar | los días de un turno van en `turno_dia`, una fila por día, **nunca** `'LMXJVS'` en un `VARCHAR` (así lo hace `personal_turno_guardar`) |
+| **Valores no atómicos** (1FN) | una columna con una lista adentro no se puede consultar ni indexar | los días de un turno van en `turno_dia`, una fila por día, **nunca** `'LMXJVS'` en un `VARCHAR` (así lo hace `PersonalController::turnoGuardar`) |
 | **Datos repetidos en varias tablas** | se actualiza en un lado y queda viejo en el otro | nombre, cédula, teléfono y email van **solo** en `persona`; `usuario`, `cliente` y `proveedor` la referencian |
 | **Columnas derivadas guardadas** (3FN) | el valor guardado y el real se separan | el stock, los totales y los saldos **no se guardan**: los calculan `fn_producto_stock`, `fn_factura_total`, `fn_caja_saldo` |
 
@@ -104,6 +104,7 @@ Tres cosas en la misma tanda, siempre juntas:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.1.5 | 11/08/2026 | **Se termina de pasar esta documentación a Laravel.** En la 6.1.1 se reescribieron las secciones de arquitectura, pero en las demás quedaban 16 referencias a archivos y funciones del sistema archivado —`canales_contacto()` de `helpers.php`, `relaciones_pantallas()` de `view.php`, los `migrar_*()`, `personal_activo()`, `install.php`—, que mandaban a buscar código que en este proyecto no existe. Ahora nombran lo real: `Contacto::canales()`, `config/navegacion.php`, `Permisos::esAdmin()`, `FacturacionController::pagarProveedor`. Cada nombre se verificó contra el código antes de escribirlo. Las únicas menciones al sistema viejo que quedan están marcadas como historia, a propósito |
 | 6.1.4 | 11/08/2026 | **El aviso del ingreso con huella dejaba de mentir.** Desde el celular, entrando por la IP de red de la PC, decía «este equipo no tiene lector» — falso, y manda a buscar un problema de hardware inexistente. Lo real es que los navegadores **sólo exponen WebAuthn en contexto seguro** (HTTPS o `localhost`), así que por `http://192.168.x.x` la API no existe; y detrás hay una segunda pared: el `rpId` sale del dominio y la especificación **no admite direcciones IP**. `SPGBio.estado()` ahora distingue los cuatro casos —sin HTTPS, por IP, navegador viejo, sin sensor— y cada uno dice qué pasa y si va a andar en el servidor |
 | 6.1.3 | 11/08/2026 | **El correo del contenedor sale de verdad**: `docker/php/env.docker` pasa de `log` a SMTP por Gmail, así que el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios llegan al buzón. Al configurarlo aparecieron **tres nombres de variable obsoletos** que circulan en apuntes viejos: Laravel 13 lee `MAIL_MAILER`, `MAIL_SCHEME` y `MAIL_FROM_ADDRESS`, **no** `MAIL_TRANSPORT`, `MAIL_ENCRYPTION` ni `MAIL_FROM_EMAIL` — con los viejos el sistema se queda en `log` y no manda nada sin dar ningún error. El remitente además tiene que ser la misma cuenta que se autentica, porque Gmail rechaza un `From` de otro dominio. **Ojo: este archivo lleva ahora una contraseña de aplicación de Google**; se revoca desde `myaccount.google.com/apppasswords` sin tocar la cuenta |
 | 6.1.2 | 10/08/2026 | **El contenedor arranca contra `peluqueria_bd`, la base vacía**, y no contra la cargada: así lo que se ve al entrar es el sistema tal como lo encuentra el salón el primer día. `peluqueria_test` se sigue creando igual —es contra ella que corren las 38 pruebas, y eso lo fija `phpunit.xml` por su cuenta—, así que se cambia una línea de `docker/php/env.docker` para trabajar con los datos del QA en pantalla |
@@ -311,7 +312,7 @@ nuevo de Bootstrap, revisá que no aparezca azul**; si aparece, sumá el overrid
   | Tarjetas | panel → módulo → submódulos | *¿qué hay dentro de este módulo?* |
   | Accesos rápidos (`.spg-chip`) | bajo las migas | *¿qué suelo hacer después de esto?* |
   Los dos primeros salen solos del encabezado; los accesos rápidos se configuran en
-  `relaciones_pantallas()` de `view.php`, no en cada vista.
+  `config/navegacion.php`, no en cada vista.
 - El **pie** tiene cuatro bloques: identidad, **Secciones** (los módulos del rol, en 3×3),
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
@@ -323,14 +324,14 @@ y salen en el pie; si no hay ninguno, el bloque no se dibuja.
 
 **Son varios, no uno.** `contacto_soporte` es una lista (`id_contacto`, `canal`, `valor`,
 `etiqueta`, `orden`): el salón puede publicar dos WhatsApp, un Instagram y un correo, y
-ordenarlos. Los canales posibles se declaran en **`canales_contacto()`** de `helpers.php`
+ordenarlos. Los canales posibles se declaran en **`Contacto::canales()`**
 —hoy WhatsApp, Telegram, Instagram, Facebook, teléfono, correo y sitio web— y de ahí salen
 solos el selector del formulario, el ícono y el texto de ayuda; para sumar otro alcanza con
 agregarlo ahí. La `etiqueta` propia le gana a la del canal, porque con dos WhatsApp hace
 falta distinguirlos («WhatsApp» y «WhatsApp turnos»).
 
-**Un contacto mal cargado no dibuja un enlace roto**: `contacto_salon()` descarta la fila
-cuyo valor `contacto_url()` no supo convertir, en vez de publicar un `href` que no lleva a
+**Un contacto mal cargado no dibuja un enlace roto**: `Contacto::delSalon()` descarta la fila
+cuyo valor `Contacto::url()` no supo convertir, en vez de publicar un `href` que no lleva a
 ningún lado.
 
 **Es UNO para todo el salón, no uno por sucursal.** Se evaluó por sucursal y no cierra: el
@@ -339,10 +340,11 @@ NULL para los clientes y `cita` tampoco guarda sucursal (se deduce del profesion
 misma persona la puede atender gente de locales distintos). El pie tendría que elegir una
 sucursal sin ningún criterio. El canal de soporte es del negocio, no del local.
 
-`contacto_url()` arma el enlace del chat y acepta las tres formas en que la gente tiene
+`Contacto::url()` arma el enlace del chat y acepta las tres formas en que la gente tiene
 guardado su contacto: el enlace entero, un usuario o canal, o el número.
 
-- **El número se normaliza con `telefono_normalizar()`**, el mismo del registro. Sin eso, un
+- **El número se normaliza antes de armar el enlace** (se le sacan espacios, guiones y
+  paréntesis, y se le antepone el código de país). Sin eso, un
   `0981123456` escrito como se marca acá daba `wa.me/0981123456`: un enlace que abre y no
   encuentra a nadie. `wa.me` va sin el `+`, `t.me` con él.
 - **Un usuario de Telegram tiene que empezar con letra.** Con `[A-Za-z0-9_]` a secas, un
@@ -460,8 +462,9 @@ en el campo Nombre—. Blade tiene su propio ámbito por componente, así que no
 Se pueden crear, editar y eliminar roles desde **Configuración → Roles** (tabla `rol_modulo`).
 Los roles 1 y 4 están protegidos porque el código los referencia.
 
-**Nunca escribas `id_rol IN (1,2,3)`**: usá `personal_activo()` o un `JOIN rol r ... WHERE r.es_personal=1`,
-así los roles nuevos funcionan sin tocar código. El Administrador se detecta con `es_admin()`.
+**Nunca escribas `id_rol IN (1,2,3)`**: filtrá con `JOIN rol r … WHERE r.es_personal = 1`, así
+los roles nuevos funcionan sin tocar código. El Administrador se detecta con
+`Permisos::esAdmin()`, y para exigirlo en una ruta está el middleware `admin`.
 
 ### Submódulos: ningún módulo es todo o nada
 
@@ -575,7 +578,7 @@ Formato según el **Manual Técnico del SIFEN v150**, grupo C:
 - Número impreso del comprobante: `001-001-0000001` → **13 dígitos**
 
 Los timbrados se administran en **Facturación → Timbrados**, con validación en la app y
-`CHECK` en la base (los crea `migrar_timbrado()`). La pantalla está ahí y no en Configuración
+`CHECK` en la base. La pantalla está ahí y no en Configuración
 porque el timbrado es del comprobante: quien factura es quien se da cuenta de que está por
 vencer.
 
@@ -585,10 +588,10 @@ vencer.
 > baja de timbrados al alcance de cualquiera con `facturacion`. Con la clave aparte, el salón
 > decide en la matriz quién los administra. Ver **Submódulos**.
 
-**Cuidado con los nombres de los `CHECK`**: el script original ya define `chk_timbrado_rango`
-y `chk_timbrado_fechas`. `migrar_timbrado()` saltea cualquier restricción cuyo nombre ya
-exista, así que la versión estricta va con otro nombre (`chk_timbrado_rango7`, que es la que
-hace cumplir el tope de 9.999.999). Si agregás una regla nueva, elegí un nombre libre.
+**Cuidado con los nombres de los `CHECK`**: conviven `chk_timbrado_rango` y
+`chk_timbrado_fechas`, del esquema original, con `chk_timbrado_rango7`, que es la estricta —
+la que hace cumplir el tope de 9.999.999. Se llama distinto porque el nombre ya estaba
+ocupado. Si agregás una regla nueva, elegí un nombre libre.
 
 Cada comprobante tiene su pantalla de detalle e impresión en **Facturación → Facturas → Ver**
 (`facturacion/factura_ver`), que arma todo desde `vw_detalle_factura` y `vw_factura_impuestos`.
@@ -646,9 +649,9 @@ los dos, la agenda se corre un día.
 > El modelo anterior guardaba **una fila por día y por persona** (`id_usuario` + `fecha`). Para
 > que el salón abriera de lunes a sábado había que cargar 26 filas por empleada por mes, y el 1
 > de cada mes la agenda se quedaba **sin ningún horario disponible**, porque
-> `fn_verificar_disponibilidad` exige que la cita entre en un turno. `migrar_turnos()` convierte
-> lo viejo agrupando por sucursal + horario, y le pasa a `asistencia` el `id_usuario` y la
-> `fecha` que antes sacaba del turno.
+> `fn_verificar_disponibilidad` exige que la cita entre en un turno. El modelo por plantilla
+> ya viene en el `.sql` que se entrega; la conversión desde el modelo viejo la hacía una
+> migración del sistema anterior y no hace falta repetirla.
 
 `asistencia` cuelga de (persona, turno, fecha) — `uq_asistencia_dia` — y guarda `justificada`:
 NULL presente · 1 falta con permiso · 0 falta sin permiso.
@@ -663,8 +666,8 @@ puede fichar por otro y marcar faltas; el Profesional solo ve y ficha lo suyo.
 
 `fn_verificar_disponibilidad` es la única autoridad sobre si un horario sirve. Mira tres
 cosas: **ausencias**, **turno laboral** y **solape con otra cita**. La versión original no
-miraba el turno, y por eso se podía agendar un domingo a las 3 de la mañana;
-`migrar_disponibilidad()` la reemplaza. Si el profesional no tiene **ningún** turno asignado
+miraba el turno, y por eso se podía agendar un domingo a las 3 de la mañana; la versión que
+viene en el `.sql` ya lo mira. Si el profesional no tiene **ningún** turno asignado
 no se bloquea nada — se entiende que el salón todavía no usa la agenda de turnos, mismo
 criterio permisivo que `fn_puede_realizar`.
 
@@ -797,7 +800,7 @@ que va adentro es la alarma del dispositivo, y su anticipación sale de la prefe
 cliente eligió en *Portal → Mis recordatorios* (2 horas si no configuró nada).
 
 Así el recordatorio queda por dos vías independientes: el correo que despacha
-`notificaciones.php` y la alerta del propio teléfono, que suena aunque no abra el correo.
+`Notificaciones` y la alerta del propio teléfono, que suena aunque no abra el correo.
 El botón está en el portal (`portal/index`, `portal/citas`) y en la pantalla que se abre
 desde el enlace del correo, donde la credencial es el `token_cita` y no hay sesión.
 
@@ -952,7 +955,7 @@ caja llegó a **Gs. −1.284.000** pagando desde un cajón que tenía 300.000.
 físico y el movimiento total: `cobros_efectivo` / `cobros_otros` / `cobros`,
 `pagos_prov_efectivo` / `pagos_prov_otros` / `pagos_proveedor`.
 
-**Un egreso en efectivo mayor al disponible se rechaza** (`facturacion_pagar_proveedor`), con
+**Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
 
 > **Si agregás otra salida de dinero**, tiene que restarse en `fn_caja_saldo()` **sólo cuando
@@ -1003,8 +1006,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
 | HTTPS | Let's Encrypt, gratis y renovado por el panel |
 | Tareas programadas | cron del panel — es lo que reemplaza al Programador de tareas de Windows |
 
-> **Los pasos concretos, en el orden que funciona, están en
-> `spg-laravel/DESPLIEGUE.md`.** Acá quedan los porqués; allá, los comandos. Dos ayudas del
+> **Los pasos concretos, en el orden que funciona, están en `DESPLIEGUE.md`.** Acá quedan los porqués; allá, los comandos. Dos ayudas del
 > proyecto Laravel: **`php artisan spg:preparar-sql <archivo> <usuario>`** reescribe los 84
 > `DEFINER` del volcado y pasa `SQL SECURITY DEFINER` a `INVOKER`, y
 > **`php artisan spg:diagnostico --produccion`** revisa las diez cosas de esta sección y dice
@@ -1080,8 +1082,8 @@ Lo que **queda** y lo que **se borra**:
 | Queda | Se borra |
 |---|---|
 | Los catálogos del sistema: `rol`, `rol_modulo`, `estado_*`, `tipo_*`, `metodo_pago`, `condicion_venta`, `nivel`, los 3 `descuento` de nivel, `categoria_servicio`, `categoria_producto` | Toda la operación: citas, atención, consumo, facturas, cobros, caja, compras, movimientos, asistencia, puntos, notificaciones, calificaciones, auditoría |
-| `spg_migracion` — si se borra, las migraciones se vuelven a correr de cero | El catálogo comercial: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
-| La sucursal 1, que `install.php` da por existente (`usuario.id_sucursal = 1` para el admin) | Turnos, `turno_dia`, `usuario_turno` |
+| `spg_migracion` — sobra: la dejó el sistema anterior y Laravel no la usa, pero borrarla no aporta nada | El catálogo comercial: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
+| La sucursal 1, que el `admin` referencia (`usuario.id_sucursal = 1`) | Turnos, `turno_dia`, `usuario_turno` |
 | Las dos cuentas del instalador: `admin` y `cliente`, con sus dos filas de `persona` y la ficha de `cliente` | Cualquier otro usuario, persona o cliente · roles creados a mano · credenciales WebAuthn y tokens |
 
 **Los catálogos no son «datos»: sin ellos el sistema no arranca.** Borrar `estado_cita` o
