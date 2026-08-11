@@ -57,7 +57,9 @@
                                     <input class="form-check-input" type="checkbox" name="dias[]" value="{{ $n }}"
                                            id="dia{{ $n }}"
                                            @checked(in_array($n, old('dias', $editar->dias ?? [1, 2, 3, 4, 5, 6]), false))>
-                                    <label class="form-check-label" for="dia{{ $n }}">{{ substr($nombreDia, 0, 3) }}</label>
+                                    {{-- mb_substr y no substr: 'Miércoles' cortado a los 3 bytes
+                                         parte la é al medio y sale un rombo con un signo. --}}
+                                    <label class="form-check-label" for="dia{{ $n }}">{{ mb_substr($nombreDia, 0, 3) }}</label>
                                 </div>
                             @endforeach
                         </div>

@@ -69,9 +69,18 @@
                 </p>
 
                 @if (! $perfil->email)
+                    {{-- Al Administrador no se le dice «pedile al Administrador»:
+                         es él, y además es el único que puede cargarlo. Se le da
+                         el enlace a su propia ficha en vez de mandarlo a pedirse
+                         el favor a sí mismo. --}}
                     <div class="alert alert-warning" style="font-size:.85rem">
                         Tu cuenta no tiene correo cargado, así que no podemos mandarte el código.
-                        Pedile al Administrador que te lo cargue.
+                        @if (\App\Servicios\Permisos::esAdmin())
+                            <a class="link-oro"
+                               href="{{ route('seguridad.usuario_form', (int) session('uid')) }}">Cargalo en tu ficha</a>.
+                        @else
+                            Pedile al Administrador que te lo cargue.
+                        @endif
                     </div>
                 @else
                     <form method="post" action="{{ route('cuenta.password') }}">

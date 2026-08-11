@@ -7,10 +7,19 @@
 
     <x-encabezado sub="Quién puede entrar a qué. <strong>Ningún módulo es todo o nada</strong>: son 28 permisos, no 8. Quien registra la atención no tiene por qué agendar, y quien cobra no tiene por qué anular una liquidación." />
 
-    <div class="alert alert-warning">
-        Ojo con <strong>Seguridad → Roles</strong>: quien tenga este permiso puede editar la matriz,
-        <strong>incluida la suya</strong>. La creación de cuentas, en cambio, es siempre del Administrador.
-    </div>
+    {{-- El aviso es SÓLO para quien puede dejarse afuera con lo que está por
+         guardar. Antes se le decía a todo el mundo «quien tenga este permiso
+         puede editar la matriz»: a quien ya está leyendo esta pantalla eso no
+         le informa nada —lo tiene, por eso entró—, y al Administrador menos
+         todavía, porque su fila ni siquiera es editable. --}}
+    @if (! Permisos::esAdmin() && $miRol)
+        @php $miNombre = collect($roles)->firstWhere('id_rol', $miRol)?->nombre; @endphp
+        <div class="alert alert-warning">
+            Tu propio rol{{ $miNombre ? ' (' . $miNombre . ')' : '' }} se edita en esta misma pantalla.
+            Si le destildás <strong>Seguridad → Roles</strong> y guardás,
+            <strong>dejás de poder entrar acá</strong> y te lo va a tener que devolver un Administrador.
+        </div>
+    @endif
 
     {{-- Un bloque por rol, con su casilla maestra por módulo --}}
     <form method="post" action="{{ route('seguridad.permisos.guardar') }}">

@@ -67,13 +67,14 @@ class ClientesController extends Controller
                  fn_cliente_visitas(c.id_cliente) AS visitas";
         $orden = 'ORDER BY pe.apellido, pe.nombre';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('clientes',
+        if (Listado::pideExport()) {
+            return Listado::exportar('clientes',
                 ['Cliente', 'Cédula', 'Teléfono', 'Email', 'Visitas', 'Estado'],
                 array_map(fn ($c) => [
                     $c->apellido . ', ' . $c->nombre, $c->cedula, $c->telefono, $c->email,
                     $c->visitas, $c->activo ? 'Activo' : 'Inactivo',
-                ], DB::select("SELECT $cols $desde $orden", $par))
+                ], DB::select("SELECT $cols $desde $orden", $par)),
+                $f, 'Clientes'
             );
         }
 
@@ -244,11 +245,12 @@ class ClientesController extends Controller
         $desde = 'FROM vw_cliente_fidelizacion v WHERE ' . implode(' AND ', $w);
         $orden = 'ORDER BY v.visitas DESC, v.cliente';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('fidelizacion',
+        if (Listado::pideExport()) {
+            return Listado::exportar('fidelizacion',
                 ['Cliente', 'Teléfono', 'Visitas', 'Puntos', 'Nivel', 'Descuento del nivel'],
                 array_map(fn ($r) => [$r->cliente, $r->telefono, $r->visitas, $r->puntos, $r->nivel, $r->descuento_del_nivel],
-                    DB::select("SELECT * $desde $orden", $par))
+                    DB::select("SELECT * $desde $orden", $par)),
+                $f, 'Fidelización'
             );
         }
 
@@ -317,11 +319,12 @@ class ClientesController extends Controller
                  CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente,
                  CONCAT(pe_u.nombre,' ',pe_u.apellido) AS profesional";
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('valoraciones',
+        if (Listado::pideExport()) {
+            return Listado::exportar('valoraciones',
                 ['Fecha', 'Cliente', 'Profesional', 'Puntaje', 'Comentario'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y'), $r->cliente, $r->profesional, $r->puntaje, $r->comentario],
-                    DB::select("SELECT $cols $desde ORDER BY cal.fecha DESC", $par))
+                    DB::select("SELECT $cols $desde ORDER BY cal.fecha DESC", $par)),
+                $f, 'Valoraciones'
             );
         }
 

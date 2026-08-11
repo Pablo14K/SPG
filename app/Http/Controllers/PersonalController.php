@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Borrador;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -89,12 +90,13 @@ class PersonalController extends Controller
                    WHERE ut.id_usuario = u.id_usuario) AS turnos";
         $orden = 'ORDER BY pe_u.nombre, pe_u.apellido';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('personal',
+        if (Listado::pideExport()) {
+            return Listado::exportar('personal',
                 ['Nombre', 'Usuario', 'Email', 'Teléfono', 'Rol', 'Turnos', 'Estado'],
                 array_map(fn ($r) => [$r->nombre . ' ' . $r->apellido, $r->username, $r->email,
                     $r->telefono, $r->rol, $r->turnos, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT $cols $desde $orden", $par))
+                    DB::select("SELECT $cols $desde $orden", $par)),
+                $f, 'Personal'
             );
         }
 
@@ -425,9 +427,14 @@ class PersonalController extends Controller
     public function turnoRapido(Request $request): RedirectResponse
     {
         $idUsuario = (int) $request->input('id_usuario', 0);
-        $destino = $idUsuario
-            ? redirect()->route('seguridad.usuario_form', $idUsuario)
-            : redirect()->route('seguridad.usuario_form');
+        // Igual que en la sucursal: la ficha a medio cargar vuelve con el
+        // borrador, no se pierde por haber creado un turno.
+        $destino = Borrador::conservar(
+            $idUsuario
+                ? redirect()->route('seguridad.usuario_form', $idUsuario)
+                : redirect()->route('seguridad.usuario_form'),
+            $request
+        );
 
         $d = [
             'id_sucursal' => (int) $request->input('id_sucursal', 0),
@@ -479,9 +486,14 @@ class PersonalController extends Controller
     public function sucursalRapida(Request $request): RedirectResponse
     {
         $idUsuario = (int) $request->input('id_usuario', 0);
-        $destino = $idUsuario
-            ? redirect()->route('seguridad.usuario_form', $idUsuario)
-            : redirect()->route('seguridad.usuario_form');
+        // Lo que la persona tenía cargado en la ficha viaja en `_borrador`: sin
+        // esto, crear una sucursal le borraba nombre, apellido, usuario y email.
+        $destino = Borrador::conservar(
+            $idUsuario
+                ? redirect()->route('seguridad.usuario_form', $idUsuario)
+                : redirect()->route('seguridad.usuario_form'),
+            $request
+        );
 
         $nombre = trim((string) $request->input('nombre', ''));
         $ciudad = trim((string) $request->input('ciudad', '')) ?: null;

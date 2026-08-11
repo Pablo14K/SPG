@@ -142,7 +142,10 @@
                  a cargar todo de cero. --}}
             <div class="spg-panel mb-3">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Turno nuevo</h2>
-                <form method="post" action="{{ route('seguridad.turno.rapido') }}">
+                {{-- data-borrador: al enviar, app.js le adjunta lo que haya
+                     cargado en la ficha, y el controlador se lo devuelve. --}}
+                <form method="post" action="{{ route('seguridad.turno.rapido') }}"
+                      data-borrador="#formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">
@@ -177,7 +180,7 @@
                                     <input class="form-check-input" type="checkbox" name="dias[]" value="{{ $n }}"
                                            id="trd{{ $n }}" @checked($n <= 6)>
                                     <label class="form-check-label" for="trd{{ $n }}"
-                                           style="font-size:.8rem">{{ substr($nombreDia, 0, 3) }}</label>
+                                           style="font-size:.8rem">{{ mb_substr($nombreDia, 0, 3) }}</label>
                                 </div>
                             @endforeach
                         </div>
@@ -188,7 +191,8 @@
 
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursal nueva</h2>
-                <form method="post" action="{{ route('seguridad.sucursal.rapida') }}">
+                <form method="post" action="{{ route('seguridad.sucursal.rapida') }}"
+                      data-borrador="#formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">

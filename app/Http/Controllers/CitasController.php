@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Servicios\Agenda;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
+use App\Servicios\Borrador;
 use App\Servicios\Caja;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -382,22 +383,24 @@ class CitasController extends Controller
             'telefono' => trim((string) $request->input('telefono', '')) ?: null,
             'email' => trim((string) $request->input('email', '')) ?: null,
         ];
-        $volver = redirect()->route('citas.form');
+        // El formulario de la cita viaja en `_borrador`: registrar un cliente no
+        // puede borrar los servicios y el horario que ya se habían elegido.
+        $volver = Borrador::conservar(redirect()->route('citas.form'), $request, $request->except(['_borrador', '_token']));
 
         if ($d['nombre'] === '' || $d['apellido'] === '') {
             flash('Para registrar al cliente necesito al menos nombre y apellido.', 'error');
 
-            return $volver->withInput();
+            return $volver;
         }
         if ($d['email'] && ! filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
             flash('El email del cliente no tiene un formato válido.', 'error');
 
-            return $volver->withInput();
+            return $volver;
         }
         if ($err = Persona::error($d)) {
             flash($err, 'error');
 
-            return $volver->withInput();
+            return $volver;
         }
 
         // Si la cédula ya está cargada puede ser la misma persona registrada
@@ -420,11 +423,11 @@ class CitasController extends Controller
             Auditoria::registrar('ALTA', 'Clientes', 'cliente', $idc, 'Alta rápida desde Nueva cita');
             flash('Cliente ' . $d['nombre'] . ' ' . $d['apellido'] . ' registrado y seleccionado.');
 
-            return redirect()->route('citas.form', ['cliente' => $idc])->withInput();
+            return Borrador::conservar(redirect()->route('citas.form', ['cliente' => $idc]), $request);
         } catch (Throwable) {
             flash('No se pudo registrar al cliente.', 'error');
 
-            return $volver->withInput();
+            return $volver;
         }
     }
 

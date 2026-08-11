@@ -23,5 +23,10 @@
     @yield('formulario')
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{{-- Sin esto, todo lo que una pantalla mande con @push('scripts') se pierde en
+     silencio: la vista se dibuja entera pero sin su JavaScript. Pasó con la
+     pregunta de la huella, donde los dos botones quedaban sin nada detrás y el
+     usuario no podía salir de la pantalla. --}}
+@stack('scripts')
 </body>
 </html>

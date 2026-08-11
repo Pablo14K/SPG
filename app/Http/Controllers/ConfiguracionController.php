@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
@@ -236,6 +237,10 @@ class ConfiguracionController extends Controller
             'totalClaves' => count($claves),
             'admin' => $admin,
             'protegidos' => [$admin, (int) config('permisos.rol_cliente', 4)],
+            // Para avisarle SOLO a quien puede quedarse afuera: el rol propio
+            // se edita en esta misma matriz, salvo que sea el Administrador
+            // (que queda fuera de `$editables` al guardar).
+            'miRol' => (int) session('rol', 0),
         ]);
     }
 
@@ -413,7 +418,9 @@ class ConfiguracionController extends Controller
 
     // ---------- Auditoría ----------
 
-    public function auditoria(): View
+    // La pantalla también baja: sin `StreamedResponse` en la firma, exportar la
+    // auditoría reventaba con un TypeError en vez de devolver el archivo.
+    public function auditoria(): View|StreamedResponse
     {
         // Las opciones salen de lo que hay cargado, no de una lista fija: así
         // aparecen solas las acciones y módulos nuevos sin tocar el código.
@@ -465,12 +472,13 @@ class ConfiguracionController extends Controller
         $cols = "a.fecha_hora AS fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
                  CONCAT(pe.nombre,' ',pe.apellido) AS usuario";
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('auditoria',
+        if (Listado::pideExport()) {
+            return Listado::exportar('auditoria',
                 ['Fecha', 'Usuario', 'Acción', 'Módulo', 'Tabla', 'Registro', 'Detalle'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y H:i'), $r->usuario, $r->accion,
                     $r->modulo, $r->tabla_afectada, $r->id_registro, $r->detalle],
-                    DB::select("SELECT $cols $desde ORDER BY a.fecha_hora DESC", $par))
+                    DB::select("SELECT $cols $desde ORDER BY a.fecha_hora DESC", $par)),
+                $f, 'Auditoría'
             );
         }
 

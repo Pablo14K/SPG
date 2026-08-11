@@ -64,14 +64,14 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose up` | arranca |
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
-| `docker compose exec app php artisan test` | corre las 38 pruebas |
+| `docker compose exec app php artisan test` | corre las 49 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
 **El contenedor crea las dos bases, y la aplicación usa `peluqueria_bd`, la vacía** — el
 sistema tal como lo encuentra el salón el primer día: sin citas, sin facturas y sin clientas
 de nadie, con los catálogos cargados y las cuentas para entrar. `peluqueria_test` queda
-igual de disponible, con el mes simulado del QA, y es contra ella que corren las 38 pruebas.
+igual de disponible, con el mes simulado del QA, y es contra ella que corren las 49 pruebas.
 
 Para trabajar con los datos de prueba en pantalla, cambiá una línea de
 `docker/php/env.docker` y reiniciá con `docker compose up -d`:
@@ -191,7 +191,7 @@ http://localhost:8000
 "C:/php/php.exe" artisan test
 ```
 
-**38 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
+**49 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
 TCC. Cubren la concurrencia de la agenda (5 procesos en paralelo sobre el mismo hueco tienen
 que dejar **una sola** cita), el arqueo de caja, los correlativos sin huecos y la jerarquía
 de los 28 permisos.
@@ -218,7 +218,7 @@ app/
   Http/Controllers/        un controlador por módulo
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
-tests/Feature/             las 38 pruebas
+tests/Feature/             las 49 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS
 ```
 

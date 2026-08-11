@@ -10,7 +10,7 @@
     <div class="row g-3">
         <div class="col-lg-7">
             <div class="spg-panel">
-                <form method="post" action="{{ route('inventario.ajuste.guardar') }}">
+                <form method="post" action="{{ route('inventario.ajuste.guardar') }}" id="formAjuste">
                     @csrf
 
                     <div class="mb-3">
@@ -20,7 +20,8 @@
                         <select class="form-select" id="id_producto" name="id_producto" required>
                             <option value="">— elegí un producto —</option>
                             @foreach ($prods as $p)
-                                <option value="{{ $p->id_producto }}" @selected($sel === (int) $p->id_producto)>
+                                <option value="{{ $p->id_producto }}"
+                                    @selected((int) old('id_producto', $sel) === (int) $p->id_producto)>
                                     {{ $p->nombre }} — hay {{ cant($p->stock) }} {{ $p->unidad_medida }}
                                 </option>
                             @endforeach
@@ -35,14 +36,15 @@
 
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="modo" value="fijar"
-                                   id="modoFijar" checked>
+                                   id="modoFijar" @checked(old('modo', 'fijar') === 'fijar')>
                             <label class="form-check-label" for="modoFijar">
                                 <strong>Dejar el stock en un número</strong>
                                 <span class="text-muted-warm">— conté el depósito y quiero que quede en eso</span>
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="modo" value="movimiento" id="modoMov">
+                            <input class="form-check-input" type="radio" name="modo" value="movimiento" id="modoMov"
+                                   @checked(old('modo') === 'movimiento')>
                             <label class="form-check-label" for="modoMov">
                                 <strong>Registrar una entrada o una salida</strong>
                                 <span class="text-muted-warm">— llegó mercadería, se rompió algo, se devolvió</span>
@@ -53,7 +55,7 @@
                     <div id="bloqueFijar">
                         <label class="form-label" for="stock_nuevo">El stock tiene que quedar en</label>
                         <input class="form-control input-miles" id="stock_nuevo" name="stock_nuevo"
-                               data-decimales="2" data-min="0">
+                               data-decimales="2" data-min="0" value="{{ old('stock_nuevo') }}">
                         <div class="form-text mb-3">
                             El sistema calcula la diferencia y registra el ajuste que corresponda.
                         </div>
@@ -65,7 +67,8 @@
                                 <label class="form-label" for="id_tipo_movimiento">Tipo de movimiento</label>
                                 <select class="form-select" id="id_tipo_movimiento" name="id_tipo_movimiento">
                                     @foreach ($tipos as $t)
-                                        <option value="{{ $t->id_tipo_movimiento }}">
+                                        <option value="{{ $t->id_tipo_movimiento }}"
+                                            @selected((int) old('id_tipo_movimiento', 0) === (int) $t->id_tipo_movimiento)>
                                             {{ $t->nombre }} ({{ $t->signo === 'E' ? 'entrada' : 'salida' }})
                                         </option>
                                     @endforeach
@@ -74,7 +77,7 @@
                             <div class="col-md-5">
                                 <label class="form-label" for="cantidad">Cantidad</label>
                                 <input class="form-control input-miles" id="cantidad" name="cantidad"
-                                       data-decimales="2" data-min="0">
+                                       data-decimales="2" data-min="0" value="{{ old('cantidad') }}">
                             </div>
                         </div>
                     </div>
@@ -85,16 +88,18 @@
                             <div class="input-group">
                                 <span class="input-group-text">{{ config('spg.moneda') }}</span>
                                 <input class="form-control input-miles" id="precio_unitario"
-                                       name="precio_unitario" data-min="0">
+                                       name="precio_unitario" data-min="0" value="{{ old('precio_unitario') }}">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="referencia">Referencia</label>
-                            <input class="form-control" id="referencia" name="referencia" maxlength="60">
+                            <input class="form-control" id="referencia" name="referencia" maxlength="60"
+                                   value="{{ old('referencia') }}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="observaciones">Observaciones</label>
-                            <input class="form-control" id="observaciones" name="observaciones" maxlength="150">
+                            <input class="form-control" id="observaciones" name="observaciones" maxlength="150"
+                                   value="{{ old('observaciones') }}">
                         </div>
                     </div>
 
@@ -110,7 +115,10 @@
                     <p class="text-muted-warm" style="font-size:.82rem">
                         Crealo acá mismo con su stock inicial, sin perder lo que ya cargaste.
                     </p>
-                    <form method="post" action="{{ route('inventario.producto.rapido') }}">
+                    {{-- data-borrador: lo cargado en el ajuste vuelve con el
+                         redirect en vez de perderse al crear el producto. --}}
+                    <form method="post" action="{{ route('inventario.producto.rapido') }}"
+                          data-borrador="#formAjuste">
                         @csrf
                         <div class="mb-2">
                             <label class="form-label" for="pr_nombre">Nombre *</label>

@@ -14,10 +14,18 @@
 
         <div id="bioAviso" class="alert alert-warning d-none" style="font-size:.85rem"></div>
 
+        {{-- «Ahora no» es un envío de formulario de verdad, no un botón atado al
+             JavaScript: es la única salida de esta pantalla y tiene que andar
+             aunque el JS no cargue. Activar sí necesita JS —la huella se pide
+             con la API del navegador—, pero si eso falla la persona igual puede
+             seguir de largo. --}}
         <div class="d-flex gap-2 flex-column">
             <button class="btn btn-oro py-2" id="btnActivar">
                 <i class="bi bi-fingerprint"></i> Activar en este equipo</button>
-            <button class="btn btn-outline-neutro" id="btnAhoraNo">Ahora no</button>
+            <form method="post" action="{{ route('webauthn.preguntado') }}">
+                @csrf
+                <button class="btn btn-outline-neutro w-100" id="btnAhoraNo">Ahora no</button>
+            </form>
         </div>
 
         <p class="text-muted-warm mt-3 mb-0" style="font-size:.78rem">
@@ -62,13 +70,9 @@
         });
     });
 
-    document.getElementById('btnAhoraNo').addEventListener('click', function () {
-        fetch(@json(route('webauthn.preguntado')), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: '_token=' + encodeURIComponent(csrf)
-        }).finally(function () { window.location.href = home; });
-    });
+    // «Ahora no» no lleva JavaScript: lo resuelve el formulario. Atarlo también
+    // acá haría dos cosas por un clic —el envío y un fetch— y una cancelaría a
+    // la otra.
 })();
 </script>
 @endpush

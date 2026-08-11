@@ -147,6 +147,48 @@ class AccesoTest extends TestCase
         }
     }
 
+    /** Las doce listas que ofrecen el botón de bajar. */
+    private const LISTAS = [
+        'clientes.lista', 'clientes.fidelizacion', 'clientes.valoraciones',
+        'servicios.lista', 'inventario.productos', 'inventario.movimientos',
+        'inventario.proveedores', 'inventario.compras',
+        'facturacion.facturas', 'facturacion.cobros',
+        'seguridad.usuarios', 'seguridad.auditoria',
+    ];
+
+    #[Test]
+    public function las_listas_bajan_en_csv_y_en_pdf(): void
+    {
+        // Exportar recorre un camino distinto al de dibujar la pantalla: el
+        // método devuelve un archivo en vez de una vista. Si la firma del
+        // controlador no admite ese tipo de retorno, revienta con un TypeError
+        // que NO se ve abriendo la pantalla — sólo al apretar el botón. Fue lo
+        // que pasó con Auditoría, declarada `: View` mientras bajaba un CSV.
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+
+        foreach (self::LISTAS as $ruta) {
+            $this->get(route($ruta, ['export' => 'csv']))
+                ->assertOk("$ruta no bajó el CSV.")
+                ->assertDownload();
+
+            $this->get(route($ruta, ['export' => 'pdf']))
+                ->assertOk("$ruta no dibujó el PDF.")
+                ->assertSee('Descargar PDF');
+        }
+    }
+
+    #[Test]
+    public function un_formato_de_exportacion_inventado_muestra_la_pantalla(): void
+    {
+        // `?export=xlsx` no tiene que bajar nada ni reventar: se ignora y se
+        // dibuja la lista, que es lo que la persona tiene delante.
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+
+        $this->get(route('clientes.lista', ['export' => 'xlsx']))
+            ->assertOk()
+            ->assertHeaderMissing('content-disposition');
+    }
+
     #[Test]
     public function el_panel_muestra_los_numeros_que_da_la_base(): void
     {

@@ -5,8 +5,14 @@
 @section('contenido')
     @php use App\Servicios\Permisos; @endphp
 
+    {{-- Al Administrador no se le explica una restricción que no lo alcanza: él
+         crea cuentas, y el botón lo tiene ahí al lado. A quien NO es
+         Administrador sí, porque si no la pantalla se ve incompleta sin decir
+         por qué le falta el botón. --}}
     <x-encabezado
-        sub="Las cuentas del personal. <strong>Crear y editar cuentas es exclusivo del Administrador</strong>, sin importar lo que diga la matriz de roles: quien puede editar la matriz podría darse permisos a sí mismo."
+        :sub="Permisos::esAdmin()
+            ? 'Las cuentas del personal, con su rol, sus turnos y su estado.'
+            : 'Las cuentas del personal. <strong>Crear y editar cuentas es exclusivo del Administrador</strong>, sin importar lo que diga la matriz de roles: quien puede editar la matriz podría darse permisos a sí mismo.'"
         :accion="Permisos::esAdmin() ? ['ruta' => 'seguridad.usuario_form', 't' => 'Nuevo usuario', 'ic' => 'person-plus'] : null" />
 
     <div class="spg-panel">

@@ -65,7 +65,8 @@
                                 <div class="form-check mb-0 flex-grow-1">
                                     <input class="form-check-input srv" type="checkbox" name="servicios[]"
                                            value="{{ $s->id_servicio }}" id="srv{{ $s->id_servicio }}"
-                                           data-duracion="{{ $s->duracion_min }}">
+                                           data-duracion="{{ $s->duracion_min }}"
+                                           @checked(in_array($s->id_servicio, old('servicios', []), false))>
                                     <label class="form-check-label" for="srv{{ $s->id_servicio }}">
                                         {{ $s->nombre }}
                                         <span class="text-muted-warm">
@@ -76,11 +77,13 @@
                                         @endif
                                     </label>
                                 </div>
+                                @php $profSel = (int) (old('prof_servicio', [])[$s->id_servicio] ?? 0); @endphp
                                 <select class="form-select form-select-sm" style="width:auto"
                                         name="prof_servicio[{{ $s->id_servicio }}]">
                                     <option value="0">lo hace el principal</option>
                                     @foreach ($profs as $p)
-                                        <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
+                                        <option value="{{ $p->id_usuario }}"
+                                            @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -121,7 +124,10 @@
         <div class="modal fade" id="modalClienteRapido" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <form method="post" action="{{ route('citas.cliente_rapido') }}">
+                    {{-- data-borrador: los servicios y el horario ya elegidos
+                         vuelven con el redirect en vez de perderse. --}}
+                    <form method="post" action="{{ route('citas.cliente_rapido') }}"
+                          data-borrador="#formCita">
                         @csrf
                         <div class="modal-header">
                             <h5 class="modal-title" style="font-size:1rem">

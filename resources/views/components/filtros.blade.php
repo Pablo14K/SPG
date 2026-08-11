@@ -54,10 +54,17 @@
             @endif
 
             @if (! empty($f['csv']))
-                {{-- Baja TODO lo filtrado, no la página que se está viendo --}}
+                {{-- Los dos bajan TODO lo filtrado, no la página que se está
+                     viendo. El CSV para seguir trabajando los datos en una
+                     planilla; el PDF para imprimirlo o mandarlo sin que el que
+                     lo recibe tenga que abrir Excel. --}}
+                @php $qs = \App\Servicios\Listado::query($f); @endphp
                 <a class="btn btn-sm btn-outline-neutro"
-                   href="{{ url()->current() . '?' . http_build_query(array_merge(\App\Servicios\Listado::query($f), ['export' => 'csv'])) }}"
-                   title="Bajar lo que se está viendo como planilla"><i class="bi bi-download"></i> CSV</a>
+                   href="{{ url()->current() . '?' . http_build_query(array_merge($qs, ['export' => 'csv'])) }}"
+                   title="Bajar lo que se está viendo como planilla"><i class="bi bi-filetype-csv"></i> CSV</a>
+                <a class="btn btn-sm btn-outline-neutro"
+                   href="{{ url()->current() . '?' . http_build_query(array_merge($qs, ['export' => 'pdf'])) }}"
+                   title="Bajar lo que se está viendo como PDF"><i class="bi bi-filetype-pdf"></i> PDF</a>
             @endif
         </div>
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
+use App\Servicios\Borrador;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -95,12 +96,13 @@ class InventarioController extends Controller
 
         $desde = 'FROM vw_producto_stock v WHERE ' . implode(' AND ', $w);
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('productos',
+        if (Listado::pideExport()) {
+            return Listado::exportar('productos',
                 ['Producto', 'Categoría', 'Unidad', 'Stock', 'Mínimo', 'Costo', 'Venta', 'Estado'],
                 array_map(fn ($r) => [$r->nombre, $r->categoria, $r->unidad_medida, $r->stock_actual,
                     $r->stock_minimo, $r->precio_costo, $r->precio_venta, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT * $desde ORDER BY v.nombre", $par))
+                    DB::select("SELECT * $desde ORDER BY v.nombre", $par)),
+                $f, 'Productos'
             );
         }
 
@@ -364,13 +366,14 @@ class InventarioController extends Controller
                  CONCAT(pe_u.nombre,' ',pe_u.apellido) AS usuario";
         $orden = 'ORDER BY m.fecha DESC, m.id_movimiento DESC';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('movimientos',
+        if (Listado::pideExport()) {
+            return Listado::exportar('movimientos',
                 ['Fecha', 'Producto', 'Tipo', 'Sentido', 'Cantidad', 'Unidad', 'Precio', 'Referencia', 'Usuario', 'Observaciones'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y H:i'), $r->producto, $r->tipo,
                     $r->signo === 'E' ? 'Entrada' : 'Salida', $r->cantidad, $r->unidad_medida,
                     $r->precio_unitario, $r->referencia, $r->usuario, $r->observaciones],
-                    DB::select("SELECT $cols $desde $orden", $par))
+                    DB::select("SELECT $cols $desde $orden", $par)),
+                $f, 'Movimientos de stock'
             );
         }
 
@@ -534,12 +537,13 @@ class InventarioController extends Controller
         $cols = 'p.*, pe.nombre, pe.ruc, pe.telefono, pe.email, pe.direccion,
                  fn_proveedor_saldo(p.id_proveedor) AS saldo';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('proveedores',
+        if (Listado::pideExport()) {
+            return Listado::exportar('proveedores',
                 ['Proveedor', 'RUC', 'Contacto', 'Teléfono', 'Email', 'Dirección', 'Saldo', 'Estado'],
                 array_map(fn ($r) => [$r->nombre, $r->ruc, $r->contacto, $r->telefono, $r->email,
                     $r->direccion, $r->saldo, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT $cols $desde ORDER BY pe.nombre", $par))
+                    DB::select("SELECT $cols $desde ORDER BY pe.nombre", $par)),
+                $f, 'Proveedores'
             );
         }
 
@@ -664,12 +668,13 @@ class InventarioController extends Controller
         $cols = 'v.*, c.nro_factura_proveedor, fn_compra_saldo(v.id_compra) AS saldo,
                  (SELECT COUNT(*) FROM detalle_compra d WHERE d.id_compra = v.id_compra) AS items';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('compras',
+        if (Listado::pideExport()) {
+            return Listado::exportar('compras',
                 ['Fecha', 'Proveedor', 'Nº factura', 'Ítems', 'Total', 'Saldo', 'Estado', 'Registró'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y'), $r->proveedor, $r->nro_factura_proveedor,
                     $r->items, $r->total, $r->saldo, $r->estado, $r->registro],
-                    DB::select("SELECT $cols $desde ORDER BY v.fecha DESC", $par))
+                    DB::select("SELECT $cols $desde ORDER BY v.fecha DESC", $par)),
+                $f, 'Compras'
             );
         }
 
@@ -884,7 +889,9 @@ class InventarioController extends Controller
         $stock = num($request->input('stock_inicial'));
         $costo = num($request->input('precio_costo'));
         $venta = num($request->input('precio_venta'));
-        $volver = redirect()->route('inventario.ajuste');
+        // El ajuste a medio cargar vuelve con el borrador: crear un producto no
+        // puede borrar el motivo y las cantidades que ya estaban escritas.
+        $volver = Borrador::conservar(redirect()->route('inventario.ajuste'), $request);
 
         $error = null;
         if ($nombre === '') {
@@ -939,7 +946,8 @@ class InventarioController extends Controller
             'telefono' => trim((string) $request->input('telefono', '')) ?: null,
         ];
         $contacto = trim((string) $request->input('contacto', '')) ?: null;
-        $volver = redirect()->route('inventario.compra_form');
+        // Las filas de la compra ya cargadas vuelven con el borrador.
+        $volver = Borrador::conservar(redirect()->route('inventario.compra_form'), $request);
 
         if ($d['nombre'] === '') {
             flash('El nombre o razón social del proveedor es obligatorio.', 'error');

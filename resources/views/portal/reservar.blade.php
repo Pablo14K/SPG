@@ -39,15 +39,11 @@
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label" for="id_usuario">¿Con quién?</label>
-                <select class="form-select" id="id_usuario" name="id_usuario" style="max-width:320px">
-                    <option value="0">Me da igual, el que esté libre</option>
-                    @foreach ($profs as $p)
-                        <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
-                    @endforeach
-                </select>
-            </div>
+            {{-- Acá había un «¿Con quién?» para toda la cita, y confundía: cada
+                 servicio ya trae su propio selector arriba, con «quien me
+                 atienda» por defecto. Eran dos formas de contestar lo mismo, y
+                 no era evidente cuál ganaba. Sin preferencia, el profesional lo
+                 asigna el servidor al reservar (Agenda::profesionalLibre). --}}
 
             <div class="mb-3">
                 <label class="form-label">¿Cuándo? *</label>
@@ -86,10 +82,24 @@
             .map(function (c) { return c.value; });
     }
 
+    // Con qué agenda se consultan los huecos. Si TODOS los servicios elegidos
+    // piden a la misma persona, se miran sus horarios; si piden a varias, o si
+    // alguno quedó en «quien me atienda», se juntan los de todo el equipo y el
+    // servidor asigna al reservar. Antes esto salía de un combo aparte.
+    function profElegido() {
+        var pedidos = elegidos().map(function (id) {
+            var sel = document.querySelector('[name="prof_servicio[' + id + ']"]');
+            return sel ? sel.value : '0';
+        });
+        var distintos = pedidos.filter(function (v, i, a) { return a.indexOf(v) === i; });
+
+        return (distintos.length === 1 && distintos[0] !== '0') ? distintos[0] : 0;
+    }
+
     function params(extra) {
         var p = new URLSearchParams();
         elegidos().forEach(function (s) { p.append('servicios[]', s); });
-        p.append('id_usuario', document.getElementById('id_usuario').value || 0);
+        p.append('id_usuario', profElegido());
         for (var k in (extra || {})) { p.append(k, extra[k]); }
         return p;
     }
@@ -150,7 +160,11 @@
     }
 
     document.querySelectorAll('.srv').forEach(function (c) { c.addEventListener('change', cargarDias); });
-    document.getElementById('id_usuario').addEventListener('change', cargarDias);
+    // Cambiar de profesional en un servicio cambia los horarios posibles, así
+    // que la agenda se vuelve a pedir igual que al tildar un servicio.
+    document.querySelectorAll('[name^="prof_servicio["]').forEach(function (s) {
+        s.addEventListener('change', cargarDias);
+    });
 })();
 </script>
 @endpush

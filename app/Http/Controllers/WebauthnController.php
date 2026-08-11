@@ -45,15 +45,25 @@ class WebauthnController extends Controller
         ]);
     }
 
-    /** «Ahora no»: no se vuelve a preguntar, pero se puede activar desde Mi cuenta. */
-    public function marcarPreguntado(): JsonResponse
+    /**
+     * «Ahora no»: no se vuelve a preguntar, pero se puede activar desde Mi cuenta.
+     *
+     * Contesta las dos formas a propósito. Si la pantalla llega por un envío
+     * normal del formulario —sin JavaScript— devuelve el redirect y la persona
+     * sigue trabajando; si la llama el fetch, el JSON de siempre. Esta es la
+     * ÚNICA salida de esa pantalla, así que no puede depender de que el JS haya
+     * cargado: cuando no cargaba, el usuario quedaba encerrado ahí.
+     */
+    public function marcarPreguntado(Request $request): JsonResponse|RedirectResponse
     {
         DB::statement(
             'INSERT INTO preferencia_usuario (id_usuario, biometrico_pregunt) VALUES (?,1)
              ON DUPLICATE KEY UPDATE biometrico_pregunt = 1', [(int) session('uid')]
         );
 
-        return response()->json(['ok' => true]);
+        return $request->expectsJson()
+            ? response()->json(['ok' => true])
+            : redirect()->route(Sesion::inicio());
     }
 
     // ---------- Activar la huella ----------

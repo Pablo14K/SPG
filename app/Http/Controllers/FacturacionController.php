@@ -116,12 +116,13 @@ class FacturacionController extends Controller
 
         $desde = 'FROM vw_factura_resumen v WHERE ' . implode(' AND ', $w);
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('facturas',
+        if (Listado::pideExport()) {
+            return Listado::exportar('facturas',
                 ['Nº', 'Fecha', 'Cliente', 'Comprobante', 'Total', 'Cobrado', 'Saldo', 'Estado'],
                 array_map(fn ($r) => [$r->nro_comprobante, fecha($r->fecha_emision, 'd/m/Y H:i'), $r->cliente,
                     $r->tipo_comprobante, $r->total, $r->cobrado, $r->saldo, $r->estado],
-                    DB::select("SELECT * $desde ORDER BY v.fecha_emision DESC", $par))
+                    DB::select("SELECT * $desde ORDER BY v.fecha_emision DESC", $par)),
+                $f, 'Facturas'
             );
         }
 
@@ -437,12 +438,13 @@ class FacturacionController extends Controller
                  fn_factura_nro(co.id_factura) AS nro_comprobante,
                  CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente";
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('cobros',
+        if (Listado::pideExport()) {
+            return Listado::exportar('cobros',
                 ['Fecha', 'Cliente', 'Comprobante', 'Medio', 'Monto', 'Referencia', 'Estado'],
                 array_map(fn ($r) => [fecha($r->fecha, 'd/m/Y H:i'), $r->cliente ?: '(seña sin factura)',
                     $r->nro_comprobante, $r->metodo, $r->monto, $r->referencia, $r->estado],
-                    DB::select("SELECT $cols $desde ORDER BY co.fecha DESC", $par))
+                    DB::select("SELECT $cols $desde ORDER BY co.fecha DESC", $par)),
+                $f, 'Cobros'
             );
         }
 

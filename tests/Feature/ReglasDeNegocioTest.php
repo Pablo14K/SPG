@@ -380,4 +380,109 @@ class ReglasDeNegocioTest extends TestCase
         session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
     }
+
+    #[Test]
+    public function el_portal_pregunta_el_profesional_una_sola_vez(): void
+    {
+        // La pantalla tenía dos formas de contestar lo mismo: un selector por
+        // servicio («quien me atienda» / «con Rocío») y, más abajo, un «¿Con
+        // quién?» para toda la cita. No era evidente cuál mandaba. Queda el de
+        // arriba, que es el más fino.
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta de cliente en la base de prueba.');
+        }
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+
+        $this->get(route('portal.reservar'))
+            ->assertOk()
+            ->assertDontSee('¿Con quién?')
+            ->assertSee('prof_servicio', false);   // el selector fino sigue
+    }
+
+    #[Test]
+    public function un_alta_rapida_no_borra_lo_que_habia_cargado(): void
+    {
+        // El alta rápida manda SU formulario, no el grande: los campos de la
+        // ficha no viajan y la pantalla se redibujaba vacía. `app.js` adjunta
+        // una copia en `_borrador` y el controlador la devuelve a la sesión.
+        $admin = (int) config('permisos.rol_admin', 1);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+
+        $ficha = [
+            'nombre' => 'Rocío', 'apellido' => 'Benítez', 'username' => 'rocio.b',
+            'email' => 'rocio@ejemplo.com', 'password' => 'secreto123',
+        ];
+
+        $this->post(route('seguridad.sucursal.rapida'), [
+            'nombre' => 'Sucursal Centro ' . uniqid(),   // el del alta rápida
+            'ciudad' => 'Luque',
+            '_borrador' => json_encode($ficha),
+        ])->assertRedirect();
+
+        // Lo tipeado vuelve...
+        $this->assertSame('Rocío', session('_old_input.nombre'),
+            'El nombre de la ficha tenía que volver, no el de la sucursal.');
+        $this->assertSame('Benítez', session('_old_input.apellido'));
+        $this->assertSame('rocio.b', session('_old_input.username'));
+
+        // ...pero la contraseña NO queda dando vueltas en la sesión.
+        $this->assertNull(session('_old_input.password'),
+            'La contraseña no tiene que guardarse en el borrador.');
+    }
+
+    #[Test]
+    public function sin_borrador_el_alta_rapida_no_pisa_los_datos_existentes(): void
+    {
+        // Sin JavaScript no llega `_borrador`. En ese caso no hay que flashear
+        // un input vacío: en una pantalla de edición, un `old()` vacío le
+        // ganaría al valor que la vista muestra por defecto y borraría la ficha.
+        $admin = (int) config('permisos.rol_admin', 1);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->post(route('seguridad.sucursal.rapida'), [
+            'nombre' => 'Sucursal Sin JS ' . uniqid(),
+            'ciudad' => 'Luque',
+        ])->assertRedirect();
+
+        $this->assertNull(session('_old_input'),
+            'Sin borrador no tendría que quedar ningún old() en la sesión.');
+    }
+
+    #[Test]
+    public function el_aviso_de_roles_es_solo_para_quien_puede_dejarse_afuera(): void
+    {
+        // A quien ya está en la pantalla no se le explica que tiene el permiso
+        // —lo tiene, por eso entró—. Lo que sí importa, y no es obvio, es que su
+        // propio rol se edita ahí y puede quedarse sin la llave.
+        $admin = (int) config('permisos.rol_admin', 1);
+
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        $this->get(route('seguridad.roles'))
+            ->assertOk()
+            ->assertDontSee('dejás de poder entrar acá');
+
+        // El mismo aviso sí aparece para un rol que no es el Administrador y que
+        // puede editar la matriz: ese sí puede sacarse el permiso a sí mismo.
+        $rolProf = (int) DB::scalar("SELECT id_rol FROM rol WHERE nombre = 'Profesional' LIMIT 1");
+        if (! $rolProf) {
+            $this->markTestSkipped('No hay rol Profesional en la base de prueba.');
+        }
+
+        DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rolProf, 'seguridad.roles']);
+        Permisos::olvidar($rolProf);
+
+        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        $this->get(route('seguridad.roles'))
+            ->assertOk()
+            ->assertSee('dejás de poder entrar acá', false);
+    }
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Servicios;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -26,8 +28,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *     nativas de MySQL, que no lo admiten. Para eso está likeVarias().
  *  3. Los filtros van por GET, así el resultado tiene su propia URL y se puede
  *     compartir o recargar.
- *  4. El CSV exporta lo filtrado SIN límite de página: si la persona filtró
- *     marzo, el archivo trae todo marzo.
+ *  4. Lo que se baja —CSV o PDF— es lo filtrado SIN límite de página: si la
+ *     persona filtró marzo, el archivo trae todo marzo y no los 20 de la
+ *     pantalla.
  */
 class Listado
 {
@@ -159,9 +162,83 @@ class Listado
         ]);
     }
 
-    /** ¿La pantalla se está pidiendo como planilla? */
-    public static function pideCsv(): bool
+    /**
+     * La lista, lista para papel.
+     *
+     * No hay librería de PDF, y es a propósito: la misma decisión que ya estaba
+     * tomada en Reportes → Informes. Se dibuja una página maquetada para A4 y el
+     * navegador la guarda como PDF desde su propio diálogo, que es lo que hace
+     * todo el mundo igual. Una librería traería una dependencia de Composer para
+     * hacer lo que el navegador ya hace, y en el VPS la RAM se comparte con los
+     * demás grupos.
+     *
+     * Igual que el CSV, sale TODO lo filtrado y no la página que se está viendo.
+     */
+    public static function pdf(string $nombre, array $encabezados, array $filas, ?array $f = null, ?string $titulo = null): View
     {
-        return Request::query('export') === 'csv';
+        // El encabezado del papel sale de la sucursal, igual que en el informe:
+        // un PDF que sale del sistema tiene que decir de qué salón es.
+        $emisor = DB::selectOne(
+            'SELECT nombre, ruc, ciudad FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1'
+        ) ?: (object) ['nombre' => config('app.name')];
+
+        return view('listado.imprimir', [
+            'titulo' => $titulo ?: ucfirst(str_replace('_', ' ', $nombre)),
+            'encabezados' => $encabezados,
+            'filas' => $filas,
+            'emisor' => $emisor,
+            'emitido' => ahora_bd('d/m/Y H:i'),
+            'porQuien' => (string) session('nombre', ''),
+            'filtros' => $f ? self::filtrosLegibles($f) : [],
+        ]);
     }
+
+    /**
+     * Los filtros puestos, en palabras, para dejarlos escritos en el papel.
+     *
+     * Sin esto, dos PDF de la misma pantalla con filtros distintos salen
+     * idénticos de encabezado y no hay forma de saber cuál es cuál después de
+     * imprimirlos. Se muestra la ETIQUETA del filtro y, en un select, el texto
+     * de la opción y no su id: «Estado: Activos», no «estado: 1».
+     */
+    private static function filtrosLegibles(array $f): array
+    {
+        $out = [];
+        foreach (($f['v'] ?? []) as $clave => $valor) {
+            if ($valor === '') {
+                continue;
+            }
+            $def = $f['campos'][$clave] ?? [];
+            $texto = ($def['tipo'] ?? 'texto') === 'select'
+                ? (string) ($def['opciones'][$valor] ?? $valor)
+                : (string) $valor;
+            $out[] = ($def['etiqueta'] ?? $clave) . ': ' . $texto;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Exporta en el formato que se pidió por la URL.
+     *
+     * Los dos bajan lo mismo —todo lo filtrado, sin límite de página—; lo que
+     * cambia es para qué sirve cada uno: el CSV para seguir trabajando los datos
+     * en una planilla, el PDF para imprimirlo o mandarlo por WhatsApp sin que el
+     * que lo recibe tenga que abrir Excel.
+     */
+    public static function exportar(string $nombre, array $encabezados, array $filas, ?array $f = null, ?string $titulo = null): StreamedResponse|View
+    {
+        return self::pideExport() === 'pdf'
+            ? self::pdf($nombre, $encabezados, $filas, $f, $titulo)
+            : self::csv($nombre, $encabezados, $filas);
+    }
+
+    /** ¿Se está pidiendo la pantalla para bajar? Devuelve «csv», «pdf» o null. */
+    public static function pideExport(): ?string
+    {
+        $formato = (string) Request::query('export', '');
+
+        return in_array($formato, ['csv', 'pdf'], true) ? $formato : null;
+    }
+
 }

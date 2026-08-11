@@ -59,12 +59,13 @@ class ServiciosController extends Controller
                   WHERE ' . implode(' AND ', $w);
         $orden = 'ORDER BY cs.nombre, s.nombre';
 
-        if (Listado::pideCsv()) {
-            return Listado::csv('servicios',
+        if (Listado::pideExport()) {
+            return Listado::exportar('servicios',
                 ['Servicio', 'Categoría', 'Precio', 'Duración (min)', 'IVA %', 'Estado'],
                 array_map(fn ($r) => [$r->nombre, $r->categoria, $r->precio, $r->duracion_min,
                     $r->tasa_iva, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden", $par))
+                    DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden", $par)),
+                $f, 'Servicios'
             );
         }
 

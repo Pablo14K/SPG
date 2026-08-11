@@ -10,7 +10,7 @@
     <div class="row g-3">
         <div class="col-lg-8">
             <div class="spg-panel">
-                <form method="post" action="{{ route('inventario.compra.guardar') }}">
+                <form method="post" action="{{ route('inventario.compra.guardar') }}" id="formCompra">
                     @csrf
 
                     <div class="row g-2 mb-3">
@@ -20,7 +20,7 @@
                                 <option value="">— elegí un proveedor —</option>
                                 @foreach ($proveedores as $p)
                                     <option value="{{ $p->id_proveedor }}"
-                                        @selected($sel_proveedor === (int) $p->id_proveedor)>{{ $p->nombre }}</option>
+                                        @selected((int) old('id_proveedor', $sel_proveedor) === (int) $p->id_proveedor)>{{ $p->nombre }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -28,7 +28,8 @@
                             <label class="form-label" for="id_condicion_venta">Condición *</label>
                             <select class="form-select" id="id_condicion_venta" name="id_condicion_venta" required>
                                 @foreach ($condiciones as $cv)
-                                    <option value="{{ $cv->id_condicion_venta }}">{{ $cv->nombre }}</option>
+                                    <option value="{{ $cv->id_condicion_venta }}"
+                                        @selected((int) old('id_condicion_venta', 0) === (int) $cv->id_condicion_venta)>{{ $cv->nombre }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -46,26 +47,42 @@
                         el stock en vez de crear un duplicado.
                     </p>
 
+                    {{-- Las filas se redibujan con lo que había cargado: al crear
+                         un proveedor desde el costado se vuelve acá, y perder la
+                         mercadería ya tipeada obligaba a cargarla dos veces.
+                         Siempre quedan al menos tres, como al entrar. --}}
+                    @php
+                        $vNombre = (array) old('nombre', []);
+                        $vId = (array) old('id_producto', []);
+                        $vCant = (array) old('cantidad', []);
+                        $vPrecio = (array) old('precio', []);
+                        $vCat = (array) old('categoria', []);
+                        $cuantas = max(3, count($vNombre));
+                    @endphp
                     <div id="filasCompra">
-                        @for ($i = 0; $i < 3; $i++)
+                        @for ($i = 0; $i < $cuantas; $i++)
                             <div class="row g-2 mb-2 filaCompra">
                                 <div class="col-md-5">
                                     <input class="form-control form-control-sm nombreProd" name="nombre[]"
-                                           list="listaProductos" placeholder="Producto" autocomplete="off">
-                                    <input type="hidden" name="id_producto[]" class="idProd" value="0">
+                                           list="listaProductos" placeholder="Producto" autocomplete="off"
+                                           value="{{ $vNombre[$i] ?? '' }}">
+                                    <input type="hidden" name="id_producto[]" class="idProd"
+                                           value="{{ $vId[$i] ?? 0 }}">
                                 </div>
                                 <div class="col-md-2">
                                     <input class="form-control form-control-sm input-miles" name="cantidad[]"
-                                           data-decimales="2" data-min="0" placeholder="Cantidad">
+                                           data-decimales="2" data-min="0" placeholder="Cantidad"
+                                           value="{{ $vCant[$i] ?? '' }}">
                                 </div>
                                 <div class="col-md-2">
                                     <input class="form-control form-control-sm input-miles" name="precio[]"
-                                           data-min="0" placeholder="Precio">
+                                           data-min="0" placeholder="Precio" value="{{ $vPrecio[$i] ?? '' }}">
                                 </div>
                                 <div class="col-md-3">
                                     <select class="form-select form-select-sm" name="categoria[]">
                                         @foreach ($categorias as $c)
-                                            <option value="{{ $c->id_categoria }}">{{ $c->nombre }}</option>
+                                            <option value="{{ $c->id_categoria }}"
+                                                @selected((int) ($vCat[$i] ?? 0) === (int) $c->id_categoria)>{{ $c->nombre }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -104,7 +121,10 @@
                     <p class="text-muted-warm" style="font-size:.82rem">
                         Crealo acá mismo, sin perder las líneas que ya escribiste.
                     </p>
-                    <form method="post" action="{{ route('inventario.proveedor.rapido') }}">
+                    {{-- data-borrador: las filas de la compra ya cargadas
+                         vuelven con el redirect. --}}
+                    <form method="post" action="{{ route('inventario.proveedor.rapido') }}"
+                          data-borrador="#formCompra">
                         @csrf
                         <div class="mb-2">
                             <label class="form-label" for="pv_nombre">Nombre o razón social *</label>

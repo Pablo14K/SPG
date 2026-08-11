@@ -104,6 +104,7 @@ Tres cosas en la misma tanda, siempre juntas:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.3.0 | 11/08/2026 | **Los listados también bajan en PDF**, con la misma decisión que ya estaba tomada en Informes: no hay librería, se maqueta para A4 y el navegador guarda como PDF. Una sola vista (`listado/imprimir`) sirve a las doce listas y deja escritos los filtros en el papel, porque si no dos PDF de la misma pantalla salen idénticos de encabezado. De paso aparecieron **dos pantallas rotas de verdad**: `webauthn/preguntar` se dibujaba **sin una línea de JavaScript** —`auth/marco` no tenía `@stack('scripts')`, así que todo el `@push` se perdía en silencio— y dejaba al usuario nuevo **encerrado** entre el ingreso y el panel, con los dos botones muertos; y **exportar la auditoría devolvía 500** desde siempre, porque `auditoria()` declaraba `: View` y devolvía un archivo. Además, **las altas rápidas dejan de borrar lo cargado**: la migración a Laravel se quedó a mitad de camino —`app.js` seguía adjuntando el borrador y ya no lo leía nadie—, así que crear una sucursal desde la ficha vaciaba nombre, apellido, usuario y email. Lo resuelve `App\Servicios\Borrador`, que **no** es `withInput()` a secas: el alta rápida manda su propio formulario, y varios de sus campos se llaman igual que los del grande (`nombre` está en los dos). Se corrigen los días **Mié** y **Sáb**, que salían cortados a mitad de byte por `substr`, y se sacan dos avisos que le explicaban a la persona un permiso que ya tenía. En el portal, el «¿Con quién?» de toda la cita se va: cada servicio ya trae el suyo. **49 pruebas** |
 | 6.2.0 | 11/08/2026 | **Personal y Configuración se unen en un solo módulo, Seguridad**, con el fondo oscuro que tenía Configuración: las dos tarjetas contestaban la misma pregunta —quién entra, qué puede hacer y qué quedó registrado— y separadas obligaban a saltar de una a la otra para dar de alta a alguien y darle permisos. Los módulos pasan de 8 a 7 y los permisos siguen siendo **28**, ahora ocho submódulos de `seguridad`. Las rutas quedan bajo `/seguridad` y las trece vistas en una sola carpeta. **Lo que estaba guardado no se pierde ni crece**: `permisos.equivalencias` traduce las claves viejas al leerlas, y el módulo padre viejo se traduce a **sus** submódulos, no a `seguridad` a secas — traducirlo al padre nuevo le habría regalado los roles y la auditoría a quien solo administraba al personal. De paso, la prueba nueva que abre las doce pantallas destapó que **Auditoría nunca había funcionado en Laravel**: consultaba `a.fecha` y la columna es `fecha_hora`, así que devolvía 500 desde la 6.1.1 |
 | 6.1.5 | 11/08/2026 | **Se termina de pasar esta documentación a Laravel.** En la 6.1.1 se reescribieron las secciones de arquitectura, pero en las demás quedaban 16 referencias a archivos y funciones del sistema archivado —`canales_contacto()` de `helpers.php`, `relaciones_pantallas()` de `view.php`, los `migrar_*()`, `personal_activo()`, `install.php`—, que mandaban a buscar código que en este proyecto no existe. Ahora nombran lo real: `Contacto::canales()`, `config/navegacion.php`, `Permisos::esAdmin()`, `FacturacionController::pagarProveedor`. Cada nombre se verificó contra el código antes de escribirlo. Las únicas menciones al sistema viejo que quedan están marcadas como historia, a propósito |
 | 6.1.4 | 11/08/2026 | **El aviso del ingreso con huella dejaba de mentir.** Desde el celular, entrando por la IP de red de la PC, decía «este equipo no tiene lector» — falso, y manda a buscar un problema de hardware inexistente. Lo real es que los navegadores **sólo exponen WebAuthn en contexto seguro** (HTTPS o `localhost`), así que por `http://192.168.x.x` la API no existe; y detrás hay una segunda pared: el `rpId` sale del dominio y la especificación **no admite direcciones IP**. `SPGBio.estado()` ahora distingue los cuatro casos —sin HTTPS, por IP, navegador viejo, sin sensor— y cada uno dice qué pasa y si va a andar en el servidor |
@@ -152,7 +153,8 @@ app/
     Persona.php            El único lugar que escribe en `persona`
     Notificaciones.php     Cola de avisos: ausencias, bajas y recordatorios
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
-    Listado.php            Prototipo de listas: filtros(), paginacion(), csv()
+    Listado.php            Prototipo de listas: filtros(), paginacion(), exportar() CSV/PDF
+    Borrador.php           No perder lo escrito al usar un alta rápida
     Navegacion.php         Migas, accesos rápidos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
@@ -178,7 +180,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 40 pruebas
+tests/Feature/             Las 49 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -358,6 +360,15 @@ guardado su contacto: el enlace entero, un usuario o canal, o el número.
 - **Solo se aceptan `http` y `https`.** El valor termina en un `href` del pie de todas las
   pantallas: sin esa comprobación, alguien con acceso a Configuración podría guardar un
   `javascript:` y dejarlo inyectado en todo el sistema.
+- **Un `@push('scripts')` sólo llega si el layout tiene `@stack('scripts')`.** Si no, Blade
+  **no avisa**: la pantalla se dibuja entera y sin una línea de JavaScript. Hoy lo declaran
+  `layout/app.blade.php` y `auth/marco.blade.php`; **si agregás un layout, acordate del
+  stack**. Es lo que dejó a `webauthn/preguntar` con los dos botones muertos, y como esa
+  pantalla se mete entre el ingreso y el panel, el usuario nuevo quedaba **encerrado**.
+  > De ahí sale la otra regla: **la salida de una pantalla no puede depender del JavaScript.**
+  > «Ahora no» es un `<form>` de verdad y su acción contesta redirect o JSON según quién
+  > llame, así que funciona con el JS roto. Si hacés una pantalla de la que haya que poder
+  > salir, dejale una salida que ande sin scripts.
 - **CSS y JS se enlazan con `recurso('css/app.css')`, no con el `asset()` de Laravel.**
   `recurso()` le pega la fecha de modificación del archivo como `?v=`; sin eso el navegador se
   queda con la versión vieja en caché y los cambios de estilo no se ven.
@@ -392,8 +403,8 @@ if (Listado::hay($f, 'q')) {
 }
 $desde = 'FROM … WHERE ' . implode(' AND ', $w);
 
-if (Listado::pideCsv()) {
-    return Listado::csv('clientes', ['Cliente', 'Cédula'], $filas);
+if (Listado::pideExport()) {                    // «csv» o «pdf»
+    return Listado::exportar('clientes', ['Cliente', 'Cédula'], $filas, $f, 'Clientes');
 }
 
 $pag  = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
@@ -418,9 +429,19 @@ Cuatro reglas al sumar una lista nueva:
 - **Los filtros van por GET**, así el resultado tiene su propia URL y se puede compartir o
   recargar. `Listado::filtros()` ya sanea: un `select` solo acepta una opción que exista y una
   fecha solo acepta `Y-m-d`, así que lo que devuelve entra directo en la consulta preparada.
-- **El CSV exporta lo filtrado sin límite de página**, no la página que se está viendo: si la
-  persona filtró marzo, el archivo trae todo marzo. `Listado::csv()` le pone el BOM (si no,
+- **Lo que se baja es lo filtrado sin límite de página**, no la página que se está viendo: si
+  la persona filtró marzo, el archivo trae todo marzo. `Listado::csv()` le pone el BOM (si no,
   Excel en Windows abre el archivo en ANSI y rompe las ñ) y separa con punto y coma.
+- **Se baja en CSV o en PDF**, y los dos salen de las mismas filas que arma el controlador:
+  el CSV para seguir trabajando los datos en una planilla, el PDF para imprimirlo o mandarlo
+  sin que el que lo recibe tenga que abrir Excel. **No hay librería de PDF**: `Listado::pdf()`
+  dibuja `listado/imprimir` maquetada para A4 y el navegador la guarda, la misma decisión que
+  ya estaba tomada en Reportes. El PDF **deja escritos los filtros** en el encabezado, porque
+  si no dos exportaciones de la misma pantalla con filtros distintos salen idénticas.
+- **Cuidado con la firma del método**: la pantalla pasa a devolver un archivo además de una
+  vista, así que tiene que declarar `View|StreamedResponse`. Con `: View` a secas revienta con
+  un TypeError que **no se ve abriendo la pantalla**, sólo al apretar el botón — le pasó a
+  Auditoría, que devolvía 500 al exportar desde que existe el botón.
 
 Las migas de pan (`Panel › Módulo › Pantalla`) las arma sola `<x-encabezado>` leyendo
 `config/navegacion.php`: la vista no las declara, así no se desfasan al renombrar una pantalla.
@@ -432,24 +453,42 @@ Crear una sucursal desde «Nuevo usuario», un cliente desde «Nueva cita» o un
 dibuja de nuevo y todo lo tipeado se perdía: había que cargar otra vez nombre, apellido,
 usuario, email.
 
-**Lo resuelve Laravel y no hay que inventar nada**: el controlador vuelve con
-`->withInput()` y cada campo se dibuja con `old('nombre', $valorPorDefecto)`. La sesión
-guarda lo escrito una sola vez y se consume al mostrarlo.
+**`->withInput()` a secas NO alcanza acá, y de hecho empeora las cosas.** Es la trampa de
+esta pantalla, así que conviene entenderla antes de tocarla: el alta rápida es **otro
+formulario**, y el navegador manda sólo los campos del formulario que se envió. Los del
+grande **no viajan**. Con `withInput()` lo único que se flashea son los campos del alta
+rápida — y varios se llaman igual que los del grande: `nombre` está en la ficha de la persona
+y también en la de la sucursal. El resultado es la ficha con el nombre de la sucursal adentro,
+que es exactamente el error que este proyecto ya tuvo una vez por otro motivo.
+
+Lo resuelve **`App\Servicios\Borrador`**, en dos mitades que hay que poner **las dos**:
+
+| Dónde | Qué |
+|---|---|
+| La vista del alta rápida | `data-borrador="#formPrincipal"` en su `<form>` |
+| El controlador | `return Borrador::conservar($destino, $request);` |
+
+`app.js` escucha el envío, serializa el formulario que le indica el atributo y lo manda en un
+campo oculto `_borrador`; `Borrador` lo devuelve a la sesión y `old()` lo encuentra al
+redibujar. **La contraseña nunca entra al borrador.**
 
 ```php
-return redirect()->route('citas.form', ['cliente' => $idCliente])->withInput();
+return Borrador::conservar(redirect()->route('citas.form', ['cliente' => $idCliente]), $request);
 ```
 
 ```blade
 <input name="nombre" value="{{ old('nombre', $cliente->nombre ?? '') }}">
 ```
 
-**Si agregás otra alta rápida**: `->withInput()` en el controlador y `old()` en cada campo de
-la pantalla que vuelve a dibujarse. Nada más.
+**Y el formulario grande tiene que leer `old()` en todos sus campos**, o el borrador vuelve y
+la pantalla lo ignora. Es la mitad que más se olvida: Cargar stock no lo hacía en **ninguno**
+de sus campos, así que aunque el dato volviera no se veía.
 
-> En el sistema anterior esto se hacía a mano, con un campo oculto `_borrador` en JSON y las
-> funciones `borrador_guardar()` / `borrador_valor()`. Quedó **código muerto en `app.js`**
-> leyendo `data-borrador`, que ninguna vista declara ya: se puede borrar.
+> Esto venía del sistema anterior (`borrador_guardar()` / `borrador_valor()`), y la migración
+> a Laravel se quedó a mitad de camino: **el JS se trajo y el lado del servidor no**. Durante
+> varias versiones `app.js` estuvo adjuntando un borrador que ya no leía nadie, y como
+> ninguna vista declaraba `data-borrador` tampoco llegaba a mandarse. Parecía código muerto y
+> era media función.
 
 En las vistas Blade, además, **las variables del layout no pisan a las del controlador**, que
 era un problema real del sistema viejo —`view()` hacía `extract()` antes de incluir el
@@ -1205,7 +1244,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 40 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 49 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1250,13 +1289,14 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**40 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**49 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
 |---|---|
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos y no se pueda sacar de más; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
+| `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
 | el resto | ingreso, permisos por rol, pantallas que responden |
 
 Cuatro cosas que hay que saber antes de tocarlas:
