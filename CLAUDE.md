@@ -104,6 +104,7 @@ Tres cosas en la misma tanda, siempre juntas:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 6.3.1 | 11/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_test`**, el mes simulado, para poder mirar las pantallas con datos de verdad: una lista vacía no muestra si la paginación, los filtros y las dos exportaciones andan. Es la línea `DB_DATABASE` de `docker/php/env.docker`, y se documenta en los dos lados **cómo se cambia** —basta `docker compose restart app`, sin `down -v`, que además borraría las bases— porque el contenedor ya crea e importa las dos al arrancar. **Antes de entregar hay que volver a `peluqueria_bd`**, que es la que se instala en el salón |
 | 6.3.0 | 11/08/2026 | **Los listados también bajan en PDF**, con la misma decisión que ya estaba tomada en Informes: no hay librería, se maqueta para A4 y el navegador guarda como PDF. Una sola vista (`listado/imprimir`) sirve a las doce listas y deja escritos los filtros en el papel, porque si no dos PDF de la misma pantalla salen idénticos de encabezado. De paso aparecieron **dos pantallas rotas de verdad**: `webauthn/preguntar` se dibujaba **sin una línea de JavaScript** —`auth/marco` no tenía `@stack('scripts')`, así que todo el `@push` se perdía en silencio— y dejaba al usuario nuevo **encerrado** entre el ingreso y el panel, con los dos botones muertos; y **exportar la auditoría devolvía 500** desde siempre, porque `auditoria()` declaraba `: View` y devolvía un archivo. Además, **las altas rápidas dejan de borrar lo cargado**: la migración a Laravel se quedó a mitad de camino —`app.js` seguía adjuntando el borrador y ya no lo leía nadie—, así que crear una sucursal desde la ficha vaciaba nombre, apellido, usuario y email. Lo resuelve `App\Servicios\Borrador`, que **no** es `withInput()` a secas: el alta rápida manda su propio formulario, y varios de sus campos se llaman igual que los del grande (`nombre` está en los dos). Se corrigen los días **Mié** y **Sáb**, que salían cortados a mitad de byte por `substr`, y se sacan dos avisos que le explicaban a la persona un permiso que ya tenía. En el portal, el «¿Con quién?» de toda la cita se va: cada servicio ya trae el suyo. **49 pruebas** |
 | 6.2.0 | 11/08/2026 | **Personal y Configuración se unen en un solo módulo, Seguridad**, con el fondo oscuro que tenía Configuración: las dos tarjetas contestaban la misma pregunta —quién entra, qué puede hacer y qué quedó registrado— y separadas obligaban a saltar de una a la otra para dar de alta a alguien y darle permisos. Los módulos pasan de 8 a 7 y los permisos siguen siendo **28**, ahora ocho submódulos de `seguridad`. Las rutas quedan bajo `/seguridad` y las trece vistas en una sola carpeta. **Lo que estaba guardado no se pierde ni crece**: `permisos.equivalencias` traduce las claves viejas al leerlas, y el módulo padre viejo se traduce a **sus** submódulos, no a `seguridad` a secas — traducirlo al padre nuevo le habría regalado los roles y la auditoría a quien solo administraba al personal. De paso, la prueba nueva que abre las doce pantallas destapó que **Auditoría nunca había funcionado en Laravel**: consultaba `a.fecha` y la columna es `fecha_hora`, así que devolvía 500 desde la 6.1.1 |
 | 6.1.5 | 11/08/2026 | **Se termina de pasar esta documentación a Laravel.** En la 6.1.1 se reescribieron las secciones de arquitectura, pero en las demás quedaban 16 referencias a archivos y funciones del sistema archivado —`canales_contacto()` de `helpers.php`, `relaciones_pantallas()` de `view.php`, los `migrar_*()`, `personal_activo()`, `install.php`—, que mandaban a buscar código que en este proyecto no existe. Ahora nombran lo real: `Contacto::canales()`, `config/navegacion.php`, `Permisos::esAdmin()`, `FacturacionController::pagarProveedor`. Cada nombre se verificó contra el código antes de escribirlo. Las únicas menciones al sistema viejo que quedan están marcadas como historia, a propósito |
@@ -1044,6 +1045,26 @@ Hay **dos formas de levantarlo en desarrollo**, y dan lo mismo. Los pasos están
 
 La configuración va en `.env` (`.env.example` es la plantilla). Dentro del contenedor, en
 `docker/php/env.docker`, que se monta encima: así las dos formas conviven sin pisarse.
+
+**Cambiar de base en Docker es una línea de `docker/php/env.docker`**, porque el contenedor
+crea e importa las dos en el primer arranque (`docker/bd/10-importar.sh`):
+
+| Valor | Para qué |
+|---|---|
+| `DB_DATABASE=peluqueria_test` | ver las pantallas con datos: 172 citas, 62 facturas, 33 clientas |
+| `DB_DATABASE=peluqueria_bd` | ver el sistema como lo recibe el salón: catálogos y nada más |
+
+Se cambia y se reinicia con `docker compose restart app`. **`down -v` no hace falta y además
+borra las bases**: las dos ya están adentro, lo único que cambia es a cuál se conecta la
+aplicación. `entrada.sh` corre `config:clear` en cada arranque, así que no queda una caché de
+configuración pisando el cambio.
+
+> **Esto no toca las pruebas**: `phpunit.xml` fija `peluqueria_test` por su cuenta. Pero si
+> trabajás sobre `peluqueria_test` en pantalla, tené presente que las pruebas escriben sobre
+> **esa misma base** — revierten con `DatabaseTransactions`, salvo `ConcurrenciaAgendaTest`,
+> que limpia a mano en `tearDown()`.
+>
+> **Antes de entregar hay que dejarlo en `peluqueria_bd`**, que es la base que se instala.
 
 > **Cuidado con `artisan serve` y las variables de entorno.** Sólo le reenvía al servidor que
 > atiende las peticiones una **lista blanca** (`APP_ENV`, `PATH`, las de Xdebug…). Definir

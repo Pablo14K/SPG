@@ -68,17 +68,32 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
-**El contenedor crea las dos bases, y la aplicación usa `peluqueria_bd`, la vacía** — el
-sistema tal como lo encuentra el salón el primer día: sin citas, sin facturas y sin clientas
-de nadie, con los catálogos cargados y las cuentas para entrar. `peluqueria_test` queda
-igual de disponible, con el mes simulado del QA, y es contra ella que corren las 49 pruebas.
+### Con qué base trabaja el contenedor
 
-Para trabajar con los datos de prueba en pantalla, cambiá una línea de
-`docker/php/env.docker` y reiniciá con `docker compose up -d`:
+**El contenedor crea e importa las dos**, y la aplicación usa la que diga una sola línea de
+`docker/php/env.docker`:
 
-```dotenv
-DB_DATABASE=peluqueria_test
+| Valor | Qué se ve al entrar |
+|---|---|
+| `DB_DATABASE=peluqueria_test` | **lo que viene puesto hoy**: el mes simulado del QA — 172 citas, 62 facturas, 33 clientas. Para mirar las pantallas con datos de verdad |
+| `DB_DATABASE=peluqueria_bd` | la base **vacía, la que se entrega**: el sistema tal como lo encuentra el salón el primer día, con los catálogos y las cuentas para entrar |
+
+Se cambia esa línea y se reinicia:
+
+```bash
+docker compose restart app
 ```
+
+**No hace falta `down -v`** ni volver a importar: las dos bases ya están adentro, sólo cambia
+a cuál se conecta la aplicación. El contenedor hace `config:clear` en cada arranque, así que
+no queda una caché vieja pisando el cambio.
+
+> **Antes de entregar, volver a `peluqueria_bd`**, que es la que se instala en el salón.
+>
+> Las **49 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
+> corran donde corran. Ojo con eso si trabajás sobre `peluqueria_test` en pantalla — las
+> pruebas escriben sobre esa misma base (revierten con `DatabaseTransactions`, salvo la de
+> concurrencia, que limpia a mano).
 
 La base queda publicada en **el puerto 3307**, no en el 3306, para que conviva con un XAMPP
 ya instalado sin pelearse por el puerto. Desde afuera del contenedor (por ejemplo con
