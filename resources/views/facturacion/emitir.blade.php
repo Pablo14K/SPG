@@ -36,9 +36,14 @@
                                           class="d-flex gap-1 justify-content-end">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                                        {{-- Ticket viene marcado porque en el mostrador la mayoría
+                                             no pide factura: quien la pide lo dice, y ahí se cambia. --}}
                                         <select class="form-select form-select-sm" name="id_tipo_comprobante" style="width:auto">
                                             @foreach ($tipos as $t)
-                                                <option value="{{ $t->id_tipo_comprobante }}">{{ $t->nombre }}</option>
+                                                <option value="{{ $t->id_tipo_comprobante }}"
+                                                    @selected((int) $t->id_tipo_comprobante === $tipoDefecto)>
+                                                    {{ $t->nombre }}@if ($sifen && \App\Servicios\Sifen::esElectronico((int) $t->id_tipo_comprobante)) (se declara)@endif
+                                                </option>
                                             @endforeach
                                         </select>
                                         <select class="form-select form-select-sm" name="id_condicion_venta" style="width:auto">

@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **20 procedimientos, 30 funciones, 17 triggers y 17 vistas**,
-más **54 restricciones `CHECK`**.
+más **56 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.0.0 | 11/08/2026 | **Entra la facturación electrónica: el SPG se acopla al Automatizador SIFEN.** Sube la **X** porque cambia qué se emite por defecto y la base lleva una tabla más. **El SPG no habla con la DNIT ni firma nada**: toma el comprobante que ya numeró con su timbrado, lo escribe en el formato de texto del Automatizador (`FAC\|CLI\|ITM`) y se lo manda; lo que vuelve es el CDC, que se guarda en `factura_electronica`. La decisión que ordena todo lo demás: **la clienta no siempre pide factura**, así que ahora se emite **Ticket por defecto** —comprobante interno, numerado, que no sale del salón— y sólo se elige Factura cuando la piden; únicamente los tipos 1 y 5 se declaran. **Emitir y declarar son dos pasos separados**, y es a propósito: la factura ya es válida sin la DNIT, así que un servicio caído no puede frenar el cobro. Un rechazo por datos queda **RECHAZADO** y no se reintenta solo —repetirlo da el mismo error—; un corte de red queda **PENDIENTE**, porque del otro lado puede haberse emitido igual. Viene con un **modo simulado** que arma el TXT de verdad y devuelve un CDC de prueba, para ver el circuito sin depender del servicio: el dominio publicado del Automatizador no responde hoy. Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no aparece en ninguna pantalla. **54 pruebas** |
 | 6.6.0 | 11/08/2026 | **Agendar la cita en el calendario del celular no funcionaba, y el motivo estaba en el teléfono, no en el archivo.** El `.ics` se genera perfecto —CRLF, `VALARM`, hora flotante, todo según el RFC 5545— pero se sirve con `Content-Disposition: attachment`, y **Android lo baja a la carpeta de descargas sin abrirlo**: la clienta toca el botón, no ve pasar nada y da por hecho que está roto. Ahora hay **dos caminos**: el enlace a Google Calendar, que no descarga nada y abre la cita ya cargada, y el `.ics` de siempre para iPhone y Outlook. Ese enlace **CLAUDE.md ya lo daba por hecho desde la 5.3.0 y no existía en el código**: se documentaba `ctz=America/Asuncion` de algo que nunca se había escrito. De paso, el botón **faltaba entero en el portal** —también documentado como existente—, así que la clienta con cuenta no tenía forma de agendar salvo entrando por el enlace del correo. Las dos vías mandan la misma hora local sin convertir a UTC: el `.ics` en hora flotante y Google con el huso declarado, que son las dos caras de la misma decisión. **52 pruebas** |
 | 6.5.0 | 11/08/2026 | **La espera se ve.** El sistema navega a la vieja usanza —cada clic pide una página entera— y el navegador **no muestra nada** entre el clic y la respuesta: con la base cargada, una lista con filtros o un informe tardan, y esa espera en blanco se lee como «se colgó» cuando en realidad está trabajando. Entran tres piezas, todas en oro y sin un color nuevo: una **barra de 3 px arriba de todo** mientras la página va y viene, el **ícono del botón que se vuelve spinner** sin cambiar de ancho (así la fila no salta), y un **spinner suelto** para los bloques que se llenan por `fetch` —los días y horas de la agenda, que son el peor caso: el cálculo mira turnos, citas y ausencias de 60 días—. Cuatro detalles que no son adorno: la barra **no aparece hasta los 250 ms**, porque si la respuesta llega antes el parpadeo molesta más que la espera; **las descargas no la encienden**, que si no un `?export=csv` la dejaba girando para siempre porque la página no navega; se apaga en `pageshow`, porque volver con «atrás» restaura la página con la barra tal como quedó; y **es un adorno que puede faltar** — las vistas con JS propio declaran su respaldo, así que si `app.js` no carga, agendar sigue funcionando. El refresco del portal cada 20 segundos no enciende nada a propósito. Respeta `prefers-reduced-motion` |
 | 6.4.0 | 11/08/2026 | **Correcciones de la auditoría de QA del 11/08/2026** (486 operaciones sobre la base vacía, 88/100, APTO CON OBSERVACIONES). La grave: **el Profesional podía fijar cuánto cobra el salón.** El rol traía `servicios.catalogo`, `.categorias` y `.descuentos` de fábrica, y con eso bajó una coloración de 280.000 a **1.000**, la dio de baja y puso una promo al **99 %** — que `sp_emitir_factura` aplica sola. El middleware funcionaba perfecto: sobraba el permiso. Se quitan los tres del `.sql` que se entrega; sigue viendo los servicios donde los necesita (Nueva cita y Registrar atención son de `citas.*`). También: **el fichaje retroactivo sellaba la hora del reloj** —quedó registrada una entrada a las 15:06 de un día en que nadie apretó nada—, así que ahora se pide la hora y tiene que caer dentro del turno; **el teléfono no se validaba** y entraba `abc-!!!`; **`persona.direccion` no la capturaba ninguna pantalla**; y la auditoría de un cambio de precio decía sólo el nombre del servicio, ahora deja **de cuánto a cuánto**, igual que la matriz de permisos, que anota qué clave ganó y cuál perdió cada rol. Entra **`.env.produccion.example`**, porque desplegar con el `.env` de desarrollo deja `APP_DEBUG=true` (traza con la contraseña de la base a la vista) y enlaces de correo apuntando a `localhost`. **La contraseña de Gmail sale del repositorio**: `env.docker` vuelve a `MAIL_MAILER=log`. **51 pruebas** |
@@ -147,7 +148,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | 6.1.3 | 11/08/2026 | **El correo del contenedor sale de verdad**: `docker/php/env.docker` pasa de `log` a SMTP por Gmail, así que el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios llegan al buzón. Al configurarlo aparecieron **tres nombres de variable obsoletos** que circulan en apuntes viejos: Laravel 13 lee `MAIL_MAILER`, `MAIL_SCHEME` y `MAIL_FROM_ADDRESS`, **no** `MAIL_TRANSPORT`, `MAIL_ENCRYPTION` ni `MAIL_FROM_EMAIL` — con los viejos el sistema se queda en `log` y no manda nada sin dar ningún error. El remitente además tiene que ser la misma cuenta que se autentica, porque Gmail rechaza un `From` de otro dominio. **Ojo: este archivo lleva ahora una contraseña de aplicación de Google**; se revoca desde `myaccount.google.com/apppasswords` sin tocar la cuenta |
 | 6.1.2 | 10/08/2026 | **El contenedor arranca contra `peluqueria_bd`, la base vacía**, y no contra la cargada: así lo que se ve al entrar es el sistema tal como lo encuentra el salón el primer día. `peluqueria_test` se sigue creando igual —es contra ella que corren las 38 pruebas, y eso lo fija `phpunit.xml` por su cuenta—, así que se cambia una línea de `docker/php/env.docker` para trabajar con los datos del QA en pantalla |
 | 6.1.1 | 10/08/2026 | **El proyecto pasa a ser autosuficiente y esta documentación deja de describir el sistema viejo.** Los dos `.sql`, el guion de limpieza y la paleta se mudan adentro (`basededatos/`, `Referencias/`), así que la carpeta se puede sacar de `Sistema_Gestion_Peluqueria` y el proyecto anterior se archiva — antes, movida de lugar, el `docker compose up` importaba dos bases vacías sin avisar. Se reescriben para Laravel las secciones de **Arquitectura**, **Convenciones**, **listados**, **altas rápidas**, **submódulos**, **la hora**, **entorno**, **publicación** y **migraciones**, y se agrega una de **pruebas** |
-| 6.1.0 | 10/08/2026 | **El proyecto se puede levantar en otra computadora sin armar el entorno a mano**: `docker compose up` fija MariaDB 10.4 (que es lo que importa: las 54 CHECK y las 50 rutinas están escritas para ese motor), importa las dos bases solo y clava la zona horaria. Convive con XAMPP — la base va al 3307. Además se corrigen tres cosas que hacían fallar la entrega: el `.env.example` era el genérico de Laravel y mandaba sesiones, caché y colas a `database`, o sea que el framework creaba **sus tablas dentro de la base del TCC**; el `README.md` seguía siendo el de Laravel; y **`basededatos/1mes_simulacion.sql` había quedado viejo** —48 rutinas en vez de 50, sin `fn_promo_vigente` ni `fn_descuento_monto_factura` de la 5.5.0—, así que se regeneró |
+| 6.1.0 | 10/08/2026 | **El proyecto se puede levantar en otra computadora sin armar el entorno a mano**: `docker compose up` fija MariaDB 10.4 (que es lo que importa: las 56 CHECK y las 50 rutinas están escritas para ese motor), importa las dos bases solo y clava la zona horaria. Convive con XAMPP — la base va al 3307. Además se corrigen tres cosas que hacían fallar la entrega: el `.env.example` era el genérico de Laravel y mandaba sesiones, caché y colas a `database`, o sea que el framework creaba **sus tablas dentro de la base del TCC**; el `README.md` seguía siendo el de Laravel; y **`basededatos/1mes_simulacion.sql` había quedado viejo** —48 rutinas en vez de 50, sin `fn_promo_vigente` ni `fn_descuento_monto_factura` de la 5.5.0—, así que se regeneró |
 | 6.0.0 | 10/08/2026 | **El sistema pasa a Laravel 13**, por pedido de la tutora. Cambia la arquitectura, no lo que hace: los 8 módulos, el portal de la clienta y las cuentas quedan iguales, con el mismo Bootstrap y la misma paleta. **La lógica sigue en la base**: las 50 rutinas y los 17 triggers no se tocaron, Laravel los consume. Entra lo que el framework aporta —middleware y Gates para los 28 permisos, componentes Blade, Mailables, scheduler— y una **batería de 38 pruebas** que cubre lo que el QA del mes había validado a mano: concurrencia de la agenda con procesos en paralelo, arqueo de caja, correlativos sin huecos y la jerarquía de permisos. Sube la **X** porque el despliegue se hace de cero |
 | 5.5.0 | 08/08/2026 | **Las promociones con vigencia por fin se aplican solas.** `sp_emitir_factura` ya no mira únicamente el descuento del nivel: compara el del nivel con la mejor promoción vigente y aplica **el que más le convenga al cliente, nunca los dos sumados**. Pantalla nueva para elegir **a qué servicios aplica** una promo (`servicio_descuento`, que existía en la base y no tenía cómo cargarse). Además, **el saldo de caja pasa a ser el arqueo físico**: sólo lo mueve el efectivo, y un pago al proveedor por transferencia ya no vacía el cajón. Un egreso en efectivo mayor al disponible se rechaza, así la caja no queda en negativo |
 | 5.4.1 | 08/08/2026 | Correcciones salidas de la simulación de un mes (ver `Pruebas_QA/INFORME_QA_MES.md`). **Una compra con el nombre mal tipeado ya no crea un producto duplicado**: la pantalla manda el id cuando el producto existe, el servidor compara el nombre normalizado, y si igual resulta nuevo lo dice por su nombre. **La franja del fichaje se valida en el servidor**, no sólo en la vista. El **Profesional pierde `facturacion.pagos` y `facturacion.proveedores`**, que le dejaban pagarle a proveedores y revertir liquidaciones ajenas. `persona_error()` valida largos y formato de cédula/RUC (antes MariaDB recortaba en silencio). Los avisos internos de stock se cierran solos al reponer. El rechazo por CSRF devuelve **403 con una pantalla explicada**, no un 500 |
@@ -216,7 +217,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 52 pruebas
+tests/Feature/             Las 54 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -1098,9 +1099,59 @@ cargarla**: se agregó en el formulario del descuento.
 > pantalla parecía andar y no hacía nada. `fn_descuento_monto` ya validaba vigencia y topeaba
 > el descuento al total, o sea que faltaba únicamente conectarla.
 
-> **La integración con SIFEN NO está implementada y no debe implementarse sin pedido explícito.**
-> El manual se usó solo como referencia de formato. Existen carpetas aparte (`C:\sifen_final`,
-> "sifen_automatizador") que son otro proyecto: no mezclarlas con este.
+## Facturación electrónica (SIFEN)
+
+**Desde la 7.0.0 el SPG se acopla al Automatizador SIFEN**, que es un proyecto aparte
+(`sifen_automatizador`). Antes de esa versión no había integración y este documento pedía no
+hacerla sin pedido explícito; el pedido llegó.
+
+**El SPG no habla con la DNIT ni firma nada.** Toma un comprobante que ya emitió y numeró
+—con su timbrado y su correlativo, como siempre—, lo escribe en el formato de texto que el
+Automatizador entiende y se lo manda por HTTP. Lo que vuelve es el **CDC**, los 44 dígitos con
+los que la DNIT reconoce el documento, y se guarda en `factura_electronica`.
+
+```
+FAC|001|001|0000123|2026-08-11|1|PYG          cabecera: timbrado, correlativo, fecha
+CLI|CI|4200000|Andrea Villalba|a@b.c||0981…   el cliente
+ITM|S001|Brushing|1|60000|10                  una por renglón, IVA INCLUIDO en el precio
+```
+
+El total **no se escribe**: lo calcula el Automatizador desde los renglones.
+
+### La clienta no siempre pide factura
+
+Es la decisión que ordena todo lo demás. Se emite **Ticket por defecto** —comprobante interno
+del salón, numerado y registrado, que **no** sale de acá— y sólo se elige Factura cuando la
+piden. `config('sifen.tipos_electronicos')` dice cuáles se declaran: hoy Factura (1) y Nota
+de crédito (5). El Ticket necesita su propio timbrado, como cualquier otro tipo.
+
+### Emitir y declarar son DOS pasos, y no se juntan
+
+La factura se emite en el SPG y **ya es válida**; declararla ante la DNIT es un paso posterior,
+con su botón, que se puede repetir. Si emitir dependiera de que un servicio externo conteste,
+un corte de internet dejaría al salón sin poder cobrar.
+
+| Estado | Qué pasó | ¿Se reintenta? |
+|---|---|---|
+| `PENDIENTE` | emitida y sin declarar, o el envío se cortó | **Sí** — puede haberse emitido igual del otro lado: mirá si ya tiene CDC antes |
+| `ENVIADO` | la DNIT la aceptó y hay CDC | no hace falta |
+| `RECHAZADO` | la DNIT la rechazó por los datos | **No** — repetirlo da el mismo error. Se corrige el dato y se emite de nuevo |
+
+> **Un fallo de red deja PENDIENTE, nunca RECHAZADO.** Son cosas distintas: una se arregla
+> reintentando y la otra no. Confundirlas lleva a reintentar en bucle algo que nunca va a
+> pasar, o a dar por perdido un comprobante que sí se emitió.
+
+### Modo simulado
+
+`SIFEN_MODO=simulado` arma el TXT de verdad pero no lo manda: devuelve un CDC de prueba que
+empieza con `0` para que se note. Sirve para ver el circuito entero sin depender del servicio
+—el dominio publicado del Automatizador no responde—. La pantalla lo avisa en el comprobante.
+
+**Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no existe**: ni botón, ni bloque,
+ni columnas. Un salón que no factura electrónicamente no tiene por qué ver nada de esto.
+
+> Los dos proyectos siguen separados: el Automatizador vive en su carpeta y el SPG sólo le
+> habla por HTTP. **No se copió código de un lado al otro.**
 
 ## Caja
 
@@ -1372,7 +1423,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 54 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 56 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -1381,7 +1432,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 52 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 54 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1404,7 +1455,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando las 20 rutinas, 30 funciones,
-   17 triggers, 17 vistas y 54 `CHECK`.
+   17 triggers, 17 vistas y 56 `CHECK`.
 5. Respetar la **regla número dos**: 3FN, sin datos repetidos ni columnas derivadas guardadas.
 
 **Cuidado con el orden al reestructurar una tabla.** MariaDB no deja soltar un índice mientras
@@ -1426,7 +1477,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**52 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**54 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
@@ -1454,9 +1505,14 @@ Cuatro cosas que hay que saber antes de tocarlas:
 
 ## Fuera de alcance del TCC
 
-Pasarelas de pago, SIFEN, app móvil nativa (se cubre con el navegador responsivo),
+Pasarelas de pago, app móvil nativa (se cubre con el navegador responsivo),
 **notas de débito** (descartadas por el usuario) y **SMS / WhatsApp**, que quedaron
 **en pausa por decisión del usuario**: se encienden cargando credenciales de un proveedor.
 Mientras no haya canal de celular, el **correo es obligatorio en el registro**, porque una cuenta creada solo
-con celular nunca recibiría su código. Multisucursal y facturación **sí** se implementaron aunque excedían el
-alcance declarado: conviene justificarlo en el documento del TCC.
+con celular nunca recibiría su código.
+
+**Tres cosas se implementaron aunque excedían el alcance declarado, y conviene justificarlas
+en el documento del TCC**: multisucursal, facturación y —desde la 7.0.0, a pedido expreso—
+la **integración con SIFEN**. Esta última estaba listada acá como fuera de alcance hasta esa
+versión; se acopló al Automatizador, que es un proyecto aparte, sin copiar su código: el SPG
+sólo le habla por HTTP. Ver la sección **Facturación electrónica (SIFEN)**.

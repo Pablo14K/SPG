@@ -289,6 +289,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('emitir', [FacturacionController::class, 'emitirGuardar'])->name('emitir.guardar');
             Route::post('anular-factura', [FacturacionController::class, 'anularFactura'])->name('factura.anular');
             Route::post('nota-credito', [FacturacionController::class, 'notaCredito'])->name('nota_credito');
+            // Declarar el comprobante ante la DNIT. Va aparte de emitir: la
+            // factura ya es válida, y un servicio caído no puede frenar el cobro.
+            Route::post('sifen/enviar', [FacturacionController::class, 'sifenEnviar'])->name('sifen.enviar');
         });
 
         Route::middleware('modulo:facturacion.cobros')->group(function () {

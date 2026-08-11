@@ -1324,6 +1324,43 @@ LOCK TABLES `factura_descuento` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `factura_electronica`
+--
+
+DROP TABLE IF EXISTS `factura_electronica`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `factura_electronica` (
+  `id_factura_electronica` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_factura` int(10) unsigned NOT NULL,
+  `cdc` char(44) DEFAULT NULL,
+  `estado` varchar(20) NOT NULL DEFAULT 'PENDIENTE',
+  `track_id` varchar(40) DEFAULT NULL,
+  `kude_url` varchar(300) DEFAULT NULL,
+  `xml_url` varchar(300) DEFAULT NULL,
+  `mensaje` varchar(500) DEFAULT NULL,
+  `intentos` int(10) unsigned NOT NULL DEFAULT 0,
+  `fecha_envio` datetime DEFAULT NULL,
+  `fecha_registro` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_factura_electronica`),
+  UNIQUE KEY `uq_fe_factura` (`id_factura`),
+  KEY `ix_fe_estado` (`estado`),
+  CONSTRAINT `fk_fe_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE,
+  CONSTRAINT `chk_fe_estado` CHECK (`estado` in ('PENDIENTE','ENVIADO','RECHAZADO')),
+  CONSTRAINT `chk_fe_cdc` CHECK (`estado` <> 'ENVIADO' or `cdc` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `factura_electronica`
+--
+
+LOCK TABLES `factura_electronica` WRITE;
+/*!40000 ALTER TABLE `factura_electronica` DISABLE KEYS */;
+/*!40000 ALTER TABLE `factura_electronica` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `metodo_pago`
 --
 
@@ -4960,4 +4997,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-11 15:36:37
+-- Dump completed on 2026-08-11 20:01:44

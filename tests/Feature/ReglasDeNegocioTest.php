@@ -8,6 +8,7 @@ use App\Servicios\Agenda;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
 use App\Servicios\Permisos;
+use App\Servicios\Sifen;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -380,6 +381,60 @@ class ReglasDeNegocioTest extends TestCase
         // Y la ruta lo rechaza, no solo la pantalla lo esconde
         session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
+    }
+
+    #[Test]
+    public function el_ticket_no_se_declara_ante_la_dnit(): void
+    {
+        // La clienta no siempre pide factura. El Ticket es el comprobante
+        // interno del salón: se numera y queda registrado, pero NO sale de acá.
+        // Sólo la Factura y la Nota de crédito se declaran.
+        $this->assertTrue(Sifen::esElectronico(1), 'La factura sí se declara.');
+        $this->assertTrue(Sifen::esElectronico(5), 'La nota de crédito sí se declara.');
+        $this->assertFalse(Sifen::esElectronico(3), 'El Ticket es interno: no se declara.');
+        $this->assertFalse(Sifen::esElectronico(2), 'La boleta de venta tampoco.');
+    }
+
+    #[Test]
+    public function el_comprobante_se_arma_en_el_formato_del_automatizador(): void
+    {
+        // El Automatizador espera líneas separadas por «|»: una FAC con la
+        // cabecera, una CLI con el cliente y una ITM por renglón. El total NO
+        // se escribe — lo calcula él desde los ítems.
+        $id = (int) DB::scalar('SELECT id_factura FROM factura WHERE id_tipo_comprobante = 1
+                                  AND id_estado_factura = 1 ORDER BY id_factura LIMIT 1');
+        if (! $id) {
+            $this->markTestSkipped('No hay facturas emitidas en la base de prueba.');
+        }
+
+        $txt = Sifen::armarTxt($id);
+        $lineas = array_values(array_filter(explode("\n", $txt)));
+
+        $this->assertStringStartsWith('FAC|', $lineas[0], 'La primera línea es la cabecera.');
+        $this->assertStringStartsWith('CLI|', $lineas[1], 'La segunda es el cliente.');
+        $this->assertStringStartsWith('ITM|', $lineas[2], 'Después van los renglones.');
+
+        // La cabecera lleva 7 campos y los números van con ceros a la izquierda.
+        $fac = explode('|', $lineas[0]);
+        $this->assertCount(7, $fac);
+        $this->assertMatchesRegularExpression('/^\d{3}$/', $fac[1], 'Establecimiento de 3 dígitos.');
+        $this->assertMatchesRegularExpression('/^\d{3}$/', $fac[2], 'Punto de expedición de 3 dígitos.');
+        $this->assertMatchesRegularExpression('/^\d{7}$/', $fac[3], 'Correlativo de 7 dígitos.');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $fac[4]);
+        $this->assertSame('PYG', $fac[6]);
+
+        // Cada renglón: código, descripción, cantidad, precio y tasa de IVA.
+        foreach (array_slice($lineas, 2) as $l) {
+            $itm = explode('|', $l);
+            $this->assertCount(6, $itm, "Renglón mal armado: $l");
+            $this->assertContains((int) $itm[5], [0, 5, 10], 'La tasa de IVA sólo puede ser 0, 5 o 10.');
+        }
+
+        // Ningún dato puede traer el separador adentro: partiría la línea.
+        foreach ($lineas as $l) {
+            $this->assertSame(substr_count($l, '|'), substr_count(str_replace('||', '| |', $l), '|'),
+                'Un campo vacío está bien; un «|» dentro de un dato, no.');
+        }
     }
 
     #[Test]

@@ -8,7 +8,7 @@ Informática. **Laravel 13 + MariaDB.**
 ## Lo primero que hay que entender: la lógica vive en la base
 
 No es un Laravel normal. La base `peluqueria_bd` tiene **20 procedimientos, 30 funciones,
-17 triggers, 17 vistas y 54 restricciones `CHECK`**, y ahí es donde están las reglas del
+17 triggers, 17 vistas y 56 restricciones `CHECK`**, y ahí es donde están las reglas del
 negocio. **PHP las consume, no las reimplementa.**
 
 Antes de escribir un cálculo, buscá si ya existe la rutina:
@@ -64,7 +64,7 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose up` | arranca |
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
-| `docker compose exec app php artisan test` | corre las 52 pruebas |
+| `docker compose exec app php artisan test` | corre las 54 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
@@ -90,7 +90,7 @@ no queda una caché vieja pisando el cambio.
 
 > **Antes de entregar, volver a `peluqueria_bd`**, que es la que se instala en el salón.
 >
-> Las **52 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
+> Las **54 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
 > corran donde corran. Ojo con eso si trabajás sobre `peluqueria_test` en pantalla — las
 > pruebas escriben sobre esa misma base (revierten con `DatabaseTransactions`, salvo la de
 > concurrencia, que limpia a mano).
@@ -180,7 +180,7 @@ contraseña, así que se deja vacío).
 ```
 
 Revisa la conexión, que los dos relojes coincidan, que estén las 20 rutinas / 30 funciones /
-17 triggers / 17 vistas / 54 CHECK, que las funciones **respondan de verdad** (ahí sale el
+17 triggers / 17 vistas / 56 CHECK, que las funciones **respondan de verdad** (ahí sale el
 1449 si quedó mal el import) y que Laravel no haya ensuciado la base.
 
 Tiene que terminar en **«Todo en orden.»**
@@ -206,7 +206,7 @@ http://localhost:8000
 "C:/php/php.exe" artisan test
 ```
 
-**52 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
+**54 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
 TCC. Cubren la concurrencia de la agenda (5 procesos en paralelo sobre el mismo hueco tienen
 que dejar **una sola** cita), el arqueo de caja, los correlativos sin huecos y la jerarquía
 de los 28 permisos.
@@ -233,7 +233,7 @@ app/
   Http/Controllers/        un controlador por módulo
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
-tests/Feature/             las 52 pruebas
+tests/Feature/             las 54 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS
 ```
 

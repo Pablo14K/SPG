@@ -10,6 +10,7 @@ use App\Servicios\Caja;
 use App\Servicios\Facturacion;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
+use App\Servicios\Sifen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -201,7 +202,40 @@ class FacturacionController extends Controller
                    FROM factura n WHERE n.id_factura_origen = ? AND n.id_estado_factura = 1
                   ORDER BY n.fecha_emision', [$id]
             ),
+            // Facturación electrónica: si el salón no la usa, no se dibuja nada.
+            'sifen' => Sifen::activo(),
+            'sifenEstado' => Sifen::activo() ? Sifen::estado($id) : null,
+            // El tipo se pide aparte: `vw_factura_resumen` trae el NOMBRE del
+            // comprobante, no su id, y acá hace falta el id para saber si se
+            // declara ante la DNIT.
+            'sifenAplica' => Sifen::activo() && Sifen::esElectronico(
+                (int) DB::scalar('SELECT id_tipo_comprobante FROM factura WHERE id_factura = ?', [$id])
+            ),
         ]);
+    }
+
+    /**
+     * Declara el comprobante ante la DNIT, a través del Automatizador SIFEN.
+     *
+     * Va aparte de emitir a propósito: la factura ya existe y es válida, así
+     * que un servicio caído no puede impedir que el salón cobre. Se reintenta
+     * apretando de nuevo.
+     */
+    public function sifenEnviar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_factura', 0);
+        $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
+
+        if (! Sifen::activo()) {
+            flash('La facturación electrónica está apagada.', 'error');
+
+            return $volver;
+        }
+
+        $r = Sifen::enviar($id);
+        flash($r['mensaje'], $r['ok'] ? 'success' : 'error');
+
+        return $volver;
     }
 
     /** Citas atendidas que todavía no tienen factura. */
@@ -236,6 +270,9 @@ class FacturacionController extends Controller
                 'SELECT id_condicion_venta, nombre, dias_credito FROM condicion_venta WHERE activo = 1
                   ORDER BY id_condicion_venta'
             ),
+            // El que viene marcado: Ticket, porque la mayoría no pide factura.
+            'tipoDefecto' => (int) config('sifen.tipo_por_defecto', 3),
+            'sifen' => Sifen::activo(),
         ]);
     }
 

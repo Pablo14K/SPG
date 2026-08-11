@@ -190,6 +190,72 @@
         </div>
     @endif
 
+    {{-- Facturación electrónica. Sólo aparece si el salón la usa Y este
+         comprobante es de los que se declaran: el Ticket es interno y no sale
+         del salón, que es lo que se emite cuando la clienta no pide factura. --}}
+    @if ($sifenAplica)
+        <div class="spg-panel mt-3 no-imprimir">
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cloud-arrow-up"></i> Facturación electrónica</h2>
+
+            @if ($sifenEstado && $sifenEstado->estado === 'ENVIADO')
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <span class="badge-estado e-ok">Declarado</span>
+                        <div class="text-muted-warm mt-1" style="font-size:.8rem">
+                            Declarado el {{ fecha($sifenEstado->fecha_envio) }}
+                        </div>
+                        <div class="mt-1" style="font-size:.82rem">
+                            <strong>CDC</strong>
+                            <code style="font-size:.78rem;word-break:break-all">{{ $sifenEstado->cdc }}</code>
+                        </div>
+                    </div>
+                    @if ($sifenEstado->kude_url)
+                        <a class="btn btn-sm btn-outline-neutro" href="{{ $sifenEstado->kude_url }}"
+                           target="_blank" rel="noopener"><i class="bi bi-file-pdf"></i> KuDE</a>
+                    @endif
+                </div>
+                @if (str_contains((string) $sifenEstado->mensaje, 'simulado'))
+                    <div class="alert alert-warning mt-2 mb-0" style="font-size:.82rem">
+                        <strong>Modo simulado:</strong> este comprobante <strong>no</strong> se mandó a la DNIT.
+                        El CDC es de prueba. Se cambia con <code>SIFEN_MODO=http</code> en el <code>.env</code>.
+                    </div>
+                @endif
+
+            @elseif ($sifenEstado && $sifenEstado->estado === 'RECHAZADO')
+                <span class="badge-estado e-no">Rechazado</span>
+                <p class="mb-2 mt-1" style="font-size:.85rem">{{ $sifenEstado->mensaje }}</p>
+                <div class="alert alert-warning mb-2" style="font-size:.82rem">
+                    Un rechazo por datos <strong>no se arregla reintentando</strong>: da el mismo error.
+                    Corregí lo que indica el mensaje —casi siempre el RUC o la cédula del cliente— y
+                    emití un comprobante nuevo.
+                </div>
+                @if ($f->estado !== 'Anulada' && Permisos::puede('facturacion.facturas'))
+                    <form method="post" action="{{ route('facturacion.sifen.enviar') }}" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="id_factura" value="{{ $f->id_factura }}">
+                        <button class="btn btn-sm btn-outline-neutro">Reintentar igual</button>
+                    </form>
+                @endif
+
+            @else
+                <p class="text-muted-warm mb-2" style="font-size:.85rem">
+                    Este comprobante todavía <strong>no se declaró</strong> ante la DNIT.
+                    @if ($sifenEstado && $sifenEstado->mensaje)
+                        <br><span class="txt-no">Último intento: {{ $sifenEstado->mensaje }}</span>
+                    @endif
+                </p>
+                @if ($f->estado !== 'Anulada' && Permisos::puede('facturacion.facturas'))
+                    <form method="post" action="{{ route('facturacion.sifen.enviar') }}" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="id_factura" value="{{ $f->id_factura }}">
+                        <button class="btn btn-oro">
+                            <i class="bi bi-cloud-arrow-up"></i> Declarar ante la DNIT</button>
+                    </form>
+                @endif
+            @endif
+        </div>
+    @endif
+
     {{-- Modales de anulación --}}
     @if ($f->estado !== 'Anulada' && Permisos::puede('facturacion.facturas'))
         <div class="modal fade" id="modalAnularF" tabindex="-1">
