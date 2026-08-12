@@ -75,8 +75,13 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 
 | Valor | Qué se ve al entrar |
 |---|---|
-| `DB_DATABASE=peluqueria_test` | **lo que viene puesto hoy**: el mes simulado del QA — 172 citas, 62 facturas, 33 clientas. Para mirar las pantallas con datos de verdad |
-| `DB_DATABASE=peluqueria_bd` | la base **vacía, la que se entrega**: el sistema tal como lo encuentra el salón el primer día, con los catálogos y las cuentas para entrar |
+| `DB_DATABASE=peluqueria_bd` | **lo que viene puesto hoy**: la base **vacía, la que se entrega** — el sistema tal como lo encuentra el salón el primer día, con los catálogos y las cuentas para entrar |
+| `DB_DATABASE=peluqueria_test` | el mes simulado del QA — 172 citas, 62 facturas, 33 clientas. Para mirar las pantallas con datos de verdad |
+
+> Son esos dos nombres y no hay un tercero: **`peluqueria_bd_test` no existe**. Es el error
+> fácil, y engaña — la pantalla de ingreso sigue contestando 200 porque no toca la base hasta
+> que apretás Ingresar, y recién ahí sale «Unknown database». `spg:diagnostico` lo dice en la
+> primera línea.
 
 Se cambia esa línea y se reinicia:
 

@@ -39,14 +39,22 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function un_horario_ya_tomado_deja_de_estar_disponible(): void
     {
+        // La cita elegida no puede estar tapada por una ausencia ni caer fuera
+        // del turno del profesional: en esos dos casos `fn_verificar_disponibilidad`
+        // contesta «no» con razón, y la segunda parte de la prueba fallaría por
+        // un motivo que no es el que se está probando. Pasó de verdad — bastó
+        // cargar una licencia sobre la primera cita futura para tumbarla.
         $cita = DB::selectOne(
             'SELECT c.id_cita, c.id_usuario, c.fecha_hora, fn_cita_duracion(c.id_cita) AS dur
                FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
+                AND fn_cita_duracion(c.id_cita) > 0
+                AND fn_verificar_disponibilidad(c.id_usuario, c.fecha_hora,
+                                                fn_cita_duracion(c.id_cita), c.id_cita) = 1
               ORDER BY c.fecha_hora LIMIT 1'
         );
         if (! $cita) {
-            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
+            $this->markTestSkipped('No hay ninguna cita futura cuyo horario siga siendo válido para su profesional.');
         }
 
         // Sobre su propio horario, el profesional NO está disponible…
