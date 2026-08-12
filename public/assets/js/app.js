@@ -195,110 +195,186 @@ window.SPGCarga = (function () {
 // ---------------------------------------------------------------------
 //  Selector de disponibilidad
 //
-//  Reemplaza al campo de fecha y hora libre. Le pregunta al servidor qué
-//  días y qué horas tiene realmente el profesional elegido, y solo ofrece
-//  esos: ya no se puede pedir un horario en el que no hay nadie. Sin
-//  profesional de preferencia, junta los huecos de todo el equipo.
+//  Reemplaza al campo de fecha y hora libre. Le pregunta al servidor qué días
+//  y qué horas quedan libres de verdad para los servicios elegidos, y solo
+//  ofrece esos: ya no se puede pedir un horario en el que no hay nadie. El
+//  servidor lo vuelve a comprobar al guardar, dentro del candado del
+//  procedimiento, así que esto es comodidad, no la autoridad.
 //
-//  El contenedor declara su endpoint:
-//    <div data-agenda="citas/disponibilidad" data-base="...">
+//  Lo usan las dos pantallas que reservan —Nueva cita y el portal de la
+//  clienta—, que hacían lo mismo con dos copias distintas del mismo código.
+//  El contenedor declara todo lo que cambia entre una y otra:
+//
+//    <div data-agenda="{{ route('citas.disponibilidad') }}"
+//         data-agenda-sujeto="La cita"
+//         data-agenda-boton="#btnAgendar">
+//      <div data-agenda-aviso></div>
+//      <div data-agenda-dias></div>
+//      <div data-agenda-horas></div>
+//    </div>
+//
+//  El profesional se resuelve solo, y no es igual en las dos pantallas:
+//  si hay selectores por servicio (`prof_servicio[ID]`, que es como pide la
+//  clienta) se consulta a esa persona únicamente cuando TODOS los servicios
+//  elegidos la piden a ella; si piden a varias, o alguno quedó en «quien me
+//  atienda», se juntan los huecos de todo el equipo y el servidor asigna al
+//  reservar. Si no hay esos selectores, manda el combo `id_usuario`.
 // ---------------------------------------------------------------------
 (function () {
   'use strict';
   var cont = document.querySelector('[data-agenda]');
   if (!cont) return;
 
-  var ruta      = cont.getAttribute('data-agenda');
-  var base      = cont.getAttribute('data-base') || '';
-  var selProf   = document.querySelector('[name="id_usuario"]');
-  var campoFH   = document.querySelector('[name="fecha_hora"]');
-  var cajaDias  = cont.querySelector('[data-agenda-dias]');
-  var cajaHoras = cont.querySelector('[data-agenda-horas]');
-  var aviso     = cont.querySelector('[data-agenda-aviso]');
+  var url     = cont.getAttribute('data-agenda');
+  var sujeto  = cont.getAttribute('data-agenda-sujeto') || 'La cita';
+  var selBtn  = cont.getAttribute('data-agenda-boton');
+  var aviso   = cont.querySelector('[data-agenda-aviso]');
+  var diasEl  = cont.querySelector('[data-agenda-dias]');
+  var horasEl = cont.querySelector('[data-agenda-horas]');
+  var campo   = document.querySelector('[name="fecha_hora"]');
+  var btn     = selBtn ? document.querySelector(selBtn) : null;
   var diaElegido = null;
 
-  // En Nueva cita los servicios son casillas; en la pantalla que se abre
-  // desde el correo ya vienen fijos, en campos ocultos.
-  function servicios() {
-    var lista = document.querySelectorAll('input[name="servicios[]"]:checked');
-    if (!lista.length) lista = document.querySelectorAll('input[type="hidden"][name="servicios[]"]');
-    return Array.prototype.map.call(lista, function (c) { return c.value; });
+  // Si app.js se cargó a medias, reservar tiene que seguir andando igual: la
+  // señal de carga es un adorno, no parte del funcionamiento.
+  var SPGCarga = window.SPGCarga || { envolver: function (p) { return p; } };
+
+  function elegidos() {
+    return Array.prototype.slice.call(document.querySelectorAll('.srv:checked'))
+      .map(function (c) { return c.value; });
   }
-  function url(extra) {
-    var p = servicios().map(function (s) { return 'servicios%5B%5D=' + encodeURIComponent(s); });
-    p.push('id_usuario=' + encodeURIComponent(selProf ? (selProf.value || '0') : '0'));
-    var tok = cont.getAttribute('data-token');
-    if (tok) p.push('t=' + encodeURIComponent(tok));
-    if (extra) p.push(extra);
-    return base + 'index.php?r=' + ruta + '&' + p.join('&');
+
+  function profesional() {
+    // Nueva cita tiene un combo de profesional para toda la cita: ese manda,
+    // y es el que le bloquea el bloque más largo en la agenda. Los selectores
+    // por servicio de esa misma pantalla reparten el trabajo, pero no cambian
+    // a quién se le consultan los huecos.
+    var combo = document.querySelector('[name="id_usuario"]');
+    if (combo) return combo.value || 0;
+
+    // El portal no tiene ese combo a propósito: cada servicio trae su
+    // selector, con «quien me atienda» por defecto.
+    var pedidos = elegidos().map(function (id) {
+      var sel = document.querySelector('[name="prof_servicio[' + id + ']"]');
+      return sel ? sel.value : '0';
+    });
+    var distintos = pedidos.filter(function (v, i, a) { return a.indexOf(v) === i; });
+
+    return (distintos.length === 1 && distintos[0] !== '0') ? distintos[0] : 0;
   }
-  function mostrar(msg) {
-    if (aviso) { aviso.textContent = msg || ''; aviso.style.display = msg ? '' : 'none'; }
+
+  function params(extra) {
+    var p = new URLSearchParams();
+    elegidos().forEach(function (s) { p.append('servicios[]', s); });
+    p.append('id_usuario', profesional());
+    for (var k in (extra || {})) { p.append(k, extra[k]); }
+
+    return p;
   }
+
+  function pedir(extra, destino) {
+    return SPGCarga
+      .envolver(fetch(url + '?' + params(extra).toString(),
+        { headers: { 'Accept': 'application/json' } }), destino)
+      .then(function (r) { return r.json(); });
+  }
+
+  function cargando(el, texto) {
+    el.innerHTML = '<span class="spg-cargando-texto">'
+      + '<span class="spg-spinner"></span> ' + texto + '</span>';
+  }
+
   function limpiar() {
-    cajaDias.innerHTML = ''; cajaHoras.innerHTML = ''; diaElegido = null;
-    if (campoFH) campoFH.value = '';
+    diasEl.innerHTML = '';
+    horasEl.innerHTML = '';
+    if (campo) campo.value = '';
+    if (btn) btn.disabled = true;
+  }
+
+  function chip(texto, alTocar) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'spg-chip';
+    b.textContent = texto;
+    b.addEventListener('click', function () { alTocar(b); });
+
+    return b;
+  }
+
+  function marcarUno(caja, boton) {
+    Array.prototype.forEach.call(caja.children, function (c) { c.classList.remove('activo'); });
+    boton.classList.add('activo');
   }
 
   function cargarDias() {
     limpiar();
-    if (!servicios().length) { mostrar('Elegí primero el o los servicios.'); return; }
-    mostrar('Buscando días disponibles…');
-    fetch(url()).then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.ok) { mostrar(d.motivo || 'No se pudo consultar la agenda.'); return; }
-      if (!d.dias || !d.dias.length) {
-        mostrar('No hay días disponibles con esa combinación. Probá con otro profesional o con menos servicios.');
+    if (!elegidos().length) {
+      aviso.textContent = 'Elegí primero los servicios para ver los horarios disponibles.';
+      return;
+    }
+    // El cálculo mira turnos, citas y ausencias de 60 días: con la agenda
+    // cargada tarda, y sin señal parece que el sistema se quedó.
+    cargando(aviso, 'Buscando días con lugar…');
+
+    pedir(null, diasEl).then(function (d) {
+      if (!d.ok) {
+        aviso.textContent = d.motivo || 'No se pudo consultar la agenda.';
         return;
       }
-      mostrar('');
-      var nombres = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+      if (!d.dias || !d.dias.length) {
+        aviso.textContent = 'No quedan días con lugar en los próximos dos meses. '
+          + 'Probá con otro profesional o con menos servicios.';
+        return;
+      }
+      aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos. Elegí el día:';
       d.dias.forEach(function (f) {
-        var p = f.split('-');
-        var b = document.createElement('button');
-        b.type = 'button'; b.className = 'spg-chip agenda-dia';
-        b.textContent = nombres[new Date(+p[0], +p[1] - 1, +p[2]).getDay()] + ' ' + p[2] + '/' + p[1];
-        b.addEventListener('click', function () { elegirDia(f, b); });
-        cajaDias.appendChild(b);
-      });
-    }).catch(function () { mostrar('No se pudo consultar la agenda.'); });
-  }
-
-  function elegirDia(fecha, boton) {
-    diaElegido = fecha;
-    Array.prototype.forEach.call(cajaDias.children, function (c) { c.classList.remove('activo'); });
-    boton.classList.add('activo');
-    cajaHoras.innerHTML = '';
-    if (campoFH) campoFH.value = '';
-    fetch(url('fecha=' + fecha)).then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.ok || !d.horas || !d.horas.length) { mostrar('Ese día se ocupó recién. Elegí otro.'); return; }
-      mostrar('');
-      d.horas.forEach(function (h) {
-        var b = document.createElement('button');
-        b.type = 'button'; b.className = 'spg-chip agenda-hora';
-        b.textContent = h.hora;
-        b.addEventListener('click', function () {
-          Array.prototype.forEach.call(cajaHoras.children, function (c) { c.classList.remove('activo'); });
-          b.classList.add('activo');
-          if (campoFH) campoFH.value = diaElegido + 'T' + h.hora;
+        var b = chip(f.split('-').reverse().slice(0, 2).join('/'), function (boton) {
+          elegirDia(f, boton);
         });
-        cajaHoras.appendChild(b);
+        b.title = f;
+        diasEl.appendChild(b);
       });
-    }).catch(function () { mostrar('No se pudo consultar la agenda.'); });
+    }).catch(function () { aviso.textContent = 'No se pudo consultar la agenda.'; });
   }
 
-  document.querySelectorAll('input[name="servicios[]"]').forEach(function (c) {
+  function elegirDia(f, boton) {
+    diaElegido = f;
+    marcarUno(diasEl, boton);
+    cargando(horasEl, 'Buscando horarios…');
+    if (campo) campo.value = '';
+    if (btn) btn.disabled = true;
+
+    pedir({ fecha: f }, horasEl).then(function (d) {
+      horasEl.innerHTML = '';
+      if (!d.ok || !d.horas || !d.horas.length) {
+        horasEl.textContent = 'Ese día ya no tiene horarios libres.';
+        return;
+      }
+      d.horas.forEach(function (h) {
+        horasEl.appendChild(chip(h.hora, function (b) {
+          marcarUno(horasEl, b);
+          if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
+          if (btn) btn.disabled = false;
+        }));
+      });
+    }).catch(function () { horasEl.textContent = 'No se pudo consultar la agenda.'; });
+  }
+
+  // Cambiar de servicio o de profesional cambia los huecos posibles, así que
+  // en los dos casos se vuelve a pedir la agenda. Los selectores por servicio
+  // solo se escuchan cuando NO hay combo: con combo no cambian la consulta, y
+  // escucharlos sería un viaje al servidor para el mismo resultado.
+  document.querySelectorAll('.srv').forEach(function (c) {
     c.addEventListener('change', cargarDias);
   });
-  if (selProf) selProf.addEventListener('change', cargarDias);
-
-  // No dejar enviar sin haber elegido un horario de los ofrecidos
-  var form = cont.closest('form');
-  if (form) form.addEventListener('submit', function (ev) {
-    if (campoFH && !campoFH.value) {
-      ev.preventDefault();
-      mostrar('Elegí un día y una hora de los disponibles.');
-    }
-  });
+  var combo = document.querySelector('[name="id_usuario"]');
+  if (combo) {
+    combo.addEventListener('change', cargarDias);
+  } else {
+    document.querySelectorAll('[name^="prof_servicio["]').forEach(function (s) {
+      s.addEventListener('change', cargarDias);
+    });
+  }
 
   cargarDias();
 })();

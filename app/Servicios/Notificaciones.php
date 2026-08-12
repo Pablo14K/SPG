@@ -97,10 +97,18 @@ class Notificaciones
     /**
      * El profesional no va a estar: se avisa a cada clienta con cita en el
      * rango. Devuelve a cuántas.
+     *
+     * `$idUsuario` en null significa **todo el salón**, que es como se carga
+     * un feriado en `ausencia_agenda` (la columna admite NULL). Sin ese caso,
+     * la excepción que cierra el local no avisaría a nadie, que es justo la
+     * que más gente deja plantada.
      */
-    public static function avisarProfesionalNoDisponible(int $idUsuario, ?string $desde = null, ?string $hasta = null, string $motivo = ''): int
+    public static function avisarProfesionalNoDisponible(?int $idUsuario, ?string $desde = null, ?string $hasta = null, string $motivo = ''): int
     {
-        $par = ['u' => $idUsuario];
+        // OJO: los marcadores con nombre no se pueden repetir (la conexión va
+        // con las preparadas nativas de MySQL), por eso el id va dos veces con
+        // dos nombres distintos.
+        $par = ['u1' => $idUsuario, 'u2' => $idUsuario];
         if ($desde !== null && $hasta !== null) {
             $rango = ' AND c.fecha_hora < :hasta AND c.fecha_hora >= :desde';
             $par['desde'] = $desde;
@@ -116,7 +124,8 @@ class Notificaciones
                JOIN usuario u  ON u.id_usuario = c.id_usuario
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE c.id_usuario = :u AND ec.bloquea_agenda = 1" . $rango, $par
+              WHERE (:u1 IS NULL OR c.id_usuario = :u2)
+                AND ec.bloquea_agenda = 1" . $rango, $par
         );
 
         foreach ($citas as $c) {

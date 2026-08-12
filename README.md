@@ -64,7 +64,7 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose up` | arranca |
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
-| `docker compose exec app php artisan test` | corre las 54 pruebas |
+| `docker compose exec app php artisan test` | corre las 56 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
@@ -90,7 +90,7 @@ no queda una caché vieja pisando el cambio.
 
 > **Antes de entregar, volver a `peluqueria_bd`**, que es la que se instala en el salón.
 >
-> Las **54 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
+> Las **56 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
 > corran donde corran. Ojo con eso si trabajás sobre `peluqueria_test` en pantalla — las
 > pruebas escriben sobre esa misma base (revierten con `DatabaseTransactions`, salvo la de
 > concurrencia, que limpia a mano).
@@ -206,7 +206,7 @@ http://localhost:8000
 "C:/php/php.exe" artisan test
 ```
 
-**54 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
+**56 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
 TCC. Cubren la concurrencia de la agenda (5 procesos en paralelo sobre el mismo hueco tienen
 que dejar **una sola** cita), el arqueo de caja, los correlativos sin huecos y la jerarquía
 de los 28 permisos.
@@ -233,7 +233,7 @@ app/
   Http/Controllers/        un controlador por módulo
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
-tests/Feature/             las 54 pruebas
+tests/Feature/             las 56 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS
 ```
 

@@ -8,7 +8,7 @@
 # Lo que resuelve, en orden de importancia:
 #
 #   1. **Fija MariaDB 10.4.** Es lo que más importa y lo que menos se ve venir:
-#      las 54 restricciones CHECK y las 50 rutinas están escritas para MariaDB.
+#      las 56 restricciones CHECK y las 50 rutinas están escritas para MariaDB.
 #      Con MySQL 8 no fallan al importar, fallan después y de a poco.
 #   2. **Importa las dos bases solo**, en el primer arranque.
 #   3. **Clava la zona horaria en America/Asuncion**, en la base y en PHP. Es la

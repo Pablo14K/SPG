@@ -86,13 +86,6 @@ class Seguridad
             [$idUsuario, $tipo]);
     }
 
-    /** ¿Hay forma de mandar correo? Si no, no tiene sentido ofrecer el paso. */
-    public static function correoConfigurado(): bool
-    {
-        return config('mail.default') !== null
-            && (config('mail.default') === 'log' || (string) config('mail.mailers.smtp.username') !== '');
-    }
-
     /** Seis dígitos: se dicta por teléfono sin equivocarse. */
     private static function generar(): string
     {

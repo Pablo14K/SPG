@@ -2229,30 +2229,6 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
--- Table structure for table `spg_migracion`
---
-
-DROP TABLE IF EXISTS `spg_migracion`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `spg_migracion` (
-  `version` int(11) NOT NULL,
-  `aplicada_en` datetime NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `spg_migracion`
---
-
-LOCK TABLES `spg_migracion` WRITE;
-/*!40000 ALTER TABLE `spg_migracion` DISABLE KEYS */;
-INSERT INTO `spg_migracion` VALUES (3,'2026-08-04 21:27:07'),(4,'2026-08-04 22:26:37'),(5,'2026-08-04 22:59:52'),(6,'2026-08-05 08:46:48'),(7,'2026-08-05 13:45:19'),(8,'2026-08-05 16:11:33'),(9,'2026-08-06 15:48:44'),(10,'2026-08-06 16:22:16'),(11,'2026-08-06 20:23:59'),(12,'2026-08-07 17:08:43'),(13,'2026-08-07 17:14:23'),(14,'2026-08-07 17:17:47'),(15,'2026-08-07 17:22:59'),(16,'2026-08-07 18:02:03'),(18,'2026-08-09 19:09:30');
-/*!40000 ALTER TABLE `spg_migracion` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `sucursal`
 --
 

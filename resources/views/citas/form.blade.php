@@ -91,15 +91,20 @@
                     </div>
                 </div>
 
-                {{-- 4. Fecha y hora, ofrecidas por el motor de disponibilidad --}}
+                {{-- 4. Fecha y hora, ofrecidas por el motor de disponibilidad.
+                     El selector lo maneja app.js, el mismo que usa el portal. --}}
                 <div class="col-12">
                     <label class="form-label">Fecha y hora *</label>
-                    <div id="avisoAgenda" class="text-muted-warm" style="font-size:.85rem">
-                        Elegí primero los servicios para ver los horarios disponibles.
-                    </div>
+                    <div data-agenda="{{ route('citas.disponibilidad') }}"
+                         data-agenda-sujeto="La cita"
+                         data-agenda-boton="#btnAgendar">
+                        <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem">
+                            Elegí primero los servicios para ver los horarios disponibles.
+                        </div>
 
-                    <div id="dias" class="spg-dias mt-2"></div>
-                    <div id="horas" class="spg-horas mt-2"></div>
+                        <div data-agenda-dias class="spg-dias mt-2"></div>
+                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                    </div>
 
                     <input type="hidden" name="fecha_hora" id="fecha_hora" value="{{ old('fecha_hora') }}">
                 </div>
@@ -172,120 +177,3 @@
     @endif
 @endsection
 
-@push('scripts')
-<script>
-// ---------------------------------------------------------------------
-//  Selector de disponibilidad
-//
-//  No se deja escribir una fecha a mano: se le pregunta al servidor qué días
-//  y qué horas quedan libres de verdad para los servicios elegidos, y solo se
-//  ofrecen esos. El servidor vuelve a comprobarlo al guardar, dentro del
-//  candado del procedimiento.
-// ---------------------------------------------------------------------
-(function () {
-    var url        = @json(route('citas.disponibilidad'));
-    var avisoEl    = document.getElementById('avisoAgenda');
-    var diasEl     = document.getElementById('dias');
-    var horasEl    = document.getElementById('horas');
-    var campoFecha = document.getElementById('fecha_hora');
-    var btn        = document.getElementById('btnAgendar');
-    var diaElegido = null;
-    // Si app.js no cargó, agendar tiene que seguir andando igual: la señal
-    // de carga es un adorno, no parte del funcionamiento.
-    var SPGCarga   = window.SPGCarga || { envolver: function (p) { return p; } };
-
-    function serviciosElegidos() {
-        return Array.prototype.slice
-            .call(document.querySelectorAll('.srv:checked'))
-            .map(function (c) { return c.value; });
-    }
-
-    function parametros(extra) {
-        var p = new URLSearchParams();
-        serviciosElegidos().forEach(function (s) { p.append('servicios[]', s); });
-        p.append('id_usuario', document.getElementById('id_usuario').value || 0);
-        for (var k in (extra || {})) { p.append(k, extra[k]); }
-        return p;
-    }
-
-    function limpiar() {
-        diasEl.innerHTML = '';
-        horasEl.innerHTML = '';
-        campoFecha.value = '';
-        btn.disabled = true;
-    }
-
-    function cargarDias() {
-        limpiar();
-        if (!serviciosElegidos().length) {
-            avisoEl.textContent = 'Elegí primero los servicios para ver los horarios disponibles.';
-            return;
-        }
-        // El cálculo mira turnos, citas y ausencias de 60 días: con la agenda
-        // cargada tarda, y sin señal parece que el sistema se quedó.
-        avisoEl.innerHTML = '<span class="spg-cargando-texto">'
-            + '<span class="spg-spinner"></span> Buscando días con lugar…</span>';
-
-        SPGCarga.envolver(
-            fetch(url + '?' + parametros().toString(), { headers: { 'Accept': 'application/json' } }), diasEl)
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (!d.ok) { avisoEl.textContent = d.motivo || 'No se pudo consultar la agenda.'; return; }
-                if (!d.dias || !d.dias.length) {
-                    avisoEl.textContent = 'No quedan días con lugar en los próximos dos meses. '
-                                        + 'Probá con otro profesional o con menos servicios.';
-                    return;
-                }
-                avisoEl.textContent = 'La cita dura ' + d.duracion + ' minutos. Elegí el día:';
-                d.dias.forEach(function (f) {
-                    var b = document.createElement('button');
-                    b.type = 'button';
-                    b.className = 'spg-chip';
-                    b.textContent = f.split('-').reverse().slice(0, 2).join('/');
-                    b.title = f;
-                    b.addEventListener('click', function () { elegirDia(f, b); });
-                    diasEl.appendChild(b);
-                });
-            })
-            .catch(function () { avisoEl.textContent = 'No se pudo consultar la agenda.'; });
-    }
-
-    function elegirDia(f, boton) {
-        diaElegido = f;
-        Array.prototype.forEach.call(diasEl.children, function (c) { c.classList.remove('activo'); });
-        boton.classList.add('activo');
-        horasEl.innerHTML = '<span class="spg-cargando-texto">'
-            + '<span class="spg-spinner"></span> Buscando horarios…</span>';
-        campoFecha.value = '';
-        btn.disabled = true;
-
-        SPGCarga.envolver(
-            fetch(url + '?' + parametros({ fecha: f }).toString(), { headers: { 'Accept': 'application/json' } }), horasEl)
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                horasEl.innerHTML = '';
-                if (!d.ok || !d.horas || !d.horas.length) {
-                    horasEl.textContent = 'Ese día ya no tiene horarios libres.';
-                    return;
-                }
-                d.horas.forEach(function (h) {
-                    var b = document.createElement('button');
-                    b.type = 'button';
-                    b.className = 'spg-chip';
-                    b.textContent = h.hora;
-                    b.addEventListener('click', function () {
-                        campoFecha.value = diaElegido + ' ' + h.hora + ':00';
-                        Array.prototype.forEach.call(horasEl.children, function (c) { c.classList.remove('activo'); });
-                        b.classList.add('activo');
-                        btn.disabled = false;
-                    });
-                    horasEl.appendChild(b);
-                });
-            });
-    }
-
-    document.querySelectorAll('.srv').forEach(function (c) { c.addEventListener('change', cargarDias); });
-    document.getElementById('id_usuario').addEventListener('change', cargarDias);
-})();
-</script>
-@endpush

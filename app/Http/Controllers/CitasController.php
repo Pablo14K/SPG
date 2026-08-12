@@ -9,6 +9,7 @@ use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Borrador;
 use App\Servicios\Caja;
+use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
 use Illuminate\Database\QueryException;
@@ -500,12 +501,19 @@ class CitasController extends Controller
             Auditoria::registrar('ALTA', 'Citas', 'ausencia_agenda', (int) DB::getPdo()->lastInsertId(),
                 'Excepción ' . $d['fecha_inicio'] . ' a ' . $d['fecha_fin']);
 
-            flash('Excepción registrada.'
-                . ($choques ? " Hay $choques cita(s) agendada(s) dentro de ese rango." : ''),
-                $choques ? 'warning' : 'success');
+            // A cada clienta que tenía cita en ese rango se le avisa, con el
+            // enlace del correo para reprogramar o cambiar de profesional. El
+            // aviso entra en la cola de `notificacion` y lo despacha el cron:
+            // avisar acá mismo dejaría la pantalla esperando al servidor SMTP.
+            $avisadas = Notificaciones::avisarProfesionalNoDisponible(
+                $d['id_usuario'], $d['fecha_inicio'], $d['fecha_fin'],
+                (string) ($d['motivo'] ?? '')
+            );
 
-            // TODO: avisar por correo a los clientes con cita en ese rango.
-            // Se conecta al portar notificaciones.php (tarea de notificaciones).
+            flash('Excepción registrada.'
+                . ($choques ? " Hay $choques cita(s) agendada(s) dentro de ese rango." : '')
+                . ($avisadas ? " Se le avisó a $avisadas clienta(s) para que reprogramen." : ''),
+                $choques ? 'warning' : 'success');
         } catch (Throwable) {
             flash('No se pudo registrar la excepción.', 'error');
         }

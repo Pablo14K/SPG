@@ -101,6 +101,15 @@
                                     <button class="btn btn-sm btn-outline-neutro" title="Reprogramar"
                                             data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
                                         <i class="bi bi-calendar-event"></i></button>
+
+                                    {{-- La seña mueve plata: solo para quien maneja cobros y con
+                                         la caja abierta. Con la caja cerrada el aviso de arriba
+                                         explica por qué no está el botón. --}}
+                                    @if ($puedeCobrar && $caja && $c->estado !== 'Ausente')
+                                        <button class="btn btn-sm btn-outline-neutro" title="Cobrar una seña"
+                                                data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
+                                            <i class="bi bi-cash-coin"></i></button>
+                                    @endif
                                 @else
                                     <span class="text-muted-warm" style="font-size:.8rem">—</span>
                                 @endif
@@ -160,4 +169,70 @@
             </div>
         </div>
     @endforeach
+
+    {{-- Un modal de seña por cita.
+         La seña se cobra ANTES de atender, así que todavía no hay factura: queda
+         como un cobro atado a la cita, con id_factura en NULL. No hay que
+         vincularla después al comprobante — `fn_factura_saldo` ya descuenta los
+         cobros de la cita, y vinculándola se restaría dos veces. --}}
+    @if ($puedeCobrar && $caja)
+        @foreach ($rows as $c)
+            @continue (in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
+            <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="{{ route('facturacion.sena') }}">
+                            @csrf
+                            <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                            <input type="hidden" name="dia" value="{{ $dia }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title" style="font-size:1rem">
+                                    <i class="bi bi-cash-coin"></i> Seña de {{ $c->cliente }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-warm" style="font-size:.85rem">
+                                    Cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
+                                    @if ((float) $c->sena > 0)
+                                        Ya dejó <strong>{{ money($c->sena) }}</strong>.
+                                    @endif
+                                </p>
+
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label" for="sm{{ $c->id_cita }}">Monto</label>
+                                        <input class="form-control input-miles" id="sm{{ $c->id_cita }}"
+                                               name="monto" data-min="1" inputmode="numeric" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label" for="sp{{ $c->id_cita }}">Medio de pago</label>
+                                        <select class="form-select" id="sp{{ $c->id_cita }}" name="id_metodo_pago" required>
+                                            @foreach ($metodos as $m)
+                                                <option value="{{ $m->id_metodo_pago }}">{{ $m->nombre }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="sr{{ $c->id_cita }}">Referencia</label>
+                                        <input class="form-control" id="sr{{ $c->id_cita }}" name="referencia"
+                                               placeholder="Nº de operación, boleta… (opcional)">
+                                    </div>
+                                </div>
+
+                                <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
+                                    Entra en la caja de <strong>{{ $caja->responsable }}</strong> y se descuenta
+                                    sola del total cuando se facture la cita.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-oro">Cobrar la seña</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @endif
 @endsection

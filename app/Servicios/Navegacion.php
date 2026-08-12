@@ -80,31 +80,9 @@ class Navegacion
         return $out;
     }
 
-    /**
-     * Migas de pan: Panel › Módulo › Pantalla.
-     *
-     * Las arma esta función y no cada vista, para que no se desfasen cuando se
-     * renombra una pantalla.
-     */
-    public static function migas(string $rutaActual): array
-    {
-        $migas = [['titulo' => 'Panel', 'url' => self::url('panel')]];
-
-        $modulo = strtok($rutaActual, '.');
-        foreach (config('navegacion.modulos', []) as $m) {
-            if ($m['mod'] === $modulo) {
-                $migas[] = ['titulo' => $m['titulo'], 'url' => self::url((string) $m['ruta'])];
-                break;
-            }
-        }
-
-        $pantalla = self::pantalla($rutaActual);
-        if ($pantalla) {
-            $migas[] = ['titulo' => $pantalla['titulo'], 'url' => null];   // la actual no es enlace
-        }
-
-        return $migas;
-    }
+    // Las migas de pan (Panel › Módulo › Pantalla) las arma el componente
+    // <x-encabezado> con el catálogo de abajo. Acá vivía una segunda versión
+    // que nadie llamaba: dos implementaciones de lo mismo y una sola en uso.
 
     /** Etiqueta, ícono y permiso de una pantalla del catálogo. */
     public static function pantalla(string $clave): ?array

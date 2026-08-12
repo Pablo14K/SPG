@@ -135,26 +135,100 @@
 
         <div class="col-lg-6">
             <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-trash"></i> Eliminar un rol</h2>
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-pencil"></i> Roles del salón</h2>
                 <p class="text-muted-warm" style="font-size:.82rem">
-                    No se puede eliminar un rol que tenga usuarios, ni el Administrador ni el Cliente:
-                    esos dos los referencia el código.
+                    Acá se le cambia el nombre y la descripción a un rol. No se puede eliminar uno que
+                    tenga usuarios, ni el Administrador ni el Cliente: esos dos los referencia el código.
                 </p>
                 @foreach ($roles as $rol)
-                    @continue (in_array((int) $rol->id_rol, $protegidos, true))
-                    <form method="post" action="{{ route('seguridad.rol.borrar') }}"
-                          class="d-flex justify-content-between align-items-center py-1">
-                        @csrf
-                        <input type="hidden" name="id_rol" value="{{ $rol->id_rol }}">
+                    <div class="d-flex justify-content-between align-items-center py-1">
                         <span>{{ $rol->nombre }}
                             <span class="text-muted-warm" style="font-size:.8rem">
-                                · {{ (int) $rol->usuarios }} usuario(s)</span></span>
-                        <button class="btn btn-sm btn-outline-neutro"
-                                data-confirmar="¿Eliminar el rol «{{ $rol->nombre }}»?">
-                            <i class="bi bi-trash"></i></button>
-                    </form>
+                                · {{ (int) $rol->usuarios }} usuario(s)</span>
+                            @if (! (int) $rol->activo)
+                                <span class="badge-estado e-muted">inactivo</span>
+                            @endif
+                        </span>
+                        <span style="white-space:nowrap">
+                            <button class="btn btn-sm btn-outline-neutro" title="Editar el rol"
+                                    data-bs-toggle="modal" data-bs-target="#modalRol{{ $rol->id_rol }}">
+                                <i class="bi bi-pencil"></i></button>
+
+                            @if (! in_array((int) $rol->id_rol, $protegidos, true))
+                                <form method="post" action="{{ route('seguridad.rol.borrar') }}" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="id_rol" value="{{ $rol->id_rol }}">
+                                    <button class="btn btn-sm btn-outline-neutro" title="Eliminar el rol"
+                                            data-confirmar="¿Eliminar el rol «{{ $rol->nombre }}»?">
+                                        <i class="bi bi-trash"></i></button>
+                                </form>
+                            @endif
+                        </span>
+                    </div>
                 @endforeach
             </div>
         </div>
     </div>
+
+    {{-- Un modal de edición por rol.
+         Los dos protegidos se pueden renombrar, pero no dejar de ser personal ni
+         desactivarse: el código los referencia por id, y un Administrador
+         inactivo deja el salón sin quién gestione las cuentas. --}}
+    @foreach ($roles as $rol)
+        <div class="modal fade" id="modalRol{{ $rol->id_rol }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('seguridad.rol.editar') }}">
+                        @csrf
+                        <input type="hidden" name="id_rol" value="{{ $rol->id_rol }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="font-size:1rem">
+                                <i class="bi bi-pencil"></i> Editar «{{ $rol->nombre }}»
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-2">
+                                <label class="form-label" for="re_nombre{{ $rol->id_rol }}">Nombre *</label>
+                                <input class="form-control form-control-sm" id="re_nombre{{ $rol->id_rol }}"
+                                       name="nombre" value="{{ $rol->nombre }}" required maxlength="60">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="re_desc{{ $rol->id_rol }}">Descripción</label>
+                                <input class="form-control form-control-sm" id="re_desc{{ $rol->id_rol }}"
+                                       name="descripcion" value="{{ $rol->descripcion }}" maxlength="150">
+                            </div>
+
+                            @if (in_array((int) $rol->id_rol, $protegidos, true))
+                                <p class="text-muted-warm mb-0" style="font-size:.78rem">
+                                    Es un rol que el sistema referencia por su id: se le puede cambiar el
+                                    nombre, pero no si es personal ni darlo de baja.
+                                </p>
+                            @else
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="es_personal" value="1"
+                                           id="re_personal{{ $rol->id_rol }}" @checked((int) $rol->es_personal)>
+                                    <label class="form-check-label" for="re_personal{{ $rol->id_rol }}">
+                                        Es personal del salón (entra al panel de gestión)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="activo" value="1"
+                                           id="re_activo{{ $rol->id_rol }}" @checked((int) $rol->activo)>
+                                    <label class="form-check-label" for="re_activo{{ $rol->id_rol }}">Activo</label>
+                                </div>
+                                <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
+                                    Si dejás de marcarlo como personal, pierde todos los módulos del panel.
+                                </p>
+                            @endif
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-oro">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endforeach
 @endsection

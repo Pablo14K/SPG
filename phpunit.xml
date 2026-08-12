@@ -4,10 +4,13 @@
          bootstrap="vendor/autoload.php"
          colors="true"
 >
+    <!--
+        Una sola suite, y es de integración. No hay «Unit» porque acá no hay
+        casi nada que probar en aislamiento: la lógica vive en la base, así
+        que una prueba que no la toque no prueba el sistema. La carpeta
+        tests/Unit sólo tenía el assertTrue(true) que trae Laravel de fábrica.
+    -->
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>

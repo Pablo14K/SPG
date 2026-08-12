@@ -4,7 +4,7 @@ El sistema se publica en un **VPS que se comparte entre varios grupos de la facu
 (Vefixy · 2 vCores, 4 GB RAM, 80 GB NVMe, root, panel Hestia o CyberPanel). No es un hosting
 compartido tipo cPanel, y esa diferencia es la que decide si este proyecto se puede desplegar:
 **un hosting compartido clásico no deja crear funciones ni triggers**, y acá *toda* la lógica
-de negocio vive ahí — 20 procedimientos, 30 funciones, 17 triggers, 17 vistas y 54 `CHECK`.
+de negocio vive ahí — 20 procedimientos, 30 funciones, 17 triggers, 17 vistas y 56 `CHECK`.
 
 Este documento es la lista de pasos en el orden que funciona. Los cuatro primeros son los que
 **rompen algo sin avisar**: si se saltean, el sistema arranca igual y falla después, en

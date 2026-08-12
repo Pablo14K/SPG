@@ -315,9 +315,14 @@ class ConfiguracionController extends Controller
             return $volver;
         }
 
-        // es_personal solo se puede tocar en roles que no usa el código
-        $esPersonal = $this->protegido($id) ? (int) $rol->es_personal : ($request->boolean('es_personal') ? 1 : 0);
-        $activo = $id === (int) config('permisos.rol_admin', 1) ? 1 : ($request->boolean('activo') ? 1 : 0);
+        // Ni es_personal ni activo se tocan en los roles que el código
+        // referencia por id. Con el Administrador ya se cuidaba; el Cliente
+        // quedaba afuera, y desactivarlo deja el portal sin rol al que asignar
+        // a quien se registra. Se decide acá y no en la pantalla: esconder la
+        // casilla no es el control.
+        $protegido = $this->protegido($id);
+        $esPersonal = $protegido ? (int) $rol->es_personal : ($request->boolean('es_personal') ? 1 : 0);
+        $activo = $protegido ? (int) $rol->activo : ($request->boolean('activo') ? 1 : 0);
 
         DB::update('UPDATE rol SET nombre = ?, descripcion = ?, es_personal = ?, activo = ? WHERE id_rol = ?',
             [$nombre, $desc, $esPersonal, $activo, $id]);

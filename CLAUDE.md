@@ -135,7 +135,8 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
-| 7.0.0 | 11/08/2026 | **Entra la facturación electrónica: el SPG se acopla al Automatizador SIFEN.** Sube la **X** porque cambia qué se emite por defecto y la base lleva una tabla más. **El SPG no habla con la DNIT ni firma nada**: toma el comprobante que ya numeró con su timbrado, lo escribe en el formato de texto del Automatizador (`FAC\|CLI\|ITM`) y se lo manda; lo que vuelve es el CDC, que se guarda en `factura_electronica`. La decisión que ordena todo lo demás: **la clienta no siempre pide factura**, así que ahora se emite **Ticket por defecto** —comprobante interno, numerado, que no sale del salón— y sólo se elige Factura cuando la piden; únicamente los tipos 1 y 5 se declaran. **Emitir y declarar son dos pasos separados**, y es a propósito: la factura ya es válida sin la DNIT, así que un servicio caído no puede frenar el cobro. Un rechazo por datos queda **RECHAZADO** y no se reintenta solo —repetirlo da el mismo error—; un corte de red queda **PENDIENTE**, porque del otro lado puede haberse emitido igual. Viene con un **modo simulado** que arma el TXT de verdad y devuelve un CDC de prueba, para ver el circuito sin depender del servicio: el dominio publicado del Automatizador no responde hoy. Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no aparece en ninguna pantalla. **54 pruebas** |
+| 7.1.0 | 11/08/2026 | **Cuatro funciones que estaban escritas y no se podían usar, y una limpieza de todo lo que no llegaba a ejecutarse.** Un barrido de uso real —cada método, clase CSS, atributo del JS, rutina y tabla contra quien la nombra— destapó que había **código correcto, probado y sin embargo inalcanzable**, que es la peor forma de deuda: parece que la función existe. **Cobrar una seña**: el controlador, `sp_registrar_sena` y hasta `$metodos` que le pasaba la agenda estaban listos; no había un solo formulario apuntando a la ruta, así que la pantalla mostraba el badge «seña» y el aviso de caja cerrada sin ninguna forma de cobrarla. **Renombrar un rol**: se podían crear y borrar, no cambiarles el nombre. Al conectarlo apareció un error de fondo — `rolEditar` protegía el `activo` del Administrador pero no el del **Cliente**, así que renombrarlo lo habría dejado inactivo y el portal sin rol al que asignar a quien se registra; ahora los dos protegidos conservan `activo` y `es_personal`, decidido en el servidor y no escondiendo la casilla. **Avisar que el profesional no va a estar**: `Notificaciones::avisarProfesionalNoDisponible()` existía completa desde la 6.0.0 y no la llamaba nadie; en su lugar había dos `TODO` que mandaban a «portar notificaciones.php», un archivo del sistema archivado. Ahora la llaman la carga de una excepción y la baja del personal, y **acepta el salón entero** (`id_usuario` NULL, que es como se carga un feriado), que era el caso que más gente dejaba plantada. **Y el selector de disponibilidad pasa a ser uno solo**: `app.js` traía el genérico del sistema pre-Laravel armando la URL como `index.php?r=…`, o sea que no podía funcionar y ninguna vista lo activaba; las dos pantallas que reservan lo habían reescrito por su cuenta, 192 líneas casi idénticas. Se reescribió el de `app.js` contra las rutas de Laravel, parametrizado por endpoint, sujeto y botón, y las dos vistas quedaron con marcado. **Lo que se fue**: 190 líneas de CSS —53 clases sin un solo marcado que las usara, familias enteras (`comp-*` del comprobante, `spg-perm-*` de la matriz, `spg-encurso-*` del portal) heredadas de la versión sin framework—, el andamiaje de Laravel que este proyecto declara no usar (`app/Models/User.php`, factories, seeders, `welcome.blade.php`, `package.json`, `vite.config.js`, `.npmrc`, `resources/css`, `resources/js`, la suite `Unit` con su `assertTrue(true)`), cinco métodos que nadie llamaba —incluidas unas migas de pan duplicadas que el componente `<x-encabezado>` ya resolvía— y la tabla **`spg_migracion`**, que sobrevivía del sistema anterior y **se entregaba con 15 filas adentro** del `.sql` que instala el salón. De paso salieron tres cosas más: `composer.json` corría `artisan migrate` en `post-create-project-cmd`, justo lo que este proyecto prohíbe; `spg:diagnostico` esperaba **54** `CHECK` cuando hay 56, así que perder las dos de `factura_electronica` no habría hecho saltar nada; y **el día y la hora que se eligen en el selector no se marcaban**, porque `.spg-chip.activo` estaba escrita únicamente anidada en `.agenda-grupo` y `.spg-atajos`, dos contenedores que ninguna vista dibuja — el JS ponía la clase desde siempre y no la respondía nadie. Ahora la regla existe suelta y el chip elegido se llena de oro. **56 pruebas** (tres nuevas: el rol protegido, el aviso al cargar una excepción y que la agenda ofrezca la seña) y los dos `.sql` regenerados y reimportados de control |
+| 7.0.0 | 11/08/2026 | **Entra la facturación electrónica: el SPG se acopla al Automatizador SIFEN.** Sube la **X** porque cambia qué se emite por defecto y la base lleva una tabla más. **El SPG no habla con la DNIT ni firma nada**: toma el comprobante que ya numeró con su timbrado, lo escribe en el formato de texto del Automatizador (`FAC\|CLI\|ITM`) y se lo manda; lo que vuelve es el CDC, que se guarda en `factura_electronica`. La decisión que ordena todo lo demás: **la clienta no siempre pide factura**, así que ahora se emite **Ticket por defecto** —comprobante interno, numerado, que no sale del salón— y sólo se elige Factura cuando la piden; únicamente los tipos 1 y 5 se declaran. **Emitir y declarar son dos pasos separados**, y es a propósito: la factura ya es válida sin la DNIT, así que un servicio caído no puede frenar el cobro. Un rechazo por datos queda **RECHAZADO** y no se reintenta solo —repetirlo da el mismo error—; un corte de red queda **PENDIENTE**, porque del otro lado puede haberse emitido igual. Viene con un **modo simulado** que arma el TXT de verdad y devuelve un CDC de prueba, para ver el circuito sin depender del servicio: el dominio publicado del Automatizador no responde hoy. Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no aparece en ninguna pantalla. **56 pruebas** |
 | 6.6.0 | 11/08/2026 | **Agendar la cita en el calendario del celular no funcionaba, y el motivo estaba en el teléfono, no en el archivo.** El `.ics` se genera perfecto —CRLF, `VALARM`, hora flotante, todo según el RFC 5545— pero se sirve con `Content-Disposition: attachment`, y **Android lo baja a la carpeta de descargas sin abrirlo**: la clienta toca el botón, no ve pasar nada y da por hecho que está roto. Ahora hay **dos caminos**: el enlace a Google Calendar, que no descarga nada y abre la cita ya cargada, y el `.ics` de siempre para iPhone y Outlook. Ese enlace **CLAUDE.md ya lo daba por hecho desde la 5.3.0 y no existía en el código**: se documentaba `ctz=America/Asuncion` de algo que nunca se había escrito. De paso, el botón **faltaba entero en el portal** —también documentado como existente—, así que la clienta con cuenta no tenía forma de agendar salvo entrando por el enlace del correo. Las dos vías mandan la misma hora local sin convertir a UTC: el `.ics` en hora flotante y Google con el huso declarado, que son las dos caras de la misma decisión. **52 pruebas** |
 | 6.5.0 | 11/08/2026 | **La espera se ve.** El sistema navega a la vieja usanza —cada clic pide una página entera— y el navegador **no muestra nada** entre el clic y la respuesta: con la base cargada, una lista con filtros o un informe tardan, y esa espera en blanco se lee como «se colgó» cuando en realidad está trabajando. Entran tres piezas, todas en oro y sin un color nuevo: una **barra de 3 px arriba de todo** mientras la página va y viene, el **ícono del botón que se vuelve spinner** sin cambiar de ancho (así la fila no salta), y un **spinner suelto** para los bloques que se llenan por `fetch` —los días y horas de la agenda, que son el peor caso: el cálculo mira turnos, citas y ausencias de 60 días—. Cuatro detalles que no son adorno: la barra **no aparece hasta los 250 ms**, porque si la respuesta llega antes el parpadeo molesta más que la espera; **las descargas no la encienden**, que si no un `?export=csv` la dejaba girando para siempre porque la página no navega; se apaga en `pageshow`, porque volver con «atrás» restaura la página con la barra tal como quedó; y **es un adorno que puede faltar** — las vistas con JS propio declaran su respaldo, así que si `app.js` no carga, agendar sigue funcionando. El refresco del portal cada 20 segundos no enciende nada a propósito. Respeta `prefers-reduced-motion` |
 | 6.4.0 | 11/08/2026 | **Correcciones de la auditoría de QA del 11/08/2026** (486 operaciones sobre la base vacía, 88/100, APTO CON OBSERVACIONES). La grave: **el Profesional podía fijar cuánto cobra el salón.** El rol traía `servicios.catalogo`, `.categorias` y `.descuentos` de fábrica, y con eso bajó una coloración de 280.000 a **1.000**, la dio de baja y puso una promo al **99 %** — que `sp_emitir_factura` aplica sola. El middleware funcionaba perfecto: sobraba el permiso. Se quitan los tres del `.sql` que se entrega; sigue viendo los servicios donde los necesita (Nueva cita y Registrar atención son de `citas.*`). También: **el fichaje retroactivo sellaba la hora del reloj** —quedó registrada una entrada a las 15:06 de un día en que nadie apretó nada—, así que ahora se pide la hora y tiene que caer dentro del turno; **el teléfono no se validaba** y entraba `abc-!!!`; **`persona.direccion` no la capturaba ninguna pantalla**; y la auditoría de un cambio de precio decía sólo el nombre del servicio, ahora deja **de cuánto a cuánto**, igual que la matriz de permisos, que anota qué clave ganó y cuál perdió cada rol. Entra **`.env.produccion.example`**, porque desplegar con el `.env` de desarrollo deja `APP_DEBUG=true` (traza con la contraseña de la base a la vista) y enlaces de correo apuntando a `localhost`. **La contraseña de Gmail sale del repositorio**: `env.docker` vuelve a `MAIL_MAILER=log`. **51 pruebas** |
@@ -160,7 +161,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **150 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **151 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -170,7 +171,8 @@ de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo
 | **Eloquent** para el negocio | la lógica vive en la base. Se consulta con `DB::select()` y se llama a las rutinas con `Bd::` |
 | **Migraciones** | el esquema viene de `basededatos/peluqueria_bd(base).sql`. `database/migrations/` está vacío a propósito: correr `artisan migrate` crearía tablas de Laravel dentro de la base que se entrega |
 | `database` como driver de sesión, caché y cola | por lo mismo. Van a **archivo** (ver `.env.example`) |
-| Vite / Node | Bootstrap viene por CDN y `app.css` es un archivo propio. En el servidor no se compila nada |
+| Vite / Node | Bootstrap viene por CDN y `app.css` es un archivo propio. En el servidor no se compila nada. **En la 7.1.0 se borraron `package.json`, `vite.config.js`, `.npmrc` y `resources/css` / `resources/js`**: eran el andamiaje de Laravel, no los usaba nadie, y tenerlos ahí hacía pensar que había un paso de compilación |
+| El *auth* de Laravel | las cuentas viven en `usuario` y la sesión la arma `App\Servicios\Sesion`. `config/auth.php` quedó **sin proveedor ni modelo**: apuntaba a un `App\Models\User` que este proyecto nunca instanció, y que se borró en la 7.1.0 |
 
 ```
 app/
@@ -192,6 +194,7 @@ app/
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
     Listado.php            Prototipo de listas: filtros(), paginacion(), exportar() CSV/PDF
     Borrador.php           No perder lo escrito al usar un alta rápida
+    Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Navegacion.php         Migas, accesos rápidos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
@@ -213,11 +216,11 @@ resources/views/
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 150 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 151 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 54 pruebas
+tests/Feature/             Las 56 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -943,9 +946,16 @@ llenaba y no la vaciaba nadie. Los correos se arman con Mailables (`App\Mail\Avi
   sesión**: la mayoría de las clientas que agendan en el local no tienen cuenta. El token es
   la credencial, dura 30 días y muere al cancelar.
 - Los procedimientos de la base crean sus avisos con canal `WHATSAPP` (`sp_agendar_cita`,
-  `sp_cancelar_cita`, `sp_generar_recordatorios`). Como esa integración no existe todavía,
-  el despachador **también los toma y los manda por correo**, corrigiendo el canal. Si no,
-  quedaban en PENDIENTE para siempre.
+  `sp_cancelar_cita`). Como esa integración no existe todavía, el despachador **también los
+  toma y los manda por correo**, corrigiendo el canal. Si no, quedaban en PENDIENTE para
+  siempre.
+  > `sp_generar_recordatorios` figuraba en esa lista y **no lo llama nadie**: quedó atrás.
+  > Manda un texto fijo, en horas y sin el nombre del profesional, y sobre todo **no mira
+  > `preferencia_recordatorio`**, la anticipación que cada clienta eligió en el portal. Lo
+  > reemplaza `Notificaciones::generarRecordatorios()`, que sí la respeta. Es la única parte
+  > del sistema donde PHP le gana a un procedimiento, y por eso queda anotado: el
+  > procedimiento sigue en la base para no bajar el conteo del documento del TCC, pero no
+  > se usa. Si se lo va a tocar, tocá el de PHP.
 - El despacho lo hace el comando **`php artisan spg:notificaciones`**, que el scheduler corre
   **cada diez minutos** con `withoutOverlapping()` (ver `routes/console.php`). En el servidor
   eso lo dispara una sola línea de cron: `* * * * * … php artisan schedule:run`.
@@ -1020,10 +1030,15 @@ la que espera `fn_producto_stock`: la conversión pasa al entrar y al salir, nun
 guardada en dos unidades. `movimiento_inventario.cantidad` es `DECIMAL`, así que 0,03 entra
 sin redondear a cero.
 
-**El aviso de reposición** sale de `vw_producto_bajo_stock` y lo dibuja el componente Blade
-`<x-aviso-stock>` en el panel y en Inventario, diciendo con cuánta plata hay que ir a comprar.
-Es una sola consulta por petición (el resultado se cachea en memoria), porque el aviso
-aparece en varias pantallas.
+**El aviso de reposición** sale de `vw_producto_bajo_stock`: el panel muestra cuántos
+productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock lista cuáles,
+con cuánta plata hay que ir a comprar.
+
+> Acá decía que lo dibujaba un componente `<x-aviso-stock>`. **Ese componente no existe**:
+> los cuatro que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>` y `<x-landing>`.
+> Quedaba además su CSS (`.spg-aviso-stock`, `.spg-aviso-item`, `.spg-aviso-mas`) sin marcado
+> que lo usara, heredado del sistema anterior; se borró en la 7.1.0. Si algún día se unifica
+> el aviso en un componente, este párrafo vuelve a valer.
 
 ## El portal de la clienta durante la atención
 
@@ -1336,7 +1351,7 @@ Lo que **queda** y lo que **se borra**:
 | Queda | Se borra |
 |---|---|
 | Los catálogos del sistema: `rol`, `rol_modulo`, `estado_*`, `tipo_*`, `metodo_pago`, `condicion_venta`, `nivel`, los 3 `descuento` de nivel, `categoria_servicio`, `categoria_producto` | Toda la operación: citas, atención, consumo, facturas, cobros, caja, compras, movimientos, asistencia, puntos, notificaciones, calificaciones, auditoría |
-| `spg_migracion` — sobra: la dejó el sistema anterior y Laravel no la usa, pero borrarla no aporta nada | El catálogo comercial: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
+| — | El catálogo comercial: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
 | La sucursal 1, que el `admin` referencia (`usuario.id_sucursal = 1`) | Turnos, `turno_dia`, `usuario_turno` |
 | Las dos cuentas del instalador: `admin` y `cliente`, con sus dos filas de `persona` y la ficha de `cliente` | Cualquier otro usuario, persona o cliente · roles creados a mano · credenciales WebAuthn y tokens |
 
@@ -1432,7 +1447,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 54 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 56 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1477,7 +1492,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**54 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**56 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

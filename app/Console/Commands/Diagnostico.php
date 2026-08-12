@@ -25,8 +25,14 @@ class Diagnostico extends Command
     /** Cuántas rutinas tiene que haber, según el esquema del TCC */
     private const ESPERADO = ['PROCEDURE' => 20, 'FUNCTION' => 30, 'trigger' => 17, 'vista' => 17];
 
-    /** Las restricciones CHECK, que un export de phpMyAdmin se come */
-    private const CHECKS = 54;
+    /**
+     * Las restricciones CHECK, que un export de phpMyAdmin se come.
+     *
+     * Son 56 desde la 7.0.0, que sumó las dos de `factura_electronica`. El
+     * número quedó en 54 al agregarlas, y como la comparación es «menos que»,
+     * perder justo esas dos no habría hecho saltar nada.
+     */
+    private const CHECKS = 56;
 
     public function handle(): int
     {
@@ -102,7 +108,7 @@ class Diagnostico extends Command
             }
         }
 
-        // Y las 54 restricciones CHECK, que un export de phpMyAdmin se come sin
+        // Y las 56 restricciones CHECK, que un export de phpMyAdmin se come sin
         // avisar: la copia acepta valores que la base real rechaza.
         $checks = (int) DB::scalar("SELECT COUNT(*) FROM information_schema.table_constraints
                                      WHERE constraint_schema = DATABASE() AND constraint_type = 'CHECK'");

@@ -651,4 +651,113 @@ class ReglasDeNegocioTest extends TestCase
             ->assertOk()
             ->assertSee('dejás de poder entrar acá', false);
     }
+
+    #[Test]
+    public function editar_un_rol_protegido_no_lo_desactiva_ni_lo_saca_del_panel(): void
+    {
+        // El formulario de un rol protegido no dibuja esas dos casillas, y una
+        // casilla que no se marca no viaja en el POST: si el servidor las
+        // leyera del pedido, renombrar al Cliente lo dejaría inactivo y el
+        // portal se quedaría sin rol al que asignar a quien se registra.
+        // Esconder la casilla no es el control; el control es esto.
+        $cliente = (int) config('permisos.rol_cliente', 4);
+        $antes = DB::selectOne('SELECT nombre, es_personal, activo FROM rol WHERE id_rol = ?', [$cliente]);
+        if (! $antes) {
+            $this->markTestSkipped('No existe el rol Cliente en la base de prueba.');
+        }
+
+        session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->post(route('seguridad.rol.editar'), [
+            'id_rol' => $cliente,
+            'nombre' => $antes->nombre . ' (renombrado)',
+            'descripcion' => 'prueba',
+            // sin `activo` ni `es_personal`, que es como llega del formulario
+        ])->assertRedirect(route('seguridad.roles'));
+
+        $despues = DB::selectOne('SELECT nombre, es_personal, activo FROM rol WHERE id_rol = ?', [$cliente]);
+
+        $this->assertSame($antes->nombre . ' (renombrado)', $despues->nombre,
+            'El nombre sí se tenía que poder cambiar.');
+        $this->assertSame((int) $antes->activo, (int) $despues->activo,
+            'Un rol protegido no puede quedar inactivo por no marcar una casilla que ni se dibuja.');
+        $this->assertSame((int) $antes->es_personal, (int) $despues->es_personal,
+            'Tampoco puede cambiar de tipo: el código lo referencia por id.');
+    }
+
+    #[Test]
+    public function la_agenda_ofrece_cobrar_la_sena_cuando_hay_caja_abierta(): void
+    {
+        // `FacturacionController::sena` y `sp_registrar_sena` funcionaban desde
+        // siempre, y la ruta estaba declarada, pero NINGÚN formulario apuntaba
+        // ahí: la agenda mostraba el badge «seña» y el aviso de caja cerrada,
+        // y no había forma de cobrarla. Se comprueba la pantalla, que es lo
+        // que faltaba.
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, DATE(c.fecha_hora) AS dia
+               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
+              ORDER BY c.fecha_hora LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
+        }
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1')) {
+            $this->markTestSkipped('No hay ninguna caja abierta en la base de prueba.');
+        }
+
+        session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->get(route('citas.agenda', ['dia' => $cita->dia]))
+            ->assertOk()
+            ->assertSee('modalSena' . $cita->id_cita)
+            ->assertSee(route('facturacion.sena'), false);
+    }
+
+    #[Test]
+    public function cargar_una_ausencia_avisa_a_las_clientas_de_ese_rango(): void
+    {
+        // El aviso existía escrito desde la 6.0.0 y no lo llamaba nadie: la
+        // clienta se enteraba de que su profesional no iba a estar cuando
+        // llegaba al salón.
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_usuario, c.fecha_hora
+               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
+              ORDER BY c.fecha_hora LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
+        }
+
+        $desde = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora . ' -1 hour'));
+        $hasta = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora . ' +1 hour'));
+
+        $antes = (int) DB::scalar('SELECT COUNT(*) FROM notificacion WHERE id_cita = ?', [$cita->id_cita]);
+
+        // Se pasa por la PANTALLA, no por el servicio: el servicio ya estaba
+        // escrito y andaba — lo que faltaba era que alguien lo llamara.
+        session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->post(route('citas.ausencia.guardar'), [
+            'id_usuario' => (int) $cita->id_usuario,
+            'id_tipo_ausencia' => (int) DB::scalar('SELECT MIN(id_tipo_ausencia) FROM tipo_ausencia'),
+            'fecha_inicio' => str_replace(' ', 'T', $desde),
+            'fecha_fin' => str_replace(' ', 'T', $hasta),
+            'motivo' => 'licencia de prueba',
+        ])->assertRedirect(route('citas.ausencias'));
+
+        $this->assertSame($antes + 1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM notificacion WHERE id_cita = ?', [$cita->id_cita]
+        ), 'Cargar la excepción tiene que encolarle el aviso a la clienta de esa cita.');
+
+        // Y la excepción de todo el salón (id_usuario NULL, como un feriado)
+        // alcanza a esa misma cita: es la que más gente deja plantada.
+        $this->assertGreaterThan(0,
+            \App\Servicios\Notificaciones::avisarProfesionalNoDisponible(null, $desde, $hasta, 'feriado'),
+            'Una excepción de todo el salón también tiene que avisar.');
+    }
 }

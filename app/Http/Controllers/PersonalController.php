@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Servicios\Auditoria;
 use App\Servicios\Borrador;
 use App\Servicios\Listado;
+use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
 use Illuminate\Http\RedirectResponse;
@@ -288,8 +289,9 @@ class PersonalController extends Controller
 
         if ($daDeBaja) {
             // Al dar de baja a alguien que atiende, sus clientas se quedan sin
-            // profesional. El aviso por correo se conecta al portar
-            // notificaciones.php; por ahora queda el registro en la auditoría.
+            // profesional: se les avisa con el enlace para reprogramar o
+            // elegir a otro. Sin fechas, el aviso alcanza a todas las citas
+            // futuras, que es exactamente lo que deja de poder atender.
             $pendientes = (int) DB::scalar(
                 'SELECT COUNT(*) FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
                   WHERE c.id_usuario = ? AND ec.bloquea_agenda = 1 AND c.fecha_hora >= NOW()', [$id]
@@ -297,11 +299,15 @@ class PersonalController extends Controller
             Auditoria::registrar('BAJA', 'Personal', 'usuario', $id,
                 'Baja de ' . $u->nombre . ' ' . $u->apellido . " — quedaron $pendientes cita(s) pendiente(s)");
 
+            $avisadas = Notificaciones::avisarProfesionalNoDisponible($id, null, null, 'baja del personal');
+
             flash('Estado del usuario actualizado.'
                 . ($pendientes
                     ? " Ojo: quedan $pendientes cita(s) futura(s) con esa persona. Hay que reprogramarlas o "
                       . 'cambiarles el profesional.'
-                    : ''), $pendientes ? 'warning' : 'success');
+                    : '')
+                . ($avisadas ? " Se le avisó a $avisadas clienta(s)." : ''),
+                $pendientes ? 'warning' : 'success');
 
             return $volver;
         }

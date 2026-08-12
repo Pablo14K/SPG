@@ -157,16 +157,6 @@ class Sesion
         return (bool) session('es_cliente', false);
     }
 
-    public static function id(): int
-    {
-        return (int) session('uid', 0);
-    }
-
-    public static function nombre(): string
-    {
-        return (string) session('nombre', '');
-    }
-
     /** A dónde va cada quien después de entrar. */
     public static function inicio(): string
     {

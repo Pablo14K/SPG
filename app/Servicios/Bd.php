@@ -6,7 +6,6 @@ namespace App\Servicios;
 
 use Closure;
 use Illuminate\Support\Facades\DB;
-use PDOException;
 use Throwable;
 
 /**
@@ -118,17 +117,6 @@ class Bd
         }
 
         return $porDefecto;
-    }
-
-    /**
-     * ¿Este error viene de una regla del negocio (un SIGNAL de la base) o es
-     * una falla técnica? Los procedimientos avisan con SQLSTATE 45000, y los
-     * disparadores también. Sirve para decidir si se le muestra el motivo al
-     * usuario o se lo manda al log.
-     */
-    public static function esReglaDeNegocio(Throwable $e): bool
-    {
-        return $e instanceof PDOException && str_contains((string) $e->getCode(), '45000');
     }
 
     private static function marcadores(int $cuantos): string
