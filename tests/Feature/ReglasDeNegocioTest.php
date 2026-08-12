@@ -8,6 +8,7 @@ use App\Servicios\Agenda;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
 use App\Servicios\Permisos;
+use App\Servicios\Sesion;
 use App\Servicios\Sifen;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -389,6 +390,36 @@ class ReglasDeNegocioTest extends TestCase
         // Y la ruta lo rechaza, no solo la pantalla lo esconde
         session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
+    }
+
+    #[Test]
+    public function el_tema_es_de_cada_persona_y_no_afecta_al_papel(): void
+    {
+        $u = (int) DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'admin' LIMIT 1");
+        if (! $u) {
+            $this->markTestSkipped('No está la cuenta admin en la base de prueba.');
+        }
+
+        // Se guarda y se lee. Un valor inventado se rechaza: la columna tiene
+        // su CHECK, pero el servicio no tiene por qué llegar a que salte.
+        $this->assertTrue(Sesion::guardarTema($u, 'oscuro'));
+        $this->assertSame('oscuro', Sesion::temaDe($u));
+        $this->assertFalse(Sesion::guardarTema($u, 'fucsia'), 'Un tema que no existe no se guarda.');
+        $this->assertSame('oscuro', Sesion::temaDe($u), 'Y no pisa el que ya estaba.');
+
+        // La pantalla sale con el atributo, que es lo que el CSS mira.
+        session(['uid' => $u, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false, 'tema' => 'oscuro']);
+        $this->get(route('panel'))->assertOk()->assertSee('data-tema="oscuro"', false);
+
+        // **El papel no**: un informe impreso en oscuro sería tinta sobre negro.
+        $this->get(route('reportes.imprimir'))->assertOk()->assertDontSee('data-tema="oscuro"', false);
+
+        // Y se vuelve al claro sin dejar rastro.
+        $this->assertTrue(Sesion::guardarTema($u, 'claro'));
+        $this->assertSame('claro', Sesion::temaDe($u));
+        session(['tema' => 'claro']);
+        $this->get(route('panel'))->assertOk()->assertDontSee('data-tema="oscuro"', false);
     }
 
     #[Test]

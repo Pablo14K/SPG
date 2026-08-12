@@ -30,6 +30,29 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Tema de la interfaz. Es una preferencia de cada persona, no del
+                 salón: dos que comparten la computadora pueden tener uno cada
+                 una, porque va atada a la cuenta y no al navegador. --}}
+            <div class="spg-panel mt-3">
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-circle-half"></i> Apariencia</h2>
+                <p class="text-muted-warm mb-3" style="font-size:.82rem">
+                    El tema oscuro usa los mismos colores del salón, con los fondos al revés.
+                    Se aplica en todas las pantallas y queda guardado para la próxima vez.
+                </p>
+
+                <form method="post" action="{{ route('cuenta.tema') }}" class="d-flex gap-2 flex-wrap">
+                    @csrf
+                    @foreach (\App\Servicios\Sesion::TEMAS as $clave => $etiqueta)
+                        <button name="tema" value="{{ $clave }}"
+                                class="btn {{ $tema === $clave ? 'btn-oro' : 'btn-outline-neutro' }}">
+                            <i class="bi bi-{{ $clave === 'oscuro' ? 'moon-stars' : 'sun' }}"></i>
+                            {{ $etiqueta }}
+                            @if ($tema === $clave)<i class="bi bi-check-lg"></i>@endif
+                        </button>
+                    @endforeach
+                </form>
+            </div>
         </div>
 
         <div class="col-lg-6">

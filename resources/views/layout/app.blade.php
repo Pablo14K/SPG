@@ -26,7 +26,11 @@
     $spgContacto = Navegacion::contactos();
 @endphp
 <!DOCTYPE html>
-<html lang="es">
+{{-- El tema sale de la sesión y se dibuja acá arriba, antes que nada: si se
+     aplicara con JavaScript, la pantalla parpadearía en claro un instante
+     antes de oscurecerse. Las dos vistas de impresión NO lo llevan a
+     propósito — el papel siempre va en claro. --}}
+<html lang="es" @if (\App\Servicios\Sesion::tema() === 'oscuro') data-tema="oscuro" @endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

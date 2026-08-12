@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
 use App\Servicios\Seguridad;
+use App\Servicios\Sesion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,30 @@ class CuentaController extends Controller
             ),
             'pendiente' => (bool) session('cambio_pass'),
             'bioActivo' => (int) DB::scalar('SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$uid]),
+            'tema' => Sesion::tema(),
         ]);
+    }
+
+    /**
+     * Cambia el tema de la interfaz.
+     *
+     * Es un POST y no un enlace porque cambia algo guardado. Se aplica en el
+     * acto: `guardarTema` deja el valor en la sesión, así que la pantalla que
+     * se dibuja después del redirect ya sale con el tema nuevo.
+     */
+    public function tema(Request $request): RedirectResponse
+    {
+        $tema = (string) $request->input('tema', '');
+
+        if (! Sesion::guardarTema((int) session('uid'), $tema)) {
+            flash('Ese tema no existe.', 'error');
+
+            return redirect()->route('cuenta.index');
+        }
+
+        flash('Tema ' . mb_strtolower(Sesion::TEMAS[$tema]) . ' aplicado.');
+
+        return redirect()->route('cuenta.index');
     }
 
     /** Paso 1: valida y manda el código. No escribe la contraseña todavía. */

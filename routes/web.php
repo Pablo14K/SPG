@@ -80,6 +80,8 @@ Route::middleware('sesion')->prefix('cuenta')->name('cuenta.')->group(function (
     Route::match(['get', 'post'], 'password/confirmar', [CuentaController::class, 'passwordConfirmar'])
         ->name('password_confirmar');
     Route::post('password/cancelar', [CuentaController::class, 'passwordCancelar'])->name('password_cancelar');
+    // El tema de la interfaz: preferencia de cada persona, no del salón.
+    Route::post('tema', [CuentaController::class, 'tema'])->name('tema');
 });
 
 // --- La cita desde el enlace del correo (SIN sesión) ----------------------

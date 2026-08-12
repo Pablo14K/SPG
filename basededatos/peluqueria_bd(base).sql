@@ -1881,10 +1881,12 @@ DROP TABLE IF EXISTS `preferencia_usuario`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `preferencia_usuario` (
   `id_usuario` int(10) unsigned NOT NULL,
+  `tema` varchar(10) NOT NULL DEFAULT 'claro' COMMENT 'Tema de la interfaz: claro u oscuro',
   `biometrico_activo` tinyint(1) NOT NULL DEFAULT 0,
   `biometrico_pregunt` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_usuario`),
-  CONSTRAINT `fk_prefusr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_prefusr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_pref_tema` CHECK (`tema` in ('claro','oscuro'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1894,7 +1896,7 @@ CREATE TABLE `preferencia_usuario` (
 
 LOCK TABLES `preferencia_usuario` WRITE;
 /*!40000 ALTER TABLE `preferencia_usuario` DISABLE KEYS */;
-INSERT INTO `preferencia_usuario` VALUES (1,0,1);
+INSERT INTO `preferencia_usuario` VALUES (1,'claro',0,1);
 /*!40000 ALTER TABLE `preferencia_usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -4973,4 +4975,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-11 20:01:44
+-- Dump completed on 2026-08-12 18:27:49

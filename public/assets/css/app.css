@@ -65,6 +65,87 @@
   --bs-form-invalid-border-color:var(--rojo);
 }
 
+/* =====================================================================
+   Tema oscuro
+
+   **No cambia ni una regla del sistema: sólo redefine las variables.**
+   Todo lo demás —paneles, tablas, badges, botones— ya está escrito con
+   `var(--…)`, así que cambia solo. Por eso acá no hay un solo selector
+   de componente: si aparece uno, es que algo se escribió con un color
+   suelto en vez de una variable, y eso es lo que hay que arreglar.
+
+   EL ORO NO SE TOCA. Es la identidad del salón y se lee igual sobre
+   claro que sobre oscuro; de hecho sobre oscuro luce más. Lo que se
+   invierte son los neutros, y **siguen siendo cálidos**: un #1A1A1A
+   tirando a marrón, no un gris azulado. Con neutros fríos el oro se
+   apaga, que es justo lo que la identidad quiere evitar.
+
+   Los tintes semánticos (verde, rojo, oro) sí necesitan versión propia:
+   los claros son casi blancos y sobre un fondo oscuro se convierten en
+   manchas. Se rehacen mezclando el color hacia el fondo, no hacia el
+   blanco.
+   ===================================================================== */
+[data-tema="oscuro"]{
+  /* --- Superficies, de más profunda a más cercana --- */
+  --negro:#080807;          /* nav · footer: el plano de atrás     */
+  --blanco-hueso:#14120F;   /* fondo de página                     */
+  --blanco:#1E1B17;         /* cards: un paso por encima del fondo */
+  --carbon:#EDE9E1;         /* texto principal                     */
+
+  --gris-oscuro:#A9A39A;    /* texto muted — 7,1:1 sobre el fondo  */
+  --gris-calido:#34302A;    /* bordes                              */
+
+  /* --- Tintes rehechos hacia el fondo, no hacia el blanco --- */
+  --oro-tinte:#2A2314;      /* avisos y badges con acento          */
+  --verde-tinte:#16251A;    /* salió bien                          */
+  --rojo-tinte:#2B1A1A;     /* se anuló                            */
+
+  /* Los semánticos se aclaran: el verde y el rojo oscuros de la paleta
+     clara no llegan al contraste mínimo sobre un fondo oscuro. */
+  --verde:#7FBF7F;
+  --rojo:#E08585;
+
+  /* --- Acciones secundarias --- */
+  /* `--oro-suave` era un fondo claro con texto oscuro; acá se da vuelta:
+     fondo apagado y texto dorado. El hover sigue siendo el oro macizo,
+     así que la jerarquía de tres pasos se mantiene igual. */
+  --oro-suave:#3B3018;
+  --oro-texto:#E8CC80;
+
+  /* --- Lo que Bootstrap no toma de las variables de arriba --- */
+  --bs-emphasis-color:var(--carbon);
+  --bs-secondary-bg:#26221D;
+  --bs-tertiary-bg:#1A1714;
+  /* El oro oscuro casi no se ve sobre el fondo: los enlaces pasan al claro */
+  --bs-link-color:var(--oro-claro);
+  --bs-link-color-rgb:232,204,128;
+  --bs-link-hover-color:var(--blanco-puro-oscuro,#FFFFFF);
+}
+
+/* La barra superior ya es negra en el tema claro, así que en oscuro
+   quedaría pegada al fondo. Se le deja un borde para que se despegue. */
+[data-tema="oscuro"] .spg-topbar{border-bottom:1px solid var(--gris-calido);}
+
+/* Las sombras suaves no se ven sobre fondo oscuro: lo que separa un
+   panel del fondo pasa a ser el borde. */
+[data-tema="oscuro"] .spg-panel,
+[data-tema="oscuro"] .spg-card{box-shadow:none;border-color:var(--gris-calido);}
+
+/* El navegador dibuja los controles nativos (fechas, horas, selects) con
+   su propio esquema: sin esto, un campo de fecha sale blanco. */
+[data-tema="oscuro"]{color-scheme:dark;}
+
+/* Lo único que hay que repetir acá son los pocos lugares donde quedó un
+   color escrito a mano en vez de una variable. Los bordes claros de las
+   alertas y del checkbox se dibujaban sobre fondo blanco; sobre oscuro
+   son marcos luminosos alrededor de un bloque apagado. Se apoyan en el
+   color del propio mensaje, que ya cambia con el tema. */
+[data-tema="oscuro"] .form-check-input{border-color:#4A443B;}
+[data-tema="oscuro"] .alert-success{border-color:#2E4A32;}
+[data-tema="oscuro"] .alert-danger{border-color:#4E2C2C;}
+[data-tema="oscuro"] .alert-warning{border-color:#4A3B1C;color:var(--oro-texto);}
+[data-tema="oscuro"] .alert-info{background:var(--bs-secondary-bg);}
+
 *{box-sizing:border-box;}
 body{
   background:var(--blanco-hueso);

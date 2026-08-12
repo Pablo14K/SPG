@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **20 procedimientos, 30 funciones, 17 triggers y 17 vistas**,
-más **56 restricciones `CHECK`**.
+más **57 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.2.0 | 12/08/2026 | **Tema oscuro, elegible desde Mi cuenta.** Es una preferencia de cada persona y no del salón: va en `preferencia_usuario`, atada a la cuenta y no al navegador, así que dos que comparten la computadora pueden tener uno cada una. **No cambia ni una regla del CSS: sólo redefine las variables.** Todo el sistema ya estaba escrito con `var(--…)`, así que paneles, tablas, badges y botones cambian solos — por eso el bloque del tema no tiene selectores de componente, y si aparece uno es la señal de que algo se escribió con un color suelto. **El oro no se toca**: es la identidad, y sobre oscuro luce más. Lo que se invierte son los neutros, y **siguen siendo cálidos** —#14120F tirando a marrón, no un gris azulado—, porque con neutros fríos el oro se apaga, que es justo lo que la paleta quiere evitar. Los tintes semánticos sí se rehacen, mezclados hacia el fondo y no hacia el blanco: los claros sobre oscuro son manchas. Contrastes medidos entre **6,2:1 y 15,4:1**, todos por encima de AA. Se guarda `color-scheme:dark` para que los campos de fecha y hora nativos no salgan blancos. **El papel no lo hereda**: las dos vistas de impresión van siempre en claro, porque un informe en oscuro es tinta sobre negro. De paso se documentan las claves de SIFEN en `.env.example` y `.env.produccion.example`, que sólo estaban en `env.docker` — los tres entornos vuelven a listar lo mismo. **57 pruebas** |
 | 7.1.1 | 12/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_bd`**, la base que se entrega: al entrar se ve el sistema tal como lo encuentra el salón el primer día. Es la línea `DB_DATABASE` de `docker/php/env.docker`, la misma que se movió en la 6.1.2 y en la 6.3.1 — el interruptor está para usarse, y lo que importa es que **la que se entrega es la que hay que dejar puesta antes de entregar**. De paso se documenta una trampa que apareció al cambiarla: el valor estaba en **`peluqueria_bd_test`**, un nombre que no existe —los dos reales pegados—, y el síntoma engaña, porque la pantalla de ingreso contesta **200 igual**: no toca la base hasta que se aprieta Ingresar, y recién ahí sale «Unknown database». Ahora los tres lugares donde se busca esto (el propio `env.docker`, el README y la sección **Entorno**) dicen que los nombres son dos y avisan del error |
 | 7.1.0 | 11/08/2026 | **Cuatro funciones que estaban escritas y no se podían usar, y una limpieza de todo lo que no llegaba a ejecutarse.** Un barrido de uso real —cada método, clase CSS, atributo del JS, rutina y tabla contra quien la nombra— destapó que había **código correcto, probado y sin embargo inalcanzable**, que es la peor forma de deuda: parece que la función existe. **Cobrar una seña**: el controlador, `sp_registrar_sena` y hasta `$metodos` que le pasaba la agenda estaban listos; no había un solo formulario apuntando a la ruta, así que la pantalla mostraba el badge «seña» y el aviso de caja cerrada sin ninguna forma de cobrarla. **Renombrar un rol**: se podían crear y borrar, no cambiarles el nombre. Al conectarlo apareció un error de fondo — `rolEditar` protegía el `activo` del Administrador pero no el del **Cliente**, así que renombrarlo lo habría dejado inactivo y el portal sin rol al que asignar a quien se registra; ahora los dos protegidos conservan `activo` y `es_personal`, decidido en el servidor y no escondiendo la casilla. **Avisar que el profesional no va a estar**: `Notificaciones::avisarProfesionalNoDisponible()` existía completa desde la 6.0.0 y no la llamaba nadie; en su lugar había dos `TODO` que mandaban a «portar notificaciones.php», un archivo del sistema archivado. Ahora la llaman la carga de una excepción y la baja del personal, y **acepta el salón entero** (`id_usuario` NULL, que es como se carga un feriado), que era el caso que más gente dejaba plantada. **Y el selector de disponibilidad pasa a ser uno solo**: `app.js` traía el genérico del sistema pre-Laravel armando la URL como `index.php?r=…`, o sea que no podía funcionar y ninguna vista lo activaba; las dos pantallas que reservan lo habían reescrito por su cuenta, 192 líneas casi idénticas. Se reescribió el de `app.js` contra las rutas de Laravel, parametrizado por endpoint, sujeto y botón, y las dos vistas quedaron con marcado. **Lo que se fue**: 190 líneas de CSS —53 clases sin un solo marcado que las usara, familias enteras (`comp-*` del comprobante, `spg-perm-*` de la matriz, `spg-encurso-*` del portal) heredadas de la versión sin framework—, el andamiaje de Laravel que este proyecto declara no usar (`app/Models/User.php`, factories, seeders, `welcome.blade.php`, `package.json`, `vite.config.js`, `.npmrc`, `resources/css`, `resources/js`, la suite `Unit` con su `assertTrue(true)`), cinco métodos que nadie llamaba —incluidas unas migas de pan duplicadas que el componente `<x-encabezado>` ya resolvía— y la tabla **`spg_migracion`**, que sobrevivía del sistema anterior y **se entregaba con 15 filas adentro** del `.sql` que instala el salón. De paso salieron tres cosas más: `composer.json` corría `artisan migrate` en `post-create-project-cmd`, justo lo que este proyecto prohíbe; `spg:diagnostico` esperaba **54** `CHECK` cuando hay 56, así que perder las dos de `factura_electronica` no habría hecho saltar nada; y **el día y la hora que se eligen en el selector no se marcaban**, porque `.spg-chip.activo` estaba escrita únicamente anidada en `.agenda-grupo` y `.spg-atajos`, dos contenedores que ninguna vista dibuja — el JS ponía la clase desde siempre y no la respondía nadie. Ahora la regla existe suelta y el chip elegido se llena de oro. **56 pruebas** (tres nuevas: el rol protegido, el aviso al cargar una excepción y que la agenda ofrezca la seña) y los dos `.sql` regenerados y reimportados de control |
 | 7.0.0 | 11/08/2026 | **Entra la facturación electrónica: el SPG se acopla al Automatizador SIFEN.** Sube la **X** porque cambia qué se emite por defecto y la base lleva una tabla más. **El SPG no habla con la DNIT ni firma nada**: toma el comprobante que ya numeró con su timbrado, lo escribe en el formato de texto del Automatizador (`FAC\|CLI\|ITM`) y se lo manda; lo que vuelve es el CDC, que se guarda en `factura_electronica`. La decisión que ordena todo lo demás: **la clienta no siempre pide factura**, así que ahora se emite **Ticket por defecto** —comprobante interno, numerado, que no sale del salón— y sólo se elige Factura cuando la piden; únicamente los tipos 1 y 5 se declaran. **Emitir y declarar son dos pasos separados**, y es a propósito: la factura ya es válida sin la DNIT, así que un servicio caído no puede frenar el cobro. Un rechazo por datos queda **RECHAZADO** y no se reintenta solo —repetirlo da el mismo error—; un corte de red queda **PENDIENTE**, porque del otro lado puede haberse emitido igual. Viene con un **modo simulado** que arma el TXT de verdad y devuelve un CDC de prueba, para ver el circuito sin depender del servicio: el dominio publicado del Automatizador no responde hoy. Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no aparece en ninguna pantalla. **56 pruebas** |
@@ -150,7 +151,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | 6.1.3 | 11/08/2026 | **El correo del contenedor sale de verdad**: `docker/php/env.docker` pasa de `log` a SMTP por Gmail, así que el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios llegan al buzón. Al configurarlo aparecieron **tres nombres de variable obsoletos** que circulan en apuntes viejos: Laravel 13 lee `MAIL_MAILER`, `MAIL_SCHEME` y `MAIL_FROM_ADDRESS`, **no** `MAIL_TRANSPORT`, `MAIL_ENCRYPTION` ni `MAIL_FROM_EMAIL` — con los viejos el sistema se queda en `log` y no manda nada sin dar ningún error. El remitente además tiene que ser la misma cuenta que se autentica, porque Gmail rechaza un `From` de otro dominio. **Ojo: este archivo lleva ahora una contraseña de aplicación de Google**; se revoca desde `myaccount.google.com/apppasswords` sin tocar la cuenta |
 | 6.1.2 | 10/08/2026 | **El contenedor arranca contra `peluqueria_bd`, la base vacía**, y no contra la cargada: así lo que se ve al entrar es el sistema tal como lo encuentra el salón el primer día. `peluqueria_test` se sigue creando igual —es contra ella que corren las 38 pruebas, y eso lo fija `phpunit.xml` por su cuenta—, así que se cambia una línea de `docker/php/env.docker` para trabajar con los datos del QA en pantalla |
 | 6.1.1 | 10/08/2026 | **El proyecto pasa a ser autosuficiente y esta documentación deja de describir el sistema viejo.** Los dos `.sql`, el guion de limpieza y la paleta se mudan adentro (`basededatos/`, `Referencias/`), así que la carpeta se puede sacar de `Sistema_Gestion_Peluqueria` y el proyecto anterior se archiva — antes, movida de lugar, el `docker compose up` importaba dos bases vacías sin avisar. Se reescriben para Laravel las secciones de **Arquitectura**, **Convenciones**, **listados**, **altas rápidas**, **submódulos**, **la hora**, **entorno**, **publicación** y **migraciones**, y se agrega una de **pruebas** |
-| 6.1.0 | 10/08/2026 | **El proyecto se puede levantar en otra computadora sin armar el entorno a mano**: `docker compose up` fija MariaDB 10.4 (que es lo que importa: las 56 CHECK y las 50 rutinas están escritas para ese motor), importa las dos bases solo y clava la zona horaria. Convive con XAMPP — la base va al 3307. Además se corrigen tres cosas que hacían fallar la entrega: el `.env.example` era el genérico de Laravel y mandaba sesiones, caché y colas a `database`, o sea que el framework creaba **sus tablas dentro de la base del TCC**; el `README.md` seguía siendo el de Laravel; y **`basededatos/1mes_simulacion.sql` había quedado viejo** —48 rutinas en vez de 50, sin `fn_promo_vigente` ni `fn_descuento_monto_factura` de la 5.5.0—, así que se regeneró |
+| 6.1.0 | 10/08/2026 | **El proyecto se puede levantar en otra computadora sin armar el entorno a mano**: `docker compose up` fija MariaDB 10.4 (que es lo que importa: las 57 CHECK y las 50 rutinas están escritas para ese motor), importa las dos bases solo y clava la zona horaria. Convive con XAMPP — la base va al 3307. Además se corrigen tres cosas que hacían fallar la entrega: el `.env.example` era el genérico de Laravel y mandaba sesiones, caché y colas a `database`, o sea que el framework creaba **sus tablas dentro de la base del TCC**; el `README.md` seguía siendo el de Laravel; y **`basededatos/1mes_simulacion.sql` había quedado viejo** —48 rutinas en vez de 50, sin `fn_promo_vigente` ni `fn_descuento_monto_factura` de la 5.5.0—, así que se regeneró |
 | 6.0.0 | 10/08/2026 | **El sistema pasa a Laravel 13**, por pedido de la tutora. Cambia la arquitectura, no lo que hace: los 8 módulos, el portal de la clienta y las cuentas quedan iguales, con el mismo Bootstrap y la misma paleta. **La lógica sigue en la base**: las 50 rutinas y los 17 triggers no se tocaron, Laravel los consume. Entra lo que el framework aporta —middleware y Gates para los 28 permisos, componentes Blade, Mailables, scheduler— y una **batería de 38 pruebas** que cubre lo que el QA del mes había validado a mano: concurrencia de la agenda con procesos en paralelo, arqueo de caja, correlativos sin huecos y la jerarquía de permisos. Sube la **X** porque el despliegue se hace de cero |
 | 5.5.0 | 08/08/2026 | **Las promociones con vigencia por fin se aplican solas.** `sp_emitir_factura` ya no mira únicamente el descuento del nivel: compara el del nivel con la mejor promoción vigente y aplica **el que más le convenga al cliente, nunca los dos sumados**. Pantalla nueva para elegir **a qué servicios aplica** una promo (`servicio_descuento`, que existía en la base y no tenía cómo cargarse). Además, **el saldo de caja pasa a ser el arqueo físico**: sólo lo mueve el efectivo, y un pago al proveedor por transferencia ya no vacía el cajón. Un egreso en efectivo mayor al disponible se rechaza, así la caja no queda en negativo |
 | 5.4.1 | 08/08/2026 | Correcciones salidas de la simulación de un mes (ver `Pruebas_QA/INFORME_QA_MES.md`). **Una compra con el nombre mal tipeado ya no crea un producto duplicado**: la pantalla manda el id cuando el producto existe, el servidor compara el nombre normalizado, y si igual resulta nuevo lo dice por su nombre. **La franja del fichaje se valida en el servidor**, no sólo en la vista. El **Profesional pierde `facturacion.pagos` y `facturacion.proveedores`**, que le dejaban pagarle a proveedores y revertir liquidaciones ajenas. `persona_error()` valida largos y formato de cédula/RUC (antes MariaDB recortaba en silencio). Los avisos internos de stock se cierran solos al reponer. El rechazo por CSRF devuelve **403 con una pantalla explicada**, no un 500 |
@@ -221,7 +222,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 56 pruebas
+tests/Feature/             Las 57 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -357,6 +358,31 @@ sobrescritas las variables `--bs-*` y, además, pisados a mano los componentes q
 color compilado y no salen por variable: `.form-check-input:checked` (casillas e interruptores),
 `.nav-pills`, `.dropdown-menu`, anillos de foco, tablas y alertas. **Si agregás un componente
 nuevo de Bootstrap, revisá que no aparezca azul**; si aparece, sumá el override ahí.
+
+### Tema oscuro
+
+Se elige en **Mi cuenta → Apariencia** y se guarda en `preferencia_usuario.tema`: es de cada
+persona, atado a la cuenta y no al navegador, así que dos que comparten la computadora pueden
+tener uno cada una. El layout lo dibuja como `data-tema="oscuro"` en el `<html>`, leyéndolo de
+la sesión — **no con JavaScript**, porque la pantalla parpadearía en claro antes de oscurecerse.
+
+**El bloque `[data-tema="oscuro"]` de `app.css` sólo redefine variables.** Todo el sistema ya
+está escrito con `var(--…)`, así que los componentes cambian solos. **Si tenés que agregar un
+selector de componente ahí, es la señal de que algo se escribió con un color suelto** — el
+arreglo es cambiar ese color por una variable, no sumar la excepción. Lo poco que hay hoy son
+los bordes de las alertas y del checkbox, que estaban en hexadecimal.
+
+Tres reglas al tocarlo:
+
+- **El oro no se toca.** Es la identidad y se lee igual sobre los dos fondos; sobre oscuro
+  luce más. Lo que se invierte son los neutros.
+- **Los neutros oscuros siguen siendo cálidos** (`#14120F`, tirando a marrón). Con grises
+  azulados el oro se apaga, que es justo lo que la paleta quiere evitar.
+- **Los tintes se mezclan hacia el fondo, no hacia el blanco.** `--verde-tinte` y compañía son
+  casi blancos en el tema claro; puestos sobre un fondo oscuro serían manchas.
+
+`color-scheme:dark` va declarado porque si no los campos nativos de fecha y hora salen blancos.
+**Las dos vistas de impresión no llevan el atributo**: el papel siempre va en claro.
 
 ## Interfaz
 
@@ -1226,8 +1252,34 @@ Hay **dos formas de levantarlo en desarrollo**, y dan lo mismo. Los pasos están
 > eso el sistema **no se publica en `htdocs`** —como se hacía con la versión anterior— sino
 > que se sirve con `artisan serve` o desde el contenedor.
 
-La configuración va en `.env` (`.env.example` es la plantilla). Dentro del contenedor, en
-`docker/php/env.docker`, que se monta encima: así las dos formas conviven sin pisarse.
+### Los cuatro archivos de entorno, y por qué son cuatro
+
+Parecen de más, pero cada uno responde a algo distinto. **Laravel lee un solo `.env`**, así
+que no se pueden factorizar en uno común: lo compartido se repite, y eso es inherente.
+
+| Archivo | Qué es | ¿Se versiona? |
+|---|---|---|
+| `.env` | el real de esta computadora | **no** (está en `.gitignore`) |
+| `.env.example` | plantilla para desarrollar. `cp .env.example .env` y andar | sí |
+| `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | sí |
+| `.env.produccion.example` | plantilla del servidor | sí |
+
+**`env.docker` no es opcional ni duplicado**: sin él habría que pasar las credenciales como
+variables del contenedor, y `artisan serve` sólo le reenvía al servidor web una lista blanca,
+así que `DB_HOST` no llegaría — los comandos de consola andarían y la web contestaría
+*Connection refused*. Además existe montado, así que **tiene que existir en el repositorio**:
+si no, Docker crea una carpeta en su lugar y el montaje falla.
+
+**`.env.produccion.example` está aparte a propósito.** De sus 44 claves, **16 tienen un valor
+distinto** al de desarrollo, y son justo las que rompen en silencio: `APP_DEBUG`, `APP_ENV`,
+`APP_URL`, `LOG_LEVEL`, las credenciales de la base y el correo. Juntarlo con el de desarrollo
+en un solo archivo con comentarios invita a copiar el de desarrollo al servidor, que es
+exactamente el problema que este archivo evita (fue el H-02 de la auditoría).
+
+> **Las tres plantillas tienen que listar las mismas claves.** Cuando se agrega una opción hay
+> que ponerla en las tres, aunque el valor cambie: si sólo está en una, la opción existe pero
+> es invisible para quien lee las otras. Pasó con las claves de `SIFEN_*`, que quedaron sólo
+> en `env.docker` hasta la 7.2.0. Se comprueba comparando las tres listas de claves.
 
 **Cambiar de base en Docker es una línea de `docker/php/env.docker`**, porque el contenedor
 crea e importa las dos en el primer arranque (`docker/bd/10-importar.sh`):
@@ -1445,7 +1497,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 56 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 57 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -1454,7 +1506,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 56 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 57 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1477,7 +1529,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando las 20 rutinas, 30 funciones,
-   17 triggers, 17 vistas y 56 `CHECK`.
+   17 triggers, 17 vistas y 57 `CHECK`.
 5. Respetar la **regla número dos**: 3FN, sin datos repetidos ni columnas derivadas guardadas.
 
 **Cuidado con el orden al reestructurar una tabla.** MariaDB no deja soltar un índice mientras
@@ -1499,7 +1551,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**56 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**57 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

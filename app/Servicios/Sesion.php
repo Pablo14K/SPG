@@ -101,6 +101,10 @@ class Sesion
             'es_cliente' => ! (bool) $u->es_personal,
             'id_sucursal' => (int) ($u->id_sucursal ?? 0),
             'id_cliente' => null,
+            // El tema se lee una vez al entrar y viaja en la sesión: lo dibuja
+            // el layout en cada pantalla, y consultarlo por petición sería una
+            // consulta de más para un dato que no cambia solo.
+            'tema' => self::temaDe((int) $u->id_usuario),
         ]);
 
         if (! $u->es_personal) {
@@ -168,5 +172,46 @@ class Sesion
         session()->flush();
         session()->regenerate();
         Permisos::olvidar();
+    }
+
+    /** Los temas que existen. De acá salen el selector y la validación. */
+    public const TEMAS = ['claro' => 'Claro', 'oscuro' => 'Oscuro'];
+
+    /**
+     * El tema que eligió esta persona.
+     *
+     * Si no tiene fila en `preferencia_usuario` —o el valor quedó en algo que
+     * ya no existe— se devuelve «claro», que es el de siempre. La pantalla
+     * nunca se queda sin tema.
+     */
+    public static function temaDe(int $idUsuario): string
+    {
+        $t = (string) (DB::scalar('SELECT tema FROM preferencia_usuario WHERE id_usuario = ?', [$idUsuario]) ?: '');
+
+        return isset(self::TEMAS[$t]) ? $t : 'claro';
+    }
+
+    /** El tema de quien está mirando la pantalla ahora. */
+    public static function tema(): string
+    {
+        $t = (string) session('tema', 'claro');
+
+        return isset(self::TEMAS[$t]) ? $t : 'claro';
+    }
+
+    /** Guarda el tema y lo deja aplicado en el acto, sin volver a entrar. */
+    public static function guardarTema(int $idUsuario, string $tema): bool
+    {
+        if (! isset(self::TEMAS[$tema])) {
+            return false;
+        }
+
+        DB::statement(
+            'INSERT INTO preferencia_usuario (id_usuario, tema) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE tema = VALUES(tema)', [$idUsuario, $tema]
+        );
+        session(['tema' => $tema]);
+
+        return true;
     }
 }
