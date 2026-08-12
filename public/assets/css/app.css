@@ -33,6 +33,23 @@
      chica no se lee bien; con este llega a 5,7:1 y cumple AA. */
   --oro-texto:#6B5314;
 
+  /* ---------------------------------------------------------------
+     Superficies que van OSCURAS en los dos temas: la barra superior,
+     la barra de módulos y el pie. Son oscuras por identidad, no por el
+     tema, así que necesitan su propio par de variables.
+
+     Sin esto se usaban `--negro`, `--carbon` y `--gris-calido`, que en
+     el tema claro daban justo lo que hacía falta (fondo oscuro, texto
+     claro) pero **se dan vuelta al invertir la paleta**: los enlaces
+     del pie quedaban en 1,5:1 —invisibles— y la barra de módulos salía
+     con fondo claro, porque `--carbon` pasa a ser el color del texto.
+     --------------------------------------------------------------- */
+  --sup-oscura:#0D0D0D;         /* barra superior y pie          */
+  --sup-oscura-2:#1A1A1A;       /* barra de módulos: un paso más */
+  --sup-oscura-borde:#2A2A2A;
+  --sobre-oscura:#E6E2DB;       /* texto encima — 14,6:1         */
+  --sobre-oscura-tenue:#9E988E; /* secundario   —  5,6:1         */
+
   --radius:12px;
 
   /* ---------------------------------------------------------------
@@ -112,6 +129,15 @@
   --oro-suave:#3B3018;
   --oro-texto:#E8CC80;
 
+  /* --- Barra superior, barra de módulos y pie ---
+     Ya eran oscuras en el tema claro, así que sólo se profundizan un
+     paso para que no queden pegadas al fondo de la página. El texto de
+     encima NO cambia: sigue claro en los dos temas, que es justamente
+     lo que se rompía cuando salía de `--gris-calido`. */
+  --sup-oscura:#080807;
+  --sup-oscura-2:#111010;
+  --sup-oscura-borde:#2C2823;
+
   /* --- Lo que Bootstrap no toma de las variables de arriba --- */
   --bs-emphasis-color:var(--carbon);
   --bs-secondary-bg:#26221D;
@@ -119,7 +145,7 @@
   /* El oro oscuro casi no se ve sobre el fondo: los enlaces pasan al claro */
   --bs-link-color:var(--oro-claro);
   --bs-link-color-rgb:232,204,128;
-  --bs-link-hover-color:var(--blanco-puro-oscuro,#FFFFFF);
+  --bs-link-hover-color:#FFFFFF;
 }
 
 /* La barra superior ya es negra en el tema claro, así que en oscuro
@@ -156,7 +182,7 @@ body{
 
 /* ---- Barra superior ---- */
 .spg-topbar{
-  background:var(--negro);
+  background:var(--sup-oscura);
   padding:.7rem 1.4rem;
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:1030;
@@ -167,11 +193,11 @@ body{
   display:flex;align-items:center;justify-content:center;color:var(--negro);font-size:1.2rem;
 }
 .spg-brand-name{color:var(--oro);font-size:1.05rem;font-weight:500;letter-spacing:.3px;}
-.spg-topbar .spg-user{color:var(--gris-calido);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
+.spg-topbar .spg-user{color:var(--sobre-oscura);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
 /* Sin restringir a "a": en la barra hay enlaces y también botones (Módulos),
    y un <button> no hereda el color, se queda con el del navegador. */
 .spg-topbar .spg-user-link{
-  color:var(--gris-calido);text-decoration:none;
+  color:var(--sobre-oscura);text-decoration:none;
   background:none;border:none;padding:0;font:inherit;line-height:1;
   display:inline-flex;align-items:center;gap:.35rem;transition:color .15s;
 }
@@ -261,7 +287,7 @@ body{
 .spg-card.dark{background:var(--carbon);border-color:var(--carbon);}
 .spg-card.dark .ic{background:var(--negro);color:var(--oro);}
 .spg-card.dark h3{color:var(--blanco-hueso);}
-.spg-card.dark p{color:var(--gris-calido);}
+.spg-card.dark p{color:var(--sobre-oscura-tenue);}
 
 /* ---- Contenedores de contenido ---- */
 .spg-panel{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1.2rem;}
@@ -555,14 +581,14 @@ html,body{max-width:100%;overflow-x:hidden;}
    Va en carbón, un escalón más claro que la barra negra de arriba, para que
    se lean como dos niveles y no como una sola franja negra. El módulo actual
    se marca con el oro: es jerarquía —dónde estoy—, no decoración. */
-.spg-nav{background:var(--carbon);border-bottom:1px solid #2a2a2a;position:sticky;top:52px;z-index:1020;}
+.spg-nav{background:var(--sup-oscura-2);border-bottom:1px solid var(--sup-oscura-borde);position:sticky;top:52px;z-index:1020;}
 .spg-nav-in{
   display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:thin;
   max-width:1320px;margin:0 auto;padding:0 .8rem;
 }
 .spg-nav-item{
   display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
-  padding:.6rem .8rem;color:var(--gris-calido);text-decoration:none;font-size:.82rem;
+  padding:.6rem .8rem;color:var(--sobre-oscura);text-decoration:none;font-size:.82rem;
   border-bottom:2px solid transparent;transition:color .13s,border-color .13s;
 }
 .spg-nav-item i{font-size:.95rem;opacity:.85;}
@@ -571,7 +597,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-nav-item.activo i{opacity:1;}
 
 /* ---- Pie ---- */
-.spg-footer{background:var(--negro);color:var(--gris-calido);margin-top:2.5rem;}
+.spg-footer{background:var(--sup-oscura);color:var(--sobre-oscura);margin-top:2.5rem;}
 /* Las secciones van en tres columnas, no en una lista larga: apiladas
    estiraban el pie y dejaban una franja negra enorme abajo. */
 /* Con solo dos bloques, una grilla a lo ancho de 1320px los tiraba contra los
@@ -592,7 +618,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 .spg-footer-col ul{list-style:none;margin:0;padding:0;}
 .spg-footer-col li{margin-bottom:.3rem;font-size:.82rem;}
-.spg-footer-col a{color:var(--gris-calido);text-decoration:none;}
+.spg-footer-col a{color:var(--sobre-oscura);text-decoration:none;}
 .spg-footer-col a:hover,.spg-footer-col a:focus-visible{color:var(--oro-claro);text-decoration:underline;}
 /* 3 columnas: con 8 secciones quedan 3 + 3 + 2.
    `minmax(0,1fr)` y no `1fr` a secas: dentro de un contenedor que se encoge,
@@ -606,7 +632,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   display:flex;align-items:center;gap:.45rem;
   color:var(--oro);font-size:1rem;font-weight:500;margin-bottom:.35rem;
 }
-.spg-footer-tcc{font-size:.75rem;color:#6f6f6f;margin:0;max-width:30ch;line-height:1.45;}
+.spg-footer-tcc{font-size:.75rem;color:var(--sobre-oscura-tenue);margin:0;max-width:30ch;line-height:1.45;}
 /* El rótulo va centrado sobre la grilla de enlaces, no pegado al borde de la
    columna. Se centra con flex y no con text-align para que el eje sea el mismo
    para los dos: si se centrara cada uno por su cuenta respecto de la columna,
@@ -626,13 +652,13 @@ html,body{max-width:100%;overflow-x:hidden;}
   color:var(--oro);font-size:1.05rem;font-weight:500;
   font-variant-numeric:tabular-nums;line-height:1.1;
 }
-.spg-version-fecha{font-size:.75rem;color:#8a8a8a;margin-top:.2rem;}
+.spg-version-fecha{font-size:.75rem;color:var(--sobre-oscura-tenue);margin-top:.2rem;}
 .spg-footer-pie{
-  border-top:1px solid #232323;text-align:center;
-  padding:.85rem 1rem;font-size:.75rem;color:#6f6f6f;
+  border-top:1px solid var(--sup-oscura-borde);text-align:center;
+  padding:.85rem 1rem;font-size:.75rem;color:var(--sobre-oscura-tenue);
   display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;
 }
-.spg-footer-sep{color:#3a3a3a;}
+.spg-footer-sep{color:var(--sup-oscura-borde);}
 
 @media (max-width:820px){
   .spg-footer-in{justify-content:flex-start;gap:1.2rem;}
