@@ -101,6 +101,34 @@ Cuatro cosas en la misma tanda, siempre juntas:
 3. una fila en el historial de acá abajo, diciendo **qué** cambió (no «varios ajustes»);
 4. **el commit** — ver acá abajo.
 
+### El contenedor tiene que quedar al día, siempre
+
+**Lo que corre en Docker no se actualiza solo, y cuando se atrasa no avisa: falla después.**
+Es el problema que más veces apareció en este proyecto, siempre con la misma forma —el código
+dice una cosa, lo que está corriendo dice otra— y siempre descubierto tarde, por alguien
+abriendo una pantalla.
+
+| Si tocaste… | Hay que… | Si no |
+|---|---|---|
+| el esquema de la base | `docker compose down -v && docker compose up` | **el `-v` es lo que importa**: sin él MariaDB NO reimporta y queda base vieja con código nuevo |
+| `docker/php/env.docker` | `docker compose restart app` | la aplicación sigue con la configuración anterior |
+| `docker-compose.yml` o el `Dockerfile` | `docker compose up -d --build` | el contenedor sigue siendo el de antes |
+| **cualquier cosa, antes de dar algo por terminado** | `docker compose exec app php artisan spg:diagnostico` | es lo único que compara lo que corre contra lo que se entrega |
+
+Las tres veces que mordió, para no repetirlas:
+
+- **Una compañera actualizó y el ingreso murió con un 500** («Columna desconocida `tema`»). El
+  volumen ya tenía datos, así que el guion de importación —que corre **una sola vez, con el
+  volumen vacío**— no volvió a correr. De ahí salió la comprobación de esquema del diagnóstico.
+- **El repositorio quedó con `SIFEN_TIPO_DEFECTO` apuntando a un comprobante dado de baja**,
+  porque `env.docker` estaba marcado con `skip-worktree` y **ni se commiteaba ni aparecía en
+  `git status`**. Ver el aviso de los cuatro archivos de entorno.
+- **El Automatizador SIFEN se caía y nadie lo notaba**, así que las facturas se acumulaban en
+  PENDIENTE. Por eso ahora sube con el resto en el `docker-compose.yml`.
+
+> **Y antes de entregar, dos cosas más**: `DB_DATABASE=peluqueria_bd` —la base que se instala,
+> no el mes simulado— y los dos `.sql` regenerados en la misma tanda que el cambio de esquema.
+
 ### Si al arreglar algo vas a dejar otra cosa sin funcionar, PREGUNTÁ ANTES
 
 **Apagar una función para resolver otro problema no es una decisión técnica: es del usuario.**
@@ -168,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.12.2 | 13/08/2026 | **Queda escrita la regla del contenedor al día**, que es el problema que más veces apareció en este proyecto y siempre con la misma forma: el código dice una cosa y lo que está corriendo dice otra, **sin avisar** — falla después, cuando alguien abre una pantalla. Se anota qué hay que correr según qué se tocó (`down -v` para el esquema, `restart app` para el `.env`, `up --build` para el compose) y que `spg:diagnostico` es lo único que compara lo que corre contra lo que se entrega. Con las tres veces que mordió anotadas: el 500 de la columna `tema` en la computadora de una compañera, el `SIFEN_TIPO_DEFECTO` que quedó apuntando a un comprobante dado de baja porque `skip-worktree` lo escondía, y el Automatizador que se caía sin que nadie lo notara |
 | 7.12.1 | 13/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_bd`, la base que se entrega**, y de paso se recupera todo lo que `env.docker` había dejado de commitear. Es la trampa que la 7.8.0 documentó y que igual mordió: con `skip-worktree` puesto **ningún cambio de ese archivo se commitea y `git status` tampoco lo muestra**, así que el repositorio se quedó con `SIFEN_TIPO_DEFECTO=3` —el Ticket, que se dio de baja en la 7.9.0— y con `DB_DATABASE=peluqueria_test`. Quien clonara el proyecto arrancaba apuntando a un comprobante inactivo. Ahora la versión versionada dice lo que corresponde: base `peluqueria_bd`, comprobante 8 y `MAIL_MAILER=log` con las credenciales vacías, porque una contraseña ahí queda en el repositorio y en todas sus copias. La copia local conserva el correo andando y vuelve a marcarse. El comentario del archivo pasa a explicar las dos caras: cómo encender el correo **y** que la marca esconde los cambios, con `git ls-files -v` para comprobarlo |
 | 7.12.0 | 13/08/2026 | **Se elige qué imprimir con casillas, y el equipo muestra cuánto ganó cada una.** El `<select>` de la 7.7.0 obligaba a elegir **un** bloque, y lo que se pide de verdad es la combinación —el resumen y el equipo, por ejemplo—: pasan a ser casillas, todas marcadas de arranque, así que quien no toca nada imprime el informe entero como antes. Si no queda ninguna marcada se imprime todo: **nunca sale una hoja en blanco**. La casilla **Todo** es la misma pieza que ya usa la matriz de permisos, no una nueva. Y la tabla del equipo suma **las dos plata que no son la misma**: **Generado**, lo que el salón facturó gracias a ella, y **Comisión**, lo que le toca —la calcula `fn_comision_servicio` con el porcentaje o el monto vigente—. Al probarlo apareció algo que había que resolver: **un «Gs. 0» ahí miente por omisión**, porque casi nunca significa que ganó cero sino que **nadie le cargó una comisión** — `fn_comision_servicio` devuelve 0 en los dos casos y son indistinguibles. Ahora dice **«sin cargar»**, y con eso se ve que en la base de prueba les falta a **seis de siete profesionales**. **63 pruebas** |
 | 7.11.0 | 13/08/2026 | **El comprobante se manda por correo, y se lo encuentra donde se lo busca.** El «Recibo de dinero» pasa a llamarse **Comprobante de pago**, que es como se lo nombra en el mostrador. Como **no es una factura**, buscarlo bajo «Facturas» no se le ocurre a nadie: ahora **desde Cobros el número abre el comprobante** y dice de qué tipo es. Y hay un botón para **mandárselo a la clienta por correo**, que hacía falta sobre todo para este comprobante: al no declararse, no pasa por el Automatizador y **nadie se lo mandaba** — la única forma de que se lo llevara era imprimirlo. El detalle va escrito en el cuerpo, para leerlo de una en el teléfono, y **si el comprobante se declaró se le adjuntan el KuDE en PDF y el XML**, como pide el manual del SIFEN: son los documentos con valor fiscal y el cuerpo no los reemplaza. Salen de la copia local, así que se puede reenviar con el servicio apagado. La dirección viene de la ficha y **se puede cambiar sin tocarle la ficha**, porque es para ese envío. Tres cosas se arreglaron al probarlo, y las tres se vieron **porque el `catch` ahora loguea**: la plantilla usaba `descuento` y `total` cuando la vista los llama `descuento_total` y `total_neto`; **`@if` pegado a una palabra no lo compila Blade** —su patrón lleva `\B` delante de la arroba— así que `PDF@if (…)` salió tal cual en el correo que llegó al buzón; y en el modal de cobro **la transferencia pedía «Nº de cheque»** y el cheque «Nº de operación», cuando cada uno tiene el suyo — además el vuelto ya no se pregunta si nadie paga en efectivo, que no hay billete ni cambio que dar. Por último, **el formulario de la factura deja de hablar en técnico**: los códigos del manual (D206, D211, D216…) salen de la pantalla y quedan en este documento, que es donde sirven. **63 pruebas** |
