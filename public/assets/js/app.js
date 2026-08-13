@@ -687,11 +687,25 @@ window.SPGCarga = (function () {
       if (btn) btn.disabled = falta < -0.5;
     }
 
+    // Qué dice el campo «Referencia» según el medio. Decía siempre «Nº de
+    // operación, boleta…», y con efectivo eso prometía una boleta que no
+    // existe: `nro_boleta` es una columna de `cobro_tarjeta`, no del cobro.
+    var PISTA = {
+      EFECTIVO: 'Nº de recibo interno (opcional)',
+      TARJETA:  'Referencia interna (la boleta va abajo)',
+      BANCO:    'Referencia interna (el nº de operación va abajo)',
+      CHEQUE:   'Referencia interna (el nº de cheque va abajo)',
+      OTRO:     'Nº de operación de la billetera'
+    };
+
     function ajustarExtras(linea) {
       var sel = linea.querySelector('.spg-cobro-metodo');
       var tipo = sel.options[sel.selectedIndex].getAttribute('data-tipo');
       linea.querySelector('.spg-extra-tarjeta').style.display = (tipo === 'TARJETA') ? '' : 'none';
       linea.querySelector('.spg-extra-banco').style.display   = (tipo === 'BANCO' || tipo === 'CHEQUE') ? '' : 'none';
+
+      var ref = linea.querySelector('[name="referencia[]"]');
+      if (ref) ref.placeholder = PISTA[tipo] || 'Referencia (opcional)';
     }
 
     function nuevaLinea(monto) {

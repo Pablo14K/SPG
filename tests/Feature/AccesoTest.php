@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -13,10 +14,15 @@ use Tests\TestCase;
  * Entrar, salir y no pasar donde no corresponde.
  *
  * Corre contra `peluqueria_test`, que trae las cuentas del mes simulado.
- * Estas pruebas solo leen: el login no escribe nada salvo la fila de auditoría.
+ * Casi todo es de lectura, pero la prueba que abre las pantallas de la
+ * operación diaria necesita **una cita atendida y sin comprobante** para que
+ * la pantalla del receptor tenga algo que mostrar, y en la base puede no
+ * haberla. Por eso `DatabaseTransactions`: se prepara el caso y se revierte.
  */
 class AccesoTest extends TestCase
 {
+    use DatabaseTransactions;
+
     private const ADMIN = 'admin';
 
     private const CLAVE = 'admin123';
@@ -178,6 +184,19 @@ class AccesoTest extends TestCase
               ORDER BY c.fecha_hora DESC LIMIT 1'
         );
 
+        // Si no hay ninguna sin facturar, se prepara una: la pantalla del
+        // receptor no se dibuja sin una cita facturable, y si la prueba la
+        // saltea deja de cubrirla justo cuando la base está al día.
+        if (! $idCita) {
+            $idCita = (int) DB::scalar(
+                'SELECT c.id_cita FROM cita c
+                  WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+                  ORDER BY c.id_cita DESC LIMIT 1'
+            );
+            DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [$idCita]);
+            DB::delete('DELETE FROM factura WHERE id_cita = ?', [$idCita]);
+        }
+
         $pantallas = [
             ['citas.agenda', ['dia' => $dia]],
             ['citas.agenda', []],
@@ -186,7 +205,9 @@ class AccesoTest extends TestCase
             ['facturacion.facturas', []],
             ['facturacion.emitir', []],
             // Con la cita ya elegida, que es como se llega desde la agenda
-            ['facturacion.emitir', $idCita ? ['cita' => $idCita] : []],
+            ['facturacion.emitir', ['cita' => $idCita]],
+            // Los datos del receptor, el paso previo a emitir un electrónico
+            ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
             ['facturacion.caja', []],
             ['inventario.productos', []],
             ['reportes.index', []],

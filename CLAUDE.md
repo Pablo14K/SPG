@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.5.0 | 13/08/2026 | **Emitir una factura electrónica pasa a pedir los datos que exige el manual, validarlos y mandarla sola.** Antes se emitía con lo que hubiera en la ficha del cliente y declarar era un botón aparte que había que acordarse de apretar. Ahora hay una pantalla previa (`facturacion/receptor`) con los campos del **grupo D del Manual Técnico v150** —tipo y número de documento, nombre o razón social, correo, dirección, teléfono—, precargados y editables, y **cada campo lleva su ID del manual a la vista** para poder rastrearlo. El correo importa más que el resto: **es a donde el Automatizador manda el PDF**, y viene cargado de la ficha pero se puede cambiar. Se validan dos reglas concretas que hoy la DNIT rechazaba después de gastar el número: **el dígito verificador del RUC por módulo 11** (error 1309) y que **consumidor final no vale a partir de Gs. 60.000.000** (error 1321). Al calcular el DV apareció que **hay dos ciclos de pesos dando vueltas** —2..9 y 2..11— y el manual no trae el algoritmo, remite a un PDF de la SET; se resolvió contra el **CDC de ejemplo del propio manual**, que el ciclo 2..11 reproduce (DV 8) y el otro no (da 2). De paso: **el `80012345-6` del archivo de ejemplo del Automatizador tiene el DV mal** —el correcto es `80012345-0`—, así que no sirve como ejemplo en pantalla. **El orden se mantiene y es lo que no hay que perder**: se emite primero y se declara después, seguido pero no atado, así que si el envío falla la factura sigue siendo válida y se reintenta desde el comprobante. El mensaje además dice **si el PDF salió por correo y a dónde**, porque para la clienta «facturado» significa que le llegó. Lo que se corrige en el formulario se guarda en `persona`, y con RUC **la razón social no se parte** en nombre y apellido — «Comercial Cliente SA» quedaba como apellido «Cliente SA» y así salía impreso. Dos ajustes más del cobro: **el botón «Otro medio de pago» estaba pegado al campo de arriba**, y el campo Referencia decía «Nº de operación, boleta…» aun con efectivo, prometiendo una boleta que no existe —`nro_boleta` es una columna de `cobro_tarjeta`—: ahora la pista cambia con el medio. **62 pruebas** |
 | 7.4.0 | 13/08/2026 | **El cobro se carga como se paga, y la agenda deja de perder la plata de vista.** Dos cosas que se tocan. **El modal de cobro** tenía dos líneas fijas y las dos mostraban a la vez los campos de tarjeta **y** los de banco: ocho casillas sueltas sin etiqueta para un cobro que casi siempre es en efectivo. Ahora arranca con **una** línea, se agregan las que hagan falta, y **cada una muestra sólo el detalle del medio elegido**. Al conectarlo apareció que **eso ya estaba escrito**: el bloque de `app.js` que arma las líneas, decide los campos por tipo y calcula el **vuelto** llevaba **sin una sola vista que lo usara** desde la migración a Laravel —el JS se trajo y el marcado no—, así que el vuelto figuraba como entregado desde la 5.2.0 y no había forma de llegar a él. Es el mismo caso del selector de disponibilidad de la 7.1.0, y por eso lo que se hizo fue **poner el marcado**, no escribir otro JS. Y destapó un error de fondo: **cobrar con tarjeta estaba roto**. `cobro_tarjeta.tipo_tarjeta` es `NOT NULL` y la pantalla lo mandaba como un campo oculto vacío, así que cargar la marca tiraba **1048** y se caía el cobro **entero**, las otras líneas incluidas, porque va todo en una transacción. **La agenda**, por su lado, mostraba un guión en Acciones para todo lo Atendido: la cita quedaba cerrada y, como la clienta **no siempre pide factura**, nadie se acordaba de pasar por Facturación y el dinero no entraba. Ahora la columna contesta las tres situaciones —**Cobrar**, **Debe Gs. X** y **Cobrada**— y desde ahí se llega a Emitir con esa cita **primera y marcada**, en vez de buscarla entre cien. Emitir sigue pidiendo `facturacion.facturas`, que no es lo mismo que cobrar. De paso, **si el comprobante por defecto no tiene timbrado vigente la pantalla lo dice**: el Ticket necesita el suyo, y sin él todo salía como Factura sin avisar — justo lo contrario de lo configurado. **59 pruebas**: la nueva abre **las diez pantallas de la operación diaria**, y existe porque al escribir esto se puso `f.nro_comprobante` —que no es una columna de `factura` sino `fn_factura_nro()`— y **las 58 siguieron en verde con la agenda tirando 500** |
 | 7.3.0 | 13/08/2026 | **«No se pudo registrar la atención» era un redondeo, y detrás había una regla del negocio que la base no podía representar.** Cuánto shampoo lleva un lavado **depende del pelo de cada clienta** —15 ml o 60—, pero `producto_utilizado.cantidad` y `movimiento_inventario.cantidad` estaban en `DECIMAL(10,2)`, así que lo más chico que se podía descontar era **1/100 del envase: 10 ml de un frasco de litro**. Cargar 15 ml descontaba **20**, cargar 5 descontaba **10**, y **1 ml no entraba**: el `CHECK` `chk_pu_cantidad` levantaba el error 4025 y la pantalla contestaba con ese mensaje que no dice nada. Pasan a `DECIMAL(12,4)`, y **son seis piezas, no dos** — el disparador que bloquea las salidas sin stock y `fn_producto_stock` declaran su propia variable, y en `(12,2)` la cuenta se truncaba igual. Además `consumo_a_stock()` ya redondeaba a 4 decimales: **PHP y la base venían midiendo distinto**, así que PHP dejaba pasar lo que la base rechazaba y no había forma de anticiparlo leyendo el código. De paso, **la pantalla ahora muestra la unidad al lado del campo** y la cambia sola con el producto elegido: sin eso no se sabía si «30» eran 30 ml o 30 frascos. **Lo que hizo caro el diagnóstico se arregla también**: el `catch` genérico **descartaba la excepción sin registrarla**, así que el log estaba vacío y hubo que reproducir a mano lo que una línea hubiera dicho — ahora todo `catch` que no supo traducir el error lo loguea. **Y el calendario de la clienta pasa a tener las dos opciones de verdad.** En el portal estaba **sólo el de Google**, y en la pantalla del correo el `.ics` se llamaba «Bajar el archivo», que se lee como una descarga técnica y no como *el calendario del teléfono* — quien no usa Google entendía que no había opción para su celular. Ahora los dos se nombran por lo que son, en las dos pantallas, y el `.ics` no enciende la barra de carga (baja un archivo: la página no navega y la barra quedaba girando para siempre). Dos correcciones más de la misma tanda: **el formulario de ingreso era la última pantalla muda** —no cargaba `app.js`, así que entre «Ingresar» y el panel no pasaba nada visible, justo donde se vuelve a apretar el botón—, y **los avisos de las pantallas de acceso salían fuera de la tarjeta**, contra el margen izquierdo, porque `.spg-login-wrap` era un flex **en fila** y el aviso es hermano de la tarjeta, no hijo: «Ese nombre de usuario ya está en uso» aparecía en el borde de la pantalla, lejos del campo que lo causó. **58 pruebas** (una nueva: carga 15, 5 y 1 ml y exige que el stock baje exactamente eso) y los dos `.sql` regenerados |
 | 7.2.1 | 12/08/2026 | **En el tema oscuro, los enlaces del pie eran invisibles: 1,5:1.** Se leían sólo al pasarles el mouse, cuando el hover los pinta de oro. La causa vale más que el síntoma: la barra superior, la barra de módulos y el pie **son oscuras en los dos temas**, pero estaban escritas con `--negro`, `--carbon` y `--gris-calido`, que en el tema claro daban justo lo que hacía falta —fondo oscuro, texto claro— y **se dan vuelta al invertir la paleta**. Además de los enlaces del pie, eso dejaba la **barra de módulos con fondo claro**, porque `--carbon` pasa a ser el color del texto. Ahora esas tres superficies tienen su propio par de variables (`--sup-oscura*` / `--sobre-oscura*`) que no se invierte. El enlace del pie pasa de **1,5:1 a 15,5:1**, y de paso el tema claro también mejora. Los grises fríos sueltos que quedaban en el pie (`#6f6f6f` sobre negro, 3,6:1) salen a la variable cálida y llegan a 7:1. **El hover en oro se mantiene**, que era lo único que funcionaba |
@@ -225,7 +226,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 59 pruebas
+tests/Feature/             Las 62 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -1295,11 +1296,58 @@ del salón, numerado y registrado, que **no** sale de acá— y sólo se elige F
 piden. `config('sifen.tipos_electronicos')` dice cuáles se declaran: hoy Factura (1) y Nota
 de crédito (5). El Ticket necesita su propio timbrado, como cualquier otro tipo.
 
+### Los datos del receptor se piden ANTES de emitir
+
+Al emitir un comprobante que se declara, el sistema **abre una pantalla con los datos que la
+DNIT exige del receptor** (`facturacion/receptor`), precargados desde la ficha del cliente y
+todos editables. Recién cuando pasan la validación se emite y se manda.
+
+**El orden no es un detalle: un rechazo de la DNIT no se reintenta.** Si el RUC va mal, el
+comprobante ya se emitió con un número que no se puede reusar —la numeración de la SET no
+admite huecos— y hay que anularlo y hacer otro. Por eso todo lo que se pueda comprobar sin
+salir del salón se comprueba antes de gastar el número.
+
+Los campos salen del **grupo D del Manual Técnico v150**, y cada uno lleva su ID a la vista
+para poder rastrearlo:
+
+| Campo | Manual | Qué se valida acá |
+|---|---|---|
+| Tipo de documento | D206 / D208 | RUC, cédula o consumidor final |
+| Número | D206+D207 / D210 | el **DV del RUC por módulo 11** (error 1309); la cédula, numérica |
+| Nombre o razón social | D211 | obligatorio salvo consumidor final |
+| **Correo** | D216 | formato — **es a donde el Automatizador manda el PDF** |
+| Dirección · Teléfono | D213 · D214 | opcionales |
+
+Dos reglas del manual que conviene no perder:
+
+- **Consumidor final no se acepta a partir de Gs. 60.000.000** (error **1321**, campo D208c).
+  La pantalla lo avisa antes, con el total a la vista, en vez de dejar que se descubra cuando
+  el número ya se gastó. Está en `Sifen::TOPE_INNOMINADO`.
+- **El DV se calcula con pesos que ciclan 2..11, no 2..9.** La diferencia importa: contra el
+  CDC de ejemplo del propio manual (sección 10.1), el ciclo correcto da **8** y el otro da 2.
+  El manual no trae el algoritmo —remite a un PDF de la SET—, así que ese CDC es la única
+  referencia verificable que hay, y por eso es el caso que fija la prueba.
+
+> **El `80012345-6` del archivo de ejemplo del Automatizador tiene el DV mal**: para 80012345
+> el verificador es **0**. Es texto de muestra que nunca se validó. No usarlo como ejemplo en
+> pantalla — quien lo copie se lleva un rechazo de nuestra propia validación.
+
+**Lo que se corrige en el formulario se guarda en `persona`**, que es donde viven los datos de
+las personas: así la próxima factura de esa clienta ya sale bien. Con RUC **la razón social no
+se parte** en nombre y apellido —una empresa no tiene apellido—, que si no «Comercial Cliente
+SA» quedaba como nombre «Comercial» y apellido «Cliente SA», y así salía impreso.
+
 ### Emitir y declarar son DOS pasos, y no se juntan
 
 La factura se emite en el SPG y **ya es válida**; declararla ante la DNIT es un paso posterior,
 con su botón, que se puede repetir. Si emitir dependiera de que un servicio externo conteste,
 un corte de internet dejaría al salón sin poder cobrar.
+
+**Que el envío salga solo después de emitir no cambia eso, y es a propósito.** Desde la
+pantalla del receptor las dos cosas pasan seguidas —se emite y se declara sin apretar nada
+más—, pero siguen siendo dos pasos: la factura se emite primero y **si el envío falla no se
+deshace**. El aviso lo dice («la factura es válida igual: podés reintentar desde el
+comprobante») y el estado queda PENDIENTE. Lo que se automatizó es el clic, no la dependencia.
 
 | Estado | Qué pasó | ¿Se reintenta? |
 |---|---|---|
@@ -1315,7 +1363,14 @@ un corte de internet dejaría al salón sin poder cobrar.
 
 `SIFEN_MODO=simulado` arma el TXT de verdad pero no lo manda: devuelve un CDC de prueba que
 empieza con `0` para que se note. Sirve para ver el circuito entero sin depender del servicio
-—el dominio publicado del Automatizador no responde—. La pantalla lo avisa en el comprobante.
+—el dominio publicado del Automatizador no responde—. La pantalla del receptor lo avisa arriba
+de todo, y el mensaje dice **a qué correo le habría llegado el PDF**, que es lo que se quiere
+comprobar sin el servicio conectado.
+
+**El correo se informa siempre, salga o no.** El Automatizador devuelve `mail_enviado`, y ese
+dato importa tanto como el CDC: para la clienta, «facturado» significa que le llegó el PDF. Si
+el comprobante se declaró y el correo no salió, el aviso lo dice — si no, el salón da por hecho
+que lo tiene. Sin correo cargado también avisa, en vez de quedarse callado.
 
 **Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no existe**: ni botón, ni bloque,
 ni columnas. Un salón que no factura electrónicamente no tiene por qué ver nada de esto.
@@ -1634,7 +1689,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 59 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 62 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1679,7 +1734,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**59 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**62 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

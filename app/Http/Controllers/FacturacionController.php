@@ -10,10 +10,12 @@ use App\Servicios\Caja;
 use App\Servicios\Facturacion;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
+use App\Servicios\Persona;
 use App\Servicios\Sifen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use stdClass;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -288,6 +290,54 @@ class FacturacionController extends Controller
         $idTipo = (int) $request->input('id_tipo_comprobante', 1) ?: 1;
         $idCond = (int) $request->input('id_condicion_venta', 1) ?: 1;
 
+        $cita = $this->citaFacturable($idCita, $idTipo);
+        if ($cita instanceof RedirectResponse) {
+            return $cita;
+        }
+
+        // Un comprobante que se declara ante la DNIT necesita los datos del
+        // receptor ANTES de emitirse: un rechazo por un RUC mal tipeado no se
+        // reintenta —el número ya se gastó y hay que anular y rehacer—, así
+        // que todo lo que se pueda comprobar sin salir del salón se comprueba
+        // antes. El Ticket no pasa por acá: es interno y no se declara.
+        if (Sifen::activo() && Sifen::esElectronico($idTipo)) {
+            return redirect()->route('facturacion.receptor', [
+                'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
+            ]);
+        }
+
+        try {
+            $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond);
+            $nro = Facturacion::numero($idf);
+            Auditoria::registrar('EMISION', 'Facturacion', 'factura', $idf,
+                'Comprobante ' . $nro . ' de la cita #' . $idCita);
+
+            $puntos = Facturacion::acumularPuntos($idf, (int) $cita->id_cliente);
+            flash('Factura ' . $nro . ' emitida correctamente.'
+                . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s) de fidelización.' : ''));
+        } catch (Throwable $ex) {
+            $msg = $ex->getMessage();
+            flash(str_contains($msg, 'timbrado') ? 'No hay timbrado vigente para la factura.'
+                : (str_contains($msg, 'agotado') ? 'Se agotó el rango de numeración del timbrado. Cargá uno nuevo.'
+                    : 'No se pudo emitir la factura.'), 'error');
+
+            return redirect()->route('facturacion.emitir');
+        }
+
+        return redirect()->route('facturacion.facturas');
+    }
+
+    /**
+     * ¿Se puede facturar esta cita con este comprobante?
+     *
+     * Devuelve la cita, o el redirect con el motivo. Está aparte porque lo
+     * preguntan DOS entradas —el botón de la lista y el formulario del
+     * receptor—, y la segunda no puede confiar en que la primera ya validó:
+     * entre una y otra pasa una pantalla, y en el medio alguien pudo facturar
+     * esa misma cita desde otra computadora.
+     */
+    private function citaFacturable(int $idCita, int $idTipo): stdClass|RedirectResponse
+    {
         // El cliente se toma de la cita, no del formulario: así nadie puede
         // facturarle a un tercero manipulando el campo oculto.
         $cita = DB::selectOne('SELECT id_cliente, id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]);
@@ -317,25 +367,190 @@ class FacturacionController extends Controller
             return redirect()->route('facturacion.timbrados');
         }
 
+        return $cita;
+    }
+
+    // -----------------------------------------------------------------
+    //  Los datos del receptor, para el comprobante electrónico
+    // -----------------------------------------------------------------
+
+    /**
+     * El formulario con los datos que la DNIT exige del receptor.
+     *
+     * Viene precargado desde la ficha del cliente y **todo se puede cambiar**:
+     * la clienta puede pedir la factura a nombre de su empresa, o dar otro
+     * correo para que le llegue el PDF. Lo que se corrija se guarda en su
+     * ficha, que es donde viven los datos de las personas.
+     */
+    public function receptor(Request $request): View|RedirectResponse
+    {
+        $idCita = (int) $request->query('cita', 0);
+        $idTipo = (int) $request->query('tipo', 1) ?: 1;
+        $idCond = (int) $request->query('condicion', 1) ?: 1;
+
+        $cita = $this->citaFacturable($idCita, $idTipo);
+        if ($cita instanceof RedirectResponse) {
+            return $cita;
+        }
+
+        return view('facturacion.receptor', $this->datosReceptor($idCita, $idTipo, $idCond, (int) $cita->id_cliente));
+    }
+
+    /**
+     * Valida, emite y declara — en ese orden, que es el que importa.
+     *
+     * **La factura se emite ANTES de mandarla**, y si el envío falla no se
+     * deshace: el comprobante ya es válido con su timbrado y su número, y
+     * declararlo es un paso posterior que se puede repetir desde la pantalla
+     * del comprobante. Si emitir dependiera de que el Automatizador conteste,
+     * un corte de internet dejaría al salón sin poder cobrar.
+     */
+    public function receptorGuardar(Request $request): RedirectResponse
+    {
+        $idCita = (int) $request->input('id_cita', 0);
+        $idTipo = (int) $request->input('id_tipo_comprobante', 1) ?: 1;
+        $idCond = (int) $request->input('id_condicion_venta', 1) ?: 1;
+
+        $cita = $this->citaFacturable($idCita, $idTipo);
+        if ($cita instanceof RedirectResponse) {
+            return $cita;
+        }
+
+        $volver = redirect()->route('facturacion.receptor', [
+            'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
+        ]);
+
+        $rec = [
+            'tipo_doc' => strtoupper(trim((string) $request->input('tipo_doc', 'CF'))),
+            'documento' => trim((string) $request->input('documento', '')),
+            'nombre' => trim((string) $request->input('nombre', '')),
+            'email' => trim((string) $request->input('email', '')),
+            'direccion' => trim((string) $request->input('direccion', '')),
+            'telefono' => trim((string) $request->input('telefono', '')),
+        ];
+
+        // El total se recalcula acá: es el que decide si se puede emitir a
+        // consumidor final, y no puede salir de un campo del formulario.
+        $total = (float) DB::scalar(
+            'SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
+               JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+        );
+
+        if ($error = Sifen::validarReceptor($rec, $total)) {
+            flash($error, 'error');
+
+            return $volver->withInput();
+        }
+
+        // Los datos corregidos van a `persona`, que es el único lugar donde
+        // viven los datos de las personas. Así la próxima factura de esta
+        // clienta ya sale bien y no hay que volver a tipear nada.
+        $per = DB::selectOne(
+            'SELECT pe.id_persona, pe.nombre, pe.apellido FROM cliente c
+               JOIN persona pe ON pe.id_persona = c.id_persona WHERE c.id_cliente = ?', [$cita->id_cliente]
+        );
+        if ($per) {
+            $aGuardar = ['email' => $rec['email'], 'direccion' => $rec['direccion'], 'telefono' => $rec['telefono']];
+            if ($rec['tipo_doc'] === 'RUC') {
+                $aGuardar['ruc'] = $rec['documento'];
+            } elseif ($rec['tipo_doc'] === 'CI') {
+                $aGuardar['cedula'] = $rec['documento'];
+            }
+            // El nombre sólo se pisa si de verdad cambió: en la ficha va
+            // partido en nombre y apellido, y el formulario lo muestra junto.
+            //
+            // Con RUC NO se parte. Una razón social no tiene apellido, y
+            // cortarla por el primer espacio dejaba «Comercial Cliente SA»
+            // como nombre «Comercial» y apellido «Cliente SA», que es lo que
+            // después sale impreso en el comprobante.
+            if ($rec['tipo_doc'] !== 'CF'
+                && $rec['nombre'] !== trim($per->nombre . ' ' . $per->apellido)) {
+                if ($rec['tipo_doc'] === 'RUC') {
+                    $aGuardar['nombre'] = $rec['nombre'];
+                    $aGuardar['apellido'] = '';
+                } else {
+                    $partes = preg_split('/\s+/', $rec['nombre'], 2);
+                    $aGuardar['nombre'] = $partes[0];
+                    $aGuardar['apellido'] = $partes[1] ?? '';
+                }
+            }
+
+            if ($errPersona = Persona::error(array_merge((array) $per, $aGuardar))) {
+                flash($errPersona, 'error');
+
+                return $volver->withInput();
+            }
+            Persona::guardar((int) $per->id_persona, $aGuardar);
+        }
+
+        // ---- 1. Emitir. Desde acá el comprobante ya es válido. ----
         try {
             $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond);
             $nro = Facturacion::numero($idf);
             Auditoria::registrar('EMISION', 'Facturacion', 'factura', $idf,
                 'Comprobante ' . $nro . ' de la cita #' . $idCita);
-
             $puntos = Facturacion::acumularPuntos($idf, (int) $cita->id_cliente);
-            flash('Factura ' . $nro . ' emitida correctamente.'
-                . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s) de fidelización.' : ''));
         } catch (Throwable $ex) {
             $msg = $ex->getMessage();
+            Log::error('Emisión de la cita ' . $idCita . ': ' . $msg);
             flash(str_contains($msg, 'timbrado') ? 'No hay timbrado vigente para la factura.'
                 : (str_contains($msg, 'agotado') ? 'Se agotó el rango de numeración del timbrado. Cargá uno nuevo.'
-                    : 'No se pudo emitir la factura.'), 'error');
+                    : 'No se pudo emitir la factura. El detalle quedó en el registro del sistema.'), 'error');
 
-            return redirect()->route('facturacion.emitir');
+            return $volver->withInput();
         }
 
-        return redirect()->route('facturacion.facturas');
+        // ---- 2. Declarar. Si esto falla, la factura sigue emitida. ----
+        $r = Sifen::enviar($idf, $rec);
+
+        flash('Factura ' . $nro . ' emitida.'
+            . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s).' : '')
+            . ' ' . $r['mensaje']
+            . ($r['ok'] ? '' : ' La factura es válida igual: podés reintentar el envío desde el comprobante.'),
+            $r['ok'] ? 'success' : 'warning');
+
+        return redirect()->route('facturacion.factura_ver', ['id' => $idf]);
+    }
+
+    /** Lo que necesita la pantalla del receptor, precargado desde la ficha. */
+    private function datosReceptor(int $idCita, int $idTipo, int $idCond, int $idCliente): array
+    {
+        $per = DB::selectOne(
+            'SELECT pe.nombre, pe.apellido, pe.cedula, pe.ruc, pe.email, pe.telefono, pe.direccion
+               FROM cliente c JOIN persona pe ON pe.id_persona = c.id_persona
+              WHERE c.id_cliente = ?', [$idCliente]
+        );
+
+        // Con RUC cargado se asume que pide la factura a su nombre fiscal; si
+        // no, la cédula; y sin ninguno de los dos, consumidor final.
+        $tipo = match (true) {
+            trim((string) ($per->ruc ?? '')) !== '' => 'RUC',
+            trim((string) ($per->cedula ?? '')) !== '' => 'CI',
+            default => 'CF',
+        };
+
+        return [
+            'idCita' => $idCita,
+            'idTipo' => $idTipo,
+            'idCond' => $idCond,
+            'tipoNombre' => (string) DB::scalar(
+                'SELECT nombre FROM tipo_comprobante WHERE id_tipo_comprobante = ?', [$idTipo]),
+            'condNombre' => (string) DB::scalar(
+                'SELECT nombre FROM condicion_venta WHERE id_condicion_venta = ?', [$idCond]),
+            'per' => $per,
+            'tipoSugerido' => $tipo,
+            'docSugerido' => $tipo === 'RUC' ? (string) $per->ruc : ($tipo === 'CI' ? (string) $per->cedula : ''),
+            'items' => DB::select(
+                'SELECT s.nombre, s.precio FROM cita_servicio cs
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+            ),
+            'total' => (float) DB::scalar(
+                'SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+            ),
+            'topeInnominado' => Sifen::TOPE_INNOMINADO,
+            'modoSimulado' => config('sifen.modo') !== 'http',
+        ];
     }
 
     // -----------------------------------------------------------------

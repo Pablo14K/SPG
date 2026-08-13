@@ -344,6 +344,108 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     // -----------------------------------------------------------------
+    //  Facturación electrónica: lo que se puede comprobar sin la DNIT
+    // -----------------------------------------------------------------
+
+    /**
+     * El dígito verificador por módulo 11.
+     *
+     * El caso que lo fija es el **CDC de ejemplo del propio Manual Técnico
+     * v150** (sección 10.1): sus 43 primeros dígitos tienen que dar el 44º.
+     * Es la única referencia verificable que trae el manual —para el
+     * algoritmo remite a un PDF aparte de la SET—, y sirve porque distingue
+     * el ciclo de pesos correcto (2..11) del otro que circula (2..9), que da
+     * 2 en vez de 8.
+     */
+    #[Test]
+    public function el_digito_verificador_del_ruc_sigue_el_modulo_11_del_manual(): void
+    {
+        $cdc = str_replace(' ', '', '0144 4444 0170 0100 1001 4528 2201 7012 5158 7326 0988');
+
+        $this->assertSame(44, strlen($cdc), 'El CDC de ejemplo tiene que tener 44 dígitos.');
+        $this->assertSame(
+            (int) substr($cdc, -1),
+            Sifen::dvRuc(substr($cdc, 0, 43)),
+            'El módulo 11 no reproduce el dígito verificador del CDC de ejemplo del manual.'
+        );
+
+        // Y el ejemplo que muestra la pantalla tiene que ser válido: si no,
+        // quien lo copia se lleva un rechazo de la propia validación.
+        $this->assertSame(0, Sifen::dvRuc('80012345'));
+    }
+
+    /**
+     * Las reglas del receptor que se pueden comprobar sin salir del salón.
+     *
+     * Importa que se validen ANTES de emitir: un rechazo de la DNIT no se
+     * reintenta, el número de comprobante ya se gastó y hay que anular y
+     * hacer otro.
+     */
+    #[Test]
+    public function el_receptor_se_valida_antes_de_emitir(): void
+    {
+        $ok = ['tipo_doc' => 'RUC', 'documento' => '80012345-0', 'nombre' => 'Comercial SA'];
+        $this->assertNull(Sifen::validarReceptor($ok, 100000));
+
+        // 1309: dígito verificador que no corresponde
+        $this->assertNotNull(Sifen::validarReceptor(
+            ['tipo_doc' => 'RUC', 'documento' => '80012345-6', 'nombre' => 'Comercial SA'], 100000));
+
+        // D211: el nombre es obligatorio (ocurrencia 1-1)
+        $this->assertNotNull(Sifen::validarReceptor(
+            ['tipo_doc' => 'RUC', 'documento' => '80012345-0', 'nombre' => ''], 100000));
+
+        // D210: la cédula es numérica
+        $this->assertNotNull(Sifen::validarReceptor(
+            ['tipo_doc' => 'CI', 'documento' => 'abc123', 'nombre' => 'Andrea'], 100000));
+
+        // 1321: innominado sí por debajo del tope, no por encima
+        $this->assertNull(Sifen::validarReceptor(['tipo_doc' => 'CF'], Sifen::TOPE_INNOMINADO - 1));
+        $this->assertNotNull(Sifen::validarReceptor(['tipo_doc' => 'CF'], Sifen::TOPE_INNOMINADO));
+
+        // D216: el correo es a donde va el PDF, así que se revisa
+        $this->assertNotNull(Sifen::validarReceptor(
+            ['tipo_doc' => 'CI', 'documento' => '4200000', 'nombre' => 'A', 'email' => 'no-es-correo'], 1000));
+    }
+
+    /**
+     * El TXT que se le manda al Automatizador.
+     *
+     * Lo que se carga en el formulario del receptor manda sobre la ficha: es
+     * lo que permite emitir a consumidor final aunque la clienta tenga la
+     * cédula cargada, o mandar el PDF a otro correo.
+     */
+    #[Test]
+    public function el_txt_del_automatizador_respeta_lo_que_se_cargo_en_el_formulario(): void
+    {
+        $id = (int) DB::scalar(
+            'SELECT f.id_factura FROM factura f
+              WHERE f.id_estado_factura = 1
+                AND EXISTS (SELECT 1 FROM detalle_factura d WHERE d.id_factura = f.id_factura)
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $id) {
+            $this->markTestSkipped('No hay facturas con detalle en la base de prueba.');
+        }
+
+        $cli = fn (string $txt) => collect(explode("\n", $txt))->first(fn ($l) => str_starts_with($l, 'CLI|'));
+
+        $conFormulario = $cli(Sifen::armarTxt($id, [
+            'tipo_doc' => 'RUC', 'documento' => '80012345-0', 'nombre' => 'Comercial SA',
+            'email' => 'otro@correo.com',
+        ]));
+        $this->assertStringContainsString('|RUC|80012345-0|Comercial SA|otro@correo.com', $conFormulario);
+
+        // Consumidor final: sin documento y sin nombre propio, como pide el
+        // manual para el innominado.
+        $this->assertStringContainsString('|CF|Consumidor Final|', $cli(Sifen::armarTxt($id, ['tipo_doc' => 'CF'])));
+
+        // Y la cabecera lleva los tres números del comprobante, con su relleno
+        $fac = collect(explode("\n", Sifen::armarTxt($id)))->first(fn ($l) => str_starts_with($l, 'FAC|'));
+        $this->assertMatchesRegularExpression('/^FAC\|\d{3}\|\d{3}\|\d{7}\|\d{4}-\d{2}-\d{2}\|[12]\|PYG$/', $fac);
+    }
+
+    // -----------------------------------------------------------------
     //  Permisos
     // -----------------------------------------------------------------
 

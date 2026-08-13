@@ -289,6 +289,11 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('comprobante', [FacturacionController::class, 'facturaVer'])->name('factura_ver');
             Route::get('emitir', [FacturacionController::class, 'emitir'])->name('emitir');
             Route::post('emitir', [FacturacionController::class, 'emitirGuardar'])->name('emitir.guardar');
+            // Los datos del receptor que exige el manual del SIFEN. Se piden
+            // ANTES de emitir: un rechazo de la DNIT por un dato mal cargado
+            // no se reintenta, hay que anular el comprobante y hacer otro.
+            Route::get('receptor', [FacturacionController::class, 'receptor'])->name('receptor');
+            Route::post('receptor', [FacturacionController::class, 'receptorGuardar'])->name('receptor.guardar');
             Route::post('anular-factura', [FacturacionController::class, 'anularFactura'])->name('factura.anular');
             Route::post('nota-credito', [FacturacionController::class, 'notaCredito'])->name('nota_credito');
             // Declarar el comprobante ante la DNIT. Va aparte de emitir: la

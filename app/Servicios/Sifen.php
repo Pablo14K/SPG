@@ -57,6 +57,112 @@ class Sifen
         return DB::selectOne('SELECT * FROM factura_electronica WHERE id_factura = ?', [$idFactura]);
     }
 
+    // -----------------------------------------------------------------
+    //  El receptor: qué pide el manual, y cómo se valida antes de mandar
+    // -----------------------------------------------------------------
+
+    /**
+     * Un DE innominado —«Consumidor Final», sin documento— no se acepta a
+     * partir de este monto (Manual Técnico v150, error **1321**, campo D208c).
+     * Arriba de eso hay que identificar a la clienta.
+     */
+    public const TOPE_INNOMINADO = 60000000;
+
+    /**
+     * Dígito verificador de un RUC, por módulo 11.
+     *
+     * Es lo que la DNIT comprueba en el campo D207 del receptor: si no
+     * coincide, rechaza con el error **1309**. Vale la pena calcularlo acá
+     * porque un RUC mal tipeado es el rechazo más común y no hace falta ir
+     * hasta la DNIT para descubrirlo.
+     *
+     * Las letras se convierten por su valor ASCII, como indica el manual para
+     * los identificadores que las admiten.
+     */
+    public static function dvRuc(string $base): int
+    {
+        $limpio = strtoupper(preg_replace('/[^0-9A-Z]/', '', $base) ?? '');
+        if ($limpio === '') {
+            return -1;
+        }
+
+        $numero = '';
+        foreach (str_split($limpio) as $c) {
+            $numero .= ctype_digit($c) ? $c : (string) ord($c);
+        }
+
+        $total = 0;
+        $k = 2;
+        for ($i = strlen($numero) - 1; $i >= 0; $i--) {
+            $total += ((int) $numero[$i]) * $k;
+            $k = $k === 11 ? 2 : $k + 1;
+        }
+
+        $resto = $total % 11;
+
+        return $resto > 1 ? 11 - $resto : 0;
+    }
+
+    /**
+     * Revisa los datos del receptor antes de emitir. Devuelve el problema, o
+     * null si está todo bien.
+     *
+     * Se valida acá y no después porque **un rechazo de la DNIT no se
+     * reintenta**: si el RUC va mal, el comprobante ya quedó emitido con un
+     * número que no se puede reusar y hay que anularlo y hacer otro. Todo lo
+     * que se pueda comprobar sin salir del salón, se comprueba antes.
+     *
+     * Las reglas salen del Manual Técnico v150, grupo D (campos D201-D216).
+     */
+    public static function validarReceptor(array $d, float $total = 0): ?string
+    {
+        $tipo = strtoupper(trim((string) ($d['tipo_doc'] ?? '')));
+        $doc = trim((string) ($d['documento'] ?? ''));
+        $nombre = trim((string) ($d['nombre'] ?? ''));
+        $email = trim((string) ($d['email'] ?? ''));
+
+        if (! in_array($tipo, ['RUC', 'CI', 'CF'], true)) {
+            return 'Elegí si la clienta se identifica con RUC, con cédula o como consumidor final.';
+        }
+
+        // D211: el nombre es obligatorio siempre (ocurrencia 1-1).
+        if ($tipo !== 'CF' && $nombre === '') {
+            return 'Poné el nombre o la razón social: la DNIT lo exige en todos los comprobantes.';
+        }
+
+        if ($tipo === 'RUC') {
+            // D206 + D207: el RUC va con su dígito verificador.
+            if (! preg_match('/^([0-9A-Za-z]{3,8})-?([0-9])$/', $doc, $m)) {
+                return 'El RUC va con su dígito verificador, así: 80012345-0.';
+            }
+            $esperado = self::dvRuc($m[1]);
+            if ((int) $m[2] !== $esperado) {
+                return 'El dígito verificador del RUC no corresponde: para ' . $m[1]
+                       . ' tendría que ser ' . $esperado . ', no ' . $m[2] . '.';
+            }
+        } elseif ($tipo === 'CI') {
+            // D210: número de documento. Se aceptan puntos porque la gente los
+            // escribe, pero tiene que ser un número.
+            if (! preg_match('/^[0-9][0-9\.\s]{2,19}$/', $doc)) {
+                return 'La cédula tiene que ser un número. Si no la tenés a mano, elegí consumidor final.';
+            }
+        } elseif ($total >= self::TOPE_INNOMINADO) {
+            // D208c / error 1321.
+            return 'Una venta de ' . money($total) . ' no se puede emitir a consumidor final: '
+                   . 'arriba de ' . money(self::TOPE_INNOMINADO) . ' la DNIT exige identificar a la clienta '
+                   . 'con cédula o RUC.';
+        }
+
+        // D216: es opcional para la DNIT, pero es la dirección a la que el
+        // Automatizador manda el PDF. Sin correo el comprobante se emite igual
+        // y no le llega a nadie, así que conviene avisarlo antes.
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'Ese correo no es válido: es a donde se le manda el comprobante.';
+        }
+
+        return null;
+    }
+
     /**
      * Arma el comprobante en el formato del Automatizador.
      *
@@ -68,7 +174,7 @@ class Sifen
      * Se devuelve el texto para poder mirarlo antes de mandarlo: es la forma
      * de saber qué se envió cuando la DNIT rechaza algo.
      */
-    public static function armarTxt(int $idFactura): string
+    public static function armarTxt(int $idFactura, array $receptor = []): string
     {
         $f = DB::selectOne(
             "SELECT f.id_factura, f.fecha_emision, f.nro_correlativo, f.id_condicion_venta,
@@ -95,14 +201,32 @@ class Sifen
         // Nada puede llevar el separador adentro, o la línea se parte de más.
         $limpiar = fn ($v) => trim(str_replace(['|', "\r", "\n"], ['/', ' ', ' '], (string) $v));
 
-        // Con RUC va el RUC; si no, la cédula. Sin ninguno de los dos es
-        // consumidor final, que es lo normal en una peluquería.
+        // Lo que se cargó en el formulario del receptor manda sobre la ficha:
+        // ahí es donde se eligió, por ejemplo, emitir a consumidor final
+        // aunque la clienta tenga la cédula cargada. Sin el formulario —un
+        // reenvío a mano, más adelante— se usa la ficha, que es la fuente de
+        // verdad persistida.
         [$tipoDoc, $doc] = match (true) {
+            ! empty($receptor['tipo_doc']) => strtoupper((string) $receptor['tipo_doc']) === 'CF'
+                ? ['CI', 'CF']
+                : [strtoupper((string) $receptor['tipo_doc']), trim((string) ($receptor['documento'] ?? ''))],
             trim((string) $f->ruc) !== '' => ['RUC', trim((string) $f->ruc)],
             trim((string) $f->cedula) !== '' => ['CI', trim((string) $f->cedula)],
             default => ['CI', 'CF'],
         };
-        $nombre = trim($f->nombre . ' ' . $f->apellido) ?: 'Consumidor Final';
+
+        $nombre = trim((string) ($receptor['nombre'] ?? '')) ?: trim($f->nombre . ' ' . $f->apellido);
+        $nombre = $nombre ?: 'Consumidor Final';
+        $email = trim((string) ($receptor['email'] ?? '')) ?: (string) $f->email;
+        $direccion = trim((string) ($receptor['direccion'] ?? '')) ?: (string) $f->direccion;
+        $telefono = trim((string) ($receptor['telefono'] ?? '')) ?: (string) $f->telefono;
+
+        // Innominado: el manual pide el nombre en «Sin Nombre» y el documento
+        // en cero, pero el Automatizador ya traduce `CF` a eso, así que se le
+        // manda tal cual y se evita duplicar la regla de los dos lados.
+        if ($doc === 'CF') {
+            $nombre = 'Consumidor Final';
+        }
 
         $lineas = [];
         $lineas[] = implode('|', [
@@ -116,7 +240,7 @@ class Sifen
         ]);
         $lineas[] = implode('|', [
             'CLI', $tipoDoc, $limpiar($doc), $limpiar($nombre),
-            $limpiar($f->email), $limpiar($f->direccion), $limpiar($f->telefono),
+            $limpiar($email), $limpiar($direccion), $limpiar($telefono),
         ]);
 
         foreach ($items as $i => $it) {
@@ -141,7 +265,7 @@ class Sifen
      * lanza: el resultado se le muestra a quien apretó el botón, y el estado
      * queda escrito pase lo que pase.
      */
-    public static function enviar(int $idFactura): array
+    public static function enviar(int $idFactura, array $receptor = []): array
     {
         $f = DB::selectOne(
             'SELECT f.id_factura, f.id_tipo_comprobante, f.id_estado_factura, fn_factura_nro(f.id_factura) AS nro
@@ -163,14 +287,21 @@ class Sifen
         }
 
         try {
-            $txt = self::armarTxt($idFactura);
+            $txt = self::armarTxt($idFactura, $receptor);
         } catch (Throwable $e) {
             self::guardar($idFactura, 'RECHAZADO', null, null, [], $e->getMessage());
 
             return ['ok' => false, 'mensaje' => $e->getMessage(), 'cdc' => null];
         }
 
-        $r = config('sifen.modo') === 'http' ? self::porHttp($txt) : self::simulado($idFactura);
+        // A dónde va el PDF: es el 4º campo de la línea CLI. Se lee del TXT ya
+        // armado y no de los parámetros, así que dice lo que REALMENTE se
+        // mandó, venga del formulario o de la ficha.
+        $correo = self::correoDelTxt($txt);
+
+        $r = config('sifen.modo') === 'http'
+            ? self::porHttp($txt, $correo)
+            : self::simulado($idFactura, $correo);
 
         self::guardar($idFactura, $r['estado'], $r['cdc'], $r['track_id'] ?? null, $r, $r['mensaje']);
 
@@ -182,8 +313,22 @@ class Sifen
         return ['ok' => $r['estado'] === 'ENVIADO', 'mensaje' => $r['mensaje'], 'cdc' => $r['cdc']];
     }
 
+    /** El correo del receptor tal como quedó escrito en la línea CLI. */
+    private static function correoDelTxt(string $txt): string
+    {
+        foreach (explode("\n", $txt) as $l) {
+            if (str_starts_with($l, 'CLI|')) {
+                $p = explode('|', $l);
+
+                return trim($p[4] ?? '');
+            }
+        }
+
+        return '';
+    }
+
     /** El envío de verdad, contra el Automatizador. */
-    private static function porHttp(string $txt): array
+    private static function porHttp(string $txt, string $correo = ''): array
     {
         $url = (string) config('sifen.url');
         if ($url === '') {
@@ -215,7 +360,7 @@ class Sifen
                 'track_id' => (string) ($d['track_id'] ?? ''),
                 'kude_url' => (string) ($d['kude_url'] ?? ''),
                 'xml_url' => (string) ($d['xml_url'] ?? ''),
-                'mensaje' => 'Declarado. CDC ' . $d['cdc'] . '.',
+                'mensaje' => 'Declarado. CDC ' . $d['cdc'] . '. ' . self::avisoCorreo($correo, $d['mail_enviado'] ?? null),
             ];
         }
 
@@ -237,7 +382,7 @@ class Sifen
      * mostrarlo en el comprobante— sin depender de que el Automatizador esté
      * publicado. El CDC arranca con `0` para que se note de una que no es real.
      */
-    private static function simulado(int $idFactura): array
+    private static function simulado(int $idFactura, string $correo = ''): array
     {
         $cdc = '0' . str_pad((string) $idFactura, 8, '0', STR_PAD_LEFT)
              . str_pad((string) random_int(0, 99999), 5, '0', STR_PAD_LEFT)
@@ -248,8 +393,31 @@ class Sifen
             'estado' => 'ENVIADO',
             'cdc' => substr($cdc, 0, 44),
             'track_id' => 'SIM-' . $idFactura,
-            'mensaje' => 'Declarado en modo simulado: el comprobante NO se mandó a la DNIT.',
+            'mensaje' => 'Declarado en modo simulado: el comprobante NO se mandó a la DNIT. '
+                         . ($correo !== ''
+                            ? 'Con el servicio conectado, el PDF le habría llegado a ' . $correo . '.'
+                            : 'Ojo: no hay correo cargado, así que no le habría llegado a nadie.'),
         ];
+    }
+
+    /**
+     * Qué contar sobre el correo del comprobante.
+     *
+     * El Automatizador devuelve `mail_enviado`, y ese dato importa tanto como
+     * el CDC: para la clienta, «facturado» significa que le llegó el PDF. Si
+     * el comprobante se declaró pero el correo no salió, hay que decirlo — si
+     * no, el salón da por hecho que la clienta lo tiene.
+     */
+    private static function avisoCorreo(string $correo, ?bool $enviado): string
+    {
+        if ($correo === '') {
+            return 'No se le mandó el PDF: la clienta no tiene correo cargado.';
+        }
+        if ($enviado === false) {
+            return 'El PDF NO salió por correo a ' . $correo . ': mandaselo a mano desde el comprobante.';
+        }
+
+        return 'El PDF le fue enviado a ' . $correo . '.';
     }
 
     /** Deja escrito el resultado del envío. Una fila por factura. */

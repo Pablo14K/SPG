@@ -116,7 +116,10 @@
                             <div class="spg-cobro" data-saldo="{{ (float) $r->saldo }}">
                                 <div class="spg-cobro-lineas"></div>
 
-                                <button type="button" class="btn btn-sm btn-rapido spg-cobro-add">
+                                {{-- El aire de arriba no es adorno: las líneas se van
+                                     apilando y sin separación el botón queda pegado al
+                                     último campo, como si fuera parte de esa línea. --}}
+                                <button type="button" class="btn btn-sm btn-rapido spg-cobro-add mt-3">
                                     <i class="bi bi-plus-lg"></i> Otro medio de pago
                                 </button>
 
