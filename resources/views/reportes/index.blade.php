@@ -33,13 +33,35 @@
                     <input type="hidden" name="{{ $campo }}" value="{{ request()->query($campo) }}">
                 @endif
             @endforeach
-            <div>
-                <label class="form-label" for="bloque">Qué imprimir</label>
-                <select class="form-select form-select-sm" id="bloque" name="bloque" style="width:auto">
+            {{-- Casillas y no un `<select>`: con el select había que elegir UN
+                 bloque, y lo que se pide de verdad es armar la combinación —el
+                 resumen y el equipo, por ejemplo—. Vienen todas marcadas, así
+                 que quien no toca nada imprime el informe entero, como antes.
+
+                 La casilla maestra es la misma pieza que usa la matriz de
+                 permisos (`data-marca-todo` en app.js): refleja lo que hay
+                 marcado y prende o apaga todo de una. No lleva `name`, así que
+                 no se envía. --}}
+            <div style="flex:1;min-width:260px">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label mb-0">Qué imprimir</label>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="bloquesTodos"
+                               data-marca-todo="#listaBloques" checked>
+                        <label class="form-check-label" for="bloquesTodos" style="font-size:.82rem">Todo</label>
+                    </div>
+                </div>
+                <div id="listaBloques" class="d-flex flex-wrap gap-3 p-2 rounded"
+                     style="border:1px solid var(--gris-calido)">
                     @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
-                        <option value="{{ $clave }}">{{ $nombre }}</option>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" name="bloques[]"
+                                   value="{{ $clave }}" id="bl{{ $clave }}" checked>
+                            <label class="form-check-label" for="bl{{ $clave }}"
+                                   style="font-size:.85rem">{{ $nombre }}</label>
+                        </div>
                     @endforeach
-                </select>
+                </div>
             </div>
             <button class="btn btn-sm btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
         </form>
@@ -118,7 +140,9 @@
                              estar el horario o el recordatorio. --}}
                         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
                             <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
-                            <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
+                            <th class="text-end">Servicios</th>
+                            <th class="text-end">Generado</th><th class="text-end">Comisión</th>
+                            <th class="text-end">Puntaje</th></tr></thead>
                         <tbody>
                             @forelse ($equipo as $e)
                                 <tr>
@@ -129,10 +153,18 @@
                                         {{ (int) $e->ausencias ?: '—' }}</td>
                                     <td class="text-end">{{ (int) $e->canceladas ?: '—' }}</td>
                                     <td class="text-end">{{ (int) $e->servicios }}</td>
+                                    <td class="text-end">{{ money($e->generado) }}</td>
+                                    <td class="text-end @if ($e->tiene_comision) txt-oro @else text-muted-warm @endif">
+                                        @if ($e->tiene_comision)
+                                            {{ money($e->comision) }}
+                                        @else
+                                            <span title="Todavía no se le cargó una comisión en Seguridad → Comisiones">sin cargar</span>
+                                        @endif
+                                    </td>
                                     <td class="text-end txt-oro">{{ $e->puntaje ? cant($e->puntaje) . ' ★' : '—' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
+                                <tr><td colspan="9" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

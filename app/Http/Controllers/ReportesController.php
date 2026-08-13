@@ -37,14 +37,18 @@ class ReportesController extends Controller
      * traería Composer al proyecto sin agregar nada que el navegador no haga.
      */
     /**
-     * Los bloques que se pueden imprimir por separado.
+     * Los bloques que se pueden imprimir, cada uno con su casilla.
      *
-     * Antes el PDF salía con TODO lo que había en pantalla, y quien quería
+     * Antes el papel salía con TODO lo que había en pantalla, y quien quería
      * llevarse sólo las citas terminaba imprimiendo seis hojas para usar una.
-     * La clave es la del `<select>` y también el nombre del bloque en la vista.
+     * Se probó con un `<select>` de un solo bloque, pero eso obliga a elegir
+     * **uno**: con casillas se arman las combinaciones que hagan falta —el
+     * resumen y el equipo, por ejemplo— que es lo que se pide de verdad.
+     *
+     * La clave es la de la casilla y también el nombre del bloque en la vista.
+     * Para sumar un bloque se toca sólo acá.
      */
     public const BLOQUES = [
-        'todo' => 'Todo el informe',
         'resumen' => 'Resumen del período',
         'servicios' => 'Servicios más solicitados',
         'demanda' => 'Demanda por hora y por día',
@@ -65,15 +69,23 @@ class ReportesController extends Controller
         $datos['emitido'] = ahora_bd('d/m/Y H:i');
         $datos['porQuien'] = (string) session('nombre', '');
 
-        // Qué se imprime. Un valor inventado en la URL cae en «todo», que es
-        // lo que hacía antes: nunca se devuelve una hoja en blanco.
-        $bloque = (string) $request->query('bloque', 'todo');
-        if (! array_key_exists($bloque, self::BLOQUES)) {
-            $bloque = 'todo';
+        // Qué bloques se imprimen. Se saneia contra las claves que existen, así
+        // que lo que venga inventado en la URL se descarta; y si no queda
+        // ninguno se imprime todo, que es lo que hacía antes: **nunca se
+        // devuelve una hoja en blanco**.
+        $elegidos = array_values(array_intersect(
+            array_map('strval', (array) $request->query('bloques', [])),
+            array_keys(self::BLOQUES)
+        ));
+        if (! $elegidos) {
+            $elegidos = array_keys(self::BLOQUES);
         }
-        $datos['bloque'] = $bloque;
-        $datos['bloqueNombre'] = self::BLOQUES[$bloque];
-        $datos['ver'] = fn (string $cual) => $bloque === 'todo' || $bloque === $cual;
+
+        $datos['bloques'] = $elegidos;
+        $datos['bloqueNombre'] = count($elegidos) === count(self::BLOQUES)
+            ? 'Informe completo'
+            : implode(' · ', array_map(fn ($b) => self::BLOQUES[$b], $elegidos));
+        $datos['ver'] = fn (string $cual) => in_array($cual, $elegidos, true);
 
         return view('reportes.imprimir', $datos);
     }
@@ -219,13 +231,30 @@ class ReportesController extends Controller
                         SUM(c.id_estado_cita = 3) canceladas,
                         (SELECT COUNT(*) FROM servicio_realizado sr WHERE sr.id_usuario = u.id_usuario
                            AND DATE(sr.fecha_hora) BETWEEN :d2 AND :h2) servicios,
+                        -- Lo que trajo al salón, y lo que le toca a ella. La
+                        -- comisión la calcula la base: mira el porcentaje o el
+                        -- monto fijo vigente de esa persona para ese servicio.
+                        (SELECT COALESCE(SUM(s.precio),0) FROM servicio_realizado sr
+                           JOIN servicio s ON s.id_servicio = sr.id_servicio
+                          WHERE sr.id_usuario = u.id_usuario
+                            AND DATE(sr.fecha_hora) BETWEEN :d4 AND :h4) generado,
+                        (SELECT COALESCE(SUM(fn_comision_servicio(sr.id_servicio_realizado)),0)
+                           FROM servicio_realizado sr
+                          WHERE sr.id_usuario = u.id_usuario
+                            AND DATE(sr.fecha_hora) BETWEEN :d5 AND :h5) comision,
+                        -- Un «Gs. 0» es ambiguo: puede ser que no ganó nada o
+                        -- que NADIE LE CARGÓ LA COMISIÓN, que es lo que pasa
+                        -- casi siempre. Sin esto, el informe miente por omisión.
+                        EXISTS (SELECT 1 FROM comision co
+                                 WHERE co.id_usuario = u.id_usuario AND co.activo = 1) tiene_comision,
                         (SELECT ROUND(AVG(cal.puntaje),2) FROM calificacion cal
                            JOIN cita c2 ON c2.id_cita = cal.id_cita
                           WHERE c2.id_usuario = u.id_usuario AND DATE(c2.fecha_hora) BETWEEN :d3 AND :h3) puntaje
                    $joinCita
                   GROUP BY u.id_usuario, pe.nombre, pe.apellido
                   ORDER BY atendidas DESC, citas DESC",
-                $par + ['d2' => $d, 'h2' => $h, 'd3' => $d, 'h3' => $h]
+                $par + ['d2' => $d, 'h2' => $h, 'd3' => $d, 'h3' => $h,
+                        'd4' => $d, 'h4' => $h, 'd5' => $d, 'h5' => $h]
             ),
             // La deuda con proveedores no depende del período: es deuda viva
             'prov' => DB::select('SELECT * FROM vw_cuenta_proveedor WHERE saldo > 0 ORDER BY vencida DESC, vencimiento LIMIT 30'),

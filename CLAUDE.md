@@ -168,6 +168,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.12.0 | 13/08/2026 | **Se elige qué imprimir con casillas, y el equipo muestra cuánto ganó cada una.** El `<select>` de la 7.7.0 obligaba a elegir **un** bloque, y lo que se pide de verdad es la combinación —el resumen y el equipo, por ejemplo—: pasan a ser casillas, todas marcadas de arranque, así que quien no toca nada imprime el informe entero como antes. Si no queda ninguna marcada se imprime todo: **nunca sale una hoja en blanco**. La casilla **Todo** es la misma pieza que ya usa la matriz de permisos, no una nueva. Y la tabla del equipo suma **las dos plata que no son la misma**: **Generado**, lo que el salón facturó gracias a ella, y **Comisión**, lo que le toca —la calcula `fn_comision_servicio` con el porcentaje o el monto vigente—. Al probarlo apareció algo que había que resolver: **un «Gs. 0» ahí miente por omisión**, porque casi nunca significa que ganó cero sino que **nadie le cargó una comisión** — `fn_comision_servicio` devuelve 0 en los dos casos y son indistinguibles. Ahora dice **«sin cargar»**, y con eso se ve que en la base de prueba les falta a **seis de siete profesionales**. **63 pruebas** |
 | 7.11.0 | 13/08/2026 | **El comprobante se manda por correo, y se lo encuentra donde se lo busca.** El «Recibo de dinero» pasa a llamarse **Comprobante de pago**, que es como se lo nombra en el mostrador. Como **no es una factura**, buscarlo bajo «Facturas» no se le ocurre a nadie: ahora **desde Cobros el número abre el comprobante** y dice de qué tipo es. Y hay un botón para **mandárselo a la clienta por correo**, que hacía falta sobre todo para este comprobante: al no declararse, no pasa por el Automatizador y **nadie se lo mandaba** — la única forma de que se lo llevara era imprimirlo. El detalle va escrito en el cuerpo, para leerlo de una en el teléfono, y **si el comprobante se declaró se le adjuntan el KuDE en PDF y el XML**, como pide el manual del SIFEN: son los documentos con valor fiscal y el cuerpo no los reemplaza. Salen de la copia local, así que se puede reenviar con el servicio apagado. La dirección viene de la ficha y **se puede cambiar sin tocarle la ficha**, porque es para ese envío. Tres cosas se arreglaron al probarlo, y las tres se vieron **porque el `catch` ahora loguea**: la plantilla usaba `descuento` y `total` cuando la vista los llama `descuento_total` y `total_neto`; **`@if` pegado a una palabra no lo compila Blade** —su patrón lleva `\B` delante de la arroba— así que `PDF@if (…)` salió tal cual en el correo que llegó al buzón; y en el modal de cobro **la transferencia pedía «Nº de cheque»** y el cheque «Nº de operación», cuando cada uno tiene el suyo — además el vuelto ya no se pregunta si nadie paga en efectivo, que no hay billete ni cambio que dar. Por último, **el formulario de la factura deja de hablar en técnico**: los códigos del manual (D206, D211, D216…) salen de la pantalla y quedan en este documento, que es donde sirven. **63 pruebas** |
 | 7.10.0 | 13/08/2026 | **El Recibo de dinero pasa a ser el comprobante de todos los días.** Vuelve a valer la decisión de siempre —**la clienta no siempre pide factura**—, con otro papel en el rol: el Recibo queda numerado y registrado pero **no se declara ante la DNIT**, y la Factura se elige a mano cuando la piden. Es lo que hacía el Ticket hasta que se lo dio de baja en la 7.9.0. **No alcanzaba con cambiar la clave por defecto**: el Recibo venía con `signo = 0` y con eso **no se podía cobrar** — `sp_registrar_cobro` lo rechaza con «Ese tipo de comprobante no se cobra» y la pantalla de emitir, que filtra por `signo = 1`, ni lo mostraba. El signo es lo que separa un documento de venta de uno que no mueve plata, como la nota de remisión; uno que se cobra es de venta, así que pasa a 1. Comprobado de punta a punta y revertido: emite `001-999-0000001` con su propio timbrado, no se declara, y se cobra hasta saldo cero. Queda anotado que **`SIFEN_TIPO_DEFECTO` tiene que moverse junto con la baja de un tipo**: apuntando a uno inactivo, la lista cae en el primero que quede sin avisar. **63 pruebas** y los dos `.sql` regenerados |
 | 7.9.0 | 13/08/2026 | **El comprobante electrónico se ve desde el sistema, y la lista de tipos queda en los tres que el salón usa.** El botón «KuDE» **mandaba a una página caída**: la dirección venía del Automatizador y apunta a *su* dominio publicado, que no responde — y encima esas URL no llevan el token, así que ni desde adentro servirían. Ahora, al declarar, el SPG **se baja el PDF y el XML y los guarda** junto con el TXT exacto que mandó, y los sirve él mismo desde `facturacion/sifen/archivo`. Es lo que el propio manual del Automatizador recomienda: bajarlo desde el servidor, con el token del lado del servidor, y servirlo uno mismo. El TXT se guarda **aunque el envío falle**, porque es la prueba de qué se mandó; y que no se pueda bajar la copia **no invalida el envío** — el comprobante ya está declarado. Para los que se declararon antes de que esto existiera, la copia se pide sola la primera vez. **Se dan de baja cinco tipos de comprobante** —Boleta de venta, Ticket, Autofactura, Nota de débito y Nota de remisión—, ninguno con comprobantes emitidos: quedan **Factura, Nota de crédito y Recibo de dinero**. Sale de `tipo_comprobante.activo`, así que volver a habilitar uno no toca código. **Ojo con la consecuencia**: el defecto era el **Ticket** desde la 7.0.0 —la decisión de «la clienta no siempre pide factura»— y apuntaba a un tipo que ya no está en la lista, así que `SIFEN_TIPO_DEFECTO` pasa a **Factura (1)**. De paso, **dos avisos dejan de hablarle al programador**: el del timbrado faltante decía «el comprobante por defecto no tiene timbrado vigente» y ahora dice qué se está emitiendo, qué se está perdiendo y qué hacer; y el del modo de prueba nombraba `SIFEN_MODO=http` y el `.env` — a quien atiende le importa que ese comprobante no vale, no cómo se configura. **63 pruebas** y los dos `.sql` regenerados |
@@ -1280,12 +1281,18 @@ e `imprimir()` los saca en A4 con `public/assets/css/imprimir.css`.
 es lo que hace todo el mundo igual. Una librería de PDF traería Composer al proyecto y no
 agregaría nada que el navegador no haga.
 
-**Se elige QUÉ se imprime**, no sale todo siempre: quien quería sólo las citas terminaba
-imprimiendo seis hojas para usar una. Los bloques están en
-`ReportesController::BLOQUES` —esa constante alimenta el `<select>` de la pantalla, el
-subtítulo del papel y el `$ver()` que decide qué se dibuja—, así que **para sumar un bloque se
-toca un solo lugar**. Un valor inventado en la URL cae en «todo»: nunca se devuelve una hoja
-en blanco.
+**Se elige QUÉ se imprime, con casillas**: quien quería sólo las citas terminaba imprimiendo
+seis hojas para usar una. Se probó con un `<select>` y no alcanza — obliga a elegir **uno**,
+cuando lo que se pide es la combinación (el resumen y el equipo, por ejemplo). Los bloques
+están en `ReportesController::BLOQUES`, y esa constante alimenta las casillas, el subtítulo del
+papel y el `$ver()` que decide qué se dibuja: **para sumar un bloque se toca un solo lugar**.
+
+- **Vienen todas marcadas**, así que quien no toca nada imprime el informe entero, como antes.
+- **Si no queda ninguna, se imprime todo.** Nunca se devuelve una hoja en blanco.
+- Lo que llegue inventado en la URL se descarta contra las claves que existen.
+- La casilla **Todo** es la misma pieza que usa la matriz de permisos (`data-marca-todo` en
+  `app.js`): refleja lo que hay marcado y prende o apaga el grupo. No lleva `name`, así que no
+  se envía.
 
 > El formulario de impresión **arrastra el período y los filtros** que ya estaban puestos. Si
 > no, el papel saldría de un rango distinto al que se está mirando en pantalla.
@@ -1300,6 +1307,19 @@ que arranca en domingo y corre todo un día.
 
 **El equipo muestra ausencias y canceladas por profesional.** El total del período no dice a
 quién le fallan más, y ahí puede estar el horario o el recordatorio.
+
+**Y muestra las dos plata que importan, que no son la misma:**
+
+| Columna | Qué es |
+|---|---|
+| **Generado** | lo que el salón facturó gracias a ella: la suma del precio de los servicios que hizo |
+| **Comisión** | lo que le toca a ella, que lo calcula `fn_comision_servicio` con el porcentaje o el monto fijo vigente |
+
+> **«Gs. 0» en la comisión sería mentir por omisión**, porque casi siempre no es que ganó cero:
+> es que **nadie le cargó una comisión**. `fn_comision_servicio` devuelve 0 cuando no encuentra
+> ninguna fila vigente para esa persona, y eso es indistinguible de una comisión real de cero.
+> Por eso la columna dice **«sin cargar»** cuando no hay ninguna en `comision`. En la base de
+> prueba pasa con **seis de siete profesionales**.
 
 > En el sistema anterior estos dos ayudantes **no podían llamarse** `reportes_rango` ni
 > `reportes_datos`: el router armaba la URL desde el nombre de la función y los servía como

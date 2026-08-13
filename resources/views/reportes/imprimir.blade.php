@@ -105,7 +105,9 @@
     <table class="table table-sm">
         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
             <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
-            <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
+            <th class="text-end">Servicios</th>
+            <th class="text-end">Generado</th><th class="text-end">Comisión</th>
+            <th class="text-end">Puntaje</th></tr></thead>
         <tbody>
             @forelse ($equipo as $e)
                 <tr>
@@ -115,10 +117,12 @@
                     <td class="text-end">{{ (int) $e->ausencias }}</td>
                     <td class="text-end">{{ (int) $e->canceladas }}</td>
                     <td class="text-end">{{ (int) $e->servicios }}</td>
+                    <td class="text-end">{{ money($e->generado) }}</td>
+                    <td class="text-end">{{ $e->tiene_comision ? money($e->comision) : "sin cargar" }}</td>
                     <td class="text-end">{{ $e->puntaje ? cant($e->puntaje) : '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="7">Sin actividad en el período.</td></tr>
+                <tr><td colspan="9">Sin actividad en el período.</td></tr>
             @endforelse
         </tbody>
     </table>

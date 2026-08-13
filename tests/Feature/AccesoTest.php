@@ -214,9 +214,11 @@ class AccesoTest extends TestCase
             // El informe en papel, entero y por bloques: cada uno arma sus
             // propias consultas y una mal escrita revienta al dibujar.
             ['reportes.imprimir', []],
-            ['reportes.imprimir', ['bloque' => 'demanda']],
-            ['reportes.imprimir', ['bloque' => 'equipo']],
-            ['reportes.imprimir', ['bloque' => 'no-existe']],
+            ['reportes.imprimir', ['bloques' => ['demanda']]],
+            ['reportes.imprimir', ['bloques' => ['resumen', 'equipo']]],
+            // Una clave inventada se descarta y cae en el informe entero: nunca
+            // se devuelve una hoja en blanco.
+            ['reportes.imprimir', ['bloques' => ['no-existe']]],
         ];
 
         foreach ($pantallas as [$ruta, $par]) {
