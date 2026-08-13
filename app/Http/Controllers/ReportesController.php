@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Listado;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -35,7 +36,24 @@ class ReportesController extends Controller
      * donde se elige «Guardar como PDF». No hay librería de PDF a propósito:
      * traería Composer al proyecto sin agregar nada que el navegador no haga.
      */
-    public function imprimir(): View
+    /**
+     * Los bloques que se pueden imprimir por separado.
+     *
+     * Antes el PDF salía con TODO lo que había en pantalla, y quien quería
+     * llevarse sólo las citas terminaba imprimiendo seis hojas para usar una.
+     * La clave es la del `<select>` y también el nombre del bloque en la vista.
+     */
+    public const BLOQUES = [
+        'todo' => 'Todo el informe',
+        'resumen' => 'Resumen del período',
+        'servicios' => 'Servicios más solicitados',
+        'demanda' => 'Demanda por hora y por día',
+        'medios' => 'Medios de pago',
+        'equipo' => 'El equipo',
+        'prov' => 'Deuda con proveedores',
+    ];
+
+    public function imprimir(Request $request): View
     {
         $f = $this->rango();
         $datos = $this->datos($f);
@@ -46,6 +64,16 @@ class ReportesController extends Controller
         ) ?: (object) ['nombre' => config('app.name')];
         $datos['emitido'] = ahora_bd('d/m/Y H:i');
         $datos['porQuien'] = (string) session('nombre', '');
+
+        // Qué se imprime. Un valor inventado en la URL cae en «todo», que es
+        // lo que hacía antes: nunca se devuelve una hoja en blanco.
+        $bloque = (string) $request->query('bloque', 'todo');
+        if (! array_key_exists($bloque, self::BLOQUES)) {
+            $bloque = 'todo';
+        }
+        $datos['bloque'] = $bloque;
+        $datos['bloqueNombre'] = self::BLOQUES[$bloque];
+        $datos['ver'] = fn (string $cual) => $bloque === 'todo' || $bloque === $cual;
 
         return view('reportes.imprimir', $datos);
     }
@@ -133,6 +161,24 @@ class ReportesController extends Controller
             $maxDemanda = max($maxDemanda, (int) $x->citas);
         }
 
+        // La demanda por hora contesta a qué hora abrir o reforzar; la de por
+        // día, qué días conviene tener más gente. Son preguntas distintas y por
+        // eso van las dos.
+        //
+        // `WEEKDAY()+1` da 1=lunes … 7=domingo, que es la convención del
+        // proyecto (`turno_dia.dia_semana`). NO se usa `DAYOFWEEK()`, que
+        // arranca en domingo: mezclarlos corre todo un día.
+        $demandaDia = DB::select(
+            "SELECT WEEKDAY(c.fecha_hora) + 1 dia, COUNT(*) citas,
+                    SUM(c.id_estado_cita = 4) atendidas,
+                    SUM(c.id_estado_cita = 6) ausencias
+               $joinCita GROUP BY WEEKDAY(c.fecha_hora) + 1 ORDER BY dia", $par
+        );
+        $maxDemandaDia = 0;
+        foreach ($demandaDia as $x) {
+            $maxDemandaDia = max($maxDemandaDia, (int) $x->citas);
+        }
+
         return [
             'f' => $f,
             'desde' => $d,
@@ -156,14 +202,21 @@ class ReportesController extends Controller
             ),
             'demanda' => $demanda,
             'maxDemanda' => $maxDemanda,
+            'demandaDia' => $demandaDia,
+            'maxDemandaDia' => $maxDemandaDia,
             'medios' => DB::select(
                 "SELECT mp.nombre medio, mp.tipo, COUNT(*) cantidad, COALESCE(SUM(co.monto),0) total
                    $joinCob GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo ORDER BY total DESC", $parC
             ),
             'equipo' => DB::select(
+                // Las ausencias son de quien NO vino a la cita, y por
+                // profesional dicen algo que el total no: si a una le fallan
+                // muchas, puede ser el horario o el recordatorio.
                 "SELECT CONCAT(pe.nombre,' ',pe.apellido) profesional,
                         COUNT(DISTINCT c.id_cita) citas,
                         SUM(c.id_estado_cita = 4) atendidas,
+                        SUM(c.id_estado_cita = 6) ausencias,
+                        SUM(c.id_estado_cita = 3) canceladas,
                         (SELECT COUNT(*) FROM servicio_realizado sr WHERE sr.id_usuario = u.id_usuario
                            AND DATE(sr.fecha_hora) BETWEEN :d2 AND :h2) servicios,
                         (SELECT ROUND(AVG(cal.puntaje),2) FROM calificacion cal

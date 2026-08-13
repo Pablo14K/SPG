@@ -211,6 +211,12 @@ class AccesoTest extends TestCase
             ['facturacion.caja', []],
             ['inventario.productos', []],
             ['reportes.index', []],
+            // El informe en papel, entero y por bloques: cada uno arma sus
+            // propias consultas y una mal escrita revienta al dibujar.
+            ['reportes.imprimir', []],
+            ['reportes.imprimir', ['bloque' => 'demanda']],
+            ['reportes.imprimir', ['bloque' => 'equipo']],
+            ['reportes.imprimir', ['bloque' => 'no-existe']],
         ];
 
         foreach ($pantallas as [$ruta, $par]) {

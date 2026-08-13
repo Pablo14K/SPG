@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.7.0 | 13/08/2026 | **Retroalimentación de la otra desarrolladora: cuatro cosas, y una era grave.** **Una clienta que el salón ya tenía cargada se DUPLICABA al crearse una cuenta.** Casi todas entran por teléfono y las carga quien atiende, así que tienen `persona` y `cliente` pero no `usuario`; los controles del registro miran `usuario JOIN persona` —o sea sólo a quien ya tiene cuenta—, así que pasaba el filtro y se le creaban una persona y un cliente **nuevos**: quedaban dos fichas con el mismo correo y su historial, sus puntos y su nivel se quedaban en la vieja. Eran **31 de 33 clientas** en esa situación, y además rompe la regla de no repetir datos de personas. Ahora el registro **enlaza la ficha existente**, sin pisar con vacíos lo que el salón ya tenía cargado —si se registra sin teléfono, el teléfono queda— y avisándole que sus citas y sus puntos siguen ahí. Enlazar por correo no le regala la ficha a un tercero: la cuenta nace inactiva y el código va a ese mismo correo. **En Reportes se elige qué imprimir**: antes el papel salía con todo lo de la pantalla, así que llevarse sólo las citas costaba seis hojas. Los bloques viven en una constante que alimenta el selector, el subtítulo del papel y el filtro, así que sumar uno se toca en un solo lugar; un valor inventado cae en «todo» y nunca deja la hoja en blanco. **La demanda ahora también se ve por día**, no sólo por hora —son dos preguntas distintas: a qué hora reforzar y qué días tener más gente—, con el día 1=lunes de la convención del proyecto. Al escribirla apareció que **`ONLY_FULL_GROUP_BY` exige repetir la misma expresión** en el `GROUP BY`: `SELECT WEEKDAY(x)+1 … GROUP BY WEEKDAY(x)` da 1055. **Y el equipo muestra ausencias y canceladas por profesional**, que el total del período no dice a quién le fallan más. Lo quinto no era un error: **los códigos de verificación no llegan porque el contenedor manda el correo a `log` a propósito** —la contraseña salió del repositorio en la 6.4.0—, así que ahora `spg:diagnostico` tiene una sección de correo que lo dice y explica dónde queda el código y cómo hacer que salga. **63 pruebas** |
 | 7.6.0 | 13/08/2026 | **`spg:diagnostico` compara la base contra el `.sql` que se entrega, porque el código puede estar al día y la base no.** Lo escribió un caso real: una compañera actualizó el proyecto, levantó los contenedores y **el ingreso murió con un 500** —«Columna desconocida `tema`»—. El esquema estaba bien y los `.sql` también; lo que pasa es que **MariaDB corre el guion de importación UNA sola vez, cuando el volumen está vacío**, así que un `docker compose up` sobre un volumen que ya tenía datos deja código nuevo contra base vieja. Y no falla al arrancar: falla cuando alguien abre la pantalla que usa la columna nueva, que es la peor forma de enterarse. Ahora el diagnóstico lee las 68 tablas del volcado, las compara con las que hay de verdad y, si falta algo, dice **qué falta y qué comando correr** (`docker compose down -v && docker compose up` — el `-v` es lo que importa, sin él no se reimporta nada). Sobrar no se marca: una base de trabajo puede tener cosas de más, lo que rompe es que falte. Comprobado borrando la columna a propósito y devolviéndola. De paso salieron dos números desactualizados más: **el diagnóstico esperaba 56 `CHECK` cuando son 57** desde que la 7.2.0 sumó `chk_pref_tema` —es la **segunda vez** que ese contador se queda atrás, y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que tendría que detectar—; y **el cartel de la hora mostraba una zona equivocada**: decía `@@system_time_zone`, que en el contenedor da **−04** por la tzdata vieja de MariaDB 10.4 —la trampa que este documento ya explica—, cuando la que gobierna `NOW()` es `@@time_zone`, en −03 por el compose. Quedaba un −04 alarmante al lado de una hora correcta |
 | 7.5.3 | 13/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno: **28 permisos, 7 módulos, 4 componentes Blade, 20 procedimientos, 30 funciones, 17 disparadores, 17 vistas y 57 CHECK** siguen exactos; **las rutas eran 154, no 151** —el conteo ya venía desfasado antes de sumar las dos del receptor—. De paso salieron dos cosas de verdad: **las tres plantillas de `.env` decían tener las mismas claves y no era cierto**. `SESSION_SECURE_COOKIE` estaba **sólo en la de producción**, y la lee `config/session.php`: era una opción real, viva e invisible para quien leyera las otras dos. Y `VITE_APP_NAME` seguía en las dos de desarrollo aunque **no la usa nadie** — quedó del andamiaje de Vite que se borró en la 7.1.0. Ahora son 44 claves y las tres coinciden exactamente, con el comando para comprobarlo escrito al lado. También **el comentario de `env.docker` contradecía a su propia línea**: decía «hoy apunta a `peluqueria_bd`» arriba de un `DB_DATABASE=peluqueria_test` |
 | 7.5.2 | 13/08/2026 | **El Automatizador SIFEN sube con el resto del sistema.** Se levantaba a mano, y eso era exactamente la causa de que el PDF no llegara: el servicio se caía sin que nadie lo notara y las facturas se acumulaban en PENDIENTE — pasó en vivo, con cuatro horas y media de diferencia entre levantarlo y emitir. Ahora es un servicio más del `docker-compose.yml` y arranca con `docker compose up`. Como vive **fuera del repositorio**, el compose lo monta por ruta: lo busca como carpeta hermana del proyecto y se le puede decir otra con `SPG_SIFEN_PATH`. Dos detalles que no son caprichos. **Si la carpeta no está, el contenedor avisa y se apaga solo**, en vez de servir una carpeta vacía: eso contestaría **404**, y el SPG lee cualquier 4xx como **RECHAZADO**, o sea «no reintentes» — cuando la verdad es que el comprobante estaba bien y el servicio no estaba. Apagado da conexión rechazada, que sí queda PENDIENTE. Y **`restart: on-failure` en lugar de `unless-stopped`**, porque ese apagado limpio sale con 0 y `unless-stopped` lo relevantaría igual, dejándolo en bucle repitiendo el aviso. De paso la URL pasa a ser `http://sifen:8090/`, el **nombre del servicio**, que se resuelve solo en la red de los contenedores igual que `bd` y no depende de `host.docker.internal` |
@@ -230,7 +231,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 62 pruebas
+tests/Feature/             Las 63 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -645,6 +646,28 @@ En las vistas Blade, además, **las variables del layout no pisan a las del cont
 era un problema real del sistema viejo —`view()` hacía `extract()` antes de incluir el
 encabezado, y la pantalla de Nuevo usuario llegó a mostrar el nombre de quien estaba logueado
 en el campo Nombre—. Blade tiene su propio ámbito por componente, así que no puede repetirse.
+
+### La clienta que el salón ya tenía cargada
+
+**Casi todas las clientas entran por teléfono y las carga quien atiende**, así que tienen
+`persona` y `cliente` pero **no `usuario`**. Cuando esa clienta después se crea una cuenta en
+el portal, el registro **enlaza su ficha** en vez de hacer una nueva.
+
+Sin eso se duplicaba: los controles del formulario miran `usuario JOIN persona` —o sea sólo a
+quien ya tiene cuenta—, así que pasaba el filtro y se le creaban una `persona` y un `cliente`
+nuevos. Quedaban **dos fichas con el mismo correo**, y su historial, sus puntos y su nivel se
+quedaban en la vieja. En la base de prueba eran **31 de 33 clientas** en esa situación.
+
+- Se busca por **correo**, entre las personas que **no tienen cuenta**. Si ya tiene una, sigue
+  valiendo el aviso de siempre («Ya existe una cuenta con ese email»).
+- **Enlazar por correo no le regala la ficha a un tercero**: la cuenta nace inactiva y el
+  código de verificación va a ese mismo correo, así que sólo la activa quien lo controla.
+- **Lo que ella carga no pisa lo del salón con vacíos.** Si se registra sin teléfono y el
+  salón se lo tenía, el teléfono queda.
+- El aviso se lo dice, porque si no parece que empezó de cero: *«Encontramos tu ficha en el
+  salón, así que tus citas y tus puntos ya están en tu cuenta.»*
+
+Lo fija `ReglasDeNegocioTest::registrarse_enlaza_la_ficha_que_el_salon_ya_tenia`.
 
 ## Roles
 
@@ -1220,6 +1243,27 @@ e `imprimir()` los saca en A4 con `public/assets/css/imprimir.css`.
 es lo que hace todo el mundo igual. Una librería de PDF traería Composer al proyecto y no
 agregaría nada que el navegador no haga.
 
+**Se elige QUÉ se imprime**, no sale todo siempre: quien quería sólo las citas terminaba
+imprimiendo seis hojas para usar una. Los bloques están en
+`ReportesController::BLOQUES` —esa constante alimenta el `<select>` de la pantalla, el
+subtítulo del papel y el `$ver()` que decide qué se dibuja—, así que **para sumar un bloque se
+toca un solo lugar**. Un valor inventado en la URL cae en «todo»: nunca se devuelve una hoja
+en blanco.
+
+> El formulario de impresión **arrastra el período y los filtros** que ya estaban puestos. Si
+> no, el papel saldría de un rango distinto al que se está mirando en pantalla.
+
+**La demanda se muestra por hora y por día**, que son dos preguntas distintas: la de por hora
+dice a qué hora reforzar, la de por día qué días conviene tener más gente. El día va
+**1 = lunes … 7 = domingo** (`WEEKDAY()+1`), la convención del proyecto — no `DAYOFWEEK()`,
+que arranca en domingo y corre todo un día.
+
+> **Ojo con `ONLY_FULL_GROUP_BY`**, que está activo: el `GROUP BY` tiene que repetir la
+> **misma expresión** del `SELECT`. `SELECT WEEKDAY(x)+1 … GROUP BY WEEKDAY(x)` da error 1055.
+
+**El equipo muestra ausencias y canceladas por profesional.** El total del período no dice a
+quién le fallan más, y ahí puede estar el horario o el recordatorio.
+
 > En el sistema anterior estos dos ayudantes **no podían llamarse** `reportes_rango` ni
 > `reportes_datos`: el router armaba la URL desde el nombre de la función y los servía como
 > pantallas, sin argumentos y sin guardia. Con Laravel el problema desapareció —las rutas se
@@ -1753,7 +1797,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 62 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 63 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1813,7 +1857,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**62 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**63 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

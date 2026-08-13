@@ -103,6 +103,34 @@ class Diagnostico extends Command
             }
         }
 
+        // ---- ¿Los correos salen de verdad? ----------------------------------
+        // El código de verificación, la recuperación de contraseña y el segundo
+        // factor viajan SÓLO por correo. Con el driver en `log` no sale nada y
+        // la pantalla igual dice «te enviamos un código»: parece roto y no lo
+        // está. Se avisa acá porque es lo primero que se prueba al registrar
+        // una clienta nueva.
+        $this->titulo('El correo');
+        $driver = (string) config('mail.default');
+        if ($driver === 'log') {
+            $this->linea('Driver', 'log — los correos NO se envían');
+            $this->linea('Dónde queda el código', 'storage/logs/laravel.log');
+            $this->linea('Para verlo', 'docker compose exec app tail -f storage/logs/laravel.log');
+            $this->linea('Para que salga', 'poné MAIL_MAILER=smtp y las credenciales en docker/php/env.docker');
+        } elseif ($driver === 'array') {
+            $this->linea('Driver', 'array — los correos se descartan (es lo normal en las pruebas)');
+        } else {
+            $desde = (string) config('mail.from.address');
+            $usuario = (string) config('mail.mailers.smtp.username');
+            $this->bien('Driver: ' . $driver . ' por ' . config('mail.mailers.smtp.host'));
+            if ($usuario === '') {
+                $this->mal('Falta MAIL_USERNAME: el servidor va a rechazar el envío.');
+                $problemas++;
+            } elseif ($desde !== '' && $usuario !== '' && ! str_contains($desde, explode('@', $usuario)[1] ?? '@')) {
+                // Gmail y la mayoría rechazan un From de otro dominio.
+                $this->linea('Ojo', 'el remitente (' . $desde . ') no es del dominio de ' . $usuario);
+            }
+        }
+
         // ---- ¿La base coincide con el .sql que se entrega? ------------------
         $problemas += $this->revisarEsquema();
 

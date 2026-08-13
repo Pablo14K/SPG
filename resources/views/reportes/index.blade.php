@@ -20,6 +20,29 @@
                href="{{ route('reportes.index', ['desde' => date('Y-m-01', strtotime('-1 month')), 'hasta' => date('Y-m-t', strtotime('-1 month'))]) }}">
                 Mes pasado</a>
         </div>
+
+        {{-- Qué se lleva al papel. Antes el informe salía SIEMPRE entero, así
+             que quien quería sólo las citas imprimía seis hojas para usar una.
+             Va como formulario GET y arrastra el período y los filtros que ya
+             estaban puestos: si no, el papel saldría de otro rango que el que
+             se está mirando. --}}
+        <form method="get" action="{{ route('reportes.imprimir') }}"
+              class="d-flex align-items-end gap-2 flex-wrap mt-3 pt-3 border-top">
+            @foreach (['desde', 'hasta', 'prof', 'suc'] as $campo)
+                @if (request()->query($campo))
+                    <input type="hidden" name="{{ $campo }}" value="{{ request()->query($campo) }}">
+                @endif
+            @endforeach
+            <div>
+                <label class="form-label" for="bloque">Qué imprimir</label>
+                <select class="form-select form-select-sm" id="bloque" name="bloque" style="width:auto">
+                    @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
+                        <option value="{{ $clave }}">{{ $nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="btn btn-sm btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
+        </form>
     </div>
 
     <div class="spg-metrics mb-3">
@@ -90,7 +113,11 @@
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
+                        {{-- Ausencias y canceladas por profesional: el total del
+                             período no dice a quién le fallan más, y ahí puede
+                             estar el horario o el recordatorio. --}}
                         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
+                            <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
                             <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
                         <tbody>
                             @forelse ($equipo as $e)
@@ -98,11 +125,14 @@
                                     <td>{{ $e->profesional }}</td>
                                     <td class="text-end">{{ (int) $e->citas }}</td>
                                     <td class="text-end">{{ (int) $e->atendidas }}</td>
+                                    <td class="text-end {{ (int) $e->ausencias ? 'txt-no' : '' }}">
+                                        {{ (int) $e->ausencias ?: '—' }}</td>
+                                    <td class="text-end">{{ (int) $e->canceladas ?: '—' }}</td>
                                     <td class="text-end">{{ (int) $e->servicios }}</td>
                                     <td class="text-end txt-oro">{{ $e->puntaje ? cant($e->puntaje) . ' ★' : '—' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -122,6 +152,31 @@
                             <div style="width:{{ $ancho }}%;background:var(--oro);height:100%"></div>
                         </div>
                         <span style="width:28px;text-align:right;font-size:.8rem">{{ (int) $h->citas }}</span>
+                    </div>
+                @empty
+                    <p class="text-muted-warm mb-0" style="font-size:.85rem">Sin citas en el período.</p>
+                @endforelse
+            </div>
+
+            {{-- Por hora se ve a qué hora reforzar; por día, qué días conviene
+                 tener más gente. Son dos preguntas distintas, por eso van las
+                 dos. `dia` viene 1=lunes … 7=domingo, que es la convención del
+                 proyecto (`turno_dia.dia_semana`). --}}
+            @php
+                $dias = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
+                         5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
+            @endphp
+            <div class="spg-panel mt-3">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-week"></i> Demanda por día</h2>
+                @forelse ($demandaDia as $x)
+                    @php $ancho = $maxDemandaDia ? round((int) $x->citas * 100 / $maxDemandaDia) : 0; @endphp
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span style="width:70px;font-size:.8rem" class="text-muted-warm">
+                            {{ $dias[(int) $x->dia] ?? $x->dia }}</span>
+                        <div style="flex:1;background:var(--gris-calido);border-radius:4px;height:14px;overflow:hidden">
+                            <div style="width:{{ $ancho }}%;background:var(--oro);height:100%"></div>
+                        </div>
+                        <span style="width:28px;text-align:right;font-size:.8rem">{{ (int) $x->citas }}</span>
                     </div>
                 @empty
                     <p class="text-muted-warm mb-0" style="font-size:.85rem">Sin citas en el período.</p>

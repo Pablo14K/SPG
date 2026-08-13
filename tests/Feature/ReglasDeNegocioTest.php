@@ -445,6 +445,64 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertMatchesRegularExpression('/^FAC\|\d{3}\|\d{3}\|\d{7}\|\d{4}-\d{2}-\d{2}\|[12]\|PYG$/', $fac);
     }
 
+    /**
+     * Una clienta que el salón ya tenía cargada no se duplica al registrarse.
+     *
+     * Es el caso normal, no el raro: casi todas entran por teléfono y las
+     * carga quien atiende, así que tienen `persona` y `cliente` pero no
+     * `usuario`. Los controles del registro miran `usuario JOIN persona` —o
+     * sea sólo a quien ya tiene cuenta—, así que esa clienta pasaba el filtro
+     * y se le creaban una persona y un cliente NUEVOS: quedaban dos fichas con
+     * el mismo correo y su historial, sus puntos y su nivel se quedaban en la
+     * vieja.
+     */
+    #[Test]
+    public function registrarse_enlaza_la_ficha_que_el_salon_ya_tenia(): void
+    {
+        $c = DB::selectOne(
+            'SELECT cl.id_cliente, pe.id_persona, pe.nombre, pe.apellido, pe.email, pe.telefono
+               FROM cliente cl JOIN persona pe ON pe.id_persona = cl.id_persona
+              WHERE cl.id_usuario IS NULL AND pe.email IS NOT NULL
+              ORDER BY cl.id_cliente LIMIT 1'
+        );
+        if (! $c) {
+            $this->markTestSkipped('No hay clientas sin cuenta en la base de prueba.');
+        }
+
+        $citas = (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [$c->id_cliente]);
+        $puntos = (float) DB::scalar('SELECT fn_cliente_puntos(?)', [$c->id_cliente]);
+        $personas = (int) DB::scalar('SELECT COUNT(*) FROM persona');
+        $clientes = (int) DB::scalar('SELECT COUNT(*) FROM cliente');
+
+        // Se registra con su correo y SIN teléfono, para comprobar de paso que
+        // no le borre el que el salón ya tenía cargado.
+        $this->post(route('registro'), [
+            'nombre' => $c->nombre,
+            'apellido' => $c->apellido,
+            'email' => $c->email,
+            'username' => 'prueba' . substr((string) microtime(true), -8),
+            'password' => 'clave123',
+            'password2' => 'clave123',
+        ])->assertRedirect(route('verificar'));
+
+        $this->assertSame($personas, (int) DB::scalar('SELECT COUNT(*) FROM persona'),
+            'Se creó una persona de más: la clienta quedó duplicada.');
+        $this->assertSame($clientes, (int) DB::scalar('SELECT COUNT(*) FROM cliente'),
+            'Se creó un cliente de más: la clienta quedó duplicada.');
+        $this->assertSame(1, (int) DB::scalar('SELECT COUNT(*) FROM persona WHERE email = ?', [$c->email]),
+            'Quedaron dos fichas con el mismo correo.');
+
+        $r = DB::selectOne('SELECT cl.id_usuario, pe.telefono FROM cliente cl
+                              JOIN persona pe ON pe.id_persona = cl.id_persona
+                             WHERE cl.id_cliente = ?', [$c->id_cliente]);
+        $this->assertNotNull($r->id_usuario, 'La ficha vieja no quedó enlazada a la cuenta nueva.');
+        $this->assertSame($c->telefono, $r->telefono, 'El registro le borró el teléfono que ya tenía.');
+
+        // Y lo que importa de verdad: no arranca de cero
+        $this->assertSame($citas, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [$c->id_cliente]));
+        $this->assertEqualsWithDelta($puntos, (float) DB::scalar('SELECT fn_cliente_puntos(?)', [$c->id_cliente]), 0.01);
+    }
+
     // -----------------------------------------------------------------
     //  Permisos
     // -----------------------------------------------------------------

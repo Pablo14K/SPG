@@ -35,6 +35,7 @@
         </div>
         <div class="text-end" style="font-size:.8rem">
             <strong>Informe de gestión</strong><br>
+            <span style="font-size:.78rem">{{ $bloqueNombre }}</span><br>
             {{ fecha($desde, 'd/m/Y') }} – {{ fecha($hasta, 'd/m/Y') }}<br>
             <span class="text-muted-warm">Emitido el {{ $emitido }} por {{ $porQuien }}</span>
         </div>
@@ -42,6 +43,7 @@
 
     <hr>
 
+    @if ($ver("resumen"))
     <h2 style="font-size:1rem;margin:1rem 0 .5rem">Resumen del período</h2>
     <table class="table table-sm">
         <tbody>
@@ -55,6 +57,9 @@
         </tbody>
     </table>
 
+    @endif
+
+    @if ($ver("servicios"))
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Servicios más solicitados</h2>
     <table class="table table-sm">
         <thead><tr><th>Servicio</th><th>Categoría</th><th class="text-end">Veces</th><th class="text-end">Ingreso</th></tr></thead>
@@ -72,6 +77,11 @@
         </tbody>
     </table>
 
+    @endif
+
+    @include("reportes.demanda_impresa")
+
+    @if ($ver("medios"))
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Medios de pago</h2>
     <table class="table table-sm">
         <thead><tr><th>Medio</th><th class="text-end">Cobros</th><th class="text-end">Total</th></tr></thead>
@@ -88,9 +98,13 @@
         </tbody>
     </table>
 
+    @endif
+
+    @if ($ver("equipo"))
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">El equipo</h2>
     <table class="table table-sm">
         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
+            <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
             <th class="text-end">Servicios</th><th class="text-end">Puntaje</th></tr></thead>
         <tbody>
             @forelse ($equipo as $e)
@@ -98,16 +112,20 @@
                     <td>{{ $e->profesional }}</td>
                     <td class="text-end">{{ (int) $e->citas }}</td>
                     <td class="text-end">{{ (int) $e->atendidas }}</td>
+                    <td class="text-end">{{ (int) $e->ausencias }}</td>
+                    <td class="text-end">{{ (int) $e->canceladas }}</td>
                     <td class="text-end">{{ (int) $e->servicios }}</td>
                     <td class="text-end">{{ $e->puntaje ? cant($e->puntaje) : '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="5">Sin actividad en el período.</td></tr>
+                <tr><td colspan="7">Sin actividad en el período.</td></tr>
             @endforelse
         </tbody>
     </table>
 
-    @if ($prov)
+    @endif
+
+    @if ($ver("prov") && $prov)
         <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Deuda con proveedores</h2>
         <table class="table table-sm">
             <thead><tr><th>Proveedor</th><th>Vencimiento</th><th class="text-end">Saldo</th></tr></thead>

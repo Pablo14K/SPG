@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Throwable;
 
@@ -138,20 +139,57 @@ class AuthController extends Controller
             return $volver;
         }
 
+        // ¿Esta persona YA ESTÁ en el salón, cargada desde el mostrador?
+        //
+        // Es el caso normal, no el raro: casi todas las clientas entran por
+        // teléfono y las carga quien atiende, así que tienen `persona` y
+        // `cliente` pero **no `usuario`**. Los controles de arriba miran
+        // `usuario JOIN persona`, o sea sólo a quien ya tiene cuenta, así que
+        // esa clienta pasaba el filtro y se le creaba una persona y un cliente
+        // NUEVOS: quedaban dos fichas con el mismo correo y su historial, sus
+        // puntos y su nivel se quedaban en la vieja. Además rompe la regla de
+        // no repetir datos de personas.
+        //
+        // Quien controla el correo es quien puede activar la cuenta —el código
+        // se manda ahí y hasta entonces el usuario nace inactivo—, así que
+        // enlazar por correo no le regala la ficha a un tercero.
+        $existente = DB::selectOne(
+            'SELECT pe.id_persona, cl.id_cliente
+               FROM persona pe
+               LEFT JOIN cliente cl ON cl.id_persona = pe.id_persona
+              WHERE pe.email = ?
+                AND NOT EXISTS (SELECT 1 FROM usuario u WHERE u.id_persona = pe.id_persona)
+              ORDER BY cl.id_cliente IS NULL, cl.id_cliente
+              LIMIT 1', [$d['email']]
+        );
+
         try {
-            $idu = DB::transaction(function () use ($d, $username, $pass) {
+            $idu = DB::transaction(function () use ($d, $username, $pass, $existente) {
                 // Los datos personales van una sola vez, en `persona`; la cuenta
                 // y la ficha de cliente la referencian.
-                $idPersona = Persona::guardar(null, $d);
+                //
+                // Al enlazar no se pisa lo que ya había con vacíos: `$d` puede
+                // traer el teléfono en null y el salón tenerlo cargado.
+                $datos = $existente ? array_filter($d, fn ($v) => trim((string) $v) !== '') : $d;
+                $idPersona = Persona::guardar($existente?->id_persona, $datos);
+
                 // La cuenta nace INACTIVA hasta verificar el correo
                 DB::insert('INSERT INTO usuario (id_persona,id_rol,username,password_hash,activo) VALUES (?,?,?,?,0)',
                     [$idPersona, (int) config('permisos.rol_cliente', 4), $username, Hash::make($pass)]);
                 $idu = (int) DB::getPdo()->lastInsertId();
-                DB::insert('INSERT INTO cliente (id_persona,id_usuario,activo) VALUES (?,?,1)', [$idPersona, $idu]);
+
+                if ($existente?->id_cliente) {
+                    // La ficha que ya tenía el salón pasa a ser la de su cuenta.
+                    DB::update('UPDATE cliente SET id_usuario = ?, activo = 1 WHERE id_cliente = ?',
+                        [$idu, (int) $existente->id_cliente]);
+                } else {
+                    DB::insert('INSERT INTO cliente (id_persona,id_usuario,activo) VALUES (?,?,1)', [$idPersona, $idu]);
+                }
 
                 return $idu;
             });
-        } catch (Throwable) {
+        } catch (Throwable $ex) {
+            Log::error('Registro de ' . $d['email'] . ': ' . $ex->getMessage());
             flash('No se pudo crear la cuenta. Intentá con otro usuario o email.', 'error');
 
             return $volver;
@@ -160,9 +198,14 @@ class AuthController extends Controller
         $enviado = Seguridad::enviarCodigo($idu, 'VERIFICACION', $d['email'], $d['nombre']);
         session(['verif_uid' => $idu, 'verif_email' => $d['email']]);
 
-        flash($enviado
-            ? 'Te enviamos un código de verificación a ' . $d['email'] . '.'
-            : 'No pudimos enviarte el código todavía. Probá reenviarlo desde la próxima pantalla.',
+        flash(($enviado
+                ? 'Te enviamos un código de verificación a ' . $d['email'] . '.'
+                : 'No pudimos enviarte el código todavía. Probá reenviarlo desde la próxima pantalla.')
+            // Que lo sepa: si el salón ya la tenía cargada, sus citas y sus
+            // puntos siguen ahí y no arranca de cero.
+            . ($existente?->id_cliente
+                ? ' Encontramos tu ficha en el salón, así que tus citas y tus puntos ya están en tu cuenta.'
+                : ''),
             $enviado ? 'success' : 'warning');
 
         return redirect()->route('verificar');
