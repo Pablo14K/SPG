@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.6.0 | 13/08/2026 | **`spg:diagnostico` compara la base contra el `.sql` que se entrega, porque el código puede estar al día y la base no.** Lo escribió un caso real: una compañera actualizó el proyecto, levantó los contenedores y **el ingreso murió con un 500** —«Columna desconocida `tema`»—. El esquema estaba bien y los `.sql` también; lo que pasa es que **MariaDB corre el guion de importación UNA sola vez, cuando el volumen está vacío**, así que un `docker compose up` sobre un volumen que ya tenía datos deja código nuevo contra base vieja. Y no falla al arrancar: falla cuando alguien abre la pantalla que usa la columna nueva, que es la peor forma de enterarse. Ahora el diagnóstico lee las 68 tablas del volcado, las compara con las que hay de verdad y, si falta algo, dice **qué falta y qué comando correr** (`docker compose down -v && docker compose up` — el `-v` es lo que importa, sin él no se reimporta nada). Sobrar no se marca: una base de trabajo puede tener cosas de más, lo que rompe es que falte. Comprobado borrando la columna a propósito y devolviéndola. De paso salieron dos números desactualizados más: **el diagnóstico esperaba 56 `CHECK` cuando son 57** desde que la 7.2.0 sumó `chk_pref_tema` —es la **segunda vez** que ese contador se queda atrás, y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que tendría que detectar—; y **el cartel de la hora mostraba una zona equivocada**: decía `@@system_time_zone`, que en el contenedor da **−04** por la tzdata vieja de MariaDB 10.4 —la trampa que este documento ya explica—, cuando la que gobierna `NOW()` es `@@time_zone`, en −03 por el compose. Quedaba un −04 alarmante al lado de una hora correcta |
 | 7.5.3 | 13/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno: **28 permisos, 7 módulos, 4 componentes Blade, 20 procedimientos, 30 funciones, 17 disparadores, 17 vistas y 57 CHECK** siguen exactos; **las rutas eran 154, no 151** —el conteo ya venía desfasado antes de sumar las dos del receptor—. De paso salieron dos cosas de verdad: **las tres plantillas de `.env` decían tener las mismas claves y no era cierto**. `SESSION_SECURE_COOKIE` estaba **sólo en la de producción**, y la lee `config/session.php`: era una opción real, viva e invisible para quien leyera las otras dos. Y `VITE_APP_NAME` seguía en las dos de desarrollo aunque **no la usa nadie** — quedó del andamiaje de Vite que se borró en la 7.1.0. Ahora son 44 claves y las tres coinciden exactamente, con el comando para comprobarlo escrito al lado. También **el comentario de `env.docker` contradecía a su propia línea**: decía «hoy apunta a `peluqueria_bd`» arriba de un `DB_DATABASE=peluqueria_test` |
 | 7.5.2 | 13/08/2026 | **El Automatizador SIFEN sube con el resto del sistema.** Se levantaba a mano, y eso era exactamente la causa de que el PDF no llegara: el servicio se caía sin que nadie lo notara y las facturas se acumulaban en PENDIENTE — pasó en vivo, con cuatro horas y media de diferencia entre levantarlo y emitir. Ahora es un servicio más del `docker-compose.yml` y arranca con `docker compose up`. Como vive **fuera del repositorio**, el compose lo monta por ruta: lo busca como carpeta hermana del proyecto y se le puede decir otra con `SPG_SIFEN_PATH`. Dos detalles que no son caprichos. **Si la carpeta no está, el contenedor avisa y se apaga solo**, en vez de servir una carpeta vacía: eso contestaría **404**, y el SPG lee cualquier 4xx como **RECHAZADO**, o sea «no reintentes» — cuando la verdad es que el comprobante estaba bien y el servicio no estaba. Apagado da conexión rechazada, que sí queda PENDIENTE. Y **`restart: on-failure` en lugar de `unless-stopped`**, porque ese apagado limpio sale con 0 y `unless-stopped` lo relevantaría igual, dejándolo en bucle repitiendo el aviso. De paso la URL pasa a ser `http://sifen:8090/`, el **nombre del servicio**, que se resuelve solo en la red de los contenedores igual que `bd` y no depende de `host.docker.internal` |
 | 7.5.1 | 13/08/2026 | **El PDF del comprobante no llegaba, y no era culpa del Automatizador: nunca se lo llamaba.** El SPG venía en `SIFEN_MODO=simulado` con `SIFEN_URL` vacía, así que se armaba el TXT, se devolvía un CDC de prueba y **ahí terminaba** — ninguna conexión, ningún correo. El aviso lo decía en potencial («le *habría* llegado a…») y eso no alcanzó para que se notara. Se comprobó de los dos lados por separado: el Automatizador toma el TXT que arma el SPG, **genera el KuDE en PDF (78 KB, sin librerías) y arma el correo con el PDF y el XML adjuntos** —probado con `MAIL_TRANSPORT=file`, que escribe el `.eml` en vez de mandarlo—, y el contenedor lo alcanza por HTTP y recibe 200. Queda conectado: `SIFEN_MODO=http` contra `host.docker.internal:8090`, que **no es `localhost`** —adentro del contenedor localhost es el contenedor—, y el Automatizador entra en `.claude/launch.json` para poder levantarlo con un comando. No necesita Composer: no tiene dependencias. Además se documentan las **tres cosas que tienen que estar juntas** para que el correo salga, porque si falta una falla en silencio: el servicio corriendo, el SPG apuntándole con el token que coincida, y `MAIL_*` cargado en el `.env` **del Automatizador** (con `MAIL_FROM_EMAIL` vacío se saltea el envío sin avisar). De paso **sale el aviso de «modo simulado» de la pantalla del receptor**: ocupaba media pantalla justo arriba del formulario y repetía algo que el comprobante ya dice una vez emitido, que es donde importa |
@@ -788,6 +789,12 @@ una hora corrido no sirve para nada.
 
 `php artisan spg:diagnostico` compara los dos relojes y avisa si no coinciden.
 
+> **La zona que manda es `@@time_zone`, no `@@system_time_zone`.** El diagnóstico mostraba la
+> del sistema, y en el contenedor eso da **−04**: la tzdata de MariaDB 10.4 es anterior a que
+> Paraguay dejara sin efecto el horario de verano. Quedaba un −04 alarmante al lado de una hora
+> perfectamente correcta, porque la que gobierna `NOW()` es la que fija el compose con
+> `--default-time-zone=-03:00`. Ahora muestra la efectiva.
+
 > El `.ics` del calendario resuelve el mismo problema de otra forma —manda **hora flotante**,
 > sin `Z` y sin convertir— porque ahí el que interpreta es el teléfono del cliente. Ver la
 > sección *Recordatorio en el calendario del cliente*. **Las dos soluciones conviven: no
@@ -814,6 +821,12 @@ vencer.
 > hecho la administraba solo el Administrador; mudarla sin más habría puesto el alta y la
 > baja de timbrados al alcance de cualquiera con `facturacion`. Con la clave aparte, el salón
 > decide en la matriz quién los administra. Ver **Submódulos**.
+
+> **Al agregar un `CHECK`, actualizá también la constante `CHECKS` de
+> `spg:diagnostico`.** Ese número se quedó atrás **dos veces**: en 54 cuando la 7.0.0 lo llevó
+> a 56, y en 56 cuando la 7.2.0 lo llevó a 57. Como la comparación es «menos que», quedarse
+> corto **no hace saltar nada** — o sea que el desfase esconde justo lo que ese número tendría
+> que detectar.
 
 **Cuidado con los nombres de los `CHECK`**: conviven `chk_timbrado_rango` y
 `chk_timbrado_fechas`, del esquema original, con `chk_timbrado_rango7`, que es la estricta —
@@ -1763,7 +1776,22 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando las 20 rutinas, 30 funciones,
-   17 triggers, 17 vistas y 57 `CHECK`.
+   17 triggers, 17 vistas y 57 `CHECK`, y que **la base coincide con el `.sql`**.
+
+> **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
+> `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
+> así que un `docker compose up` sobre un volumen que ya tiene datos deja **código nuevo contra
+> base vieja**. No falla al arrancar: falla cuando alguien abre la pantalla que usa lo que se
+> agregó. Pasó de verdad —una compañera actualizó, levantó los contenedores y el **ingreso
+> murió con un 500**: «Columna desconocida `tema`», la que sumó el tema oscuro en la 7.2.0—.
+>
+> Se sale con `docker compose down -v && docker compose up`. **El `-v` es lo que importa**:
+> sin él no se reimporta nada.
+>
+> Por eso `spg:diagnostico` compara ahora las columnas de la base contra las del
+> `basededatos/peluqueria_bd(base).sql` y, si falta alguna, dice **qué falta y qué comando
+> correr** en vez de dejar que se descubra con un 500. Sobrar no se marca —una base de trabajo
+> puede tener cosas de más—; lo que rompe es que falte.
 5. Respetar la **regla número dos**: 3FN, sin datos repetidos ni columnas derivadas guardadas.
 
 **Cuidado con el orden al reestructurar una tabla.** MariaDB no deja soltar un índice mientras

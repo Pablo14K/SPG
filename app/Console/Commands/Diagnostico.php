@@ -28,11 +28,14 @@ class Diagnostico extends Command
     /**
      * Las restricciones CHECK, que un export de phpMyAdmin se come.
      *
-     * Son 56 desde la 7.0.0, que sumó las dos de `factura_electronica`. El
-     * número quedó en 54 al agregarlas, y como la comparación es «menos que»,
-     * perder justo esas dos no habría hecho saltar nada.
+     * Son **57** desde la 7.2.0, que sumó `chk_pref_tema`. Este número se
+     * quedó atrás **dos veces ya**: en 54 cuando la 7.0.0 lo llevó a 56, y en
+     * 56 cuando la 7.2.0 lo llevó a 57. Como la comparación es «menos que»,
+     * quedarse corto no hace saltar nada — o sea que el desfase esconde
+     * justamente lo que este número tendría que detectar. **Al agregar un
+     * CHECK, actualizalo acá en la misma tanda.**
      */
-    private const CHECKS = 56;
+    private const CHECKS = 57;
 
     public function handle(): int
     {
@@ -55,7 +58,17 @@ class Diagnostico extends Command
         $bd = (string) DB::scalar('SELECT NOW()');
         $php = date('Y-m-d H:i:s');
         $desfase = abs(strtotime($bd) - strtotime($php));
-        $this->linea('Reloj de la base', $bd . '  (zona: ' . DB::scalar('SELECT @@system_time_zone') . ')');
+        // La que MANDA es `@@time_zone`, no `@@system_time_zone`. Mostrar la del
+        // sistema confundía: en el contenedor da **-04**, porque la tzdata de
+        // MariaDB 10.4 es anterior a que Paraguay dejara sin efecto el horario
+        // de verano —la trampa que documenta CLAUDE.md—, mientras que la que
+        // gobierna NOW() es la que fija el compose con --default-time-zone.
+        // Se veía un -04 alarmante al lado de una hora perfectamente correcta.
+        $zona = (string) DB::scalar('SELECT @@time_zone');
+        if (strtoupper($zona) === 'SYSTEM') {
+            $zona = 'SYSTEM → ' . DB::scalar('SELECT @@system_time_zone');
+        }
+        $this->linea('Reloj de la base', $bd . '  (zona: ' . $zona . ')');
         $this->linea('Reloj de PHP', $php . '  (zona: ' . config('app.timezone') . ')');
         if ($desfase > 90) {
             $this->mal('Los dos relojes no coinciden: ' . round($desfase / 60) . ' minutos de diferencia. '
@@ -89,6 +102,9 @@ class Diagnostico extends Command
                 $this->bien($etiqueta . ': ' . $cuantos);
             }
         }
+
+        // ---- ¿La base coincide con el .sql que se entrega? ------------------
+        $problemas += $this->revisarEsquema();
 
         // ---- ¿Las rutinas se pueden ejecutar de verdad? ---------------------
         // Si el DEFINER apunta a un usuario que no existe en este servidor,
@@ -184,6 +200,121 @@ class Diagnostico extends Command
      * un permiso que el usuario de un hosting no tiene, y eso no es un fallo
      * del sistema — es lo normal en el VPS compartido.
      */
+    /**
+     * ¿La base que está conectada coincide con el `.sql` que se entrega?
+     *
+     * Es la comprobación que más falta hacía, y la escribió un caso real: una
+     * computadora que ya tenía las bases importadas de antes levantó el
+     * proyecto actualizado y **el ingreso murió con un 500** —«Columna
+     * desconocida 'tema'»— porque el volumen de MariaDB ya tenía datos y el
+     * guion de importación **corre una sola vez, cuando está vacío**. El
+     * código estaba al día y la base no, y nada lo decía hasta que alguien
+     * abría la pantalla que usaba la columna nueva.
+     *
+     * Se comparan las columnas declaradas en el `.sql` contra las que hay de
+     * verdad. Sobrar no es problema —una base de trabajo puede tener cosas de
+     * más—; lo que rompe es que FALTE.
+     */
+    private function revisarEsquema(): int
+    {
+        $this->titulo('¿La base coincide con el .sql que se entrega?');
+
+        $archivo = base_path('basededatos/peluqueria_bd(base).sql');
+        if (! is_file($archivo)) {
+            $this->linea('No se pudo comparar', 'falta ' . $archivo);
+
+            return 0;
+        }
+
+        $esperadas = $this->columnasDelSql((string) file_get_contents($archivo));
+        if (! $esperadas) {
+            $this->linea('No se pudo comparar', 'no se leyó ninguna tabla del .sql');
+
+            return 0;
+        }
+
+        $reales = [];
+        foreach (DB::select('SELECT table_name AS t, column_name AS c FROM information_schema.columns
+                              WHERE table_schema = DATABASE()') as $f) {
+            $reales[strtolower($f->t)][strtolower($f->c)] = true;
+        }
+
+        $tablasQueFaltan = [];
+        $columnasQueFaltan = [];
+        foreach ($esperadas as $tabla => $columnas) {
+            if (! isset($reales[$tabla])) {
+                $tablasQueFaltan[] = $tabla;
+
+                continue;
+            }
+            foreach ($columnas as $col) {
+                if (! isset($reales[$tabla][$col])) {
+                    $columnasQueFaltan[] = $tabla . '.' . $col;
+                }
+            }
+        }
+
+        if (! $tablasQueFaltan && ! $columnasQueFaltan) {
+            $this->bien('Las ' . count($esperadas) . ' tablas del .sql están completas.');
+
+            return 0;
+        }
+
+        foreach ($tablasQueFaltan as $t) {
+            $this->mal('Falta la tabla ' . $t);
+        }
+        foreach (array_slice($columnasQueFaltan, 0, 12) as $c) {
+            $this->mal('Falta la columna ' . $c);
+        }
+        if (count($columnasQueFaltan) > 12) {
+            $this->linea('', 'y ' . (count($columnasQueFaltan) - 12) . ' columna(s) más');
+        }
+
+        $this->newLine();
+        $this->linea('Qué pasó', 'la base es más vieja que el código: quedó de una importación anterior.');
+        $this->linea('En Docker', 'docker compose down -v && docker compose up');
+        $this->linea('', '(el -v borra el volumen; sin él, MariaDB NO vuelve a importar)');
+        $this->linea('A mano', 'recargá la base con basededatos/peluqueria_bd(base).sql');
+
+        return 1;
+    }
+
+    /**
+     * Las columnas de cada `CREATE TABLE` del volcado.
+     *
+     * Se leen sólo las líneas que empiezan con un nombre entre acentos graves,
+     * que en un `mysqldump` son exactamente las columnas: los índices y las
+     * claves foráneas arrancan con PRIMARY/UNIQUE/KEY/CONSTRAINT.
+     *
+     * @return array<string, list<string>>
+     */
+    private function columnasDelSql(string $sql): array
+    {
+        $out = [];
+        $tabla = null;
+        foreach (explode("\n", $sql) as $linea) {
+            if (preg_match('/^CREATE TABLE `([^`]+)`/', $linea, $m)) {
+                $tabla = strtolower($m[1]);
+                $out[$tabla] = [];
+
+                continue;
+            }
+            if ($tabla === null) {
+                continue;
+            }
+            if (str_starts_with($linea, ')')) {
+                $tabla = null;
+
+                continue;
+            }
+            if (preg_match('/^\s+`([^`]+)`\s+\S/', $linea, $m)) {
+                $out[$tabla][] = strtolower($m[1]);
+            }
+        }
+
+        return array_filter($out);
+    }
+
     private function definidorExiste(string $definer, string $usuarioActual): ?bool
     {
         try {

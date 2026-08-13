@@ -84,6 +84,35 @@ SPG_SIFEN_PATH=/ruta/a/sifen_automatizador docker compose up
 funciona igual. Las facturas electrónicas se emiten y quedan **pendientes de declarar**, para
 reintentarlas desde el comprobante cuando el servicio esté.
 
+### Si actualizaste el proyecto y algo revienta al entrar
+
+**Las bases se importan UNA sola vez**, cuando el volumen de MariaDB está vacío. Así que si ya
+habías levantado el proyecto antes y después bajaste una versión nueva, tenés el **código
+nuevo contra la base vieja**: todo anda hasta que abrís una pantalla que usa algo que se
+agregó, y ahí salta un error como
+
+```
+SQLSTATE[42S22]: Columna desconocida 'tema' en la lista de campos
+```
+
+Se arregla volviendo a importar, que borra las bases y las carga de nuevo:
+
+```bash
+docker compose down -v
+docker compose up
+```
+
+**El `-v` es lo que importa**: sin él, `down` y `up` no reimportan nada. Y ojo, borra los datos
+que hayas cargado a mano.
+
+Para saber si es eso antes de tocar nada:
+
+```bash
+docker compose exec app php artisan spg:diagnostico
+```
+
+Compara la base contra `basededatos/peluqueria_bd(base).sql` y te dice qué falta.
+
 ### Con qué base trabaja el contenedor
 
 **El contenedor crea e importa las dos**, y la aplicación usa la que diga una sola línea de
