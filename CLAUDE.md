@@ -101,6 +101,39 @@ Cuatro cosas en la misma tanda, siempre juntas:
 3. una fila en el historial de acá abajo, diciendo **qué** cambió (no «varios ajustes»);
 4. **el commit** — ver acá abajo.
 
+### Si al arreglar algo vas a dejar otra cosa sin funcionar, PREGUNTÁ ANTES
+
+**Apagar una función para resolver otro problema no es una decisión técnica: es del usuario.**
+Aunque el motivo sea bueno —seguridad, limpieza, que el proyecto se pueda entregar—, quien
+decide si vale la pena quedarse sin esa parte es quien usa el sistema.
+
+Pasó con el correo y salió caro. En la 6.4.0 se sacó la contraseña de Gmail de
+`docker/php/env.docker` porque ese archivo se versiona y la credencial quedaba en el
+repositorio. **El motivo era correcto**; lo que estuvo mal fue el efecto colateral, que se
+dio por aceptable sin preguntar: el sistema quedó en `MAIL_MAILER=log` y con eso **dejaron de
+salir el código de verificación, la recuperación de contraseña, el segundo factor y los
+recordatorios de citas**. Nadie lo supo hasta que otra desarrolladora intentó crear una cuenta
+de clienta, meses después, y reportó que «no se envían los códigos». Peor: la pantalla decía
+«te enviamos un código» igual, así que parecía un error del sistema.
+
+La regla, entonces:
+
+| Situación | Qué hacer |
+|---|---|
+| El arreglo **apaga, limita o deja sin efecto** una función que hoy anda | **Preguntar primero**, explicando qué se gana y qué se pierde |
+| Hay una salida que conserva las dos cosas | Proponerla — casi siempre existe |
+| El usuario decide igual apagarla | Hacerlo, **y dejar el apagado visible**: que el sistema lo diga |
+
+En el caso del correo la salida existía y estaba escrita en el propio archivo:
+`git update-index --skip-worktree`, que deja la credencial en la copia local y **fuera de los
+commits**. Es lo que se hizo en la 7.8.0.
+
+> **Y si igual se apaga algo, tiene que notarse.** Una función apagada en silencio es
+> indistinguible de una rota: `spg:diagnostico` tiene una sección de correo justamente porque
+> el driver en `log` no se ve por ningún lado y la pantalla sigue prometiendo que mandó el
+> código. Lo mismo vale para `SIFEN_ACTIVO`, para `SIFEN_MODO=simulado` y para cualquier
+> interruptor que deje una parte sin efecto.
+
 ### Al terminar un cambio, commitealo sin que haya que pedirlo
 
 **Terminar un cambio incluye commitearlo.** No hay que esperar a que lo pidan: cuando el
@@ -135,6 +168,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.8.0 | 13/08/2026 | **Vuelven a salir los correos, y queda escrita la regla que evita que esto se repita.** El sistema estaba en `MAIL_MAILER=log` desde la 6.4.0, cuando se sacó la contraseña de Gmail de `docker/php/env.docker` porque ese archivo se versiona. **El motivo era correcto**; lo que estuvo mal fue dar por aceptable el efecto colateral sin preguntar: con eso dejaron de salir **el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios de citas**, y nadie lo supo hasta que otra desarrolladora quiso crear una cuenta de clienta meses después. Peor: la pantalla decía «te enviamos un código» igual, así que parecía un error del sistema. Ahora `env.docker` lleva las **mismas credenciales que usa el Automatizador SIFEN** para mandar el PDF, y la salida que conserva las dos cosas —correo andando y credencial fuera del repositorio— es la que el propio archivo ya proponía: `git update-index --skip-worktree`. Comprobado con un envío real que Gmail aceptó. **Y entra la regla en este documento**: si un arreglo va a apagar, limitar o dejar sin efecto algo que hoy funciona, **se pregunta antes** —esa decisión es del usuario, no técnica—, se propone la salida que conserve las dos cosas, y si igual se apaga, **el apagado tiene que notarse**: una función apagada en silencio es indistinguible de una rota, que es exactamente lo que pasó acá |
 | 7.7.0 | 13/08/2026 | **Retroalimentación de la otra desarrolladora: cuatro cosas, y una era grave.** **Una clienta que el salón ya tenía cargada se DUPLICABA al crearse una cuenta.** Casi todas entran por teléfono y las carga quien atiende, así que tienen `persona` y `cliente` pero no `usuario`; los controles del registro miran `usuario JOIN persona` —o sea sólo a quien ya tiene cuenta—, así que pasaba el filtro y se le creaban una persona y un cliente **nuevos**: quedaban dos fichas con el mismo correo y su historial, sus puntos y su nivel se quedaban en la vieja. Eran **31 de 33 clientas** en esa situación, y además rompe la regla de no repetir datos de personas. Ahora el registro **enlaza la ficha existente**, sin pisar con vacíos lo que el salón ya tenía cargado —si se registra sin teléfono, el teléfono queda— y avisándole que sus citas y sus puntos siguen ahí. Enlazar por correo no le regala la ficha a un tercero: la cuenta nace inactiva y el código va a ese mismo correo. **En Reportes se elige qué imprimir**: antes el papel salía con todo lo de la pantalla, así que llevarse sólo las citas costaba seis hojas. Los bloques viven en una constante que alimenta el selector, el subtítulo del papel y el filtro, así que sumar uno se toca en un solo lugar; un valor inventado cae en «todo» y nunca deja la hoja en blanco. **La demanda ahora también se ve por día**, no sólo por hora —son dos preguntas distintas: a qué hora reforzar y qué días tener más gente—, con el día 1=lunes de la convención del proyecto. Al escribirla apareció que **`ONLY_FULL_GROUP_BY` exige repetir la misma expresión** en el `GROUP BY`: `SELECT WEEKDAY(x)+1 … GROUP BY WEEKDAY(x)` da 1055. **Y el equipo muestra ausencias y canceladas por profesional**, que el total del período no dice a quién le fallan más. Lo quinto no era un error: **los códigos de verificación no llegan porque el contenedor manda el correo a `log` a propósito** —la contraseña salió del repositorio en la 6.4.0—, así que ahora `spg:diagnostico` tiene una sección de correo que lo dice y explica dónde queda el código y cómo hacer que salga. **63 pruebas** |
 | 7.6.0 | 13/08/2026 | **`spg:diagnostico` compara la base contra el `.sql` que se entrega, porque el código puede estar al día y la base no.** Lo escribió un caso real: una compañera actualizó el proyecto, levantó los contenedores y **el ingreso murió con un 500** —«Columna desconocida `tema`»—. El esquema estaba bien y los `.sql` también; lo que pasa es que **MariaDB corre el guion de importación UNA sola vez, cuando el volumen está vacío**, así que un `docker compose up` sobre un volumen que ya tenía datos deja código nuevo contra base vieja. Y no falla al arrancar: falla cuando alguien abre la pantalla que usa la columna nueva, que es la peor forma de enterarse. Ahora el diagnóstico lee las 68 tablas del volcado, las compara con las que hay de verdad y, si falta algo, dice **qué falta y qué comando correr** (`docker compose down -v && docker compose up` — el `-v` es lo que importa, sin él no se reimporta nada). Sobrar no se marca: una base de trabajo puede tener cosas de más, lo que rompe es que falte. Comprobado borrando la columna a propósito y devolviéndola. De paso salieron dos números desactualizados más: **el diagnóstico esperaba 56 `CHECK` cuando son 57** desde que la 7.2.0 sumó `chk_pref_tema` —es la **segunda vez** que ese contador se queda atrás, y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que tendría que detectar—; y **el cartel de la hora mostraba una zona equivocada**: decía `@@system_time_zone`, que en el contenedor da **−04** por la tzdata vieja de MariaDB 10.4 —la trampa que este documento ya explica—, cuando la que gobierna `NOW()` es `@@time_zone`, en −03 por el compose. Quedaba un −04 alarmante al lado de una hora correcta |
 | 7.5.3 | 13/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno: **28 permisos, 7 módulos, 4 componentes Blade, 20 procedimientos, 30 funciones, 17 disparadores, 17 vistas y 57 CHECK** siguen exactos; **las rutas eran 154, no 151** —el conteo ya venía desfasado antes de sumar las dos del receptor—. De paso salieron dos cosas de verdad: **las tres plantillas de `.env` decían tener las mismas claves y no era cierto**. `SESSION_SECURE_COOKIE` estaba **sólo en la de producción**, y la lee `config/session.php`: era una opción real, viva e invisible para quien leyera las otras dos. Y `VITE_APP_NAME` seguía en las dos de desarrollo aunque **no la usa nadie** — quedó del andamiaje de Vite que se borró en la 7.1.0. Ahora son 44 claves y las tres coinciden exactamente, con el comando para comprobarlo escrito al lado. También **el comentario de `env.docker` contradecía a su propia línea**: decía «hoy apunta a `peluqueria_bd`» arriba de un `DB_DATABASE=peluqueria_test` |
@@ -1542,8 +1576,36 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 |---|---|---|
 | `.env` | el real de esta computadora | **no** (está en `.gitignore`) |
 | `.env.example` | plantilla para desarrollar. `cp .env.example .env` y andar | sí |
-| `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | sí |
+| `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | sí, **pero hoy no** — ver abajo |
 | `.env.produccion.example` | plantilla del servidor | sí |
+
+> **`env.docker` lleva hoy una contraseña de aplicación de Google, así que está marcado para
+> que git no lo mande.** Es lo que hace que salgan de verdad el código de verificación, la
+> recuperación de contraseña, el segundo factor y los recordatorios; son las mismas
+> credenciales con las que el Automatizador SIFEN manda el PDF del comprobante.
+>
+> ```bash
+> git update-index --skip-worktree docker/php/env.docker
+> ```
+>
+> **Mientras esté así, NINGÚN cambio de ese archivo se commitea** —ni la contraseña ni el
+> `DB_DATABASE`—, y git no los muestra en `status`. Es la trampa de este mecanismo: si algún
+> día hay que versionar algo de ahí, se saca la marca con `--no-skip-worktree`, se quita la
+> contraseña y recién ahí se commitea. Se comprueba con `git ls-files -v docker/php/env.docker`:
+> una **S** adelante quiere decir que está marcado.
+>
+> Se revoca en `myaccount.google.com/apppasswords` sin tocar la cuenta.
+
+> **La contraseña que está puesta hoy YA ESTÁ EN EL HISTORIAL DE GIT, y conviene cambiarla.**
+> Es la misma que se commiteó en la 6.1.3 y se sacó en la 6.4.0 — pero *sacarla de un archivo
+> no la borra del historial*: sigue estando en dos commits (`0de5fb6` y `e18367b`) y cualquiera
+> con el repositorio la puede leer con `git show`. La 6.4.0 dice que «se revocó» y **no era
+> cierto**: sigue autenticando contra Gmail, que es cómo volvió a andar el correo en la 7.8.0.
+>
+> `skip-worktree` protege lo que viene, no lo que ya pasó. Lo que corresponde es **generar una
+> contraseña de aplicación nueva** en `myaccount.google.com/apppasswords`, revocar la vieja y
+> poner la nueva en la copia local. Reescribir el historial no vale la pena para esto: la clave
+> vieja queda igual en las copias que ya andan dando vueltas.
 
 **`env.docker` no es opcional ni duplicado**: sin él habría que pasar las credenciales como
 variables del contenedor, y `artisan serve` sólo le reenvía al servidor web una lista blanca,
