@@ -299,6 +299,10 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // Declarar el comprobante ante la DNIT. Va aparte de emitir: la
             // factura ya es válida, y un servicio caído no puede frenar el cobro.
             Route::post('sifen/enviar', [FacturacionController::class, 'sifenEnviar'])->name('sifen.enviar');
+            // El KuDE, el XML y el TXT salen de la copia que guarda el sistema,
+            // NO de la dirección del Automatizador: la suya apunta a un dominio
+            // publicado que puede no responder, y encima no lleva el token.
+            Route::get('sifen/archivo', [FacturacionController::class, 'sifenArchivo'])->name('sifen.archivo');
         });
 
         Route::middleware('modulo:facturacion.cobros')->group(function () {

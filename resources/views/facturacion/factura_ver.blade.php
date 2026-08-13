@@ -209,15 +209,34 @@
                             <code style="font-size:.78rem;word-break:break-all">{{ $sifenEstado->cdc }}</code>
                         </div>
                     </div>
-                    @if ($sifenEstado->kude_url)
-                        <a class="btn btn-sm btn-outline-neutro" href="{{ $sifenEstado->kude_url }}"
-                           target="_blank" rel="noopener"><i class="bi bi-file-pdf"></i> KuDE</a>
-                    @endif
+                    {{-- Los tres salen de la copia que guarda el SISTEMA, no del
+                         Automatizador: su dirección apunta a un dominio publicado
+                         que hoy no responde —el botón mandaba a una página caída—
+                         y además no lleva el token. Así el comprobante se puede
+                         ver aunque el servicio esté apagado. --}}
+                    <div class="d-flex gap-1 flex-wrap">
+                        <a class="btn btn-sm btn-outline-neutro" target="_blank" rel="noopener"
+                           title="La representación gráfica del comprobante"
+                           href="{{ route('facturacion.sifen.archivo', ['id' => $f->id_factura, 't' => 'pdf']) }}">
+                            <i class="bi bi-file-pdf"></i> KuDE</a>
+                        <a class="btn btn-sm btn-outline-neutro" download
+                           title="El XML que reconoce la DNIT"
+                           href="{{ route('facturacion.sifen.archivo', ['id' => $f->id_factura, 't' => 'xml']) }}">
+                            <i class="bi bi-filetype-xml"></i> XML</a>
+                        <a class="btn btn-sm btn-outline-neutro" download
+                           title="Exactamente lo que se le mandó al Automatizador"
+                           href="{{ route('facturacion.sifen.archivo', ['id' => $f->id_factura, 't' => 'txt']) }}">
+                            <i class="bi bi-filetype-txt"></i> Lo enviado</a>
+                    </div>
                 </div>
                 @if (str_contains((string) $sifenEstado->mensaje, 'simulado'))
+                    {{-- Sin nombres de variables: a quien atiende le importa que
+                         este comprobante no llegó a la DNIT y que el número no
+                         sirve, no cómo se configura el sistema. --}}
                     <div class="alert alert-warning mt-2 mb-0" style="font-size:.82rem">
-                        <strong>Modo simulado:</strong> este comprobante <strong>no</strong> se mandó a la DNIT.
-                        El CDC es de prueba. Se cambia con <code>SIFEN_MODO=http</code> en el <code>.env</code>.
+                        <strong>Este comprobante es de prueba.</strong> No se mandó a la DNIT y el
+                        CDC no vale, así que no se lo des a la clienta como comprobante legal.
+                        Avisale a quien configuró el sistema para que active el envío de verdad.
                     </div>
                 @endif
 

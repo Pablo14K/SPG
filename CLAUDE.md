@@ -168,6 +168,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.9.0 | 13/08/2026 | **El comprobante electrónico se ve desde el sistema, y la lista de tipos queda en los tres que el salón usa.** El botón «KuDE» **mandaba a una página caída**: la dirección venía del Automatizador y apunta a *su* dominio publicado, que no responde — y encima esas URL no llevan el token, así que ni desde adentro servirían. Ahora, al declarar, el SPG **se baja el PDF y el XML y los guarda** junto con el TXT exacto que mandó, y los sirve él mismo desde `facturacion/sifen/archivo`. Es lo que el propio manual del Automatizador recomienda: bajarlo desde el servidor, con el token del lado del servidor, y servirlo uno mismo. El TXT se guarda **aunque el envío falle**, porque es la prueba de qué se mandó; y que no se pueda bajar la copia **no invalida el envío** — el comprobante ya está declarado. Para los que se declararon antes de que esto existiera, la copia se pide sola la primera vez. **Se dan de baja cinco tipos de comprobante** —Boleta de venta, Ticket, Autofactura, Nota de débito y Nota de remisión—, ninguno con comprobantes emitidos: quedan **Factura, Nota de crédito y Recibo de dinero**. Sale de `tipo_comprobante.activo`, así que volver a habilitar uno no toca código. **Ojo con la consecuencia**: el defecto era el **Ticket** desde la 7.0.0 —la decisión de «la clienta no siempre pide factura»— y apuntaba a un tipo que ya no está en la lista, así que `SIFEN_TIPO_DEFECTO` pasa a **Factura (1)**. De paso, **dos avisos dejan de hablarle al programador**: el del timbrado faltante decía «el comprobante por defecto no tiene timbrado vigente» y ahora dice qué se está emitiendo, qué se está perdiendo y qué hacer; y el del modo de prueba nombraba `SIFEN_MODO=http` y el `.env` — a quien atiende le importa que ese comprobante no vale, no cómo se configura. **63 pruebas** y los dos `.sql` regenerados |
 | 7.8.0 | 13/08/2026 | **Vuelven a salir los correos, y queda escrita la regla que evita que esto se repita.** El sistema estaba en `MAIL_MAILER=log` desde la 6.4.0, cuando se sacó la contraseña de Gmail de `docker/php/env.docker` porque ese archivo se versiona. **El motivo era correcto**; lo que estuvo mal fue dar por aceptable el efecto colateral sin preguntar: con eso dejaron de salir **el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios de citas**, y nadie lo supo hasta que otra desarrolladora quiso crear una cuenta de clienta meses después. Peor: la pantalla decía «te enviamos un código» igual, así que parecía un error del sistema. Ahora `env.docker` lleva las **mismas credenciales que usa el Automatizador SIFEN** para mandar el PDF, y la salida que conserva las dos cosas —correo andando y credencial fuera del repositorio— es la que el propio archivo ya proponía: `git update-index --skip-worktree`. Comprobado con un envío real que Gmail aceptó. **Y entra la regla en este documento**: si un arreglo va a apagar, limitar o dejar sin efecto algo que hoy funciona, **se pregunta antes** —esa decisión es del usuario, no técnica—, se propone la salida que conserve las dos cosas, y si igual se apaga, **el apagado tiene que notarse**: una función apagada en silencio es indistinguible de una rota, que es exactamente lo que pasó acá |
 | 7.7.0 | 13/08/2026 | **Retroalimentación de la otra desarrolladora: cuatro cosas, y una era grave.** **Una clienta que el salón ya tenía cargada se DUPLICABA al crearse una cuenta.** Casi todas entran por teléfono y las carga quien atiende, así que tienen `persona` y `cliente` pero no `usuario`; los controles del registro miran `usuario JOIN persona` —o sea sólo a quien ya tiene cuenta—, así que pasaba el filtro y se le creaban una persona y un cliente **nuevos**: quedaban dos fichas con el mismo correo y su historial, sus puntos y su nivel se quedaban en la vieja. Eran **31 de 33 clientas** en esa situación, y además rompe la regla de no repetir datos de personas. Ahora el registro **enlaza la ficha existente**, sin pisar con vacíos lo que el salón ya tenía cargado —si se registra sin teléfono, el teléfono queda— y avisándole que sus citas y sus puntos siguen ahí. Enlazar por correo no le regala la ficha a un tercero: la cuenta nace inactiva y el código va a ese mismo correo. **En Reportes se elige qué imprimir**: antes el papel salía con todo lo de la pantalla, así que llevarse sólo las citas costaba seis hojas. Los bloques viven en una constante que alimenta el selector, el subtítulo del papel y el filtro, así que sumar uno se toca en un solo lugar; un valor inventado cae en «todo» y nunca deja la hoja en blanco. **La demanda ahora también se ve por día**, no sólo por hora —son dos preguntas distintas: a qué hora reforzar y qué días tener más gente—, con el día 1=lunes de la convención del proyecto. Al escribirla apareció que **`ONLY_FULL_GROUP_BY` exige repetir la misma expresión** en el `GROUP BY`: `SELECT WEEKDAY(x)+1 … GROUP BY WEEKDAY(x)` da 1055. **Y el equipo muestra ausencias y canceladas por profesional**, que el total del período no dice a quién le fallan más. Lo quinto no era un error: **los códigos de verificación no llegan porque el contenedor manda el correo a `log` a propósito** —la contraseña salió del repositorio en la 6.4.0—, así que ahora `spg:diagnostico` tiene una sección de correo que lo dice y explica dónde queda el código y cómo hacer que salga. **63 pruebas** |
 | 7.6.0 | 13/08/2026 | **`spg:diagnostico` compara la base contra el `.sql` que se entrega, porque el código puede estar al día y la base no.** Lo escribió un caso real: una compañera actualizó el proyecto, levantó los contenedores y **el ingreso murió con un 500** —«Columna desconocida `tema`»—. El esquema estaba bien y los `.sql` también; lo que pasa es que **MariaDB corre el guion de importación UNA sola vez, cuando el volumen está vacío**, así que un `docker compose up` sobre un volumen que ya tenía datos deja código nuevo contra base vieja. Y no falla al arrancar: falla cuando alguien abre la pantalla que usa la columna nueva, que es la peor forma de enterarse. Ahora el diagnóstico lee las 68 tablas del volcado, las compara con las que hay de verdad y, si falta algo, dice **qué falta y qué comando correr** (`docker compose down -v && docker compose up` — el `-v` es lo que importa, sin él no se reimporta nada). Sobrar no se marca: una base de trabajo puede tener cosas de más, lo que rompe es que falte. Comprobado borrando la columna a propósito y devolviéndola. De paso salieron dos números desactualizados más: **el diagnóstico esperaba 56 `CHECK` cuando son 57** desde que la 7.2.0 sumó `chk_pref_tema` —es la **segunda vez** que ese contador se queda atrás, y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que tendría que detectar—; y **el cartel de la hora mostraba una zona equivocada**: decía `@@system_time_zone`, que en el contenedor da **−04** por la tzdata vieja de MariaDB 10.4 —la trampa que este documento ya explica—, cuando la que gobierna `NOW()` es `@@time_zone`, en −03 por el compose. Quedaba un −04 alarmante al lado de una hora correcta |
@@ -1378,17 +1379,29 @@ La columna Acciones de la agenda contesta las tres situaciones, cada una con su 
 URL no hace daño. Emitir sigue pidiendo `facturacion.facturas`, que es un permiso distinto de
 `facturacion.cobros` — quien sólo cobra ve el estado pero no el botón.
 
-> **Si el tipo por defecto no tiene timbrado vigente, la pantalla lo dice.** El Ticket necesita el
-> suyo, como cualquier otro tipo, y sin él la lista caía en Factura **sin avisar**: cada atención
-> salía como comprobante declarable, justo lo contrario de lo que el salón configuró. Antes el
-> aviso saltaba sólo cuando no había *ningún* timbrado.
+> **Si el tipo por defecto no tiene timbrado vigente, la pantalla lo dice**, y lo dice en el
+> idioma del salón: «Ahora mismo todo se emite como Factura. El *X* no tiene timbrado
+> cargado, así que no se puede elegir». Antes decía «el comprobante por defecto no tiene
+> timbrado vigente», que son dos palabras del sistema y ninguna del mostrador. Sin ese aviso
+> la lista caía en otro tipo **sin avisar**.
 
-### La clienta no siempre pide factura
+### Qué comprobantes se emiten
 
-Es la decisión que ordena todo lo demás. Se emite **Ticket por defecto** —comprobante interno
-del salón, numerado y registrado, que **no** sale de acá— y sólo se elige Factura cuando la
-piden. `config('sifen.tipos_electronicos')` dice cuáles se declaran: hoy Factura (1) y Nota
-de crédito (5). El Ticket necesita su propio timbrado, como cualquier otro tipo.
+**Los que estén `activo = 1` en `tipo_comprobante`, y nada más.** La lista de la pantalla sale
+de ahí, así que dar de baja o volver a habilitar uno **no toca código**: se cambia la fila.
+
+Hoy el salón usa **Factura**, **Nota de crédito** y **Recibo de dinero**. En la 7.9.0 se dieron
+de baja Boleta de venta, Ticket, Autofactura, Nota de débito y Nota de remisión, porque no se
+usan; ninguno tenía comprobantes emitidos.
+
+`config('sifen.tipos_electronicos')` dice cuáles se declaran ante la DNIT: Factura (1) y Nota
+de crédito (5). Cada tipo necesita **su propio timbrado**.
+
+> **Hasta la 7.8.0 el defecto era el Ticket**, con la idea de que la clienta no siempre pide
+> factura: era un comprobante interno, numerado, que no salía del salón. Al darlo de baja, el
+> defecto pasó a **Factura (1)** — `SIFEN_TIPO_DEFECTO` tenía que moverse con él, porque
+> apuntaba a un tipo que ya no aparece en la lista. Si algún día se vuelve a habilitar el
+> Ticket, hay que acordarse de mover también esa clave.
 
 ### Los datos del receptor se piden ANTES de emitir
 
@@ -1506,6 +1519,30 @@ que lo tiene. Sin correo cargado también avisa, en vez de quedarse callado.
 
 **Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no existe**: ni botón, ni bloque,
 ni columnas. Un salón que no factura electrónicamente no tiene por qué ver nada de esto.
+
+### El comprobante se ve DESDE EL SISTEMA, no desde el Automatizador
+
+Al declarar, el SPG **se baja el KuDE en PDF y el XML y los guarda** en
+`storage/app/sifen/<factura>/`, junto con el TXT exacto que mandó. Los tres se sirven desde
+`facturacion/sifen/archivo`, y son los que ofrece la pantalla del comprobante.
+
+**No se redirige a la dirección que devuelve el Automatizador.** Esa apunta a *su* dominio
+publicado —que hoy no responde: el botón «KuDE» mandaba a una página caída— y además **no
+lleva el token**, así que ni siquiera serviría tal cual. Es lo que su propio manual recomienda:
+bajarlo desde el servidor, con el token del lado del servidor, y servirlo uno mismo para que
+el token nunca llegue al navegador.
+
+| Archivo | Qué es |
+|---|---|
+| `pdf` | el KuDE, la representación gráfica. Se abre en el navegador |
+| `xml` | el documento que reconoce la DNIT |
+| `txt` | **exactamente lo que se le mandó al Automatizador**, que es lo primero que hace falta cuando algo se rechaza |
+
+- **El TXT se guarda aunque el envío falle.** Es la prueba de qué se mandó.
+- **Que no se pueda bajar la copia no invalida el envío**: el comprobante ya está declarado y
+  el CDC guardado. Si falta, la pantalla la pide de nuevo una vez antes de darla por perdida.
+- Para los comprobantes declarados antes de que esto existiera está `Sifen::bajarCopias()`,
+  que se dispara sola al pedir el archivo.
 
 > Los dos proyectos siguen separados: el Automatizador vive en su carpeta y el SPG sólo le
 > habla por HTTP. **No se copió código de un lado al otro.**

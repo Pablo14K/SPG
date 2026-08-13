@@ -21,14 +21,19 @@
              propio timbrado, y si no está cargado la pantalla caía en Factura sin
              decir nada: cada atención salía como factura declarable, que es
              justo lo contrario de lo que el salón quiso configurar. --}}
+        {{-- El aviso le habla a quien atiende, no a quien programa: dice qué
+             está pasando ahora, qué se está perdiendo y qué hacer. Antes decía
+             «el comprobante por defecto no tiene timbrado vigente», que son
+             dos palabras del sistema y ninguna del salón. --}}
         <div class="alert alert-warning">
-            <strong>El comprobante por defecto no tiene timbrado vigente</strong>, así que abajo
-            sólo aparecen los que sí lo tienen. Mientras siga así, todo se emite como
-            {{ $tipos[0]->nombre }} — y la clienta no siempre pide factura.
+            <strong>Ahora mismo todo se emite como {{ $tipos[0]->nombre }}.</strong>
+            El {{ $tipoDefectoNombre }} —el comprobante que se usa cuando la clienta
+            <em>no</em> pide factura— no tiene timbrado cargado, así que no se puede elegir.
             @if (\App\Servicios\Permisos::puede('facturacion.timbrados'))
-                <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargá el timbrado que falta</a>.
+                <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargale un timbrado</a>
+                y vuelve a aparecer en la lista.
             @else
-                Pedile a quien administra los timbrados que cargue el que falta.
+                Pedile a quien maneja los timbrados que le cargue uno y vuelve a aparecer en la lista.
             @endif
         </div>
     @endif

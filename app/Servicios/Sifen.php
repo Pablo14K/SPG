@@ -6,6 +6,7 @@ namespace App\Servicios;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -304,6 +305,7 @@ class Sifen
             : self::simulado($idFactura, $correo);
 
         self::guardar($idFactura, $r['estado'], $r['cdc'], $r['track_id'] ?? null, $r, $r['mensaje']);
+        self::guardarCopias($idFactura, $txt, $r);
 
         if ($r['estado'] === 'ENVIADO') {
             Auditoria::registrar('SIFEN', 'Facturacion', 'factura', $idFactura,
@@ -418,6 +420,116 @@ class Sifen
         }
 
         return 'El PDF le fue enviado a ' . $correo . '.';
+    }
+
+    // -----------------------------------------------------------------
+    //  Las copias: el comprobante tiene que poder verse desde acá
+    // -----------------------------------------------------------------
+
+    /** Dónde viven las copias de un comprobante declarado. */
+    public static function carpeta(int $idFactura): string
+    {
+        return storage_path('app/sifen/' . $idFactura);
+    }
+
+    /**
+     * Guarda una copia de todo lo que se mandó y de lo que volvió.
+     *
+     * **El sistema NO puede depender del Automatizador para mostrar un
+     * comprobante que ya emitió.** Las URL que devuelve (`kude_url`, `xml_url`)
+     * apuntan a SU dominio publicado, que hoy no responde: el botón «KuDE»
+     * mandaba a una página caída. Además esas URL **no llevan el token**, así
+     * que ni siquiera desde adentro servirían tal cual.
+     *
+     * Por eso se baja el PDF y el XML apenas se declaran y se guardan acá. Es
+     * lo que el propio manual del Automatizador recomienda: descargarlo desde
+     * el servidor, con el token del lado del servidor, y servirlo uno mismo
+     * para que el token no llegue nunca al navegador.
+     *
+     * El TXT se guarda siempre, aunque el envío falle: es la prueba de qué se
+     * mandó, que es lo primero que hace falta cuando la DNIT rechaza algo.
+     */
+    private static function guardarCopias(int $idFactura, string $txt, array $r): void
+    {
+        $dir = self::carpeta($idFactura);
+        if (! is_dir($dir) && ! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
+            Log::warning('SIFEN: no se pudo crear ' . $dir);
+
+            return;
+        }
+
+        @file_put_contents($dir . '/enviado.txt', $txt);
+
+        $cdc = (string) ($r['cdc'] ?? '');
+        if (($r['estado'] ?? '') !== 'ENVIADO' || $cdc === '' || config('sifen.modo') !== 'http') {
+            return;   // en simulado no hay nada que bajar: no se mandó a ningún lado
+        }
+
+        foreach (['pdf', 'xml'] as $ext) {
+            $destino = $dir . '/' . $cdc . '.' . $ext;
+            if (is_file($destino)) {
+                continue;
+            }
+            try {
+                // Se arma desde SIFEN_URL y no desde la `kude_url` que vuelve:
+                // esa apunta al dominio publicado del Automatizador, que puede
+                // no ser el que estamos usando.
+                $resp = Http::withHeaders(['X-API-Token' => (string) config('sifen.token')])
+                    ->timeout((int) config('sifen.timeout', 60))
+                    ->get(rtrim((string) config('sifen.url'), '/') . '/descargar.php', ['f' => $cdc . '.' . $ext]);
+
+                if ($resp->successful() && $resp->body() !== '') {
+                    @file_put_contents($destino, $resp->body());
+                } else {
+                    Log::warning('SIFEN: no se pudo bajar el ' . $ext . ' de ' . $cdc
+                                 . ' (HTTP ' . $resp->status() . ')');
+                }
+            } catch (Throwable $e) {
+                // Que no se pueda bajar la copia NO invalida el envío: el
+                // comprobante ya está declarado y el CDC guardado.
+                Log::warning('SIFEN: no se pudo bajar el ' . $ext . ' de ' . $cdc . ': ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * La copia local de un comprobante, o null si no está.
+     *
+     * `$que` es `pdf`, `xml` o `txt`.
+     */
+    public static function copia(int $idFactura, string $que): ?string
+    {
+        $dir = self::carpeta($idFactura);
+
+        if ($que === 'txt') {
+            return is_file($dir . '/enviado.txt') ? $dir . '/enviado.txt' : null;
+        }
+        if (! in_array($que, ['pdf', 'xml'], true)) {
+            return null;
+        }
+
+        $cdc = (string) (self::estado($idFactura)->cdc ?? '');
+
+        return $cdc !== '' && is_file($dir . '/' . $cdc . '.' . $que) ? $dir . '/' . $cdc . '.' . $que : null;
+    }
+
+    /**
+     * Vuelve a pedirle al Automatizador el PDF y el XML de un comprobante ya
+     * declarado. Para los que se declararon cuando esto no existía, o cuando
+     * el servicio estaba caído justo al bajarlos.
+     */
+    public static function bajarCopias(int $idFactura): bool
+    {
+        $e = self::estado($idFactura);
+        if (! $e || $e->estado !== 'ENVIADO' || ! $e->cdc) {
+            return false;
+        }
+
+        self::guardarCopias($idFactura, self::copia($idFactura, 'txt')
+            ? (string) file_get_contents(self::copia($idFactura, 'txt'))
+            : self::armarTxt($idFactura), ['estado' => 'ENVIADO', 'cdc' => $e->cdc]);
+
+        return self::copia($idFactura, 'pdf') !== null;
     }
 
     /** Deja escrito el resultado del envío. Una fila por factura. */

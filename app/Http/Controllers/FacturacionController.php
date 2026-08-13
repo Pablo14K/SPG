@@ -14,6 +14,7 @@ use App\Servicios\Persona;
 use App\Servicios\Sifen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -240,6 +241,56 @@ class FacturacionController extends Controller
         return $volver;
     }
 
+    /**
+     * El KuDE, el XML o el TXT de un comprobante declarado, servidos desde acá.
+     *
+     * **No se redirige al Automatizador.** Las URL que él devuelve apuntan a su
+     * dominio publicado —que hoy no responde: el botón mandaba a una página
+     * caída— y además no llevan el token. La copia se baja al declarar y se
+     * guarda en `storage/app/sifen/<factura>/`, así que el comprobante se
+     * puede ver aunque el servicio esté apagado o haya cambiado de dirección.
+     */
+    public function sifenArchivo(Request $request): Response|RedirectResponse
+    {
+        $id = (int) $request->query('id', 0);
+        $que = (string) $request->query('t', 'pdf');
+        $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
+
+        if (! Sifen::activo() || ! in_array($que, ['pdf', 'xml', 'txt'], true)) {
+            flash('Ese archivo no está disponible.', 'error');
+
+            return $volver;
+        }
+
+        $ruta = Sifen::copia($id, $que);
+
+        // Si la copia no está —el comprobante se declaró antes de que esto
+        // existiera, o el servicio estaba caído al bajarla— se intenta una vez
+        // más antes de darla por perdida.
+        if (! $ruta && $que !== 'txt') {
+            Sifen::bajarCopias($id);
+            $ruta = Sifen::copia($id, $que);
+        }
+
+        if (! $ruta) {
+            flash('Todavía no tenemos la copia de ese archivo. Se baja del Automatizador al declarar, '
+                . 'así que probá cuando el servicio esté disponible.', 'warning');
+
+            return $volver;
+        }
+
+        $nro = str_replace('/', '-', (string) Facturacion::numero($id));
+        $tipo = ['pdf' => 'application/pdf', 'xml' => 'application/xml', 'txt' => 'text/plain'][$que];
+
+        // El PDF se muestra en el navegador; el XML y el TXT se bajan, que es
+        // lo que se hace con ellos.
+        return response()->file($ruta, [
+            'Content-Type' => $tipo,
+            'Content-Disposition' => ($que === 'pdf' ? 'inline' : 'attachment')
+                . '; filename="' . $nro . '.' . $que . '"',
+        ]);
+    }
+
     /** Citas atendidas que todavía no tienen factura. */
     public function emitir(Request $request): View
     {
@@ -280,6 +331,12 @@ class FacturacionController extends Controller
             ),
             // El que viene marcado: Ticket, porque la mayoría no pide factura.
             'tipoDefecto' => (int) config('sifen.tipo_por_defecto', 3),
+            // Su nombre, para poder decir «el Ticket» y no «el comprobante por
+            // defecto», que no le dice nada a quien atiende.
+            'tipoDefectoNombre' => (string) (DB::scalar(
+                'SELECT nombre FROM tipo_comprobante WHERE id_tipo_comprobante = ?',
+                [(int) config('sifen.tipo_por_defecto', 3)]
+            ) ?: 'Ticket'),
             'sifen' => Sifen::activo(),
         ]);
     }
