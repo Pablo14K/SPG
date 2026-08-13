@@ -64,9 +64,25 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose up` | arranca |
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
-| `docker compose exec app php artisan test` | corre las 57 pruebas |
+| `docker compose exec app php artisan test` | corre las 62 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
+
+### El Automatizador SIFEN
+
+Son **tres** contenedores: la base, la aplicación y el **Automatizador SIFEN**, que es el que
+declara las facturas electrónicas ante la DNIT y le manda el PDF por correo a la clienta.
+
+Es un proyecto aparte y vive fuera de esta carpeta, así que el compose lo busca **como carpeta
+hermana** (`../Sifen_version/sifen_final/sifen_automatizador`). Si lo tenés en otro lado:
+
+```bash
+SPG_SIFEN_PATH=/ruta/a/sifen_automatizador docker compose up
+```
+
+**Si no lo tenés, no pasa nada**: ese contenedor avisa y se apaga solo, y el resto del sistema
+funciona igual. Las facturas electrónicas se emiten y quedan **pendientes de declarar**, para
+reintentarlas desde el comprobante cuando el servicio esté.
 
 ### Con qué base trabaja el contenedor
 

@@ -14,6 +14,9 @@
 #   3. **Clava la zona horaria en America/Asuncion**, en la base y en PHP. Es la
 #      trampa documentada del proyecto: `ahora_bd()` sella el fichaje con la
 #      hora de la base, y una hora corrida no sirve para nada.
+#   4. **Levanta el Automatizador SIFEN con el resto.** Es otro proyecto y vive
+#      fuera de esta carpeta, pero si no está prendido las facturas electrónicas
+#      quedan PENDIENTE y hay que reintentarlas a mano. Ver el servicio `sifen`.
 #
 #   docker compose up          arranca (la primera vez tarda: importa las bases)
 #   docker compose down        apaga, conservando los datos
@@ -85,6 +88,49 @@ services:
       # `vendor` queda en un volumen propio: si se compartiera con Windows, cada
       # arranque tardaría una eternidad recorriendo miles de archivos.
       - vendor_app:/app/vendor
+
+  # El Automatizador SIFEN, que es OTRO proyecto: vive en su propia carpeta y el
+  # SPG sólo le habla por HTTP. Se levanta acá para que suba con el resto —si
+  # está apagado, cada factura electrónica queda PENDIENTE y hay que reintentar
+  # a mano, que era justo lo que pasaba antes.
+  #
+  # No necesita Composer: no tiene dependencias ni `composer.json`, corre con su
+  # propio autoloader. Por eso alcanza con la imagen pelada de PHP y no hace
+  # falta construir nada.
+  #
+  # **La ruta es de ESTA computadora.** Por defecto se lo busca como carpeta
+  # hermana del proyecto; si lo tenés en otro lado, exportá `SPG_SIFEN_PATH`
+  # antes de levantar. Y si no está, el contenedor lo dice y se apaga solo: es a
+  # propósito, porque un servidor sirviendo una carpeta vacía contestaría 404 y
+  # el SPG lee un 4xx como RECHAZADO —o sea, «no reintentes»—, cuando lo cierto
+  # es que el servicio no estaba.
+  sifen:
+    image: php:8.3-cli
+    container_name: spg_sifen
+    # `on-failure` y no `unless-stopped`: cuando el Automatizador no está, el
+    # contenedor avisa y sale con 0 a propósito. Con `unless-stopped` Docker lo
+    # levantaría de nuevo igual y quedaría reiniciándose en bucle, repitiendo el
+    # mismo mensaje para siempre.
+    restart: on-failure
+    working_dir: /automatizador
+    environment:
+      TZ: America/Asuncion
+    ports:
+      - "8090:8090"
+    volumes:
+      - ${SPG_SIFEN_PATH:-../Sifen_version/sifen_final/sifen_automatizador}:/automatizador
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /automatizador/public/index.php ]; then
+          echo "El Automatizador SIFEN no está en la ruta esperada."
+          echo "Se lo busca como carpeta hermana del proyecto, o donde diga SPG_SIFEN_PATH."
+          echo "El SPG funciona igual: las facturas electrónicas quedan PENDIENTE y se"
+          echo "reintentan desde el comprobante cuando el servicio esté."
+          exit 0
+        fi
+        exec php -S 0.0.0.0:8090 -t /automatizador/public
 
 volumes:
   datos_bd:
