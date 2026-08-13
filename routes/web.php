@@ -303,6 +303,11 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // NO de la dirección del Automatizador: la suya apunta a un dominio
             // publicado que puede no responder, y encima no lleva el token.
             Route::get('sifen/archivo', [FacturacionController::class, 'sifenArchivo'])->name('sifen.archivo');
+            // Mandarle el comprobante por correo. Hace falta sobre todo para el
+            // Comprobante de pago, que no se declara y por lo tanto no pasa por
+            // el Automatizador: nadie se lo manda.
+            Route::post('comprobante/enviar', [FacturacionController::class, 'comprobanteEnviar'])
+                ->name('comprobante.enviar');
         });
 
         Route::middleware('modulo:facturacion.cobros')->group(function () {

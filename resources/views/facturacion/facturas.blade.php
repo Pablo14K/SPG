@@ -129,7 +129,7 @@
                                      lo que se registra sigue siendo el monto de la línea.
                                      Entra un billete de 100.000 por un cobro de 30.000 y
                                      en el cajón quedan 30.000, no 100.000. --}}
-                                <div class="mt-3">
+                                <div class="mt-3 spg-vuelto-bloque">
                                     <label class="form-label" for="vuelto{{ $r->id_factura }}">
                                         ¿Con cuánto paga? <span class="text-muted-warm">(para calcular el vuelto)</span>
                                     </label>
@@ -215,23 +215,26 @@
                                         </div>
                                     </div>
 
-                                    {{-- Transferencia y cheque comparten `cobro_banco`. --}}
+                                    {{-- Transferencia y cheque comparten `cobro_banco`, pero NO
+                                         los mismos campos: una transferencia no tiene número de
+                                         cheque y un cheque no tiene número de operación.
+                                         `data-solo` dice para cuál es cada uno. --}}
                                     <div class="row g-2 mt-1 spg-extra-banco">
                                         <div class="col-md-4">
                                             <label class="form-label">Banco</label>
                                             <input class="form-control form-control-sm" name="banco[]"
                                                    placeholder="Itaú, Continental…">
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3" data-solo="CHEQUE">
                                             <label class="form-label">Nº de cheque</label>
                                             <input class="form-control form-control-sm" name="nro_cheque[]">
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3" data-solo="BANCO">
                                             <label class="form-label">Nº de operación</label>
                                             <input class="form-control form-control-sm" name="nro_operacion[]">
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label">Fecha</label>
+                                            <label class="form-label spg-fecha-banco">Fecha</label>
                                             <input class="form-control form-control-sm" name="fecha_emision[]" type="date">
                                         </div>
                                     </div>

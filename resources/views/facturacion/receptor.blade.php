@@ -7,9 +7,10 @@
     que hay que anular y hacer otro. Todo lo que se pueda comprobar sin salir del
     salón se comprueba en esta pantalla.
 
-    Los campos salen del **Manual Técnico del SIFEN v150, grupo D** (el receptor
-    del documento electrónico). Los ID que van entre paréntesis son los del
-    manual, para poder rastrearlos.
+    Los campos son los que exige la DNIT del receptor (Manual Técnico v150,
+    grupo D). **En pantalla NO se nombran los códigos del manual**: esto lo usa
+    quien atiende, no quien programa. La trazabilidad campo por campo está en
+    CLAUDE.md, que es donde sirve.
 --}}
 @extends('layout.app')
 
@@ -18,7 +19,7 @@
 @section('contenido')
     @php use App\Servicios\Permisos; @endphp
 
-    <x-encabezado sub="Lo que la DNIT necesita saber de quien recibe el comprobante. Viene cargado de la ficha del cliente y se puede cambiar: la clienta puede pedirla a nombre de su empresa, o dar otro correo." />
+    <x-encabezado sub="Los datos con los que sale la factura. Vienen cargados de la ficha de la clienta y se pueden cambiar: puede pedirla a nombre de su empresa, o que se la mandes a otro correo." />
 
     {{-- El aviso de «modo simulado» no va acá: ocupa media pantalla justo
          arriba del formulario y repite algo que ya dice el comprobante una vez
@@ -50,7 +51,7 @@
                                 RUC
                             </option>
                         </select>
-                        <div class="form-text">Manual v150: campos D206 (RUC), D208 y D210 (documento).</div>
+                        <div class="form-text">Si no pide la factura a su nombre, dejalo como está.</div>
                     </div>
 
                     {{-- El bloque del documento se oculta con «consumidor final»,
@@ -69,22 +70,22 @@
                         <label class="form-label" for="nombre">Nombre o razón social <span class="txt-no">*</span></label>
                         <input class="form-control" id="nombre" name="nombre"
                                value="{{ old('nombre', trim(($per->nombre ?? '') . ' ' . ($per->apellido ?? ''))) }}">
-                        <div class="form-text">D211. Con RUC tiene que decir lo mismo que está declarado ahí.</div>
+                        <div class="form-text">Con RUC tiene que decir lo mismo que figura en el RUC.</div>
                     </div>
                 </div>
 
                 <div class="spg-panel mb-3">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-envelope-at"></i> ¿A dónde le mandamos el PDF?</h2>
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-envelope-at"></i> ¿A dónde se la mandamos?</h2>
                     <p class="text-muted-warm mb-3" style="font-size:.82rem">
-                        El comprobante se le manda por correo apenas queda declarado. Si lo dejás vacío,
-                        la factura vale igual pero <strong>no le llega a nadie</strong>.
+                        La factura le llega por correo apenas se emite. Si lo dejás vacío, la factura
+                        vale igual pero <strong>no le llega a nadie</strong>.
                     </p>
 
                     <div class="mb-3">
                         <label class="form-label" for="email">Correo electrónico</label>
                         <input class="form-control" id="email" name="email" type="email"
                                value="{{ old('email', $per->email ?? '') }}" placeholder="clienta@correo.com">
-                        <div class="form-text">D216. Es el correo al que el servicio manda el PDF del comprobante.</div>
+                        <div class="form-text">Es a donde le llega la factura.</div>
                     </div>
 
                     <div class="row g-2">
@@ -92,20 +93,19 @@
                             <label class="form-label" for="direccion">Dirección</label>
                             <input class="form-control" id="direccion" name="direccion"
                                    value="{{ old('direccion', $per->direccion ?? '') }}">
-                            <div class="form-text">D213, opcional.</div>
+                            <div class="form-text">Opcional.</div>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label" for="telefono">Teléfono</label>
                             <input class="form-control" id="telefono" name="telefono"
                                    value="{{ old('telefono', $per->telefono ?? '') }}">
-                            <div class="form-text">D214, opcional.</div>
+                            <div class="form-text">Opcional.</div>
                         </div>
                     </div>
 
                     <p class="text-muted-warm mb-0 mt-3" style="font-size:.78rem">
                         <i class="bi bi-info-circle"></i>
-                        Lo que corrijas acá queda guardado en la ficha del cliente, así la próxima vez
-                        ya sale bien.
+                        Lo que corrijas acá queda guardado en su ficha, así la próxima vez ya sale bien.
                     </p>
                 </div>
             </div>
@@ -152,8 +152,8 @@
                              cuando ya se gastó el número del comprobante. --}}
                         <div class="alert alert-warning mt-3 mb-0" style="font-size:.82rem">
                             <strong>Esta venta pasa los {{ money($topeInnominado) }}.</strong>
-                            La DNIT no acepta comprobantes a consumidor final por ese monto:
-                            hay que cargar la cédula o el RUC.
+                            Por ese monto no se puede facturar a consumidor final: hay que cargarle
+                            la cédula o el RUC.
                         </div>
                     @endif
                 </div>
@@ -181,8 +181,8 @@
         ayuda   = document.getElementById('ayudaDoc');
 
     var AYUDA = {
-        CI:  'D210. Sólo números, como figura en la cédula.',
-        RUC: 'D206 y D207. Va con el dígito verificador: 80012345-0. Se comprueba con módulo 11 antes de emitir.'
+        CI:  'Sólo números, como figura en la cédula.',
+        RUC: 'Va con el dígito verificador, así: 80012345-0. Lo comprobamos antes de emitir.'
     };
 
     function ajustar() {

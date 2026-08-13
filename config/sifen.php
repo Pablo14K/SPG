@@ -48,7 +48,7 @@ return [
     'tipos_electronicos' => [1, 5],
 
     /*
-     * El comprobante que se propone al cobrar: **Recibo de dinero (8)**.
+     * El comprobante que se propone al cobrar: **Comprobante de pago (8)**.
      *
      * Es el de todos los días, porque **la clienta no siempre pide factura**:
      * queda numerado y registrado, pero NO se declara ante la DNIT —no está

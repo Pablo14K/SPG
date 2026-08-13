@@ -704,8 +704,38 @@ window.SPGCarga = (function () {
       linea.querySelector('.spg-extra-tarjeta').style.display = (tipo === 'TARJETA') ? '' : 'none';
       linea.querySelector('.spg-extra-banco').style.display   = (tipo === 'BANCO' || tipo === 'CHEQUE') ? '' : 'none';
 
+      // Transferencia y cheque comparten la tabla, no los campos: una
+      // transferencia no tiene número de cheque y un cheque no tiene número
+      // de operación. Se ocultan con `display`, así el input SIGUE en el
+      // formulario y los arreglos no se corren de lugar.
+      linea.querySelectorAll('[data-solo]').forEach(function (c) {
+        var muestra = c.getAttribute('data-solo') === tipo;
+        c.style.display = muestra ? '' : 'none';
+        if (!muestra) c.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      });
+
+      // Y la fecha se llama distinto en cada uno
+      var fe = linea.querySelector('.spg-fecha-banco');
+      if (fe) fe.textContent = (tipo === 'CHEQUE') ? 'Fecha del cheque' : 'Fecha de la transferencia';
+
       var ref = linea.querySelector('[name="referencia[]"]');
       if (ref) ref.placeholder = PISTA[tipo] || 'Referencia (opcional)';
+
+      if (typeof ajustarVuelto === 'function') ajustarVuelto();
+    }
+
+    // El vuelto es una cuenta de EFECTIVO: preguntar «¿con cuánto paga?» en una
+    // transferencia no tiene sentido, no hay billete ni cambio que dar.
+    function ajustarVuelto() {
+      var bloque = caja.querySelector('.spg-vuelto-bloque');
+      if (!bloque) return;
+      var hayEfectivo = false;
+      cont.querySelectorAll('.spg-cobro-metodo').forEach(function (s) {
+        var op = s.options[s.selectedIndex];
+        if (op && op.getAttribute('data-tipo') === 'EFECTIVO') hayEfectivo = true;
+      });
+      bloque.style.display = hayEfectivo ? '' : 'none';
+      if (!hayEfectivo && recibido) { recibido.value = ''; if (vueltoRes) vueltoRes.textContent = ''; }
     }
 
     function nuevaLinea(monto) {

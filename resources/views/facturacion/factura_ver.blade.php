@@ -17,6 +17,14 @@
     <div class="d-flex gap-2 mb-3 no-imprimir flex-wrap">
         <button class="btn btn-oro" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
 
+        {{-- Mandárselo por correo hace falta sobre todo para el Comprobante de
+             pago, que NO se declara: al no pasar por el Automatizador, nadie se
+             lo manda, y la única forma de que se lo llevara era imprimirlo. --}}
+        @if ($f->estado !== 'Anulada')
+            <button class="btn btn-outline-neutro" data-bs-toggle="modal" data-bs-target="#modalCorreo">
+                <i class="bi bi-envelope-at"></i> Enviar por correo</button>
+        @endif
+
         @if ($f->estado !== 'Anulada')
             @if (Permisos::puede('facturacion.facturas'))
                 <button class="btn btn-outline-neutro" data-bs-toggle="modal" data-bs-target="#modalAnularF">
@@ -272,6 +280,56 @@
                     </form>
                 @endif
             @endif
+        </div>
+    @endif
+
+    {{-- Mandarlo por correo. El destino viene de la ficha y SE PUEDE CAMBIAR:
+         la clienta puede pedir que se lo manden a otra dirección. Lo que se
+         escriba acá no le toca la ficha — es para este envío, no un dato nuevo
+         de la persona. --}}
+    @if ($f->estado !== 'Anulada')
+        <div class="modal fade" id="modalCorreo" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('facturacion.comprobante.enviar') }}">
+                        @csrf
+                        <input type="hidden" name="id_factura" value="{{ $f->id_factura }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="font-size:1rem">
+                                <i class="bi bi-envelope-at"></i> Enviar {{ $f->nro_comprobante }} por correo
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label" for="correoDestino">¿A qué dirección?</label>
+                                <input class="form-control" id="correoDestino" name="email" type="email" required
+                                       value="{{ $cli->email ?? '' }}" placeholder="clienta@correo.com">
+                                <div class="form-text">
+                                    @if ($cli->email ?? null)
+                                        Es el correo de su ficha. Cambialo si te pide que se lo mandes a otro.
+                                    @else
+                                        Su ficha no tiene correo cargado, así que hay que escribirlo.
+                                    @endif
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label" for="notaCorreo">¿Querés agregarle algo? (opcional)</label>
+                                <textarea class="form-control" id="notaCorreo" name="nota" rows="2"
+                                          placeholder="Gracias por tu visita, te esperamos."></textarea>
+                            </div>
+                            <p class="text-muted-warm mb-0 mt-3" style="font-size:.78rem">
+                                Va el detalle escrito en el cuerpo del correo, para que se lea de una en el
+                                teléfono y no haya que abrir ningún archivo.
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-oro"><i class="bi bi-send"></i> Enviar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     @endif
 

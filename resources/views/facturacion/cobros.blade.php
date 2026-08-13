@@ -25,7 +25,19 @@
                                 {{ $r->cliente ?: '—' }}
                                 @if ($r->es_sena)<span class="badge-estado e-warn">seña</span>@endif
                             </td>
-                            <td class="text-muted-warm">{{ $r->nro_comprobante ?: '—' }}</td>
+                            {{-- El número abre el comprobante. El Comprobante de
+                                 pago NO es una factura, así que buscarlo bajo
+                                 «Facturas» no se le ocurre a nadie: se lo busca
+                                 acá, en Cobros, y desde acá se llega. --}}
+                            <td>
+                                @if ($r->id_factura)
+                                    <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}"
+                                       title="Ver el comprobante">{{ $r->nro_comprobante }}</a>
+                                    <div class="text-muted-warm" style="font-size:.75rem">{{ $r->tipo_comprobante }}</div>
+                                @else
+                                    <span class="text-muted-warm">—</span>
+                                @endif
+                            </td>
                             <td>{{ $r->metodo }}</td>
                             <td class="text-end">{{ money($r->monto) }}</td>
                             <td class="text-muted-warm">{{ $r->referencia ?: '—' }}</td>

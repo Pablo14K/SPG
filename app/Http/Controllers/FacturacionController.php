@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Mail\ComprobanteCliente;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
@@ -14,11 +15,12 @@ use App\Servicios\Persona;
 use App\Servicios\Sifen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 use stdClass;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -289,6 +291,73 @@ class FacturacionController extends Controller
             'Content-Disposition' => ($que === 'pdf' ? 'inline' : 'attachment')
                 . '; filename="' . $nro . '.' . $que . '"',
         ]);
+    }
+
+    /**
+     * Le manda el comprobante por correo a la clienta.
+     *
+     * Sirve para cualquiera, pero sobre todo para el **Comprobante de pago**,
+     * que es el de todos los días y **no se declara ante la DNIT**: al no
+     * pasar por el Automatizador, nadie le manda nada — antes la única forma
+     * de que se lo llevara era imprimirlo.
+     *
+     * El correo viene precargado con el de su ficha y **se puede cambiar**:
+     * puede pedir que se lo manden a otra dirección. Lo que se escriba acá
+     * **no le toca la ficha**, porque es para este envío y no un dato nuevo
+     * de la persona.
+     */
+    public function comprobanteEnviar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_factura', 0);
+        $email = trim((string) $request->input('email', ''));
+        $nota = trim((string) $request->input('nota', ''));
+        $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
+
+        // `vw_factura_resumen` trae el NOMBRE del tipo, no su id, y el id es lo
+        // que decide si se le adjuntan el KuDE y el XML.
+        $f = DB::selectOne(
+            'SELECT v.*, fa.id_tipo_comprobante
+               FROM vw_factura_resumen v JOIN factura fa ON fa.id_factura = v.id_factura
+              WHERE v.id_factura = ?', [$id]
+        );
+        if (! $f) {
+            flash('Ese comprobante no existe.', 'error');
+
+            return redirect()->route('facturacion.facturas');
+        }
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            flash('Poné una dirección de correo válida.', 'error');
+
+            return $volver;
+        }
+
+        try {
+            Mail::to($email)->send(new ComprobanteCliente(
+                $f,
+                DB::select('SELECT * FROM vw_detalle_factura WHERE id_factura = ? ORDER BY clase, item', [$id]),
+                DB::select(
+                    'SELECT co.fecha, co.monto, mp.nombre AS metodo
+                       FROM cobro co JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                      WHERE (co.id_factura = :f OR co.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))
+                        AND co.id_estado_cobro = 1
+                      ORDER BY co.fecha', ['f' => $id, 'f2' => $id]
+                ),
+                (string) (DB::scalar('SELECT nombre FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1')
+                          ?: config('app.name')),
+                $nota
+            ));
+        } catch (Throwable $ex) {
+            Log::error('Comprobante ' . $id . ' por correo a ' . $email . ': ' . $ex->getMessage());
+            flash('No se pudo mandar el correo. El detalle quedó en el registro del sistema.', 'error');
+
+            return $volver;
+        }
+
+        Auditoria::registrar('ENVIO', 'Facturacion', 'factura', $id,
+            'Comprobante ' . $f->nro_comprobante . ' enviado a ' . $email);
+        flash('Le mandamos el comprobante ' . $f->nro_comprobante . ' a ' . $email . '.');
+
+        return $volver;
     }
 
     /** Citas atendidas que todavía no tienen factura. */
@@ -757,11 +826,17 @@ class FacturacionController extends Controller
                   JOIN metodo_pago mp   ON mp.id_metodo_pago = co.id_metodo_pago
                   JOIN estado_cobro ec  ON ec.id_estado_cobro = co.id_estado_cobro
                   LEFT JOIN factura fa   ON fa.id_factura = co.id_factura
+                  LEFT JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = fa.id_tipo_comprobante
                   LEFT JOIN cliente cl   ON cl.id_cliente = fa.id_cliente
                   LEFT JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
                   WHERE ' . implode(' AND ', $w);
+        // `id_factura` y el tipo salen acá para que la lista pueda ABRIR el
+        // comprobante: el Comprobante de pago no es una factura, y buscarlo
+        // bajo «Facturas» es lo que no se le ocurre a nadie. Desde Cobros, que
+        // es donde se lo busca, se llega de un clic.
         $cols = "co.id_cobro, co.fecha, co.monto, co.referencia, mp.nombre AS metodo, ec.nombre AS estado,
                  (co.id_factura IS NULL AND co.id_cita IS NOT NULL) AS es_sena,
+                 co.id_factura, tc.nombre AS tipo_comprobante,
                  fn_factura_nro(co.id_factura) AS nro_comprobante,
                  CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente";
 

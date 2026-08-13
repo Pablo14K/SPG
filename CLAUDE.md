@@ -168,6 +168,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.11.0 | 13/08/2026 | **El comprobante se manda por correo, y se lo encuentra donde se lo busca.** El «Recibo de dinero» pasa a llamarse **Comprobante de pago**, que es como se lo nombra en el mostrador. Como **no es una factura**, buscarlo bajo «Facturas» no se le ocurre a nadie: ahora **desde Cobros el número abre el comprobante** y dice de qué tipo es. Y hay un botón para **mandárselo a la clienta por correo**, que hacía falta sobre todo para este comprobante: al no declararse, no pasa por el Automatizador y **nadie se lo mandaba** — la única forma de que se lo llevara era imprimirlo. El detalle va escrito en el cuerpo, para leerlo de una en el teléfono, y **si el comprobante se declaró se le adjuntan el KuDE en PDF y el XML**, como pide el manual del SIFEN: son los documentos con valor fiscal y el cuerpo no los reemplaza. Salen de la copia local, así que se puede reenviar con el servicio apagado. La dirección viene de la ficha y **se puede cambiar sin tocarle la ficha**, porque es para ese envío. Tres cosas se arreglaron al probarlo, y las tres se vieron **porque el `catch` ahora loguea**: la plantilla usaba `descuento` y `total` cuando la vista los llama `descuento_total` y `total_neto`; **`@if` pegado a una palabra no lo compila Blade** —su patrón lleva `\B` delante de la arroba— así que `PDF@if (…)` salió tal cual en el correo que llegó al buzón; y en el modal de cobro **la transferencia pedía «Nº de cheque»** y el cheque «Nº de operación», cuando cada uno tiene el suyo — además el vuelto ya no se pregunta si nadie paga en efectivo, que no hay billete ni cambio que dar. Por último, **el formulario de la factura deja de hablar en técnico**: los códigos del manual (D206, D211, D216…) salen de la pantalla y quedan en este documento, que es donde sirven. **63 pruebas** |
 | 7.10.0 | 13/08/2026 | **El Recibo de dinero pasa a ser el comprobante de todos los días.** Vuelve a valer la decisión de siempre —**la clienta no siempre pide factura**—, con otro papel en el rol: el Recibo queda numerado y registrado pero **no se declara ante la DNIT**, y la Factura se elige a mano cuando la piden. Es lo que hacía el Ticket hasta que se lo dio de baja en la 7.9.0. **No alcanzaba con cambiar la clave por defecto**: el Recibo venía con `signo = 0` y con eso **no se podía cobrar** — `sp_registrar_cobro` lo rechaza con «Ese tipo de comprobante no se cobra» y la pantalla de emitir, que filtra por `signo = 1`, ni lo mostraba. El signo es lo que separa un documento de venta de uno que no mueve plata, como la nota de remisión; uno que se cobra es de venta, así que pasa a 1. Comprobado de punta a punta y revertido: emite `001-999-0000001` con su propio timbrado, no se declara, y se cobra hasta saldo cero. Queda anotado que **`SIFEN_TIPO_DEFECTO` tiene que moverse junto con la baja de un tipo**: apuntando a uno inactivo, la lista cae en el primero que quede sin avisar. **63 pruebas** y los dos `.sql` regenerados |
 | 7.9.0 | 13/08/2026 | **El comprobante electrónico se ve desde el sistema, y la lista de tipos queda en los tres que el salón usa.** El botón «KuDE» **mandaba a una página caída**: la dirección venía del Automatizador y apunta a *su* dominio publicado, que no responde — y encima esas URL no llevan el token, así que ni desde adentro servirían. Ahora, al declarar, el SPG **se baja el PDF y el XML y los guarda** junto con el TXT exacto que mandó, y los sirve él mismo desde `facturacion/sifen/archivo`. Es lo que el propio manual del Automatizador recomienda: bajarlo desde el servidor, con el token del lado del servidor, y servirlo uno mismo. El TXT se guarda **aunque el envío falle**, porque es la prueba de qué se mandó; y que no se pueda bajar la copia **no invalida el envío** — el comprobante ya está declarado. Para los que se declararon antes de que esto existiera, la copia se pide sola la primera vez. **Se dan de baja cinco tipos de comprobante** —Boleta de venta, Ticket, Autofactura, Nota de débito y Nota de remisión—, ninguno con comprobantes emitidos: quedan **Factura, Nota de crédito y Recibo de dinero**. Sale de `tipo_comprobante.activo`, así que volver a habilitar uno no toca código. **Ojo con la consecuencia**: el defecto era el **Ticket** desde la 7.0.0 —la decisión de «la clienta no siempre pide factura»— y apuntaba a un tipo que ya no está en la lista, así que `SIFEN_TIPO_DEFECTO` pasa a **Factura (1)**. De paso, **dos avisos dejan de hablarle al programador**: el del timbrado faltante decía «el comprobante por defecto no tiene timbrado vigente» y ahora dice qué se está emitiendo, qué se está perdiendo y qué hacer; y el del modo de prueba nombraba `SIFEN_MODO=http` y el `.env` — a quien atiende le importa que ese comprobante no vale, no cómo se configura. **63 pruebas** y los dos `.sql` regenerados |
 | 7.8.0 | 13/08/2026 | **Vuelven a salir los correos, y queda escrita la regla que evita que esto se repita.** El sistema estaba en `MAIL_MAILER=log` desde la 6.4.0, cuando se sacó la contraseña de Gmail de `docker/php/env.docker` porque ese archivo se versiona. **El motivo era correcto**; lo que estuvo mal fue dar por aceptable el efecto colateral sin preguntar: con eso dejaron de salir **el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios de citas**, y nadie lo supo hasta que otra desarrolladora quiso crear una cuenta de clienta meses después. Peor: la pantalla decía «te enviamos un código» igual, así que parecía un error del sistema. Ahora `env.docker` lleva las **mismas credenciales que usa el Automatizador SIFEN** para mandar el PDF, y la salida que conserva las dos cosas —correo andando y credencial fuera del repositorio— es la que el propio archivo ya proponía: `git update-index --skip-worktree`. Comprobado con un envío real que Gmail aceptó. **Y entra la regla en este documento**: si un arreglo va a apagar, limitar o dejar sin efecto algo que hoy funciona, **se pregunta antes** —esa decisión es del usuario, no técnica—, se propone la salida que conserve las dos cosas, y si igual se apaga, **el apagado tiene que notarse**: una función apagada en silencio es indistinguible de una rota, que es exactamente lo que pasó acá |
@@ -1535,6 +1536,44 @@ que lo tiene. Sin correo cargado también avisa, en vez de quedarse callado.
 
 **Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no existe**: ni botón, ni bloque,
 ni columnas. Un salón que no factura electrónicamente no tiene por qué ver nada de esto.
+
+### Mandarle el comprobante a la clienta
+
+Desde el comprobante hay un botón **Enviar por correo**, y desde **Cobros** se llega a él con
+un clic: el número del cobro abre su comprobante y dice de qué tipo es. Eso último importa
+porque **el Comprobante de pago no es una factura**, y buscarlo bajo «Facturas» no se le ocurre
+a nadie — se lo busca donde se cobró.
+
+| | Qué lleva el correo |
+|---|---|
+| **Comprobante de pago** | el detalle escrito en el cuerpo. No se declara, así que **no existe** ningún KuDE ni XML que adjuntar |
+| **Factura** | lo mismo **más el KuDE en PDF y el XML adjuntos**, que es lo que pide el manual del SIFEN: son los documentos con valor fiscal y el cuerpo del correo no los reemplaza |
+
+- **Los adjuntos salen de la copia local**, no del Automatizador, así que el comprobante se
+  puede reenviar aunque el servicio esté apagado. Si la copia no está —se declaró en modo
+  simulado, por ejemplo— el correo sale igual, con el detalle y sin adjuntos.
+- **El detalle va escrito en el cuerpo y no como PDF**: este proyecto no tiene librería de PDF
+  a propósito, y algo que se lee de una en el teléfono es mejor que un archivo que hay que
+  abrir con otra aplicación.
+- **La dirección se puede cambiar**, porque la clienta puede pedir que se lo manden a otra.
+  **Lo que se escriba ahí NO le toca la ficha**: es para ese envío, no un dato nuevo de la
+  persona — al revés que el formulario del receptor, donde sí se guarda.
+- Cada envío queda en `auditoria`, con la dirección a la que fue.
+
+> **Ojo con los nombres de `vw_factura_resumen`.** Son `descuento_total` y `total_neto`, no
+> `descuento` ni `total`, y tampoco trae `id_tipo_comprobante` —hay que unirla con `factura`—.
+> La plantilla del correo se escribió con los nombres equivocados y reventaba al mandarlo; se
+> vio en una línea del log **porque el `catch` ahora registra**, que es justamente para lo que
+> se agregó en la 7.3.0.
+
+> **`@if` pegado a una palabra NO lo compila Blade, y en un correo eso se ve.** El patrón de
+> las directivas lleva `\B` delante de la arroba, así que `PDF@if (…)` no es una directiva:
+> **sale tal cual, con paréntesis y todo**, en el correo que le llega a la clienta. Pasó de
+> verdad: el cartel que anunciaba los adjuntos se leyó como `PDF@if (isset($adjuntos['xml']))
+> y el archivo XML@endif`. Hace falta un espacio o un salto de línea antes de la arroba.
+>
+> Ese cartel se sacó, además, porque **el cliente de correo ya muestra los adjuntos** —con su
+> nombre, su ícono y la vista previa del PDF—: anunciarlos otra vez no agregaba nada.
 
 ### El comprobante se ve DESDE EL SISTEMA, no desde el Automatizador
 
