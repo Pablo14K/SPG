@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.5.3 | 13/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno: **28 permisos, 7 módulos, 4 componentes Blade, 20 procedimientos, 30 funciones, 17 disparadores, 17 vistas y 57 CHECK** siguen exactos; **las rutas eran 154, no 151** —el conteo ya venía desfasado antes de sumar las dos del receptor—. De paso salieron dos cosas de verdad: **las tres plantillas de `.env` decían tener las mismas claves y no era cierto**. `SESSION_SECURE_COOKIE` estaba **sólo en la de producción**, y la lee `config/session.php`: era una opción real, viva e invisible para quien leyera las otras dos. Y `VITE_APP_NAME` seguía en las dos de desarrollo aunque **no la usa nadie** — quedó del andamiaje de Vite que se borró en la 7.1.0. Ahora son 44 claves y las tres coinciden exactamente, con el comando para comprobarlo escrito al lado. También **el comentario de `env.docker` contradecía a su propia línea**: decía «hoy apunta a `peluqueria_bd`» arriba de un `DB_DATABASE=peluqueria_test` |
 | 7.5.2 | 13/08/2026 | **El Automatizador SIFEN sube con el resto del sistema.** Se levantaba a mano, y eso era exactamente la causa de que el PDF no llegara: el servicio se caía sin que nadie lo notara y las facturas se acumulaban en PENDIENTE — pasó en vivo, con cuatro horas y media de diferencia entre levantarlo y emitir. Ahora es un servicio más del `docker-compose.yml` y arranca con `docker compose up`. Como vive **fuera del repositorio**, el compose lo monta por ruta: lo busca como carpeta hermana del proyecto y se le puede decir otra con `SPG_SIFEN_PATH`. Dos detalles que no son caprichos. **Si la carpeta no está, el contenedor avisa y se apaga solo**, en vez de servir una carpeta vacía: eso contestaría **404**, y el SPG lee cualquier 4xx como **RECHAZADO**, o sea «no reintentes» — cuando la verdad es que el comprobante estaba bien y el servicio no estaba. Apagado da conexión rechazada, que sí queda PENDIENTE. Y **`restart: on-failure` en lugar de `unless-stopped`**, porque ese apagado limpio sale con 0 y `unless-stopped` lo relevantaría igual, dejándolo en bucle repitiendo el aviso. De paso la URL pasa a ser `http://sifen:8090/`, el **nombre del servicio**, que se resuelve solo en la red de los contenedores igual que `bd` y no depende de `host.docker.internal` |
 | 7.5.1 | 13/08/2026 | **El PDF del comprobante no llegaba, y no era culpa del Automatizador: nunca se lo llamaba.** El SPG venía en `SIFEN_MODO=simulado` con `SIFEN_URL` vacía, así que se armaba el TXT, se devolvía un CDC de prueba y **ahí terminaba** — ninguna conexión, ningún correo. El aviso lo decía en potencial («le *habría* llegado a…») y eso no alcanzó para que se notara. Se comprobó de los dos lados por separado: el Automatizador toma el TXT que arma el SPG, **genera el KuDE en PDF (78 KB, sin librerías) y arma el correo con el PDF y el XML adjuntos** —probado con `MAIL_TRANSPORT=file`, que escribe el `.eml` en vez de mandarlo—, y el contenedor lo alcanza por HTTP y recibe 200. Queda conectado: `SIFEN_MODO=http` contra `host.docker.internal:8090`, que **no es `localhost`** —adentro del contenedor localhost es el contenedor—, y el Automatizador entra en `.claude/launch.json` para poder levantarlo con un comando. No necesita Composer: no tiene dependencias. Además se documentan las **tres cosas que tienen que estar juntas** para que el correo salga, porque si falta una falla en silencio: el servicio corriendo, el SPG apuntándole con el token que coincida, y `MAIL_*` cargado en el `.env` **del Automatizador** (con `MAIL_FROM_EMAIL` vacío se saltea el envío sin avisar). De paso **sale el aviso de «modo simulado» de la pantalla del receptor**: ocupaba media pantalla justo arriba del formulario y repetía algo que el comprobante ya dice una vez emitido, que es donde importa |
 | 7.5.0 | 13/08/2026 | **Emitir una factura electrónica pasa a pedir los datos que exige el manual, validarlos y mandarla sola.** Antes se emitía con lo que hubiera en la ficha del cliente y declarar era un botón aparte que había que acordarse de apretar. Ahora hay una pantalla previa (`facturacion/receptor`) con los campos del **grupo D del Manual Técnico v150** —tipo y número de documento, nombre o razón social, correo, dirección, teléfono—, precargados y editables, y **cada campo lleva su ID del manual a la vista** para poder rastrearlo. El correo importa más que el resto: **es a donde el Automatizador manda el PDF**, y viene cargado de la ficha pero se puede cambiar. Se validan dos reglas concretas que hoy la DNIT rechazaba después de gastar el número: **el dígito verificador del RUC por módulo 11** (error 1309) y que **consumidor final no vale a partir de Gs. 60.000.000** (error 1321). Al calcular el DV apareció que **hay dos ciclos de pesos dando vueltas** —2..9 y 2..11— y el manual no trae el algoritmo, remite a un PDF de la SET; se resolvió contra el **CDC de ejemplo del propio manual**, que el ciclo 2..11 reproduce (DV 8) y el otro no (da 2). De paso: **el `80012345-6` del archivo de ejemplo del Automatizador tiene el DV mal** —el correcto es `80012345-0`—, así que no sirve como ejemplo en pantalla. **El orden se mantiene y es lo que no hay que perder**: se emite primero y se declara después, seguido pero no atado, así que si el envío falla la factura sigue siendo válida y se reintenta desde el comprobante. El mensaje además dice **si el PDF salió por correo y a dónde**, porque para la clienta «facturado» significa que le llegó. Lo que se corrige en el formulario se guarda en `persona`, y con RUC **la razón social no se parte** en nombre y apellido — «Comercial Cliente SA» quedaba como apellido «Cliente SA» y así salía impreso. Dos ajustes más del cobro: **el botón «Otro medio de pago» estaba pegado al campo de arriba**, y el campo Referencia decía «Nº de operación, boleta…» aun con efectivo, prometiendo una boleta que no existe —`nro_boleta` es una columna de `cobro_tarjeta`—: ahora la pista cambia con el medio. **62 pruebas** |
@@ -169,7 +170,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **151 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **154 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -224,7 +225,7 @@ resources/views/
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 151 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 154 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
@@ -1502,15 +1503,25 @@ exactamente el problema que este archivo evita (fue el H-02 de la auditoría).
 > **Las tres plantillas tienen que listar las mismas claves.** Cuando se agrega una opción hay
 > que ponerla en las tres, aunque el valor cambie: si sólo está en una, la opción existe pero
 > es invisible para quien lee las otras. Pasó con las claves de `SIFEN_*`, que quedaron sólo
-> en `env.docker` hasta la 7.2.0. Se comprueba comparando las tres listas de claves.
+> en `env.docker` hasta la 7.2.0. Se comprueba comparando las tres listas de claves:
+>
+> ```bash
+> for f in .env.example docker/php/env.docker .env.produccion.example; do grep -o '^[A-Z_][A-Z0-9_]*=' "$f" | sed 's/=$//' | sort -u; done
+> ```
+>
+> Hoy son **44 claves y las tres coinciden exactamente**. Al comprobarlo aparecieron dos
+> descoladas: `SESSION_SECURE_COOKIE` estaba sólo en la de producción —y la lee
+> `config/session.php`, así que era una opción real e invisible—, y `VITE_APP_NAME` seguía en
+> las dos de desarrollo aunque **no la usa nadie**: quedó del andamiaje de Vite que se borró en
+> la 7.1.0.
 
 **Cambiar de base en Docker es una línea de `docker/php/env.docker`**, porque el contenedor
 crea e importa las dos en el primer arranque (`docker/bd/10-importar.sh`):
 
 | Valor | Para qué |
 |---|---|
-| `DB_DATABASE=peluqueria_bd` | **el que viene puesto**: ver el sistema como lo recibe el salón, catálogos y nada más |
-| `DB_DATABASE=peluqueria_test` | ver las pantallas con datos: 172 citas, 62 facturas, 33 clientas |
+| `DB_DATABASE=peluqueria_bd` | ver el sistema como lo recibe el salón: catálogos y nada más. **Es la que hay que dejar puesta antes de entregar** |
+| `DB_DATABASE=peluqueria_test` | **el que viene puesto hoy**: 172 citas, 62 facturas, 33 clientas. Sin datos no se ven la paginación, los filtros, las exportaciones ni el estado del cobro en la agenda |
 
 **Los nombres son esos dos y no hay un tercero.** `peluqueria_bd_test` no existe, y mezclarlos
 es el error fácil porque el síntoma engaña: la pantalla de ingreso contesta 200 igual —no toca
