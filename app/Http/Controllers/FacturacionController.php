@@ -549,7 +549,6 @@ class FacturacionController extends Controller
                    JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
             ),
             'topeInnominado' => Sifen::TOPE_INNOMINADO,
-            'modoSimulado' => config('sifen.modo') !== 'http',
         ];
     }
 

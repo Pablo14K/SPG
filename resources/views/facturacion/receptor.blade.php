@@ -20,14 +20,9 @@
 
     <x-encabezado sub="Lo que la DNIT necesita saber de quien recibe el comprobante. Viene cargado de la ficha del cliente y se puede cambiar: la clienta puede pedirla a nombre de su empresa, o dar otro correo." />
 
-    @if ($modoSimulado)
-        <div class="alert alert-warning">
-            <strong>Modo simulado.</strong> El comprobante se emite y se numera de verdad, pero
-            <strong>no sale hacia la DNIT</strong>: se arma el archivo y se devuelve un CDC de prueba.
-            Sirve para recorrer el circuito completo sin depender del servicio.
-        </div>
-    @endif
-
+    {{-- El aviso de «modo simulado» no va acá: ocupa media pantalla justo
+         arriba del formulario y repite algo que ya dice el comprobante una vez
+         emitido, que es donde importa saber si salió o no hacia la DNIT. --}}
     <form method="post" action="{{ route('facturacion.receptor.guardar') }}">
         @csrf
         <input type="hidden" name="id_cita" value="{{ $idCita }}">
