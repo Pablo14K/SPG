@@ -2356,7 +2356,7 @@ CREATE TABLE `tipo_comprobante` (
 
 LOCK TABLES `tipo_comprobante` WRITE;
 /*!40000 ALTER TABLE `tipo_comprobante` DISABLE KEYS */;
-INSERT INTO `tipo_comprobante` VALUES (1,'01','Factura',1,0,1),(2,'02','Boleta de venta',1,0,0),(3,'03','Ticket',1,0,0),(4,'04','Autofactura',1,0,0),(5,'05','Nota de credito',-1,1,1),(6,'06','Nota de debito',1,1,0),(7,'07','Nota de remision',0,0,0),(8,'08','Recibo de dinero',0,0,1);
+INSERT INTO `tipo_comprobante` VALUES (1,'01','Factura',1,0,1),(2,'02','Boleta de venta',1,0,0),(3,'03','Ticket',1,0,0),(4,'04','Autofactura',1,0,0),(5,'05','Nota de credito',-1,1,1),(6,'06','Nota de debito',1,1,0),(7,'07','Nota de remision',0,0,0),(8,'08','Recibo de dinero',1,0,1);
 /*!40000 ALTER TABLE `tipo_comprobante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5008,4 +5008,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-13 19:27:50
+-- Dump completed on 2026-08-13 19:42:30

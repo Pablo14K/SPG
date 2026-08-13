@@ -48,16 +48,24 @@ return [
     'tipos_electronicos' => [1, 5],
 
     /*
-     * El comprobante que se propone al cobrar: **Factura (1)**.
+     * El comprobante que se propone al cobrar: **Recibo de dinero (8)**.
      *
-     * Hasta la 7.8.0 era el Ticket (3), con la idea de que la mayoría de las
-     * clientas no pide factura. El salón decidió que no usa esos comprobantes
-     * —se dieron de baja Boleta de venta, Ticket, Autofactura, Nota de débito
-     * y Nota de remisión—, así que el que queda para vender es la Factura.
+     * Es el de todos los días, porque **la clienta no siempre pide factura**:
+     * queda numerado y registrado, pero NO se declara ante la DNIT —no está
+     * en `tipos_electronicos`—, así que la Factura se elige a mano cuando la
+     * piden. Es el mismo papel que cumplía el Ticket hasta la 7.9.0, cuando el
+     * salón lo dio de baja junto con Boleta de venta, Autofactura, Nota de
+     * débito y Nota de remisión.
+     *
+     * **Para ser el de todos los días tuvo que pasar a `signo = 1`.** Con el
+     * 0 que traía, `sp_registrar_cobro` lo rechazaba con «Ese tipo de
+     * comprobante no se cobra» y la pantalla de emitir ni lo mostraba: el
+     * signo es lo que distingue un documento de venta de uno que no mueve
+     * plata (la nota de remisión, por ejemplo).
      *
      * La lista de la pantalla sale de `tipo_comprobante.activo`, así que para
      * volver a habilitar alguno se lo reactiva ahí y vuelve a aparecer: no hay
      * nada escrito en el código que dependa de estos números.
      */
-    'tipo_por_defecto' => (int) env('SIFEN_TIPO_DEFECTO', 1),
+    'tipo_por_defecto' => (int) env('SIFEN_TIPO_DEFECTO', 8),
 ];
