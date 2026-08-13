@@ -17,7 +17,7 @@
 <div class="spg-login-wrap">
     @foreach (session('spg_flash', []) as $f)
         @php $cls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$f['tipo']] ?? 'secondary'; @endphp
-        <div class="alert alert-{{ $cls }}" style="max-width:420px;font-size:.85rem">{{ $f['msg'] }}</div>
+        <div class="alert alert-{{ $cls }}" style="font-size:.85rem">{{ $f['msg'] }}</div>
     @endforeach
 
     @yield('formulario')

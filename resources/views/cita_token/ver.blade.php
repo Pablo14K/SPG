@@ -46,24 +46,29 @@
                 </p>
             @endif
 
-            {{-- Dos caminos, porque uno solo no alcanza. El .ics se descarga y
-                 lo abre el calendario del teléfono —anda bien en iPhone—, pero
-                 en Android suele quedar en la carpeta de descargas sin que pase
-                 nada: ahí es donde la clienta cree que el botón está roto. El
-                 enlace de Google no descarga nada y abre la cita ya cargada. --}}
+            {{-- Dos caminos, porque uno solo no alcanza, y CADA UNO SE NOMBRA POR
+                 LO QUE ES. Antes el de Google decía «Agendar en mi calendario» y
+                 el otro «Bajar el archivo (.ics)»: el primero parecía el único
+                 botón de calendario y el segundo una descarga técnica, así que
+                 quien no usa Google leía que no había opción para su teléfono.
+                 El .ics es justamente la genérica —la abre el calendario que
+                 traiga el celular, sea iPhone, Samsung o el que sea—; el de
+                 Google existe porque en Android el .ics suele quedarse en la
+                 carpeta de descargas sin abrirse. --}}
             <div class="d-flex gap-2 flex-wrap">
-                @if ($urlGoogle)
-                    <a class="btn btn-sm btn-oro" href="{{ $urlGoogle }}" target="_blank" rel="noopener">
-                        <i class="bi bi-calendar-plus"></i> Agendar en mi calendario</a>
-                @endif
-                <a class="btn btn-sm btn-outline-neutro"
+                <a class="btn btn-sm btn-oro" download
                    href="{{ route('cita.calendario', ['t' => $codigo]) }}">
-                    <i class="bi bi-download"></i> Bajar el archivo (.ics)</a>
+                    <i class="bi bi-phone"></i> Calendario del celular</a>
+                @if ($urlGoogle)
+                    <a class="btn btn-sm btn-outline-neutro" href="{{ $urlGoogle }}" target="_blank" rel="noopener">
+                        <i class="bi bi-google"></i> Google Calendar</a>
+                @endif
             </div>
             <div class="form-text">
                 Así tu teléfono también te avisa.
                 @if ($urlGoogle)
-                    El primer botón usa Google Calendar; el segundo sirve para iPhone y Outlook.
+                    El primero sirve para cualquier calendario —iPhone, Samsung, Outlook—; el segundo,
+                    si usás Google Calendar.
                 @endif
             </div>
         </div>

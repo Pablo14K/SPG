@@ -121,8 +121,9 @@
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?</h2>
             <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                Los productos fraccionados se cargan en su unidad de consumo —30 ml de un frasco de
-                1 litro— y el sistema traduce solo lo que descuenta del stock.
+                Cargá <strong>lo que realmente se usó</strong>: no es una cantidad fija por servicio, cambia
+                según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo
+                —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.
             </p>
 
             <div id="filasProductos">
@@ -132,7 +133,7 @@
                             <select class="form-select form-select-sm" name="producto[]" @disabled((bool) $factura)>
                                 <option value="0">— sin producto —</option>
                                 @foreach ($productos as $p)
-                                    <option value="{{ $p->id_producto }}">
+                                    <option value="{{ $p->id_producto }}" data-unidad="{{ unidad_consumo((array) $p) }}">
                                         {{ $p->nombre }}
                                         (quedan {{ cant(stock_a_consumo((array) $p, (float) $p->stock)) }}
                                         {{ unidad_consumo((array) $p) }})
@@ -141,8 +142,13 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <input class="form-control form-control-sm input-miles" name="cantidad[]"
-                                   data-decimales="2" data-min="0" placeholder="Cantidad" @disabled((bool) $factura)>
+                            {{-- La unidad se muestra al lado del campo: sin eso no se sabe si «30»
+                                 son 30 ml o 30 frascos, y el número depende del producto elegido. --}}
+                            <div class="input-group input-group-sm">
+                                <input class="form-control input-miles" name="cantidad[]"
+                                       data-decimales="2" data-min="0" placeholder="Cantidad" @disabled((bool) $factura)>
+                                <span class="input-group-text unidadProducto">unidad</span>
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
@@ -203,6 +209,20 @@
 
 @push('scripts')
 <script>
+// La unidad del campo depende del producto elegido: «ml» para los fraccionados
+// y la unidad de compra para el resto. Se actualiza sola al cambiar el select.
+function spgUnidad(fila) {
+    var sel = fila.querySelector('select[name="producto[]"]');
+    var eti = fila.querySelector('.unidadProducto');
+    if (!sel || !eti) { return; }
+    var op = sel.options[sel.selectedIndex];
+    eti.textContent = (op && op.dataset.unidad) ? op.dataset.unidad : 'unidad';
+}
+
+document.getElementById('filasProductos')?.addEventListener('change', function (e) {
+    if (e.target.name === 'producto[]') { spgUnidad(e.target.closest('.filaProducto')); }
+});
+
 // Una fila más para cargar productos, clonando la última vacía
 document.getElementById('masProductos')?.addEventListener('click', function () {
     var cont = document.getElementById('filasProductos');
@@ -210,6 +230,7 @@ document.getElementById('masProductos')?.addEventListener('click', function () {
     copia.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
     copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
     cont.appendChild(copia);
+    spgUnidad(copia);
 });
 </script>
 @endpush

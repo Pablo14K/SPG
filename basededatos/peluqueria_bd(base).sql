@@ -1431,7 +1431,7 @@ CREATE TABLE `movimiento_inventario` (
   `id_producto` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_tipo_movimiento` int(10) unsigned NOT NULL,
-  `cantidad` decimal(10,2) NOT NULL,
+  `cantidad` decimal(12,4) NOT NULL,
   `precio_unitario` decimal(12,2) DEFAULT NULL,
   `referencia` varchar(40) DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
@@ -1460,9 +1460,9 @@ UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
@@ -1470,7 +1470,7 @@ DELIMITER ;;
 BEFORE INSERT ON movimiento_inventario FOR EACH ROW
 BEGIN
   DECLARE v_signo CHAR(1);
-  DECLARE v_stock DECIMAL(12,2) DEFAULT 0;
+  DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
 
   SELECT signo INTO v_signo FROM tipo_movimiento_inventario
    WHERE id_tipo_movimiento = NEW.id_tipo_movimiento;
@@ -1495,16 +1495,16 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_ai
 AFTER INSERT ON movimiento_inventario FOR EACH ROW
 BEGIN
-  DECLARE v_stock  DECIMAL(12,2) DEFAULT 0;
+  DECLARE v_stock  DECIMAL(12,4) DEFAULT 0;
   DECLARE v_minimo DECIMAL(10,2) DEFAULT 0;
   DECLARE v_nombre VARCHAR(100);
   DECLARE v_activo TINYINT(1) DEFAULT 0;
@@ -1952,7 +1952,7 @@ CREATE TABLE `producto_utilizado` (
   `id_producto_utilizado` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_servicio_realizado` int(10) unsigned NOT NULL,
   `id_producto` int(10) unsigned NOT NULL,
-  `cantidad` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `cantidad` decimal(12,4) NOT NULL DEFAULT 0.0000,
   PRIMARY KEY (`id_producto_utilizado`),
   UNIQUE KEY `uq_prod_util` (`id_servicio_realizado`,`id_producto`),
   KEY `idx_pu_producto` (`id_producto`),
@@ -3625,14 +3625,14 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED) RETURNS decimal(12,2)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED) RETURNS decimal(12,4)
     READS SQL DATA
 BEGIN
-  DECLARE v_stock DECIMAL(12,2) DEFAULT 0;
+  DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
   SELECT COALESCE(SUM(CASE WHEN t.signo = 'E' THEN m.cantidad ELSE -m.cantidad END), 0)
     INTO v_stock
   FROM movimiento_inventario m
@@ -4475,15 +4475,15 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_movimiento_inventario`(
     IN p_id_producto        INT UNSIGNED,
     IN p_id_usuario         INT UNSIGNED,
     IN p_id_tipo_movimiento INT UNSIGNED,
-    IN p_cantidad           DECIMAL(10,2),
+    IN p_cantidad           DECIMAL(12,4),
     IN p_precio_unitario    DECIMAL(12,2),
     IN p_referencia         VARCHAR(40),
     IN p_observaciones      VARCHAR(300))
@@ -4975,4 +4975,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-12 18:27:49
+-- Dump completed on 2026-08-13  8:54:39

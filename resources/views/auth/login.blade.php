@@ -87,6 +87,14 @@
     </form>
 </div>
 
+{{-- Acá hace falta como en cualquier otra pantalla: validar el usuario, cotejar
+     el hash de la contraseña y abrir la sesión toma su tiempo, y hasta la 7.2.1
+     esta pantalla era la única que se quedaba muda —no cargaba `app.js`—, justo
+     donde la persona vuelve a apretar «Ingresar» porque parece que no pasó nada.
+     Va antes de los scripts de abajo para que el bloqueo de doble envío esté
+     puesto cuando el formulario se manda. --}}
+<script src="{{ recurso('js/app.js') }}"></script>
+
 <script>
     (function () {
         var btn = document.getElementById('togglePass'),

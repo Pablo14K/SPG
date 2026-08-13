@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.3.0 | 13/08/2026 | **«No se pudo registrar la atención» era un redondeo, y detrás había una regla del negocio que la base no podía representar.** Cuánto shampoo lleva un lavado **depende del pelo de cada clienta** —15 ml o 60—, pero `producto_utilizado.cantidad` y `movimiento_inventario.cantidad` estaban en `DECIMAL(10,2)`, así que lo más chico que se podía descontar era **1/100 del envase: 10 ml de un frasco de litro**. Cargar 15 ml descontaba **20**, cargar 5 descontaba **10**, y **1 ml no entraba**: el `CHECK` `chk_pu_cantidad` levantaba el error 4025 y la pantalla contestaba con ese mensaje que no dice nada. Pasan a `DECIMAL(12,4)`, y **son seis piezas, no dos** — el disparador que bloquea las salidas sin stock y `fn_producto_stock` declaran su propia variable, y en `(12,2)` la cuenta se truncaba igual. Además `consumo_a_stock()` ya redondeaba a 4 decimales: **PHP y la base venían midiendo distinto**, así que PHP dejaba pasar lo que la base rechazaba y no había forma de anticiparlo leyendo el código. De paso, **la pantalla ahora muestra la unidad al lado del campo** y la cambia sola con el producto elegido: sin eso no se sabía si «30» eran 30 ml o 30 frascos. **Lo que hizo caro el diagnóstico se arregla también**: el `catch` genérico **descartaba la excepción sin registrarla**, así que el log estaba vacío y hubo que reproducir a mano lo que una línea hubiera dicho — ahora todo `catch` que no supo traducir el error lo loguea. **Y el calendario de la clienta pasa a tener las dos opciones de verdad.** En el portal estaba **sólo el de Google**, y en la pantalla del correo el `.ics` se llamaba «Bajar el archivo», que se lee como una descarga técnica y no como *el calendario del teléfono* — quien no usa Google entendía que no había opción para su celular. Ahora los dos se nombran por lo que son, en las dos pantallas, y el `.ics` no enciende la barra de carga (baja un archivo: la página no navega y la barra quedaba girando para siempre). Dos correcciones más de la misma tanda: **el formulario de ingreso era la última pantalla muda** —no cargaba `app.js`, así que entre «Ingresar» y el panel no pasaba nada visible, justo donde se vuelve a apretar el botón—, y **los avisos de las pantallas de acceso salían fuera de la tarjeta**, contra el margen izquierdo, porque `.spg-login-wrap` era un flex **en fila** y el aviso es hermano de la tarjeta, no hijo: «Ese nombre de usuario ya está en uso» aparecía en el borde de la pantalla, lejos del campo que lo causó. **58 pruebas** (una nueva: carga 15, 5 y 1 ml y exige que el stock baje exactamente eso) y los dos `.sql` regenerados |
 | 7.2.1 | 12/08/2026 | **En el tema oscuro, los enlaces del pie eran invisibles: 1,5:1.** Se leían sólo al pasarles el mouse, cuando el hover los pinta de oro. La causa vale más que el síntoma: la barra superior, la barra de módulos y el pie **son oscuras en los dos temas**, pero estaban escritas con `--negro`, `--carbon` y `--gris-calido`, que en el tema claro daban justo lo que hacía falta —fondo oscuro, texto claro— y **se dan vuelta al invertir la paleta**. Además de los enlaces del pie, eso dejaba la **barra de módulos con fondo claro**, porque `--carbon` pasa a ser el color del texto. Ahora esas tres superficies tienen su propio par de variables (`--sup-oscura*` / `--sobre-oscura*`) que no se invierte. El enlace del pie pasa de **1,5:1 a 15,5:1**, y de paso el tema claro también mejora. Los grises fríos sueltos que quedaban en el pie (`#6f6f6f` sobre negro, 3,6:1) salen a la variable cálida y llegan a 7:1. **El hover en oro se mantiene**, que era lo único que funcionaba |
 | 7.2.0 | 12/08/2026 | **Tema oscuro, elegible desde Mi cuenta.** Es una preferencia de cada persona y no del salón: va en `preferencia_usuario`, atada a la cuenta y no al navegador, así que dos que comparten la computadora pueden tener uno cada una. **No cambia ni una regla del CSS: sólo redefine las variables.** Todo el sistema ya estaba escrito con `var(--…)`, así que paneles, tablas, badges y botones cambian solos — por eso el bloque del tema no tiene selectores de componente, y si aparece uno es la señal de que algo se escribió con un color suelto. **El oro no se toca**: es la identidad, y sobre oscuro luce más. Lo que se invierte son los neutros, y **siguen siendo cálidos** —#14120F tirando a marrón, no un gris azulado—, porque con neutros fríos el oro se apaga, que es justo lo que la paleta quiere evitar. Los tintes semánticos sí se rehacen, mezclados hacia el fondo y no hacia el blanco: los claros sobre oscuro son manchas. Contrastes medidos entre **6,2:1 y 15,4:1**, todos por encima de AA. Se guarda `color-scheme:dark` para que los campos de fecha y hora nativos no salgan blancos. **El papel no lo hereda**: las dos vistas de impresión van siempre en claro, porque un informe en oscuro es tinta sobre negro. De paso se documentan las claves de SIFEN en `.env.example` y `.env.produccion.example`, que sólo estaban en `env.docker` — los tres entornos vuelven a listar lo mismo. **57 pruebas** |
 | 7.1.1 | 12/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_bd`**, la base que se entrega: al entrar se ve el sistema tal como lo encuentra el salón el primer día. Es la línea `DB_DATABASE` de `docker/php/env.docker`, la misma que se movió en la 6.1.2 y en la 6.3.1 — el interruptor está para usarse, y lo que importa es que **la que se entrega es la que hay que dejar puesta antes de entregar**. De paso se documenta una trampa que apareció al cambiarla: el valor estaba en **`peluqueria_bd_test`**, un nombre que no existe —los dos reales pegados—, y el síntoma engaña, porque la pantalla de ingreso contesta **200 igual**: no toca la base hasta que se aprieta Ingresar, y recién ahí sale «Unknown database». Ahora los tres lugares donde se busca esto (el propio `env.docker`, el README y la sección **Entorno**) dicen que los nombres son dos y avisan del error |
@@ -223,7 +224,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 57 pruebas
+tests/Feature/             Las 58 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -265,6 +266,14 @@ tests/Feature/             Las 57 pruebas
   producto sin stock contestaba «marcaste un producto en un servicio que no quedó como
   realizado». **El `catch (QueryException)` va primero**, con `Bd::traducir()`, y después el
   de las excepciones propias.
+- **Un `catch` que no supo traducir el error tiene que registrarlo con `Log::error()`.**
+  Un mensaje genérico —«No se pudo registrar la atención»— no le dice nada a quien lo lee **y
+  tampoco deja rastro para quien lo tiene que arreglar: `storage/logs/laravel.log` queda vacío,
+  como si nunca hubiera pasado.** Costó una vuelta entera reproducir a mano lo que el log
+  hubiera dicho en una línea (era el `CHECK` `chk_pu_cantidad`, por un redondeo). La regla:
+  el `default` de `Bd::traducir()`, el `default` de un `match` sobre `getMessage()` y todo
+  `catch (Throwable)` **loguean antes de contestar**, y el mensaje al usuario avisa que el
+  detalle quedó registrado. Traducir el error es para la persona; loguearlo es para la próxima.
 - **Verificá pertenencia**: que la cita sea de ese cliente, que la factura no esté anulada, etc.
   No confíes en los campos ocultos del formulario (ej. el cliente se toma de la cita, no del POST).
 - Los `id` de catálogos se validan contra la base antes de usarlos.
@@ -474,9 +483,11 @@ Cuatro detalles que no son adorno y conviene no perder al tocarlo:
 
 - **La barra no aparece hasta los 250 ms.** Si la respuesta llega antes, un parpadeo molesta
   más que la espera.
-- **Las descargas no la encienden.** Un `?export=csv` baja un archivo y la página se queda
-  donde está: la barra quedaría girando para siempre. Tampoco la encienden las anclas, los
-  `target="_blank"`, `mailto:`, ni el clic con Ctrl.
+- **Las descargas no la encienden.** Un `?export=csv` o el `.ics` de la cita bajan un archivo y
+  la página se queda donde está: la barra quedaría girando para siempre. Tampoco la encienden
+  las anclas, los `target="_blank"`, `mailto:`, ni el clic con Ctrl. **Si agregás otra ruta que
+  devuelva un archivo, anotala en `navegaDeVerdad()`** — el atributo `download` del enlace ya
+  alcanza, pero la ruta anotada vale aunque alguien arme el enlace sin el atributo.
 - **Se apaga en `pageshow`.** Volver con «atrás» restaura la página desde la caché del
   navegador con la barra tal como quedó.
 - **Es un adorno, y tiene que poder faltar.** Las vistas con JS propio declaran
@@ -486,6 +497,13 @@ Cuatro detalles que no son adorno y conviene no perder al tocarlo:
 
 El refresco automático del portal durante la atención **no** enciende nada: pasa cada 20
 segundos por su cuenta, y una barra parpadeando sola sería peor que el silencio.
+
+> **Las pantallas que no usan el layout general tienen que pedir `app.js` a mano**, y es fácil
+> olvidarse porque no se rompe nada: simplemente no pasa nada. `auth/login` fue la última que
+> quedaba muda —cotejar el hash de la contraseña y abrir la sesión toma su tiempo, y ahí es
+> justo donde la persona vuelve a apretar «Ingresar»—. Hoy lo cargan `layout/app`,
+> `auth/marco` y `auth/login`. **Si agregás otra pantalla suelta, acordate de las dos cosas:
+> `app.js` y `@stack('scripts')`.**
 
 - **Un `@push('scripts')` sólo llega si el layout tiene `@stack('scripts')`.** Si no, Blade
   **no avisa**: la pantalla se dibuja entera y sin una línea de JavaScript. Hoy lo declaran
@@ -1024,8 +1042,19 @@ sí funciona, que es por lo que puede pasar mucho tiempo sin que nadie lo note.
 
 | Botón | Qué hace | Para quién |
 |---|---|---|
-| **Agendar en mi calendario** | `Calendario::urlGoogle()` — abre Google Calendar con la cita cargada, sin descargar nada | Android, y cualquiera con cuenta de Google |
-| **Bajar el archivo (.ics)** | `cita.calendario` — el archivo de siempre | iPhone, Outlook, escritorio |
+| **Calendario del celular** | `cita.calendario` — el `.ics`, que abre el calendario que traiga el teléfono | iPhone, Samsung, Outlook, escritorio |
+| **Google Calendar** | `Calendario::urlGoogle()` — abre Google Calendar con la cita cargada, sin descargar nada | Android, y cualquiera con cuenta de Google |
+
+**Cada botón se nombra por lo que es, y eso importa más de lo que parece.** Antes decían
+«Agendar en mi calendario» (el de Google) y «Bajar el archivo (.ics)»: el primero se leía como
+*el* botón de calendario y el segundo como una descarga técnica, así que **quien no usa Google
+entendía que no había opción para su teléfono** — y el `.ics` es justamente la genérica. En el
+portal el problema era peor: **estaba sólo el de Google**, así que no había ninguna.
+
+> **El `.ics` no enciende la barra de carga.** Baja un archivo y la página se queda donde está,
+> así que la barra quedaría girando para siempre — el mismo caso que las exportaciones. Va
+> cubierto dos veces, con el atributo `download` en el enlace y con la ruta anotada en
+> `navegaDeVerdad()` de `app.js`.
 
 **Las dos mandan la misma hora local, sin convertir a UTC**, cada una a su manera: el `.ics`
 en hora flotante y Google con `ctz=America/Asuncion`. Son las dos caras de la misma decisión
@@ -1066,8 +1095,47 @@ la pantalla pide mililitros; sin ellas se comporta como siempre.
 
 **El stock se sigue guardando en la unidad de compra**, que es la que factura el proveedor y
 la que espera `fn_producto_stock`: la conversión pasa al entrar y al salir, nunca queda
-guardada en dos unidades. `movimiento_inventario.cantidad` es `DECIMAL`, así que 0,03 entra
-sin redondear a cero.
+guardada en dos unidades.
+
+### La cantidad la decide el pelo de la clienta, así que necesita decimales de verdad
+
+**No hay una cantidad fija por servicio**: un lavado lleva 15 ml o 60 según el pelo, y la
+persona que atiende carga lo que usó. Para que eso se pueda guardar, las columnas del consumo
+están en **`DECIMAL(12,4)`**, no en `(10,2)`.
+
+Con dos decimales lo más chico que se podía descontar era **1/100 del envase**, o sea 10 ml de
+un frasco de litro, y todo lo de abajo se falseaba:
+
+| Se cargaba | Se guardaba | Se descontaba |
+|---|---|---|
+| 15 ml | 0,02 | **20 ml** |
+| 5 ml | 0,01 | **10 ml** |
+| 1 ml | 0,00 | **nada: el `CHECK` lo rechazaba** |
+
+El último caso es el que se veía en pantalla: `chk_pu_cantidad` levantaba el error 4025 y
+«Registrar atención» contestaba **«No se pudo registrar la atención»**, un mensaje que no dice
+nada y manda a buscar el problema en cualquier otro lado.
+
+> **Son SEIS piezas, no dos.** Cambiar sólo las dos columnas no alcanza: el disparador que
+> bloquea las salidas sin stock y la función que suma el stock **declaran su propia variable**,
+> y si queda en `(12,2)` la cuenta se vuelve a truncar ahí.
+>
+> `producto_utilizado.cantidad` · `movimiento_inventario.cantidad` · `fn_producto_stock`
+> (el `RETURNS` **y** su `v_stock`) · `trg_movinv_bi` · `trg_movinv_ai` ·
+> el parámetro `p_cantidad` de `sp_registrar_movimiento_inventario`.
+
+**`consumo_a_stock()` redondea a 4 decimales, que es exactamente lo que guarda la columna.**
+Ese acuerdo es lo que hace que la validación de PHP y la de la base digan lo mismo: mientras
+estuvieron desacopladas —PHP en 4, la columna en 2— PHP dejaba pasar un valor que la base
+rechazaba, y no había forma de anticiparlo desde el código. **Si algún día se cambia una,
+cambiá la otra.**
+
+Lo protege `ReglasDeNegocioTest::el_consumo_fraccionado_descuenta_la_cantidad_exacta`, que
+carga 15, 5 y 1 ml y exige que el stock baje exactamente eso.
+
+**En la pantalla, la unidad se muestra al lado del campo** y cambia sola con el producto
+elegido (`data-unidad` en cada opción). Sin eso no se sabe si «30» son 30 ml o 30 frascos, y
+la unidad depende de qué producto se eligió en esa misma fila.
 
 **El aviso de reposición** sale de `vw_producto_bajo_stock`: el panel muestra cuántos
 productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock lista cuáles,
@@ -1518,7 +1586,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 57 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 58 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1563,12 +1631,12 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**57 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**58 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
 |---|---|
-| `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos y no se pueda sacar de más; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
+| `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
 | el resto | ingreso, permisos por rol, pantallas que responden |

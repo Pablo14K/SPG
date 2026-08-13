@@ -292,6 +292,57 @@ class ReglasDeNegocioTest extends TestCase
         ]);
     }
 
+    /**
+     * Cuánto shampoo lleva un lavado depende del pelo de cada clienta, así que
+     * la cantidad tiene que poder cargarse como se usó de verdad.
+     *
+     * Con las columnas en DECIMAL(10,2) lo más chico que se podía descontar era
+     * 1/100 del envase —10 ml de un frasco de litro—: 15 ml descontaban 20, 5 ml
+     * descontaban 10, y 1 ml no entraba porque el CHECK `chk_pu_cantidad` lo
+     * rechazaba y la pantalla contestaba «No se pudo registrar la atención».
+     *
+     * Son SEIS piezas las que tienen que estar en 4 decimales, no dos: si
+     * `fn_producto_stock` o el disparador que bloquea las salidas vuelven a
+     * declarar (12,2), la cuenta se trunca de nuevo y esta prueba lo agarra.
+     */
+    #[Test]
+    public function el_consumo_fraccionado_descuenta_la_cantidad_exacta(): void
+    {
+        $p = DB::selectOne(
+            'SELECT id_producto, nombre, contenido, unidad_consumo,
+                    fn_producto_stock(id_producto) AS stock
+               FROM producto
+              WHERE activo = 1 AND contenido >= 900 AND unidad_consumo IS NOT NULL
+              ORDER BY id_producto LIMIT 1'
+        );
+        if (! $p) {
+            $this->markTestSkipped('No hay productos fraccionados en la base de prueba.');
+        }
+
+        $antes = (float) $p->stock;
+
+        // 15 ml de un frasco de 1.000: antes se guardaba 0,02 (20 ml).
+        foreach ([15.0, 5.0, 1.0] as $ml) {
+            $enStock = consumo_a_stock((array) $p, $ml);
+            $this->assertGreaterThan(0, $enStock,
+                "{$ml} {$p->unidad_consumo} de «{$p->nombre}» no llega a descontar nada.");
+
+            DB::statement('CALL sp_registrar_movimiento_inventario(?,?,?,?,?,?,?)', [
+                $p->id_producto, 1, 2, $enStock, null, 'TEST', 'consumo fraccionado',
+            ]);
+
+            $ahora = (float) DB::scalar('SELECT fn_producto_stock(?)', [$p->id_producto]);
+            $this->assertEqualsWithDelta($antes - $enStock, $ahora, 0.00005,
+                "Descontar {$ml} {$p->unidad_consumo} no dio el stock esperado: se perdió precisión.");
+
+            // Lo que se descontó, devuelto a la unidad de la persona
+            $this->assertEqualsWithDelta($ml, stock_a_consumo((array) $p, $antes - $ahora), 0.05,
+                "Se cargaron {$ml} {$p->unidad_consumo} y se descontó otra cantidad.");
+
+            $antes = $ahora;
+        }
+    }
+
     // -----------------------------------------------------------------
     //  Permisos
     // -----------------------------------------------------------------

@@ -34,13 +34,19 @@
                                     <a class="btn btn-sm btn-oro" href="{{ route('portal.atencion', ['id' => $c->id_cita]) }}">
                                         <i class="bi bi-eye"></i> Ver</a>
                                 @elseif (! in_array($c->estado, ['Atendida', 'Cancelada'], true))
-                                    {{-- Agendar en el calendario del teléfono: hasta ahora esto
-                                         sólo estaba en la pantalla que se abre desde el correo,
-                                         así que la clienta con cuenta no tenía cómo hacerlo. --}}
-                                    <a class="btn btn-sm btn-rapido" target="_blank" rel="noopener"
-                                       title="Agregar a mi calendario"
+                                    {{-- Los dos calendarios, como en la pantalla del correo. Acá
+                                         estaba SÓLO el de Google, así que quien no usa Google no
+                                         tenía forma de agendar la cita en su teléfono. El .ics es
+                                         el genérico: lo abre el calendario que traiga el celular.
+                                         Van con texto y no sólo con ícono porque esta pantalla se
+                                         mira desde el celular, donde el `title` no se ve. --}}
+                                    <a class="btn btn-sm btn-rapido" download
+                                       href="{{ route('cita.calendario', ['id' => $c->id_cita]) }}">
+                                        <i class="bi bi-phone"></i> Calendario</a>
+                                    <a class="btn btn-sm btn-outline-neutro" target="_blank" rel="noopener"
+                                       title="Agendar en Google Calendar"
                                        href="{{ \App\Servicios\Calendario::urlGoogle($c, $lugar) }}">
-                                        <i class="bi bi-calendar-plus"></i></a>
+                                        <i class="bi bi-google"></i></a>
                                     <form method="post" action="{{ route('portal.cancelar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">

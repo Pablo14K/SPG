@@ -338,8 +338,14 @@ body{
 .spg-metric .val.oro{color:var(--oro-oscuro);}
 
 /* ---- Login ---- */
-.spg-login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;}
+/* `column` no es un detalle: los avisos de `auth/marco` se dibujan como
+   hermanos de la tarjeta, así que en fila quedaban PEGADOS A SU IZQUIERDA,
+   fuera del recuadro y contra el margen. «Ese nombre de usuario ya está en
+   uso» aparecía en el borde de la pantalla, lejos del campo que lo causó. */
+.spg-login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:.75rem;}
 .spg-login{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:16px;padding:2rem;width:100%;max-width:390px;}
+/* Mismo ancho que la tarjeta, para que se lean como una sola pieza. */
+.spg-login-wrap > .alert{width:100%;max-width:390px;margin-bottom:0;}
 .spg-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
   justify-content:center;color:var(--negro);font-size:1.9rem;margin:0 auto 1rem;}
 

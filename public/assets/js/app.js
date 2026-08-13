@@ -116,9 +116,12 @@ window.SPGCarga = (function () {
     if (a.getAttribute('href').indexOf('#') === 0) return false;
     if (!/^https?:/i.test(a.href)) return false;              // mailto:, tel:, javascript:
     if (a.origin !== window.location.origin) return false;
-    // Las exportaciones bajan un archivo y la página se queda donde está:
-    // la barra se quedaría prendida para siempre.
+    // Las exportaciones y el .ics de la cita bajan un archivo y la página se
+    // queda donde está: la barra se quedaría prendida para siempre. El `.ics`
+    // va acá además del atributo `download` del enlace, para que valga aunque
+    // alguien arme el enlace sin el atributo.
     if (/[?&]export=csv\b/.test(a.href)) return false;
+    if (/\/mi-cita\/calendario\b/.test(a.href)) return false;
 
     return true;
   }

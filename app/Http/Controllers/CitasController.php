@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use RuntimeException;
 use Throwable;
@@ -814,25 +815,39 @@ class CitasController extends Controller
             // en un servicio que no quedó como realizado» — un mensaje que no
             // tiene nada que ver y manda a corregir lo que no está mal. Cargar
             // un producto sin stock daba exactamente eso.
-            flash(Bd::traducir($ex, [
+            // Lo que no se supo traducir se registra: «No se pudo registrar la
+            // atención» a secas no le dice nada a nadie, y sin esto en el log
+            // no queda rastro de qué pasó. Ya costó una vuelta entera.
+            $amable = Bd::traducir($ex, [
                 'stock' => 'No hay stock suficiente de alguno de los productos cargados. '
                            . 'Fijate la cantidad, o cargá stock desde Inventario antes de registrar la atención.',
                 'habilitado' => 'El profesional no está habilitado para alguno de esos servicios.',
-            ], 'No se pudo registrar la atención.'), 'error');
+            ], '');
+            if ($amable === '') {
+                Log::error('Atención cita ' . $idCita . ': ' . $ex->getMessage());
+                $amable = 'No se pudo registrar la atención. El detalle quedó en el registro del sistema.';
+            }
+            flash($amable, 'error');
 
             return $volver;
         } catch (RuntimeException $ex) {
             // Los avisos que levanta esta misma función, por su nombre.
-            flash(match ($ex->getMessage()) {
+            $msg = $ex->getMessage();
+            if (! in_array($msg, ['cantidad_muy_chica', 'servicio_no_realizado'], true)) {
+                Log::error('Atención cita ' . $idCita . ' (no previsto): ' . $msg);
+            }
+            flash(match ($msg) {
                 'cantidad_muy_chica' => 'Una de las cantidades es tan chica que no llega a descontar nada del stock. Revisala.',
                 'servicio_no_realizado' => 'Marcaste un producto en un servicio que no quedó como realizado. '
                                            . 'Marcá ese servicio o elegí otro para el producto.',
-                default => 'No se pudo registrar la atención.',
+                default => 'No se pudo registrar la atención. El detalle quedó en el registro del sistema.',
             }, 'error');
 
             return $volver;
-        } catch (Throwable) {
-            flash('No se pudo registrar la atención.', 'error');
+        } catch (Throwable $ex) {
+            Log::error('Atención cita ' . $idCita . ' (' . get_class($ex) . '): ' . $ex->getMessage()
+                . ' @ ' . $ex->getFile() . ':' . $ex->getLine());
+            flash('No se pudo registrar la atención. El detalle quedó en el registro del sistema.', 'error');
 
             return $volver;
         }
