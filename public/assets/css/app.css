@@ -297,6 +297,13 @@ body{
   text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--gris-calido);}
 .table td{vertical-align:middle;}
 
+/* La fila que se venía a buscar: se llega a Emitir desde la agenda con una
+   cita ya elegida, y entre cien filas iguales hay que poder encontrarla de un
+   vistazo. Va en `--oro-tinte`, que es el de los avisos, no en `--oro-suave`,
+   que es para fondos de acción: la fila no es un botón. */
+.table tbody tr.spg-fila-elegida > td{background:var(--oro-tinte);}
+.table tbody tr.spg-fila-elegida > td:first-child{box-shadow:inset 3px 0 0 var(--oro);}
+
 /* ---- Botones ---- */
 .btn-oro{background:var(--oro);border:none;color:var(--negro);font-weight:500;}
 .btn-oro:hover{background:var(--oro-oscuro);color:var(--blanco);}

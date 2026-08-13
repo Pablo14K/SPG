@@ -239,9 +239,14 @@ class FacturacionController extends Controller
     }
 
     /** Citas atendidas que todavía no tienen factura. */
-    public function emitir(): View
+    public function emitir(Request $request): View
     {
         return view('facturacion.emitir', [
+            // Se llega acá desde la agenda con la cita ya elegida: la persona
+            // termina de atender y cobra sin tener que buscar a la clienta en
+            // una lista de cien. Se valida al guardar igual, así que un id
+            // inventado en la URL no emite nada.
+            'sel_cita' => (int) $request->query('cita', 0),
             'citas' => DB::select(
                 "SELECT c.id_cita, c.id_cliente, c.fecha_hora,
                         CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente,
@@ -256,7 +261,8 @@ class FacturacionController extends Controller
                    JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
                   WHERE c.id_estado_cita = 4
                     AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
-                  ORDER BY c.fecha_hora DESC LIMIT 100"
+                  ORDER BY (c.id_cita = :sel) DESC, c.fecha_hora DESC LIMIT 100",
+                ['sel' => (int) $request->query('cita', 0)]
             ),
             // Solo los comprobantes de venta que hoy tienen timbrado vigente
             'tipos' => DB::select(
@@ -363,10 +369,23 @@ class FacturacionController extends Controller
                 return $volver;
             }
 
+            $detalle = $this->detalleDeLinea($request, $i);
+
+            // `cobro_banco.banco` es NOT NULL: si se cargó el cheque o el número
+            // de operación y falta el banco, se avisa acá en vez de dejar que la
+            // base tire un 1048 que nadie sabe leer.
+            $lleno = fn (string $k) => trim((string) ($detalle[$k] ?? '')) !== '';
+            if (in_array($mp->tipo, ['BANCO', 'CHEQUE'], true)
+                && ! $lleno('banco') && ($lleno('nro_cheque') || $lleno('nro_operacion'))) {
+                flash('Poné el banco de la línea de ' . $mp->nombre . '.', 'error');
+
+                return $volver;
+            }
+
             $lineas[] = [
                 'metodo' => $idm, 'monto' => $mto, 'tipo' => $mp->tipo, 'nombre' => $mp->nombre,
                 'referencia' => trim((string) (((array) $request->input('referencia', []))[$i] ?? '')) ?: null,
-                'detalle' => $this->detalleDeLinea($request, $i),
+                'detalle' => $detalle,
             ];
         }
 

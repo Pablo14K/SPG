@@ -102,60 +102,141 @@
                                 Saldo pendiente: <strong class="txt-oro">{{ money($r->saldo) }}</strong>
                             </p>
 
-                            @for ($i = 0; $i < 2; $i++)
-                                <div class="row g-2 mb-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label class="form-label">Medio de pago {{ $i === 0 ? '' : '(opcional)' }}</label>
-                                        <select class="form-select form-select-sm" name="metodo[]">
-                                            <option value="0">— ninguno —</option>
-                                            @foreach ($metodos as $m)
-                                                <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
-                                                    @selected($i === 0 && $m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
-                                            @endforeach
-                                        </select>
+                            {{-- Las líneas las arma `app.js` desde el molde de abajo:
+                                 arranca con UNA sola por el saldo entero —el caso de
+                                 todos los días— y se agregan las que hagan falta. Antes
+                                 había dos fijas y las dos mostraban a la vez los campos
+                                 de tarjeta Y los de banco, ocho casillas sueltas sin
+                                 etiqueta para un cobro que el 90 % de las veces es en
+                                 efectivo.
+
+                                 Los `spg-cobro-*` no son clases decorativas: son las que
+                                 busca el bloque de `app.js`. Si se las renombra, el
+                                 modal deja de armarse y no avisa. --}}
+                            <div class="spg-cobro" data-saldo="{{ (float) $r->saldo }}">
+                                <div class="spg-cobro-lineas"></div>
+
+                                <button type="button" class="btn btn-sm btn-rapido spg-cobro-add">
+                                    <i class="bi bi-plus-lg"></i> Otro medio de pago
+                                </button>
+
+                                <div class="spg-cobro-total mt-3"></div>
+
+                                {{-- El vuelto es una cuenta de mostrador y NO se guarda:
+                                     lo que se registra sigue siendo el monto de la línea.
+                                     Entra un billete de 100.000 por un cobro de 30.000 y
+                                     en el cajón quedan 30.000, no 100.000. --}}
+                                <div class="mt-3">
+                                    <label class="form-label" for="vuelto{{ $r->id_factura }}">
+                                        ¿Con cuánto paga? <span class="text-muted-warm">(para calcular el vuelto)</span>
+                                    </label>
+                                    <div class="input-group input-group-sm" style="max-width:260px">
+                                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                                        <input class="form-control input-miles spg-vuelto-recibido"
+                                               id="vuelto{{ $r->id_factura }}" data-min="0" autocomplete="off">
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Monto</label>
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text">{{ config('spg.moneda') }}</span>
-                                            <input class="form-control input-miles" name="monto[]" data-min="0"
-                                                   value="{{ $i === 0 ? monto_input($r->saldo) : '' }}">
+                                    <div class="spg-vuelto-res mt-2"></div>
+                                </div>
+                            </div>
+
+                            {{-- El molde de una línea. Va como hermano de `.spg-cobro`,
+                                 que es donde lo busca el JS. Al ser un <template> no se
+                                 dibuja ni se envía: sólo se clona. --}}
+                            <template class="spg-cobro-molde">
+                                <div class="spg-cobro-linea border-top pt-2 mt-2">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Medio de pago</label>
+                                            <select class="form-select form-select-sm spg-cobro-metodo" name="metodo[]">
+                                                <option value="0" data-tipo="">— ninguno —</option>
+                                                @foreach ($metodos as $m)
+                                                    <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
+                                                        @selected($m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Monto</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                                                <input class="form-control input-miles spg-cobro-monto" name="monto[]" data-min="0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Referencia</label>
+                                            <input class="form-control form-control-sm" name="referencia[]"
+                                                   placeholder="Nº de operación, boleta…">
+                                        </div>
+                                        <div class="col-md-1 text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-neutro spg-cobro-quitar"
+                                                    title="Quitar este medio de pago" aria-label="Quitar este medio de pago">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Referencia</label>
-                                        <input class="form-control form-control-sm" name="referencia[]"
-                                               placeholder="Nº de operación, boleta…">
+
+                                    {{-- Sólo cuando el medio es una tarjeta. `tipo_tarjeta`
+                                         es NOT NULL en `cobro_tarjeta`, por eso es un
+                                         select con dos opciones y no un campo libre: si
+                                         llegaba vacío, el cobro entero fallaba con 1048. --}}
+                                    <div class="row g-2 mt-1 spg-extra-tarjeta">
+                                        <div class="col-md-3">
+                                            <label class="form-label">Marca</label>
+                                            <input class="form-control form-control-sm" name="marca[]"
+                                                   placeholder="Visa, Mastercard…">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Débito o crédito</label>
+                                            <select class="form-select form-select-sm" name="tipo_tarjeta[]">
+                                                <option value="DEBITO">Débito</option>
+                                                <option value="CREDITO">Crédito</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Cuotas</label>
+                                            <input class="form-control form-control-sm" name="cuotas[]"
+                                                   type="number" min="1" max="36" value="1">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Últimos 4</label>
+                                            <input class="form-control form-control-sm" name="ultimos_4[]"
+                                                   inputmode="numeric" maxlength="4" placeholder="1234">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Nº de boleta</label>
+                                            <input class="form-control form-control-sm" name="nro_boleta[]">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Cód. de autorización</label>
+                                            <input class="form-control form-control-sm" name="cod_autorizacion[]">
+                                        </div>
                                     </div>
 
-                                    {{-- Detalle del medio: la base verifica que
-                                         corresponda al tipo, así que si viajan
-                                         datos de tarjeta en una línea de
-                                         efectivo simplemente se descartan. --}}
-                                    <div class="col-md-3">
-                                        <input class="form-control form-control-sm" name="marca[]" placeholder="Marca (tarjeta)">
+                                    {{-- Transferencia y cheque comparten `cobro_banco`. --}}
+                                    <div class="row g-2 mt-1 spg-extra-banco">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Banco</label>
+                                            <input class="form-control form-control-sm" name="banco[]"
+                                                   placeholder="Itaú, Continental…">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Nº de cheque</label>
+                                            <input class="form-control form-control-sm" name="nro_cheque[]">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label">Nº de operación</label>
+                                            <input class="form-control form-control-sm" name="nro_operacion[]">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Fecha</label>
+                                            <input class="form-control form-control-sm" name="fecha_emision[]" type="date">
+                                        </div>
                                     </div>
-                                    <div class="col-md-3">
-                                        <input class="form-control form-control-sm" name="ultimos_4[]" placeholder="Últimos 4" maxlength="4">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <input class="form-control form-control-sm" name="banco[]" placeholder="Banco (cheque/transf.)">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <input class="form-control form-control-sm" name="nro_operacion[]" placeholder="Nº operación">
-                                    </div>
-                                    <input type="hidden" name="tipo_tarjeta[]" value="">
-                                    <input type="hidden" name="cuotas[]" value="1">
-                                    <input type="hidden" name="nro_boleta[]" value="">
-                                    <input type="hidden" name="cod_autorizacion[]" value="">
-                                    <input type="hidden" name="nro_cheque[]" value="">
-                                    <input type="hidden" name="fecha_emision[]" value="">
                                 </div>
-                                @if ($i === 0)<hr class="my-2">@endif
-                            @endfor
+                            </template>
 
-                            <p class="text-muted-warm mb-0" style="font-size:.78rem">
-                                Se puede pagar con dos medios a la vez: una parte en efectivo y otra con
+                            <p class="text-muted-warm mb-0 mt-3" style="font-size:.78rem">
+                                Se puede pagar con varios medios a la vez: una parte en efectivo y otra con
                                 tarjeta, por ejemplo. Si una línea falla, no se guarda ninguna.
                             </p>
                         </div>

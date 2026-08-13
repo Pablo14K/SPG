@@ -102,14 +102,22 @@ class Facturacion
     {
         $v = fn (string $k) => trim((string) ($d[$k] ?? '')) !== '' ? trim((string) $d[$k]) : null;
 
+        // `cobro_tarjeta.tipo_tarjeta` y `cobro_banco.banco` son NOT NULL, así
+        // que las dos columnas se resuelven ANTES de insertar. Sin esto, una
+        // línea de tarjeta con la marca cargada y el tipo vacío tiraba
+        // «1048 Column 'tipo_tarjeta' cannot be null» y el cobro entero se caía
+        // —las otras líneas incluidas, porque va todo en una transacción—.
         if ($tipo === 'TARJETA') {
-            if ($v('marca') === null) {
+            $hay = $v('marca') ?? $v('ultimos_4') ?? $v('nro_boleta') ?? $v('cod_autorizacion');
+            if ($hay === null) {
                 return;   // sin datos, no se fuerza
             }
+            $tt = strtoupper((string) ($v('tipo_tarjeta') ?? ''));
             DB::insert(
                 'INSERT INTO cobro_tarjeta (id_cobro,marca,tipo_tarjeta,cuotas,ultimos_4,nro_boleta,cod_autorizacion)
                  VALUES (?,?,?,?,?,?,?)',
-                [$idCobro, $v('marca'), $v('tipo_tarjeta'), max(1, entero($d['cuotas'] ?? 1, 1)),
+                [$idCobro, $v('marca'), in_array($tt, ['DEBITO', 'CREDITO'], true) ? $tt : 'DEBITO',
+                 max(1, entero($d['cuotas'] ?? 1, 1)),
                  $v('ultimos_4'), $v('nro_boleta'), $v('cod_autorizacion')]
             );
         } elseif ($tipo === 'BANCO' || $tipo === 'CHEQUE') {
@@ -119,7 +127,7 @@ class Facturacion
             $fecha = $v('fecha_emision');
             DB::insert(
                 'INSERT INTO cobro_banco (id_cobro,banco,nro_cheque,nro_operacion,fecha_emision) VALUES (?,?,?,?,?)',
-                [$idCobro, $v('banco'), $v('nro_cheque'), $v('nro_operacion'),
+                [$idCobro, $v('banco') ?? 'Sin especificar', $v('nro_cheque'), $v('nro_operacion'),
                  ($fecha && strtotime($fecha)) ? $fecha : null]
             );
         }

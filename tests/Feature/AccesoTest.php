@@ -147,6 +147,57 @@ class AccesoTest extends TestCase
         }
     }
 
+    /**
+     * Las pantallas del día a día, por el mismo motivo que las de Seguridad.
+     *
+     * Una columna mal escrita en una consulta **no se nota corriendo las
+     * pruebas**: revienta al dibujar la pantalla, no al arrancar. Al sumarle a
+     * la agenda el estado del cobro se escribió `f.nro_comprobante`, que no es
+     * una columna de `factura` sino `fn_factura_nro()`, y las 58 pruebas
+     * siguieron en verde con la agenda tirando 500 — nadie la abría.
+     *
+     * Se abren con la agenda del día de una cita **atendida y facturada**, que
+     * es el camino que recorre las tres ramas nuevas de la columna Acciones.
+     */
+    #[Test]
+    public function las_pantallas_de_la_operacion_diaria_se_dibujan_enteras(): void
+    {
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+
+        $dia = DB::scalar(
+            'SELECT DATE(c.fecha_hora) FROM cita c
+               JOIN factura f ON f.id_cita = c.id_cita AND f.id_estado_factura = 1
+              WHERE c.id_estado_cita = 4 ORDER BY c.fecha_hora DESC LIMIT 1'
+        ) ?: date('Y-m-d');
+
+        $idCita = (int) DB::scalar(
+            'SELECT c.id_cita FROM cita c
+              WHERE c.id_estado_cita = 4
+                AND NOT EXISTS (SELECT 1 FROM factura f
+                                 WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
+              ORDER BY c.fecha_hora DESC LIMIT 1'
+        );
+
+        $pantallas = [
+            ['citas.agenda', ['dia' => $dia]],
+            ['citas.agenda', []],
+            ['citas.form', []],
+            ['facturacion.index', []],
+            ['facturacion.facturas', []],
+            ['facturacion.emitir', []],
+            // Con la cita ya elegida, que es como se llega desde la agenda
+            ['facturacion.emitir', $idCita ? ['cita' => $idCita] : []],
+            ['facturacion.caja', []],
+            ['inventario.productos', []],
+            ['reportes.index', []],
+        ];
+
+        foreach ($pantallas as [$ruta, $par]) {
+            $this->get(route($ruta, $par))
+                ->assertOk('La pantalla ' . $ruta . ' (' . json_encode($par) . ') no se dibujó.');
+        }
+    }
+
     /** Las doce listas que ofrecen el botón de bajar. */
     private const LISTAS = [
         'clientes.lista', 'clientes.fidelizacion', 'clientes.valoraciones',

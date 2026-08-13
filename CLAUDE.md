@@ -135,6 +135,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.4.0 | 13/08/2026 | **El cobro se carga como se paga, y la agenda deja de perder la plata de vista.** Dos cosas que se tocan. **El modal de cobro** tenía dos líneas fijas y las dos mostraban a la vez los campos de tarjeta **y** los de banco: ocho casillas sueltas sin etiqueta para un cobro que casi siempre es en efectivo. Ahora arranca con **una** línea, se agregan las que hagan falta, y **cada una muestra sólo el detalle del medio elegido**. Al conectarlo apareció que **eso ya estaba escrito**: el bloque de `app.js` que arma las líneas, decide los campos por tipo y calcula el **vuelto** llevaba **sin una sola vista que lo usara** desde la migración a Laravel —el JS se trajo y el marcado no—, así que el vuelto figuraba como entregado desde la 5.2.0 y no había forma de llegar a él. Es el mismo caso del selector de disponibilidad de la 7.1.0, y por eso lo que se hizo fue **poner el marcado**, no escribir otro JS. Y destapó un error de fondo: **cobrar con tarjeta estaba roto**. `cobro_tarjeta.tipo_tarjeta` es `NOT NULL` y la pantalla lo mandaba como un campo oculto vacío, así que cargar la marca tiraba **1048** y se caía el cobro **entero**, las otras líneas incluidas, porque va todo en una transacción. **La agenda**, por su lado, mostraba un guión en Acciones para todo lo Atendido: la cita quedaba cerrada y, como la clienta **no siempre pide factura**, nadie se acordaba de pasar por Facturación y el dinero no entraba. Ahora la columna contesta las tres situaciones —**Cobrar**, **Debe Gs. X** y **Cobrada**— y desde ahí se llega a Emitir con esa cita **primera y marcada**, en vez de buscarla entre cien. Emitir sigue pidiendo `facturacion.facturas`, que no es lo mismo que cobrar. De paso, **si el comprobante por defecto no tiene timbrado vigente la pantalla lo dice**: el Ticket necesita el suyo, y sin él todo salía como Factura sin avisar — justo lo contrario de lo configurado. **59 pruebas**: la nueva abre **las diez pantallas de la operación diaria**, y existe porque al escribir esto se puso `f.nro_comprobante` —que no es una columna de `factura` sino `fn_factura_nro()`— y **las 58 siguieron en verde con la agenda tirando 500** |
 | 7.3.0 | 13/08/2026 | **«No se pudo registrar la atención» era un redondeo, y detrás había una regla del negocio que la base no podía representar.** Cuánto shampoo lleva un lavado **depende del pelo de cada clienta** —15 ml o 60—, pero `producto_utilizado.cantidad` y `movimiento_inventario.cantidad` estaban en `DECIMAL(10,2)`, así que lo más chico que se podía descontar era **1/100 del envase: 10 ml de un frasco de litro**. Cargar 15 ml descontaba **20**, cargar 5 descontaba **10**, y **1 ml no entraba**: el `CHECK` `chk_pu_cantidad` levantaba el error 4025 y la pantalla contestaba con ese mensaje que no dice nada. Pasan a `DECIMAL(12,4)`, y **son seis piezas, no dos** — el disparador que bloquea las salidas sin stock y `fn_producto_stock` declaran su propia variable, y en `(12,2)` la cuenta se truncaba igual. Además `consumo_a_stock()` ya redondeaba a 4 decimales: **PHP y la base venían midiendo distinto**, así que PHP dejaba pasar lo que la base rechazaba y no había forma de anticiparlo leyendo el código. De paso, **la pantalla ahora muestra la unidad al lado del campo** y la cambia sola con el producto elegido: sin eso no se sabía si «30» eran 30 ml o 30 frascos. **Lo que hizo caro el diagnóstico se arregla también**: el `catch` genérico **descartaba la excepción sin registrarla**, así que el log estaba vacío y hubo que reproducir a mano lo que una línea hubiera dicho — ahora todo `catch` que no supo traducir el error lo loguea. **Y el calendario de la clienta pasa a tener las dos opciones de verdad.** En el portal estaba **sólo el de Google**, y en la pantalla del correo el `.ics` se llamaba «Bajar el archivo», que se lee como una descarga técnica y no como *el calendario del teléfono* — quien no usa Google entendía que no había opción para su celular. Ahora los dos se nombran por lo que son, en las dos pantallas, y el `.ics` no enciende la barra de carga (baja un archivo: la página no navega y la barra quedaba girando para siempre). Dos correcciones más de la misma tanda: **el formulario de ingreso era la última pantalla muda** —no cargaba `app.js`, así que entre «Ingresar» y el panel no pasaba nada visible, justo donde se vuelve a apretar el botón—, y **los avisos de las pantallas de acceso salían fuera de la tarjeta**, contra el margen izquierdo, porque `.spg-login-wrap` era un flex **en fila** y el aviso es hermano de la tarjeta, no hijo: «Ese nombre de usuario ya está en uso» aparecía en el borde de la pantalla, lejos del campo que lo causó. **58 pruebas** (una nueva: carga 15, 5 y 1 ml y exige que el stock baje exactamente eso) y los dos `.sql` regenerados |
 | 7.2.1 | 12/08/2026 | **En el tema oscuro, los enlaces del pie eran invisibles: 1,5:1.** Se leían sólo al pasarles el mouse, cuando el hover los pinta de oro. La causa vale más que el síntoma: la barra superior, la barra de módulos y el pie **son oscuras en los dos temas**, pero estaban escritas con `--negro`, `--carbon` y `--gris-calido`, que en el tema claro daban justo lo que hacía falta —fondo oscuro, texto claro— y **se dan vuelta al invertir la paleta**. Además de los enlaces del pie, eso dejaba la **barra de módulos con fondo claro**, porque `--carbon` pasa a ser el color del texto. Ahora esas tres superficies tienen su propio par de variables (`--sup-oscura*` / `--sobre-oscura*`) que no se invierte. El enlace del pie pasa de **1,5:1 a 15,5:1**, y de paso el tema claro también mejora. Los grises fríos sueltos que quedaban en el pie (`#6f6f6f` sobre negro, 3,6:1) salen a la variable cálida y llegan a 7:1. **El hover en oro se mantiene**, que era lo único que funcionaba |
 | 7.2.0 | 12/08/2026 | **Tema oscuro, elegible desde Mi cuenta.** Es una preferencia de cada persona y no del salón: va en `preferencia_usuario`, atada a la cuenta y no al navegador, así que dos que comparten la computadora pueden tener uno cada una. **No cambia ni una regla del CSS: sólo redefine las variables.** Todo el sistema ya estaba escrito con `var(--…)`, así que paneles, tablas, badges y botones cambian solos — por eso el bloque del tema no tiene selectores de componente, y si aparece uno es la señal de que algo se escribió con un color suelto. **El oro no se toca**: es la identidad, y sobre oscuro luce más. Lo que se invierte son los neutros, y **siguen siendo cálidos** —#14120F tirando a marrón, no un gris azulado—, porque con neutros fríos el oro se apaga, que es justo lo que la paleta quiere evitar. Los tintes semánticos sí se rehacen, mezclados hacia el fondo y no hacia el blanco: los claros sobre oscuro son manchas. Contrastes medidos entre **6,2:1 y 15,4:1**, todos por encima de AA. Se guarda `color-scheme:dark` para que los campos de fecha y hora nativos no salgan blancos. **El papel no lo hereda**: las dos vistas de impresión van siempre en claro, porque un informe en oscuro es tinta sobre negro. De paso se documentan las claves de SIFEN en `.env.example` y `.env.produccion.example`, que sólo estaban en `env.docker` — los tres entornos vuelven a listar lo mismo. **57 pruebas** |
@@ -224,7 +225,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 58 pruebas
+tests/Feature/             Las 59 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -831,12 +832,35 @@ su monto, y `fn_factura_saldo` los resta a todos. Por eso el modal de cobro trab
 (`metodo[]`, `monto[]`) y hace una llamada a `sp_registrar_cobro` por línea, **todo dentro de una
 transacción**: si una línea falla, no queda media factura cobrada.
 
+**El modal arranca con UNA línea y se agregan las que hagan falta**, y **cada línea muestra sólo
+el detalle del medio elegido**: en efectivo se ven tres campos, y los de tarjeta o banco aparecen
+al elegirlos. Lo arma `app.js` clonando el `<template class="spg-cobro-molde">` de la vista, y
+trae además el **vuelto** —cuánto darle a quien paga con un billete más grande—, que es una cuenta
+de mostrador y **no se guarda**: lo que se registra sigue siendo el monto de la línea.
+
+> **Las clases `spg-cobro-*` no son decorativas: son las que busca el JS.** Si se renombran, el
+> modal deja de armarse y no avisa. Ese bloque de `app.js` estuvo **sin una sola vista que lo
+> usara** desde la migración a Laravel —el JS se trajo y el marcado no—, así que el vuelto figuraba
+> como entregado desde la 5.2.0 y no había forma de llegar a él. Mismo caso que el selector de
+> disponibilidad de la 7.1.0.
+
+**Los campos ocultos siguen en el DOM, no se sacan.** El controlador toma cada dato por su
+**posición** en el arreglo (`marca[$i]` va con `metodo[$i]`), así que si una línea dejara de mandar
+sus inputs, las de abajo se correrían de lugar y el detalle terminaría pegado al cobro equivocado.
+
 El detalle del medio va a su tabla 1 a 1 según el `tipo` de `metodo_pago`: `cobro_tarjeta`
 (marca, débito/crédito, cuotas, últimos 4, boleta, autorización) para `TARJETA`, y `cobro_banco`
 (banco, nº de cheque, nº de operación, fecha) para `BANCO` y `CHEQUE`. **Los triggers de la base
 verifican que el detalle corresponda al tipo de medio**, así que en PHP no hace falta repetir esa
 validación: alcanza con traducir el error. Si llegan datos de tarjeta en una línea de efectivo
 (un POST forjado: la pantalla los oculta), se descartan — el cobro se registra igual.
+
+> **`cobro_tarjeta.tipo_tarjeta` y `cobro_banco.banco` son `NOT NULL`, y eso hay que resolverlo
+> antes de insertar.** La pantalla mandaba `tipo_tarjeta` como un campo oculto vacío, así que
+> cargar la marca de la tarjeta tiraba **1048 Column 'tipo_tarjeta' cannot be null** y se caía el
+> cobro **entero** —las demás líneas incluidas, porque va todo en una transacción—. Hoy es un
+> select de dos opciones que nunca viaja vacío, y `Facturacion::guardarDetalle()` igual se defiende
+> por si llega un POST armado a mano.
 
 El cierre de caja muestra el **arqueo por medio de pago**, separando lo que tiene que estar
 físicamente en el cajón (`tipo = EFECTIVO`) de lo que entró por tarjeta, banco o cheque.
@@ -1240,6 +1264,30 @@ ITM|S001|Brushing|1|60000|10                  una por renglón, IVA INCLUIDO en 
 
 El total **no se escribe**: lo calcula el Automatizador desde los renglones.
 
+### Atender y cobrar son dos pasos, y la agenda tiene que mostrar el segundo
+
+Registrar la atención deja la cita **Atendida**; emitir el comprobante es otra pantalla. Entre
+esos dos pasos **la plata se olvidaba**: la agenda mostraba un guión en Acciones para todo lo
+Atendido, y como la clienta **no siempre pide factura**, nadie se acordaba de pasar por
+Facturación. La cita quedaba cerrada y sin cobrar, y eso no se veía desde ningún lado.
+
+La columna Acciones de la agenda contesta las tres situaciones, cada una con su texto:
+
+| Situación | Qué muestra | A dónde lleva |
+|---|---|---|
+| Atendida, sin comprobante | **Cobrar** (oro) | `facturacion.emitir?cita=…`, con esa cita **primera y marcada** |
+| Con comprobante y saldo | **Debe Gs. X** (oro) | Facturas, filtrado por su número |
+| Saldada | **Cobrada** (neutro) | El comprobante |
+
+`?cita=` sólo **ordena y resalta**: el id no se usa para emitir nada, así que uno inventado en la
+URL no hace daño. Emitir sigue pidiendo `facturacion.facturas`, que es un permiso distinto de
+`facturacion.cobros` — quien sólo cobra ve el estado pero no el botón.
+
+> **Si el tipo por defecto no tiene timbrado vigente, la pantalla lo dice.** El Ticket necesita el
+> suyo, como cualquier otro tipo, y sin él la lista caía en Factura **sin avisar**: cada atención
+> salía como comprobante declarable, justo lo contrario de lo que el salón configuró. Antes el
+> aviso saltaba sólo cuando no había *ningún* timbrado.
+
 ### La clienta no siempre pide factura
 
 Es la decisión que ordena todo lo demás. Se emite **Ticket por defecto** —comprobante interno
@@ -1586,7 +1634,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 58 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 59 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
@@ -1631,12 +1679,13 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**58 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**59 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
 |---|---|
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
+| `AccesoTest` | abre **las doce pantallas de Seguridad y las diez de la operación diaria**: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500 |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
 | el resto | ingreso, permisos por rol, pantallas que responden |
@@ -1651,11 +1700,15 @@ Cuatro cosas que hay que saber antes de tocarlas:
 - **Una cita sin filas en `cita_servicio` dura CERO minutos** (`fn_cita_duracion` sale de ahí),
   así que no se pisa con nada. Una prueba de solapes que agende sin servicios pasa siempre sin
   medir nada — ya pasó al escribirla.
-- **`AccesoTest::las_pantallas_de_seguridad_se_dibujan_enteras` abre las doce pantallas del
-  módulo.** Un `route()` con el nombre viejo o una columna mal escrita no se notan hasta que
-  alguien abre la pantalla: revientan al dibujarla, no al arrancar. Fue lo que destapó que
-  **Auditoría consultaba `a.fecha` y la columna es `fecha_hora`**, o sea que devolvía 500 desde
-  la 6.1.1 sin que nadie lo viera. Si sumás una pantalla al módulo, agregala a esa lista.
+- **Hay dos pruebas que abren pantallas enteras, y son las que más errores destapan.** Un
+  `route()` con el nombre viejo o una columna mal escrita no se notan hasta que alguien abre la
+  pantalla: revientan al dibujarla, no al arrancar.
+  `las_pantallas_de_seguridad_se_dibujan_enteras` destapó que **Auditoría consultaba `a.fecha` y
+  la columna es `fecha_hora`**, o sea que devolvía 500 desde la 6.1.1 sin que nadie lo viera; y
+  `las_pantallas_de_la_operacion_diaria_se_dibujan_enteras` existe porque al sumarle a la agenda
+  el estado del cobro se escribió `f.nro_comprobante` —que **no** es una columna de `factura`
+  sino `fn_factura_nro()`— y **las 58 pruebas siguieron en verde con la agenda tirando 500**.
+  **Si sumás una pantalla, agregala a la lista que corresponda.**
 
 ## Fuera de alcance del TCC
 

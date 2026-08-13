@@ -110,6 +110,37 @@
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
                                     @endif
+                                @elseif ($c->estado === 'Atendida')
+                                    {{-- Atender y cobrar son dos pasos, y entre uno y
+                                         otro la plata se olvidaba: la cita quedaba
+                                         Atendida, acá no había más que un guión, y como
+                                         la clienta no siempre pide factura nadie se
+                                         acordaba de pasar por Facturación. Ahora el
+                                         estado del cobro se ve y se resuelve desde acá.
+
+                                         Son TRES situaciones distintas y cada una dice
+                                         lo suyo: sin comprobante, con saldo, y saldada. --}}
+                                    @if (! $c->id_factura)
+                                        @if ($puedeFacturar)
+                                            <a class="btn btn-sm btn-oro"
+                                               title="Emitir el comprobante de esta atención"
+                                               href="{{ route('facturacion.emitir', ['cita' => $c->id_cita]) }}">
+                                                <i class="bi bi-receipt-cutoff"></i> Cobrar</a>
+                                        @else
+                                            <span class="badge-estado e-warn" title="Todavía no se le emitió comprobante">
+                                                sin cobrar</span>
+                                        @endif
+                                    @elseif ((float) $c->saldo > 0.01)
+                                        <a class="btn btn-sm btn-oro"
+                                           title="{{ $c->nro_comprobante }} · queda {{ money($c->saldo) }} por cobrar"
+                                           href="{{ route('facturacion.facturas', ['q' => $c->nro_comprobante]) }}">
+                                            <i class="bi bi-cash-coin"></i> Debe {{ money($c->saldo) }}</a>
+                                    @else
+                                        <a class="btn btn-sm btn-outline-neutro"
+                                           title="Ver el comprobante {{ $c->nro_comprobante }}"
+                                           href="{{ route('facturacion.factura_ver', ['id' => $c->id_factura]) }}">
+                                            <i class="bi bi-check2-circle"></i> Cobrada</a>
+                                    @endif
                                 @else
                                     <span class="text-muted-warm" style="font-size:.8rem">—</span>
                                 @endif

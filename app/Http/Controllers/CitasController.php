@@ -104,10 +104,22 @@ class CitasController extends Controller
             $par['yo'] = (int) session('uid');
         }
 
+        // El comprobante viene en la misma consulta porque la agenda tiene que
+        // poder contestar «¿esto ya se cobró?» sin salir de la pantalla: una
+        // cita queda Atendida y el dinero todavía no entró, y como la clienta
+        // no siempre pide factura, nadie se acuerda de pasar por Facturación.
+        // Se mira sólo el comprobante NO anulado (estado 1). `nro_comprobante`
+        // NO es una columna de `factura`: lo arma `fn_factura_nro()`.
         $rows = DB::select(
-            "SELECT v.*, fn_cita_sena(v.id_cita) AS sena
+            "SELECT v.*, fn_cita_sena(v.id_cita) AS sena,
+                    f.id_factura,
+                    CASE WHEN f.id_factura IS NULL THEN NULL
+                         ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
+                    CASE WHEN f.id_factura IS NULL THEN NULL
+                         ELSE fn_factura_saldo(f.id_factura) END AS saldo
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
+               LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
               WHERE DATE(v.fecha_hora) = :d $soloMias
               ORDER BY v.fecha_hora", $par
         );
@@ -124,6 +136,9 @@ class CitasController extends Controller
                 ? DB::select('SELECT id_metodo_pago, nombre FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago')
                 : [],
             'caja' => $puedeCobrar ? Caja::abierta() : null,
+            // Emitir el comprobante es de `facturacion.facturas`, no de cobros:
+            // son dos permisos distintos y quien sólo cobra no debería emitir.
+            'puedeFacturar' => Permisos::puede('facturacion.facturas'),
         ]);
     }
 

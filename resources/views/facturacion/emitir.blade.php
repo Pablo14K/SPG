@@ -15,6 +15,22 @@
                 Pedile a quien administra los timbrados que cargue uno.
             @endif
         </div>
+    @elseif (! collect($tipos)->contains(fn ($t) => (int) $t->id_tipo_comprobante === $tipoDefecto))
+        {{-- El comprobante que el sistema quiere emitir por defecto es el Ticket,
+             porque la clienta no siempre pide factura. Pero el Ticket necesita su
+             propio timbrado, y si no está cargado la pantalla caía en Factura sin
+             decir nada: cada atención salía como factura declarable, que es
+             justo lo contrario de lo que el salón quiso configurar. --}}
+        <div class="alert alert-warning">
+            <strong>El comprobante por defecto no tiene timbrado vigente</strong>, así que abajo
+            sólo aparecen los que sí lo tienen. Mientras siga así, todo se emite como
+            {{ $tipos[0]->nombre }} — y la clienta no siempre pide factura.
+            @if (\App\Servicios\Permisos::puede('facturacion.timbrados'))
+                <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargá el timbrado que falta</a>.
+            @else
+                Pedile a quien administra los timbrados que cargue el que falta.
+            @endif
+        </div>
     @endif
 
     <div class="spg-panel">
@@ -25,8 +41,21 @@
                 </thead>
                 <tbody>
                     @forelse ($citas as $c)
-                        <tr>
-                            <td>{{ fecha($c->fecha_hora) }}</td>
+                        @php $elegida = $sel_cita > 0 && (int) $c->id_cita === $sel_cita; @endphp
+                        {{-- La que se eligió en la agenda va primero (lo ordena la
+                             consulta) y marcada: si no, con cien citas en la lista
+                             hay que buscar a la clienta a mano justo después de
+                             haberla señalado en la pantalla anterior. --}}
+                        <tr @class(['spg-fila-elegida' => $elegida])>
+                            <td>
+                                {{ fecha($c->fecha_hora) }}
+                                @if ($elegida)
+                                    {{-- Texto y no un badge: `.e-warn` es de contorno, y sobre
+                                         el fondo teñido de la fila quedaba en 3,15:1 en el tema
+                                         oscuro. Así hereda el color de la celda: 12,9:1. --}}
+                                    <div style="font-size:.78rem"><i class="bi bi-arrow-return-right"></i> la que elegiste</div>
+                                @endif
+                            </td>
                             <td>{{ $c->cliente }}</td>
                             <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
                             <td class="text-end">{{ money($c->total) }}</td>
