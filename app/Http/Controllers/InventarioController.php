@@ -802,8 +802,12 @@ class InventarioController extends Controller
             return $volver->withInput();
         }
 
+        // A crédito hay cuotas; al contado no. Sale de la condición elegida,
+        // que es la que dice cuántos días de plazo tiene.
+        $dias = (int) DB::scalar("SELECT dias_credito FROM condicion_venta WHERE id_condicion_venta = ?", [$idCondicion]);
+
         try {
-            $r = DB::transaction(function () use ($idProveedor, $idCondicion, $nroFactura, $obs, $lineas) {
+            $r = DB::transaction(function () use ($idProveedor, $idCondicion, $nroFactura, $obs, $lineas, $dias, $request) {
                 DB::insert(
                     'INSERT INTO compra (id_proveedor,id_usuario,id_estado_compra,id_condicion_venta,
                         nro_factura_proveedor,observaciones)
@@ -852,7 +856,28 @@ class InventarioController extends Controller
                 // Confirmar genera los movimientos de inventario y actualiza el costo
                 Bd::procedimiento('sp_confirmar_compra', [$idCompra, (int) session('uid')]);
 
-                return ['id' => $idCompra, 'creados' => $creados, 'total' => $total, 'lineas' => count($lineas)];
+                // Las cuotas, si la compra es a crédito. Una fila por cuota:
+                // nunca una lista de fechas en un solo campo.
+                $cuotas = 0;
+                if ($dias > 0) {
+                    $fechas = (array) $request->input('cuota_fecha', []);
+                    $montos = (array) $request->input('cuota_monto', []);
+                    foreach ($fechas as $i => $fv) {
+                        $fv = trim((string) $fv);
+                        $mo = num($montos[$i] ?? 0);
+                        if ($fv === '' || $mo <= 0) {
+                            continue;
+                        }
+                        $cuotas++;
+                        DB::insert(
+                            'INSERT INTO compra_cuota (id_compra,nro_cuota,fecha_vencimiento,monto) VALUES (?,?,?,?)',
+                            [$idCompra, $cuotas, $fv, $mo]
+                        );
+                    }
+                }
+
+                return ['id' => $idCompra, 'creados' => $creados, 'total' => $total,
+                        'lineas' => count($lineas), 'cuotas' => $cuotas];
             });
 
             Auditoria::registrar('COMPRA', 'Inventario', 'compra', $r['id'],
@@ -860,7 +885,8 @@ class InventarioController extends Controller
                 . ($r['creados'] ? ' (' . implode(', ', $r['creados']) . ')' : '')
                 . ', total ' . money($r['total']));
 
-            flash('Compra registrada por ' . money($r['total']) . ': el stock quedó actualizado.');
+            flash('Compra registrada por ' . money($r['total']) . ': el stock quedó actualizado.'
+                . ($r['cuotas'] ? ' Quedaron ' . $r['cuotas'] . ' cuota(s) con su vencimiento.' : ''));
 
             // Se nombran los productos creados: si uno salió de un error de
             // tipeo, se ve acá y no dentro de tres meses con el stock partido.

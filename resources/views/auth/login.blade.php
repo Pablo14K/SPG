@@ -21,6 +21,15 @@
 </head>
 <body>
 <div class="spg-login-wrap">
+    {{-- Los avisos que llegan redirigidos hasta acá. Esta pantalla NO los
+         dibujaba —sólo los errores de validación del propio formulario—, así
+         que todo lo que mandara a la gente al ingreso se perdía en silencio:
+         el «alguien entró a tu cuenta desde otro equipo» no lo veía nadie.
+         `auth/marco` sí los dibuja, pero el ingreso no usa ese layout. --}}
+    @foreach (session('spg_flash', []) as $f)
+        @php $cls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$f['tipo']] ?? 'secondary'; @endphp
+        <div class="alert alert-{{ $cls }}" style="font-size:.85rem">{{ $f['msg'] }}</div>
+    @endforeach
     {{-- Panel de la huella: aparece solo si ESTE navegador tiene una cuenta con
          huella activada y el equipo tiene sensor. Si no, ni se dibuja. --}}
     <div class="spg-login" id="bioPanel" style="display:none;text-align:center">

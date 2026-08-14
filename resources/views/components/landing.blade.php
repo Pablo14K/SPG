@@ -5,7 +5,7 @@
     muestra lo que el rol puede abrir: quien únicamente registra atenciones no
     ve Nueva cita ni las excepciones de la agenda.
 
-        <x-landing titulo="Citas y agenda" icono="calendar-event"
+        <x-landing titulo="Citas" icono="calendar-event"
                    desc="…" :subs="$subs" />
 --}}
 @props(['titulo', 'icono', 'desc' => '', 'subs' => []])

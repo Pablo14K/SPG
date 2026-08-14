@@ -112,9 +112,66 @@ class Sesion
             session(['id_cliente' => $idc ? (int) $idc : null]);
         }
 
+        // Esta pasa a ser LA sesión de la cuenta: si había otra abierta, queda
+        // desplazada y se cierra sola en su próxima petición.
+        self::marcarUnica($idUsuario);
+
         Permisos::olvidar();
 
         return true;
+    }
+
+    // -----------------------------------------------------------------
+    //  Una sola sesión por cuenta
+    // -----------------------------------------------------------------
+
+    /**
+     * Deja esta sesión como la única válida de la cuenta.
+     *
+     * Se guarda una marca en `usuario` y la misma en la sesión. No hace falta
+     * ir a buscar la sesión anterior para destruirla —con el driver de archivo
+     * habría que revolver `storage/framework/sessions`—: alcanza con que la
+     * marca que lleva la otra ya no sea la que figura en la cuenta.
+     */
+    public static function marcarUnica(int $idUsuario): void
+    {
+        // La marca es un valor propio, NO el id de la sesión. El id se
+        // regenera —al entrar, y otra vez al cambiar la contraseña—, y con el
+        // driver `array` de las pruebas cambia en cada petición: comparar
+        // contra él sacaba a la persona en el paso siguiente al ingreso.
+        $marca = bin2hex(random_bytes(16));
+
+        DB::update('UPDATE usuario SET sesion_activa = ?, sesion_desde = NOW() WHERE id_usuario = ?',
+            [$marca, $idUsuario]);
+        session(['sesion_marca' => $marca]);
+    }
+
+    /**
+     * ¿Esta sesión sigue siendo la de la cuenta, o la desplazó otra?
+     *
+     * Devuelve `null` si todo bien, o el aviso para mostrarle a quien quedó
+     * afuera. Se consulta en cada petición junto con el rol, así que va en la
+     * misma ida a la base y no cuesta una consulta más.
+     */
+    public static function desplazada(): ?string
+    {
+        $uid = (int) session('uid', 0);
+        if (! $uid) {
+            return null;
+        }
+
+        $u = DB::selectOne('SELECT sesion_activa, sesion_desde FROM usuario WHERE id_usuario = ?', [$uid]);
+        if (! $u || $u->sesion_activa === null || $u->sesion_activa === session('sesion_marca')) {
+            return null;
+        }
+
+        // Sin negritas ni markdown: el aviso se dibuja escapado, así que los
+        // asteriscos saldrían tal cual.
+        return 'Alguien entró a tu cuenta desde otro equipo'
+            . ($u->sesion_desde ? ' el ' . fecha($u->sesion_desde) : '')
+            . ', así que esta sesión se cerró. Si fuiste vos, volvé a entrar sin problema. '
+            . 'Si NO fuiste vos, alguien más sabe tu contraseña: cambiala apenas entres, '
+            . 'desde Mi cuenta.';
     }
 
     /**
@@ -169,6 +226,15 @@ class Sesion
 
     public static function cerrar(): void
     {
+        // Se limpia la marca SÓLO si esta sesión era la activa. Si ya la
+        // desplazó otra, borrarla dejaría a la nueva sin marca y la próxima
+        // que entrara no la desplazaría a ella.
+        $uid = (int) session('uid', 0);
+        if ($uid) {
+            DB::update('UPDATE usuario SET sesion_activa = NULL, sesion_desde = NULL
+                         WHERE id_usuario = ? AND sesion_activa = ?', [$uid, session('sesion_marca')]);
+        }
+
         session()->flush();
         session()->regenerate();
         Permisos::olvidar();

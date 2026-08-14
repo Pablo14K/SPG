@@ -25,7 +25,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
- * Facturación y caja.
+ * Tesorería.
  *
  * Todo lo que numera, calcula y anula vive en la base. Lo que agrega este
  * controlador es la validación previa y el guardián de la caja.

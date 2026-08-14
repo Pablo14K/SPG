@@ -713,6 +713,37 @@ INSERT INTO `compra` VALUES (3,3,1,2,1,'001-0001-0000001','2026-08-04 22:21:51',
 UNLOCK TABLES;
 
 --
+-- Table structure for table `compra_cuota`
+--
+
+DROP TABLE IF EXISTS `compra_cuota`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `compra_cuota` (
+  `id_compra_cuota` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_compra` int(10) unsigned NOT NULL,
+  `nro_cuota` smallint(5) unsigned NOT NULL,
+  `fecha_vencimiento` date NOT NULL,
+  `monto` decimal(12,2) NOT NULL,
+  PRIMARY KEY (`id_compra_cuota`),
+  UNIQUE KEY `uq_compra_cuota` (`id_compra`,`nro_cuota`),
+  KEY `idx_cuota_vencimiento` (`fecha_vencimiento`),
+  CONSTRAINT `fk_cuota_compra` FOREIGN KEY (`id_compra`) REFERENCES `compra` (`id_compra`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_cuota_nro` CHECK (`nro_cuota` > 0),
+  CONSTRAINT `chk_cuota_monto` CHECK (`monto` > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `compra_cuota`
+--
+
+LOCK TABLES `compra_cuota` WRITE;
+/*!40000 ALTER TABLE `compra_cuota` DISABLE KEYS */;
+/*!40000 ALTER TABLE `compra_cuota` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `condicion_venta`
 --
 
@@ -2554,6 +2585,8 @@ CREATE TABLE `usuario` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
   `id_persona` int(10) unsigned NOT NULL,
+  `sesion_activa` varchar(64) DEFAULT NULL COMMENT 'Id de la unica sesion abierta; al entrar de nuevo se reemplaza',
+  `sesion_desde` datetime DEFAULT NULL COMMENT 'Cuando se abrio esa sesion, para poder decirlo en el aviso',
   PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `uq_usuario_username` (`username`),
   KEY `idx_usuario_rol` (`id_rol`),
@@ -2571,7 +2604,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2),(6,4,NULL,'pablo','$2y$10$GynuBhOLHlSv.Cg9DWl8Gu8.jcdy4NJ6Uex0o1h392dGh5TPHDhDG',NULL,1,'2026-07-18 21:58:28',3),(8,2,1,'lucia','$2y$10$U65lwOD.e83TRgd/EySYx.Gw7v5Ugrh9UK3pn88K50L60N6DQgeYy',NULL,1,'2026-08-08 13:00:33',5),(9,2,1,'marta','$2y$10$EhOrCajjBEeoYdqla0P1w.olktY5kDlKFoMtnOjXnxo9YMl6.ruBm',NULL,1,'2026-08-08 13:00:33',6),(10,2,1,'rocio','$2y$10$KACl3jXi8OD9I5CDiReWS.qEhW0CGMLuS3PRKmBzTx./56Hvl8c6m',NULL,1,'2026-08-08 13:00:34',7),(11,2,1,'sofia','$2y$10$LZ6sZC4Igkxw3Y9yfX91BuZUl1Sh4HBwHgS3qvMTYk.6hotLXVzgy',NULL,1,'2026-08-08 13:00:34',8),(12,3,1,'carmen','$2y$10$hb9h4SNeWOxjmQK7/sieUuG/iQF9wHyNCtVecDo6dDKB/wIKh1EBy',NULL,1,'2026-08-08 13:00:35',9),(13,6,1,'gloria','$2y$10$FNGHw7B59EPCRuJPHvtRzeJZRHzWb/e/WKMty6y7K89kfuDL8Vexi',NULL,1,'2026-08-08 13:00:35',10);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,NULL,NULL),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(6,4,NULL,'pablo','$2y$10$GynuBhOLHlSv.Cg9DWl8Gu8.jcdy4NJ6Uex0o1h392dGh5TPHDhDG',NULL,1,'2026-07-18 21:58:28',3,NULL,NULL),(8,2,1,'lucia','$2y$10$U65lwOD.e83TRgd/EySYx.Gw7v5Ugrh9UK3pn88K50L60N6DQgeYy',NULL,1,'2026-08-08 13:00:33',5,NULL,NULL),(9,2,1,'marta','$2y$10$EhOrCajjBEeoYdqla0P1w.olktY5kDlKFoMtnOjXnxo9YMl6.ruBm',NULL,1,'2026-08-08 13:00:33',6,NULL,NULL),(10,2,1,'rocio','$2y$10$KACl3jXi8OD9I5CDiReWS.qEhW0CGMLuS3PRKmBzTx./56Hvl8c6m',NULL,1,'2026-08-08 13:00:34',7,NULL,NULL),(11,2,1,'sofia','$2y$10$LZ6sZC4Igkxw3Y9yfX91BuZUl1Sh4HBwHgS3qvMTYk.6hotLXVzgy',NULL,1,'2026-08-08 13:00:34',8,NULL,NULL),(12,3,1,'carmen','$2y$10$hb9h4SNeWOxjmQK7/sieUuG/iQF9wHyNCtVecDo6dDKB/wIKh1EBy',NULL,1,'2026-08-08 13:00:35',9,NULL,NULL),(13,6,1,'gloria','$2y$10$FNGHw7B59EPCRuJPHvtRzeJZRHzWb/e/WKMty6y7K89kfuDL8Vexi',NULL,1,'2026-08-08 13:00:35',10,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3279,6 +3312,28 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_compra_cuotas` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_cuotas`(p_id_compra INT UNSIGNED) RETURNS smallint(5) unsigned
+    READS SQL DATA
+BEGIN
+  DECLARE v_n SMALLINT UNSIGNED DEFAULT 0;
+  SELECT COUNT(*) INTO v_n FROM compra_cuota WHERE id_compra = p_id_compra;
+  RETURN v_n;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_compra_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3331,18 +3386,27 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_vencimiento`(p_id_compra INT UNSIGNED) RETURNS date
     READS SQL DATA
 BEGIN
   DECLARE v_venc DATE DEFAULT NULL;
+
+  SELECT MIN(cu.fecha_vencimiento) INTO v_venc
+  FROM compra_cuota cu WHERE cu.id_compra = p_id_compra;
+
+  IF v_venc IS NOT NULL THEN
+    RETURN v_venc;
+  END IF;
+
   SELECT DATE(c.fecha) + INTERVAL cv.dias_credito DAY INTO v_venc
   FROM compra c
   JOIN condicion_venta cv ON cv.id_condicion_venta = c.id_condicion_venta
   WHERE c.id_compra = p_id_compra;
+
   RETURN v_venc;
 END ;;
 DELIMITER ;
@@ -5008,4 +5072,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-13 19:58:19
+-- Dump completed on 2026-08-14  9:00:27

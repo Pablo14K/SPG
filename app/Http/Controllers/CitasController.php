@@ -23,7 +23,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Citas y agenda.
+ * Citas.
  *
  * El motor de disponibilidad vive en App\Servicios\Agenda; acá está lo que
  * hace la pantalla. Las dos reglas que no hay que perder de vista:

@@ -20,11 +20,11 @@ declare(strict_types=1);
 return [
 
     'modulos' => [
-        'citas' => 'Citas y agenda',
+        'citas' => 'Citas',
         'clientes' => 'Clientes',
         'servicios' => 'Servicios',
         'inventario' => 'Inventario',
-        'facturacion' => 'Facturación y caja',
+        'facturacion' => 'Tesorería',
         'reportes' => 'Reportes',
         'seguridad' => 'Seguridad',
     ],

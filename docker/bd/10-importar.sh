@@ -14,6 +14,7 @@ set -e
 
 BASE="/sql/peluqueria_bd(base).sql"
 SIMULACION="/sql/1mes_simulacion.sql"
+DEMO="/sql/datos_demo.sql"
 
 ejecutar() { mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}" "$@"; }
 
@@ -48,5 +49,16 @@ crear peluqueria_test
 
 importar peluqueria_bd   "$BASE"
 importar peluqueria_test "$SIMULACION"
+
+# Los datos de arranque van SÓLO en la base que se entrega: servicios,
+# productos, proveedores, profesionales con turno y los timbrados. Sin esto una
+# cuenta recién creada no puede hacer nada —no hay qué agendar ni con quién—,
+# así que el sistema se puede probar apenas se instala.
+#
+# `peluqueria_test` no los necesita: ya viene con el mes simulado del QA.
+if [ -f "$DEMO" ]; then
+    echo "  -> cargando los datos de arranque en peluqueria_bd"
+    ejecutar peluqueria_bd < "$DEMO"
+fi
 
 echo "== SPG: bases listas =="

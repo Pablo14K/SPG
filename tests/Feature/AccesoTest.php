@@ -95,7 +95,7 @@ class AccesoTest extends TestCase
         $this->get(route('panel'))
             ->assertOk()
             ->assertSee('Panel principal')
-            ->assertSee('Citas y agenda');
+            ->assertSee('Citas');
     }
 
     #[Test]
