@@ -87,7 +87,7 @@ INSERT IGNORE INTO persona (nombre, apellido, cedula, telefono, email) VALUES
 -- La contraseña de las cuatro es `profesional123`.
 INSERT IGNORE INTO usuario (id_persona, id_rol, id_sucursal, username, password_hash, activo)
 SELECT p.id_persona, 2, 1, u.username,
-       'y$SMjbuml1HAqLKDz59hh1iO4dfg7ja7mJoEfTO6iARaPUybSSd0qeG', 1
+       '$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6', 1
 FROM (SELECT '3800111' ci, 'marta'  username UNION ALL
       SELECT '3800222',    'rocio'           UNION ALL
       SELECT '3800333',    'lucia'           UNION ALL

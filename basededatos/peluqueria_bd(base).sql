@@ -650,7 +650,7 @@ CREATE TABLE `comision` (
   CONSTRAINT `fk_comision_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_comision_tipo` CHECK (`tipo` in ('PORCENTAJE','MONTO')),
   CONSTRAINT `chk_comision_valor` CHECK (`valor` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -659,7 +659,7 @@ CREATE TABLE `comision` (
 
 LOCK TABLES `comision` WRITE;
 /*!40000 ALTER TABLE `comision` DISABLE KEYS */;
-INSERT INTO `comision` VALUES (1,5,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(2,3,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(3,4,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(4,6,NULL,'PORCENTAJE',15.00,'2026-08-14',1);
+INSERT INTO `comision` VALUES (8,12,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(9,10,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(10,11,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(11,13,NULL,'PORCENTAJE',15.00,'2026-08-14',1);
 /*!40000 ALTER TABLE `comision` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1838,7 +1838,7 @@ CREATE TABLE `persona` (
   UNIQUE KEY `uq_persona_ruc` (`ruc`),
   KEY `idx_persona_nombre` (`apellido`,`nombre`),
   KEY `idx_persona_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1847,7 +1847,7 @@ CREATE TABLE `persona` (
 
 LOCK TABLES `persona` WRITE;
 /*!40000 ALTER TABLE `persona` DISABLE KEYS */;
-INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez',NULL,NULL,'0981-000000','ana.cliente@example.com',NULL,NULL,'2026-08-06 15:48:43'),(3,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal L├│pez 1234, Asunci├│n',NULL,'2026-08-14 09:00:13'),(4,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 09:00:13'),(5,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. Espa├▒a 890, Asunci├│n',NULL,'2026-08-14 09:00:13'),(6,'Marta','C├íceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 09:00:13'),(7,'Roc├¡o','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 09:00:13'),(8,'Luc├¡a','Ben├¡tez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 09:00:13'),(9,'Sof├¡a','Esp├¡nola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 09:00:13');
+INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez',NULL,NULL,'0981-000000','ana.cliente@example.com',NULL,NULL,'2026-08-06 15:48:43'),(10,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-14 10:44:45'),(11,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 10:44:45'),(12,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-14 10:44:45'),(13,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(14,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(15,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(16,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45');
 /*!40000 ALTER TABLE `persona` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1970,7 +1970,7 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el sal├│n','unidad',3.00,85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el sal├│n','unidad',3.00,80000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 vol├║menes','unidad',4.00,35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',6.00,45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',10.00,18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',5.00,40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',2.00,38000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',3.00,25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',8.00,22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',5.00,45000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',3.00,85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',3.00,80000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',4.00,35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',6.00,45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',10.00,18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',5.00,40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',2.00,38000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',3.00,25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',8.00,22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',5.00,45000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2044,7 +2044,7 @@ CREATE TABLE `proveedor` (
   PRIMARY KEY (`id_proveedor`),
   KEY `fk_prov_persona` (`id_persona`),
   CONSTRAINT `fk_prov_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2053,7 +2053,7 @@ CREATE TABLE `proveedor` (
 
 LOCK TABLES `proveedor` WRITE;
 /*!40000 ALTER TABLE `proveedor` DISABLE KEYS */;
-INSERT INTO `proveedor` VALUES (1,'Marisa Duarte',1,3),(2,'Jorge Cabrera',1,4),(3,'Liliana Ayala',1,5);
+INSERT INTO `proveedor` VALUES (4,'Marisa Duarte',1,10),(5,'Jorge Cabrera',1,11),(6,'Liliana Ayala',1,12);
 /*!40000 ALTER TABLE `proveedor` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2143,7 +2143,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,'Corte de caballero','Corte cl├ísico o con m├íquina',50000.00,30,10,1,0),(3,1,'Corte de ni├▒o','Hasta 12 a├▒os',40000.00,30,10,1,0),(4,4,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,'Coloraci├│n completa','Color de ra├¡z a puntas',280000.00,120,10,1,1),(7,2,'Retoque de ra├¡z','S├│lo el crecimiento',150000.00,75,10,1,1),(8,2,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,1),(9,3,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,'Tratamiento capilar','Hidrataci├│n profunda',90000.00,50,10,1,1),(11,3,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,'Depilaci├│n de cejas','Dise├▒o y depilaci├│n',30000.00,20,10,1,0);
+INSERT INTO `servicio` VALUES (1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,1),(9,3,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2172,7 +2172,6 @@ CREATE TABLE `servicio_descuento` (
 
 LOCK TABLES `servicio_descuento` WRITE;
 /*!40000 ALTER TABLE `servicio_descuento` DISABLE KEYS */;
-INSERT INTO `servicio_descuento` VALUES (5,1,7);
 /*!40000 ALTER TABLE `servicio_descuento` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2298,7 +2297,7 @@ CREATE TABLE `timbrado` (
   CONSTRAINT `chk_timbrado_est` CHECK (`establecimiento` regexp '^[0-9]{3}$'),
   CONSTRAINT `chk_timbrado_pun` CHECK (`punto_expedicion` regexp '^[0-9]{3}$'),
   CONSTRAINT `chk_timbrado_rango7` CHECK (`nro_desde` >= 1 and `nro_hasta` <= 9999999 and `nro_desde` <= `nro_hasta`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2307,7 +2306,7 @@ CREATE TABLE `timbrado` (
 
 LOCK TABLES `timbrado` WRITE;
 /*!40000 ALTER TABLE `timbrado` DISABLE KEYS */;
-INSERT INTO `timbrado` VALUES (1,1,1,'12345678','001','001','2026-08-14','2027-08-14',1,9999999,1),(2,1,5,'12345679','001','001','2026-08-14','2027-08-14',1,9999999,1),(3,1,8,'12345680','001','999','2026-08-14','2027-08-14',1,9999999,1);
+INSERT INTO `timbrado` VALUES (4,1,1,'12345678','001','001','2026-08-14','2027-08-14',1,9999999,1),(5,1,5,'12345679','001','001','2026-08-14','2027-08-14',1,9999999,1),(6,1,8,'12345680','001','999','2026-08-14','2027-08-14',1,9999999,1);
 /*!40000 ALTER TABLE `timbrado` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2507,7 +2506,7 @@ CREATE TABLE `turno_dia` (
 
 LOCK TABLES `turno_dia` WRITE;
 /*!40000 ALTER TABLE `turno_dia` DISABLE KEYS */;
-INSERT INTO `turno_dia` VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(2,1),(2,2),(2,3),(2,4),(2,5),(2,6);
+INSERT INTO `turno_dia` VALUES (3,1),(3,2),(3,3),(3,4),(3,5),(3,6),(4,1),(4,2),(4,3),(4,4),(4,5),(4,6);
 /*!40000 ALTER TABLE `turno_dia` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2530,7 +2529,7 @@ CREATE TABLE `turno_laboral` (
   KEY `idx_turno_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_turno_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON UPDATE CASCADE,
   CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2539,7 +2538,7 @@ CREATE TABLE `turno_laboral` (
 
 LOCK TABLES `turno_laboral` WRITE;
 /*!40000 ALTER TABLE `turno_laboral` DISABLE KEYS */;
-INSERT INTO `turno_laboral` VALUES (1,1,'Turno Ma├▒ana','08:00:00','13:00:00',1),(2,1,'Turno Tarde','13:00:00','19:00:00',1);
+INSERT INTO `turno_laboral` VALUES (3,1,'Turno Mañana','08:00:00','13:00:00',1),(4,1,'Turno Tarde','13:00:00','19:00:00',1);
 /*!40000 ALTER TABLE `turno_laboral` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2570,7 +2569,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2579,7 +2578,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,NULL,NULL),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(3,2,1,'marta','$2y$12$rqZBLjJbyvdDNJkGTieXW.ciyGudEmxfBm4Qy3fFG0pDxXxTPzg2m',NULL,1,'2026-08-14 09:00:13',6,NULL,NULL),(4,2,1,'rocio','$2y$12$rqZBLjJbyvdDNJkGTieXW.ciyGudEmxfBm4Qy3fFG0pDxXxTPzg2m',NULL,1,'2026-08-14 09:00:13',7,NULL,NULL),(5,2,1,'lucia','$2y$12$rqZBLjJbyvdDNJkGTieXW.ciyGudEmxfBm4Qy3fFG0pDxXxTPzg2m',NULL,1,'2026-08-14 09:00:13',8,NULL,NULL),(6,2,1,'sofia','$2y$12$rqZBLjJbyvdDNJkGTieXW.ciyGudEmxfBm4Qy3fFG0pDxXxTPzg2m',NULL,1,'2026-08-14 09:00:13',9,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,NULL,NULL),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',15,NULL,NULL),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2664,7 +2663,7 @@ CREATE TABLE `usuario_turno` (
 
 LOCK TABLES `usuario_turno` WRITE;
 /*!40000 ALTER TABLE `usuario_turno` DISABLE KEYS */;
-INSERT INTO `usuario_turno` VALUES (3,1),(4,2),(5,1),(6,2);
+INSERT INTO `usuario_turno` VALUES (10,3),(11,4),(12,3),(13,4);
 /*!40000 ALTER TABLE `usuario_turno` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5047,4 +5046,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-14 10:34:07
+-- Dump completed on 2026-08-14 14:16:48
