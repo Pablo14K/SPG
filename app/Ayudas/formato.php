@@ -260,6 +260,10 @@ if (! function_exists('estado_badge')) {
     {
         $map = [
             'Programada' => 'prog', 'Reprogramada' => 'prog', 'En proceso' => 'proc',
+            // Atrasada NO es un resultado: es «se hizo la hora y nadie la
+            // tocó». Va en el ámbar de los avisos, no en el rojo de lo que
+            // salió mal — todavía se puede atender.
+            'Atrasada' => 'warn',
             'Atendida' => 'ok', 'Confirmada' => 'ok', 'Emitida' => 'ok', 'Registrado' => 'ok',
             'Cancelada' => 'no', 'Ausente' => 'no', 'Anulada' => 'no', 'Anulado' => 'no', 'Revertido' => 'no',
             'Pendiente' => 'warn', 'Abierta' => 'ok', 'Cerrada' => 'muted',

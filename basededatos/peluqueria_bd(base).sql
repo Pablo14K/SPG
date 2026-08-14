@@ -1082,7 +1082,7 @@ CREATE TABLE `estado_cita` (
   `bloquea_agenda` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_estado_cita`),
   UNIQUE KEY `uq_estado_cita_nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1091,7 +1091,7 @@ CREATE TABLE `estado_cita` (
 
 LOCK TABLES `estado_cita` WRITE;
 /*!40000 ALTER TABLE `estado_cita` DISABLE KEYS */;
-INSERT INTO `estado_cita` VALUES (1,'Programada',1),(2,'Reprogramada',1),(3,'Cancelada',0),(4,'Atendida',0),(5,'En proceso',1),(6,'Ausente',0);
+INSERT INTO `estado_cita` VALUES (1,'Programada',1),(2,'Reprogramada',1),(3,'Cancelada',0),(4,'Atendida',0),(5,'En proceso',1),(6,'Ausente',0),(7,'Atrasada',1);
 /*!40000 ALTER TABLE `estado_cita` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5071,4 +5071,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-14 15:40:08
+-- Dump completed on 2026-08-14 15:50:08
