@@ -54,6 +54,23 @@ class PanelController extends Controller
               ORDER BY v.fecha_hora LIMIT 6", $par
         );
 
+        // Las atrasadas van en su propio bloque, no mezcladas con las próximas.
+        //
+        // Son las que ya pasaron de hora y nadie puso En proceso: el sistema no
+        // decide que la clienta no vino —eso lo sabe quien atiende—, sólo las
+        // junta para que alguien las mire y las marque. Sin este bloque había
+        // que ir a la agenda del día y buscarlas a ojo, y una cita atrasada de
+        // ayer no la miraba nadie nunca más.
+        //
+        // Se filtran con la MISMA regla que las próximas: quien no administra
+        // la agenda del salón ve sólo las suyas.
+        $atrasadas = DB::select(
+            "SELECT v.* FROM vw_agenda_citas v
+               JOIN cita c ON c.id_cita = v.id_cita
+              WHERE v.estado = 'Atrasada' $soloMias
+              ORDER BY v.fecha_hora LIMIT 8", $par
+        );
+
         // **La caja, sólo a quien tiene la caja.** Antes se preguntaba por el
         // módulo padre `facturacion`, y eso lo cumple cualquiera que tenga
         // ALGÚN submódulo —así resuelve la jerarquía—: a quien le sacaban la
@@ -63,6 +80,8 @@ class PanelController extends Controller
         return view('panel', [
             'm' => $metricas,
             'proximas' => $proximas,
+            'atrasadas' => $atrasadas,
+            'verTodo' => Permisos::veTodaLaAgenda(),
             'caja' => $verCaja ? Caja::abierta() : null,
             'verCaja' => $verCaja,
         ]);

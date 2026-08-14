@@ -61,7 +61,15 @@ class Borrador
             unset($datos[$clave]);
         }
 
-        return $datos ? $destino->withInput($datos) : $destino;
+        // La misma marca que usa el redirect de un error, y por el mismo
+        // motivo: la pantalla de destino olvida lo que haya quedado en
+        // `_old_input` salvo que venga marcado. Sin esto, el borrador que
+        // acabamos de guardar lo borraría el propio formulario al dibujarse
+        // —volver de un alta rápida es exactamente el caso en que hay que
+        // conservarlo—.
+        return $datos
+            ? $destino->with('spg_form_error', true)->withInput($datos)
+            : $destino;
     }
 
     /** El formulario grande, tal como lo serializó el navegador. */
