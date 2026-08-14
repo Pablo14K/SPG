@@ -294,14 +294,25 @@ window.SPGCarga = (function () {
     if (btn) btn.disabled = true;
   }
 
-  function chip(texto, alTocar) {
+  function chip(texto, alTocar, clase) {
     var b = document.createElement('button');
     b.type = 'button';
-    b.className = 'spg-chip';
+    b.className = 'spg-chip' + (clase ? ' ' + clase : '');
     b.textContent = texto;
     b.addEventListener('click', function () { alTocar(b); });
 
     return b;
+  }
+
+  // Los días y las horas son dos listas de fichas iguales, una debajo de la
+  // otra, y se confundían: no se sabía cuál se estaba tocando. Cada una lleva
+  // ahora su rótulo numerado, y las horas además se dibujan distinto (ver
+  // `.spg-chip-hora` en app.css).
+  function rotulo(caja, texto) {
+    var r = document.createElement('span');
+    r.className = 'spg-agenda-rotulo';
+    r.textContent = texto;
+    caja.appendChild(r);
   }
 
   function marcarUno(caja, boton) {
@@ -329,7 +340,8 @@ window.SPGCarga = (function () {
           + 'Probá con otro profesional o con menos servicios.';
         return;
       }
-      aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos. Elegí el día:';
+      aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos.';
+      rotulo(diasEl, '1. Elegí el día');
       d.dias.forEach(function (f) {
         var b = chip(f.split('-').reverse().slice(0, 2).join('/'), function (boton) {
           elegirDia(f, boton);
@@ -353,12 +365,14 @@ window.SPGCarga = (function () {
         horasEl.textContent = 'Ese día ya no tiene horarios libres.';
         return;
       }
+      var p = f.split('-');
+      rotulo(horasEl, '2. Elegí la hora del ' + p[2] + '/' + p[1]);
       d.horas.forEach(function (h) {
         horasEl.appendChild(chip(h.hora, function (b) {
           marcarUno(horasEl, b);
           if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
           if (btn) btn.disabled = false;
-        }));
+        }, 'spg-chip-hora'));
       });
     }).catch(function () { horasEl.textContent = 'No se pudo consultar la agenda.'; });
   }

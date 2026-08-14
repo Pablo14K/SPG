@@ -35,7 +35,7 @@ class Diagnostico extends Command
      * justamente lo que este número tendría que detectar. **Al agregar un
      * CHECK, actualizalo acá en la misma tanda.**
      */
-    private const CHECKS = 57;
+    private const CHECKS = 59;
 
     public function handle(): int
     {

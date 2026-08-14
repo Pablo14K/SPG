@@ -81,6 +81,18 @@
             </div>
         </div>
 
+        {{-- Sólo aparece cuando el intento anterior chocó con una sesión ya
+             abierta. Es la salida para quien cerró el navegador sin salir: la
+             marca queda puesta hasta que alguien sale de verdad. --}}
+        @if (session('spg_sesion_ocupada'))
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="forzar" value="1" id="forzar">
+                <label class="form-check-label" for="forzar" style="font-size:.85rem">
+                    Entrar igual y cerrar la sesión del otro equipo
+                </label>
+            </div>
+        @endif
+
         <button class="btn btn-oro w-100 py-2" type="submit">Ingresar</button>
 
         <p class="text-center mt-3 mb-1" style="font-size:.85rem;">

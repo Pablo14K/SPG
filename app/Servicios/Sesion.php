@@ -27,7 +27,14 @@ class Sesion
      * con el email, que vive en `persona` desde que se unificaron los datos
      * personales.
      */
-    public static function intentarLogin(string $usuario, string $password): bool
+    /** Lo que devuelve intentarLogin() cuando la cuenta ya está en uso. */
+    public const OCUPADA = 'ocupada';
+
+    /**
+     * @return bool|string  true si entró · false si las credenciales no van ·
+     *                      self::OCUPADA si hay otra sesión abierta
+     */
+    public static function intentarLogin(string $usuario, string $password, bool $forzar = false): bool|string
     {
         $u = DB::selectOne(
             'SELECT u.id_usuario, u.password_hash
@@ -63,13 +70,44 @@ class Sesion
             return false;
         }
 
+        // La cuenta ya tiene una sesión abierta en otro equipo.
+        //
+        // **Manda la primera y se le niega a la segunda**, que es al revés de
+        // como estaba: antes el que entraba último desplazaba al que estaba
+        // trabajando, y quien atendía en el mostrador se encontraba de golpe
+        // afuera, a mitad de una cita. Echar a alguien que está usando el
+        // sistema es peor que no dejar entrar a quien recién llega, porque el
+        // primero no eligió nada.
+        //
+        // Se comprueba DESPUÉS de la contraseña a propósito: avisar antes que
+        // una cuenta tiene sesión abierta le confirma a cualquiera que esa
+        // cuenta existe y que alguien la está usando.
+        if (! $forzar && self::tieneSesionAbierta((int) $u->id_usuario)) {
+            return self::OCUPADA;
+        }
+
         if (! self::iniciarPorId((int) $u->id_usuario)) {
             return false;
         }
 
-        Auditoria::registrar('LOGIN', 'Seguridad', 'usuario', (int) $u->id_usuario, 'Inicio de sesión');
+        Auditoria::registrar('LOGIN', 'Seguridad', 'usuario', (int) $u->id_usuario,
+            $forzar ? 'Inicio de sesión cerrando la sesión abierta en otro equipo' : 'Inicio de sesión');
 
         return true;
+    }
+
+    /**
+     * ¿La cuenta tiene una sesión abierta en otro equipo?
+     *
+     * La marca se limpia al salir. Si alguien cierra el navegador sin salir,
+     * queda puesta: por eso la pantalla de ingreso ofrece entrar igual, y no
+     * es un candado del que no se pueda salir. Ver `entrar()` del controlador.
+     */
+    public static function tieneSesionAbierta(int $idUsuario): bool
+    {
+        $marca = DB::scalar('SELECT sesion_activa FROM usuario WHERE id_usuario = ?', [$idUsuario]);
+
+        return $marca !== null && $marca !== '' && $marca !== session('sesion_marca');
     }
 
     /** Arma la sesión a partir de un id de usuario. */

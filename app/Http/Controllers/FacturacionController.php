@@ -722,6 +722,20 @@ class FacturacionController extends Controller
                 return $volver;
             }
 
+            // --- La fecha del cheque ---
+            // Un cheque tiene fecha por algo: la diferida dice a partir de
+            // cuándo se puede depositar, y la vencida ya no se cobra. Sin
+            // control entraba cualquier cosa —un 2019 tipeado de más, un 2035—
+            // y el arqueo lo daba por bueno igual.
+            if ($mp->tipo === 'CHEQUE') {
+                $error = $this->fechaDeChequeInvalida($detalle['fecha_emision'] ?? null, $lleno('fecha_emision'));
+                if ($error !== null) {
+                    flash('En la línea de ' . $mp->nombre . ': ' . $error, 'error');
+
+                    return $volver;
+                }
+            }
+
             $lineas[] = [
                 'metodo' => $idm, 'monto' => $mto, 'tipo' => $mp->tipo, 'nombre' => $mp->nombre,
                 'referencia' => trim((string) (((array) $request->input('referencia', []))[$i] ?? '')) ?: null,
@@ -772,6 +786,49 @@ class FacturacionController extends Controller
         }
 
         return $volver;
+    }
+
+    /**
+     * ¿La fecha de este cheque sirve? Devuelve el motivo, o null si está bien.
+     *
+     * La fecha es obligatoria: es lo que distingue un cheque al día de uno
+     * diferido, y sin ella no se sabe cuándo se puede depositar. Los dos topes
+     * salen de cómo funciona el cheque, no de un número inventado:
+     *
+     *  · **Hacia atrás**, un cheque se presenta dentro de los 30 días de
+     *    emitido. Se aceptan hasta 180 para dar lugar a que el salón lo cargue
+     *    tarde, pero más que eso ya no es un cheque cobrable: es un error de
+     *    tipeo (el año anterior, casi siempre).
+     *  · **Hacia adelante**, un diferido de más de un año no existe.
+     *
+     * Se valida acá y no en la base porque el cobro entero va en una
+     * transacción: si esto se cayera adentro, se pierden también las otras
+     * líneas del pago mixto.
+     */
+    private function fechaDeChequeInvalida(?string $fecha, bool $vino): ?string
+    {
+        if (! $vino) {
+            return 'cargá la fecha del cheque; es la que dice desde cuándo se puede depositar.';
+        }
+
+        $ts = strtotime((string) $fecha);
+        if ($ts === false) {
+            return 'la fecha del cheque no es válida.';
+        }
+
+        $hoy = strtotime(ahora_bd('Y-m-d'));
+        $dias = (int) floor(($ts - $hoy) / 86400);
+
+        if ($dias < -180) {
+            return 'ese cheque está fechado el ' . fecha($ts, 'd/m/Y') . ', hace más de seis meses. '
+                . 'Un cheque así ya no se cobra — revisá el año.';
+        }
+        if ($dias > 365) {
+            return 'ese cheque está fechado el ' . fecha($ts, 'd/m/Y') . ', a más de un año. '
+                . 'Un cheque diferido no llega tan lejos — revisá el año.';
+        }
+
+        return null;
     }
 
     private function detalleDeLinea(Request $request, int $i): array

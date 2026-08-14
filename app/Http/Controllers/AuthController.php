@@ -38,7 +38,22 @@ class AuthController extends Controller
             'password.required' => 'Ingresá tu contraseña.',
         ]);
 
-        if (! Sesion::intentarLogin($datos['usuario'], $datos['password'])) {
+        $r = Sesion::intentarLogin($datos['usuario'], $datos['password'], $request->boolean('forzar'));
+
+        // La cuenta ya está abierta en otro equipo. No se la desplaza: se le
+        // niega a quien llega, y se le ofrece entrar igual cerrando la otra —
+        // si no, quien cierra el navegador sin salir queda afuera para siempre,
+        // porque la marca se limpia recién al salir.
+        if ($r === Sesion::OCUPADA) {
+            return back()
+                ->withInput($request->only('usuario'))
+                ->with('spg_sesion_ocupada', true)
+                ->withErrors(['usuario' => 'Esa cuenta ya tiene una sesión abierta en otro equipo. '
+                    . 'Cerrala ahí y volvé a intentar, o marcá la casilla de abajo para entrar '
+                    . 'igual y cerrar la otra.']);
+        }
+
+        if (! $r) {
             // Un solo mensaje para los dos casos: decir cuál de los dos está
             // mal le confirma a cualquiera qué cuentas existen.
             return back()

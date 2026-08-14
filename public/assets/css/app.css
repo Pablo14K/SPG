@@ -484,7 +484,29 @@ html,body{max-width:100%;overflow-x:hidden;}
    La casilla real queda oculta pero sigue ahí, así el teclado y el lector
    de pantalla la encuentran igual.
    --------------------------------------------------------------------- */
-.spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;}
+.spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+.spg-horas{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+
+/* ---- Selector de agenda: que el día no se confunda con la hora ----
+   Eran dos listas de fichas idénticas, una debajo de la otra, y no se
+   distinguía cuál se estaba tocando. Ahora cada lista lleva su rótulo
+   numerado y las horas van en contorno en vez de relleno — el nivel
+   terciario de la escala del oro, que ya existe para «información con
+   jerarquía, no acción». El oro no cambia: cambia el peso. */
+.spg-agenda-rotulo{
+  flex-basis:100%;
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--gris-oscuro);margin-bottom:.1rem;
+}
+.spg-chip-hora{
+  background:transparent;border-color:var(--oro-oscuro);color:var(--oro-texto);
+  font-variant-numeric:tabular-nums;
+}
+/* Al elegirla se llena, igual que el día: es la confirmación de qué quedó
+   tocado, y sin eso las dos listas vuelven a parecerse. */
+.spg-chip-hora:hover,.spg-chip-hora:focus-visible,.spg-chip-hora.activo{
+  background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);
+}
 .spg-dia{cursor:pointer;user-select:none;}
 .spg-dia input{position:absolute;opacity:0;width:0;height:0;}
 .spg-dia span{

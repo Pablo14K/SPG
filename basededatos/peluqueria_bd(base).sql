@@ -391,20 +391,45 @@ UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_citaserv_bi
 BEFORE INSERT ON cita_servicio FOR EACH ROW
 BEGIN
-  DECLARE v_usuario INT UNSIGNED DEFAULT NULL;
-  SELECT id_usuario INTO v_usuario FROM cita WHERE id_cita = NEW.id_cita;
+  DECLARE v_usuario  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_cliente  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_dia      DATE DEFAULT NULL;
+  DECLARE v_repetido INT DEFAULT 0;
+  DECLARE v_nombre   VARCHAR(100) DEFAULT '';
+  DECLARE v_msg      VARCHAR(255);
+
+  SELECT c.id_usuario, c.id_cliente, DATE(c.fecha_hora)
+    INTO v_usuario, v_cliente, v_dia
+    FROM cita c WHERE c.id_cita = NEW.id_cita;
 
   IF fn_puede_realizar(v_usuario, NEW.id_servicio) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional de la cita no esta habilitado para ese servicio.';
+  END IF;
+
+  SELECT COUNT(*) INTO v_repetido
+    FROM cita_servicio cs
+    JOIN cita c        ON c.id_cita = cs.id_cita
+    JOIN estado_cita e ON e.id_estado_cita = c.id_estado_cita
+   WHERE cs.id_servicio = NEW.id_servicio
+     AND c.id_cliente   = v_cliente
+     AND DATE(c.fecha_hora) = v_dia
+     AND e.bloquea_agenda = 1;
+
+  IF v_repetido > 0 THEN
+    SELECT s.nombre INTO v_nombre FROM servicio s WHERE s.id_servicio = NEW.id_servicio;
+    SET v_msg = CONCAT('Esa clienta ya tiene "', v_nombre,
+                       '" agendado para ese mismo dia. No se repite el mismo servicio en el dia: ',
+                       'cambia la fecha, o cancela la otra cita primero.');
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
   END IF;
 END */;;
 DELIMITER ;
@@ -5046,4 +5071,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-14 14:16:48
+-- Dump completed on 2026-08-14 15:40:08

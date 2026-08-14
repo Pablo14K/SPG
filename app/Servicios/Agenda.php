@@ -392,16 +392,129 @@ class Agenda
         return $bloques ? max($bloques) : 0;
     }
 
-    /** Primer profesional libre en ese horario (para el «sin preferencia»). */
+    /**
+     * A quién se le da la cita cuando la clienta no eligió profesional.
+     *
+     * **No es «el primero de la lista», y ése era el problema.** Antes se
+     * recorría `profesionales()` —que viene `ORDER BY nombre`— y se devolvía el
+     * primero libre, así que la cita caía SIEMPRE en la misma persona: la
+     * propietaria, porque «Ana» es el primer nombre del alfabeto.
+     *
+     * Y se agravaba con la otra mitad: la propietaria **no tiene turno
+     * asignado**, y `fn_verificar_disponibilidad` es permisiva con quien no lo
+     * tiene —entiende que el salón todavía no usa la agenda de turnos—, así que
+     * la daba por libre las 24 horas, incluido un domingo a las 3 de la mañana.
+     * Entre las dos cosas, la dueña se llevaba todas las citas sin preferencia.
+     *
+     * Ahora se elige en dos pasos:
+     *
+     *  1. **Tener turno gana.** Entre los que están libres, se prefiere a quien
+     *     tiene un turno cargado, porque de ese sí se sabe que atiende a esa
+     *     hora. Si ninguno de los libres tiene turno, se toma igual al primero
+     *     —el salón no está usando turnos y no hay con qué distinguir.
+     *  2. **Entre esos, la que menos tiene ese día**, así el trabajo se reparte
+     *     en vez de amontonarse en la primera del alfabeto. A igualdad, decide
+     *     el nombre, para que el resultado sea siempre el mismo.
+     */
     public static function profesionalLibre(string $fechaHora, int $duracion): ?int
     {
-        foreach (self::profesionales() as $p) {
-            if (self::huecoLibre((int) $p->id_usuario, $fechaHora, $duracion)) {
-                return (int) $p->id_usuario;
+        $conTurno = self::losQueTienenTurno();
+        $dia = substr($fechaHora, 0, 10);
+        $carga = self::citasDelDia($dia);
+
+        $libres = [];
+        foreach (self::profesionales() as $orden => $p) {
+            $id = (int) $p->id_usuario;
+            if (self::huecoLibre($id, $fechaHora, $duracion)) {
+                $libres[] = [
+                    'id' => $id,
+                    'turno' => isset($conTurno[$id]) ? 0 : 1,   // 0 ordena primero
+                    'carga' => $carga[$id] ?? 0,
+                    'orden' => $orden,
+                ];
+            }
+        }
+        if (! $libres) {
+            return null;
+        }
+
+        // Si NINGUNO de los libres tiene turno, el criterio del turno no
+        // distingue nada y se cae solo: todos empatan en 1.
+        usort($libres, fn ($a, $b) => [$a['turno'], $a['carga'], $a['orden']]
+                                  <=> [$b['turno'], $b['carga'], $b['orden']]);
+
+        return $libres[0]['id'];
+    }
+
+    /** Ids del personal que tiene al menos un turno activo asignado. */
+    private static function losQueTienenTurno(): array
+    {
+        $out = [];
+        foreach (DB::select(
+            'SELECT DISTINCT ut.id_usuario
+               FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1'
+        ) as $r) {
+            $out[(int) $r->id_usuario] = true;
+        }
+
+        return $out;
+    }
+
+    /** Cuántas citas tiene ya cada profesional ese día, para repartir. */
+    private static function citasDelDia(string $dia): array
+    {
+        $out = [];
+        foreach (DB::select(
+            'SELECT c.id_usuario, COUNT(*) AS n
+               FROM cita c
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1 AND DATE(c.fecha_hora) = ?
+              GROUP BY c.id_usuario', [$dia]
+        ) as $r) {
+            $out[(int) $r->id_usuario] = (int) $r->n;
+        }
+
+        return $out;
+    }
+
+    /**
+     * A nombre de quién queda la cita cuando TODOS los servicios se repartieron.
+     *
+     * Es el caso que quedaba mal: la clienta elige quién le hace cada cosa y no
+     * pide principal, así que al principal no le queda ningún servicio. Buscar
+     * entonces a alguien «libre» metía en la cita a una persona que no atiende
+     * nada ahí —la propietaria, casi siempre—, y esa cita le aparecía en su
+     * agenda y le contaba como carga del día.
+     *
+     * La cita queda a nombre de quien más minutos pone, que es quien de verdad
+     * la sostiene. A igualdad de minutos gana el id más chico, para que el
+     * resultado sea siempre el mismo y no dependa del orden del formulario.
+     *
+     * @param  array  $asignacion  [id_servicio => id_usuario] (0 = el principal)
+     */
+    public static function principalDelReparto(array $asignacion): int
+    {
+        // Con 0 como principal, `bloques()` agrupa bajo la clave 0 lo que nadie
+        // tomó; acá no hay nada de eso, porque este método se llama justamente
+        // cuando todos los servicios tienen dueño.
+        $bloques = self::bloques($asignacion, 0);
+        unset($bloques[0]);
+
+        if (! $bloques) {
+            return 0;
+        }
+
+        $mejor = 0;
+        $minutos = -1;
+        foreach ($bloques as $idProf => $mins) {
+            if ($mins > $minutos || ($mins === $minutos && $idProf < $mejor)) {
+                $mejor = (int) $idProf;
+                $minutos = $mins;
             }
         }
 
-        return null;
+        return $mejor;
     }
 
     // -----------------------------------------------------------------

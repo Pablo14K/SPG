@@ -214,7 +214,17 @@ class CitasController extends Controller
         // bloque que le va a tocar (los servicios que no se repartieron a otro).
         if (! $idUsuario) {
             $delPrincipal = Agenda::duracion(array_keys(array_filter($asignacion, fn ($p) => $p === 0)));
-            $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal ?: $dur) ?? 0;
+
+            if (! $delPrincipal) {
+                // **Todos los servicios se repartieron**: al principal no le
+                // queda nada que hacer, así que no se busca a nadie de afuera
+                // —eso metía a la propietaria en citas en las que no atendía—.
+                // La cita queda a nombre de quien más trabajo tiene adentro.
+                $idUsuario = Agenda::principalDelReparto($asignacion);
+            } else {
+                $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal) ?? 0;
+            }
+
             if (! $idUsuario) {
                 flash('A esa hora no queda ningún profesional libre. Elegí otro horario.', 'warning');
 
@@ -254,11 +264,31 @@ class CitasController extends Controller
             // persona se quedó con el hueco entre nuestra verificación y el
             // candado: son milisegundos, pero pasa.
             $msg = $ex->getMessage();
+
+            // El disparador que impide repetir el mismo servicio el mismo día
+            // ya arma un mensaje pensado para quien atiende —nombra el
+            // servicio y dice qué hacer—, así que se muestra tal cual en vez
+            // de reemplazarlo por uno genérico. Se recorta lo que MariaDB le
+            // pega adelante y atrás (el SQLSTATE y la consulta entera).
+            if (str_contains($msg, 'No se repite el mismo servicio')) {
+                $desde = strpos($msg, 'Esa clienta');
+                $hasta = strpos($msg, 'cancela la otra cita primero.');
+                flash($desde !== false && $hasta !== false
+                    ? substr($msg, $desde, $hasta - $desde + 28)
+                    : 'Esa clienta ya tiene ese servicio agendado para ese mismo día.', 'warning');
+
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->withInput();
+            }
+
+            if (! str_contains($msg, 'disponible') && ! str_contains($msg, 'habilitado')) {
+                Log::error('Agendar cita: ' . $msg);
+            }
+
             flash(str_contains($msg, 'disponible')
                 ? Agenda::motivoHuecoPerdido($idUsuario, $fecha, $dur)
                 : (str_contains($msg, 'habilitado')
                     ? 'El profesional no está habilitado para alguno de esos servicios.'
-                    : 'No se pudo agendar la cita.'), 'error');
+                    : 'No se pudo agendar la cita. El detalle quedó registrado.'), 'error');
 
             return redirect()->route('citas.form', ['cliente' => $idCliente])->withInput();
         }
