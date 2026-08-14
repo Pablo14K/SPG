@@ -937,6 +937,44 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     #[Test]
+    public function la_cita_repartida_entera_queda_a_nombre_de_quien_mas_trabaja(): void
+    {
+        // Cuando la clienta reparte TODOS los servicios y no elige principal,
+        // al principal no le queda nada que hacer. Antes se buscaba entonces a
+        // alguien «libre» de afuera y la cita caía en la propietaria, que no
+        // atendía nada ahí. Y el método que lo resuelve **no existía**:
+        // `CitasController` ya lo llamaba, así que ese camino reventaba con
+        // «Call to undefined method» — sin que ninguna prueba lo recorriera,
+        // porque no es un error de sintaxis.
+        $profs = DB::select(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 2'
+        );
+        $servicios = DB::select(
+            'SELECT id_servicio, duracion_min FROM servicio WHERE activo = 1
+              ORDER BY duracion_min DESC LIMIT 2'
+        );
+        if (count($profs) < 2 || count($servicios) < 2
+            || (int) $servicios[0]->duracion_min === (int) $servicios[1]->duracion_min) {
+            $this->markTestSkipped('Hacen falta dos profesionales y dos servicios de distinta duración.');
+        }
+
+        $largo = (int) $profs[0]->id_usuario;
+        $corto = (int) $profs[1]->id_usuario;
+
+        $this->assertSame($largo, Agenda::principalDelReparto([
+            (int) $servicios[0]->id_servicio => $largo,   // el servicio más largo
+            (int) $servicios[1]->id_servicio => $corto,
+        ]), 'La cita tiene que quedar a nombre de quien más minutos pone.');
+
+        // Y al revés, para que no sea el orden del formulario el que decide
+        $this->assertSame($largo, Agenda::principalDelReparto([
+            (int) $servicios[1]->id_servicio => $corto,
+            (int) $servicios[0]->id_servicio => $largo,
+        ]), 'El resultado no puede depender del orden en que vengan los servicios.');
+    }
+
+    #[Test]
     public function la_agenda_ofrece_cobrar_la_sena_cuando_hay_caja_abierta(): void
     {
         // `FacturacionController::sena` y `sp_registrar_sena` funcionaban desde

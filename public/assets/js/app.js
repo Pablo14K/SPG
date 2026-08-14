@@ -196,6 +196,42 @@ window.SPGCarga = (function () {
 })();
 
 // ---------------------------------------------------------------------
+//  Limpiar un formulario largo
+//
+//  <button data-limpiar="#formCita">
+//
+//  `type="reset"` del navegador no alcanza acá: devuelve los campos al valor
+//  con el que se dibujó la página —que después de un intento fallido es lo que
+//  la persona ya había cargado, o sea nada—, y además NO dispara `change`, así
+//  que el selector de agenda se quedaría mostrando los días de la búsqueda
+//  anterior. Se vacía a mano y se avisa al selector.
+// ---------------------------------------------------------------------
+(function () {
+  'use strict';
+  document.querySelectorAll('[data-limpiar]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var form = document.querySelector(b.getAttribute('data-limpiar'));
+      if (!form) return;
+
+      form.querySelectorAll('input, select, textarea').forEach(function (c) {
+        if (c.name === '_token' || c.type === 'hidden' && c.name === '_borrador') return;
+        if (c.type === 'checkbox' || c.type === 'radio') c.checked = false;
+        else if (c.tagName === 'SELECT') c.selectedIndex = 0;
+        else c.value = '';
+      });
+
+      // El selector de agenda escucha los servicios: al quedar todos sin
+      // marcar, se vuelve solo a «elegí primero los servicios».
+      var srv = form.querySelector('.srv');
+      if (srv) srv.dispatchEvent(new Event('change', { bubbles: true }));
+
+      var primero = form.querySelector('select, input:not([type=hidden])');
+      if (primero) primero.focus();
+    });
+  });
+})();
+
+// ---------------------------------------------------------------------
 //  Selector de disponibilidad
 //
 //  Reemplaza al campo de fecha y hora libre. Le pregunta al servidor qué días

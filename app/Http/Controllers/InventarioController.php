@@ -207,6 +207,20 @@ class InventarioController extends Controller
                     flash('Producto creado. Cargale stock desde «Cargar stock» cuando lo tengas.');
                 }
             }
+
+            // Se compra por envase y nadie dijo qué trae adentro.
+            //
+            // No se rechaza —hay envases que sí se gastan enteros— pero se
+            // avisa, porque el efecto no se ve hasta que alguien registra una
+            // atención: ahí la pantalla pide «cantidad» en cajas, y un 1
+            // descuenta la caja entera cuando lo que se usó fue un par de
+            // guantes. Es exactamente lo que pasó con «Guantes de latex (caja)».
+            if (unidad_es_envase($d['unidad_medida']) && $d['contenido'] === null) {
+                flash('Ojo: lo cargaste por «' . $d['unidad_medida'] . '» y no dijiste cuánto trae cada una, '
+                    . 'así que al registrar una atención se va a descontar de a ' . $d['unidad_medida']
+                    . ' enteras. Si se gasta por partes, completá «Contenido de cada unidad» y '
+                    . '«Se gasta en» —por ejemplo 100 y «par»— y el sistema hace la cuenta solo.', 'warning');
+            }
         } catch (Throwable) {
             flash('No se pudo guardar el producto.', 'error');
 

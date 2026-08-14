@@ -120,6 +120,12 @@
                 <button class="btn btn-oro" id="btnAgendar" disabled>
                     <i class="bi bi-calendar-check"></i> Agendar
                 </button>
+                {{-- Cuando el guardado falla, el formulario vuelve con todo lo
+                     cargado —que es lo que se quiere— pero no había forma de
+                     empezar de cero sin salir y volver a entrar. --}}
+                <button type="button" class="btn btn-outline-neutro" data-limpiar="#formCita">
+                    <i class="bi bi-eraser"></i> Limpiar
+                </button>
                 <a class="btn btn-outline-neutro" href="{{ route('citas.agenda') }}">Cancelar</a>
             </div>
         </form>

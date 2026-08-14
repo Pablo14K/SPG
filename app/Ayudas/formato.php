@@ -192,6 +192,37 @@ if (! function_exists('producto_fraccionado')) {
     }
 }
 
+if (! function_exists('unidad_es_envase')) {
+    /**
+     * ¿Esa unidad de compra es un envase que adentro trae varias porciones?
+     *
+     * Sirve para avisar a tiempo. Una caja de guantes cargada sin `contenido`
+     * queda como un producto que se gasta **de a cajas enteras**: al registrar
+     * la atención se pide «cantidad» y un 1 descuenta la caja entera, cuando
+     * lo que se usó fue un par. No es un error del sistema —el producto está
+     * bien cargado, sólo que a medias— y por eso no se rechaza: se avisa.
+     *
+     * La lista es de palabras, no de ids: el salón escribe la unidad a mano.
+     * Si alguna vez se vuelve un catálogo, esto se cambia por ese catálogo.
+     */
+    function unidad_es_envase(?string $unidad): bool
+    {
+        $u = mb_strtolower(trim((string) $unidad));
+        if ($u === '') {
+            return false;
+        }
+
+        foreach (['caja', 'frasco', 'botella', 'bidon', 'bidón', 'litro', 'galon',
+                  'galón', 'paquete', 'pack', 'kilo', 'kg', 'rollo', 'bolsa'] as $envase) {
+            if (str_contains($u, $envase)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 if (! function_exists('consumo_a_stock')) {
     /** Lo que escribió la persona (30 ml) → lo que se descuenta (0,03 frascos). */
     function consumo_a_stock(array|object $p, float $cantidad): float
