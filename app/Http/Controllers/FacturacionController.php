@@ -439,8 +439,22 @@ class FacturacionController extends Controller
                 'Comprobante ' . $nro . ' de la cita #' . $idCita);
 
             $puntos = Facturacion::acumularPuntos($idf, (int) $cita->id_cliente);
-            flash('Factura ' . $nro . ' emitida correctamente.'
-                . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s) de fidelización.' : ''));
+            $saldo = Facturacion::saldo($idf);
+            flash('Comprobante ' . $nro . ' emitido.'
+                . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s) de fidelización.' : '')
+                . ($saldo > 0.01 ? ' Queda cobrar ' . money($saldo) . ': está abajo, con el botón Cobrar.' : ''));
+
+            // **Se termina donde se cobra, no en la lista entera.**
+            //
+            // El botón de la agenda dice «Cobrar» y llevaba a Emitir; emitir
+            // soltaba en la lista de facturas, y ahí había que buscar la
+            // factura recién hecha entre todas para recién entonces cobrarla.
+            // Desde afuera se leía como que el sistema pedía cobrar dos veces.
+            // Ahora la lista vuelve filtrada por ESE comprobante, que es la
+            // pantalla donde está el modal de cobro.
+            if ($saldo > 0.01) {
+                return redirect()->route('facturacion.facturas', ['q' => $nro]);
+            }
         } catch (Throwable $ex) {
             $msg = $ex->getMessage();
             flash(str_contains($msg, 'timbrado') ? 'No hay timbrado vigente para la factura.'
