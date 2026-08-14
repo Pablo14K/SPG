@@ -28,6 +28,13 @@
                             <td>
                                 {!! estado_badge($c->estado) !!}
                                 @if ($c->en_curso)<span class="badge-estado e-proc">en curso</span>@endif
+                                @if ((float) $c->sena > 0)
+                                    <span class="badge-estado e-ok" title="Ya recibida en el salón">
+                                        seña {{ money($c->sena) }}</span>
+                                @elseif ((float) $c->sena_pedida > 0)
+                                    <span class="badge-estado e-warn" title="Falta confirmarla en el salón">
+                                        seña {{ money($c->sena_pedida) }} a confirmar</span>
+                                @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
                                 @if ($c->estado === 'En proceso')
@@ -47,6 +54,16 @@
                                        title="Agendar en Google Calendar"
                                        href="{{ \App\Servicios\Calendario::urlGoogle($c, $lugar) }}">
                                         <i class="bi bi-google"></i></a>
+                                    {{-- Registrar la seña NO es pagarla: no hay pasarela de pago
+                                         y no la va a haber. Es un aviso, y el salón lo confirma
+                                         cuando recibe el dinero. Por eso el botón dice
+                                         «Registrar» y el modal lo aclara. --}}
+                                    @if ((float) $c->sena <= 0 && (float) $c->sena_pedida <= 0)
+                                        <button type="button" class="btn btn-sm btn-outline-neutro"
+                                                data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
+                                            <i class="bi bi-cash-coin"></i> Seña</button>
+                                    @endif
+
                                     <form method="post" action="{{ route('portal.cancelar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -93,4 +110,46 @@
             </div>
         </div>
     @endif
+    {{-- Un modal por cita próxima sin seña. --}}
+    @foreach ($prox as $c)
+        @continue (in_array($c->estado, ['Atendida', 'Cancelada', 'En proceso'], true)
+                   || (float) $c->sena > 0 || (float) $c->sena_pedida > 0)
+        <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('portal.sena') }}">
+                        @csrf
+                        <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="font-size:1rem">
+                                <i class="bi bi-cash-coin"></i> Dejar una seña</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted-warm" style="font-size:.85rem">
+                                Para tu cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
+                            </p>
+
+                            <label class="form-label" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
+                            <input class="form-control input-miles" id="ps{{ $c->id_cita }}"
+                                   name="monto" data-min="1" inputmode="numeric" required>
+
+                            {{-- Que quede clarísimo que acá no se paga: la clienta
+                                 no tiene que quedarse esperando un cobro que no
+                                 va a llegar, ni creer que ya está saldado. --}}
+                            <div class="alert alert-warning mt-3 mb-0" style="font-size:.82rem">
+                                <strong>Acá no se paga.</strong> Lo anotamos para que el salón lo
+                                sepa, y queda confirmado cuando entregues el dinero en el local.
+                                Se descuenta solo del total cuando te facturen.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-oro">Registrar la seña</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endforeach
 @endsection

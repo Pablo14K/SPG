@@ -58,7 +58,14 @@
                             <td>
                                 {!! estado_badge($c->estado) !!}
                                 @if ((float) $c->sena > 0)
-                                    <span class="badge-estado e-warn" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
+                                    <span class="badge-estado e-ok" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
+                                @endif
+                                {{-- Lo que la clienta registró desde el portal y todavía nadie
+                                     confirmó. NO es plata que entró: no toca la caja hasta que
+                                     alguien la confirme acá, cuando recibe el dinero. --}}
+                                @if ((float) ($c->sena_pedida ?? 0) > 0)
+                                    <span class="badge-estado e-warn" title="La clienta la registró desde el portal">
+                                        seña {{ money($c->sena_pedida) }} a confirmar</span>
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
@@ -216,9 +223,16 @@
                             @csrf
                             <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                             <input type="hidden" name="dia" value="{{ $dia }}">
+                            {{-- Si viene de una solicitud del portal, se confirma ESA:
+                                 el cobro queda enlazado y la solicitud deja de estar
+                                 pendiente. Sin solicitud, es una seña cargada directo. --}}
+                            @if ($c->id_solicitud)
+                                <input type="hidden" name="id_solicitud" value="{{ $c->id_solicitud }}">
+                            @endif
                             <div class="modal-header">
                                 <h5 class="modal-title" style="font-size:1rem">
-                                    <i class="bi bi-cash-coin"></i> Seña de {{ $c->cliente }}
+                                    <i class="bi bi-cash-coin"></i>
+                                    {{ $c->id_solicitud ? 'Confirmar la seña de' : 'Seña de' }} {{ $c->cliente }}
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
@@ -228,13 +242,19 @@
                                     @if ((float) $c->sena > 0)
                                         Ya dejó <strong>{{ money($c->sena) }}</strong>.
                                     @endif
+                                    @if ($c->id_solicitud)
+                                        La clienta registró <strong>{{ money($c->sena_pedida) }}</strong>
+                                        desde el portal. Confirmá el monto que recibiste de verdad:
+                                        puede no ser el mismo.
+                                    @endif
                                 </p>
 
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label" for="sm{{ $c->id_cita }}">Monto</label>
                                         <input class="form-control input-miles" id="sm{{ $c->id_cita }}"
-                                               name="monto" data-min="1" inputmode="numeric" required>
+                                               name="monto" data-min="1" inputmode="numeric" required
+                                               value="{{ $c->id_solicitud ? monto_input($c->sena_pedida) : '' }}">
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label" for="sp{{ $c->id_cita }}">Medio de pago</label>

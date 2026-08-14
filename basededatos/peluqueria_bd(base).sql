@@ -2136,6 +2136,43 @@ INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clie
 UNLOCK TABLES;
 
 --
+-- Table structure for table `sena_solicitud`
+--
+
+DROP TABLE IF EXISTS `sena_solicitud`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `sena_solicitud` (
+  `id_solicitud` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_cita` int(10) unsigned NOT NULL,
+  `monto` decimal(12,2) NOT NULL,
+  `fecha_solicitud` datetime NOT NULL DEFAULT current_timestamp(),
+  `id_cobro` int(10) unsigned DEFAULT NULL,
+  `id_usuario` int(10) unsigned DEFAULT NULL COMMENT 'quien confirmo o rechazo',
+  `rechazada_en` datetime DEFAULT NULL,
+  `motivo` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id_solicitud`),
+  KEY `ix_senasol_cita` (`id_cita`),
+  KEY `ix_senasol_cobro` (`id_cobro`),
+  KEY `ix_senasol_usuario` (`id_usuario`),
+  CONSTRAINT `fk_senasol_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`),
+  CONSTRAINT `fk_senasol_cobro` FOREIGN KEY (`id_cobro`) REFERENCES `cobro` (`id_cobro`),
+  CONSTRAINT `fk_senasol_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
+  CONSTRAINT `chk_senasol_monto` CHECK (`monto` > 0),
+  CONSTRAINT `chk_senasol_estado` CHECK (`id_cobro` is null or `rechazada_en` is null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `sena_solicitud`
+--
+
+LOCK TABLES `sena_solicitud` WRITE;
+/*!40000 ALTER TABLE `sena_solicitud` DISABLE KEYS */;
+/*!40000 ALTER TABLE `sena_solicitud` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `servicio`
 --
 
@@ -5071,4 +5108,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-14 15:50:08
+-- Dump completed on 2026-08-14 16:26:07

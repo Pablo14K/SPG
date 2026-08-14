@@ -112,6 +112,12 @@ class CitasController extends Controller
         // NO es una columna de `factura`: lo arma `fn_factura_nro()`.
         $rows = DB::select(
             "SELECT v.*, fn_cita_sena(v.id_cita) AS sena,
+                    (SELECT ss.id_solicitud FROM sena_solicitud ss
+                      WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
+                      ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,
+                    (SELECT ss.monto FROM sena_solicitud ss
+                      WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
+                      ORDER BY ss.id_solicitud LIMIT 1) AS sena_pedida,
                     f.id_factura,
                     CASE WHEN f.id_factura IS NULL THEN NULL
                          ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,

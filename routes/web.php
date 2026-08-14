@@ -103,6 +103,9 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::get('disponibilidad', [PortalController::class, 'disponibilidad'])->name('disponibilidad');
     Route::get('citas', [PortalController::class, 'citas'])->name('citas');
     Route::post('cancelar', [PortalController::class, 'cancelar'])->name('cancelar');
+    // Registrar una seña NO es pagarla: no hay pasarela de pago. Queda
+    // anotada y la confirma un profesional cuando recibe el dinero.
+    Route::post('sena', [PortalController::class, 'senaRegistrar'])->name('sena');
     Route::get('atencion', [PortalController::class, 'atencion'])->name('atencion');
     Route::get('atencion/json', [PortalController::class, 'atencionJson'])->name('atencion_json');
     Route::post('pedir', [PortalController::class, 'pedir'])->name('pedir');

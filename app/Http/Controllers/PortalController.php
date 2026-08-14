@@ -183,12 +183,75 @@ class PortalController extends Controller
 
     // ---------- Mis citas ----------
 
+    /**
+     * La clienta registra que va a dejar una seña.
+     *
+     * **Esto NO es un pago**, y no puede serlo: el sistema no tiene pasarela
+     * de pago ni la va a tener. Es un aviso — la plata la recibe el salón, y
+     * un profesional confirma desde la agenda, que es cuando se registra el
+     * cobro de verdad con `sp_registrar_sena`. Hasta entonces no toca la caja
+     * ni el saldo de nada, justamente para que un aviso no se confunda con
+     * plata que entró.
+     *
+     * El profesional además puede registrar la seña directo, sin que exista
+     * ninguna solicitud: este camino es un agregado, no un reemplazo.
+     */
+    public function senaRegistrar(Request $request): RedirectResponse
+    {
+        $idc = $this->cliente();
+        $idCita = (int) $request->input('id_cita', 0);
+        $monto = num($request->input('monto'));
+        $volver = redirect()->route('portal.citas');
+
+        // La cita se comprueba contra el cliente de la SESIÓN, no contra lo que
+        // venga en el formulario: si no, cambiando el id oculto se le registra
+        // una seña a la cita de otra persona.
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.fecha_hora, c.id_estado_cita
+               FROM cita c WHERE c.id_cita = ? AND c.id_cliente = ?', [$idCita, $idc]
+        );
+
+        $error = null;
+        if (! $cita) {
+            $error = 'Esa cita no es tuya.';
+        } elseif (in_array((int) $cita->id_estado_cita, [3, 4, 6], true)) {
+            $error = 'Esa cita ya está cerrada, no se le puede dejar una seña.';
+        } elseif ($monto <= 0) {
+            $error = 'Escribí cuánto vas a dejar de seña.';
+        } elseif (DB::scalar(
+            'SELECT COUNT(*) FROM sena_solicitud WHERE id_cita = ? AND id_cobro IS NULL AND rechazada_en IS NULL',
+            [$idCita]
+        )) {
+            $error = 'Ya registraste una seña para esa cita y el salón todavía no la confirmó.';
+        }
+        if ($error) {
+            flash($error, 'error');
+
+            return $volver;
+        }
+
+        DB::insert('INSERT INTO sena_solicitud (id_cita, monto) VALUES (?,?)', [$idCita, $monto]);
+
+        flash('Anotamos que vas a dejar ' . money($monto) . ' de seña para tu cita del '
+            . fecha($cita->fecha_hora) . '. Se confirma en el salón cuando entregues el dinero.');
+
+        return $volver;
+    }
+
     public function citas(): View
     {
         $idc = $this->cliente();
 
+        // `sena` es lo ya cobrado y confirmado; `sena_pedida`, lo que la
+        // clienta registró y el salón todavía no confirmó. Son dos cosas
+        // distintas y la pantalla las dice distinto: una es plata que ya
+        // entró, la otra es un aviso de que va a entrar.
         $prox = DB::select(
-            'SELECT v.*, (v.fecha_hora <= NOW()) AS en_curso
+            'SELECT v.*, (v.fecha_hora <= NOW()) AS en_curso,
+                    fn_cita_sena(v.id_cita) AS sena,
+                    (SELECT COALESCE(SUM(ss.monto),0) FROM sena_solicitud ss
+                      WHERE ss.id_cita = v.id_cita
+                        AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL) AS sena_pedida
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita

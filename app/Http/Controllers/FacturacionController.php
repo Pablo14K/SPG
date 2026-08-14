@@ -1137,8 +1137,25 @@ class FacturacionController extends Controller
 
         try {
             $idCobro = Facturacion::sena($idCita, $idMetodo, (int) session('uid'), $monto, $ref, (int) $caja->id_caja);
+
+            // Si esto confirma una seña que la clienta registró desde el
+            // portal, se enlaza el cobro con la solicitud: es lo que la saca
+            // de «a confirmar». El estado no se guarda —se deduce de que haya
+            // cobro— así que alcanza con escribir el id. Se filtra por
+            // `id_cita` además del id para que un id ajeno no cierre la
+            // solicitud de otra cita.
+            $idSolicitud = (int) $request->input('id_solicitud', 0);
+            if ($idSolicitud > 0) {
+                DB::update(
+                    'UPDATE sena_solicitud SET id_cobro = ?, id_usuario = ?
+                      WHERE id_solicitud = ? AND id_cita = ? AND id_cobro IS NULL AND rechazada_en IS NULL',
+                    [$idCobro, (int) session('uid'), $idSolicitud, $idCita]
+                );
+            }
+
             Auditoria::registrar('SENA', 'Facturacion', 'cobro', $idCobro,
-                'Seña de ' . money($monto) . ' por la cita #' . $idCita . ' (' . $cita->cliente . ')');
+                'Seña de ' . money($monto) . ' por la cita #' . $idCita . ' (' . $cita->cliente . ')'
+                . ($idSolicitud > 0 ? ' — confirma la que registró la clienta desde el portal' : ''));
             flash('Seña de ' . money($monto) . ' registrada para ' . $cita->cliente
                 . '. Se va a descontar sola del total cuando se facture la cita.');
         } catch (Throwable $ex) {
