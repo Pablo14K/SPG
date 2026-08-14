@@ -1126,13 +1126,21 @@ class FacturacionController extends Controller
                JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona WHERE c.id_cita = ?", [$idCita]
         );
 
+        // ¿Ya tiene comprobante emitido? Es lo que decide si esto es un cobro
+        // contra la cita o hay que ir por la factura.
+        $yaFacturada = (bool) DB::scalar(
+            'SELECT COUNT(*) FROM factura WHERE id_cita = ? AND id_estado_factura = 1', [$idCita]
+        );
+
         $error = null;
         if (! $cita) {
             $error = 'Esa cita no existe.';
         } elseif (in_array((int) $cita->id_estado_cita, [3, 6], true)) {
-            $error = 'No se puede señar una cita cancelada o marcada como ausente.';
-        } elseif ((int) $cita->id_estado_cita === 4) {
-            $error = 'Esa cita ya fue atendida: cobrala desde la factura, no como seña.';
+            $error = 'No se puede cobrar una cita cancelada o marcada como ausente.';
+        } elseif ($yaFacturada) {
+            // Con comprobante emitido el cobro va contra ÉL, que es donde la
+            // numeración de la SET lo puede rastrear.
+            $error = 'Esa cita ya tiene comprobante emitido: cobralo desde Facturas.';
         } elseif ($monto <= 0) {
             $error = 'Ingresá un monto mayor a cero.';
         } elseif (! $idMetodo || ! DB::scalar('SELECT COUNT(*) FROM metodo_pago WHERE id_metodo_pago = ? AND activo = 1', [$idMetodo])) {
@@ -1167,14 +1175,40 @@ class FacturacionController extends Controller
                 );
             }
 
+            // El procedimiento deja la observación fija en «Sena de reserva»,
+            // que es cierto cuando se cobra antes de atender. Cobrando una
+            // cita ya atendida es otra cosa, y el arqueo tiene que poder
+            // distinguirlas.
+            $atendida = (int) $cita->id_estado_cita === 4;
+            if ($atendida) {
+                DB::update("UPDATE cobro SET observaciones = 'Cobro de la atencion' WHERE id_cobro = ?", [$idCobro]);
+            }
+
             Auditoria::registrar('SENA', 'Facturacion', 'cobro', $idCobro,
-                'Seña de ' . money($monto) . ' por la cita #' . $idCita . ' (' . $cita->cliente . ')'
+                ($atendida ? 'Cobro de ' : 'Seña de ') . money($monto) . ' por la cita #' . $idCita
+                . ' (' . $cita->cliente . ')'
                 . ($idSolicitud > 0 ? ' — confirma la que registró la clienta desde el portal' : ''));
+
+            // **Cobrado; ahora el comprobante que la clienta pida.**
+            //
+            // Es el orden del mostrador —cliente, cobro, y recién ahí factura o
+            // comprobante de pago— y es el que estaba al revés: el sistema
+            // obligaba a elegir el documento antes de tocar la plata. Se puede
+            // porque el cobro cuelga de la CITA (`cobro.id_cita`, sin factura)
+            // y `fn_factura_saldo` ya descuenta esos cobros: al emitir después,
+            // el comprobante sale saldado solo.
+            if ($atendida) {
+                flash('Cobrado ' . money($monto) . ' a ' . $cita->cliente
+                    . '. Ahora elegí el comprobante que pida: se descuenta solo del total.');
+
+                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+            }
+
             flash('Seña de ' . money($monto) . ' registrada para ' . $cita->cliente
                 . '. Se va a descontar sola del total cuando se facture la cita.');
         } catch (Throwable $ex) {
             flash(str_contains($ex->getMessage(), 'cero')
-                ? 'La seña tiene que ser mayor que cero.' : 'No se pudo registrar la seña.', 'error');
+                ? 'El monto tiene que ser mayor que cero.' : 'No se pudo registrar el cobro.', 'error');
         }
 
         return $volver;

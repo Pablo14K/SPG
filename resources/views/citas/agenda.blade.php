@@ -128,11 +128,22 @@
                                          Son TRES situaciones distintas y cada una dice
                                          lo suyo: sin comprobante, con saldo, y saldada. --}}
                                     @if (! $c->id_factura)
-                                        @if ($puedeFacturar)
-                                            <a class="btn btn-sm btn-oro"
+                                        {{-- **Primero se cobra, después el comprobante.**
+                                             Es el orden del mostrador: la clienta paga y recién
+                                             ahí dice si quiere factura o comprobante de pago.
+                                             Antes el botón llevaba a Emitir, o sea que obligaba
+                                             a elegir el documento antes de tocar la plata.
+                                             Se puede porque el cobro cuelga de la CITA y
+                                             `fn_factura_saldo` ya lo descuenta al emitir. --}}
+                                        @if ($puedeCobrar && $caja)
+                                            <button class="btn btn-sm btn-oro" title="Cobrar esta atención"
+                                                    data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
+                                                <i class="bi bi-cash-coin"></i> Cobrar</button>
+                                        @elseif ($puedeFacturar)
+                                            <a class="btn btn-sm btn-outline-neutro"
                                                title="Emitir el comprobante de esta atención"
                                                href="{{ route('facturacion.emitir', ['cita' => $c->id_cita]) }}">
-                                                <i class="bi bi-receipt-cutoff"></i> Cobrar</a>
+                                                <i class="bi bi-receipt-cutoff"></i> Emitir</a>
                                         @else
                                             <span class="badge-estado e-warn" title="Todavía no se le emitió comprobante">
                                                 sin cobrar</span>
@@ -215,7 +226,10 @@
          cobros de la cita, y vinculándola se restaría dos veces. --}}
     @if ($puedeCobrar && $caja)
         @foreach ($rows as $c)
-            @continue (in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
+            {{-- Atendida SÍ entra —es el cobro de la atención, el caso normal—
+                 salvo que ya tenga comprobante: ahí el cobro va contra él. --}}
+            @continue (in_array($c->estado, ['Cancelada', 'Ausente'], true)
+                       || ($c->estado === 'Atendida' && $c->id_factura))
             <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -232,7 +246,11 @@
                             <div class="modal-header">
                                 <h5 class="modal-title" style="font-size:1rem">
                                     <i class="bi bi-cash-coin"></i>
-                                    {{ $c->id_solicitud ? 'Confirmar la seña de' : 'Seña de' }} {{ $c->cliente }}
+                                    @if ($c->estado === 'Atendida')
+                                        Cobrar la atención de {{ $c->cliente }}
+                                    @else
+                                        {{ $c->id_solicitud ? 'Confirmar la seña de' : 'Seña de' }} {{ $c->cliente }}
+                                    @endif
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
@@ -272,8 +290,13 @@
                                 </div>
 
                                 <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
-                                    Entra en la caja de <strong>{{ $caja->responsable }}</strong> y se descuenta
-                                    sola del total cuando se facture la cita.
+                                    Entra en la caja de <strong>{{ $caja->responsable }}</strong>
+                                    @if ($c->estado === 'Atendida')
+                                        y después elegís el comprobante: factura o comprobante de pago,
+                                        lo que pida la clienta. Sale saldado solo.
+                                    @else
+                                        y se descuenta sola del total cuando se facture la cita.
+                                    @endif
                                 </p>
                             </div>
                             <div class="modal-footer">
