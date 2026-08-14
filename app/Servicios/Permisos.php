@@ -27,6 +27,19 @@ class Permisos
     /** Permisos ya leídos, por rol. Dibujar el menú preguntaba una vez por tarjeta. */
     private static array $cache = [];
 
+    /**
+     * ¿Esta persona ve la agenda de TODO el equipo, o sólo la suya?
+     *
+     * Vive acá y no en un controlador porque lo preguntan dos pantallas —la
+     * agenda y el panel—, y con la regla escrita en un solo lado no puede
+     * pasar lo que pasó: el panel listaba las próximas citas **de todos**, así
+     * que una profesional veía las de sus compañeras al entrar.
+     */
+    public static function veTodaLaAgenda(): bool
+    {
+        return self::esAdmin() || self::puede('seguridad.turnos');
+    }
+
     public static function esAdmin(?int $rol = null): bool
     {
         $rol ??= (int) session('rol', 0);

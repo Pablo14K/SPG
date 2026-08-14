@@ -33,14 +33,32 @@ class PanelController extends Controller
             ),
         ];
 
+        // Las próximas citas son LAS SUYAS, salvo que administre la agenda del
+        // salón. Sin este filtro una profesional entraba y veía las citas de
+        // sus compañeras: la misma regla que ya aplicaba la agenda no estaba
+        // acá, así que el panel las mostraba todas.
+        // `vw_agenda_citas` NO trae `id_usuario` —sólo el nombre del
+        // profesional—, así que se une con `cita` para poder filtrar, igual
+        // que hace la agenda.
+        $par = [];
+        $soloMias = '';
+        if (! Permisos::veTodaLaAgenda()) {
+            $soloMias = ' AND c.id_usuario = :yo';
+            $par['yo'] = (int) session('uid');
+        }
+
         $proximas = DB::select(
-            "SELECT * FROM vw_agenda_citas
-              WHERE fecha_hora >= NOW() AND estado NOT IN ('Cancelada','Ausente')
-              ORDER BY fecha_hora LIMIT 6"
+            "SELECT v.* FROM vw_agenda_citas v
+               JOIN cita c ON c.id_cita = v.id_cita
+              WHERE v.fecha_hora >= NOW() AND v.estado NOT IN ('Cancelada','Ausente') $soloMias
+              ORDER BY v.fecha_hora LIMIT 6", $par
         );
 
-        // La caja solo se le muestra a quien maneja plata
-        $verCaja = Permisos::puede('facturacion');
+        // **La caja, sólo a quien tiene la caja.** Antes se preguntaba por el
+        // módulo padre `facturacion`, y eso lo cumple cualquiera que tenga
+        // ALGÚN submódulo —así resuelve la jerarquía—: a quien le sacaban la
+        // caja le seguía apareciendo la barra con el saldo del salón.
+        $verCaja = Permisos::puede('facturacion.caja');
 
         return view('panel', [
             'm' => $metricas,

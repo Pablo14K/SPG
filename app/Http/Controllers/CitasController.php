@@ -977,9 +977,10 @@ class CitasController extends Controller
      * permiso de turnos —quien organiza los turnos organiza la agenda—, no por
      * una lista fija de id de rol.
      */
+    /** La regla vive en Permisos: la comparten la agenda y el panel. */
     private function veTodaLaAgenda(): bool
     {
-        return Permisos::esAdmin() || Permisos::puede('seguridad.turnos');
+        return Permisos::veTodaLaAgenda();
     }
 
     /**
