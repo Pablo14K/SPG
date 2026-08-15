@@ -6,14 +6,14 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 > El sistema nació sin framework (PHP puro, front controller `index.php?r=…`) y se migró a
 > Laravel en la versión **6.0.0**, por pedido de la tutora. Aquella versión quedó archivada.
-> **La migración cambió la arquitectura, no las reglas**: las 50 rutinas de la base, los 17
+> **La migración cambió la arquitectura, no las reglas**: las 51 rutinas de la base, los 17
 > triggers y todo lo que este documento dice sobre facturación, caja, agenda, turnos y
 > permisos siguen valiendo igual, porque siguen viviendo donde siempre — en la base.
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **20 procedimientos, 30 funciones, 17 triggers y 17 vistas**,
-más **57 restricciones `CHECK`**.
+La base (`peluqueria_bd`) tiene **20 procedimientos, 31 funciones, 17 triggers y 17 vistas**,
+más **61 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.20.0 | 15/08/2026 | **Los cuatro defectos críticos de la simulación de 90 días, y los tres son el mismo error.** **AG-01**: la agenda le vendía horarios a quien no atiende. `fn_verificar_disponibilidad` era permisiva con quien no tiene turno cargado —«si el salón todavía no usa turnos, no le bloqueo nada»—, pero eso **se resolvía persona por persona**, así que bastaba que UNA no tuviera turno para que quedara libre las 24 horas de los 7 días. La propietaria y la recepcionista se llevaron **302 de 557 citas (54 %)**, 76 en domingo con el salón cerrado, y **ninguna se pudo atender**: son el 100 % de las que terminaron Ausente, con la clienta recibiendo confirmación y recordatorio de una cita que el salón nunca iba a dar. Ahora la pregunta es **del salón**: si alguien tiene turnos, el salón usa turnos y quien no los tenga no atiende — ni se lo ofrece (`Agenda::profesionales()`), ni se lo elige solo el «sin preferencia». La regla cambió en la base **y** en su espejo de PHP, que es la única parte del sistema donde se replica una regla a propósito. **Los otros tres son leer-decidir-escribir sin candado**, el patrón que `sp_agendar_cita` ya había resuelto en su momento y que faltaba en tres lugares más: **FA-01**, tres cobros simultáneos de la misma factura leían el mismo saldo y pasaban los tres —la factura #1 terminó con saldo **Gs. −12.500**, plata de más en la caja y ninguna pantalla que muestre un saldo negativo—; **IN-01**, tres salidas del mismo producto dejaban el stock en **−13,8311**, y eso **no lo detecta nadie**: `fn_producto_stock` devuelve el negativo sin quejarse, la vista de bajo stock lo lista como uno más y el arqueo cierra igual porque los movimientos son coherentes entre sí; **CJ-01**, `trg_caja_bi` sólo impedía la segunda caja del MISMO usuario, así que tres cuentas distintas abrían tres cajas y ningún cierre cuadraba. Los tres se arreglan con un `SELECT … FOR UPDATE` sobre la fila que se va a decidir —factura, producto— y sacándole al disparador de caja la condición `id_usuario`, que era la que sobraba. **Y las pruebas se comprobaron en las dos direcciones**, que es lo que costó: con el arreglo puesto pasan, y con el arreglo sacado a propósito **tienen que fallar**. Dos no fallaban y no medían nada — la de caja usaba una sola cuenta, que el disparador viejo ya frenaba, y la de stock ganaba la carrera por suerte, así que ahora repite la ráfaga cuatro veces como hizo el QA. De paso, la restauración del estado pasa a `tearDown`: escrita en línea después de un `assert`, **una corrida fallida deja la base torcida** y la prueba de la seña se saltó sin decir por qué. **DO-01**: este documento decía 30 funciones y 57 `CHECK` y son **31 y 61** — tercera vez que ese contador se atrasa; el de `spg:diagnostico` sí estaba al día. **68 pruebas** y los dos `.sql` regenerados |
 | 7.19.0 | 15/08/2026 | **Se invierte el orden: primero se cobra, después se elige el comprobante.** Es el orden del mostrador —**cliente → cobro → factura o comprobante de pago, según pida**— y el sistema lo tenía al revés: obligaba a elegir el documento antes de tocar la plata, porque `cobro.id_factura` cuelga de la factura y un cobro necesitaba un comprobante ya numerado. **La salida ya estaba en el modelo y es la de la seña**: un cobro puede colgar de la CITA (`cobro.id_cita`, con `id_factura` en NULL) y `fn_factura_saldo` ya descuenta esos cobros, así que al emitir después el comprobante sale saldado solo. No hizo falta ni un procedimiento nuevo: `sp_registrar_sena` no valida el estado de la cita —sólo que exista y que el monto sea positivo—, así que el único freno era un `if` en PHP que decía «esa cita ya fue atendida, cobrala desde la factura». Ahora desde la agenda, una cita atendida y sin comprobante se **cobra**, y al terminar el sistema lleva solo a elegir el comprobante. La observación del cobro distingue los dos casos («Sena de reserva» contra «Cobro de la atencion»), que en el arqueo no son lo mismo. Con comprobante ya emitido el cobro sigue yendo contra él, que es donde la numeración de la SET lo puede rastrear. Comprobado de punta a punta: se cobró Gs. 95.000 de la cita 173, el cobro quedó sin factura y atado a la cita, y la pantalla terminó en Emitir |
 | 7.18.1 | 15/08/2026 | **Emitir un comprobante ya no te suelta en la lista entera.** El botón de la agenda dice «Cobrar» y llevaba a Emitir; emitir devolvía a la lista de facturas, y ahí había que buscar la que se acababa de hacer entre todas para recién entonces cobrarla. Desde afuera se leía como que el sistema pedía cobrar dos veces — y el reporte fue exactamente ése. Ahora, si queda saldo, la lista vuelve **filtrada por ese comprobante**, que es la pantalla donde está el modal de cobro, y el aviso dice cuánto falta cobrar y dónde está el botón. Si el comprobante ya quedó saldado —una cita con seña que cubre el total— se vuelve a la lista normal, porque no hay nada que cobrar |
 | 7.18.0 | 15/08/2026 | **La clienta registra la seña desde el portal y el salón la confirma.** No hay pasarela de pago y no la va a haber, así que lo que la clienta hace **no es un cobro**: es un aviso de que va a pagar. La plata la recibe el salón, y recién ahí un profesional confirma desde la agenda y se registra el cobro de verdad con `sp_registrar_sena` — hasta entonces no toca la caja ni el saldo de nada, justamente para que un aviso no se confunda con plata que entró. El profesional **sigue pudiendo cargarla directo**, sin que exista ninguna solicitud: este camino es un agregado, no un reemplazo. Al confirmar, el monto viene precargado pero **se puede cambiar**, porque lo que se registra es lo que se recibió y puede no ser lo que se anunció. Tabla nueva `sena_solicitud`, y **el estado no se guarda: se deduce** —sin cobro y sin rechazo es pendiente, con cobro está confirmada, con `rechazada_en` fue rechazada—, que es lo que pide la 3FN; un `CHECK` impide que esté confirmada y rechazada a la vez. La cita se comprueba contra el cliente de la **sesión** y no contra el formulario: si no, cambiando el id oculto se le registraba una seña a la cita de otra persona. Comprobado de punta a punta: la clienta registró Gs. 80.000, el salón lo confirmó, quedó el cobro enlazado y `fn_cita_sena` lo devuelve |
@@ -1031,9 +1032,34 @@ puede fichar por otro y marcar faltas; el Profesional solo ve y ficha lo suyo.
 `fn_verificar_disponibilidad` es la única autoridad sobre si un horario sirve. Mira tres
 cosas: **ausencias**, **turno laboral** y **solape con otra cita**. La versión original no
 miraba el turno, y por eso se podía agendar un domingo a las 3 de la mañana; la versión que
-viene en el `.sql` ya lo mira. Si el profesional no tiene **ningún** turno asignado
-no se bloquea nada — se entiende que el salón todavía no usa la agenda de turnos, mismo
-criterio permisivo que `fn_puede_realizar`.
+viene en el `.sql` ya lo mira.
+
+### El criterio permisivo de los turnos es DEL SALÓN, no de cada persona
+
+Sigue valiendo que **si el salón todavía no usa la agenda de turnos, no se le bloquea nada a
+nadie** — el mismo criterio permisivo de `fn_puede_realizar`. Lo que cambió en la 7.20.0 es
+**quién contesta esa pregunta**: si **alguien** tiene turnos cargados, el salón usa turnos, y
+quien no los tenga **no atiende**.
+
+Resuelto persona por persona, como estaba, bastaba que una sola no tuviera turno para que
+quedara disponible las 24 horas de los 7 días. Y quienes no tienen turno son justamente los
+que no atienden clientes: **la propietaria y la recepcionista se llevaron 302 de 557 citas**
+en la simulación de 90 días, 76 de ellas en domingo con el salón cerrado. Ninguna se pudo
+atender — son el 100 % de las que terminaron Ausente, y la clienta recibió confirmación y
+recordatorio de una cita que el salón nunca iba a dar.
+
+**Son tres lugares y hay que tocar los tres, o vuelven a decir cosas distintas:**
+
+| Dónde | Qué hace |
+|---|---|
+| `fn_verificar_disponibilidad` | la autoridad: contesta que no si el salón usa turnos y esa persona no tiene |
+| `Agenda::slotsProfesional()` | el espejo en PHP que dibuja la pantalla — vía `datosProfesional()` |
+| `Agenda::profesionales()` | ni siquiera lo ofrece: quien no atiende no sale en el selector ni lo elige el «sin preferencia» |
+
+> **Atiende quien tiene turno cargado, y eso es un dato, no un rol.** Nada de
+> `id_rol IN (…)`: un salón donde la dueña sí atiende le carga un turno y listo.
+> `Agenda::elSalonUsaTurnos()` responde la pregunta una vez por petición, porque el
+> calendario de 60 días la necesita por profesional y por día.
 
 **Dos personas pidiendo el mismo hueco a la vez.** `sp_agendar_cita` y
 `sp_reprogramar_cita` toman un candado sobre la fila del profesional
@@ -1859,7 +1885,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 30 funciones, 20 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 31 funciones, 20 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -2002,7 +2028,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 57 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 61 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -2014,7 +2040,7 @@ tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 **Las 63 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
-> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 50 rutinas y sus 17
+> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 51 rutinas y sus 17
 > triggers. Las pruebas que escriben usan `DatabaseTransactions`, que revierte al terminar.
 > La única que no puede usarlo es `ConcurrenciaAgendaTest`, porque mide justamente qué ven
 > entre sí varias conexiones: esa limpia a mano en `tearDown()`.
@@ -2033,8 +2059,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando las 20 rutinas, 30 funciones,
-   17 triggers, 17 vistas y 57 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 20 procedimientos, 31 funciones,
+   17 triggers, 17 vistas y 61 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -2071,7 +2097,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**63 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**68 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
@@ -2079,12 +2105,13 @@ se sigan cumpliendo**, que es donde vive el negocio.
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
 | `AccesoTest` | abre **las doce pantallas de Seguridad y las diez de la operación diaria**: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500 |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
+| `ConcurrenciaCobroTest` | los otros tres candados, con procesos de verdad: **3 cobros** de la misma factura (que no quede saldo negativo), **3 aperturas de caja con cuentas distintas** (que quede una sola abierta) y **3 salidas del mismo stock** (que no quede en negativo). Son los hallazgos FA-01, CJ-01 e IN-01 de la simulación de 90 días |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
 | el resto | ingreso, permisos por rol, pantallas que responden |
 
-Cuatro cosas que hay que saber antes de tocarlas:
+Seis cosas que hay que saber antes de tocarlas:
 
-- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 50 rutinas. Las que escriben usan
+- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 51 rutinas. Las que escriben usan
   `DatabaseTransactions`.
 - **`ConcurrenciaAgendaTest` no puede correr dentro de una transacción**, porque mide qué ven
   entre sí conexiones distintas. Limpia a mano en `tearDown()`, con
@@ -2092,6 +2119,17 @@ Cuatro cosas que hay que saber antes de tocarlas:
 - **Una cita sin filas en `cita_servicio` dura CERO minutos** (`fn_cita_duracion` sale de ahí),
   así que no se pisa con nada. Una prueba de solapes que agende sin servicios pasa siempre sin
   medir nada — ya pasó al escribirla.
+- **Una prueba de concurrencia hay que comprobarla en las DOS direcciones**: que pase con el
+  arreglo puesto **y que falle con el arreglo sacado a propósito**. Al escribir las tres de
+  `ConcurrenciaCobroTest`, **dos no medían nada** y estaban en verde: la de caja lanzaba los
+  tres procesos con la **misma cuenta**, que el disparador viejo ya frenaba, y la de stock
+  ganaba la carrera por suerte —a mano, los mismos tres procesos dejaban el stock en −5—.
+  Por eso esa repite la ráfaga **cuatro veces**, como hizo el QA, y afirma sobre el invariante
+  («el stock nunca queda negativo») y no sólo sobre el conteo.
+- **Lo que restaura el estado va en `tearDown`, nunca después de un `assert`.** Si la aserción
+  falla, lo que viene después **no se ejecuta**: una corrida fallida a propósito dejó el salón
+  sin ninguna caja abierta, y la prueba de la seña —que necesita una— se saltó sin decir por
+  qué. Vale para las que no usan `DatabaseTransactions`, que son justamente las de concurrencia.
 - **Hay dos pruebas que abren pantallas enteras, y son las que más errores destapan.** Un
   `route()` con el nombre viejo o una columna mal escrita no se notan hasta que alguien abre la
   pantalla: revientan al dibujarla, no al arrancar.

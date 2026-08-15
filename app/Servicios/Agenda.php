@@ -30,15 +30,54 @@ use Illuminate\Support\Facades\DB;
  */
 class Agenda
 {
-    /** Profesionales que pueden atender (personal activo). */
+    /** ¿Alguien en el salón tiene turnos cargados? (una vez por petición) */
+    private static ?bool $salonConTurnos = null;
+
+    /**
+     * ¿El salón usa la agenda de turnos?
+     *
+     * Es la pregunta que decide el criterio permisivo, y se hace **del salón,
+     * no de cada persona**. Ver la corrección de AG-01 en `datosProfesional()`.
+     * Se consulta una vez por petición porque el calendario de 60 días la
+     * necesita por profesional y por día.
+     */
+    public static function elSalonUsaTurnos(): bool
+    {
+        return self::$salonConTurnos ??= (bool) DB::scalar(
+            'SELECT EXISTS (SELECT 1
+                              FROM usuario_turno ut
+                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1)'
+        );
+    }
+
+    /**
+     * Quién atiende clientes.
+     *
+     * **No es «todo el personal», y ésa era la mitad visible de AG-01.** Con
+     * `es_personal = 1` a secas entraban la propietaria y la recepcionista, que
+     * no atienden a nadie: la agenda las ofrecía, la clienta reservaba con
+     * ellas y esa cita no la podía dar el salón. Fueron 302 de 557.
+     *
+     * Atiende quien tiene un turno cargado. Si el salón todavía no usa turnos
+     * —nadie tiene ninguno— vale el criterio permisivo de siempre y se
+     * devuelve a todo el personal, que si no la agenda quedaría vacía el
+     * primer día y no se podría agendar nada.
+     */
     public static function profesionales(): array
     {
+        $soloConTurno = self::elSalonUsaTurnos()
+            ? 'AND EXISTS (SELECT 1
+                             FROM usuario_turno ut
+                             JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                            WHERE ut.id_usuario = u.id_usuario)'
+            : '';
+
         return DB::select(
             "SELECT u.id_usuario, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS nombre
                FROM usuario u
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.activo = 1 AND r.es_personal = 1
+              WHERE u.activo = 1 AND r.es_personal = 1 $soloConTurno
               ORDER BY pe_u.nombre, pe_u.apellido"
         );
     }
@@ -80,10 +119,20 @@ class Agenda
             $turnos[(int) $t->dia][] = [$t->hora_inicio, $t->hora_fin];
         }
 
-        // ¿Tiene turnos asignados? Si no, se aplica el criterio permisivo de
-        // fn_verificar_disponibilidad: se entiende que el salón todavía no usa
-        // la agenda de turnos y no se le bloquea nada.
-        $usaTurnos = $turnos !== [];
+        // **El criterio permisivo es del SALÓN, no de cada persona**, y es la
+        // corrección de AG-01: mientras se resolvía persona por persona, quien
+        // no tenía turno cargado quedaba libre las 24 horas de los 7 días.
+        // Así la propietaria y la recepcionista se llevaron 302 de 557 citas
+        // —76 en domingo, con el salón cerrado— y ninguna se pudo atender.
+        //
+        // La intención de la regla sigue valiendo: si el salón todavía no usa
+        // la agenda de turnos, no se le bloquea nada a nadie. Lo que cambia es
+        // quién decide eso: si ALGUIEN tiene turnos, el salón usa turnos, y
+        // quien no los tenga no atiende.
+        //
+        // Tiene que decir lo mismo que fn_verificar_disponibilidad: la base es
+        // la autoridad al guardar, y esto sólo dibuja la pantalla.
+        $usaTurnos = $turnos !== [] || self::elSalonUsaTurnos();
 
         // Citas que le ocupan la agenda: las suyas y aquellas en las que solo
         // hace algunos servicios. Se mide con SU bloque (fn_cita_duracion_de),

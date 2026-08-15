@@ -37,6 +37,62 @@ class ReglasDeNegocioTest extends TestCase
     //  La agenda no vende dos veces el mismo horario
     // -----------------------------------------------------------------
 
+    /**
+     * AG-01: la agenda no se le vende a quien no atiende.
+     *
+     * En la simulación de 90 días, 302 de 557 citas (54 %) quedaron a nombre
+     * de la propietaria o de la recepcionista, y 76 cayeron en domingo con el
+     * salón cerrado: ninguna se pudo atender, y son el 100 % de las que
+     * terminaron Ausente. La clienta recibía confirmación y recordatorio de
+     * una cita que el salón nunca iba a dar.
+     *
+     * La causa era que el criterio permisivo —«si no usa turnos, no le bloqueo
+     * nada»— se resolvía persona por persona en vez de para el salón entero.
+     */
+    #[Test]
+    public function quien_no_tiene_turno_no_ocupa_agenda_si_el_salon_usa_turnos(): void
+    {
+        if (! Agenda::elSalonUsaTurnos()) {
+            $this->markTestSkipped('La base de prueba no tiene turnos cargados.');
+        }
+
+        $sinTurno = DB::selectOne(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND NOT EXISTS (SELECT 1 FROM usuario_turno ut
+                                  JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                                 WHERE ut.id_usuario = u.id_usuario)
+              LIMIT 1'
+        );
+        if (! $sinTurno) {
+            $this->markTestSkipped('Todo el personal de la base de prueba tiene turno.');
+        }
+        $id = (int) $sinTurno->id_usuario;
+
+        // Ni a una hora hábil, ni de madrugada, ni en domingo.
+        $domingo = date('Y-m-d', strtotime('next sunday'));
+        foreach ([date('Y-m-d', strtotime('+3 days')) . ' 10:00:00',
+                  date('Y-m-d', strtotime('+3 days')) . ' 03:00:00',
+                  $domingo . ' 10:00:00'] as $cuando) {
+            $this->assertFalse(
+                Agenda::huecoLibre($id, $cuando, 60),
+                "Sin turno cargado no se le puede vender agenda ($cuando)."
+            );
+        }
+
+        // Y tampoco se lo ofrece: no aparece en la lista ni se lo elige solo.
+        $this->assertNotContains(
+            $id,
+            array_map(fn ($p) => (int) $p->id_usuario, Agenda::profesionales()),
+            'Quien no atiende no tiene por qué figurar entre los profesionales.'
+        );
+        $this->assertNotSame(
+            $id,
+            Agenda::profesionalLibre(date('Y-m-d', strtotime('+3 days')) . ' 10:00:00', 60),
+            'El «sin preferencia» no puede caer en quien no atiende.'
+        );
+    }
+
     #[Test]
     public function un_horario_ya_tomado_deja_de_estar_disponible(): void
     {
@@ -773,16 +829,34 @@ class ReglasDeNegocioTest extends TestCase
         }
         [$a, $b] = [(int) $ex[0]->id_servicio, (int) $ex[1]->id_servicio];
 
-        $profs = DB::select(
-            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.activo = 1 AND r.es_personal = 1 LIMIT 2'
-        );
+        // **Los profesionales salen de Agenda::profesionales(), no de una
+        // consulta a mano por `es_personal`.** Con la consulta cruda entraba la
+        // propietaria, que no tiene turno y desde AG-01 no atiende: la prueba
+        // fallaba por «no atiende en ese horario», que no es lo que mide.
+        $profs = Agenda::profesionales();
         if (count($profs) < 2) {
-            $this->markTestSkipped('Hacen falta dos profesionales en la base de prueba.');
+            $this->markTestSkipped('Hacen falta dos profesionales que atiendan en la base de prueba.');
         }
         [$p1, $p2] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
 
-        $cuando = date('Y-m-d', strtotime('+40 days')) . ' 10:00:00';
+        // Y el horario tiene que ser uno en que los DOS trabajen, así que se
+        // toma de los huecos que el propio sistema ofrece en vez de inventar
+        // una hora que puede caer domingo o fuera de turno.
+        $dur = Agenda::duracion([$a]);
+        $cuando = null;
+        for ($i = 1; $i <= 60 && $cuando === null; $i++) {
+            $dia = date('Y-m-d', strtotime("+$i days"));
+            $comunes = array_intersect(
+                Agenda::slotsProfesional($p1, $dia, $dur),
+                Agenda::slotsProfesional($p2, $dia, $dur)
+            );
+            if ($comunes) {
+                $cuando = $dia . ' ' . reset($comunes) . ':00';
+            }
+        }
+        if ($cuando === null) {
+            $this->markTestSkipped('No hay ningún horario en que los dos trabajen.');
+        }
 
         // Dos exclusivos, uno con cada profesional: se pisan sobre la clienta.
         $this->assertNotNull(

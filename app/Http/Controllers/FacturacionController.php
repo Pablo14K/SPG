@@ -13,6 +13,7 @@ use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
 use App\Servicios\Sifen;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1259,8 +1260,19 @@ class FacturacionController extends Controller
             $idCaja = Caja::abrir((int) session('uid'), $monto);
             Auditoria::registrar('CAJA_APERTURA', 'Facturacion', 'caja', $idCaja, 'Apertura con ' . money($monto));
             flash('Caja abierta con ' . money($monto) . '.');
-        } catch (Throwable) {
-            flash('No se pudo abrir la caja.', 'error');
+        } catch (QueryException $e) {
+            // El `if` de arriba mira y después inserta, así que dos aperturas a
+            // la vez lo pasaban las dos: en la simulación quedaron 6 pares de
+            // cajas solapadas y ningún cierre cuadraba. Ahora la regla la hace
+            // cumplir `trg_caja_bi`, que es donde no hay carrera posible, y acá
+            // sólo se traduce lo que contesta.
+            flash(Bd::traducir($e, [
+                'caja abierta' => 'Otra persona abrió la caja recién. Trabajen sobre esa.',
+            ], 'No se pudo abrir la caja. El detalle quedó registrado.'), 'warning');
+            Log::error('No se pudo abrir la caja', ['error' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            flash('No se pudo abrir la caja. El detalle quedó registrado.', 'error');
+            Log::error('No se pudo abrir la caja', ['error' => $e->getMessage()]);
         }
 
         return $volver;

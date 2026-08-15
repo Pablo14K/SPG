@@ -76,7 +76,7 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1483 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1531 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -110,7 +110,7 @@ CREATE TABLE `ausencia_agenda` (
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -164,12 +164,13 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_caja_bi
-BEFORE INSERT ON caja FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_caja_bi BEFORE INSERT ON caja
+FOR EACH ROW
 BEGIN
   IF NEW.id_estado_caja = 1
-     AND EXISTS (SELECT 1 FROM caja WHERE id_usuario = NEW.id_usuario AND id_estado_caja = 1) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ese usuario ya tiene una caja abierta.';
+     AND EXISTS (SELECT 1 FROM caja WHERE id_estado_caja = 1) THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Ya hay una caja abierta en el salon. Cerrala antes de abrir otra.';
   END IF;
 END */;;
 DELIMITER ;
@@ -281,7 +282,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=247 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -383,7 +384,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=431 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=434 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -512,7 +513,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=134 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1520,7 +1521,7 @@ CREATE TABLE `movimiento_inventario` (
   CONSTRAINT `fk_mi_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=183 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=192 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1535,17 +1536,23 @@ UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_bi
-BEFORE INSERT ON movimiento_inventario FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_bi BEFORE INSERT ON movimiento_inventario
+FOR EACH ROW
 BEGIN
   DECLARE v_signo CHAR(1);
   DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
+  DECLARE v_lock  INT UNSIGNED DEFAULT NULL;
+
+  
+  
+  SELECT id_producto INTO v_lock FROM producto
+   WHERE id_producto = NEW.id_producto FOR UPDATE;
 
   SELECT signo INTO v_signo FROM tipo_movimiento_inventario
    WHERE id_tipo_movimiento = NEW.id_tipo_movimiento;
@@ -1726,7 +1733,7 @@ CREATE TABLE `notificacion` (
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB AUTO_INCREMENT=377 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=395 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2340,7 +2347,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2560,7 +2567,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2657,7 +2664,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3968,74 +3975,75 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario     INT UNSIGNED,
-                p_fecha_hora     DATETIME,
-                p_duracion_min   INT,
-                p_id_cita_excluir INT UNSIGNED
-            ) RETURNS tinyint(1)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario     INT,
+    p_fecha_hora     DATETIME,
+    p_duracion_min   INT,
+    p_id_cita_excluir INT
+) RETURNS tinyint(1)
     READS SQL DATA
-    DETERMINISTIC
 BEGIN
-              DECLARE v_conflictos INT DEFAULT 0;
-              DECLARE v_turnos     INT DEFAULT 0;
-              DECLARE v_cubre      INT DEFAULT 0;
-              DECLARE v_dur        INT DEFAULT 60;
-              DECLARE v_fin        DATETIME;
+  DECLARE v_conflictos INT DEFAULT 0;
+  DECLARE v_turnos     INT DEFAULT 0;
+  DECLARE v_salon      INT DEFAULT 0;
+  DECLARE v_cubre      INT DEFAULT 0;
+  DECLARE v_dur        INT DEFAULT 60;
+  DECLARE v_fin        DATETIME;
 
-              SET v_dur = IF(p_duracion_min IS NULL OR p_duracion_min <= 0, 60, p_duracion_min);
-              SET v_fin = p_fecha_hora + INTERVAL v_dur MINUTE;
+  SET v_dur = IF(p_duracion_min IS NULL OR p_duracion_min <= 0, 60, p_duracion_min);
+  SET v_fin = p_fecha_hora + INTERVAL v_dur MINUTE;
 
-              -- Ausencias: propias del profesional o de todo el salón
-              IF EXISTS (SELECT 1 FROM ausencia_agenda a
-                          WHERE a.activo = 1
-                            AND (a.id_usuario = p_id_usuario OR a.id_usuario IS NULL)
-                            AND a.fecha_inicio < v_fin
-                            AND p_fecha_hora < a.fecha_fin) THEN
-                RETURN 0;
-              END IF;
+  
+  IF EXISTS (SELECT 1 FROM ausencia_agenda a
+              WHERE a.activo = 1
+                AND (a.id_usuario = p_id_usuario OR a.id_usuario IS NULL)
+                AND a.fecha_inicio < v_fin
+                AND p_fecha_hora < a.fecha_fin) THEN
+    RETURN 0;
+  END IF;
 
-              -- Turno laboral: la cita tiene que entrar entera en una jornada.
-              -- El turno es una plantilla (horario + días de la semana) que se
-              -- le asigna a la persona, así que se mira el día de la semana de
-              -- la cita, no una fecha cargada a mano.
-              SELECT COUNT(*) INTO v_turnos
-                FROM usuario_turno ut
-                JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-               WHERE ut.id_usuario = p_id_usuario;
-              IF v_turnos > 0 THEN
-                SELECT COUNT(*) INTO v_cubre
-                  FROM usuario_turno ut
-                  JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-                  JOIN turno_dia td    ON td.id_turno = t.id_turno
-                 WHERE ut.id_usuario = p_id_usuario
-                   AND td.dia_semana = WEEKDAY(p_fecha_hora) + 1
-                   AND TIME(p_fecha_hora) >= t.hora_inicio
-                   AND TIME(v_fin) <= t.hora_fin
-                   AND DATE(v_fin) = DATE(p_fecha_hora);
-                IF v_cubre = 0 THEN RETURN 0; END IF;
-              END IF;
+  
+  SELECT COUNT(*) INTO v_turnos
+    FROM usuario_turno ut
+    JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+   WHERE ut.id_usuario = p_id_usuario;
 
-              -- Solape con otra cita que bloquee la agenda.
-              -- Cuenta tanto donde es el profesional de la cita como donde
-              -- solo hace algunos servicios (cita_servicio.id_usuario): si no,
-              -- al que ayuda en una cita se le podía encimar otra.
-              -- Y se mide con SU bloque, no con la cita entera: si la clienta
-              -- está 90 minutos pero él solo hace un lavado de 20, a los 20
-              -- queda libre.
-              SELECT COUNT(*) INTO v_conflictos
-                FROM cita c
-                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-               WHERE ec.bloquea_agenda = 1
-                 AND (p_id_cita_excluir IS NULL OR c.id_cita <> p_id_cita_excluir)
-                 AND (c.id_usuario = p_id_usuario
-                      OR EXISTS (SELECT 1 FROM cita_servicio cs
-                                  WHERE cs.id_cita = c.id_cita AND cs.id_usuario = p_id_usuario))
-                 AND fn_cita_duracion_de(c.id_cita, p_id_usuario) > 0
-                 AND c.fecha_hora < v_fin
-                 AND p_fecha_hora < (c.fecha_hora + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
+  IF v_turnos = 0 THEN
+    
+    
+    SELECT COUNT(*) INTO v_salon
+      FROM usuario_turno ut
+      JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
+    IF v_salon > 0 THEN RETURN 0; END IF;
+    
+    
+  ELSE
+    SELECT COUNT(*) INTO v_cubre
+      FROM usuario_turno ut
+      JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+      JOIN turno_dia td    ON td.id_turno = t.id_turno
+     WHERE ut.id_usuario = p_id_usuario
+       AND td.dia_semana = WEEKDAY(p_fecha_hora) + 1
+       AND TIME(p_fecha_hora) >= t.hora_inicio
+       AND TIME(v_fin) <= t.hora_fin
+       AND DATE(v_fin) = DATE(p_fecha_hora);
+    IF v_cubre = 0 THEN RETURN 0; END IF;
+  END IF;
 
-              RETURN IF(v_conflictos = 0, 1, 0);
-            END ;;
+  
+  SELECT COUNT(*) INTO v_conflictos
+    FROM cita c
+    JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+   WHERE ec.bloquea_agenda = 1
+     AND (p_id_cita_excluir IS NULL OR c.id_cita <> p_id_cita_excluir)
+     AND (c.id_usuario = p_id_usuario
+          OR EXISTS (SELECT 1 FROM cita_servicio cs
+                      WHERE cs.id_cita = c.id_cita AND cs.id_usuario = p_id_usuario))
+     AND fn_cita_duracion_de(c.id_cita, p_id_usuario) > 0
+     AND c.fecha_hora < v_fin
+     AND p_fecha_hora < (c.fecha_hora + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
+
+  RETURN IF(v_conflictos = 0, 1, 0);
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -4580,17 +4588,23 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
-    IN  p_id_factura INT UNSIGNED,
-    IN  p_id_metodo  INT UNSIGNED,
-    IN  p_id_usuario INT UNSIGNED,
-    IN  p_monto      DECIMAL(14,2),
-    IN  p_referencia VARCHAR(100),
-    OUT p_id_cobro   INT UNSIGNED)
+    IN  p_id_factura  INT UNSIGNED,
+    IN  p_id_metodo   INT UNSIGNED,
+    IN  p_id_usuario  INT UNSIGNED,
+    IN  p_monto       DECIMAL(14,2),
+    IN  p_referencia  VARCHAR(100),
+    OUT p_id_cobro    INT UNSIGNED
+)
 BEGIN
   DECLARE v_estado INT UNSIGNED DEFAULT NULL;
   DECLARE v_signo  TINYINT DEFAULT 0;
   DECLARE v_saldo  DECIMAL(14,2) DEFAULT 0;
   DECLARE v_caja   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_lock   INT UNSIGNED DEFAULT NULL;
+
+  
+  
+  SELECT id_factura INTO v_lock FROM factura WHERE id_factura = p_id_factura FOR UPDATE;
 
   SELECT f.id_estado_factura, tc.signo
     INTO v_estado, v_signo
@@ -5134,4 +5148,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-14 16:26:12
+-- Dump completed on 2026-08-15 14:33:37
