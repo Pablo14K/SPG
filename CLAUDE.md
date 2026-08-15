@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.23.1 | 15/08/2026 | **La venta de productos queda descartada, por decisión del usuario**, y con eso se cierra la mitad de IN-03. El modelo la tenía lista —`producto.precio_venta`, `detalle_factura.id_producto`, el tipo de movimiento 7 y el disparador `trg_detfactura_ai`— y **no la usaba nadie**: en 90 días no se facturó ni un producto porque no hay pantalla que lo haga. Las cuatro piezas **se dejan donde están**, por el mismo motivo que `sp_generar_recordatorios`: el documento del TCC informa cuántas tablas, disparadores y rutinas hay, y bajar ese número para sacar algo que no molesta es peor negocio que documentarlo. Lo que sí hacía falta era decirlo, para que el modelo no prometa lo que la pantalla no da. Queda anotado además que **el formulario del producto sigue pidiendo «Precio de venta»**: no dispara nada, pero si el salón nunca va a vender es una promesa de más — sacarlo de la pantalla es decisión del usuario, no técnica. **El canje de puntos sigue sin decidirse**: se acumulan y no hay cómo gastarlos |
 | 7.23.0 | 15/08/2026 | **Los cuatro hallazgos MEDIO y BAJO que quedaban del informe de 90 días.** **AG-04**: cancelar y reprogramar la misma cita a la vez perdía la cancelación — las dos acciones leían el estado y escribían sin candado **sobre la cita**, así que ganaba la última en confirmar y la cita quedaba Reprogramada aunque la cancelación se hubiera registrado en la auditoría: la clienta cree que canceló, el horario sigue ocupado y alguien la va a esperar. `sp_reprogramar_cita` ya tomaba un candado, pero **sobre el `usuario`** —ése evita los solapes de agenda y sigue haciendo falta—, y la cancelación no tomaba ninguno. Ahora las dos toman el de la cita **primero** y miran el estado **después**, que es el orden que importa: mirar antes de tomarlo es leer lo de antes de que el otro confirmara. `Agenda::cancelar()` además pasa a abrir transacción, porque un candado sin transacción se suelta al instante y no serializa nada. **FA-04**: un comprobante ya acreditado se veía **idéntico a cualquier otro** —«Emitida», saldo 0— y sólo se sabía entrando a mirarlo; ahora lleva su sello en la lista y en la exportación, deducido de que exista una nota de crédito vigente (**no se guarda**, que es lo que pide la 3FN). Y como los ingresos del informe salen de los cobros, y una nota de crédito **no genera un cobro negativo**, una venta devuelta se seguía contando entera: se suma la línea de lo devuelto y el neto al lado, sólo cuando hubo devoluciones. **NO-02**: el despachador toma sólo los avisos de destinatario CLIENTE con `id_cliente` cargado, así que el que no cumple eso **no se manda ni se marca** y queda en PENDIENTE para siempre —uno de 1.091—. Ahora, pasado un día de gracia, se cierran como FALLIDA: no se pierde nada, es que ese aviso **no tiene a quién mandárselo**, y una cola que nunca se vacía deja de servir para ver si algo anda mal. **AU-01**: dos vocabularios escriben en `auditoria` —los controladores el sustantivo (`CANCELACION`, `EMISION`) y los disparadores el verbo (`ANULAR`, `REVERTIR`)—, así que **filtrar por «anulación» no encontraba ninguna anulación**. No se reescribe lo guardado, que es correcto: el filtro agrupa las dos formas. **73 pruebas** y los dos `.sql` regenerados. **Queda AG-03** —reasignar en bloque las citas de un profesional dado de baja— e **IN-03**, que es decisión de alcance |
 | 7.22.0 | 15/08/2026 | **La plata que sale del salón por fin toca el arqueo** (CJ-02 y FA-02). Los dos hallazgos son el mismo agujero visto de dos lados: **se devolvía o se pagaba en el mostrador y la caja no se enteraba**, así que un salón que devuelve o liquida todos los meses cierra con faltante sin saber por qué. **CJ-02**: `fn_caja_saldo` sumaba el inicial, los cobros en efectivo y `movimiento_caja`, y restaba los pagos a proveedores — **el pago al personal no estaba, ni podía estar**: `pago_personal` no guardaba ni la caja ni el medio de pago, al revés que `pago_proveedor`, que los tiene desde siempre. Se liquidaron **Gs. 1.868.250 en 90 días sin un solo egreso registrado**. El modelo no se inventó: se copió el de `pago_proveedor`, con las dos columnas NULL-ables porque una liquidación vieja no puede adivinar con qué se pagó. Ahora la pantalla pregunta el medio, el arqueo resta **sólo lo que salió en efectivo** —lo que sale por transferencia no toca el cajón, igual que al entrar—, `vw_caja_resumen` lo expone separado en tres columnas y **no se deja pagar en efectivo más de lo que hay en el cajón**, que es la regla que ya tenía el proveedor. **FA-02**: `sp_emitir_nota_credito` crea el comprobante, copia el detalle y ahí termina — ni cobro negativo, ni anulación del original, ni egreso. Ahora la devolución sale de la caja **por lo que la clienta había pagado en efectivo**, que es lo único que estaba en el cajón; si pagó con tarjeta se le devuelve por el mismo camino y el arqueo no se toca, y el aviso lo dice en vez de callarse. Va como `movimiento_caja`, la tabla del movimiento manual que `fn_caja_saldo` ya restaba y que **no escribía nadie**: cero filas en los 90 días. Comprobado con las dos: en efectivo el arqueo baja de Gs. 300.000 a 130.500, por banco queda en 300.000. **72 pruebas** y los dos `.sql` regenerados. **Queda sin hacer** la pantalla de `movimiento_caja` para cargar un gasto de caja chica o un retiro a mano, que el informe pide como «lo completo» de CJ-02 |
 | 7.21.1 | 15/08/2026 | **El panel le mostraba a cualquiera cuánto facturó el salón** (SE-01 del informe). Es la misma fuga que la 7.13.1 corrigió para la barra de caja, y quedó a medias: se arregló la barra y **las cuatro métricas de al lado siguieron calculándose sin filtrar**, con la vista dibujándolas siempre. Una empleada entraba y veía los ingresos del día, la cantidad de clientes y cuántos productos faltan. Ahora cada número se calcula **sólo si el rol tiene el módulo del que sale** —`clientes.registro`, `inventario.stock`, `facturacion.cobros`— y la vista no dibuja lo que llega en NULL: un NULL ahí no es un cero, es «esto no es tuyo». Las citas siguen la regla de siempre, `Permisos::veTodaLaAgenda()`, y **el rótulo lo dice**: «Citas de hoy» para quien administra la agenda, «Mis citas de hoy» para el resto. **71 pruebas** |
@@ -2163,10 +2164,35 @@ Seis cosas que hay que saber antes de tocarlas:
 ## Fuera de alcance del TCC
 
 Pasarelas de pago, app móvil nativa (se cubre con el navegador responsivo),
-**notas de débito** (descartadas por el usuario) y **SMS / WhatsApp**, que quedaron
+**notas de débito** (descartadas por el usuario), **la venta de productos**
+(descartada por el usuario el 15/08/2026) y **SMS / WhatsApp**, que quedaron
 **en pausa por decisión del usuario**: se encienden cargando credenciales de un proveedor.
 Mientras no haya canal de celular, el **correo es obligatorio en el registro**, porque una cuenta creada solo
 con celular nunca recibiría su código.
+
+### La venta de productos: qué queda en el modelo y por qué
+
+El salón **no vende productos, sólo los consume atendiendo**. El modelo, en cambio, tiene
+todo listo para venderlos, y eso fue el hallazgo **IN-03** de la simulación de 90 días: en
+tres meses no se facturó ni un producto porque **no hay pantalla que lo haga**.
+
+Estas cuatro piezas existen y **no las usa nadie**:
+
+| Pieza | Qué haría |
+|---|---|
+| `producto.precio_venta` | a cuánto se vendería. Se carga en el alta del producto y sólo se muestra |
+| `detalle_factura.id_producto` | el renglón de una factura que es un producto y no un servicio |
+| Tipo de movimiento **7**, «Venta de producto» | la salida de stock que genera esa venta |
+| `trg_detfactura_ai` | el disparador que la generaría |
+
+**Se dejan donde están, no se borran**, por el mismo motivo que
+`sp_generar_recordatorios`: el documento del TCC informa la cantidad de tablas, disparadores y
+rutinas, y bajarla para sacar algo que no molesta es peor negocio que documentarlo. Lo que sí
+hace falta es **decirlo acá**, para que el modelo no prometa lo que la pantalla no da.
+
+> **El formulario del producto sigue pidiendo «Precio de venta».** No hace daño —es un dato
+> de referencia y no dispara nada—, pero si el salón nunca va a vender, ese campo es una
+> promesa de más y conviene sacarlo de la pantalla. Queda a decisión del usuario.
 
 **Tres cosas se implementaron aunque excedían el alcance declarado, y conviene justificarlas
 en el documento del TCC**: multisucursal, facturación y —desde la 7.0.0, a pedido expreso—
