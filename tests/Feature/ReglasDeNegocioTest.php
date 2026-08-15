@@ -1196,6 +1196,48 @@ class ReglasDeNegocioTest extends TestCase
             'Y el stock no se toca.');
     }
 
+    /**
+     * SE-01: el panel no le muestra a cualquiera la plata del salón.
+     *
+     * Las cuatro métricas se calculaban sin filtrar y la vista las dibujaba
+     * siempre; sólo la barra de caja estaba protegida. Una empleada entraba y
+     * veía **cuánto facturó el salón hoy**, cuántas citas hay en total y
+     * cuántos productos faltan. Es la misma fuga que la 7.13.1 corrigió para la
+     * barra: se arregló la barra y quedaron las métricas de al lado.
+     */
+    #[Test]
+    public function el_panel_muestra_solo_los_numeros_del_modulo_que_cada_rol_tiene(): void
+    {
+        $rolProf = 2;
+        $uid = (int) DB::scalar(
+            'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1', [$rolProf]
+        ) ?: 999999;
+
+        // Se le saca todo lo que no es suyo, que es lo que el salón haría en
+        // Seguridad → Roles. La transacción de la prueba lo devuelve.
+        DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo IN
+                    ('facturacion','facturacion.cobros','facturacion.caja','inventario','inventario.stock')", [$rolProf]);
+
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        $panel = $this->get(route('panel'))->assertOk();
+
+        $panel->assertDontSee('Ingresos de hoy')
+              ->assertDontSee('Productos bajo stock');
+
+        // Y lo que sí es suyo se sigue viendo, con el rótulo que corresponde:
+        // no son «las citas de hoy», son las suyas.
+        $panel->assertSee('Mis citas de hoy');
+
+        // El Administrador ve todo, que es el otro lado de la misma regla.
+        $admin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
+            [(int) config('permisos.rol_admin', 1)]);
+        session(['uid' => $admin, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false]);
+        $this->get(route('panel'))->assertOk()
+             ->assertSee('Ingresos de hoy')
+             ->assertSee('Citas de hoy');
+    }
+
     #[Test]
     public function la_agenda_ofrece_cobrar_la_sena_cuando_hay_caja_abierta(): void
     {

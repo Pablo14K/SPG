@@ -31,23 +31,32 @@
         </div>
     @endif
 
+    {{-- Cada número se dibuja sólo si el controlador lo calculó, y lo calcula
+         sólo para quien tiene el módulo del que sale. Un `null` acá no es un
+         cero: es «esto no es tuyo». --}}
     <div class="spg-metrics mt-3">
         <div class="spg-metric">
-            <div class="lbl">Citas de hoy</div>
+            <div class="lbl">{{ $verTodo ? 'Citas de hoy' : 'Mis citas de hoy' }}</div>
             <div class="val">{{ $m['citas_hoy'] }}</div>
         </div>
-        <div class="spg-metric">
-            <div class="lbl">Clientes activos</div>
-            <div class="val">{{ $m['clientes'] }}</div>
-        </div>
-        <div class="spg-metric">
-            <div class="lbl">Productos bajo stock</div>
-            <div class="val">{{ $m['bajo_stock'] }}</div>
-        </div>
-        <div class="spg-metric">
-            <div class="lbl">Ingresos de hoy</div>
-            <div class="val oro">{{ money($m['ingresos_hoy']) }}</div>
-        </div>
+        @if ($m['clientes'] !== null)
+            <div class="spg-metric">
+                <div class="lbl">Clientes activos</div>
+                <div class="val">{{ $m['clientes'] }}</div>
+            </div>
+        @endif
+        @if ($m['bajo_stock'] !== null)
+            <div class="spg-metric">
+                <div class="lbl">Productos bajo stock</div>
+                <div class="val">{{ $m['bajo_stock'] }}</div>
+            </div>
+        @endif
+        @if ($m['ingresos_hoy'] !== null)
+            <div class="spg-metric">
+                <div class="lbl">Ingresos de hoy</div>
+                <div class="val oro">{{ money($m['ingresos_hoy']) }}</div>
+            </div>
+        @endif
     </div>
 
     {{-- Las tarjetas son el segundo nivel de navegación: qué hay dentro de
