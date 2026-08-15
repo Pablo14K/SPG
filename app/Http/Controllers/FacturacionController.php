@@ -121,14 +121,24 @@ class FacturacionController extends Controller
             $par['h'] = Listado::valor($f, 'hasta');
         }
 
+        // **Si esa venta ya fue acreditada** (FA-04). No se guarda: se deduce de
+        // que exista una nota de crédito vigente apuntándole, que es lo que pide
+        // la 3FN. Sin esto, el comprobante acreditado quedaba idéntico a
+        // cualquier otro —«Emitida», saldo 0— y nada decía que la venta se
+        // había devuelto: sólo se sabía entrando al comprobante.
+        $acreditada = '(SELECT COUNT(*) FROM factura n
+                          WHERE n.id_factura_origen = v.id_factura
+                            AND n.id_estado_factura = 1) AS acreditada';
+
         $desde = 'FROM vw_factura_resumen v WHERE ' . implode(' AND ', $w);
 
         if (Listado::pideExport()) {
             return Listado::exportar('facturas',
                 ['Nº', 'Fecha', 'Cliente', 'Comprobante', 'Total', 'Cobrado', 'Saldo', 'Estado'],
                 array_map(fn ($r) => [$r->nro_comprobante, fecha($r->fecha_emision, 'd/m/Y H:i'), $r->cliente,
-                    $r->tipo_comprobante, $r->total, $r->cobrado, $r->saldo, $r->estado],
-                    DB::select("SELECT * $desde ORDER BY v.fecha_emision DESC", $par)),
+                    $r->tipo_comprobante, $r->total, $r->cobrado, $r->saldo,
+                    $r->acreditada ? $r->estado . ' (acreditada)' : $r->estado],
+                    DB::select("SELECT *, $acreditada $desde ORDER BY v.fecha_emision DESC", $par)),
                 $f, 'Facturas'
             );
         }
@@ -138,7 +148,7 @@ class FacturacionController extends Controller
         // `vw_factura_resumen` ya trae el signo: sirve para no ofrecer «Cobrar»
         // sobre una nota de crédito, que no se cobra.
         return view('facturacion.facturas', [
-            'rows' => DB::select("SELECT * $desde ORDER BY v.fecha_emision DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => DB::select("SELECT *, $acreditada $desde ORDER BY v.fecha_emision DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             // El `tipo` decide qué datos extra se piden (tarjeta / banco / cheque)
             'metodos' => DB::select('SELECT id_metodo_pago, nombre, tipo FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago'),
             'caja' => Caja::abierta(),

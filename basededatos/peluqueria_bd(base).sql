@@ -4260,7 +4260,26 @@ DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cancelar_cita`(IN p_id_cita INT UNSIGNED)
 BEGIN
   DECLARE v_cliente INT UNSIGNED DEFAULT NULL;
-  SELECT id_cliente INTO v_cliente FROM cita WHERE id_cita = p_id_cita;
+  DECLARE v_estado  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_lock    INT UNSIGNED DEFAULT NULL;
+
+  SELECT id_cita INTO v_lock FROM cita WHERE id_cita = p_id_cita FOR UPDATE;
+
+  SELECT id_cliente, id_estado_cita INTO v_cliente, v_estado
+    FROM cita WHERE id_cita = p_id_cita;
+
+  IF v_estado IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cita no existe.';
+  END IF;
+
+  IF v_estado = 3 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya estaba cancelada.';
+  END IF;
+
+  
+  IF v_estado = 4 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya fue atendida, asi que no se puede cancelar.';
+  END IF;
 
   UPDATE cita SET id_estado_cita = 3 WHERE id_cita = p_id_cita;
 
@@ -4795,29 +4814,43 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_reprogramar_cita`(
-                IN p_id_cita     INT UNSIGNED,
-                IN p_nueva_fecha DATETIME)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_reprogramar_cita`(IN p_id_cita INT UNSIGNED, IN p_nueva_fecha DATETIME)
 BEGIN
-              DECLARE v_usuario INT UNSIGNED DEFAULT NULL;
-              DECLARE v_lock    INT UNSIGNED;
+  DECLARE v_usuario INT UNSIGNED DEFAULT NULL;
+  DECLARE v_estado  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_lock    INT UNSIGNED;
 
-              SELECT id_usuario INTO v_usuario FROM cita WHERE id_cita = p_id_cita;
+  
+  
+  SELECT id_cita INTO v_lock FROM cita WHERE id_cita = p_id_cita FOR UPDATE;
 
-              IF v_usuario IS NULL THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cita no existe.';
-              END IF;
+  SELECT id_usuario, id_estado_cita INTO v_usuario, v_estado
+    FROM cita WHERE id_cita = p_id_cita;
 
-              -- Mismo candado: reprogramar también compite por un hueco
-              SELECT id_usuario INTO v_lock FROM usuario
-               WHERE id_usuario = v_usuario FOR UPDATE;
+  IF v_usuario IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cita no existe.';
+  END IF;
 
-              IF fn_verificar_disponibilidad(v_usuario, p_nueva_fecha, fn_cita_duracion(p_id_cita), p_id_cita) = 0 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en el nuevo horario.';
-              END IF;
+  
+  
+  IF v_estado = 3 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita fue cancelada, asi que no se puede reprogramar.';
+  END IF;
 
-              UPDATE cita SET fecha_hora = p_nueva_fecha, id_estado_cita = 2 WHERE id_cita = p_id_cita;
-            END ;;
+  IF v_estado = 4 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya fue atendida, asi que no se puede reprogramar.';
+  END IF;
+
+  
+  SELECT id_usuario INTO v_lock FROM usuario
+   WHERE id_usuario = v_usuario FOR UPDATE;
+
+  IF fn_verificar_disponibilidad(v_usuario, p_nueva_fecha, fn_cita_duracion(p_id_cita), p_id_cita) = 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en el nuevo horario.';
+  END IF;
+
+  UPDATE cita SET fecha_hora = p_nueva_fecha, id_estado_cita = 2 WHERE id_cita = p_id_cita;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -5163,4 +5196,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 15:02:42
+-- Dump completed on 2026-08-15 15:40:25

@@ -140,10 +140,6 @@ class Notificaciones
     }
 
     /**
-     * Recordatorios, con la anticipación que eligió cada clienta (1 día por
-     * defecto). No se repite: se saltean las citas que ya tienen uno.
-     */
-    /**
      * Tira el recordatorio de esa cita si todavía no salió.
      *
      * Lo llama `Agenda::reprogramar()`. `generarRecordatorios()` saltea toda
@@ -162,6 +158,10 @@ class Notificaciones
         );
     }
 
+    /**
+     * Recordatorios, con la anticipación que eligió cada clienta (1 día por
+     * defecto). No se repite: se saltean las citas que ya tienen uno.
+     */
     public static function generarRecordatorios(): int
     {
         $citas = DB::select(
@@ -192,7 +192,7 @@ class Notificaciones
     //  Despacho de la cola
     // -----------------------------------------------------------------
 
-    /** @return array{enviadas:int, fallidas:int, sin_correo:int} */
+    /** @return array{enviadas:int, fallidas:int, sin_correo:int, sin_destinatario:int} */
     public static function despachar(int $max = self::POR_PASADA): array
     {
         $res = ['enviadas' => 0, 'fallidas' => 0, 'sin_correo' => 0];
@@ -241,6 +241,26 @@ class Notificaciones
                 $res['fallidas']++;
             }
         }
+
+        // **Lo que este despachador no va a tomar nunca, se cierra** (NO-02).
+        //
+        // La consulta de arriba sólo toma los avisos de destinatario CLIENTE
+        // con `id_cliente` cargado. El que no cumple eso no se manda ni se
+        // marca: se queda en PENDIENTE para siempre y la cola no se vacía nunca
+        // del todo —quedó uno de 1.091 en la simulación de 90 días—.
+        //
+        // No es que se pierda un aviso: es que **ese aviso no tiene a quién
+        // mandárselo**. Marcarlo FALLIDA dice exactamente eso y saca el ruido
+        // de la cola, que si no deja de servir para ver si algo anda mal.
+        // Se le da un día de gracia por si el dato se completa después.
+        $res['sin_destinatario'] = DB::update(
+            "UPDATE notificacion n
+                JOIN tipo_notificacion tn ON tn.id_tipo_notificacion = n.id_tipo_notificacion
+               SET n.estado = 'FALLIDA', n.fecha_envio = NOW()
+             WHERE n.estado = 'PENDIENTE'
+               AND n.fecha_generacion < DATE_SUB(NOW(), INTERVAL 1 DAY)
+               AND (tn.destinatario <> 'CLIENTE' OR n.id_cliente IS NULL)"
+        );
 
         return $res;
     }

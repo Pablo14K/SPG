@@ -53,6 +53,12 @@
             <tr><td>Ausencias</td><td class="text-end">{{ (int) $citas->ausencias }}</td></tr>
             <tr><td><strong>Ingresos cobrados</strong></td>
                 <td class="text-end"><strong>{{ money($ingresos) }}</strong></td></tr>
+            @if ($devoluciones > 0)
+                <tr><td>Devuelto por notas de crédito</td>
+                    <td class="text-end">− {{ money($devoluciones) }}</td></tr>
+                <tr><td><strong>Ingreso neto</strong></td>
+                    <td class="text-end"><strong>{{ money($ingresos - $devoluciones) }}</strong></td></tr>
+            @endif
             <tr><td>Ticket promedio</td><td class="text-end">{{ money($ticket) }}</td></tr>
         </tbody>
     </table>
@@ -147,7 +153,7 @@
 
     <p class="text-muted-warm mt-4" style="font-size:.72rem">
         {{ config('app.name') }} · Sistema de gestión v{{ config('spg.version') }} ·
-        Los ingresos corresponden a cobros registrados en el período.
+        Los ingresos corresponden a cobros registrados en el período; lo devuelto, a las notas de crédito emitidas en él.
     </p>
 </div>
 

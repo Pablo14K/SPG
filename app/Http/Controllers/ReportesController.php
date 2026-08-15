@@ -160,6 +160,30 @@ class ReportesController extends Controller
                     WHERE ' . implode(' AND ', $wCob);
 
         $ingresos = (float) DB::scalar("SELECT COALESCE(SUM(co.monto),0) $joinCob", $parC);
+
+        // **Lo devuelto por notas de crédito** (FA-04). Los ingresos salen de
+        // los cobros, y una nota de crédito no genera un cobro negativo: sin
+        // esta línea, una venta acreditada se seguía contando entera y el
+        // informe decía que entró plata que se devolvió.
+        //
+        // Se mide por el total de las notas vigentes del período. No se resta
+        // en silencio: se muestra aparte y con el neto al lado, porque «cuánto
+        // se cobró» y «cuánto se devolvió» son dos números que el salón quiere
+        // ver por separado.
+        $wDev = ['DATE(f.fecha_emision) BETWEEN :d AND :h', 'f.id_estado_factura = 1', 'tc.signo = -1'];
+        $parD = ['d' => $d, 'h' => $h];
+        if ($prof !== '') {
+            $wDev[] = 'cd.id_usuario = :p';
+            $parD['p'] = (int) $prof;
+        }
+        $devoluciones = (float) DB::scalar(
+            'SELECT COALESCE(SUM(fn_factura_total(f.id_factura)),0)
+               FROM factura f
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+               LEFT JOIN cita cd ON cd.id_cita = f.id_cita
+              WHERE ' . implode(' AND ', $wDev), $parD
+        );
+
         $atendidas = (int) $citas->atendidas;
 
         $demanda = DB::select(
@@ -197,6 +221,7 @@ class ReportesController extends Controller
             'hasta' => $h,
             'citas' => $citas,
             'ingresos' => $ingresos,
+            'devoluciones' => $devoluciones,
             'ticket' => $atendidas > 0 ? $ingresos / $atendidas : 0.0,
             'servicios' => DB::select(
                 'SELECT s.nombre AS servicio, cs.nombre AS categoria,

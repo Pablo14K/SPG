@@ -45,6 +45,11 @@ class DespacharNotificaciones extends Command
         $this->line("  recordatorios nuevos: $nuevos");
         $this->line("  avisos internos cerrados: $cerrados");
         $this->line("  enviados: {$r['enviadas']} · fallidos: {$r['fallidas']} · sin correo: {$r['sin_correo']}");
+        if ($r['sin_destinatario'] > 0) {
+            // Los que este despachador no iba a tomar nunca y quedaban en
+            // PENDIENTE para siempre, ensuciando la cola (NO-02).
+            $this->line("  cerrados por no tener destinatario: {$r['sin_destinatario']}");
+        }
 
         // Un fallo de envío no es un fallo del comando: la fila queda en
         // PENDIENTE y se reintenta en la próxima pasada. Si devolviera error, el

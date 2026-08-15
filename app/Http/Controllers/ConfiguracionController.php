@@ -464,9 +464,42 @@ class ConfiguracionController extends Controller
             return ['' => 'Todos'] + array_combine($vals, $vals);
         };
 
+        // **Dos vocabularios escriben en `auditoria`, y hay que buscarlos
+        // juntos** (AU-01). Los controladores escriben el sustantivo
+        // —`CANCELACION`, `EMISION`— y los disparadores de la base el verbo:
+        // `trg_factura_au` y compañía anotan `ANULAR` y `REVERTIR`. El
+        // resultado era que **filtrar por «anulación» no encontraba ninguna
+        // anulación**: las 5 de cobro figuraban como `ANULAR`.
+        //
+        // No se reescribe lo que ya está guardado —el rastro es correcto, sólo
+        // usa otra palabra— sino que el filtro busca las dos formas.
+        $sinonimos = [
+            'ANULACION' => ['ANULACION', 'ANULAR'],
+            'REVERSION' => ['REVERSION', 'REVERTIR'],
+        ];
+        $agrupada = [];
+        foreach ($sinonimos as $canon => $formas) {
+            foreach ($formas as $forma) {
+                $agrupada[$forma] = $canon;
+            }
+        }
+
+        $opcAccion = function () use ($opc, $agrupada): array {
+            $out = ['' => 'Todos'];
+            foreach ($opc('accion') as $v => $etiqueta) {
+                if ($v === '') {
+                    continue;
+                }
+                $canon = $agrupada[$v] ?? $v;
+                $out[$canon] = $canon;   // las dos formas caen en la misma opción
+            }
+
+            return $out;
+        };
+
         $f = Listado::filtros([
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Detalle, tabla o usuario', 'ancho' => '250px'],
-            'accion' => ['tipo' => 'select', 'etiqueta' => 'Acción', 'opciones' => $opc('accion')],
+            'accion' => ['tipo' => 'select', 'etiqueta' => 'Acción', 'opciones' => $opcAccion()],
             'modulo' => ['tipo' => 'select', 'etiqueta' => 'Módulo', 'opciones' => $opc('modulo')],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
@@ -480,8 +513,18 @@ class ConfiguracionController extends Controller
                 Listado::valor($f, 'q'), 'q', $par);
         }
         if (Listado::hay($f, 'accion')) {
-            $w[] = 'a.accion = :ac';
-            $par['ac'] = Listado::valor($f, 'accion');
+            // Si la acción elegida tiene sinónimo, se buscan las dos formas:
+            // «Anulación» tiene que encontrar también lo que los disparadores
+            // anotaron como ANULAR.
+            $elegida = (string) Listado::valor($f, 'accion');
+            $formas = $sinonimos[$elegida] ?? [$elegida];
+
+            $marcas = [];
+            foreach (array_values($formas) as $i => $forma) {
+                $marcas[] = ":ac$i";
+                $par["ac$i"] = $forma;
+            }
+            $w[] = 'a.accion IN (' . implode(',', $marcas) . ')';
         }
         if (Listado::hay($f, 'modulo')) {
             $w[] = 'a.modulo = :mo';

@@ -44,7 +44,15 @@
                                     <span class="txt-ok">saldada</span>
                                 @endif
                             </td>
-                            <td>{!! estado_badge($r->estado) !!}</td>
+                            <td>
+                                {!! estado_badge($r->estado) !!}
+                                {{-- Una venta acreditada se ve igual que cualquier otra —«Emitida»,
+                                     saldo 0—, así que sin este sello no había forma de saber que
+                                     se había devuelto sin entrar al comprobante. --}}
+                                @if ((int) $r->acreditada)
+                                    <span class="badge-estado e-no" title="Tiene una nota de crédito emitida">acreditada</span>
+                                @endif
+                            </td>
                             <td class="text-end" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Ver el comprobante"
                                    href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">

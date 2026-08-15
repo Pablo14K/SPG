@@ -75,6 +75,18 @@
             <div class="val">{{ (int) $citas->canceladas }} / {{ (int) $citas->ausencias }}</div>
         </div>
         <div class="spg-metric"><div class="lbl">Ingresos cobrados</div><div class="val oro">{{ money($ingresos) }}</div></div>
+        {{-- Lo devuelto sólo se muestra si hubo devoluciones: un «Gs. 0» fijo
+             sería ruido en la pantalla de un salón que no devuelve nunca. --}}
+        @if ($devoluciones > 0)
+            <div class="spg-metric">
+                <div class="lbl">Devuelto (notas de crédito)</div>
+                <div class="val txt-no">− {{ money($devoluciones) }}</div>
+            </div>
+            <div class="spg-metric">
+                <div class="lbl">Ingreso neto</div>
+                <div class="val oro">{{ money($ingresos - $devoluciones) }}</div>
+            </div>
+        @endif
         <div class="spg-metric"><div class="lbl">Ticket promedio</div><div class="val">{{ money($ticket) }}</div></div>
     </div>
 

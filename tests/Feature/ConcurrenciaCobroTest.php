@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Servicios\Agenda;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -45,6 +46,9 @@ class ConcurrenciaCobroTest extends TestCase
     /** @var list<int> */
     private array $movimientosCreados = [];
 
+    /** @var list<int> */
+    private array $citasCreadas = [];
+
     /**
      * Cajas que estaban abiertas antes de la prueba y hay que devolver así.
      *
@@ -71,6 +75,11 @@ class ConcurrenciaCobroTest extends TestCase
         foreach ($this->movimientosCreados as $id) {
             DB::delete('DELETE FROM movimiento_inventario WHERE id_movimiento = ?', [$id]);
         }
+        foreach ($this->citasCreadas as $id) {
+            DB::delete('DELETE FROM cita_servicio WHERE id_cita = ?', [$id]);
+            DB::delete('DELETE FROM notificacion WHERE id_cita = ?', [$id]);
+            DB::delete('DELETE FROM cita WHERE id_cita = ?', [$id]);
+        }
 
         // El salón vuelve a quedar con la caja que tenía abierta.
         if ($this->cajasQueEstabanAbiertas) {
@@ -83,6 +92,7 @@ class ConcurrenciaCobroTest extends TestCase
         $this->cobrosCreados = [];
         $this->cajasCreadas = [];
         $this->movimientosCreados = [];
+        $this->citasCreadas = [];
         $this->cajasQueEstabanAbiertas = [];
 
         parent::tearDown();
@@ -245,6 +255,97 @@ class ConcurrenciaCobroTest extends TestCase
             }
             $this->movimientosCreados = array_values(array_diff($this->movimientosCreados, $nuevos));
         }
+    }
+
+    /**
+     * AG-04: cancelar y reprogramar a la vez no puede perder la cancelación.
+     *
+     * Las dos acciones leían el estado y escribían sin candado sobre la cita,
+     * así que ganaba la última en confirmar: la cita quedaba **Reprogramada
+     * aunque la cancelación se hubiera registrado en la auditoría**. La clienta
+     * cree que canceló, el horario sigue ocupado y alguien la va a esperar.
+     *
+     * Lo que se exige acá no es que gane una en particular —las dos llegaron a
+     * la vez y cualquiera puede ganar—: es que **el resultado sea coherente con
+     * lo que el sistema contestó**. Si la cancelación dijo que sí, la cita
+     * quedó cancelada; si dijo que no, quedó reprogramada.
+     */
+    #[Test]
+    public function cancelar_y_reprogramar_a_la_vez_no_pierde_la_cancelacion(): void
+    {
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario
+              WHERE u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY duracion_min LIMIT 1');
+        if (! $cliente || ! $prof || ! $servicio) {
+            $this->markTestSkipped('Falta un cliente, un profesional con turno o un servicio.');
+        }
+
+        $dur = Agenda::duracion([$servicio]);
+
+        for ($ronda = 1; $ronda <= self::RONDAS; $ronda++) {
+            // Una cita nueva por ronda, y un hueco al que mover la reprogramación.
+            $huecos = $this->dosHuecos($prof, $dur);
+            if ($huecos === null) {
+                $this->markTestSkipped('El profesional no tiene dos huecos libres.');
+            }
+            [$donde, $adonde] = $huecos;
+
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+                [$cliente, $prof, 1, $donde]);
+            $idCita = (int) DB::getPdo()->lastInsertId();
+            DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $servicio]);
+            $this->citasCreadas[] = $idCita;
+
+            $largada = microtime(true) + 2.5;
+            $salidas = $this->enParalelo(base_path('tests/cancelar_o_reprogramar.php'), [
+                [$idCita, 'cancelar', $donde],
+                [$idCita, 'reprogramar', $adonde],
+            ], $largada);
+
+            $cancelo = (bool) array_filter($salidas, fn ($s) => str_starts_with($s, 'OK cancelar'));
+            $estado = (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]);
+
+            if ($cancelo) {
+                $this->assertSame(3, $estado,
+                    "Ronda $ronda: la cancelación dijo que sí y la cita no quedó cancelada. "
+                    . 'La clienta cree que canceló y el horario sigue ocupado. '
+                    . 'Salidas: ' . implode(' | ', $salidas));
+            } else {
+                $this->assertNotSame(3, $estado,
+                    "Ronda $ronda: la cancelación falló pero la cita quedó cancelada igual. "
+                    . 'Salidas: ' . implode(' | ', $salidas));
+            }
+        }
+    }
+
+    /**
+     * Dos horarios libres de ese profesional: uno donde nace la cita y otro
+     * al que la reprogramación la quiere mover.
+     *
+     * @return array{0:string,1:string}|null
+     */
+    private function dosHuecos(int $profesional, int $duracion): ?array
+    {
+        $encontrados = [];
+        $desde = date('Y-m-d', strtotime(ahora_bd('Y-m-d') . ' +1 day'));
+
+        foreach (Agenda::diasConCupo($profesional, $desde, 21, $duracion) as $dia) {
+            foreach (Agenda::slotsProfesional($profesional, $dia, $duracion) as $hora) {
+                $fechaHora = $dia . ' ' . substr($hora, 0, 5) . ':00';
+                if (Agenda::huecoLibre($profesional, $fechaHora, $duracion)) {
+                    $encontrados[] = $fechaHora;
+                    if (count($encontrados) === 2) {
+                        return [$encontrados[0], $encontrados[1]];
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /** @return list<int> */

@@ -620,8 +620,24 @@ class Agenda
         });
     }
 
+    /**
+     * Cancela la cita.
+     *
+     * **Va en transacción, y no es un adorno** (AG-04). `sp_cancelar_cita` toma
+     * un candado sobre la fila de la cita antes de mirar su estado, y un
+     * candado sólo dura hasta el commit: sin transacción propia se suelta al
+     * instante y no serializa nada. Cancelar y reprogramar a la vez se pisaban
+     * —ganaba la última en confirmar— y la cita quedaba Reprogramada aunque la
+     * cancelación se hubiera registrado: la clienta cree que canceló, el
+     * horario sigue ocupado y alguien la va a esperar.
+     *
+     * Es la misma razón por la que `agendar()` y `reprogramar()` la abren. Si
+     * agregás otro camino que cancele, hacelo pasar por acá.
+     */
     public static function cancelar(int $idCita): void
     {
-        Bd::procedimiento('sp_cancelar_cita', [$idCita]);
+        Bd::enTransaccion(function () use ($idCita) {
+            Bd::procedimiento('sp_cancelar_cita', [$idCita]);
+        });
     }
 }
