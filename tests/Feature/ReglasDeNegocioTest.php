@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Servicios\Agenda;
 use App\Servicios\Bd;
+use App\Servicios\Canje;
 use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
 use App\Servicios\Permisos;
@@ -1447,6 +1448,133 @@ class ReglasDeNegocioTest extends TestCase
         foreach (['Usuarios', 'Roles', 'Turnos', 'Auditoría'] as $pantalla) {
             $this->assertStringContainsString($pantalla, $sub);
         }
+    }
+
+    /**
+     * El canje de puntos, de punta a punta.
+     *
+     * El programa de fidelización sólo sumaba: en 90 días se acumularon 1.414
+     * puntos y **no había forma de gastarlos** (IN-03). Lo que esta prueba fija
+     * es el circuito entero, porque cada pedazo por separado no dice nada:
+     * canjear descuenta puntos, el canje vence, se usa en una cita, y el
+     * servicio canjeado **va a cero en el comprobante**.
+     */
+    #[Test]
+    public function canjear_puntos_descuenta_y_el_servicio_no_se_cobra(): void
+    {
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $prof = (int) DB::scalar('SELECT u.id_usuario FROM usuario u
+                                    JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario LIMIT 1');
+        $servicios = DB::select('SELECT id_servicio, nombre, precio FROM servicio WHERE activo = 1
+                                  ORDER BY precio DESC LIMIT 2');
+        if (! $cliente || ! $prof || count($servicios) < 2) {
+            $this->markTestSkipped('Falta un cliente, un profesional con turno o dos servicios.');
+        }
+        [$regalado, $pagado] = $servicios;
+
+        // El salón publica el canje y la clienta junta puntos.
+        DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
+            [$regalado->id_servicio, 50, 30]);
+        DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)', [$cliente, 'AJUSTE', 500, 'prueba']);
+
+        $antes = Canje::puntos($cliente);
+        $idCanje = Canje::canjear($cliente, (int) $regalado->id_servicio);
+
+        $this->assertSame($antes - 50, Canje::puntos($cliente), 'El canje tiene que descontar los puntos.');
+        $this->assertSame('DISPONIBLE', DB::scalar('SELECT fn_canje_estado(?)', [$idCanje]));
+
+        // La vigencia se cuenta desde el canje, no desde una fecha fija.
+        $this->assertSame(date('Y-m-d', strtotime('+30 days')),
+            (string) DB::scalar('SELECT vence_en FROM canje WHERE id_canje = ?', [$idCanje]),
+            'La vigencia corre desde el día del canje.');
+
+        // Sin puntos suficientes no se puede: se le vacía el saldo.
+        DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)',
+            [$cliente, 'AJUSTE', -Canje::puntos($cliente), 'prueba']);
+        try {
+            Canje::canjear($cliente, (int) $regalado->id_servicio);
+            $this->fail('Sin puntos no se puede canjear.');
+        } catch (Throwable $e) {
+            $this->assertStringContainsString('alcanzan', $e->getMessage());
+        }
+
+        // Se usa en una cita…
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,4,NOW())',
+            [$cliente, $prof]);
+        $idCita = (int) DB::getPdo()->lastInsertId();
+        foreach ([$regalado, $pagado] as $s) {
+            DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)',
+                [$idCita, $s->id_servicio]);
+        }
+        $this->assertSame(1, Canje::aplicarACita([$idCanje], $idCita, $cliente));
+        $this->assertSame('USADO', DB::scalar('SELECT fn_canje_estado(?)', [$idCanje]));
+
+        // …y el comprobante lo NOMBRA pero no lo cobra.
+        $idFactura = Bd::idDe('sp_emitir_factura', [$cliente, $idCita, $prof, 1, 1]);
+        $renglones = DB::select(
+            'SELECT df.id_servicio, df.precio_unitario FROM detalle_factura df WHERE df.id_factura = ?', [$idFactura]
+        );
+        $this->assertCount(2, $renglones,
+            'El servicio canjeado tiene que constar en el comprobante: se hizo, aunque no se cobre.');
+
+        $porServicio = [];
+        foreach ($renglones as $r) {
+            $porServicio[(int) $r->id_servicio] = (float) $r->precio_unitario;
+        }
+        $this->assertEqualsWithDelta(0, $porServicio[(int) $regalado->id_servicio], 0.01,
+            'El servicio canjeado va a cero.');
+        $this->assertEqualsWithDelta((float) $pagado->precio, $porServicio[(int) $pagado->id_servicio], 0.01,
+            'El que no se canjeó se cobra normal.');
+    }
+
+    /**
+     * Un canje no se puede gastar dos veces, ni gastarle el canje a otra.
+     */
+    #[Test]
+    public function el_canje_es_de_quien_lo_hizo_y_se_usa_una_sola_vez(): void
+    {
+        $clientes = array_map(fn ($c) => (int) $c->id_cliente,
+            DB::select('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 2'));
+        $prof = (int) DB::scalar('SELECT u.id_usuario FROM usuario u
+                                    JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario LIMIT 1');
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
+        if (count($clientes) < 2 || ! $prof || ! $servicio) {
+            $this->markTestSkipped('Faltan dos clientes, un profesional con turno o un servicio.');
+        }
+
+        DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
+            [$servicio, 10, 30]);
+        DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)', [$clientes[0], 'AJUSTE', 100, 'prueba']);
+        $idCanje = Canje::canjear($clientes[0], $servicio);
+
+        $cita = function (int $cliente) use ($prof): int {
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+                [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+5 hours'))]);
+
+            return (int) DB::getPdo()->lastInsertId();
+        };
+
+        // **La otra clienta no puede usarlo**, aunque mande el id a mano.
+        $ajena = $cita($clientes[1]);
+        $this->assertSame(0, Canje::aplicarACita([$idCanje], $ajena, $clientes[1]),
+            'El canje es de quien lo hizo: con el id suelto no se le gasta a otra persona.');
+
+        // La dueña sí, y una sola vez.
+        $propia = $cita($clientes[0]);
+        $this->assertSame(1, Canje::aplicarACita([$idCanje], $propia, $clientes[0]));
+
+        $otra = $cita($clientes[0]);
+        $this->assertSame(0, Canje::aplicarACita([$idCanje], $otra, $clientes[0]),
+            'Un canje ya usado no se puede volver a usar.');
+
+        // Al cancelar la cita vuelve a estar disponible, **sin devolver puntos**:
+        // no los perdió, sigue teniendo el canje.
+        $puntos = Canje::puntos($clientes[0]);
+        Agenda::cancelar($propia);
+        $this->assertSame('DISPONIBLE', DB::scalar('SELECT fn_canje_estado(?)', [$idCanje]),
+            'Cancelar la cita devuelve el canje.');
+        $this->assertSame($puntos, Canje::puntos($clientes[0]),
+            'Y NO devuelve los puntos: sería regalarle las dos cosas.');
     }
 
     #[Test]

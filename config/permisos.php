@@ -39,6 +39,12 @@ return [
         'clientes' => [
             'clientes.registro' => 'Registro',
             'clientes.fidelizacion' => 'Fidelización',
+            // **Canjes es su propio permiso y NO viene con Fidelización.**
+            // Ver los puntos de una clienta y decidir por cuántos regala el
+            // salón un servicio son dos cosas distintas: lo segundo es fijar
+            // precio, la misma razón por la que el Profesional no tiene
+            // `servicios.descuentos` desde la 6.4.0.
+            'clientes.canjes' => 'Canjes por puntos',
             'clientes.valoraciones' => 'Valoraciones',
         ],
         'servicios' => [

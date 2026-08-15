@@ -214,6 +214,7 @@ class AccesoTest extends TestCase
             ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
             ['facturacion.caja', []],
             ['inventario.productos', []],
+            ['clientes.canjes', []],
             ['reportes.index', []],
             // El informe en papel, entero y por bloques: cada uno arma sus
             // propias consultas y una mal escrita revienta al dibujar.

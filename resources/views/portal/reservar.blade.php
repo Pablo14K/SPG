@@ -39,6 +39,43 @@
                 </div>
             </div>
 
+            {{-- ------------------------------------------------------------
+                 Canjes disponibles.
+                 Va DESPUÉS de los servicios y ANTES del horario, que es el
+                 orden en que se decide: qué me hago, con qué lo pago, cuándo.
+
+                 **Marcar el canje no agrega el servicio a la cita**: hay que
+                 marcarlo arriba como cualquier otro, porque tiene que ocupar
+                 su tiempo en la agenda y su profesional. El canje sólo dice
+                 que ese servicio no se cobra.
+                 ------------------------------------------------------------ --}}
+            @if (!empty($canjes))
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-gift txt-oro"></i> ¿Usás algún canje?
+                    </label>
+                    <p class="text-muted-warm" style="font-size:.82rem">
+                        Marcá el canje <strong>y también el servicio de arriba</strong>: así reserva
+                        el tiempo que hace falta. Con el canje marcado, ese servicio no se te cobra.
+                    </p>
+                    <div class="spg-check-lista">
+                        @foreach ($canjes as $c)
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="canjes[]"
+                                       value="{{ $c->id_canje }}" id="cj{{ $c->id_canje }}">
+                                <label class="form-check-label" for="cj{{ $c->id_canje }}">
+                                    {{ $c->nombre }}
+                                    <span class="text-muted-warm">
+                                        · vale {{ money($c->precio) }} ·
+                                        te queda(n) {{ (int) $c->dias_restantes }} día(s)
+                                    </span>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             {{-- Acá había un «¿Con quién?» para toda la cita, y confundía: cada
                  servicio ya trae su propio selector arriba, con «quien me
                  atienda» por defecto. Eran dos formas de contestar lo mismo, y

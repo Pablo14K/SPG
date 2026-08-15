@@ -110,6 +110,7 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::get('atencion/json', [PortalController::class, 'atencionJson'])->name('atencion_json');
     Route::post('pedir', [PortalController::class, 'pedir'])->name('pedir');
     Route::get('promociones', [PortalController::class, 'promociones'])->name('promociones');
+    Route::post('canjear', [PortalController::class, 'canjear'])->name('canjear');
     Route::get('valoraciones', [PortalController::class, 'valoraciones'])->name('valoraciones');
     Route::post('calificar', [PortalController::class, 'calificar'])->name('calificar');
     Route::match(['get', 'post'], 'recordatorios', [PortalController::class, 'preferencias'])->name('preferencias');
@@ -170,6 +171,15 @@ Route::middleware(['sesion', 'personal'])->group(function () {
 
         Route::get('fidelizacion', [ClientesController::class, 'fidelizacion'])
             ->name('fidelizacion')->middleware('modulo:clientes.fidelizacion');
+
+        // Canjes por puntos: su propio permiso, porque fijar por cuántos puntos
+        // el salón regala un servicio es fijar precio.
+        Route::middleware('modulo:clientes.canjes')->group(function () {
+            Route::get('canjes', [ClientesController::class, 'canjes'])->name('canjes');
+            Route::post('canjes/guardar', [ClientesController::class, 'canjeGuardar'])->name('canje.guardar');
+            Route::post('canjes/editar', [ClientesController::class, 'canjeEditar'])->name('canje.editar');
+            Route::post('canjes/baja', [ClientesController::class, 'canjeBaja'])->name('canje.baja');
+        });
         Route::get('valoraciones', [ClientesController::class, 'valoraciones'])
             ->name('valoraciones')->middleware('modulo:clientes.valoraciones');
     });

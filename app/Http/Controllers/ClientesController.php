@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Canje;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -25,6 +27,8 @@ class ClientesController extends Controller
                  't' => 'Clientes', 'd' => 'Registro y datos de contacto'],
                 ['p' => 'clientes.fidelizacion', 'ruta' => 'clientes.fidelizacion', 'ic' => 'award',
                  't' => 'Fidelización', 'd' => 'Niveles, visitas y puntos'],
+                ['p' => 'clientes.canjes', 'ruta' => 'clientes.canjes', 'ic' => 'gift',
+                 't' => 'Canjes por puntos', 'd' => 'Qué se lleva la clienta con sus puntos'],
                 ['p' => 'clientes.valoraciones', 'ruta' => 'clientes.valoraciones', 'ic' => 'star',
                  't' => 'Valoraciones', 'd' => 'Calificaciones de los servicios'],
             ]),
@@ -219,6 +223,128 @@ class ClientesController extends Controller
             'fid' => DB::selectOne('SELECT * FROM vw_cliente_fidelizacion WHERE id_cliente = ?', [$id]),
             'pref' => DB::select('SELECT * FROM preferencia_cliente WHERE id_cliente = ? ORDER BY fecha_registro DESC', [$id]),
         ]);
+    }
+
+    // -----------------------------------------------------------------
+    //  Canjes por puntos
+    //
+    //  El catálogo de lo que el salón regala a cambio de puntos. Es su propio
+    //  permiso (`clientes.canjes`) porque decidir por cuántos puntos se regala
+    //  un servicio es fijar precio, no consultar fidelización.
+    // -----------------------------------------------------------------
+
+    public function canjes(): View
+    {
+        return view('clientes.canjes', [
+            'rows' => Canje::catalogo(false),
+            // Los que todavía no están en el catálogo: no tiene sentido
+            // ofrecer dos veces el mismo servicio.
+            'servicios' => DB::select(
+                'SELECT s.id_servicio, s.nombre, s.precio, cs.nombre AS categoria
+                   FROM servicio s
+                   JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
+                  WHERE s.activo = 1
+                    AND NOT EXISTS (SELECT 1 FROM servicio_canjeable x WHERE x.id_servicio = s.id_servicio)
+                  ORDER BY cs.nombre, s.nombre'
+            ),
+            // Lo que las clientas ya canjearon, para ver si el programa se usa.
+            'canjeados' => DB::select(
+                "SELECT c.id_canje, c.puntos, c.fecha, c.vence_en,
+                        fn_canje_estado(c.id_canje) AS estado,
+                        s.nombre AS servicio,
+                        CONCAT(pe.nombre,' ',pe.apellido) AS cliente
+                   FROM canje c
+                   JOIN servicio s ON s.id_servicio = c.id_servicio
+                   JOIN cliente cl ON cl.id_cliente = c.id_cliente
+                   JOIN persona pe ON pe.id_persona = cl.id_persona
+                  ORDER BY c.fecha DESC LIMIT 50"
+            ),
+        ]);
+    }
+
+    public function canjeGuardar(Request $request): RedirectResponse
+    {
+        $idServicio = (int) $request->input('id_servicio', 0);
+        $puntos = entero($request->input('puntos'));
+        $dias = entero($request->input('dias_vigencia'));
+        $volver = redirect()->route('clientes.canjes');
+
+        $error = null;
+        if (! $idServicio || ! DB::scalar('SELECT COUNT(*) FROM servicio WHERE id_servicio = ? AND activo = 1', [$idServicio])) {
+            $error = 'Elegí un servicio activo.';
+        } elseif ($puntos <= 0) {
+            $error = 'Los puntos tienen que ser más que cero.';
+        } elseif ($dias < 1 || $dias > 365) {
+            $error = 'La vigencia va de 1 a 365 días.';
+        } elseif (DB::scalar('SELECT COUNT(*) FROM servicio_canjeable WHERE id_servicio = ?', [$idServicio])) {
+            $error = 'Ese servicio ya está en la lista de canjes. Editalo en vez de agregarlo de nuevo.';
+        }
+        if ($error) {
+            flash($error, 'error');
+
+            return $volver->withInput();
+        }
+
+        try {
+            DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
+                [$idServicio, $puntos, $dias]);
+            $nombre = (string) DB::scalar('SELECT nombre FROM servicio WHERE id_servicio = ?', [$idServicio]);
+            Auditoria::registrar('ALTA', 'Clientes', 'servicio_canjeable', (int) DB::getPdo()->lastInsertId(),
+                $nombre . ' por ' . $puntos . ' puntos, con ' . $dias . ' día(s) de vigencia');
+            flash($nombre . ' ya se puede canjear por ' . $puntos . ' puntos.');
+        } catch (Throwable $ex) {
+            flash('No se pudo agregar el canje. El detalle quedó registrado.', 'error');
+            Log::error('Alta de servicio canjeable', ['error' => $ex->getMessage()]);
+        }
+
+        return $volver;
+    }
+
+    public function canjeEditar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_servicio_canjeable', 0);
+        $puntos = entero($request->input('puntos'));
+        $dias = entero($request->input('dias_vigencia'));
+        $volver = redirect()->route('clientes.canjes');
+
+        $fila = DB::selectOne(
+            'SELECT sc.*, s.nombre FROM servicio_canjeable sc
+               JOIN servicio s ON s.id_servicio = sc.id_servicio
+              WHERE sc.id_servicio_canjeable = ?', [$id]
+        );
+        if (! $fila) {
+            flash('Ese canje no existe.', 'error');
+
+            return $volver;
+        }
+        if ($puntos <= 0 || $dias < 1 || $dias > 365) {
+            flash('Los puntos tienen que ser más que cero y la vigencia ir de 1 a 365 días.', 'error');
+
+            return $volver;
+        }
+
+        DB::update('UPDATE servicio_canjeable SET puntos = ?, dias_vigencia = ? WHERE id_servicio_canjeable = ?',
+            [$puntos, $dias, $id]);
+
+        // **Lo ya canjeado no cambia**: `canje` guardó los puntos y el
+        // vencimiento acordados. Cambiar el catálogo no le mueve el piso a
+        // quien ya canjeó.
+        Auditoria::registrar('MODIFICACION', 'Clientes', 'servicio_canjeable', $id,
+            $fila->nombre . ': de ' . (int) $fila->puntos . ' a ' . $puntos . ' puntos, '
+            . 'vigencia de ' . (int) $fila->dias_vigencia . ' a ' . $dias . ' día(s)');
+        flash('Canje actualizado. Lo que ya se canjeó conserva sus condiciones.');
+
+        return $volver;
+    }
+
+    public function canjeBaja(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_servicio_canjeable', 0);
+        DB::update('UPDATE servicio_canjeable SET activo = 1 - activo WHERE id_servicio_canjeable = ?', [$id]);
+        Auditoria::registrar('MODIFICACION', 'Clientes', 'servicio_canjeable', $id, 'Alta/baja del canje');
+        flash('Listo. Los canjes que las clientas ya hicieron siguen valiendo.');
+
+        return redirect()->route('clientes.canjes');
     }
 
     public function fidelizacion(): View|StreamedResponse

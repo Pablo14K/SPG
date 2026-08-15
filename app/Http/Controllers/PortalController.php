@@ -6,11 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Agenda;
 use App\Servicios\Auditoria;
+use App\Servicios\Bd;
 use App\Servicios\Calendario;
+use App\Servicios\Canje;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Throwable;
 
@@ -90,6 +93,11 @@ class PortalController extends Controller
                 'SELECT id_servicio, nombre, precio, duracion_min, requiere_exclusividad
                    FROM servicio WHERE activo = 1 ORDER BY nombre'
             ),
+            // Lo que ya canjeó y todavía puede usar. **No cambia nada del
+            // motor de la agenda**: el servicio canjeado ocupa el mismo tiempo
+            // y lo tiene que hacer un profesional que lo haga, en un horario
+            // libre. Lo único que cambia es que no se cobra.
+            'canjes' => Canje::deCliente($this->cliente(), true),
         ]);
     }
 
@@ -166,8 +174,16 @@ class PortalController extends Controller
         $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
 
         try {
-            Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion);
-            flash('¡Tu cita fue reservada!');
+            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion);
+
+            // Los canjes que eligió quedan atados a esta cita, y con eso el
+            // servicio va **a cero** en el comprobante. Se comprueban contra
+            // SU id de cliente, no contra el formulario: si no, cambiando un
+            // campo oculto se gastaría el canje de otra persona.
+            $usados = Canje::aplicarACita((array) $request->input('canjes', []), $idCita, $idc);
+
+            flash('¡Tu cita fue reservada!'
+                . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : ''));
         } catch (Throwable $ex) {
             // Llegó hasta acá y perdió: otra persona tomó el hueco justo cuando
             // esta reserva pasaba por el candado del procedimiento.
@@ -421,7 +437,52 @@ class PortalController extends Controller
                                   AND (fecha_fin IS NULL OR fecha_fin >= CURDATE())
                   ORDER BY nombre'
             ),
+            // Lo que puede llevarse con sus puntos, y lo que ya canjeó. El
+            // programa de fidelización sólo sumaba: se acumulaban puntos y no
+            // había forma de gastarlos.
+            'canjeables' => Canje::catalogo(),
+            'puntos' => Canje::puntos($idc),
+            'misCanjes' => Canje::deCliente($idc),
         ]);
+    }
+
+    /**
+     * La clienta canjea sus puntos por un servicio.
+     *
+     * No agenda nada: le queda **guardado** y lo usa cuando reserva. Separarlo
+     * es lo que permite canjear hoy y decidir el día después, que es como la
+     * gente usa un cupón.
+     */
+    public function canjear(Request $request): RedirectResponse
+    {
+        $idc = $this->cliente();
+        $idServicio = (int) $request->input('id_servicio', 0);
+        $volver = redirect()->route('portal.promociones');
+
+        try {
+            $idCanje = Canje::canjear($idc, $idServicio);
+            $c = DB::selectOne(
+                'SELECT s.nombre, cj.vence_en FROM canje cj
+                   JOIN servicio s ON s.id_servicio = cj.id_servicio
+                  WHERE cj.id_canje = ?', [$idCanje]
+            );
+            Auditoria::registrarComo(session('uid'), 'CANJE', 'Portal', 'canje', $idCanje,
+                'Canje de ' . ($c->nombre ?? '') . ' por puntos');
+
+            flash('¡Listo! Canjeaste ' . ($c->nombre ?? 'el servicio')
+                . '. Lo podés usar al reservar, hasta el ' . fecha($c->vence_en ?? null, 'd/m/Y') . '.');
+        } catch (Throwable $ex) {
+            flash(Bd::traducir($ex, [
+                'no alcanzan' => 'Todavía no te alcanzan los puntos para ese canje.',
+                'no se puede canjear' => 'Ese servicio ya no se puede canjear por puntos.',
+            ], 'No se pudo hacer el canje. El detalle quedó registrado.'), 'error');
+
+            if (! str_contains($ex->getMessage(), 'alcanzan') && ! str_contains($ex->getMessage(), 'canjear')) {
+                Log::error('Canje del portal', ['cliente' => $idc, 'error' => $ex->getMessage()]);
+            }
+        }
+
+        return $volver;
     }
 
     public function valoraciones(): View

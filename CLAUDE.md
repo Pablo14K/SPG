@@ -6,14 +6,14 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 > El sistema nació sin framework (PHP puro, front controller `index.php?r=…`) y se migró a
 > Laravel en la versión **6.0.0**, por pedido de la tutora. Aquella versión quedó archivada.
-> **La migración cambió la arquitectura, no las reglas**: las 51 rutinas de la base, los 17
+> **La migración cambió la arquitectura, no las reglas**: las 53 rutinas de la base, los 17
 > triggers y todo lo que este documento dice sobre facturación, caja, agenda, turnos y
 > permisos siguen valiendo igual, porque siguen viviendo donde siempre — en la base.
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **20 procedimientos, 31 funciones, 17 triggers y 17 vistas**,
-más **61 restricciones `CHECK`**.
+La base (`peluqueria_bd`) tiene **21 procedimientos, 32 funciones, 17 triggers y 17 vistas**,
+más **64 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.25.0 | 15/08/2026 | **Los puntos por fin se gastan: entra el canje por servicios**, que cierra la otra mitad de IN-03 — el programa de fidelización sólo sumaba y en 90 días se acumularon 1.414 puntos sin ninguna pantalla para usarlos. Son **dos tablas y no una**, porque son dos cosas distintas: `servicio_canjeable` es el **catálogo** que arma el salón (qué servicio, cuántos puntos, cuántos días vale) y `canje` es el **hecho** de que una clienta lo cambió. **El estado no se guarda: se deduce**, igual que en `sena_solicitud` —sin cita y sin vencer es disponible, con cita está usado, vencido si pasó la fecha—, que es lo que pide la 3FN. Los puntos y el vencimiento **sí** se guardan en el canje y tampoco la rompen: no son copias de un valor vivo sino **lo que se acordó ese día**, así que subir mañana el precio en puntos no le mueve el piso a quien ya canjeó — el mismo criterio por el que `detalle_factura` guarda el precio en vez de leerlo de `servicio`. **Canjes es su propio permiso** (`clientes.canjes`, van 29) y **no viene con Fidelización**: ver los puntos de alguien y decidir por cuántos el salón regala un servicio son cosas distintas, y lo segundo es fijar precio — la misma razón por la que el Profesional no tiene `servicios.descuentos` desde la 6.4.0. Lo tienen el Administrador y el Asistente. En el portal, el bloque va **debajo de las promociones** porque es lo mismo visto de otra manera —cómo pagar menos—, con la diferencia de que la promoción se aplica sola y el canje se elige. **Al agendar, el canje no reemplaza al servicio: lo acompaña**, y el motor de disponibilidad **no cambia en nada** — un servicio canjeado dura lo mismo, lo hace quien lo hace y necesita un hueco libre igual. Lo único que cambia es que no se cobra: en el comprobante va **a cero y no se omite**, porque se hizo y tiene que constar (`chk_df_precio` admite el cero justamente para esto). **Cancelar la cita devuelve el canje pero NO los puntos**: no los perdió, los cambió por algo que sigue teniendo. El candado sobre la clienta va antes de leerle el saldo, que es el mismo patrón de FA-01 e IN-01. De paso, **el formulario de descuentos gana un «Todos»**: aplicar una promo a todo el catálogo eran veinte clics, y la pieza ya existía (`data-marca-todo`). El contador de `CHECK` del diagnóstico pasa de 61 a **64** — cuarta vez que se atrasa, así que se sube en la misma tanda. **78 pruebas** y los dos `.sql` regenerados |
 | 7.24.0 | 15/08/2026 | **Se cierra el informe de 90 días: entra AG-03, sale el precio de venta y el menú deja de prometer lo que no puede abrir.** **AG-03**: dar de baja a alguien avisaba a las clientas pero **sus citas seguían ocupando la agenda**, y había que abrirlas de a una para cambiarles el profesional. Entra **Citas → Reasignar**, que las pasa en bloque **sin moverlas de horario** —la clienta ya tiene su hora y no hay por qué hacerla cambiar de día: lo único que cambia es quién la atiende—. No pasa por `sp_reprogramar_cita`, que cambiaría la fecha y dejaría la cita en «Reprogramada», pero sí comparte lo importante: **candado sobre quien la recibe y disponibilidad comprobada adentro**, así que las que caen donde ese profesional ya está ocupado **quedan como estaban y el sistema dice cuáles son** — reasignar a ciegas sería vender dos veces el mismo horario. El reparto se muda con la cita (`cita_servicio.id_usuario`), porque si no la comisión se le sigue atribuyendo a quien se fue. El aviso de la baja ahora **dice dónde resolverlo** en vez de sólo avisar que quedaron citas. **El precio de venta sale de las pantallas**, ahora que la venta de productos quedó fuera de alcance: el formulario del producto, la columna de la lista, el alta rápida y la exportación. Va **comentado y no borrado**, por si la tutora revierte la decisión. La trampa estaba en el guardado: si el campo deja de viajar, `num()` devuelve 0 y **editar cualquier producto le borraba el precio ya cargado** — se conserva el que tenía. **Y la tarjeta del módulo deja de anunciar pantallas sin permiso**: el renglón de abajo era un texto fijo de `config/navegacion.php`, así que a quien le revocaban Roles le seguía apareciendo «Roles» en la tarjeta de Seguridad; entrar daba 403, pero el cartel se lo ofrecía igual. Ahora se arma del catálogo de pantallas, que ya declara **la misma clave que pide el middleware**, así que lo anunciado y lo alcanzable no se pueden desfasar. De paso, la prueba que abre las pantallas **volvió a ganarse el sueldo**: la consulta nueva agrupaba por `u.id_usuario` con `pe.nombre` en el SELECT y `ONLY_FULL_GROUP_BY` la rechazaba con 1055 — un 500 que no se ve leyendo el código. **76 pruebas** |
 | 7.23.1 | 15/08/2026 | **La venta de productos queda descartada, por decisión del usuario**, y con eso se cierra la mitad de IN-03. El modelo la tenía lista —`producto.precio_venta`, `detalle_factura.id_producto`, el tipo de movimiento 7 y el disparador `trg_detfactura_ai`— y **no la usaba nadie**: en 90 días no se facturó ni un producto porque no hay pantalla que lo haga. Las cuatro piezas **se dejan donde están**, por el mismo motivo que `sp_generar_recordatorios`: el documento del TCC informa cuántas tablas, disparadores y rutinas hay, y bajar ese número para sacar algo que no molesta es peor negocio que documentarlo. Lo que sí hacía falta era decirlo, para que el modelo no prometa lo que la pantalla no da. Queda anotado además que **el formulario del producto sigue pidiendo «Precio de venta»**: no dispara nada, pero si el salón nunca va a vender es una promesa de más — sacarlo de la pantalla es decisión del usuario, no técnica. **El canje de puntos sigue sin decidirse**: se acumulan y no hay cómo gastarlos |
 | 7.23.0 | 15/08/2026 | **Los cuatro hallazgos MEDIO y BAJO que quedaban del informe de 90 días.** **AG-04**: cancelar y reprogramar la misma cita a la vez perdía la cancelación — las dos acciones leían el estado y escribían sin candado **sobre la cita**, así que ganaba la última en confirmar y la cita quedaba Reprogramada aunque la cancelación se hubiera registrado en la auditoría: la clienta cree que canceló, el horario sigue ocupado y alguien la va a esperar. `sp_reprogramar_cita` ya tomaba un candado, pero **sobre el `usuario`** —ése evita los solapes de agenda y sigue haciendo falta—, y la cancelación no tomaba ninguno. Ahora las dos toman el de la cita **primero** y miran el estado **después**, que es el orden que importa: mirar antes de tomarlo es leer lo de antes de que el otro confirmara. `Agenda::cancelar()` además pasa a abrir transacción, porque un candado sin transacción se suelta al instante y no serializa nada. **FA-04**: un comprobante ya acreditado se veía **idéntico a cualquier otro** —«Emitida», saldo 0— y sólo se sabía entrando a mirarlo; ahora lleva su sello en la lista y en la exportación, deducido de que exista una nota de crédito vigente (**no se guarda**, que es lo que pide la 3FN). Y como los ingresos del informe salen de los cobros, y una nota de crédito **no genera un cobro negativo**, una venta devuelta se seguía contando entera: se suma la línea de lo devuelto y el neto al lado, sólo cuando hubo devoluciones. **NO-02**: el despachador toma sólo los avisos de destinatario CLIENTE con `id_cliente` cargado, así que el que no cumple eso **no se manda ni se marca** y queda en PENDIENTE para siempre —uno de 1.091—. Ahora, pasado un día de gracia, se cierran como FALLIDA: no se pierde nada, es que ese aviso **no tiene a quién mandárselo**, y una cola que nunca se vacía deja de servir para ver si algo anda mal. **AU-01**: dos vocabularios escriben en `auditoria` —los controladores el sustantivo (`CANCELACION`, `EMISION`) y los disparadores el verbo (`ANULAR`, `REVERTIR`)—, así que **filtrar por «anulación» no encontraba ninguna anulación**. No se reescribe lo guardado, que es correcto: el filtro agrupa las dos formas. **73 pruebas** y los dos `.sql` regenerados. **Queda AG-03** —reasignar en bloque las citas de un profesional dado de baja— e **IN-03**, que es decisión de alcance |
@@ -257,7 +258,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **154 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **164 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -279,7 +280,7 @@ app/
   Servicios/               La capa propia. Todo estático, sin estado.
     Bd.php                 El puente a las rutinas: idDe() enTransaccion() traducir()
     Agenda.php             Huecos, reparto entre profesionales, agendar con candado
-    Permisos.php           Los 28 submódulos y su jerarquía
+    Permisos.php           Los 29 submódulos y su jerarquía
     Sesion.php             Ingreso y datos de la sesión
     Seguridad.php          Códigos de un solo uso (token_seguridad)
     WebAuthn.php           Huella en PHP puro (CBOR, COSE→PEM, OpenSSL)
@@ -306,13 +307,13 @@ app/
 config/
   spg.php                  Versión, puntos, agenda, timbrado
   navegacion.php           Los cuatro niveles de navegación, en un solo lugar
-  permisos.php             Los 28 submódulos
+  permisos.php             Los 29 submódulos
 resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 154 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 164 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
@@ -772,7 +773,7 @@ los roles nuevos funcionan sin tocar código. El Administrador se detecta con
 
 ### Submódulos: ningún módulo es todo o nada
 
-**Los siete módulos se dan por partes**: son **28 permisos**, no 7. Quien registra la atención
+**Los siete módulos se dan por partes**: son **29 permisos**, no 7. Quien registra la atención
 no tiene por qué agendar; quien cobra no tiene por qué anular una liquidación al personal;
 el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La clave es
 `modulo.submodulo` y sigue siendo **un valor atómico por fila**, así que la 1FN se mantiene.
@@ -780,7 +781,7 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | Módulo | Se divide en |
 |---|---|
 | `citas` | `.agenda` · `.atencion` · `.ausencias` |
-| `clientes` | `.registro` · `.fidelizacion` · `.valoraciones` |
+| `clientes` | `.registro` · `.fidelizacion` · `.canjes` · `.valoraciones` |
 | `servicios` | `.catalogo` · `.categorias` · `.descuentos` |
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
 | `facturacion` | `.facturas` · `.cobros` · `.caja` · `.pagos` · `.proveedores` · `.timbrados` |
@@ -1411,6 +1412,52 @@ Dos cosas distintas que conviene no mezclar:
   `Facturacion::revertirPuntos()` registra el movimiento contrario en vez de borrar el
   original, para que el historial del cliente muestre lo que pasó.
 
+### Canje de puntos por servicios
+
+Los puntos **se gastan** desde la 7.25.0. Antes sólo se sumaban: la simulación de 90 días
+acumuló 1.414 puntos sin ninguna pantalla para usarlos (hallazgo **IN-03**).
+
+Son **dos cosas distintas** y conviene no mezclarlas:
+
+| Tabla | Qué es | Quién la toca |
+|---|---|---|
+| `servicio_canjeable` | el **catálogo**: qué servicios se canjean, por cuántos puntos y cuántos días vale el canje | el salón, en **Clientes → Canjes por puntos** |
+| `canje` | el **hecho**: esta clienta cambió puntos por este servicio, tal día, y vence tal fecha | la clienta, desde el portal |
+
+**El estado del canje no se guarda: se deduce**, igual que en `sena_solicitud`.
+`fn_canje_estado()` lo resuelve mirando la fila: sin cita y sin vencer es *disponible*, con
+cita está *usado*, y sin cita y pasada la fecha está *vencido*. Es lo que pide la 3FN y de
+paso evita el clásico del estado que se olvidó de actualizar.
+
+> **Los puntos y el vencimiento SÍ se guardan en `canje`, y no rompen la 3FN.** No son copias
+> de un valor vivo: son lo que se acordó **en ese canje**. El salón puede subir mañana el
+> precio en puntos o acortar la vigencia, y lo que la clienta ya canjeó no cambia. Es el mismo
+> criterio por el que `detalle_factura` guarda el precio del servicio en vez de leerlo de
+> `servicio`.
+
+**Canjes es su propio permiso (`clientes.canjes`), no viene con Fidelización.** Ver los puntos
+de una clienta y decidir por cuántos el salón regala un servicio son cosas distintas: lo
+segundo es **fijar precio**, exactamente la razón por la que el Profesional no tiene
+`servicios.descuentos` desde la 6.4.0. Lo tienen el Administrador y el Asistente
+administrativo.
+
+**Al agendar, el canje no reemplaza al servicio: lo acompaña.** La clienta marca el servicio
+como cualquier otro —tiene que ocupar su tiempo y su profesional en la agenda— y además marca
+el canje. **El motor de disponibilidad no cambia en nada**: un servicio canjeado dura lo
+mismo, lo hace quien lo hace y necesita un hueco libre igual. Lo único que cambia es que no
+se cobra.
+
+**En el comprobante el servicio canjeado va a CERO, no se omite.** Se hizo, así que tiene que
+constar; lo que no corresponde es cobrarlo. Un comprobante que no lo nombra deja a la clienta
+sin constancia de algo que recibió y al salón sin poder explicar por qué el total no cierra
+con lo que se hizo. `chk_df_precio` admite el cero justamente para esto, y `sp_emitir_factura`
+lo resuelve en el propio `SELECT` del detalle.
+
+**Cancelar la cita devuelve el canje, pero NO los puntos.** No los perdió: los cambió por un
+servicio que sigue teniendo, y lo puede usar en otra cita. Devolver las dos cosas sería
+regalarle el servicio. Si el plazo venció mientras la cita estaba agendada, el canje vuelve
+vencido — el vencimiento corre desde el canje, y la pantalla lo dice.
+
 ### Descuentos y promociones: se aplica UNO SOLO, el mejor
 
 Hay **dos fuentes** de descuento y no se acumulan:
@@ -1907,7 +1954,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 31 funciones, 20 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 32 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -2050,7 +2097,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 61 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 64 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -2062,7 +2109,7 @@ tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 **Las 63 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
-> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 51 rutinas y sus 17
+> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
 > triggers. Las pruebas que escriben usan `DatabaseTransactions`, que revierte al terminar.
 > La única que no puede usarlo es `ConcurrenciaAgendaTest`, porque mide justamente qué ven
 > entre sí varias conexiones: esa limpia a mano en `tearDown()`.
@@ -2081,8 +2128,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 20 procedimientos, 31 funciones,
-   17 triggers, 17 vistas y 61 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 32 funciones,
+   17 triggers, 17 vistas y 64 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -2119,7 +2166,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**76 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**78 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
@@ -2133,7 +2180,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 
 Seis cosas que hay que saber antes de tocarlas:
 
-- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 51 rutinas. Las que escriben usan
+- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 53 rutinas. Las que escriben usan
   `DatabaseTransactions`.
 - **`ConcurrenciaAgendaTest` no puede correr dentro de una transacción**, porque mide qué ven
   entre sí conexiones distintas. Limpia a mano en `tearDown()`, con

@@ -638,6 +638,16 @@ class Agenda
     {
         Bd::enTransaccion(function () use ($idCita) {
             Bd::procedimiento('sp_cancelar_cita', [$idCita]);
+
+            // **El canje vuelve a quedar disponible, y los puntos NO se
+            // devuelven.** No los perdió: los cambió por un servicio que sigue
+            // teniendo. Devolverle los puntos y dejarle el canje sería
+            // regalarle las dos cosas.
+            //
+            // Si el plazo se venció mientras la cita estaba agendada, el canje
+            // vuelve vencido: el vencimiento corre desde que se canjeó, y la
+            // pantalla lo muestra como tal.
+            Canje::soltarDeCita($idCita);
         });
     }
 

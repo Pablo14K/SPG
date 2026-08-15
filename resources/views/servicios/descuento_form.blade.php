@@ -69,8 +69,26 @@
                     Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.
                 </p>
 
-                <input class="form-control form-control-sm mb-2" data-filtra="#listaServicios"
-                       placeholder="Buscar un servicio…" autocomplete="off">
+                <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+                    <input class="form-control form-control-sm" data-filtra="#listaServicios"
+                           placeholder="Buscar un servicio…" autocomplete="off" style="max-width:260px">
+
+                    {{-- Marcar todos de una. Con veinte servicios en la lista,
+                         aplicar una promo a todo el catálogo era veinte clics.
+                         Es la misma pieza que ya usan la matriz de permisos y
+                         los bloques de Reportes (`data-marca-todo` en app.js):
+                         refleja lo que hay marcado y prende o apaga el grupo.
+                         No lleva `name`, así que no se envía. --}}
+                    <div class="form-check mb-0">
+                        {{-- El atributo apunta al CONTENEDOR: `app.js` busca los
+                             checkboxes adentro. Y no lleva `@checked`: al cargar
+                             la página, `reflejar()` la deja como corresponda —
+                             marcada, vacía o a medio marcar. --}}
+                        <input class="form-check-input" type="checkbox" id="srvTodos"
+                               data-marca-todo="#listaServicios">
+                        <label class="form-check-label" for="srvTodos">Todos</label>
+                    </div>
+                </div>
 
                 <div id="listaServicios" class="spg-check-lista">
                     @foreach ($servicios as $s)

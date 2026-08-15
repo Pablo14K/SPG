@@ -210,6 +210,41 @@ INSERT INTO `calificacion` VALUES (1,171,5,'Excelente atención','2026-08-08 13:
 UNLOCK TABLES;
 
 --
+-- Table structure for table `canje`
+--
+
+DROP TABLE IF EXISTS `canje`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `canje` (
+  `id_canje` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_cliente` int(10) unsigned NOT NULL,
+  `id_servicio` int(10) unsigned NOT NULL,
+  `puntos` int(11) NOT NULL,
+  `fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `vence_en` date NOT NULL,
+  `id_cita` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id_canje`),
+  KEY `idx_canje_cliente` (`id_cliente`),
+  KEY `idx_canje_cita` (`id_cita`),
+  KEY `fk_canje_servicio` (`id_servicio`),
+  CONSTRAINT `fk_canje_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`),
+  CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
+  CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
+  CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `canje`
+--
+
+LOCK TABLES `canje` WRITE;
+/*!40000 ALTER TABLE `canje` DISABLE KEYS */;
+/*!40000 ALTER TABLE `canje` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `categoria_producto`
 --
 
@@ -2168,7 +2203,7 @@ CREATE TABLE `rol_modulo` (
 
 LOCK TABLES `rol_modulo` WRITE;
 /*!40000 ALTER TABLE `rol_modulo` DISABLE KEYS */;
-INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.caja'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'seguridad.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'reportes'),(3,'seguridad.asistencia'),(3,'seguridad.turnos'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos'),(6,'citas.agenda'),(6,'citas.atencion'),(6,'clientes.fidelizacion'),(6,'clientes.registro'),(6,'facturacion.caja'),(6,'facturacion.cobros'),(6,'facturacion.facturas'),(6,'inventario.compras'),(6,'inventario.productos'),(6,'inventario.stock'),(6,'reportes'),(6,'seguridad.asistencia'),(6,'seguridad.comisiones'),(6,'seguridad.turnos'),(6,'servicios.catalogo');
+INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.caja'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'seguridad.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'reportes'),(3,'seguridad.asistencia'),(3,'seguridad.turnos'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos'),(6,'citas.agenda'),(6,'citas.atencion'),(6,'clientes.fidelizacion'),(6,'clientes.registro'),(6,'facturacion.caja'),(6,'facturacion.cobros'),(6,'facturacion.facturas'),(6,'inventario.compras'),(6,'inventario.productos'),(6,'inventario.stock'),(6,'reportes'),(6,'seguridad.asistencia'),(6,'seguridad.comisiones'),(6,'seguridad.turnos'),(6,'servicios.catalogo');
 /*!40000 ALTER TABLE `rol_modulo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2244,6 +2279,36 @@ LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
 INSERT INTO `servicio` VALUES (3,1,'Corte de dama',NULL,75000.00,45,10,1,0),(4,1,'Corte de caballero','Corte de caballero',50000.00,30,10,1,1),(5,1,'Corte de niño','Corte de niño',40000.00,30,10,1,1),(6,2,'Coloración completa','Coloración completa',280000.00,120,10,1,1),(7,2,'Mechas / balayage','Mechas / balayage',350000.00,150,10,1,1),(8,3,'Tratamiento capilar','Tratamiento capilar',150000.00,60,10,1,1),(9,3,'Keratina','Keratina',420000.00,180,10,1,1),(10,4,'Brushing','Brushing',60000.00,40,10,1,1),(11,4,'Peinado de fiesta','Peinado de fiesta',180000.00,75,10,1,1),(12,5,'Manicura','Manicura',55000.00,40,10,1,0),(13,5,'Pedicura','Pedicura',65000.00,50,10,1,0),(14,6,'Lavado y acondicionado','Lavado y acondicionado',25000.00,15,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `servicio_canjeable`
+--
+
+DROP TABLE IF EXISTS `servicio_canjeable`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `servicio_canjeable` (
+  `id_servicio_canjeable` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_servicio` int(10) unsigned NOT NULL,
+  `puntos` int(11) NOT NULL,
+  `dias_vigencia` int(11) NOT NULL DEFAULT 30,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_servicio_canjeable`),
+  UNIQUE KEY `uq_servcanje_servicio` (`id_servicio`),
+  CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
+  CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
+  CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `servicio_canjeable`
+--
+
+LOCK TABLES `servicio_canjeable` WRITE;
+/*!40000 ALTER TABLE `servicio_canjeable` DISABLE KEYS */;
+/*!40000 ALTER TABLE `servicio_canjeable` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -3156,6 +3221,35 @@ BEGIN
     AND mp.tipo = 'EFECTIVO';
 
   RETURN COALESCE(v_inicial, 0) + v_cobros + v_ing - v_egr - v_prov - v_pers;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_canje_estado` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_canje_estado`(p_id_canje INT UNSIGNED) RETURNS varchar(12) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci
+    READS SQL DATA
+BEGIN
+  DECLARE v_cita  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_vence DATE DEFAULT NULL;
+
+  SELECT id_cita, vence_en INTO v_cita, v_vence FROM canje WHERE id_canje = p_id_canje;
+
+  IF v_vence IS NULL THEN RETURN 'INEXISTENTE'; END IF;
+  IF v_cita IS NOT NULL THEN RETURN 'USADO'; END IF;
+  IF v_vence < CURDATE() THEN RETURN 'VENCIDO'; END IF;
+
+  RETURN 'DISPONIBLE';
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -4321,6 +4415,62 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_canjear_servicio` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_canjear_servicio`(
+    IN  p_id_cliente  INT UNSIGNED,
+    IN  p_id_servicio INT UNSIGNED,
+    OUT p_id_canje    INT UNSIGNED
+)
+BEGIN
+  DECLARE v_lock    INT UNSIGNED DEFAULT NULL;
+  DECLARE v_puntos  INT DEFAULT 0;
+  DECLARE v_cuesta  INT DEFAULT 0;
+  DECLARE v_dias    INT DEFAULT 0;
+  DECLARE v_nombre  VARCHAR(100) DEFAULT '';
+
+  SELECT id_cliente INTO v_lock FROM cliente WHERE id_cliente = p_id_cliente FOR UPDATE;
+  IF v_lock IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ese cliente no existe.';
+  END IF;
+
+  SELECT sc.puntos, sc.dias_vigencia, s.nombre
+    INTO v_cuesta, v_dias, v_nombre
+  FROM servicio_canjeable sc
+  JOIN servicio s ON s.id_servicio = sc.id_servicio
+  WHERE sc.id_servicio = p_id_servicio AND sc.activo = 1 AND s.activo = 1;
+
+  IF v_cuesta = 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ese servicio no se puede canjear por puntos.';
+  END IF;
+
+  SET v_puntos = fn_cliente_puntos(p_id_cliente);
+  IF v_puntos < v_cuesta THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No alcanzan los puntos para ese canje.';
+  END IF;
+
+  INSERT INTO canje (id_cliente, id_servicio, puntos, vence_en)
+  VALUES (p_id_cliente, p_id_servicio, v_cuesta, DATE_ADD(CURDATE(), INTERVAL v_dias DAY));
+  SET p_id_canje = LAST_INSERT_ID();
+
+  
+  
+  CALL sp_registrar_puntos(p_id_cliente, NULL, 'CANJE', -v_cuesta,
+       CONCAT('Canje por ', v_nombre));
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cerrar_caja` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4394,63 +4544,64 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_factura`(
-                IN  p_id_cliente          INT UNSIGNED,
-                IN  p_id_cita             INT UNSIGNED,
-                IN  p_id_usuario          INT UNSIGNED,
-                IN  p_id_tipo_comprobante INT UNSIGNED,
-                IN  p_id_condicion_venta  INT UNSIGNED,
-                OUT p_id_factura          INT UNSIGNED
-            )
+    IN  p_id_cliente           INT UNSIGNED,
+    IN  p_id_cita              INT UNSIGNED,
+    IN  p_id_usuario           INT UNSIGNED,
+    IN  p_id_tipo_comprobante  INT UNSIGNED,
+    IN  p_id_condicion_venta   INT UNSIGNED,
+    OUT p_id_factura           INT UNSIGNED
+)
 BEGIN
-              DECLARE v_timbrado  INT UNSIGNED DEFAULT NULL;
-              DECLARE v_nro       INT UNSIGNED DEFAULT 0;
-              DECLARE v_nivel     INT UNSIGNED DEFAULT NULL;
-              DECLARE v_promo     INT UNSIGNED DEFAULT NULL;
-              DECLARE v_m_nivel   DECIMAL(14,2) DEFAULT 0;
-              DECLARE v_m_promo   DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_timbrado  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_nro       INT UNSIGNED DEFAULT 0;
+  DECLARE v_nivel     INT UNSIGNED DEFAULT NULL;
+  DECLARE v_promo     INT UNSIGNED DEFAULT NULL;
+  DECLARE v_m_nivel   DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_m_promo   DECIMAL(14,2) DEFAULT 0;
 
-              SET v_timbrado = fn_timbrado_vigente(p_id_tipo_comprobante, CURRENT_DATE);
-              IF v_timbrado IS NULL THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para ese tipo de comprobante.';
-              END IF;
+  SET v_timbrado = fn_timbrado_vigente(p_id_tipo_comprobante, CURRENT_DATE);
+  IF v_timbrado IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para ese tipo de comprobante.';
+  END IF;
 
-              SET v_nro = fn_siguiente_correlativo(v_timbrado);
+  SET v_nro = fn_siguiente_correlativo(v_timbrado);
 
-              INSERT INTO factura (id_cliente, id_cita, id_usuario, id_tipo_comprobante, id_condicion_venta,
-                                   id_timbrado, id_estado_factura, nro_correlativo)
-              VALUES (p_id_cliente, p_id_cita, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
-                      v_timbrado, 1, v_nro);
-              SET p_id_factura = LAST_INSERT_ID();
+  INSERT INTO factura (id_cliente, id_cita, id_usuario, id_tipo_comprobante, id_condicion_venta,
+                       id_timbrado, id_estado_factura, nro_correlativo)
+  VALUES (p_id_cliente, p_id_cita, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
+          v_timbrado, 1, v_nro);
+  SET p_id_factura = LAST_INSERT_ID();
 
-              IF p_id_cita IS NOT NULL THEN
-                INSERT INTO detalle_factura (id_factura, id_servicio, cantidad, precio_unitario, tasa_iva)
-                SELECT p_id_factura, s.id_servicio, 1, s.precio, s.tasa_iva
-                FROM cita_servicio cs
-                JOIN servicio s ON s.id_servicio = cs.id_servicio
-                WHERE cs.id_cita = p_id_cita;
+  IF p_id_cita IS NOT NULL THEN
+    INSERT INTO detalle_factura (id_factura, id_servicio, cantidad, precio_unitario, tasa_iva)
+    SELECT p_id_factura, s.id_servicio, 1,
+           CASE WHEN EXISTS (SELECT 1 FROM canje cj
+                              WHERE cj.id_cita = p_id_cita
+                                AND cj.id_servicio = s.id_servicio)
+                THEN 0 ELSE s.precio END,
+           s.tasa_iva
+    FROM cita_servicio cs
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+    WHERE cs.id_cita = p_id_cita;
 
-                UPDATE servicio_realizado sr
-                  JOIN detalle_factura df
-                    ON df.id_factura = p_id_factura AND df.id_servicio = sr.id_servicio
-                   SET sr.id_detalle_factura = df.id_detalle_factura
-                 WHERE sr.id_cita = p_id_cita AND sr.id_detalle_factura IS NULL;
-              END IF;
+    UPDATE servicio_realizado sr
+      JOIN detalle_factura df
+        ON df.id_factura = p_id_factura AND df.id_servicio = sr.id_servicio
+       SET sr.id_detalle_factura = df.id_detalle_factura
+     WHERE sr.id_cita = p_id_cita AND sr.id_detalle_factura IS NULL;
+  END IF;
 
-              -- Dos candidatos: el descuento del nivel del cliente y la mejor
-              -- promoción vigente. Se aplica UNO SOLO, el que más le descuente
-              -- al cliente. No se acumulan: así el salón sabe que el descuento
-              -- máximo es el mayor de los que publicó.
-              SET v_nivel = fn_cliente_descuento(p_id_cliente);
-              SET v_promo = fn_promo_vigente(p_id_factura);
-              SET v_m_nivel = fn_descuento_monto_factura(p_id_factura, v_nivel);
-              SET v_m_promo = fn_descuento_monto_factura(p_id_factura, v_promo);
+  SET v_nivel = fn_cliente_descuento(p_id_cliente);
+  SET v_promo = fn_promo_vigente(p_id_factura);
+  SET v_m_nivel = fn_descuento_monto_factura(p_id_factura, v_nivel);
+  SET v_m_promo = fn_descuento_monto_factura(p_id_factura, v_promo);
 
-              IF v_m_promo > v_m_nivel THEN
-                CALL sp_aplicar_descuento(p_id_factura, v_promo);
-              ELSEIF v_m_nivel > 0 THEN
-                CALL sp_aplicar_descuento(p_id_factura, v_nivel);
-              END IF;
-            END ;;
+  IF v_m_promo > v_m_nivel THEN
+    CALL sp_aplicar_descuento(p_id_factura, v_promo);
+  ELSEIF v_m_nivel > 0 THEN
+    CALL sp_aplicar_descuento(p_id_factura, v_nivel);
+  END IF;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -5222,4 +5373,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 15:40:28
+-- Dump completed on 2026-08-15 16:36:29
