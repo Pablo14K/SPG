@@ -180,7 +180,10 @@ class Facturacion
     public static function acumularPuntos(int $idFactura, int $idCliente): int
     {
         $total = self::total($idFactura);
-        $puntos = (int) floor($total / (int) config('spg.puntos_cada_gs', 10000));
+        // La relación la decide el salón desde Servicios → Descuentos, así que
+        // sale de la base y no de `config/spg.php` — que queda de respaldo por
+        // si la tabla todavía no está.
+        $puntos = (int) floor($total / Config::puntosCadaGs());
         if ($puntos <= 0) {
             return 0;
         }

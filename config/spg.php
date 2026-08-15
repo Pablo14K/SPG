@@ -12,7 +12,7 @@ return [
     // Versión del sistema, con versionado semántico X.Y.Z. Se muestra en el pie
     // de todas las pantallas. La migración a Laravel es un cambio estructural,
     // de los que rompen la compatibilidad: por eso 6.0.0.
-    'version' => '7.26.1',
+    'version' => '7.27.0',
     'version_fecha' => '2026-08-15',
 
     'moneda' => 'Gs.',
@@ -21,6 +21,13 @@ return [
     // Cuántos guaraníes facturados valen un punto. Con 10.000, una factura de
     // Gs. 320.000 le deja 32 puntos al cliente. El *nivel* no depende de esto:
     // va por cantidad de visitas y lo resuelve fn_cliente_nivel en la base.
+    //
+    // **Desde la 7.27.0 este valor es sólo el RESPALDO.** El que manda vive en
+    // `configuracion.puntos_cada_gs` y lo edita el salón desde Servicios →
+    // Descuentos: es una decisión comercial, no técnica, y antes cambiarla
+    // obligaba a tocar este archivo y volver a desplegar. Acá queda para que
+    // una base que todavía no se reimportó siga acumulando puntos igual.
+    // Se lee con `App\Servicios\Config::puntosCadaGs()`, nunca directo.
     'puntos_cada_gs' => 10000,
 
     // --- Agenda -----------------------------------------------------------

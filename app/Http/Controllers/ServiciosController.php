@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Config;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use Illuminate\Http\RedirectResponse;
@@ -251,7 +252,47 @@ class ServiciosController extends Controller
     {
         return view('servicios.descuentos', [
             'rows' => DB::select('SELECT * FROM descuento ORDER BY activo DESC, nombre'),
+            // Cuánto hay que facturar para dar un punto. Es una decisión
+            // comercial del salón, así que se edita acá y no en un archivo.
+            'puntosCadaGs' => Config::puntosCadaGs(),
         ]);
+    }
+
+    /**
+     * Cuántos guaraníes facturados valen un punto.
+     *
+     * Vivía en `config/spg.php`, o sea que cambiarlo era editar código y volver
+     * a desplegar. Es un número del negocio —lo decide el salón— y va con los
+     * descuentos porque contesta la misma pregunta que ellos: **cuánto se le
+     * devuelve al cliente por comprar acá.**
+     *
+     * Pide `servicios.descuentos`, el mismo permiso que las promociones: subir
+     * o bajar esta relación es fijar cuánto regala el salón, y por eso el
+     * Profesional no lo tiene desde la 6.4.0.
+     */
+    public function puntosGuardar(Request $request): RedirectResponse
+    {
+        $antes = Config::puntosCadaGs();
+        $gs = entero($request->input('puntos_cada_gs'));
+        $volver = redirect()->route('servicios.descuentos');
+
+        if (Config::guardarPuntosCadaGs($gs) === null) {
+            flash('La relación tiene que ir de Gs. 100 a Gs. 10.000.000 por punto. '
+                . 'Con menos, un punto valdría casi nada; con más, no se llegaría nunca.', 'error');
+
+            return $volver;
+        }
+
+        Auditoria::registrar('MODIFICACION', 'Servicios', 'configuracion', 1,
+            'Puntos: de 1 cada ' . money($antes) . ' a 1 cada ' . money($gs));
+
+        // **Lo ya acumulado no se recalcula**, y conviene decirlo: los puntos
+        // que tiene cada clienta son movimientos ya escritos en
+        // `movimiento_punto`. Cambiar la relación afecta de acá en adelante.
+        flash('Listo: de ahora en más, 1 punto por cada ' . money($gs) . ' facturados. '
+            . 'Los puntos que las clientas ya tienen no cambian.');
+
+        return $volver;
     }
 
     public function descuentoForm(int $id = 0): View|RedirectResponse

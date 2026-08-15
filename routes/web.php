@@ -388,6 +388,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
                 ->whereNumber('id')->name('descuento_form');
             Route::post('descuentos/guardar', [ServiciosController::class, 'descuentoGuardar'])->name('descuento.guardar');
             Route::post('descuentos/baja', [ServiciosController::class, 'descuentoBaja'])->name('descuento.baja');
+            // Cuántos guaraníes facturados dan un punto: misma pantalla, mismo
+            // permiso — es fijar cuánto le devuelve el salón al cliente.
+            Route::post('puntos', [ServiciosController::class, 'puntosGuardar'])->name('puntos.guardar');
         });
     });
 });

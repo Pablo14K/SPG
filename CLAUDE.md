@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **21 procedimientos, 32 funciones, 17 triggers y 17 vistas**,
-más **64 restricciones `CHECK`**.
+más **66 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.27.0 | 15/08/2026 | **Cuánto vale un punto lo decide el salón, no el código.** `puntos_cada_gs` vivía en `config/spg.php`, así que cambiar la relación era editar un archivo y **volver a desplegar** — un número comercial escondido detrás de un despliegue. Pasa a `configuracion.puntos_cada_gs` y se edita con un formulario de un renglón en **Servicios → Descuentos**: «1 punto por cada ___ facturados». Va ahí y no en un archivo de ajustes porque **contesta la misma pregunta que los descuentos** —cuánto le devuelve el salón al cliente por comprar acá— y por eso comparte permiso con ellos: subir o bajar la relación es fijar cuánto regala el salón, la misma razón por la que el Profesional no tiene `servicios.descuentos` desde la 6.4.0. **La tabla es de UNA fila con columnas tipadas, no de clave/valor**, y la diferencia importa para el TCC: con clave/valor todo es texto —sin tipo y sin `CHECK` que valga— y cualquier parámetro nuevo entra sin que el modelo lo describa; con una columna por parámetro, cada uno tiene el suyo. `chk_config_unica` (`id_configuracion = 1`) garantiza que no haya dos verdades, y `chk_config_puntos` evita los dos accidentes caros: un 0 dividiría por cero y un 1 regalaría un punto por guaraní. **`config/spg.php` queda de respaldo**, para una base que todavía no se reimportó: si la tabla no está, se sigue acumulando como siempre en vez de reventar. Y la pantalla dice lo que la gente va a preguntar — que **los puntos ya acumulados no cambian**, porque son movimientos ya escritos en `movimiento_punto`. **80 pruebas**, una nueva que comprueba que el valor guardado cambia de verdad lo que se acumula y que los absurdos no entran |
 | 7.26.1 | 15/08/2026 | **El programa de fidelización arranca con dos canjes cargados**: Coloración completa por **3.000 puntos** y Lavado y acondicionado por **2.000**, los dos con 30 días de vigencia. Sin ninguno, la clienta junta puntos y el portal le contesta que todavía no hay nada para canjear — se ve la pantalla pero no la función, que es lo mismo que pasaba con los servicios y los profesionales antes de la 7.13.0. Van en `basededatos/datos_demo.sql` y **se apuntan por nombre, no por id**: si el catálogo de servicios se regenera con otros ids, la semilla sigue señalando el servicio correcto. La vigencia de 30 días es la que trae el formulario y se cambia desde Clientes → Canjes por puntos sin tocar código. Ojo con la escala al mirarlos: a razón de 1 punto cada Gs. 10.000 facturados, la coloración se gana con unos **Gs. 30.000.000** de consumo acumulado |
 | 7.26.0 | 15/08/2026 | **También se canjea desde el mostrador.** La mayoría de las clientas entra por teléfono y **ni siquiera tiene cuenta en el portal**, así que la que viene al local y pide gastar sus puntos no tenía cómo: el canje era sólo del portal. Ahora hay un botón por fila en **Clientes → Fidelización**, con un modal que dice cuántos puntos tiene, cuánto cuesta lo que elige y **cuántos le quedan después** — y avisa antes de confirmar si no le alcanza, porque el procedimiento lo rechaza igual pero enterarse después de apretar es peor. **Pide `clientes.fidelizacion`, NO `clientes.canjes`, y la diferencia es el punto**: canjear POR una clienta es una acción del día a día, y decidir por cuántos puntos el salón regala un servicio es fijar precio — el Profesional tiene la primera y no la segunda. Va por el mismo `sp_canjear_servicio` que el portal, con el mismo candado y las mismas validaciones: lo único distinto es quién aprieta el botón, y eso queda en la auditoría («desde el mostrador»). **El botón sólo se dibuja si le alcanza para algo**: con menos puntos que el canje más barato no hay nada que ofrecerle, y abrir un modal donde todo dice «no te alcanza» es el mismo cartel que promete y no cumple. **79 pruebas**, una nueva que comprueba las dos mitades — que el Profesional canjea y que el catálogo le contesta **403** |
 | 7.25.0 | 15/08/2026 | **Los puntos por fin se gastan: entra el canje por servicios**, que cierra la otra mitad de IN-03 — el programa de fidelización sólo sumaba y en 90 días se acumularon 1.414 puntos sin ninguna pantalla para usarlos. Son **dos tablas y no una**, porque son dos cosas distintas: `servicio_canjeable` es el **catálogo** que arma el salón (qué servicio, cuántos puntos, cuántos días vale) y `canje` es el **hecho** de que una clienta lo cambió. **El estado no se guarda: se deduce**, igual que en `sena_solicitud` —sin cita y sin vencer es disponible, con cita está usado, vencido si pasó la fecha—, que es lo que pide la 3FN. Los puntos y el vencimiento **sí** se guardan en el canje y tampoco la rompen: no son copias de un valor vivo sino **lo que se acordó ese día**, así que subir mañana el precio en puntos no le mueve el piso a quien ya canjeó — el mismo criterio por el que `detalle_factura` guarda el precio en vez de leerlo de `servicio`. **Canjes es su propio permiso** (`clientes.canjes`, van 29) y **no viene con Fidelización**: ver los puntos de alguien y decidir por cuántos el salón regala un servicio son cosas distintas, y lo segundo es fijar precio — la misma razón por la que el Profesional no tiene `servicios.descuentos` desde la 6.4.0. Lo tienen el Administrador y el Asistente. En el portal, el bloque va **debajo de las promociones** porque es lo mismo visto de otra manera —cómo pagar menos—, con la diferencia de que la promoción se aplica sola y el canje se elige. **Al agendar, el canje no reemplaza al servicio: lo acompaña**, y el motor de disponibilidad **no cambia en nada** — un servicio canjeado dura lo mismo, lo hace quien lo hace y necesita un hueco libre igual. Lo único que cambia es que no se cobra: en el comprobante va **a cero y no se omite**, porque se hizo y tiene que constar (`chk_df_precio` admite el cero justamente para esto). **Cancelar la cita devuelve el canje pero NO los puntos**: no los perdió, los cambió por algo que sigue teniendo. El candado sobre la clienta va antes de leerle el saldo, que es el mismo patrón de FA-01 e IN-01. De paso, **el formulario de descuentos gana un «Todos»**: aplicar una promo a todo el catálogo eran veinte clics, y la pieza ya existía (`data-marca-todo`). El contador de `CHECK` del diagnóstico pasa de 61 a **64** — cuarta vez que se atrasa, así que se sube en la misma tanda. **78 pruebas** y los dos `.sql` regenerados |
@@ -1409,8 +1410,18 @@ Dos cosas distintas que conviene no mezclar:
 - **El nivel** (Bronce → Platino) lo calcula `fn_cliente_nivel` por **cantidad de visitas**.
   No hay nada que hacer desde PHP.
 - **Los puntos** los acumula la app al emitir el comprobante: `Facturacion::acumularPuntos()`
-  llama a `sp_registrar_puntos` con 1 punto cada `spg.puntos_cada_gs` guaraníes (en
-  `config/spg.php`, hoy 10.000). Al anular el comprobante,
+  llama a `sp_registrar_puntos` con 1 punto cada **`Config::puntosCadaGs()`** guaraníes.
+  **Ese número lo decide el salón, no el código**: vive en `configuracion.puntos_cada_gs` y se
+  edita en **Servicios → Descuentos**, con el mismo permiso que las promociones —subirlo o
+  bajarlo es fijar cuánto regala el salón—. `config/spg.php` conserva el valor como
+  **respaldo**, para una base que todavía no se reimportó.
+  > **`configuracion` es una tabla de UNA fila con columnas tipadas, no de clave/valor.**
+  > Con clave/valor todo sería texto —sin tipo y sin `CHECK` que valga—, y cualquier
+  > parámetro nuevo entraría sin que el modelo lo describa. Con una columna por parámetro,
+  > cada uno tiene su tipo y su restricción, que es lo que pide la 3FN estricta del TCC.
+  > `chk_config_unica` (`id_configuracion = 1`) es lo que garantiza que no haya dos verdades.
+  > **Lo ya acumulado no se recalcula**: los puntos de cada clienta son movimientos ya
+  > escritos en `movimiento_punto`, así que el cambio vale de ahí en adelante. Al anular el comprobante,
   `Facturacion::revertirPuntos()` registra el movimiento contrario en vez de borrar el
   original, para que el historial del cliente muestre lo que pasó.
 
@@ -2110,7 +2121,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 64 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 66 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -2142,7 +2153,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 32 funciones,
-   17 triggers, 17 vistas y 64 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 66 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -2179,7 +2190,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**79 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**80 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

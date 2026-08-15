@@ -833,6 +833,32 @@ INSERT INTO `condicion_venta` VALUES (1,'Contado',0,1),(2,'Credito',30,1);
 UNLOCK TABLES;
 
 --
+-- Table structure for table `configuracion`
+--
+
+DROP TABLE IF EXISTS `configuracion`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `configuracion` (
+  `id_configuracion` tinyint(3) unsigned NOT NULL DEFAULT 1,
+  `puntos_cada_gs` int(10) unsigned NOT NULL DEFAULT 10000,
+  PRIMARY KEY (`id_configuracion`),
+  CONSTRAINT `chk_config_unica` CHECK (`id_configuracion` = 1),
+  CONSTRAINT `chk_config_puntos` CHECK (`puntos_cada_gs` between 100 and 10000000)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `configuracion`
+--
+
+LOCK TABLES `configuracion` WRITE;
+/*!40000 ALTER TABLE `configuracion` DISABLE KEYS */;
+INSERT INTO `configuracion` VALUES (1,10000);
+/*!40000 ALTER TABLE `configuracion` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `contacto_soporte`
 --
 
@@ -5374,4 +5400,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 17:02:27
+-- Dump completed on 2026-08-15 17:15:24

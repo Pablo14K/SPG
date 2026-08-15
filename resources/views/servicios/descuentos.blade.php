@@ -3,9 +3,46 @@
 @section('titulo', 'Descuentos')
 
 @section('contenido')
+    @php use App\Servicios\Permisos; @endphp
     <x-encabezado
         sub="Promociones del salón. Se aplica <strong>una sola</strong> por factura: la que más le convenga al cliente entre su nivel de fidelización y la mejor promoción vigente, nunca las dos sumadas."
         :accion="['ruta' => 'servicios.descuento_form', 't' => 'Nuevo descuento', 'ic' => 'plus-lg']" />
+
+    {{-- Cuánto vale un punto. Va acá y no en un archivo de configuración porque
+         contesta la misma pregunta que los descuentos —cuánto le devuelve el
+         salón al cliente por comprar acá— y porque lo decide el salón, no quien
+         programa: antes cambiarlo era editar código y volver a desplegar. --}}
+    <div class="spg-panel mb-3">
+        <form method="post" action="{{ route('servicios.puntos.guardar') }}"
+              class="d-flex align-items-end gap-2 flex-wrap">
+            @csrf
+            <div>
+                <label class="form-label mb-1" for="puntos_cada_gs">
+                    <i class="bi bi-award txt-oro"></i> Fidelización
+                </label>
+                <div class="d-flex align-items-center gap-2">
+                    <span>1 punto por cada</span>
+                    <div class="input-group" style="width:190px">
+                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <input class="form-control input-miles" id="puntos_cada_gs" name="puntos_cada_gs"
+                               data-min="100" data-max="10000000"
+                               value="{{ monto_input($puntosCadaGs) }}" required>
+                    </div>
+                    <span>facturados</span>
+                    <button class="btn btn-oro">Guardar</button>
+                </div>
+            </div>
+        </form>
+        <p class="text-muted-warm mb-0 mt-2" style="font-size:.8rem">
+            Hoy, una factura de {{ money($puntosCadaGs * 32) }} le deja
+            <strong>32 puntos</strong> al cliente. Los puntos que las clientas ya tienen
+            <strong>no cambian</strong>: esto vale de acá en adelante.
+            @if (Permisos::puede('clientes.canjes'))
+                Lo que se puede canjear con ellos se carga en
+                <a class="link-oro" href="{{ route('clientes.canjes') }}">Clientes → Canjes por puntos</a>.
+            @endif
+        </p>
+    </div>
 
     <div class="spg-panel">
         <div class="table-responsive">

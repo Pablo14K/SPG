@@ -9,6 +9,7 @@ use App\Servicios\Bd;
 use App\Servicios\Canje;
 use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
+use App\Servicios\Config;
 use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
@@ -1623,6 +1624,47 @@ class ReglasDeNegocioTest extends TestCase
         $this->post(route('clientes.canje.guardar'), [
             'id_servicio' => $servicio, 'puntos' => 1, 'dias_vigencia' => 30,
         ])->assertForbidden();
+    }
+
+    /**
+     * Cuánto vale un punto lo decide el salón, no un archivo de código.
+     *
+     * Vivía en `config/spg.php`, así que cambiarlo era editar código y volver a
+     * desplegar. Es un número del negocio: pasa a la base y se edita desde la
+     * pantalla de promociones, con el mismo permiso que ellas —subirlo o
+     * bajarlo es fijar cuánto regala el salón—.
+     */
+    #[Test]
+    public function la_relacion_de_puntos_se_edita_y_afecta_lo_que_se_acumula(): void
+    {
+        Config::olvidar();
+        $original = Config::puntosCadaGs();
+
+        $this->entrarComoAdministrador();
+
+        // Se cambia desde la pantalla, no a mano en la base.
+        $this->post(route('servicios.puntos.guardar'), ['puntos_cada_gs' => '5.000'])
+             ->assertRedirect(route('servicios.descuentos'));
+
+        Config::olvidar();
+        $this->assertSame(5000, Config::puntosCadaGs(), 'El valor nuevo tiene que quedar guardado.');
+
+        // Y **cambia lo que se acumula de acá en adelante**: con 1 punto cada
+        // Gs. 5.000, una factura de Gs. 320.000 deja 64 y no 32.
+        $this->assertSame(64, (int) floor(320000 / Config::puntosCadaGs()));
+
+        // Los topes los hace cumplir la base; acá se comprueba que la pantalla
+        // no deje pasar un valor que dividiría por cero o regalaría puntos.
+        foreach (['0', '50', '99.999.999'] as $absurdo) {
+            $this->post(route('servicios.puntos.guardar'), ['puntos_cada_gs' => $absurdo]);
+            Config::olvidar();
+            $this->assertSame(5000, Config::puntosCadaGs(),
+                "Un valor de $absurdo no tendría que haberse guardado.");
+        }
+
+        // Se devuelve el valor con el que vino la base.
+        Config::guardarPuntosCadaGs($original);
+        Config::olvidar();
     }
 
     #[Test]
