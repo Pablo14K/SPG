@@ -1577,6 +1577,54 @@ class ReglasDeNegocioTest extends TestCase
             'Y NO devuelve los puntos: sería regalarle las dos cosas.');
     }
 
+    /**
+     * El mostrador canjea por la clienta, pero no fija por cuánto.
+     *
+     * La mayoría de las clientas entra por teléfono y **no tiene cuenta en el
+     * portal**, así que la que viene al local y pide gastar sus puntos tiene
+     * que poder hacerlo ahí mismo. Eso es una acción del día a día y la hace
+     * quien atiende.
+     *
+     * Lo que **no** puede el Profesional es administrar el catálogo: decidir
+     * por cuántos puntos el salón regala un servicio es fijar precio, la misma
+     * razón por la que no tiene `servicios.descuentos` desde la 6.4.0.
+     */
+    #[Test]
+    public function el_profesional_canjea_por_la_clienta_pero_no_administra_el_catalogo(): void
+    {
+        $rolProf = 2;
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
+        if (! $cliente || ! $servicio) {
+            $this->markTestSkipped('Falta un cliente o un servicio.');
+        }
+
+        DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
+            [$servicio, 10, 30]);
+        DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)', [$cliente, 'AJUSTE', 100, 'prueba']);
+
+        $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
+            [$rolProf]) ?: 999999;
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+
+        $antes = Canje::puntos($cliente);
+
+        // Puede canjear por ella desde el mostrador.
+        $this->post(route('clientes.canjear'), ['id_cliente' => $cliente, 'id_servicio' => $servicio])
+             ->assertRedirect(route('clientes.fidelizacion'));
+
+        $this->assertSame($antes - 10, Canje::puntos($cliente),
+            'El canje del mostrador descuenta igual que el del portal.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM canje WHERE id_cliente = ? AND id_servicio = ?', [$cliente, $servicio]));
+
+        // Pero el catálogo no es suyo: la ruta contesta 403, no se esconde el botón.
+        $this->get(route('clientes.canjes'))->assertForbidden();
+        $this->post(route('clientes.canje.guardar'), [
+            'id_servicio' => $servicio, 'puntos' => 1, 'dias_vigencia' => 30,
+        ])->assertForbidden();
+    }
+
     #[Test]
     public function la_agenda_ofrece_cobrar_la_sena_cuando_hay_caja_abierta(): void
     {

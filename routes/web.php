@@ -172,6 +172,12 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         Route::get('fidelizacion', [ClientesController::class, 'fidelizacion'])
             ->name('fidelizacion')->middleware('modulo:clientes.fidelizacion');
 
+        // Canjear POR una clienta, desde el mostrador. Pide `fidelizacion` y no
+        // `canjes`: es una acción del día a día, no fijar por cuántos puntos el
+        // salón regala un servicio. Por eso la puede hacer el Profesional.
+        Route::post('canjear', [ClientesController::class, 'canjearPara'])
+            ->name('canjear')->middleware('modulo:clientes.fidelizacion');
+
         // Canjes por puntos: su propio permiso, porque fijar por cuántos puntos
         // el salón regala un servicio es fijar precio.
         Route::middleware('modulo:clientes.canjes')->group(function () {

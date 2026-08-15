@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Bd;
 use App\Servicios\Canje;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
@@ -347,6 +348,70 @@ class ClientesController extends Controller
         return redirect()->route('clientes.canjes');
     }
 
+    /**
+     * Canjear los puntos de una clienta **desde el mostrador**.
+     *
+     * No todas las clientas usan el portal —la mayoría entra por teléfono y ni
+     * siquiera tiene cuenta—, así que la que viene al local y pide gastar sus
+     * puntos tiene que poder hacerlo ahí mismo, con quien la atiende.
+     *
+     * **Pide `clientes.fidelizacion`, no `clientes.canjes`**, y la diferencia
+     * importa: canjear POR una clienta es una acción del mostrador, y decidir
+     * por cuántos puntos el salón regala un servicio es fijar precio. El
+     * Profesional tiene la primera y no la segunda.
+     *
+     * Pasa por el mismo `sp_canjear_servicio` que el portal: mismo candado,
+     * mismas validaciones y mismo descuento de puntos. Lo único distinto es
+     * quién aprieta el botón, y eso queda en la auditoría.
+     */
+    public function canjearPara(Request $request): RedirectResponse
+    {
+        $idCliente = (int) $request->input('id_cliente', 0);
+        $idServicio = (int) $request->input('id_servicio', 0);
+        $volver = redirect()->route('clientes.fidelizacion');
+
+        $cliente = DB::selectOne(
+            "SELECT cl.id_cliente, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
+               FROM cliente cl JOIN persona pe ON pe.id_persona = cl.id_persona
+              WHERE cl.id_cliente = ? AND cl.activo = 1", [$idCliente]
+        );
+        if (! $cliente) {
+            flash('Esa clienta no existe o está dada de baja.', 'error');
+
+            return $volver;
+        }
+
+        try {
+            $idCanje = Canje::canjear($idCliente, $idServicio);
+            $c = DB::selectOne(
+                'SELECT s.nombre, cj.puntos, cj.vence_en FROM canje cj
+                   JOIN servicio s ON s.id_servicio = cj.id_servicio
+                  WHERE cj.id_canje = ?', [$idCanje]
+            );
+
+            Auditoria::registrar('CANJE', 'Clientes', 'canje', $idCanje,
+                $cliente->nombre . ' canjeó ' . ($c->nombre ?? '') . ' por '
+                . (int) ($c->puntos ?? 0) . ' puntos (desde el mostrador)');
+
+            flash('Listo: ' . $cliente->nombre . ' canjeó ' . ($c->nombre ?? 'el servicio')
+                . '. Le quedan ' . Canje::puntos($idCliente) . ' punto(s), y tiene hasta el '
+                . fecha($c->vence_en ?? null, 'd/m/Y') . ' para usarlo. '
+                . 'Aparece al agendarle la cita.');
+        } catch (Throwable $ex) {
+            flash(Bd::traducir($ex, [
+                'no alcanzan' => 'A ' . $cliente->nombre . ' no le alcanzan los puntos para ese canje: '
+                                 . 'tiene ' . Canje::puntos($idCliente) . '.',
+                'no se puede canjear' => 'Ese servicio no está en la lista de canjes.',
+            ], 'No se pudo hacer el canje. El detalle quedó registrado.'), 'error');
+
+            if (! str_contains($ex->getMessage(), 'alcanzan') && ! str_contains($ex->getMessage(), 'canjear')) {
+                Log::error('Canje desde el mostrador', ['cliente' => $idCliente, 'error' => $ex->getMessage()]);
+            }
+        }
+
+        return $volver;
+    }
+
     public function fidelizacion(): View|StreamedResponse
     {
         $f = Listado::filtros([
@@ -385,6 +450,8 @@ class ClientesController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
+        $canjeables = Canje::catalogo();
+
         return view('clientes.fidelizacion', [
             'rows' => DB::select("SELECT * $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
@@ -398,6 +465,17 @@ class ClientesController extends Controller
                    FROM nivel n LEFT JOIN descuento d ON d.id_descuento = n.id_descuento
                   ORDER BY n.visitas_minimas'
             ),
+            // Para canjear desde el mostrador: la clienta que viene al local y
+            // pide gastar sus puntos no tiene por qué entrar al portal —la
+            // mayoría ni siquiera tiene cuenta—.
+            'canjeables' => $canjeables,
+            // El canje más barato del catálogo: con menos puntos que eso no hay
+            // nada que ofrecerle, y el botón no se dibuja. Un botón que abre un
+            // modal donde todo dice «no te alcanza» es el mismo cartel que
+            // promete y no cumple.
+            'canjeMasBarato' => $canjeables
+                ? min(array_map(fn ($c) => (int) $c->puntos, $canjeables))
+                : PHP_INT_MAX,
         ]);
     }
 

@@ -55,7 +55,22 @@
                             <td class="text-end">{{ (int) $r->puntos }}</td>
                             <td><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>
                             <td class="text-muted-warm">{{ $r->descuento_del_nivel ?: '—' }}</td>
-                            <td class="text-end">
+                            <td class="text-end" style="white-space:nowrap">
+                                {{-- Canjear desde el mostrador: la clienta viene al local y
+                                     pide gastar sus puntos. La mayoría ni tiene cuenta en el
+                                     portal, así que sin esto no podría canjear nunca.
+                                     El botón sale sólo si hay algo que canjear y si le
+                                     alcanza para algo: ofrecerlo sin poder usarlo sería el
+                                     mismo cartel que promete y no cumple. --}}
+                                @if ($canjeables && (int) $r->puntos >= $canjeMasBarato)
+                                    <button class="btn btn-sm btn-oro" data-bs-toggle="modal"
+                                            data-bs-target="#modalCanje"
+                                            data-cliente="{{ $r->id_cliente }}"
+                                            data-nombre="{{ $r->cliente }}"
+                                            data-puntos="{{ (int) $r->puntos }}"
+                                            title="Canjear sus puntos">
+                                        <i class="bi bi-gift"></i></button>
+                                @endif
                                 <a class="btn btn-sm btn-outline-neutro" title="Historial"
                                    href="{{ route('clientes.historial', $r->id_cliente) }}">
                                     <i class="bi bi-clock-history"></i></a>
@@ -80,4 +95,81 @@
 
         <x-paginacion :pag="$pag" :f="$f" />
     </div>
+
+    @if ($canjeables)
+        <div class="modal fade" id="modalCanje" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{{ route('clientes.canjear') }}">
+                        @csrf
+                        <input type="hidden" name="id_cliente" id="canjeCliente">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="font-size:1rem">
+                                <i class="bi bi-gift"></i> Canjear puntos de <span id="canjeNombre"></span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted-warm" style="font-size:.82rem">
+                                Tiene <strong id="canjePuntos"></strong> punto(s). Al canjear se le
+                                descuentan y le queda el servicio guardado: <strong>aparece al
+                                agendarle la cita</strong>, y ahí no se le cobra.
+                            </p>
+                            <label class="form-label" for="canjeServicio">¿Qué canjea?</label>
+                            <select class="form-select" id="canjeServicio" name="id_servicio" required>
+                                @foreach ($canjeables as $c)
+                                    <option value="{{ $c->id_servicio }}" data-puntos="{{ (int) $c->puntos }}">
+                                        {{ $c->nombre }} — {{ (int) $c->puntos }} pts ·
+                                        vale {{ money($c->precio) }} ·
+                                        {{ (int) $c->dias_vigencia }} día(s) para usarlo
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="mt-2 text-muted-warm" id="canjeAviso" style="font-size:.82rem"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-oro">Canjear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @push('scripts')
+            <script>
+            (function () {
+                var modal = document.getElementById('modalCanje');
+                if (!modal) return;
+                var sel = document.getElementById('canjeServicio');
+                var aviso = document.getElementById('canjeAviso');
+                var tiene = 0;
+
+                // Se avisa ANTES de apretar si no le alcanza: el procedimiento lo
+                // rechaza igual, pero enterarse después de confirmar es peor.
+                function revisar() {
+                    var op = sel.options[sel.selectedIndex];
+                    var cuesta = op ? parseInt(op.getAttribute('data-puntos'), 10) : 0;
+                    if (cuesta > tiene) {
+                        aviso.innerHTML = '<span class="txt-no">No le alcanza: le faltan '
+                                        + (cuesta - tiene) + ' punto(s).</span>';
+                    } else {
+                        aviso.textContent = 'Le quedan ' + (tiene - cuesta) + ' punto(s) después del canje.';
+                    }
+                }
+
+                modal.addEventListener('show.bs.modal', function (e) {
+                    var b = e.relatedTarget;
+                    if (!b) return;
+                    document.getElementById('canjeCliente').value = b.getAttribute('data-cliente');
+                    document.getElementById('canjeNombre').textContent = b.getAttribute('data-nombre');
+                    tiene = parseInt(b.getAttribute('data-puntos'), 10) || 0;
+                    document.getElementById('canjePuntos').textContent = tiene;
+                    revisar();
+                });
+                sel.addEventListener('change', revisar);
+            })();
+            </script>
+        @endpush
+    @endif
 @endsection
