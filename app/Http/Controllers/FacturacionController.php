@@ -1086,14 +1086,59 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // **Cuánto se le devuelve en efectivo, y por lo tanto cuánto sale del
+        // cajón** (FA-02). Sólo lo que la clienta pagó en efectivo: lo que pagó
+        // con tarjeta o transferencia se le devuelve por el mismo camino y no
+        // toca la caja, igual que al entrar.
+        $enEfectivo = (float) DB::scalar(
+            "SELECT COALESCE(SUM(co.monto),0)
+               FROM cobro co
+               JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+              WHERE co.id_estado_cobro = 1 AND mp.tipo = 'EFECTIVO'
+                AND (co.id_factura = :f1
+                     OR co.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))",
+            ['f1' => $id, 'f2' => $id]
+        );
+
+        if ($enEfectivo > 0) {
+            $enCaja = Caja::saldo((int) $caja->id_caja);
+            if ($enEfectivo > $enCaja + 0.01) {
+                flash('Habría que devolverle ' . money($enEfectivo) . ' y en la caja hay '
+                    . money($enCaja) . '. Registrá primero el ingreso o devolvele por otro medio.', 'error');
+
+                return $volver;
+            }
+        }
+
         try {
             $idNota = Facturacion::notaCredito($id, (int) session('uid'), $motivo);
             $nroNota = Facturacion::numero($idNota);
             Auditoria::registrar('NOTA_CREDITO', 'Facturacion', 'factura', $idNota,
                 'Nota de crédito ' . $nroNota . ' sobre ' . $f->nro . ' — ' . $motivo);
 
+            // **La devolución sale de la caja** (FA-02). El procedimiento crea
+            // el comprobante, copia el detalle y ahí termina: no genera un
+            // cobro negativo, no anula el original y no dejaba egreso, así que
+            // la plata se devolvía en el mostrador y el arqueo no se enteraba —
+            // un salón que devuelve todos los meses cierra con faltante sin
+            // saber por qué.
+            //
+            // Va como `movimiento_caja`, que es la tabla del movimiento manual
+            // de efectivo y que `fn_caja_saldo` ya resta. Hasta acá **nadie la
+            // escribía**: cero filas en los 90 días de la simulación.
+            if ($enEfectivo > 0) {
+                DB::insert(
+                    'INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?,?,?,?)',
+                    [(int) $caja->id_caja, 'EGRESO', $enEfectivo,
+                     'Devolución por nota de crédito ' . $nroNota . ' sobre ' . $f->nro]
+                );
+            }
+
             $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito');
             flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro . '.'
+                . ($enEfectivo > 0
+                    ? ' Se descontaron ' . money($enEfectivo) . ' del efectivo de la caja.'
+                    : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.')
                 . ($devueltos ? ' Se le descontaron al cliente los ' . $devueltos . ' punto(s) de esa venta.' : ''));
 
             return redirect()->route('facturacion.factura_ver', ['id' => $idNota]);
@@ -1355,6 +1400,12 @@ class FacturacionController extends Controller
                   WHERE u.activo = 1 AND r.es_personal = 1
                   ORDER BY pe_u.nombre, pe_u.apellido'
             ),
+            // Con qué se le paga: lo que sale en efectivo baja del cajón y lo
+            // que sale por banco, no. Sin este dato el arqueo no cerraba.
+            'metodos' => DB::select(
+                "SELECT id_metodo_pago, nombre, tipo FROM metodo_pago
+                  WHERE activo = 1 ORDER BY (tipo = 'EFECTIVO') DESC, nombre"
+            ),
         ]);
     }
 
@@ -1363,10 +1414,16 @@ class FacturacionController extends Controller
     {
         $idProf = (int) $request->input('id_usuario', 0);
         $periodo = trim((string) $request->input('periodo', '')) ?: date('m/Y');
+        $idMetodo = (int) $request->input('id_metodo_pago', 0);
         $volver = redirect()->route('facturacion.pagos');
 
         if (! $idProf) {
             flash('Elegí un profesional.', 'error');
+
+            return $volver;
+        }
+        if (! $idMetodo || ! DB::scalar('SELECT COUNT(*) FROM metodo_pago WHERE id_metodo_pago = ? AND activo = 1', [$idMetodo])) {
+            flash('Elegí con qué le vas a pagar.', 'error');
 
             return $volver;
         }
@@ -1387,13 +1444,39 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // Cuánto se le va a pagar, para poder comprobarlo ANTES de registrarlo.
+        $monto = (float) DB::scalar(
+            'SELECT COALESCE(SUM(fn_comision_servicio(sr.id_servicio_realizado)),0)
+               FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE sr.id_usuario = ? AND d.id_detalle_pago IS NULL', [$idProf]
+        );
+
+        // **En efectivo no se puede entregar plata que no está en el cajón**, la
+        // misma regla que ya tenía el pago a proveedores. Hasta la 7.22.0 la
+        // liquidación no pasaba por ningún control porque **no tocaba la caja
+        // en absoluto**: se liquidaron Gs. 1.868.250 en 90 días sin que el
+        // arqueo registrara un solo egreso.
+        if (Caja::esEfectivo($idMetodo)) {
+            $enCaja = Caja::saldo((int) $caja->id_caja);
+            if ($monto > $enCaja + 0.01) {
+                flash('En la caja hay ' . money($enCaja) . ' en efectivo y la liquidación es de '
+                    . money($monto) . '. Pagale con otro medio o registrá primero el ingreso.', 'error');
+
+                return $volver;
+            }
+        }
+
         try {
-            $idPago = Bd::idDe('sp_registrar_pago_personal', [$idProf, (int) session('uid'), $periodo]);
+            $idPago = Bd::idDe('sp_registrar_pago_personal',
+                [$idProf, (int) session('uid'), $periodo, $idMetodo, (int) $caja->id_caja]);
             Auditoria::registrar('PAGO_PERSONAL', 'Facturacion', 'pago_personal', $idPago,
-                "Liquidación $periodo ($pend servicios)");
-            flash('Pago al profesional registrado.');
+                "Liquidación $periodo ($pend servicios) por " . money($monto));
+            flash('Liquidación de ' . money($monto) . ' registrada.'
+                . (Caja::esEfectivo($idMetodo) ? ' Se descontó del efectivo de la caja.' : ''));
         } catch (Throwable $ex) {
-            flash('No se pudo registrar el pago: ' . $ex->getMessage(), 'error');
+            flash('No se pudo registrar el pago. El detalle quedó registrado.', 'error');
+            Log::error('Liquidación al personal', ['profesional' => $idProf, 'error' => $ex->getMessage()]);
         }
 
         return $volver;

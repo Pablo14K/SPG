@@ -1238,6 +1238,58 @@ class ReglasDeNegocioTest extends TestCase
              ->assertSee('Citas de hoy');
     }
 
+    /**
+     * CJ-02: la liquidación al personal sale del cajón, si se paga en efectivo.
+     *
+     * `fn_caja_saldo` sumaba el monto inicial, los cobros en efectivo y
+     * `movimiento_caja`, y restaba los pagos a proveedores — **el pago al
+     * personal no estaba**. Se liquidaron Gs. 1.868.250 en 90 días y el arqueo
+     * no registró ni un egreso. `pago_personal` tampoco tenía con qué: no
+     * guardaba ni la caja ni el medio de pago, al revés que `pago_proveedor`.
+     */
+    #[Test]
+    public function la_liquidacion_al_personal_descuenta_del_cajon_solo_si_es_en_efectivo(): void
+    {
+        $caja = (int) DB::scalar('SELECT id_caja FROM caja ORDER BY id_caja DESC LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT sr.id_usuario FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE d.id_detalle_pago IS NULL GROUP BY sr.id_usuario LIMIT 1'
+        );
+        $efectivo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
+        $banco = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo <> 'EFECTIVO' AND activo = 1 LIMIT 1");
+        if (! $caja || ! $prof || ! $efectivo || ! $banco) {
+            $this->markTestSkipped('Falta una caja, un profesional con servicios sin liquidar o los medios de pago.');
+        }
+
+        $antes = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$caja]);
+
+        // En efectivo: sale del cajón.
+        $idPago = Bd::idDe('sp_registrar_pago_personal', [$prof, 1, '08/2026', $efectivo, $caja]);
+        $monto = (float) DB::scalar('SELECT fn_pago_personal_monto(?)', [$idPago]);
+        $this->assertGreaterThan(0, $monto, 'La liquidación tiene que tener monto, o la prueba no mide nada.');
+        $this->assertEqualsWithDelta($antes - $monto, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$caja]), 0.01,
+            'Una liquidación en efectivo tiene que bajar el arqueo.');
+
+        // Se deshace para probar el otro medio sobre los mismos servicios.
+        DB::delete('DELETE FROM detalle_pago_personal WHERE id_pago_personal = ?', [$idPago]);
+        DB::delete('DELETE FROM pago_personal WHERE id_pago_personal = ?', [$idPago]);
+
+        // Por banco: no toca el cajón, sale de la cuenta.
+        $idPago2 = Bd::idDe('sp_registrar_pago_personal', [$prof, 1, '08/2026', $banco, $caja]);
+        $this->assertEqualsWithDelta($antes, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$caja]), 0.01,
+            'Una liquidación por transferencia no saca un guaraní del cajón.');
+        $this->assertGreaterThan(0, (float) DB::scalar('SELECT fn_pago_personal_monto(?)', [$idPago2]),
+            'Pero se registra igual: el salón la pagó.');
+
+        // Y la vista la expone separada, que es lo que permite cuadrar.
+        $r = DB::selectOne('SELECT pagos_pers_efectivo, pagos_pers_otros, pagos_personal
+                              FROM vw_caja_resumen WHERE id_caja = ?', [$caja]);
+        $this->assertEqualsWithDelta(0, (float) $r->pagos_pers_efectivo, 0.01);
+        $this->assertGreaterThan(0, (float) $r->pagos_pers_otros);
+        $this->assertGreaterThan(0, (float) $r->pagos_personal);
+    }
+
     #[Test]
     public function la_agenda_ofrece_cobrar_la_sena_cuando_hay_caja_abierta(): void
     {

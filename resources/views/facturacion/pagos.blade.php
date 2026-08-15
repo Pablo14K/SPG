@@ -31,7 +31,17 @@
                                                 @csrf
                                                 <input type="hidden" name="id_usuario" value="{{ $p->id_usuario }}">
                                                 <input class="form-control form-control-sm" name="periodo"
-                                                       value="{{ date('m/Y') }}" style="width:80px" maxlength="10">
+                                                       value="{{ date('m/Y') }}" style="width:80px" maxlength="10"
+                                                       aria-label="Período">
+                                                {{-- Con qué se le paga. Hace falta para el arqueo: lo que sale
+                                                     en efectivo baja del cajón y lo que sale por banco, no. --}}
+                                                <select class="form-select form-select-sm" name="id_metodo_pago"
+                                                        style="width:130px" aria-label="Medio de pago" required>
+                                                    @foreach ($metodos as $m)
+                                                        <option value="{{ $m->id_metodo_pago }}"
+                                                            @selected($m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
+                                                    @endforeach
+                                                </select>
                                                 <button class="btn btn-sm btn-oro"
                                                         data-confirmar="Se van a liquidar {{ (int) $p->pendientes }} servicio(s) de {{ $p->nombre }}. ¿Confirmás?">
                                                     Liquidar</button>
