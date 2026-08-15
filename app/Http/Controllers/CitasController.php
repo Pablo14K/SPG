@@ -19,7 +19,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -775,76 +774,31 @@ class CitasController extends Controller
                         continue;
                     }
 
+                    // **Quien hizo el servicio es quien tenía el servicio, no
+                    // el de la cita.** El reparto entre profesionales existe
+                    // desde la 5.3.0 y se quedaba en `cita_servicio`: acá se
+                    // escribía siempre `$cita->id_usuario`, así que la manicura
+                    // que hizo Lucía quedaba a nombre de Marta. Y como
+                    // `fn_comision_servicio` sale de `servicio_realizado`, **la
+                    // comisión se le pagaba a quien no trabajó**, y las columnas
+                    // «Generado» y «Comisión» del informe del equipo atribuían
+                    // mal el trabajo.
+                    //
+                    // Sin reparto, `cita_servicio.id_usuario` es NULL y sigue
+                    // valiendo el de la cita, que es el caso de siempre.
+                    $deQuien = DB::scalar(
+                        'SELECT id_usuario FROM cita_servicio
+                          WHERE id_cita = ? AND id_servicio = ? AND id_usuario IS NOT NULL LIMIT 1',
+                        [$idCita, $sid]
+                    );
+
                     DB::insert(
                         'INSERT INTO servicio_realizado (id_cita,id_servicio,id_usuario,observaciones) VALUES (?,?,?,?)',
-                        [$idCita, $sid, (int) $cita->id_usuario, $obs]
+                        [$idCita, $sid, (int) ($deQuien ?: $cita->id_usuario), $obs]
                     );
                     $nuevo = (int) DB::getPdo()->lastInsertId();
                     $idsSR[] = $nuevo;
                     $srPorServicio[$sid] = $nuevo;
-                }
-
-                // Los productos que se usan de a poco se cargan en su unidad de
-                // consumo (30 ml) y hay que traducirlos a la de stock (0,03
-                // frascos) ANTES de guardar: `producto_utilizado.cantidad` y el
-                // disparador que descuenta el inventario trabajan siempre en
-                // unidades de stock.
-                $fraccion = [];
-                foreach (array_unique(array_map('intval', $prodIds)) as $pid) {
-                    if ($pid <= 0) {
-                        continue;
-                    }
-                    $fila = DB::selectOne(
-                        'SELECT unidad_medida, contenido, unidad_consumo FROM producto WHERE id_producto = ?', [$pid]
-                    );
-                    if ($fila) {
-                        $fraccion[$pid] = (array) $fila;
-                    }
-                }
-
-                $nProd = 0;
-                foreach ($prodIds as $i => $pid) {
-                    $pid = (int) $pid;
-                    $cargado = num($prodCant[$i] ?? 0);
-                    if ($pid <= 0 || $cargado <= 0) {
-                        continue;
-                    }
-
-                    $c = isset($fraccion[$pid]) ? consumo_a_stock($fraccion[$pid], $cargado) : $cargado;
-                    if ($c <= 0) {
-                        // 1 ml de un bidón de 5.000 puede redondear a cero: no
-                        // descuenta nada y la fila no aporta información.
-                        throw new RuntimeException('cantidad_muy_chica');
-                    }
-
-                    $servElegido = (int) ($prodServ[$i] ?? 0);
-                    if ($servElegido > 0 && ! isset($srPorServicio[$servElegido])) {
-                        throw new RuntimeException('servicio_no_realizado');
-                    }
-                    $sr = $servElegido > 0 ? $srPorServicio[$servElegido] : $idsSR[0];
-
-                    // El disparador descuenta el stock solo al INSERT. Si la fila
-                    // ya existía (mismo producto y mismo servicio), un UPDATE
-                    // sumaría la cantidad sin descontar nada, así que el
-                    // movimiento se registra a mano.
-                    $yaPU = DB::selectOne(
-                        'SELECT id_producto_utilizado FROM producto_utilizado
-                          WHERE id_servicio_realizado = ? AND id_producto = ? LIMIT 1', [$sr, $pid]
-                    );
-                    if ($yaPU) {
-                        DB::update('UPDATE producto_utilizado SET cantidad = cantidad + ? WHERE id_producto_utilizado = ?',
-                            [$c, (int) $yaPU->id_producto_utilizado]);
-                        // Precio en NULL, igual que el movimiento que genera el
-                        // disparador: así las dos filas se ven iguales en el libro.
-                        Bd::procedimiento('sp_registrar_movimiento_inventario', [
-                            $pid, (int) $cita->id_usuario, 2, $c, null,
-                            'SR#' . $sr, 'Consumo adicional durante el servicio',
-                        ]);
-                    } else {
-                        DB::insert('INSERT INTO producto_utilizado (id_servicio_realizado,id_producto,cantidad) VALUES (?,?,?)',
-                            [$sr, $pid, $c]);
-                    }
-                    $nProd++;
                 }
 
                 // Los servicios que se agendaron pero NO se hicieron tienen que
@@ -865,30 +819,58 @@ class CitasController extends Controller
                 DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [$idCita]);
 
                 return ['servicios' => count($idsSR), 'agregados' => $agregados,
-                        'quitados' => $quitados, 'productos' => $nProd];
+                        'quitados' => $quitados,
+                        'sr' => $srPorServicio, 'primerSR' => $idsSR[0] ?? 0];
             });
 
+            // **El consumo va DESPUÉS y por separado, y ése es el arreglo de
+            // IN-02.** Antes iba todo en la misma transacción, así que un
+            // producto sin stock abortaba también los servicios que no tenían
+            // nada que ver: **69 de 204 atenciones (34 %) murieron así**, y la
+            // cita quedaba sin cerrar, sin poder facturarse, para terminar
+            // Atrasada o Ausente. Lo que ya se hizo no se puede perder porque
+            // falte un frasco.
+            //
+            // Cada línea se intenta sola: las que entran descuentan, y las que
+            // no se informan por su nombre para que alguien las cargue después.
+            $consumo = $this->descontarConsumo($idCita, (int) $cita->id_usuario,
+                $prodIds, $prodCant, $prodServ, $resumen['sr'], (int) $resumen['primerSR']);
+
             Auditoria::registrar('ATENCION', 'Citas', 'servicio_realizado', $idCita,
-                $resumen['servicios'] . ' servicio(s), ' . $resumen['productos'] . ' producto(s) consumido(s)');
+                $resumen['servicios'] . ' servicio(s), ' . $consumo['ok'] . ' producto(s) consumido(s)'
+                . ($consumo['fallidos'] ? ' — ' . count($consumo['fallidos']) . ' sin descontar' : ''));
 
             flash('Atención registrada: ' . $resumen['servicios'] . ' servicio(s).'
                 . ($resumen['agregados'] ? " Se agregaron {$resumen['agregados']} servicio(s) que no estaban en la cita original." : '')
                 . ($resumen['quitados'] ? " Se quitaron {$resumen['quitados']} servicio(s) agendado(s) que no se realizaron: no se van a facturar." : '')
-                . ($resumen['productos'] ? ' El stock de los productos usados fue descontado.' : ''));
+                . ($consumo['ok'] ? ' El stock de los productos usados fue descontado.' : ''));
+
+            // El aviso del consumo va aparte y en amarillo: la atención quedó
+            // registrada —eso es lo importante— pero el inventario no refleja
+            // lo que se usó, y alguien lo tiene que acomodar.
+            if ($consumo['fallidos']) {
+                flash('Lo que sí quedó pendiente es el descuento de stock de '
+                    . implode('; ', $consumo['fallidos'])
+                    . '. La atención está registrada igual'
+                    . (Permisos::puede('inventario.stock')
+                        ? ': ajustá el stock desde Inventario → Stock cuando puedas.'
+                        : ': avisale a quien maneja el inventario para que lo ajuste.'), 'warning');
+            }
         } catch (QueryException $ex) {
-            // OJO CON EL ORDEN: este catch va ANTES que el de RuntimeException.
-            // `QueryException` hereda de `PDOException`, que hereda de
-            // `RuntimeException`, así que al revés el de abajo se comía todos
-            // los errores de la base y los mostraba como «marcaste un producto
-            // en un servicio que no quedó como realizado» — un mensaje que no
-            // tiene nada que ver y manda a corregir lo que no está mal. Cargar
-            // un producto sin stock daba exactamente eso.
+            // Acá sólo llegan los errores de **los servicios**: desde IN-02 el
+            // consumo de productos se descuenta aparte, línea por línea, y sus
+            // fallas se informan sin tumbar nada (ver `descontarConsumo`).
+            //
+            // OJO CON EL ORDEN: este catch va ANTES que cualquiera de
+            // `RuntimeException`. `QueryException` hereda de `PDOException`,
+            // que hereda de `RuntimeException`, así que al revés el de abajo se
+            // come todos los errores de la base y los muestra con un mensaje
+            // que no tiene nada que ver.
+            //
             // Lo que no se supo traducir se registra: «No se pudo registrar la
             // atención» a secas no le dice nada a nadie, y sin esto en el log
             // no queda rastro de qué pasó. Ya costó una vuelta entera.
             $amable = Bd::traducir($ex, [
-                'stock' => 'No hay stock suficiente de alguno de los productos cargados. '
-                           . 'Fijate la cantidad, o cargá stock desde Inventario antes de registrar la atención.',
                 'habilitado' => 'El profesional no está habilitado para alguno de esos servicios.',
             ], '');
             if ($amable === '') {
@@ -896,20 +878,6 @@ class CitasController extends Controller
                 $amable = 'No se pudo registrar la atención. El detalle quedó en el registro del sistema.';
             }
             flash($amable, 'error');
-
-            return $volver;
-        } catch (RuntimeException $ex) {
-            // Los avisos que levanta esta misma función, por su nombre.
-            $msg = $ex->getMessage();
-            if (! in_array($msg, ['cantidad_muy_chica', 'servicio_no_realizado'], true)) {
-                Log::error('Atención cita ' . $idCita . ' (no previsto): ' . $msg);
-            }
-            flash(match ($msg) {
-                'cantidad_muy_chica' => 'Una de las cantidades es tan chica que no llega a descontar nada del stock. Revisala.',
-                'servicio_no_realizado' => 'Marcaste un producto en un servicio que no quedó como realizado. '
-                                           . 'Marcá ese servicio o elegí otro para el producto.',
-                default => 'No se pudo registrar la atención. El detalle quedó en el registro del sistema.',
-            }, 'error');
 
             return $volver;
         } catch (Throwable $ex) {
@@ -921,6 +889,114 @@ class CitasController extends Controller
         }
 
         return redirect()->route('citas.agenda', ['dia' => (string) $request->input('dia', date('Y-m-d'))]);
+    }
+
+    /**
+     * Descuenta el consumo de productos de una atención ya registrada.
+     *
+     * **Cada línea va en su propia transacción, a propósito** (IN-02). El
+     * consumo depende del stock, que es de otra persona y de otro momento;
+     * los servicios dependen sólo de lo que se hizo. Atarlos hacía que un
+     * frasco vacío borrara el trabajo de la tarde: 69 de 204 atenciones.
+     *
+     * Devuelve cuántas líneas entraron y la lista de las que no, ya escrita
+     * para mostrarle a la persona («Shampoo x 1 L: no hay stock suficiente»).
+     *
+     * @return array{ok:int, fallidos:list<string>}
+     */
+    private function descontarConsumo(int $idCita, int $idUsuario, array $prodIds,
+        array $prodCant, array $prodServ, array $srPorServicio, int $primerSR): array
+    {
+        // Los productos que se usan de a poco se cargan en su unidad de consumo
+        // (30 ml) y hay que traducirlos a la de stock (0,03 frascos) ANTES de
+        // guardar: `producto_utilizado.cantidad` y el disparador que descuenta
+        // el inventario trabajan siempre en unidades de stock.
+        $ficha = [];
+        foreach (array_unique(array_map('intval', $prodIds)) as $pid) {
+            if ($pid <= 0) {
+                continue;
+            }
+            $fila = DB::selectOne(
+                'SELECT nombre, unidad_medida, contenido, unidad_consumo FROM producto WHERE id_producto = ?', [$pid]
+            );
+            if ($fila) {
+                $ficha[$pid] = (array) $fila;
+            }
+        }
+
+        $ok = 0;
+        $fallidos = [];
+
+        foreach ($prodIds as $i => $pid) {
+            $pid = (int) $pid;
+            $cargado = num($prodCant[$i] ?? 0);
+            if ($pid <= 0 || $cargado <= 0) {
+                continue;
+            }
+            $nombre = $ficha[$pid]['nombre'] ?? ('producto #' . $pid);
+
+            $c = isset($ficha[$pid]) ? consumo_a_stock($ficha[$pid], $cargado) : $cargado;
+            if ($c <= 0) {
+                // 1 ml de un bidón de 5.000 puede redondear a cero: no
+                // descuenta nada y la fila no aporta información.
+                $fallidos[] = $nombre . ' (la cantidad es tan chica que no llega a descontar nada)';
+
+                continue;
+            }
+
+            $servElegido = (int) ($prodServ[$i] ?? 0);
+            if ($servElegido > 0 && ! isset($srPorServicio[$servElegido])) {
+                $fallidos[] = $nombre . ' (estaba marcado en un servicio que no quedó como realizado)';
+
+                continue;
+            }
+            $sr = $servElegido > 0 ? $srPorServicio[$servElegido] : $primerSR;
+            if (! $sr) {
+                $fallidos[] = $nombre . ' (no hay ningún servicio al que cargarlo)';
+
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($sr, $pid, $c, $idUsuario) {
+                    // El disparador descuenta el stock solo al INSERT. Si la
+                    // fila ya existía (mismo producto y mismo servicio), un
+                    // UPDATE sumaría la cantidad sin descontar nada, así que el
+                    // movimiento se registra a mano.
+                    $yaPU = DB::selectOne(
+                        'SELECT id_producto_utilizado FROM producto_utilizado
+                          WHERE id_servicio_realizado = ? AND id_producto = ? LIMIT 1', [$sr, $pid]
+                    );
+                    if ($yaPU) {
+                        DB::update('UPDATE producto_utilizado SET cantidad = cantidad + ? WHERE id_producto_utilizado = ?',
+                            [$c, (int) $yaPU->id_producto_utilizado]);
+                        // Precio en NULL, igual que el movimiento que genera el
+                        // disparador: así las dos filas se ven iguales en el libro.
+                        Bd::procedimiento('sp_registrar_movimiento_inventario', [
+                            $pid, $idUsuario, 2, $c, null,
+                            'SR#' . $sr, 'Consumo adicional durante el servicio',
+                        ]);
+                    } else {
+                        DB::insert('INSERT INTO producto_utilizado (id_servicio_realizado,id_producto,cantidad) VALUES (?,?,?)',
+                            [$sr, $pid, $c]);
+                    }
+                });
+                $ok++;
+            } catch (QueryException $ex) {
+                $fallidos[] = $nombre . ': ' . Bd::traducir($ex, [
+                    'stock' => 'no hay stock suficiente',
+                ], 'no se pudo descontar (el detalle quedó registrado)');
+
+                if (! str_contains($ex->getMessage(), 'stock')) {
+                    Log::error('Consumo de la cita ' . $idCita . ', producto ' . $pid . ': ' . $ex->getMessage());
+                }
+            } catch (Throwable $ex) {
+                $fallidos[] = $nombre . ': no se pudo descontar (el detalle quedó registrado)';
+                Log::error('Consumo de la cita ' . $idCita . ', producto ' . $pid . ': ' . $ex->getMessage());
+            }
+        }
+
+        return ['ok' => $ok, 'fallidos' => $fallidos];
     }
 
     /**

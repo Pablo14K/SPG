@@ -33,6 +33,42 @@ class ReglasDeNegocioTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * Marca la entrada del profesional hoy, que es lo que «Registrar atención»
+     * exige antes de dejar cerrar una cita.
+     */
+    private function fichar(int $idUsuario): void
+    {
+        $turno = (int) DB::scalar(
+            'SELECT ut.id_turno FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+              WHERE ut.id_usuario = ? LIMIT 1', [$idUsuario]
+        );
+        if (! $turno) {
+            return;   // sin turno no se le exige fichaje
+        }
+        DB::insert(
+            'INSERT IGNORE INTO asistencia (id_turno, id_usuario, fecha, hora_entrada, id_usuario_registro)
+             VALUES (?, ?, ?, ?, ?)',
+            [$turno, $idUsuario, ahora_bd('Y-m-d'), ahora_bd('H:i:s'), $idUsuario]
+        );
+    }
+
+    /** Sesión de Administrador, para las pruebas que hacen POST a una pantalla. */
+    private function entrarComoAdministrador(): void
+    {
+        $uid = (int) DB::scalar(
+            'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
+            [(int) config('permisos.rol_admin', 1)]
+        );
+        session([
+            'uid' => $uid,
+            'rol' => (int) config('permisos.rol_admin', 1),
+            'es_personal' => true,
+            'es_cliente' => false,
+        ]);
+    }
+
     // -----------------------------------------------------------------
     //  La agenda no vende dos veces el mismo horario
     // -----------------------------------------------------------------
@@ -1046,6 +1082,118 @@ class ReglasDeNegocioTest extends TestCase
             (int) $servicios[1]->id_servicio => $corto,
             (int) $servicios[0]->id_servicio => $largo,
         ]), 'El resultado no puede depender del orden en que vengan los servicios.');
+    }
+
+    /**
+     * AG-02: la comisión es de quien hizo el servicio, no del de la cita.
+     *
+     * `atenderGuardar` escribía siempre `cita.id_usuario` como autor de cada
+     * servicio realizado, ignorando el reparto de `cita_servicio`. Como
+     * `fn_comision_servicio` sale de `servicio_realizado.id_usuario`, **la
+     * comisión se le pagaba a quien no trabajó**, y las columnas «Generado» y
+     * «Comisión» del informe del equipo atribuían mal el trabajo. La función de
+     * varios profesionales por cita existe desde la 5.3.0 y no llegaba al final
+     * del circuito.
+     */
+    #[Test]
+    public function el_servicio_repartido_queda_a_nombre_de_quien_lo_hizo(): void
+    {
+        $profs = Agenda::profesionales();
+        if (count($profs) < 2) {
+            $this->markTestSkipped('Hacen falta dos profesionales que atiendan.');
+        }
+        [$dueno, $ayuda] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
+
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $servicios = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 2');
+        if (! $cliente || count($servicios) < 2) {
+            $this->markTestSkipped('Falta un cliente o dos servicios en la base de prueba.');
+        }
+        [$sA, $sB] = [(int) $servicios[0]->id_servicio, (int) $servicios[1]->id_servicio];
+
+        // Una cita del dueño, con el segundo servicio repartido a la otra.
+        // `cita` NO guarda la duración: es derivada y la calcula fn_cita_duracion.
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+            [$cliente, $dueno, 1, ahora_bd('Y-m-d H:i:s')]);
+        $idCita = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $sA]);
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,?)', [$idCita, $sB, $ayuda]);
+
+        // Atender exige que el profesional haya fichado ese día, así que se
+        // ficha: es el camino real, no un atajo.
+        $this->fichar($dueno);
+
+        $this->entrarComoAdministrador();
+        $this->post(route('citas.atender.guardar'), [
+            'id_cita' => $idCita,
+            'servicios' => [$sA, $sB],
+        ]);
+
+        $autorA = (int) DB::scalar('SELECT id_usuario FROM servicio_realizado WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sA]);
+        $autorB = (int) DB::scalar('SELECT id_usuario FROM servicio_realizado WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sB]);
+
+        $this->assertSame($dueno, $autorA, 'Sin reparto, el servicio es del profesional de la cita.');
+        $this->assertSame($ayuda, $autorB,
+            'El servicio repartido tiene que quedar a nombre de quien lo hizo: si no, la comisión '
+            . 'se le paga a quien no trabajó.');
+    }
+
+    /**
+     * IN-02: que falte un frasco no puede borrar el trabajo de la tarde.
+     *
+     * `atenderGuardar` corría todo en una sola transacción, así que un producto
+     * sin stock abortaba **también los servicios realizados**, que no tenían
+     * nada que ver. Fueron **69 de 204 intentos (34 %)**: la cita quedaba sin
+     * cerrar, no se podía facturar y terminaba Atrasada o Ausente.
+     */
+    #[Test]
+    public function un_producto_sin_stock_no_tumba_los_servicios_de_la_atencion(): void
+    {
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $prof = (int) DB::scalar('SELECT id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                                   WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 1');
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+
+        // Un producto que NO tiene con qué: se pide mucho más de lo que hay.
+        $prod = DB::selectOne(
+            'SELECT p.id_producto, fn_producto_stock(p.id_producto) AS stock
+               FROM producto p WHERE p.activo = 1 AND p.contenido IS NULL
+              ORDER BY p.id_producto LIMIT 1'
+        );
+        if (! $cliente || ! $prof || ! $servicio || ! $prod) {
+            $this->markTestSkipped('Falta un cliente, un profesional, un servicio o un producto.');
+        }
+        $pedir = (float) $prod->stock + 1000;
+
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+            [$cliente, $prof, 1, date('Y-m-d H:i:s', strtotime('+3 hours'))]);
+        $idCita = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $servicio]);
+
+        $this->entrarComoAdministrador();
+        $this->post(route('citas.atender.guardar'), [
+            'id_cita' => $idCita,
+            'servicios' => [$servicio],
+            'producto' => [$prod->id_producto],
+            'cantidad' => [(string) $pedir],
+            'servicio_de' => [0],
+        ]);
+
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM servicio_realizado WHERE id_cita = ?', [$idCita]),
+            'El servicio se hizo: no se puede perder porque falte un producto.');
+
+        $this->assertSame(4, (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]),
+            'La cita tiene que quedar Atendida, o no se puede facturar.');
+
+        $this->assertSame(0, (int) DB::scalar(
+            'SELECT COUNT(*) FROM producto_utilizado pu
+               JOIN servicio_realizado sr ON sr.id_servicio_realizado = pu.id_servicio_realizado
+              WHERE sr.id_cita = ?', [$idCita]),
+            'El consumo que no se pudo descontar no se guarda: el stock quedaría mintiendo.');
+
+        $this->assertGreaterThanOrEqual(0, (float) DB::scalar('SELECT fn_producto_stock(?)', [$prod->id_producto]),
+            'Y el stock no se toca.');
     }
 
     #[Test]

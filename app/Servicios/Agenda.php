@@ -605,6 +605,18 @@ class Agenda
                 DB::update('UPDATE cita SET id_usuario=? WHERE id_cita=?', [$nuevoProfesional, $idCita]);
             }
             Bd::procedimiento('sp_reprogramar_cita', [$idCita, $nuevaFechaHora]);
+
+            // **El recordatorio viejo se tira, si todavía no salió** (NO-01).
+            // `generarRecordatorios()` saltea toda cita que ya tenga un aviso
+            // de tipo 1, así que sin esto la clienta se queda con el de la
+            // fecha anterior y **nunca recibe uno de la fecha real**: la cita
+            // #545 se movió al 19/11 y su único recordatorio siguió diciendo
+            // «tu cita del 14/11/2026 a las 09:30». Borrada la pendiente, el
+            // cron la vuelve a crear con la fecha nueva.
+            //
+            // El que ya se envió no se toca: es historia de lo que se mandó, y
+            // borrarlo no lo saca del buzón de nadie.
+            Notificaciones::descartarRecordatorioPendiente($idCita);
         });
     }
 

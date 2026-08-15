@@ -143,6 +143,25 @@ class Notificaciones
      * Recordatorios, con la anticipación que eligió cada clienta (1 día por
      * defecto). No se repite: se saltean las citas que ya tienen uno.
      */
+    /**
+     * Tira el recordatorio de esa cita si todavía no salió.
+     *
+     * Lo llama `Agenda::reprogramar()`. `generarRecordatorios()` saltea toda
+     * cita que **ya tenga** un aviso de tipo 1, así que una cita movida se
+     * quedaba con el de la fecha anterior y no recibía ninguno de la nueva.
+     *
+     * **Sólo se borra lo que sigue PENDIENTE.** Un recordatorio ya enviado es
+     * historia de lo que se mandó, y borrarlo no lo saca del buzón de nadie.
+     */
+    public static function descartarRecordatorioPendiente(int $idCita): int
+    {
+        return DB::delete(
+            "DELETE FROM notificacion
+              WHERE id_cita = ? AND id_tipo_notificacion = ? AND estado = 'PENDIENTE'",
+            [$idCita, self::RECORDATORIO]
+        );
+    }
+
     public static function generarRecordatorios(): int
     {
         $citas = DB::select(

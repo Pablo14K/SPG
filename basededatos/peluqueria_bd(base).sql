@@ -4716,10 +4716,18 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
     IN  p_id_usuario INT UNSIGNED,
     IN  p_monto      DECIMAL(14,2),
     IN  p_referencia VARCHAR(100),
-    OUT p_id_cobro   INT UNSIGNED)
+    OUT p_id_cobro   INT UNSIGNED
+)
 BEGIN
   DECLARE v_estado INT UNSIGNED DEFAULT NULL;
   DECLARE v_caja   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_total  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_senado DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_lock   INT UNSIGNED DEFAULT NULL;
+
+  
+  
+  SELECT id_cita INTO v_lock FROM cita WHERE id_cita = p_id_cita FOR UPDATE;
 
   SELECT id_estado_cita INTO v_estado FROM cita WHERE id_cita = p_id_cita;
 
@@ -4729,6 +4737,24 @@ BEGIN
 
   IF p_monto <= 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La sena tiene que ser mayor que cero.';
+  END IF;
+
+  
+  SELECT COALESCE(SUM(s.precio), 0) INTO v_total
+    FROM cita_servicio cs
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+   WHERE cs.id_cita = p_id_cita;
+
+  IF v_total <= 0 THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Esa cita no tiene servicios cargados, asi que no hay monto que cobrar.';
+  END IF;
+
+  SET v_senado = fn_cita_sena(p_id_cita);
+
+  IF v_senado + p_monto > v_total THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'El monto no puede superar lo que valen los servicios de la cita.';
   END IF;
 
   SELECT id_caja INTO v_caja FROM caja
@@ -5122,4 +5148,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 14:33:32
+-- Dump completed on 2026-08-15 14:50:27

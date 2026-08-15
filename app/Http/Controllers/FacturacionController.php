@@ -1208,8 +1208,31 @@ class FacturacionController extends Controller
             flash('Seña de ' . money($monto) . ' registrada para ' . $cita->cliente
                 . '. Se va a descontar sola del total cuando se facture la cita.');
         } catch (Throwable $ex) {
-            flash(str_contains($ex->getMessage(), 'cero')
-                ? 'El monto tiene que ser mayor que cero.' : 'No se pudo registrar el cobro.', 'error');
+            // El tope de la seña (FA-03) se hace cumplir en la base, así que
+            // acá sólo se traduce. Antes se aceptó una seña de Gs. 480.000
+            // sobre una cita de Gs. 160.000, y al facturarla el saldo quedaba
+            // negativo: no se podía cobrar nada más y la única salida era
+            // anular el cobro.
+            $total = (float) DB::scalar(
+                'SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+            );
+            $yaSenado = (float) DB::scalar('SELECT fn_cita_sena(?)', [$idCita]);
+
+            flash(Bd::traducir($ex, [
+                'cero' => 'El monto tiene que ser mayor que cero.',
+                'no puede superar' => 'Esa cita vale ' . money($total)
+                    . ($yaSenado > 0 ? ' y ya tiene ' . money($yaSenado) . ' cobrados' : '')
+                    . ', así que no se puede cobrar ' . money($monto) . '.',
+                'no tiene servicios' => 'Esa cita no tiene servicios cargados, así que no hay monto que cobrar.',
+            ], 'No se pudo registrar el cobro. El detalle quedó registrado.'), 'error');
+
+            if (! str_contains($ex->getMessage(), 'cero')
+                && ! str_contains($ex->getMessage(), 'no puede superar')
+                && ! str_contains($ex->getMessage(), 'no tiene servicios')) {
+                Log::error('No se pudo registrar la seña o el cobro de la cita',
+                    ['cita' => $idCita, 'error' => $ex->getMessage()]);
+            }
         }
 
         return $volver;
