@@ -2299,7 +2299,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2308,6 +2308,7 @@ CREATE TABLE `servicio_canjeable` (
 
 LOCK TABLES `servicio_canjeable` WRITE;
 /*!40000 ALTER TABLE `servicio_canjeable` DISABLE KEYS */;
+INSERT INTO `servicio_canjeable` VALUES (1,6,3000,30,1),(2,14,2000,30,1);
 /*!40000 ALTER TABLE `servicio_canjeable` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5373,4 +5374,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 16:36:29
+-- Dump completed on 2026-08-15 17:02:27

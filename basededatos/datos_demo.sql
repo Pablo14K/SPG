@@ -137,3 +137,19 @@ INSERT IGNORE INTO timbrado (id_sucursal, id_tipo_comprobante, nro_timbrado, est
   (1, 1, '12345678', '001', '001', CURDATE(), CURDATE() + INTERVAL 1 YEAR, 1, 9999999, 1),
   (1, 5, '12345679', '001', '001', CURDATE(), CURDATE() + INTERVAL 1 YEAR, 1, 9999999, 1),
   (1, 8, '12345680', '001', '999', CURDATE(), CURDATE() + INTERVAL 1 YEAR, 1, 9999999, 1);
+
+-- ---- Canjes por puntos ----------------------------------------------------
+-- Con qué arranca el programa de fidelización. Sin ninguno cargado, la clienta
+-- junta puntos y el portal le dice que todavía no hay nada para canjear: se
+-- ve la pantalla, pero no la función.
+--
+-- Se apunta por NOMBRE y no por id: si el catálogo de servicios se regenera
+-- con otros ids, esto sigue señalando el servicio correcto.
+--
+-- La vigencia es de 30 días, que es el plazo con el que viene el formulario.
+-- El salón lo cambia desde Clientes → Canjes por puntos, sin tocar código.
+INSERT IGNORE INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo)
+SELECT s.id_servicio, 3000, 30, 1 FROM servicio s WHERE s.nombre = 'Coloración completa';
+
+INSERT IGNORE INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo)
+SELECT s.id_servicio, 2000, 30, 1 FROM servicio s WHERE s.nombre = 'Lavado y acondicionado';
