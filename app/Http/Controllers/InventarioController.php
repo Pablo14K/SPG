@@ -98,9 +98,12 @@ class InventarioController extends Controller
 
         if (Listado::pideExport()) {
             return Listado::exportar('productos',
-                ['Producto', 'Categoría', 'Unidad', 'Stock', 'Mínimo', 'Costo', 'Venta', 'Estado'],
+                // «Venta» sale de la exportación por lo mismo que de la pantalla:
+                // el salón vende servicios, no productos (ver el formulario del
+                // producto). Para revertirlo, se devuelven la columna y el campo.
+                ['Producto', 'Categoría', 'Unidad', 'Stock', 'Mínimo', 'Costo', 'Estado'],
                 array_map(fn ($r) => [$r->nombre, $r->categoria, $r->unidad_medida, $r->stock_actual,
-                    $r->stock_minimo, $r->precio_costo, $r->precio_venta, $r->activo ? 'Activo' : 'Inactivo'],
+                    $r->stock_minimo, $r->precio_costo, $r->activo ? 'Activo' : 'Inactivo'],
                     DB::select("SELECT * $desde ORDER BY v.nombre", $par)),
                 $f, 'Productos'
             );
@@ -143,10 +146,19 @@ class InventarioController extends Controller
             'unidad_consumo' => trim((string) $request->input('unidad_consumo', '')) ?: null,
             'stock_minimo' => num($request->input('stock_minimo')),
             'precio_costo' => num($request->input('precio_costo')),
-            'precio_venta' => num($request->input('precio_venta')),
             'tasa_iva' => (int) $request->input('tasa_iva', 10),
         ];
         $stockInicial = num($request->input('stock_inicial'));
+
+        // **El precio de venta ya NO se pide** —el salón vende servicios, no
+        // productos— pero la columna es NOT NULL y sigue en la base, así que
+        // hay que darle un valor. Y hay que darle **el que ya tenía**: leerlo
+        // del formulario que no lo manda daría 0, y editar cualquier producto
+        // le borraría el precio cargado. Si algún día se revierte la decisión,
+        // lo que el salón había puesto sigue estando.
+        $d['precio_venta'] = $id
+            ? (float) DB::scalar('SELECT precio_venta FROM producto WHERE id_producto = ?', [$id])
+            : 0.0;
         $volver = $id ? redirect()->route('inventario.producto_form', $id) : redirect()->route('inventario.producto_form');
 
         $error = null;
@@ -157,8 +169,8 @@ class InventarioController extends Controller
             $error = 'Elegí una categoría válida.';
         } elseif (DB::scalar('SELECT COUNT(*) FROM producto WHERE nombre = ? AND id_producto <> ?', [$d['nombre'], $id])) {
             $error = 'Ya existe un producto con ese nombre.';
-        } elseif ($d['stock_minimo'] < 0 || $d['precio_costo'] < 0 || $d['precio_venta'] < 0) {
-            $error = 'Los precios y el stock mínimo no pueden ser negativos.';
+        } elseif ($d['stock_minimo'] < 0 || $d['precio_costo'] < 0) {
+            $error = 'El precio y el stock mínimo no pueden ser negativos.';
         } elseif (! in_array($d['tasa_iva'], [0, 5, 10], true)) {
             $error = 'La tasa de IVA debe ser 0, 5 o 10.';
         } elseif ($stockInicial < 0) {
@@ -854,9 +866,12 @@ class InventarioController extends Controller
                     // 3) Recién ahí es uno nuevo
                     if (! $idp) {
                         DB::insert(
+                            // Antes se copiaba el costo como precio de venta, que era
+                            // vender al costo. Va en 0 por lo mismo que en el alta:
+                            // el salón no vende productos.
                             "INSERT INTO producto (id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva)
-                             VALUES (?,?, 'unidad', ?, ?, 10)",
-                            [$l['categoria'], $l['nombre'], $l['precio'], $l['precio']]
+                             VALUES (?,?, 'unidad', ?, 0, 10)",
+                            [$l['categoria'], $l['nombre'], $l['precio']]
                         );
                         $idp = (int) DB::getPdo()->lastInsertId();
                         $creados[] = $l['nombre'];
@@ -928,7 +943,6 @@ class InventarioController extends Controller
         $unidad = trim((string) $request->input('unidad_medida', 'unidad')) ?: 'unidad';
         $stock = num($request->input('stock_inicial'));
         $costo = num($request->input('precio_costo'));
-        $venta = num($request->input('precio_venta'));
         // El ajuste a medio cargar vuelve con el borrador: crear un producto no
         // puede borrar el motivo y las cantidades que ya estaban escritas.
         $volver = Borrador::conservar(redirect()->route('inventario.ajuste'), $request);
@@ -940,7 +954,7 @@ class InventarioController extends Controller
             $error = 'Elegí una categoría válida.';
         } elseif (DB::scalar('SELECT COUNT(*) FROM producto WHERE nombre = ?', [$nombre])) {
             $error = 'Ya existe un producto con ese nombre.';
-        } elseif ($stock < 0 || $costo < 0 || $venta < 0) {
+        } elseif ($stock < 0 || $costo < 0) {
             $error = 'Las cantidades y los precios no pueden ser negativos.';
         }
         if ($error) {
@@ -951,8 +965,11 @@ class InventarioController extends Controller
 
         try {
             DB::insert(
+                // `precio_venta` va en 0: el salón vende servicios, no productos,
+                // así que el campo salió de la pantalla. La columna es NOT NULL
+                // y sigue en la base por si se revierte la decisión.
                 'INSERT INTO producto (id_categoria,nombre,unidad_medida,stock_minimo,precio_costo,precio_venta,tasa_iva,activo)
-                 VALUES (?,?,?,0,?,?,10,1)', [$idCat, $nombre, $unidad, $costo, $venta]
+                 VALUES (?,?,?,0,?,0,10,1)', [$idCat, $nombre, $unidad, $costo]
             );
             $idp = (int) DB::getPdo()->lastInsertId();
 

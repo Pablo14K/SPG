@@ -130,6 +130,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('estado', [CitasController::class, 'estado'])->name('estado');
             Route::post('cancelar', [CitasController::class, 'cancelar'])->name('cancelar');
             Route::post('reprogramar', [CitasController::class, 'reprogramar'])->name('reprogramar');
+            // Pasarle a otro las citas futuras de alguien que se dio de baja
+            Route::get('reasignar', [CitasController::class, 'reasignar'])->name('reasignar');
+            Route::post('reasignar', [CitasController::class, 'reasignarGuardar'])->name('reasignar.guardar');
             // Lo consume el selector de disponibilidad de Nueva cita
             Route::get('disponibilidad', [CitasController::class, 'disponibilidad'])->name('disponibilidad');
         });

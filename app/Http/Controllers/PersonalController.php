@@ -301,10 +301,18 @@ class PersonalController extends Controller
 
             $avisadas = Notificaciones::avisarProfesionalNoDisponible($id, null, null, 'baja del personal');
 
+            // El aviso dice DÓNDE resolverlo, que era lo que faltaba: antes
+            // avisaba que quedaban citas y había que ir a buscarlas de a una
+            // (AG-03). Sólo se ofrece el enlace a quien puede usarlo.
+            $donde = $pendientes && Permisos::puede('citas.agenda')
+                ? ' Pasáselas a otra persona desde Citas → Reasignar: '
+                  . route('citas.reasignar', ['de' => $id])
+                : '';
+
             flash('Estado del usuario actualizado.'
                 . ($pendientes
-                    ? " Ojo: quedan $pendientes cita(s) futura(s) con esa persona. Hay que reprogramarlas o "
-                      . 'cambiarles el profesional.'
+                    ? " Ojo: quedan $pendientes cita(s) futura(s) con esa persona, y siguen ocupando "
+                      . 'la agenda.' . $donde
                     : '')
                 . ($avisadas ? " Se le avisó a $avisadas clienta(s)." : ''),
                 $pendientes ? 'warning' : 'success');

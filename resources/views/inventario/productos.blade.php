@@ -17,7 +17,7 @@
                     <tr>
                         <th>Producto</th><th>Categoría</th><th class="text-end">Stock</th>
                         <th class="text-end">Mínimo</th><th class="text-end">Costo</th>
-                        <th class="text-end">Venta</th><th>Estado</th><th class="text-end">Acciones</th>
+                        {{-- <th class="text-end">Venta</th> --}}<th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,7 +44,9 @@
                             </td>
                             <td class="text-end text-muted-warm">{{ cant($p->stock_minimo) }}</td>
                             <td class="text-end">{{ money($p->precio_costo) }}</td>
+                            {{-- Precio de venta: fuera de alcance (ver el formulario del producto).
                             <td class="text-end">{{ money($p->precio_venta) }}</td>
+                            --}}
                             <td>
                                 @if (! $p->activo)
                                     <span class="badge-estado e-muted">Inactivo</span>
@@ -76,7 +78,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="7">{{-- eran 8 con «Venta», que quedó fuera de alcance --}}
                                 <div class="spg-vacio">
                                     <i class="bi bi-box-seam"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún producto coincide con esos filtros.' : 'Todavía no hay productos cargados.' }}</div>

@@ -48,6 +48,7 @@ return [
         'citas.form'                => ['Nueva cita',            'calendar-plus',      'citas.agenda'],
         'citas.atender'             => ['Registrar atención',    'clipboard-check',    'citas.atencion'],
         'citas.ausencias'           => ['Excepciones',           'calendar-x',         'citas.ausencias'],
+        'citas.reasignar'           => ['Reasignar citas',       'arrow-left-right',   'citas.agenda'],
         'clientes.lista'            => ['Clientes',              'people',             'clientes.registro'],
         'clientes.form'             => ['Nuevo cliente',         'person-plus',        'clientes.registro'],
         'clientes.historial'        => ['Historial',             'clock-history',      'clientes.registro'],
@@ -91,10 +92,11 @@ return [
     //  La idea es no tener que volver al panel para seguir trabajando.
     // -----------------------------------------------------------------
     'relaciones' => [
-        'citas.agenda'            => ['citas.form', 'clientes.lista', 'facturacion.emitir', 'citas.ausencias'],
+        'citas.agenda'            => ['citas.form', 'clientes.lista', 'facturacion.emitir', 'citas.ausencias', 'citas.reasignar'],
         'citas.form'              => ['citas.agenda', 'clientes.form', 'servicios.lista', 'seguridad.turnos'],
         'citas.atender'           => ['citas.agenda', 'inventario.stock', 'facturacion.emitir'],
         'citas.ausencias'         => ['citas.agenda', 'seguridad.turnos'],
+        'citas.reasignar'         => ['citas.agenda', 'citas.ausencias', 'seguridad.usuarios'],
         'clientes.lista'          => ['clientes.form', 'citas.form', 'clientes.fidelizacion', 'clientes.valoraciones'],
         'clientes.form'           => ['clientes.lista', 'citas.form'],
         'clientes.historial'      => ['clientes.lista', 'citas.form', 'facturacion.facturas'],

@@ -640,4 +640,58 @@ class Agenda
             Bd::procedimiento('sp_cancelar_cita', [$idCita]);
         });
     }
+
+    /**
+     * Le pasa la cita a otro profesional **sin moverla de horario** (AG-03).
+     *
+     * Es lo que hace falta cuando alguien se da de baja o se toma una licencia
+     * larga: la clienta ya tiene su hora reservada y no hay por qué hacerla
+     * cambiar de día — lo único que cambia es quién la atiende.
+     *
+     * No es reprogramar, así que no pasa por `sp_reprogramar_cita`: ése cambia
+     * la fecha y deja la cita en «Reprogramada», que acá sería mentir. Pero sí
+     * comparte lo importante — **candado sobre el profesional que la recibe y
+     * disponibilidad comprobada adentro**, porque entre que la pantalla mostró
+     * la lista y se apretó el botón, ese horario se le pudo ocupar.
+     *
+     * Devuelve `true` si la movió y `false` si el destino no estaba libre.
+     */
+    public static function reasignar(int $idCita, int $nuevoProfesional): bool
+    {
+        return (bool) Bd::enTransaccion(function () use ($idCita, $nuevoProfesional) {
+            $cita = DB::selectOne(
+                'SELECT c.id_cita, c.id_usuario, c.fecha_hora
+                   FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                  WHERE c.id_cita = ? AND ec.bloquea_agenda = 1 FOR UPDATE', [$idCita]
+            );
+            if (! $cita || (int) $cita->id_usuario === $nuevoProfesional) {
+                return false;
+            }
+
+            DB::selectOne('SELECT id_usuario FROM usuario WHERE id_usuario = ? FOR UPDATE', [$nuevoProfesional]);
+
+            // La duración que le va a tocar A ÉL: la cita entera si se la lleva
+            // toda, o sólo su bloque si el resto queda repartido.
+            $dur = (int) Bd::funcion('fn_cita_duracion(?)', [$idCita]);
+            if ($dur <= 0 || ! self::huecoLibre($nuevoProfesional, (string) $cita->fecha_hora, $dur, $idCita)) {
+                return false;
+            }
+
+            DB::update('UPDATE cita SET id_usuario = ? WHERE id_cita = ?', [$nuevoProfesional, $idCita]);
+
+            // **El reparto también se muda.** `cita_servicio.id_usuario` apunta
+            // a quien hace cada servicio: si queda apuntando al que se fue, la
+            // cita cambia de dueño pero los servicios siguen a nombre de una
+            // persona inactiva, y con eso la comisión y el informe del equipo
+            // se lo siguen atribuyendo a ella.
+            DB::update('UPDATE cita_servicio SET id_usuario = ? WHERE id_cita = ? AND id_usuario = ?',
+                [$nuevoProfesional, $idCita, (int) $cita->id_usuario]);
+
+            // El recordatorio pendiente nombra al profesional viejo, así que se
+            // tira y el cron lo rehace — mismo criterio que al reprogramar.
+            Notificaciones::descartarRecordatorioPendiente($idCita);
+
+            return true;
+        });
+    }
 }

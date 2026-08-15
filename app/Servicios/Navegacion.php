@@ -42,10 +42,48 @@ class Navegacion
             if ($m['url'] === null) {
                 continue;   // módulo todavía no migrado
             }
+            $m['sub'] = self::subDe((string) $m['mod'], (string) $m['sub']);
             $out[] = $m;
         }
 
         return $out;
+    }
+
+    /**
+     * Qué dice la tarjeta del módulo por debajo del título.
+     *
+     * **Se arma con lo que este rol puede abrir de verdad, no con una lista
+     * fija.** El texto venía escrito a mano en `config/navegacion.php`
+     * —«Usuarios · Roles · Turnos · Asistencia · Auditoría»— así que una
+     * profesional a la que le revocaron Roles seguía viendo «Roles» anunciado
+     * en la tarjeta de Seguridad. No podía entrar, pero la tarjeta se lo
+     * ofrecía igual: el permiso funcionaba y el cartel mentía.
+     *
+     * Sale del catálogo de pantallas, que ya declara la clave del permiso de
+     * cada una — la misma que pide el middleware, así que lo que se anuncia y
+     * lo que se puede abrir no se pueden desfasar.
+     *
+     * Si el módulo no tiene pantallas catalogadas (Reportes es una sola
+     * pantalla), se queda con el texto escrito a mano, que ahí no promete nada
+     * que no esté.
+     */
+    public static function subDe(string $modulo, string $porDefecto): string
+    {
+        $titulos = [];
+        foreach (config('navegacion.pantallas', []) as $clave => $p) {
+            if (! str_starts_with((string) $clave, $modulo . '.')) {
+                continue;
+            }
+            [$titulo, , $permiso] = $p;
+            if (! Permisos::puede((string) $permiso)) {
+                continue;
+            }
+            // Sin repetir: varias pantallas comparten permiso y nombre corto
+            // («Usuarios» y «Nuevo usuario» son las dos de `seguridad.usuarios`).
+            $titulos[(string) $permiso] ??= (string) $titulo;
+        }
+
+        return $titulos ? implode(' · ', $titulos) : $porDefecto;
     }
 
     /**

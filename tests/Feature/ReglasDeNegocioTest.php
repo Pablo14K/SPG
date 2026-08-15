@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Servicios\Agenda;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
+use App\Servicios\Navegacion;
 use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
@@ -1288,6 +1289,164 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertEqualsWithDelta(0, (float) $r->pagos_pers_efectivo, 0.01);
         $this->assertGreaterThan(0, (float) $r->pagos_pers_otros);
         $this->assertGreaterThan(0, (float) $r->pagos_personal);
+    }
+
+    /**
+     * El precio de venta salió de la pantalla, y editar un producto NO lo borra.
+     *
+     * El salón vende servicios, no productos, así que preguntar a cuánto se
+     * vendería prometía algo que ninguna pantalla hace (IN-03). Los campos
+     * quedaron **comentados y no borrados**, por si se revierte la decisión.
+     *
+     * La trampa está en el guardado: si el formulario deja de mandar el campo,
+     * `num()` devuelve 0 y el UPDATE le borra el precio a cada producto que se
+     * edite. Por eso se conserva el que ya tenía — si algún día se vuelve
+     * atrás, lo que el salón había cargado sigue estando.
+     */
+    #[Test]
+    public function el_precio_de_venta_no_se_pide_pero_tampoco_se_pierde(): void
+    {
+        $prod = DB::selectOne('SELECT id_producto, id_categoria, nombre, unidad_medida, stock_minimo,
+                                      precio_costo, precio_venta, tasa_iva
+                                 FROM producto ORDER BY id_producto LIMIT 1');
+        if (! $prod) {
+            $this->markTestSkipped('No hay productos en la base de prueba.');
+        }
+
+        // Se le carga un precio de venta como lo tendría un salón que ya lo usó.
+        DB::update('UPDATE producto SET precio_venta = 55000 WHERE id_producto = ?', [$prod->id_producto]);
+
+        $this->entrarComoAdministrador();
+
+        // La pantalla no lo pide.
+        $this->get(route('inventario.producto_form', $prod->id_producto))
+             ->assertOk()
+             ->assertDontSee('Precio de venta')
+             ->assertDontSee('name="precio_venta"', false);
+
+        // Y guardar sin ese campo no lo borra.
+        $this->post(route('inventario.producto.guardar'), [
+            'id_producto' => $prod->id_producto,
+            'id_categoria' => $prod->id_categoria,
+            'nombre' => $prod->nombre,
+            'unidad_medida' => $prod->unidad_medida,
+            'stock_minimo' => (string) $prod->stock_minimo,
+            'precio_costo' => (string) $prod->precio_costo,
+            'tasa_iva' => (int) $prod->tasa_iva,
+        ]);
+
+        $this->assertEqualsWithDelta(55000,
+            (float) DB::scalar('SELECT precio_venta FROM producto WHERE id_producto = ?', [$prod->id_producto]), 0.01,
+            'Editar un producto no puede borrarle el precio de venta que ya tenía cargado.');
+    }
+
+    /**
+     * AG-03: las citas de quien se dio de baja se pasan en bloque.
+     *
+     * El aviso a las clientas salía (3 de 3), pero **las citas seguían
+     * ocupando la agenda del profesional dado de baja** y había que abrirlas de
+     * a una para cambiarles el profesional. Con un equipo chico y una licencia
+     * larga, eso es media mañana.
+     *
+     * Lo que se exige acá es que mueva **y que no mueva a ciegas**: una cita
+     * que caiga donde el destino ya está ocupado tiene que quedar como estaba,
+     * porque reasignarla sería vender dos veces el mismo horario.
+     */
+    #[Test]
+    public function las_citas_de_un_profesional_se_reasignan_sin_pisar_las_del_otro(): void
+    {
+        $profs = Agenda::profesionales();
+        if (count($profs) < 2) {
+            $this->markTestSkipped('Hacen falta dos profesionales que atiendan.');
+        }
+        [$sale, $recibe] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
+
+        // **Dos clientas distintas**, porque desde la 7.14.0 la base impide que
+        // la misma repita el mismo servicio el mismo día — una regla correcta
+        // con la que esta prueba no tiene por qué pelearse.
+        $clientes = array_map(fn ($c) => (int) $c->id_cliente,
+            DB::select('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 2'));
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY duracion_min LIMIT 1');
+        $dur = Agenda::duracion([$servicio]);
+
+        // Un horario en que los DOS estén libres: ahí la reasignación entra.
+        $libre = null;
+        for ($i = 1; $i <= 30 && $libre === null; $i++) {
+            $dia = date('Y-m-d', strtotime("+$i days"));
+            $comunes = array_intersect(
+                Agenda::slotsProfesional($sale, $dia, $dur),
+                Agenda::slotsProfesional($recibe, $dia, $dur)
+            );
+            if ($comunes) {
+                $libre = $dia . ' ' . reset($comunes) . ':00';
+            }
+        }
+        if (count($clientes) < 2 || ! $servicio || $libre === null) {
+            $this->markTestSkipped('Faltan dos clientes, un servicio o un horario en que los dos trabajen.');
+        }
+
+        $crear = function (int $prof, string $cuando, int $cliente) use ($servicio): int {
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+                [$cliente, $prof, 1, $cuando]);
+            $id = (int) DB::getPdo()->lastInsertId();
+            DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$id, $servicio]);
+
+            return $id;
+        };
+
+        // 1. Una cita del que se va, en un hueco que el otro tiene libre: entra.
+        $mueve = $crear($sale, $libre, $clientes[0]);
+        $this->assertTrue(Agenda::reasignar($mueve, $recibe), 'Ese horario estaba libre para el destino.');
+        $this->assertSame($recibe, (int) DB::scalar('SELECT id_usuario FROM cita WHERE id_cita = ?', [$mueve]));
+
+        // 2. Ahora el destino quedó ocupado a esa hora. Otra cita del que se va,
+        //    en el MISMO horario, ya no puede pasarle: se pisarían.
+        $choca = $crear($sale, $libre, $clientes[1]);
+        $this->assertFalse(Agenda::reasignar($choca, $recibe),
+            'Reasignar sobre un horario ya ocupado sería venderlo dos veces.');
+        $this->assertSame($sale, (int) DB::scalar('SELECT id_usuario FROM cita WHERE id_cita = ?', [$choca]),
+            'La que no entra tiene que quedar como estaba.');
+    }
+
+    /**
+     * La tarjeta del módulo no anuncia lo que el rol no puede abrir.
+     *
+     * El renglón de abajo de cada tarjeta —«Usuarios · Roles · Turnos…»— era un
+     * texto fijo de `config/navegacion.php`, así que a quien le revocaban Roles
+     * le seguía apareciendo «Roles» anunciado en la tarjeta de Seguridad. El
+     * permiso funcionaba —entrar daba 403— pero **el cartel prometía una
+     * pantalla que no iba a poder abrir**.
+     */
+    #[Test]
+    public function la_tarjeta_del_modulo_no_anuncia_pantallas_sin_permiso(): void
+    {
+        $rolProf = 2;
+        $uid = (int) DB::scalar(
+            'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1', [$rolProf]
+        ) ?: 999999;
+
+        // Se le da el módulo pero se le niega Roles, que es el caso reportado.
+        // Se le deja SÓLO Asistencia dentro de Seguridad, que es lo que el rol
+        // Profesional tiene de fábrica.
+        DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo LIKE 'seguridad%'
+                     AND modulo <> 'seguridad.asistencia'", [$rolProf]);
+        DB::insert('INSERT IGNORE INTO rol_modulo (id_rol, modulo) VALUES (?, ?)',
+            [$rolProf, 'seguridad.asistencia']);
+
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->assertSame('Asistencia', Navegacion::subDe('seguridad', 'NO DEBERÍA CAER ACÁ'),
+            'La tarjeta tiene que listar sólo lo que este rol puede abrir.');
+
+        $this->get(route('panel'))->assertOk()->assertDontSee('Usuarios · Roles');
+
+        // Y el Administrador las sigue viendo todas, que es el otro lado.
+        session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
+                 'es_personal' => true, 'es_cliente' => false]);
+        $sub = Navegacion::subDe('seguridad', '');
+        foreach (['Usuarios', 'Roles', 'Turnos', 'Auditoría'] as $pantalla) {
+            $this->assertStringContainsString($pantalla, $sub);
+        }
     }
 
     #[Test]

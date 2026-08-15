@@ -89,6 +89,16 @@
                                value="{{ monto_input(old('precio_costo', $p->precio_costo ?? 0)) }}">
                     </div>
                 </div>
+                {{-- **Precio de venta: fuera de alcance desde la 7.24.0.**
+                     El salón vende servicios, no productos —los consume atendiendo—, así que
+                     pedir a cuánto se vendería prometía algo que ninguna pantalla hace: en los
+                     90 días de la simulación no se facturó un solo producto (hallazgo IN-03).
+
+                     Queda comentado y NO borrado a propósito, por si se revierte la decisión.
+                     Para volver a encenderlo hacen falta las cuatro cosas, no sólo ésta:
+                     este campo, la columna de la lista, el alta rápida de «Cargar stock» y la
+                     línea de `InventarioController::productoGuardar` que lo lee. La columna
+                     `producto.precio_venta` sigue en la base, en NOT NULL DEFAULT 0.
                 <div class="col-md-3">
                     <label class="form-label" for="precio_venta">Precio de venta</label>
                     <div class="input-group">
@@ -97,6 +107,7 @@
                                value="{{ monto_input(old('precio_venta', $p->precio_venta ?? 0)) }}">
                     </div>
                 </div>
+                --}}
                 <div class="col-md-3">
                     <label class="form-label" for="tasa_iva">IVA</label>
                     <select class="form-select" id="tasa_iva" name="tasa_iva">

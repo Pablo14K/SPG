@@ -201,6 +201,10 @@ class AccesoTest extends TestCase
             ['citas.agenda', ['dia' => $dia]],
             ['citas.agenda', []],
             ['citas.form', []],
+            ['citas.ausencias', []],
+            // Reasignar, vacía y con una persona elegida: la segunda arma
+            // consultas propias que la primera no toca.
+            ['citas.reasignar', []],
             ['facturacion.index', []],
             ['facturacion.facturas', []],
             ['facturacion.emitir', []],
@@ -220,6 +224,16 @@ class AccesoTest extends TestCase
             // se devuelve una hoja en blanco.
             ['reportes.imprimir', ['bloques' => ['no-existe']]],
         ];
+
+        // Reasignar con alguien elegido: se toma quien tenga citas futuras, que
+        // es el caso en que la pantalla arma la tabla de verdad.
+        $conCitas = (int) DB::scalar(
+            'SELECT c.id_usuario FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora >= NOW() LIMIT 1'
+        );
+        if ($conCitas) {
+            $pantallas[] = ['citas.reasignar', ['de' => $conCitas]];
+        }
 
         foreach ($pantallas as [$ruta, $par]) {
             $this->get(route($ruta, $par))

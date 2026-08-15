@@ -505,6 +505,139 @@ class CitasController extends Controller
     //  Excepciones de agenda (feriados, licencias, bloqueos)
     // -----------------------------------------------------------------
 
+    /**
+     * Pasarle a otro profesional las citas futuras de alguien (AG-03).
+     *
+     * Sin esto, dar de baja a una persona —o cargarle una licencia larga—
+     * dejaba sus citas **ocupando la agenda igual**, y había que abrirlas de a
+     * una para cambiarles el profesional. El aviso a las clientas sí salía,
+     * pero el horario seguía reservado a nombre de alguien que no iba a estar.
+     */
+    public function reasignar(Request $request): View
+    {
+        $de = (int) $request->query('de', 0);
+
+        // **Se muestran también las de quien está inactivo**, que es el caso
+        // que motiva la pantalla: `Agenda::profesionales()` ya no lo devuelve.
+        $origen = $de ? DB::selectOne(
+            "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre, u.activo
+               FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE u.id_usuario = ?", [$de]
+        ) : null;
+
+        return view('citas.reasignar', [
+            'de' => $de,
+            'origen' => $origen,
+            // Quién tiene citas futuras: el selector de origen sale de acá y no
+            // de la lista de profesionales, justamente para que aparezca quien
+            // ya está dado de baja.
+            // OJO con `ONLY_FULL_GROUP_BY`, que está activo: todo lo que va en
+            // el SELECT y no es agregado tiene que estar en el GROUP BY, con la
+            // MISMA expresión. Agrupar sólo por `u.id_usuario` da error 1055 —
+            // y no se ve leyendo el código, se ve al abrir la pantalla.
+            'conCitas' => DB::select(
+                "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre, u.activo,
+                        COUNT(*) AS pendientes
+                   FROM cita c
+                   JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                   JOIN usuario u  ON u.id_usuario = c.id_usuario
+                   JOIN persona pe ON pe.id_persona = u.id_persona
+                  WHERE ec.bloquea_agenda = 1 AND c.fecha_hora >= NOW()
+                  GROUP BY u.id_usuario, pe.nombre, pe.apellido, u.activo
+                  ORDER BY u.activo, pe.nombre"
+            ),
+            'citas' => $de ? DB::select(
+                "SELECT c.id_cita, c.fecha_hora, fn_cita_duracion(c.id_cita) AS dur,
+                        CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente,
+                        (SELECT GROUP_CONCAT(s.nombre SEPARATOR ', ') FROM cita_servicio cs
+                          JOIN servicio s ON s.id_servicio = cs.id_servicio
+                         WHERE cs.id_cita = c.id_cita) AS servicios
+                   FROM cita c
+                   JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                   JOIN cliente cl ON cl.id_cliente = c.id_cliente
+                   JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
+                  WHERE c.id_usuario = ? AND ec.bloquea_agenda = 1 AND c.fecha_hora >= NOW()
+                  ORDER BY c.fecha_hora", [$de]
+            ) : [],
+            'profs' => Agenda::profesionales(),
+        ]);
+    }
+
+    public function reasignarGuardar(Request $request): RedirectResponse
+    {
+        $de = (int) $request->input('de', 0);
+        $a = (int) $request->input('a', 0);
+        $elegidas = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->input('citas', []))
+        )));
+        $volver = redirect()->route('citas.reasignar', ['de' => $de]);
+
+        if (! $a || ! $this->esPersonalActivo($a)) {
+            flash('Elegí a quién le pasás las citas.', 'error');
+
+            return $volver;
+        }
+        if ($a === $de) {
+            flash('Esa es la misma persona: elegí otra.', 'error');
+
+            return $volver;
+        }
+        if (! $elegidas) {
+            flash('No marcaste ninguna cita.', 'warning');
+
+            return $volver;
+        }
+
+        $nombre = (string) DB::scalar(
+            "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
+               JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [$a]
+        );
+
+        // **Una por una, y las que no entran se dicen por su nombre.** Mover en
+        // bloque sin mirar la disponibilidad sería vender dos veces el mismo
+        // horario del que las recibe.
+        $movidas = 0;
+        $ocupadas = [];
+        foreach ($elegidas as $idCita) {
+            $suya = (int) DB::scalar(
+                'SELECT COUNT(*) FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                  WHERE c.id_cita = ? AND c.id_usuario = ? AND ec.bloquea_agenda = 1 AND c.fecha_hora >= NOW()',
+                [$idCita, $de]
+            );
+            if (! $suya) {
+                continue;   // un id inventado en el POST no hace nada
+            }
+
+            try {
+                if (Agenda::reasignar($idCita, $a)) {
+                    $movidas++;
+                    Auditoria::registrar('MODIFICACION', 'Citas', 'cita', $idCita,
+                        'Cita reasignada a ' . $nombre);
+
+                    continue;
+                }
+            } catch (Throwable $ex) {
+                Log::error('No se pudo reasignar la cita ' . $idCita, ['error' => $ex->getMessage()]);
+            }
+
+            $cuando = DB::scalar('SELECT fecha_hora FROM cita WHERE id_cita = ?', [$idCita]);
+            $ocupadas[] = fecha($cuando, 'd/m H:i');
+        }
+
+        if ($movidas) {
+            flash($movidas . ' cita(s) pasaron a ' . $nombre . '. El horario no cambió, '
+                . 'así que la clienta no tiene que hacer nada.');
+        }
+        if ($ocupadas) {
+            flash($nombre . ' no está libre en ' . count($ocupadas) . ' de esos horarios ('
+                . implode(', ', array_slice($ocupadas, 0, 6))
+                . (count($ocupadas) > 6 ? '…' : '')
+                . '). Esas quedan como estaban: pasalas a otra persona o reprogramalas.', 'warning');
+        }
+
+        return $volver;
+    }
+
     public function ausencias(): View
     {
         return view('citas.ausencias', [

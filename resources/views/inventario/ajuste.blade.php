@@ -150,11 +150,13 @@
                                 <input class="form-control form-control-sm input-miles" id="pr_costo"
                                        name="precio_costo" data-min="0" value="0">
                             </div>
+                            {{-- Precio de venta: fuera de alcance (ver el formulario del producto).
                             <div class="col-4">
                                 <label class="form-label" for="pr_venta">Venta</label>
                                 <input class="form-control form-control-sm input-miles" id="pr_venta"
                                        name="precio_venta" data-min="0" value="0">
                             </div>
+                            --}}
                         </div>
                         <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear producto</button>
                     </form>

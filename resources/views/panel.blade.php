@@ -69,7 +69,7 @@
                 <a class="spg-card {{ ! empty($mod['dark']) ? 'dark' : '' }}" href="{{ $url }}">
                     <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
                     <h3>{{ $mod['titulo'] }}</h3>
-                    <p>{{ $mod['sub'] }}</p>
+                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
                 </a>
             @else
                 {{-- Módulo todavía no migrado a Laravel: se muestra apagado en
@@ -77,7 +77,7 @@
                 <div class="spg-card" style="opacity:.45;cursor:not-allowed" title="Todavía no migrado">
                     <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
                     <h3>{{ $mod['titulo'] }}</h3>
-                    <p>{{ $mod['sub'] }}</p>
+                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
                 </div>
             @endif
         @endforeach
