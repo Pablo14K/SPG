@@ -28,7 +28,8 @@ Homestead.yaml
 Thumbs.db
 
 # La salida del banco de pruebas de QA, no el banco.
-# `_sim/` es la herramienta y se versiona; `_sim/log/` es lo que escupe una
-# corrida —1,6 MB de operaciones crudas— y envejece al día siguiente. El
-# resultado que sí importa está en el informe, que sí se commitea.
+# `_sim/` y `_sim60/` son la herramienta y se versionan; sus `log/` son lo que
+# escupe una corrida —megas de operaciones crudas— y envejecen al día
+# siguiente. El resultado que sí importa está en el informe, que sí se commitea.
 _sim/log/
+_sim60/log/

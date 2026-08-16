@@ -1,0 +1,58 @@
+{
+  "descartados": {
+    "AUD_PANEL_FUGA_INGRESOS": "Falso positivo del detector. El panel SÍ filtra por rol: al Profesional no le dibuja «Productos bajo stock» (no tiene inventario.stock) y su rótulo dice «Mis citas de hoy» en vez de «Citas de hoy». Ve «Ingresos de hoy» porque el rol que se entrega TIENE facturacion.cobros, que es la clave que PanelController consulta. La corrección de la 7.21.1 funciona como fue diseñada. Lo que sí quedó comprobado, y se reporta aparte, es que ese rol trae además facturacion.caja."
+  },
+  "verificados": [
+    {
+      "codigo": "SIFEN_NC_NO_SE_DECLARA",
+      "severidad": "ALTO",
+      "modulo": "Tesorería (facturación y caja)",
+      "titulo": "La nota de crédito no se declara ante la DNIT, aunque la configuración dice que debe declararse",
+      "detalle": "config/sifen.php declara tipos_electronicos => [1, 5], es decir que la Factura Y la Nota de crédito se declaran. En los 60 días se declararon 70 de 70 facturas (100 %) y 0 de 5 notas de crédito (0 %). FacturacionController::notaCredito emite el comprobante, copia el detalle, descuenta el efectivo de la caja y revierte los puntos, pero no llama a Sifen:: en ninguna línea, al revés de lo que hace la emisión desde la pantalla del receptor.",
+      "reproduccion": "Emitir una nota de crédito sobre un comprobante cobrado y mirar factura_electronica: no se crea ninguna fila. Comprobado sobre la nota #29: tenía 0 filas antes de la prueba.",
+      "evidencia": "Declarada a mano por POST /facturacion/sifen/enviar SÍ funciona: devolvió «Declarado. CDC 01800123456001001000000122026082719907675741» y hasta mandó el PDF por correo. O sea que la pieza existe y anda; lo que falta es la llamada. La pantalla del comprobante tampoco ofrece el botón para ese tipo (nc_pantalla_ofrece_declarar = false).",
+      "impacto": "La DNIT sigue viendo la venta original y no ve su reverso. Un salón que devuelve todos los meses queda declarando de más ante la SET, y el descuadre no se ve desde ninguna pantalla del sistema.",
+      "sugerencia": "Llamar a Sifen::enviar($idNota) al final de notaCredito(), con el mismo criterio que ya usa la emisión: si el envío falla la nota sigue siendo válida y queda PENDIENTE para reintentar."
+    },
+    {
+      "codigo": "CANJE_SOLO_DESDE_EL_PORTAL",
+      "severidad": "ALTO",
+      "modulo": "Clientes y fidelización",
+      "titulo": "El canje por puntos sólo se puede usar reservando desde el portal, y se le entrega a clientas que no tienen portal",
+      "detalle": "En 60 días se hicieron 5 canjes y se usó 0. Tres de los cinco son de clientas SIN cuenta en el portal, que es justamente el caso para el que se agregó el canje desde el mostrador en la 7.26.0 («la mayoría de las clientas entra por teléfono y ni siquiera tiene cuenta en el portal»). El campo canjes[] existe únicamente en resources/views/portal/reservar.blade.php; citas/form.blade.php no lo tiene, y CitasController no menciona canjes en ninguna línea.",
+      "reproduccion": "Canjear desde Clientes → Fidelización por una clienta sin cuenta, y después intentar agendarle la cita desde el mostrador: no hay dónde marcar el canje.",
+      "evidencia": "Se forzó el POST /citas/guardar con canjes[] apuntando a un canje válido de una clienta sin cuenta: la cita se agendó («Cita agendada para el 14/10/2026 08:00») y el canje quedó suelto (canje.id_cita siguió en NULL). No es que falte el checkbox: el controlador no lee el campo.",
+      "impacto": "Se le descuentan los puntos a la clienta y se le entrega un vale que no tiene dónde gastar; cuando vence, los puntos se perdieron. Es la mitad que faltaba del hallazgo IN-03 del informe anterior: antes los puntos no se podían gastar, ahora se pueden canjear pero el canje no se puede usar.",
+      "sugerencia": "Que el alta de cita del mostrador ofrezca los canjes disponibles de esa clienta y llame a Canje::aplicarACita(), que ya existe y es la misma que usa el portal."
+    },
+    {
+      "codigo": "PERM_PROFESIONAL_CAJA",
+      "severidad": "MEDIO",
+      "modulo": "Seguridad",
+      "titulo": "El rol Profesional se entrega con permiso sobre la caja del salón",
+      "detalle": "La base que se instala (peluqueria_bd(base).sql) le da al rol Profesional las claves facturacion.caja, facturacion.cobros y facturacion.facturas. La documentación del proyecto afirma lo contrario para la caja: la entrada de la versión 7.13.1 dice que el Profesional «tiene cobros y facturas pero no caja».",
+      "reproduccion": "Entrar como marta (Profesional) e ir a Tesorería → Caja.",
+      "evidencia": "Comprobado de punta a punta: la pantalla contesta 200, y la cuenta abrió la caja del salón («Caja abierta con Gs. 100.000») y la cerró. Los permisos que sí le faltan se rechazan correctamente con 403: liquidar al personal, pagar proveedores y administrar timbrados.",
+      "impacto": "Quien atiende puede abrir y cerrar el arqueo del salón y ver su saldo. Puede ser deliberado —el Profesional cobra, y sin caja abierta no se mueve un guaraní—, pero hoy el documento y la base dicen cosas distintas, y esa es la clase de desfase que hace que nadie sepa cuál es la regla.",
+      "sugerencia": "Decidir cuál de las dos vale y dejar las dos iguales: o se le quita facturacion.caja al rol en el .sql que se entrega, o se corrige la entrada de la 7.13.1 explicando por qué la conserva."
+    }
+  ],
+  "observaciones": [
+    {
+      "codigo": "NOTIF_INTERNAS_COMO_FALLIDAS",
+      "severidad": "BAJO",
+      "modulo": "Notificaciones",
+      "titulo": "Los avisos internos de stock se cierran como FALLIDA, que describe mal lo que pasó",
+      "detalle": "De 721 notificaciones, 698 quedaron ENVIADA, 2 LEIDA y 21 FALLIDA. Las 21 son todas del tipo 5 por el canal SISTEMA y ninguna tiene id_cliente: son los avisos internos de reposición de stock, que no tienen a quién mandarse por correo. Es la corrección NO-02 de la 7.23.0 funcionando —la cola no se estanca: quedaron 0 en PENDIENTE—, pero «FALLIDA» se lee como que algo salió mal cuando en realidad ese aviso no tenía destinatario de correo.",
+      "reproduccion": "Consultar notificacion agrupando por estado después de que el cron corra unos días.",
+      "impacto": "Ninguno operativo. Ensucia la lectura de la cola: quien mire los estados va a buscar una falla que no existe.",
+      "sugerencia": "Un estado propio del tipo «SIN_CANAL» o «INTERNA» separaría el aviso que no se pudo mandar del que no había que mandar."
+    }
+  ],
+  "no_verificado": [
+    {
+      "que": "Valoraciones y pedidos desde el portal",
+      "motivo": "Cero filas en calificacion y cita_pedido, y cero peticiones a /portal/calificar y /portal/pedir en todo el registro: la precondición del escenario nunca se dio. La clienta del portal necesita una cita ya Atendida y sin calificar en el momento en que corre la fase, y una cita En proceso para pedir algo. Con 6 clientas con cuenta sobre 24, esa coincidencia no ocurrió. No es un defecto: es una prueba que no llegó a ejecutarse."
+    }
+  ]
+}
