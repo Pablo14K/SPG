@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Mail\AvisoInterno;
 use App\Servicios\Agenda;
 use App\Servicios\Bd;
+use App\Servicios\Caja;
 use App\Servicios\Canje;
 use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
+use App\Servicios\Notificaciones;
 use App\Servicios\Config;
 use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Throwable;
@@ -1589,6 +1593,135 @@ class ReglasDeNegocioTest extends TestCase
             'Cancelar la cita devuelve el canje.');
         $this->assertSame($puntos, Canje::puntos($clientes[0]),
             'Y NO devuelve los puntos: sería regalarle las dos cosas.');
+    }
+
+    /**
+     * El Profesional cobra, pero no administra el arqueo del salón.
+     *
+     * La base venía dándole `facturacion.caja`, así que abría y cerraba la caja
+     * y le veía el saldo — y este documento decía lo contrario desde la 7.13.1.
+     * La simulación de 60 días lo destapó. Lo que sí conserva es cobrar y
+     * emitir: sacarle eso lo dejaría sin poder trabajar en el mostrador.
+     */
+    #[Test]
+    public function el_profesional_cobra_pero_no_administra_la_caja(): void
+    {
+        $claves = array_map(fn ($r) => $r->modulo,
+            DB::select('SELECT modulo FROM rol_modulo WHERE id_rol = 2'));
+
+        $this->assertNotContains('facturacion.caja', $claves,
+            'El Profesional NO administra la caja del salón.');
+        $this->assertContains('facturacion.cobros', $claves,
+            'Pero sí cobra: sin esto no puede trabajar en el mostrador.');
+        $this->assertContains('facturacion.facturas', $claves,
+            'Y sí emite comprobantes.');
+
+        // Y el guardia lo hace cumplir, que es lo que importa: esconder el
+        // botón no es el control. La caché de permisos es estática y sobrevive
+        // entre pruebas del mismo proceso, así que se la olvida antes.
+        Permisos::olvidar();
+        session(['uid' => 999999, 'rol' => 2, 'es_personal' => true, 'es_cliente' => false]);
+
+        $this->get(route('facturacion.caja'))->assertForbidden();
+
+        // Lo que sí necesita para trabajar sigue abierto.
+        $this->get(route('facturacion.cobros'))->assertOk();
+        $this->get(route('facturacion.facturas'))->assertOk();
+    }
+
+    /**
+     * Un aviso interno le llega al equipo que puede actuar sobre él.
+     *
+     * Los de `destinatario = 'INTERNO'` no se mandaban a nadie: el despachador
+     * tomaba sólo los de CLIENTE y el barrido de NO-02 los cerraba como
+     * FALLIDA. En 60 días fueron 21 alertas de stock que no leyó nadie.
+     */
+    #[Test]
+    public function el_aviso_interno_le_llega_al_equipo_que_puede_resolverlo(): void
+    {
+        Mail::fake();
+
+        $prod = DB::selectOne('SELECT id_producto FROM producto WHERE activo = 1 LIMIT 1');
+        if (! $prod) {
+            $this->markTestSkipped('No hay productos.');
+        }
+
+        // Un aviso interno recién nacido, como el que deja el disparador de stock
+        DB::insert(
+            "INSERT INTO notificacion (id_tipo_notificacion, id_producto, canal, mensaje, estado, fecha_generacion)
+             VALUES (5, ?, 'SISTEMA', ?, 'PENDIENTE', NOW())",
+            [(int) $prod->id_producto, 'Prueba: hay productos por reponer.']
+        );
+        $id = (int) DB::getPdo()->lastInsertId();
+
+        Notificaciones::despachar();
+
+        $this->assertSame('ENVIADA', DB::scalar('SELECT estado FROM notificacion WHERE id_notificacion = ?', [$id]),
+            'El aviso interno se manda, no se cierra como FALLIDA.');
+
+        // Y le llega a quien puede reponer el stock: hoy, el Administrador y el
+        // Asistente administrativo. Se resuelve por permiso y no por id de rol.
+        $esperados = array_map(fn ($r) => (string) $r->email, DB::select(
+            "SELECT DISTINCT pe.email FROM usuario u
+               JOIN persona pe ON pe.id_persona = u.id_persona
+               JOIN rol r ON r.id_rol = u.id_rol
+               JOIN rol_modulo rm ON rm.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND rm.modulo IN ('inventario.stock', 'inventario')
+                AND pe.email IS NOT NULL AND pe.email <> ''"
+        ));
+        $this->assertNotEmpty($esperados, 'Tiene que haber alguien que pueda reponer stock.');
+
+        foreach ($esperados as $email) {
+            Mail::assertSent(AvisoInterno::class,
+                fn ($m) => $m->hasTo($email));
+        }
+
+        // Al Profesional NO le llega: no repone stock.
+        $prof = DB::scalar(
+            "SELECT pe.email FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE u.id_rol = 2 AND u.activo = 1 AND pe.email IS NOT NULL AND pe.email <> '' LIMIT 1"
+        );
+        if ($prof && ! in_array((string) $prof, $esperados, true)) {
+            Mail::assertNotSent(AvisoInterno::class, fn ($m) => $m->hasTo((string) $prof));
+        }
+    }
+
+    /**
+     * El movimiento de efectivo cargado a mano entra al arqueo.
+     *
+     * `fn_caja_saldo` resta `movimiento_caja` desde siempre y **esa tabla no la
+     * escribía ninguna pantalla**: el gasto real del mostrador quedaba fuera
+     * del arqueo y el cierre no cuadraba sin que se supiera por qué (CJ-02).
+     */
+    #[Test]
+    public function el_movimiento_de_caja_a_mano_mueve_el_arqueo(): void
+    {
+        $abierta = DB::selectOne("SELECT id_caja FROM caja WHERE id_estado_caja = 1 LIMIT 1");
+        $propia = false;
+        if (! $abierta) {
+            $idAdmin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 1 LIMIT 1');
+            $idCaja = Caja::abrir($idAdmin, 200000);
+            $abierta = (object) ['id_caja' => $idCaja];
+            $propia = true;
+        }
+        $id = (int) $abierta->id_caja;
+
+        $antes = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]);
+
+        DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?, 'EGRESO', ?, ?)",
+            [$id, 25000, 'Prueba: delivery del almuerzo']);
+        $this->assertEqualsWithDelta($antes - 25000, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]), 0.01,
+            'Un egreso a mano baja el efectivo del cajón.');
+
+        DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?, 'INGRESO', ?, ?)",
+            [$id, 40000, 'Prueba: plata para el cambio']);
+        $this->assertEqualsWithDelta($antes - 25000 + 40000, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]), 0.01,
+            'Y un ingreso a mano lo sube.');
+
+        if ($propia) {
+            DB::update("UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_caja = ?", [$id]);
+        }
     }
 
     /**

@@ -1336,7 +1336,83 @@ class FacturacionController extends Controller
                   GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo
                   ORDER BY total DESC', [(int) $abierta->id_caja]
             ) : [],
+            // Los movimientos cargados a mano sobre la caja abierta: un gasto
+            // de caja chica, un retiro, una devolución. Se listan acá porque
+            // son lo único del arqueo que no sale de un cobro o de un pago.
+            'movimientos' => $abierta ? DB::select(
+                'SELECT tipo, monto, concepto, fecha FROM movimiento_caja
+                  WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
+            ) : [],
         ]);
+    }
+
+    /**
+     * Un movimiento de efectivo cargado a mano: el gasto de caja chica, el
+     * retiro del dueño, la plata que se pone para dar cambio.
+     *
+     * **Es lo que faltaba de CJ-02.** `fn_caja_saldo` resta `movimiento_caja`
+     * desde siempre y esa tabla **no la escribía nadie**: cero filas en los 90
+     * días de la primera simulación, y en los 60 de la segunda sólo la
+     * escribía la nota de crédito. O sea que el gasto real del mostrador —el
+     * delivery, el taxi, la plata que se saca para el cambio— quedaba fuera
+     * del arqueo y el cierre no cuadraba sin que se supiera por qué.
+     */
+    public function movimientoCaja(Request $request): RedirectResponse
+    {
+        $volver = redirect()->route('facturacion.caja');
+        $tipo = strtoupper(trim((string) $request->input('tipo', '')));
+        $monto = num($request->input('monto'));
+        $concepto = trim((string) $request->input('concepto', ''));
+
+        $caja = $this->exigeCaja('cargar un movimiento de caja');
+        if ($caja instanceof RedirectResponse) {
+            return $caja;
+        }
+
+        $error = null;
+        if (! in_array($tipo, ['INGRESO', 'EGRESO'], true)) {
+            $error = 'Elegí si es un ingreso o un egreso.';
+        } elseif ($monto <= 0) {
+            $error = 'El monto tiene que ser mayor a cero.';
+        } elseif ($concepto === '') {
+            $error = 'Escribí el concepto: es lo único que explica ese movimiento al cerrar la caja.';
+        } elseif (mb_strlen($concepto) > 150) {
+            $error = 'El concepto no puede pasar de 150 caracteres.';
+        }
+        if ($error) {
+            flash($error, 'error');
+
+            return $volver->withInput();
+        }
+
+        // **No se saca del cajón lo que no está**, la misma regla que ya tenían
+        // el pago a proveedores y la liquidación al personal.
+        if ($tipo === 'EGRESO') {
+            $enCaja = Caja::saldo((int) $caja->id_caja);
+            if ($monto > $enCaja + 0.01) {
+                flash('En la caja hay ' . money($enCaja) . ' en efectivo y querés sacar ' . money($monto)
+                    . '. Registrá primero el ingreso o cargá un monto menor.', 'error');
+
+                return $volver->withInput();
+            }
+        }
+
+        try {
+            DB::insert('INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?,?,?,?)',
+                [(int) $caja->id_caja, $tipo, $monto, $concepto]);
+
+            Auditoria::registrar('MOVIMIENTO_CAJA', 'Facturacion', 'movimiento_caja',
+                (int) DB::getPdo()->lastInsertId(),
+                ($tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') . ' de ' . money($monto) . ' — ' . $concepto);
+
+            flash(($tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') . ' de ' . money($monto)
+                . ' registrado. En la caja quedan ' . money(Caja::saldo((int) $caja->id_caja)) . '.');
+        } catch (Throwable $ex) {
+            flash('No se pudo registrar el movimiento. El detalle quedó registrado.', 'error');
+            Log::error('Movimiento de caja', ['caja' => (int) $caja->id_caja, 'error' => $ex->getMessage()]);
+        }
+
+        return $volver;
     }
 
     public function abrirCaja(Request $request): RedirectResponse

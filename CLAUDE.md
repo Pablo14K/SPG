@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.29.0 | 15/08/2026 | **Las observaciones que quedaban del informe de 2 meses, con dos decisiones del usuario.** **El gasto del mostrador por fin entra al arqueo**: `movimiento_caja` la resta `fn_caja_saldo` desde siempre y **no la escribía ninguna pantalla** —cero filas en los 90 días de la primera simulación, y en los 60 de la segunda sólo la escribía la nota de crédito—, así que el delivery, el taxi o la plata que se saca para el cambio quedaban afuera y el cierre no cuadraba **sin que se supiera por qué**. Es lo que el informe anterior pedía como «lo completo» de CJ-02. Va en **Tesorería → Caja**, pide `facturacion.caja` y exige caja abierta, con las mismas reglas que el pago a proveedores: monto mayor a cero, concepto obligatorio —es lo único que explica ese movimiento al cerrar— y **un egreso no puede sacar más de lo que hay en el cajón**. **Los avisos internos ahora le llegan a alguien**: los de `destinatario = 'INTERNO'` —que un producto llegó al mínimo, que se cerró una caja— no se mandaban a ningún lado, el despachador tomaba sólo los de CLIENTE y el barrido de NO-02 los cerraba como FALLIDA; fueron **21 alertas de stock que no leyó nadie**, con el salón comprando tarde. Entra `App\Mail\AvisoInterno` y **a quién le llega se resuelve por permiso y no por rol** —`inventario.stock` para el de reposición, `facturacion.caja` para el del cierre—, que hoy da el Administrador y el Asistente administrativo. **Al probarlo apareció la trampa**: `rol_modulo` **no tiene ni una fila del Administrador** —su acceso lo resuelve `Permisos::esAdmin()`—, así que la consulta lo dejaba afuera justo a quien más le sirve el aviso: le llegaba a la recepcionista y no a la dueña. **Y el rol Profesional pierde `facturacion.caja`**, por decisión del usuario: la base se la daba y este documento decía lo contrario desde la 7.13.1. **Conserva cobrar y emitir**, que era la otra opción sobre la mesa y le habría sacado el trabajo del mostrador; la consecuencia queda anotada — si el Profesional abre el salón, no cobra hasta que alguien con permiso abra la caja. **85 pruebas**, tres nuevas. De paso, dos contadores de este documento estaban atrasados: las rutas eran **167** y no 164 |
 | 7.28.0 | 15/08/2026 | **Los dos defectos ALTO que encontró la simulación de 2 meses.** **La nota de crédito no se declaraba ante la DNIT**, aunque `config/sifen.php` la lista en `tipos_electronicos` junto con la factura desde la 7.0.0. `notaCredito()` emitía el comprobante, copiaba el detalle, descontaba el efectivo del cajón y revertía los puntos **sin llamar a `Sifen::` en ninguna línea**: en 60 días se declararon 70 de 70 facturas y **0 de 5 notas**, así que la DNIT seguía viendo la venta y no su reverso — un salón que devuelve todos los meses termina declarando de más ante la SET, y ninguna pantalla lo dice. Lo raro es que la pieza andaba: declarada a mano por `sifen/enviar` devolvía el CDC. Faltaba la llamada, y va **después de emitir y no atada a ella**, la regla de siempre: la nota ya es válida sin la DNIT, así que si el envío falla queda PENDIENTE y se reintenta desde el comprobante. **Y el canje por puntos ya se puede usar desde el mostrador**, que era la otra mitad que faltaba: el campo `canjes[]` existía **sólo** en el portal y `CitasController` ni lo leía, así que a la clienta que canjea en el local —la mayoría, que no tiene cuenta— se le descontaban los puntos y no tenía dónde gastar el vale. En 60 días: **5 canjes, 0 usados, 3 de clientas sin cuenta**. Ahora Nueva cita muestra los canjes de la clienta elegida; vienen los de todas y el JS filtra, porque la clienta se elige en esa misma pantalla — **el filtro es comodidad, no control**: quien decide sigue siendo `Canje::aplicarACita()`. De paso se tapó un agujero que tenían **los dos** caminos: **un canje marcado sin marcar su servicio se gastaba igual**, y ahí la clienta perdía los puntos sin recibir nada. Ahora el canje sólo se aplica si su servicio está de verdad en la cita, y si no, se avisa y se lo conserva. Al marcar el canje se marca su servicio solo, que es lo que las dos pantallas venían pidiendo por escrito sin poder garantizar. **82 pruebas**, dos nuevas —que el canje no se gasta sin su servicio, y que la nota de crédito es un tipo que se declara **y** que el controlador lo llama—. Una prueba vieja se corrigió sin aflojar la regla: su cita de mentira no tenía `cita_servicio`, y una cita sin servicios no es una cita; de paso sus fechas se mudaron lejos, porque `peluqueria_test` trae el mes simulado y una fecha cercana chocaba con `trg_citaserv_bi` |
 | 7.27.2 | 15/08/2026 | **Entra el banco de la simulación de 2 meses y su informe**, que es la validación de que las correcciones de la 7.20.0 a la 7.27.1 aguantan en operación real. `_sim60/` es una copia del banco de 90 días adaptada a esta versión —la liquidación al personal ahora pide medio de pago (7.22.0), y se sumaron escenarios para el canje por puntos, la reasignación de citas y las devoluciones—, más las piezas que faltaban para armar el informe solo: `estado.php` (foto antes y después), `series.php` (las series diarias), `analizar.py`, `graficos.py` e `informe.js`. **El banco de 90 días quedó intacto**, porque es la evidencia del informe anterior. Resultado: **60 días, 8.362 peticiones, 352 citas, 267 comprobantes, Gs. 33.097.000 cobrados, cero respuestas 5xx** y **los 18 hallazgos anteriores siguen cerrados** —se comprueban uno por uno en la auditoría de cierre—. Aparecieron **dos defectos ALTO nuevos**, los dos de coherencia y ninguno de los que rompen: **la nota de crédito no se declara ante la DNIT** aunque `config/sifen.php` la lista en `tipos_electronicos` (70 de 70 facturas declaradas, 0 de 5 notas; `notaCredito()` no llama a `Sifen::`, y declarada a mano anda perfecto), y **el canje por puntos sólo se puede usar reservando desde el portal** —`canjes[]` está sólo en `portal/reservar`, `CitasController` ni lee el campo—, así que a la clienta del mostrador se le descuentan los puntos y no tiene dónde gastar el vale: 5 canjes, 0 usados, 3 de clientas sin cuenta. Es la mitad que faltaba de IN-03. De paso quedó anotado que **el rol Profesional se entrega con `facturacion.caja`** y este documento dice lo contrario en la 7.13.1: comprobado que abre y cierra el arqueo del salón. **Y una alerta se descartó por falsa**: el detector marcó fuga de datos en el panel del Profesional y la verificación mostró que el panel sí filtra —no le dibuja «Productos bajo stock» y su rótulo dice «Mis citas de hoy»—; ve los ingresos porque su rol tiene `facturacion.cobros`. Queda escrito en el informe, porque un detector que se equivoca hay que decir cuándo se equivocó |
 | 7.27.1 | 15/08/2026 | **Entran al repositorio el banco de pruebas de QA y su informe**, que hasta ahora vivían sueltos en la carpeta y no estaban versionados. `_sim/` es la herramienta que corrió los 90 días simulados —el motor (`momento.php`), la librería de peticiones HTTP y los nueve guiones de escenario: concurrencia, permisos, portal, anomalías, cierre y auditoría final— y `INFORME_QA_SIMULACION_90_DIAS.docx` es lo que salió de ella, que es de donde se sacaron los 18 hallazgos de las versiones 7.20.0 a 7.24.0. Se versiona porque **este repositorio es el respaldo del TCC** y el informe es evidencia de la validación: sin el banco, el informe no se puede volver a producir. **Lo que NO entra es `_sim/log/`**, y va al `.gitignore`: son 1,6 MB de operaciones crudas de una corrida, envejecen al día siguiente y lo que importa de ellas ya está resumido en el informe. Se revisó que los guiones no lleven credenciales: las únicas que aparecen son las contraseñas de prueba que este documento ya publica |
@@ -218,7 +219,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | 7.15.0 | 15/08/2026 | **La cita atrasada se ve, y la asistencia sigue sin ser automática.** El sistema no puede saber si la clienta llegó —eso lo sabe quien atiende, y lo dice apretando «En proceso»—, pero sí puede saber que la hora pasó y nadie tocó nada. Eso **no es «ausente»**: marcarla ausente sola sería inventar un hecho. Entra el estado **Atrasada**, que es exactamente lo que consta, con media hora de gracia —quien llega cinco minutos tarde está llegando, no atrasado—. Sigue bloqueando la agenda, porque el sillón sigue comprometido hasta que alguien la atienda o la dé por ausente. Lo marca el mismo cron que despacha los avisos, cada diez minutos, así hay un solo lugar que tocar. El badge va en ámbar y no en rojo: todavía se puede atender |
 | 7.14.0 | 15/08/2026 | **Cinco correcciones de la revisión, y una regla nueva en la base.** **Una clienta no repite el mismo servicio el mismo día**: los dos puntos de la doble reserva eran el mismo visto de dos lados —a la misma hora con dos profesionales, o dos veces el mismo día en horarios distintos— y los dos entraban sin quejarse. Va en `trg_citaserv_bi` y no en el controlador porque la cita se agenda desde **dos lados**, el panel y el portal: en PHP habría que acordarse en los dos. Sólo cuentan las citas que ocupan agenda, así que después de cancelar se puede volver a agendar lo mismo ese día. **La sesión única estaba al revés**: la 7.13.0 echaba a quien ya estaba trabajando, y quien atiende en el mostrador se encontraba afuera a mitad de una cita. Ahora manda la primera y se le niega a la segunda, con una casilla para entrar igual —la marca se limpia recién al salir, así que quien cierra el navegador sin salir quedaría afuera para siempre—. Se comprueba **después** de la contraseña: avisar antes que una cuenta tiene sesión abierta confirma que existe. **Faltaba `Agenda::principalDelReparto()`**, que `CitasController` ya llamaba: agendar repartiendo *todos* los servicios reventaba con «Call to undefined method», y como no es error de sintaxis, PHP linteaba bien y las 63 pruebas pasaban — ninguna recorría ese camino. **El día y la hora dejan de confundirse** en el selector: eran dos listas de fichas idénticas, ahora el día va relleno, la hora en contorno y lo elegido en oro, cada lista con su rótulo. Y **la fecha del cheque se valida**: entraba un 2019 tipeado de más o un 2035; los topes salen de cómo funciona el cheque —30 días para presentarlo, 180 de tolerancia, un diferido no pasa del año— y se comprueba antes de abrir la transacción, que si se cayera adentro se pierden las otras líneas del pago mixto. De paso, `spg:diagnostico` esperaba **57** `CHECK` y hay 59: **tercera vez** que ese contador se atrasa. **Quedan sin hacer** seis puntos de la revisión: limpiar los campos de la cita, la seña registrada desde el portal, el estado «Atrasada», el aviso de envase sin contenido cargado y el de emitir factura que vuelve a pedir cobrarla |
 | 7.13.2 | 14/08/2026 | **Tres cosas que rompió la semilla y se vieron al levantar Docker de cero.** El importador **cargaba `datos_demo.sql` una segunda vez** —ya viene dentro del `.sql` que se entrega—, y como `producto` no tiene índice único por nombre, el `INSERT IGNORE` no frenaba nada: quedaban 20 productos en vez de 10. Además **no fijaba `utf8mb4`**, así que los acentos entraban dobles: «Coloración» quedaba como «Coloraci├│n» —comprobado a nivel de bytes, `E2949C` en vez de `C3B3`— y encima ya no coincidían con los del archivo, así que se insertaban otra vez. Y **la contraseña de los profesionales quedó sin su prefijo `$2y$`**: al escribirla en el `.sql` con `preg_replace`, **el `$2` del bcrypt se interpretó como retro-referencia** y se lo comió; hay que usar `str_replace`, que no interpreta el reemplazo. Con eso ninguno de los cuatro podía entrar. Todo comprobado levantando con `down -v`: 15 servicios, 10 productos, acentos en `C3B3` y las cuatro cuentas entrando |
-| 7.13.1 | 14/08/2026 | **El panel le mostraba a cada profesional cosas que no son suyas.** Dos fugas, las dos por preguntar de menos. **La barra de caja se le veía a quien tiene revocada la caja**: se consultaba `Permisos::puede('facturacion')`, el módulo **padre**, y eso lo cumple cualquiera que tenga algún submódulo —así resuelve la jerarquía—, así que el Profesional, que tiene cobros y facturas pero **no** caja, veía el saldo del salón al entrar. Ahora pregunta por `facturacion.caja`. Y **«Próximas citas» listaba las de todo el equipo**: la agenda ya filtraba por profesional, pero el panel no, así que una entraba y veía las citas de sus compañeras. La regla pasa a vivir en `Permisos::veTodaLaAgenda()`, que ahora comparten las dos pantallas: escrita en un solo lugar no se puede volver a olvidar en una. De paso, `vw_agenda_citas` **no trae `id_usuario`** —sólo el nombre—, así que hay que unirla con `cita` para poder filtrar, igual que hace la agenda |
+| 7.13.1 | 14/08/2026 | **El panel le mostraba a cada profesional cosas que no son suyas.** Dos fugas, las dos por preguntar de menos. **La barra de caja se le veía a quien tiene revocada la caja**: se consultaba `Permisos::puede('facturacion')`, el módulo **padre**, y eso lo cumple cualquiera que tenga algún submódulo —así resuelve la jerarquía—, así que el Profesional veía el saldo del salón al entrar. Ahora pregunta por `facturacion.caja`. **(Esta entrada daba por hecho que el Profesional no tenía `facturacion.caja`, y la base que se entrega SÍ se la daba: lo destapó la simulación de 2 meses y se corrigió en la 7.29.0, quitándosela.)** Y **«Próximas citas» listaba las de todo el equipo**: la agenda ya filtraba por profesional, pero el panel no, así que una entraba y veía las citas de sus compañeras. La regla pasa a vivir en `Permisos::veTodaLaAgenda()`, que ahora comparten las dos pantallas: escrita en un solo lugar no se puede volver a olvidar en una. De paso, `vw_agenda_citas` **no trae `id_usuario`** —sólo el nombre—, así que hay que unirla con `cita` para poder filtrar, igual que hace la agenda |
 | 7.13.0 | 14/08/2026 | **Cuatro cosas: compras en cuotas, una sola sesión por cuenta, dos módulos renombrados y la base que se entrega ya viene cargada.** **Una compra a crédito se paga en cuotas**, cada una con su fecha y su monto, y eso no se podía representar: «Crédito» era UN vencimiento a 30 días y el salón no sabía cuánto le vencía la semana que viene. Entra `compra_cuota` —una fila por cuota, nunca una lista de fechas en un campo— y `fn_compra_vencimiento` pasa a devolver la primera; sin cuotas cargadas se comporta como siempre, así que las compras viejas no cambian. La pantalla propone repartir el total en partes iguales, una por mes, y **lo que no divide exacto va en la última** para que la suma cierre. **Una sola sesión por cuenta**: si alguien entra con el mismo usuario desde otro equipo, la sesión anterior se cierra y ve por qué, con la recomendación de cambiar la contraseña si no fue él. Se guarda una marca en `usuario`, **no el id de sesión** —se regenera al entrar y en las pruebas cambia en cada petición, así que comparar contra él sacaba a la persona justo después de ingresar—. Al probarlo apareció que **la pantalla de ingreso no dibujaba los avisos**: sólo los errores del propio formulario, así que todo lo que redirigiera hasta ahí se perdía en silencio. **Citas y agenda** pasa a llamarse **Citas** y **Facturación y caja**, **Tesorería**. Y **`peluqueria_bd` ahora trae con qué probar**: 15 servicios, 10 productos —tres fraccionados—, 3 proveedores, 4 profesionales con turno y comisión, y los tres timbrados. Sin eso una cuenta recién creada no podía hacer nada: no había qué agendar ni con quién. Va en `basededatos/datos_demo.sql`, se carga sola al levantar Docker y **no incluye ni una cita ni una factura**: la operación se genera usando el sistema. **63 pruebas** y los dos `.sql` regenerados |
 | 7.12.2 | 13/08/2026 | **Queda escrita la regla del contenedor al día**, que es el problema que más veces apareció en este proyecto y siempre con la misma forma: el código dice una cosa y lo que está corriendo dice otra, **sin avisar** — falla después, cuando alguien abre una pantalla. Se anota qué hay que correr según qué se tocó (`down -v` para el esquema, `restart app` para el `.env`, `up --build` para el compose) y que `spg:diagnostico` es lo único que compara lo que corre contra lo que se entrega. Con las tres veces que mordió anotadas: el 500 de la columna `tema` en la computadora de una compañera, el `SIFEN_TIPO_DEFECTO` que quedó apuntando a un comprobante dado de baja porque `skip-worktree` lo escondía, y el Automatizador que se caía sin que nadie lo notara |
 | 7.12.1 | 13/08/2026 | **El contenedor vuelve a arrancar contra `peluqueria_bd`, la base que se entrega**, y de paso se recupera todo lo que `env.docker` había dejado de commitear. Es la trampa que la 7.8.0 documentó y que igual mordió: con `skip-worktree` puesto **ningún cambio de ese archivo se commitea y `git status` tampoco lo muestra**, así que el repositorio se quedó con `SIFEN_TIPO_DEFECTO=3` —el Ticket, que se dio de baja en la 7.9.0— y con `DB_DATABASE=peluqueria_test`. Quien clonara el proyecto arrancaba apuntando a un comprobante inactivo. Ahora la versión versionada dice lo que corresponde: base `peluqueria_bd`, comprobante 8 y `MAIL_MAILER=log` con las credenciales vacías, porque una contraseña ahí queda en el repositorio y en todas sus copias. La copia local conserva el correo andando y vuelve a marcarse. El comentario del archivo pasa a explicar las dos caras: cómo encender el correo **y** que la marca esconde los cambios, con `git ls-files -v` para comprobarlo |
@@ -264,7 +265,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **164 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **167 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -293,7 +294,7 @@ app/
     Facturacion.php        Emitir, cobrar, anular, nota de crédito, puntos
     Caja.php               Caja abierta y saldo
     Persona.php            El único lugar que escribe en `persona`
-    Notificaciones.php     Cola de avisos: ausencias, bajas y recordatorios
+    Notificaciones.php     Cola de avisos: ausencias, bajas, recordatorios y los internos
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
     Listado.php            Prototipo de listas: filtros(), paginacion(), exportar() CSV/PDF
     Borrador.php           No perder lo escrito al usar un alta rápida
@@ -308,7 +309,7 @@ app/
                            (usuarios, turnos, comisiones, asistencia) y
                            ConfiguracionController (sucursales, roles, contacto, auditoría)
   Http/Middleware/         ExigeSesion · ExigePersonal · ExigeModulo · ExigeAdmin
-  Mail/                    AvisoCita · CodigoSeguridad
+  Mail/                    AvisoCita · AvisoInterno · CodigoSeguridad
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
 config/
   spg.php                  Versión, puntos, agenda, timbrado
@@ -319,11 +320,11 @@ resources/views/
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 164 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 167 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 82 pruebas
+tests/Feature/             Las 85 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -766,7 +767,7 @@ Lo fija `ReglasDeNegocioTest::registrarse_enlaza_la_ficha_que_el_salon_ya_tenia`
 | id | Rol | Alcance |
 |---|---|---|
 | 1 | Administrador | Superadministrador: ve todo, único que gestiona cuentas, roles y excepciones de agenda |
-| 2 | Profesional | El empleado que atiende: citas, clientes, cobros · de Seguridad, **solo su asistencia**. **No administra el módulo Servicios** — ver el aviso de abajo |
+| 2 | Profesional | El empleado que atiende: citas, clientes, cobros y comprobantes · de Seguridad, **solo su asistencia**. **No administra el módulo Servicios** ni **la caja** — ver los dos avisos de abajo |
 | 3 | Asistente administrativo | Operación diaria: citas, clientes, servicios, inventario, facturación, reportes · de Seguridad, turnos, comisiones y asistencia |
 | 4 | Cliente | Portal del cliente. No es personal (`rol.es_personal = 0`) |
 
@@ -849,6 +850,18 @@ solo ofrece el botón a quien tenga `facturacion.timbrados`.
 > `citas.*` y listan el catálogo completo. **Si algún día hace falta que el Profesional vea la
 > lista de Servicios sin poder tocarla, es un permiso nuevo de sólo lectura, no
 > `servicios.catalogo`.** Lo fija `ReglasDeNegocioTest::el_profesional_no_administra_precios_ni_promociones`.
+
+> **El Profesional cobra, pero no administra el arqueo.** La base venía dándole
+> `facturacion.caja`, así que abría y cerraba la caja del salón y le veía el saldo — y este
+> documento decía lo contrario desde la 7.13.1. La simulación de 2 meses lo destapó
+> comprobándolo de punta a punta, y en la 7.29.0 se le quitó la clave del `.sql` que se
+> entrega. **Lo que sí conserva es `facturacion.cobros` y `facturacion.facturas`**: sacarle
+> eso lo dejaría sin poder trabajar en el mostrador, que no es lo que se quiso.
+>
+> La consecuencia hay que tenerla presente: **si el Profesional abre el salón, no puede
+> cobrar hasta que alguien con permiso abra la caja.** Es a propósito — sin caja abierta no
+> se mueve un guaraní, y quién responde por ese cajón es una decisión del salón. Lo fija
+> `ReglasDeNegocioTest::el_profesional_cobra_pero_no_administra_la_caja`.
 
 > **Al mudar una pantalla de módulo, revisá contra qué rol queda.** Timbrados vivía en
 > Configuración, que ningún rol salvo el Administrador tiene; al pasarla a Facturación quedó
@@ -1183,6 +1196,23 @@ llenaba y no la vaciaba nadie. Los correos se arman con Mailables (`App\Mail\Avi
 - **El enlace del correo** (`token_cita`) permite reprogramar o cancelar **sin iniciar
   sesión**: la mayoría de las clientas que agendan en el local no tienen cuenta. El token es
   la credencial, dura 30 días y muere al cancelar.
+- **Los avisos internos también se mandan, y le llegan al equipo que puede resolverlos.**
+  Los de `tipo_notificacion.destinatario = 'INTERNO'` —que un producto llegó al mínimo, que
+  se cerró una caja— **no llegaban a nadie**: el despachador tomaba sólo los de destinatario
+  CLIENTE y el barrido de NO-02 los cerraba como FALLIDA. En la simulación de 60 días fueron
+  **21 alertas de stock que no leyó nadie**, con el salón comprando tarde. Van con
+  `App\Mail\AvisoInterno`.
+  > **A quién le llegan se resuelve por permiso, no por rol.** La clave es la del módulo que
+  > hace falta para actuar sobre ese aviso: `inventario.stock` para el de reposición,
+  > `facturacion.caja` para el del cierre. Hoy eso da exactamente el Administrador y el
+  > Asistente administrativo, y si mañana el salón crea un rol nuevo con esa clave, le llega
+  > solo — que es la razón por la que este proyecto nunca filtra con `id_rol IN (…)`.
+  >
+  > **Con una excepción que hay que tener presente: el Administrador entra por su rol.**
+  > `rol_modulo` no tiene ni una fila suya —su acceso lo resuelve `Permisos::esAdmin()`
+  > comparando contra `permisos.rol_admin`—, así que una consulta que sólo mire esa tabla lo
+  > deja afuera justo a quien más le sirve el aviso. Pasó al probarlo: la alerta de stock le
+  > llegaba a la recepcionista y no a la dueña.
 - Los procedimientos de la base crean sus avisos con canal `WHATSAPP` (`sp_agendar_cita`,
   `sp_cancelar_cita`). Como esa integración no existe todavía, el despachador **también los
   toma y los manda por correo**, corrigiendo el canal. Si no, quedaban en PENDIENTE para
@@ -1842,6 +1872,24 @@ físico y el movimiento total: `cobros_efectivo` / `cobros_otros` / `cobros`,
 **Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
 
+### El movimiento de efectivo que no es un cobro ni un pago
+
+`movimiento_caja` guarda lo que entra o sale del cajón sin ser ninguna de las dos cosas: el
+delivery, el taxi, la plata que se saca para el cambio, un retiro. Se carga desde
+**Tesorería → Caja**, pide `facturacion.caja` y exige caja abierta como todo lo que mueve
+plata.
+
+> **Hasta la 7.29.0 esa tabla no la escribía ninguna pantalla.** `fn_caja_saldo` la restaba
+> desde siempre —cero filas en los 90 días de la primera simulación, y en los 60 de la
+> segunda sólo la escribía la nota de crédito—, así que el gasto real del mostrador quedaba
+> fuera del arqueo y el cierre no cuadraba **sin que se supiera por qué**. Es lo que el
+> informe de 90 días pedía como «lo completo» de CJ-02.
+
+Las reglas son las mismas que las del pago a proveedores, y por los mismos motivos: el monto
+tiene que ser mayor a cero, el concepto es obligatorio —es lo único que explica ese
+movimiento al cerrar la caja—, y **un egreso no puede sacar más de lo que hay en el cajón**.
+Todo queda en `auditoria` con el concepto.
+
 > **Si agregás otra salida de dinero**, tiene que restarse en `fn_caja_saldo()` **sólo cuando
 > es en efectivo**, exponerse como columna en `vw_caja_resumen` separando efectivo de lo
 > demás, y validar el disponible antes de registrarla. Si no, el arqueo vuelve a mentir.
@@ -2152,7 +2200,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 82 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 85 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
@@ -2212,7 +2260,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**82 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**85 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Servicios;
 
 use App\Mail\AvisoCita;
+use App\Mail\AvisoInterno;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -242,17 +243,27 @@ class Notificaciones
             }
         }
 
+        // **Los avisos internos también se mandan** (7.29.0).
+        //
+        // Hasta acá el despachador tomaba sólo los de destinatario CLIENTE, así
+        // que los de `destinatario = 'INTERNO'` —que un producto llegó al
+        // mínimo, que se cerró una caja— no llegaban a nadie: el barrido de
+        // abajo los cerraba como FALLIDA y ahí moría el asunto. En la
+        // simulación de 60 días fueron **21 alertas de stock que no leyó
+        // nadie**, con el salón comprando tarde.
+        $res = array_merge($res, self::despacharInternos($max));
+
         // **Lo que este despachador no va a tomar nunca, se cierra** (NO-02).
         //
-        // La consulta de arriba sólo toma los avisos de destinatario CLIENTE
-        // con `id_cliente` cargado. El que no cumple eso no se manda ni se
-        // marca: se queda en PENDIENTE para siempre y la cola no se vacía nunca
-        // del todo —quedó uno de 1.091 en la simulación de 90 días—.
+        // Queda para el aviso que de verdad no tiene a quién mandarse: uno de
+        // cliente sin `id_cliente`, o uno interno sin un solo destinatario con
+        // correo cargado. El que no cumple eso no se manda ni se marca: se
+        // queda en PENDIENTE para siempre y la cola no se vacía nunca del todo
+        // —quedó uno de 1.091 en la simulación de 90 días—.
         //
-        // No es que se pierda un aviso: es que **ese aviso no tiene a quién
-        // mandárselo**. Marcarlo FALLIDA dice exactamente eso y saca el ruido
-        // de la cola, que si no deja de servir para ver si algo anda mal.
-        // Se le da un día de gracia por si el dato se completa después.
+        // Marcarlo FALLIDA dice exactamente eso y saca el ruido de la cola,
+        // que si no deja de servir para ver si algo anda mal. Se le da un día
+        // de gracia por si el dato se completa después.
         $res['sin_destinatario'] = DB::update(
             "UPDATE notificacion n
                 JOIN tipo_notificacion tn ON tn.id_tipo_notificacion = n.id_tipo_notificacion
@@ -263,6 +274,120 @@ class Notificaciones
         );
 
         return $res;
+    }
+
+    /**
+     * Quién recibe cada aviso interno.
+     *
+     * **Se resuelve por permiso, no por rol.** La clave es la del módulo que
+     * hace falta para actuar sobre ese aviso: al que le avisan que falta
+     * shampoo tiene que poder cargar stock, y al del cierre de caja, tocar la
+     * caja. Hoy eso da exactamente el Administrador y el Asistente
+     * administrativo, y si mañana el salón crea un rol nuevo con esa clave, le
+     * llega solo — que es la razón por la que este proyecto nunca filtra con
+     * `id_rol IN (…)`.
+     */
+    private const CLAVE_POR_TIPO = [
+        5 => 'inventario.stock',      // Alerta de stock mínimo
+        6 => 'facturacion.caja',      // Cierre de caja
+    ];
+
+    /**
+     * A quién mandarle un aviso interno de este tipo: personal activo, con correo.
+     *
+     * **El Administrador entra por su rol y no por `rol_modulo`.** Esa tabla
+     * no tiene ni una fila suya —su acceso lo resuelve `Permisos::esAdmin()`
+     * comparando contra `permisos.rol_admin`—, así que una consulta que sólo
+     * mire `rol_modulo` lo deja afuera justo a quien más le sirve el aviso.
+     * Pasó al probarlo: la alerta de stock le llegaba a la recepcionista y no
+     * a la dueña. El id sale de la configuración, no escrito a mano.
+     */
+    private static function destinatariosInternos(int $tipo): array
+    {
+        $clave = self::CLAVE_POR_TIPO[$tipo] ?? 'seguridad.usuarios';
+        $modulo = explode('.', $clave)[0];
+        $admin = (int) config('permisos.rol_admin', 1);
+
+        // El módulo padre alcanza para todos sus submódulos: es la misma
+        // jerarquía que resuelve Permisos::rolPuede().
+        return DB::select(
+            "SELECT DISTINCT pe.email, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
+               FROM usuario u
+               JOIN persona pe ON pe.id_persona = u.id_persona
+               JOIN rol r ON r.id_rol = u.id_rol
+               LEFT JOIN rol_modulo rm ON rm.id_rol = u.id_rol AND rm.modulo IN (?, ?)
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND (rm.modulo IS NOT NULL OR u.id_rol = ?)
+                AND pe.email IS NOT NULL AND pe.email <> ''",
+            [$clave, $modulo, $admin]
+        );
+    }
+
+    /**
+     * Manda los avisos internos al equipo que puede actuar sobre ellos.
+     *
+     * @return array{internos_enviados:int, internos_sin_nadie:int}
+     */
+    private static function despacharInternos(int $max): array
+    {
+        $out = ['internos_enviados' => 0, 'internos_sin_nadie' => 0];
+
+        $pend = DB::select(
+            "SELECT n.id_notificacion, n.id_tipo_notificacion, n.mensaje
+               FROM notificacion n
+               JOIN tipo_notificacion tn ON tn.id_tipo_notificacion = n.id_tipo_notificacion
+              WHERE n.estado = 'PENDIENTE' AND tn.destinatario = 'INTERNO'
+              ORDER BY n.id_notificacion LIMIT " . max(1, $max)
+        );
+        if (! $pend) {
+            return $out;
+        }
+
+        // Se resuelve una sola vez por tipo: son dos o tres tipos y muchas
+        // filas, y la lista de destinatarios no cambia dentro de la pasada.
+        $porTipo = [];
+
+        foreach ($pend as $p) {
+            $tipo = (int) $p->id_tipo_notificacion;
+            $porTipo[$tipo] ??= self::destinatariosInternos($tipo);
+
+            if (! $porTipo[$tipo]) {
+                // Nadie con ese permiso tiene correo cargado: lo cierra el
+                // barrido de NO-02, que para eso está.
+                $out['internos_sin_nadie']++;
+
+                continue;
+            }
+
+            $url = self::CLAVE_POR_TIPO[$tipo] === 'inventario.stock'
+                ? rtrim((string) config('app.url'), '/') . '/inventario/stock'
+                : rtrim((string) config('app.url'), '/') . '/panel';
+
+            $mandados = 0;
+            foreach ($porTipo[$tipo] as $d) {
+                if (! filter_var((string) $d->email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+                try {
+                    Mail::to($d->email)->send(new AvisoInterno(
+                        $tipo, (string) $p->mensaje, (string) $d->nombre, $url
+                    ));
+                    $mandados++;
+                } catch (Throwable $e) {
+                    // Uno que falla no arrastra a los demás; si no llegó a
+                    // nadie, la fila queda PENDIENTE y se reintenta sola.
+                    report($e);
+                }
+            }
+
+            if ($mandados > 0) {
+                DB::update("UPDATE notificacion SET estado='ENVIADA', canal='EMAIL', fecha_envio=NOW()
+                             WHERE id_notificacion=?", [$p->id_notificacion]);
+                $out['internos_enviados']++;
+            }
+        }
+
+        return $out;
     }
 
     /**

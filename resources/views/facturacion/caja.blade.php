@@ -52,6 +52,75 @@
                 <p class="text-muted-warm mb-0" style="font-size:.85rem">Todavía no hay cobros en esta caja.</p>
             @endif
         </div>
+
+        {{-- Movimiento cargado a mano: lo único del arqueo que no sale de un
+             cobro ni de un pago. `fn_caja_saldo` resta esta tabla desde
+             siempre y hasta la 7.29.0 no la escribía ninguna pantalla, así que
+             el gasto real del mostrador quedaba afuera y el cierre no cuadraba. --}}
+        <div class="spg-panel mb-3">
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Movimiento de efectivo</h2>
+            <p class="text-muted-warm" style="font-size:.85rem">
+                Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi,
+                la plata que se saca para el cambio, un retiro. <strong>Queda en el arqueo</strong>, así
+                que el cierre cuadra con lo que hay de verdad.
+            </p>
+
+            <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
+                  class="row g-2 align-items-end">
+                @csrf
+                <div class="col-md-2">
+                    <label class="form-label" for="mc_tipo">Tipo</label>
+                    <select class="form-select" id="mc_tipo" name="tipo" required>
+                        <option value="EGRESO" @selected(old('tipo') !== 'INGRESO')>Egreso (sale)</option>
+                        <option value="INGRESO" @selected(old('tipo') === 'INGRESO')>Ingreso (entra)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="mc_monto">Monto</label>
+                    <div class="input-group">
+                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <input class="form-control input-miles" id="mc_monto" name="monto"
+                               value="{{ old('monto') }}" data-min="1" required>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="mc_concepto">Concepto</label>
+                    <input class="form-control" id="mc_concepto" name="concepto" maxlength="150"
+                           value="{{ old('concepto') }}" required
+                           placeholder="Ej.: delivery del almuerzo, retiro de la dueña…">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-oro w-100"
+                            data-confirmar="Este movimiento entra al arqueo de la caja abierta. ¿Confirmás?">
+                        <i class="bi bi-plus-lg"></i> Registrar
+                    </button>
+                </div>
+            </form>
+
+            @if (count($movimientos))
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Cuándo</th><th>Tipo</th><th>Concepto</th><th class="text-end">Monto</th></tr></thead>
+                        <tbody>
+                            @foreach ($movimientos as $m)
+                                <tr>
+                                    <td>{{ fecha($m->fecha, 'd/m H:i') }}</td>
+                                    <td>
+                                        @if ($m->tipo === 'INGRESO')
+                                            <span class="badge-estado e-ok">Ingreso</span>
+                                        @else
+                                            <span class="badge-estado e-no">Egreso</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $m->concepto }}</td>
+                                    <td class="text-end">{{ money($m->monto) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
     @else
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir caja</h2>
