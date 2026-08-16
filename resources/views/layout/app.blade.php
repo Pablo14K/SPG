@@ -20,6 +20,12 @@
     $spgModulo   = strtok($spgRuta, '.');
     $spgSesion   = session('uid') ? ['nombre' => session('nombre'), 'rol_nom' => session('rol_nom')] : null;
     $spgCliente  = (bool) session('es_cliente', false);
+    // En qué local está trabajando. Se muestra SIEMPRE que haya una elegida,
+    // aunque el salón tenga una sola: quien atiende tiene que poder contestar
+    // «¿en qué sucursal estoy?» sin abrir nada, porque de eso dependen la
+    // agenda que ve, la caja que cierra y el stock que descuenta. La clienta
+    // no tiene ninguna — elige el local al agendar.
+    $spgSucursal = $spgCliente ? '' : (string) session('sucursal_nom', '');
     $spgMenu     = $spgSesion && ! $spgCliente ? Navegacion::modulos() : [];
     $spgRapidos  = $spgSesion && ! $spgCliente ? Navegacion::accesosRapidos($spgRuta) : [];
     $spgPortal   = $spgCliente ? Navegacion::portal() : [];
@@ -84,6 +90,11 @@
                     <li><span class="dropdown-item-text spg-drop-cabecera">
                         <strong>{{ $spgSesion['nombre'] }}</strong>
                         <span>{{ $spgSesion['rol_nom'] }}</span>
+                        {{-- En pantalla chica la ficha de arriba no se dibuja,
+                             así que acá es el único lugar donde se ve. --}}
+                        @if ($spgSucursal)
+                            <span class="txt-oro"><i class="bi bi-shop"></i> {{ $spgSucursal }}</span>
+                        @endif
                     </span></li>
                     <li><hr class="dropdown-divider"></li>
                     @if (Navegacion::existe('cuenta.index'))
@@ -106,6 +117,14 @@
                     </li>
                 </ul>
             </div>
+            {{-- La sucursal va ANTES del rol y en relleno, no en contorno: es
+                 lo que cambia entre una sesión y otra, y lo que hay que poder
+                 leer de un vistazo antes de cobrar o descontar stock. El rol
+                 queda en contorno, que es información de fondo. --}}
+            @if ($spgSucursal)
+                <span class="spg-suc-chip d-none d-md-inline" title="Estás trabajando en esta sucursal">
+                    <i class="bi bi-shop"></i> {{ $spgSucursal }}</span>
+            @endif
             <span class="spg-rol-chip d-none d-md-inline">{{ $spgSesion['rol_nom'] }}</span>
         </div>
     @endif

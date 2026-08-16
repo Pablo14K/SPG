@@ -212,6 +212,20 @@ body{
   font-size:.72rem;font-weight:500;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
 }
 
+/* La sucursal en la que se está trabajando, al lado del nombre.
+   Va RELLENA y el rol en contorno, y la diferencia no es capricho: el rol de
+   una persona no cambia nunca, la sucursal cambia entre una sesión y la
+   siguiente — y de ella dependen la agenda que ve, la caja que cierra y el
+   stock que descuenta. Es lo que hay que poder leer sin buscar.
+   El oro se usa acá porque esto es jerarquía, no adorno: es el dato que
+   contesta «¿dónde estoy parado?». Sobre la barra oscura, `--oro` con texto
+   `--negro` da 8,5:1. */
+.spg-suc-chip{
+  background:var(--oro);color:var(--negro);border:1px solid var(--oro-oscuro);
+  font-size:.72rem;font-weight:600;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
+}
+.spg-suc-chip i{font-size:.75rem;}
+
 /* El desplegable abierto se marca con el oro claro, igual que el hover */
 .spg-modulos-btn{font-size:.85rem;cursor:pointer;}
 .spg-modulos-btn::after{display:none;}
