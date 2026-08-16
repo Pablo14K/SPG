@@ -698,6 +698,7 @@ class InventarioController extends Controller
             $par['h'] = Listado::valor($f, 'hasta');
         }
 
+        $w[] = ltrim(Sucursales::filtro('c', $par), ' AND') ?: '1=1';
         $desde = 'FROM vw_compra_resumen v JOIN compra c ON c.id_compra = v.id_compra WHERE ' . implode(' AND ', $w);
         $cols = 'v.*, c.nro_factura_proveedor, fn_compra_saldo(v.id_compra) AS saldo,
                  (SELECT COUNT(*) FROM detalle_compra d WHERE d.id_compra = v.id_compra) AS items';

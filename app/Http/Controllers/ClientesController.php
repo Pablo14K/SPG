@@ -238,6 +238,9 @@ class ClientesController extends Controller
     {
         return view('clientes.canjes', [
             'rows' => Canje::catalogo(false),
+            // Para elegir en qué locales vale el canje. Con una sola sucursal
+            // el bloque no se dibuja: no hay nada que elegir.
+            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             // Los que todavía no están en el catálogo: no tiene sentido
             // ofrecer dos veces el mismo servicio.
             'servicios' => DB::select(
@@ -286,13 +289,31 @@ class ClientesController extends Controller
             return $volver->withInput();
         }
 
+        // **A qué locales aplica el canje.** Sin marcar ninguno se entiende que
+        // vale en todos: es lo que espera quien tiene un solo local, y evita
+        // que un canje quede creado sin poder usarse en ningún lado.
+        $sucursales = array_values(array_filter(array_map('intval', (array) $request->input('sucursales', []))));
+        if (! $sucursales) {
+            $sucursales = array_map(fn ($s) => (int) $s->id_sucursal,
+                DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1'));
+        }
+
         try {
             DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
                 [$idServicio, $puntos, $dias]);
+            $idCanjeable = (int) DB::getPdo()->lastInsertId();
+
+            foreach ($sucursales as $idSuc) {
+                DB::insert('INSERT IGNORE INTO canjeable_sucursal (id_servicio_canjeable, id_sucursal) VALUES (?,?)',
+                    [$idCanjeable, $idSuc]);
+            }
+
             $nombre = (string) DB::scalar('SELECT nombre FROM servicio WHERE id_servicio = ?', [$idServicio]);
-            Auditoria::registrar('ALTA', 'Clientes', 'servicio_canjeable', (int) DB::getPdo()->lastInsertId(),
-                $nombre . ' por ' . $puntos . ' puntos, con ' . $dias . ' día(s) de vigencia');
-            flash($nombre . ' ya se puede canjear por ' . $puntos . ' puntos.');
+            Auditoria::registrar('ALTA', 'Clientes', 'servicio_canjeable', $idCanjeable,
+                $nombre . ' por ' . $puntos . ' puntos, con ' . $dias . ' día(s) de vigencia'
+                . ' — en ' . count($sucursales) . ' sucursal(es)');
+            flash($nombre . ' ya se puede canjear por ' . $puntos . ' puntos'
+                . (count($sucursales) > 1 ? ' en ' . count($sucursales) . ' sucursales.' : '.'));
         } catch (Throwable $ex) {
             flash('No se pudo agregar el canje. El detalle quedó registrado.', 'error');
             Log::error('Alta de servicio canjeable', ['error' => $ex->getMessage()]);

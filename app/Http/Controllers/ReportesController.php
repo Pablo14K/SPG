@@ -129,7 +129,10 @@ class ReportesController extends Controller
             $par['p'] = (int) $prof;
         }
         if ($suc !== '') {
-            $wCita[] = 'u.id_sucursal = :s';
+            // La sucursal de la CITA, no la de la ficha del profesional: desde
+            // que una persona puede estar asignada a varios locales, dónde
+            // trabaja habitualmente ya no dice dónde ocurrió la atención.
+            $wCita[] = 'c.id_sucursal = :s';
             $par['s'] = (int) $suc;
         }
         $joinCita = 'FROM cita c

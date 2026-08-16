@@ -44,6 +44,25 @@
             <div class="col-md-2">
                 <button class="btn btn-oro w-100"><i class="bi bi-plus-lg"></i> Sumar</button>
             </div>
+
+            {{-- En qué locales vale. Con una sola sucursal no se pregunta: no
+                 hay nada que elegir. Sin marcar ninguna vale en todas, que es
+                 lo que espera quien recién abre el segundo local. --}}
+            @if (count($sucursales) > 1)
+                <div class="col-12">
+                    <label class="form-label">¿En qué sucursales se puede canjear?</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach ($sucursales as $s)
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="sucursales[]"
+                                       value="{{ $s->id_sucursal }}" id="suc{{ $s->id_sucursal }}" checked>
+                                <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="form-text">Si no marcás ninguna, vale en todas.</div>
+                </div>
+            @endif
             <div class="col-12">
                 <p class="text-muted-warm mb-0" style="font-size:.8rem">
                     La vigencia se cuenta <strong>desde que la clienta canjea</strong>, no desde hoy:

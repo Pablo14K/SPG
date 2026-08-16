@@ -11,6 +11,7 @@ use App\Servicios\Caja;
 use App\Servicios\Facturacion;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
+use App\Servicios\Sucursales;
 use App\Servicios\Persona;
 use App\Servicios\Sifen;
 use Illuminate\Database\QueryException;
@@ -130,7 +131,14 @@ class FacturacionController extends Controller
                           WHERE n.id_factura_origen = v.id_factura
                             AND n.id_estado_factura = 1) AS acreditada';
 
-        $desde = 'FROM vw_factura_resumen v WHERE ' . implode(' AND ', $w);
+        // La sucursal de un comprobante NO es una columna suya: sale del
+        // timbrado con el que se numeró, que ya era por sucursal desde
+        // siempre. Por eso se une en vez de filtrar la vista directo.
+        $w[] = ltrim(Sucursales::filtro('t', $par), ' AND') ?: '1=1';
+        $desde = 'FROM vw_factura_resumen v
+                   JOIN factura fa ON fa.id_factura = v.id_factura
+                   JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+                  WHERE ' . implode(' AND ', $w);
 
         if (Listado::pideExport()) {
             return Listado::exportar('facturas',
@@ -1321,10 +1329,13 @@ class FacturacionController extends Controller
 
     public function caja(): View
     {
-        $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta' ORDER BY fecha_apertura DESC LIMIT 1");
+        $pa = []; $pl = [];
+        $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta'"
+            . Sucursales::filtro('vw_caja_resumen', $pa) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pa);
 
         return view('facturacion.caja', [
-            'rows' => DB::select('SELECT * FROM vw_caja_resumen ORDER BY fecha_apertura DESC LIMIT 60'),
+            'rows' => DB::select('SELECT * FROM vw_caja_resumen WHERE 1=1'
+                . Sucursales::filtro('vw_caja_resumen', $pl, 'sucl') . ' ORDER BY fecha_apertura DESC LIMIT 60', $pl),
             'abierta' => $abierta,
             // Arqueo por medio de pago: sin esto no se puede cuadrar la plata
             // física contra lo cargado (el efectivo tiene que estar en el cajón;

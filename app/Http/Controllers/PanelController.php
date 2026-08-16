@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Caja;
 use App\Servicios\Permisos;
+use App\Servicios\Sucursales;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
@@ -40,6 +41,8 @@ class PanelController extends Controller
             $par['yo'] = (int) session('uid');
         }
 
+        $soloMias .= Sucursales::filtro('cita', $par);
+
         $metricas = [
             'citas_hoy' => (int) DB::scalar(
                 "SELECT COUNT(*) FROM cita
@@ -69,6 +72,7 @@ class PanelController extends Controller
             $soloMiasProx = ' AND c.id_usuario = :yo';
             $parProx['yo'] = (int) session('uid');
         }
+        $soloMiasProx .= Sucursales::filtro('c', $parProx);
 
         $proximas = DB::select(
             "SELECT v.* FROM vw_agenda_citas v
@@ -110,11 +114,20 @@ class PanelController extends Controller
         ]);
     }
 
-    /** Productos que cayeron al mínimo o por debajo: es lo que hay que comprar. */
+    /**
+     * Productos que cayeron al mínimo o por debajo: es lo que hay que comprar.
+     * Del local en el que se está trabajando — el faltante del otro no es algo
+     * que esta persona pueda resolver.
+     */
     private function bajoStock(): int
     {
         try {
-            return (int) DB::scalar('SELECT COUNT(*) FROM vw_producto_bajo_stock');
+            $par = [];
+
+            return (int) DB::scalar(
+                'SELECT COUNT(*) FROM vw_producto_bajo_stock WHERE 1=1'
+                . Sucursales::filtro('vw_producto_bajo_stock', $par), $par
+            );
         } catch (Throwable) {
             return 0;
         }
