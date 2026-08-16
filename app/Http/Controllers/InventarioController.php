@@ -10,6 +10,7 @@ use App\Servicios\Borrador;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
+use App\Servicios\Sucursales;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,7 @@ class InventarioController extends Controller
                     'hay' => 'v.stock_actual > 0'][Listado::valor($f, 'stock')];
         }
 
+        $w[] = ltrim(Sucursales::filtro('v', $par), ' AND') ?: '1=1';
         $desde = 'FROM vw_producto_stock v WHERE ' . implode(' AND ', $w);
 
         if (Listado::pideExport()) {
@@ -337,9 +339,11 @@ class InventarioController extends Controller
 
     public function stock(): View
     {
+        $ps = []; $pb = [];
+
         return view('inventario.stock', [
-            'rows' => DB::select('SELECT * FROM vw_producto_stock WHERE activo = 1 ORDER BY nombre'),
-            'bajo' => DB::select('SELECT * FROM vw_producto_bajo_stock ORDER BY faltante DESC'),
+            'rows' => DB::select('SELECT * FROM vw_producto_stock WHERE activo = 1' . Sucursales::filtro('vw_producto_stock', $ps) . ' ORDER BY nombre', $ps),
+            'bajo' => DB::select('SELECT * FROM vw_producto_bajo_stock WHERE 1=1' . Sucursales::filtro('vw_producto_bajo_stock', $pb, 'sucb') . ' ORDER BY faltante DESC', $pb),
         ]);
     }
 
@@ -425,11 +429,15 @@ class InventarioController extends Controller
 
     public function ajuste(): View
     {
+        // Sólo los productos de ESTE local: cargarle stock a un producto de la
+        // otra sucursal sería mover mercadería que no está acá.
+        $pp = [];
+
         return view('inventario.ajuste', [
             'prods' => DB::select(
                 'SELECT id_producto, nombre, unidad_medida, contenido, unidad_consumo, precio_costo,
                         fn_producto_stock(id_producto) AS stock
-                   FROM producto WHERE activo = 1 ORDER BY nombre'
+                   FROM producto WHERE activo = 1' . Sucursales::filtro('producto', $pp) . ' ORDER BY nombre', $pp
             ),
             'tipos' => DB::select('SELECT * FROM tipo_movimiento_inventario WHERE activo = 1 ORDER BY signo DESC, nombre'),
             'cats' => DB::select('SELECT id_categoria, nombre FROM categoria_producto ORDER BY nombre'),
@@ -746,6 +754,9 @@ class InventarioController extends Controller
 
     public function compraForm(Request $request): View
     {
+        // Sólo los productos de este local: una compra ingresa mercadería acá.
+        $pc = [];
+
         return view('inventario.compra_form', [
             'proveedores' => DB::select(
                 'SELECT p.id_proveedor, pe.nombre FROM proveedor p
@@ -757,7 +768,8 @@ class InventarioController extends Controller
             // El id va junto al nombre: la pantalla manda el id cuando el
             // producto ya existe, así un espacio de más no termina creando un
             // producto duplicado y partiendo el stock en dos.
-            'productos' => DB::select('SELECT id_producto, nombre FROM producto WHERE activo = 1 ORDER BY nombre'),
+            'productos' => DB::select('SELECT id_producto, nombre FROM producto WHERE activo = 1'
+                . Sucursales::filtro('producto', $pc) . ' ORDER BY nombre', $pc),
             'sel_proveedor' => (int) $request->query('proveedor', 0),
         ]);
     }

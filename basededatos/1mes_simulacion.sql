@@ -42,7 +42,7 @@ CREATE TABLE `asistencia` (
   CONSTRAINT `fk_asistencia_turno` FOREIGN KEY (`id_turno`) REFERENCES `turno_laboral` (`id_turno`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_asistencia_usuario` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_asistencia_extras` CHECK (`horas_extras` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -76,7 +76,7 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1757 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1801 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -110,7 +110,7 @@ CREATE TABLE `ausencia_agenda` (
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -146,7 +146,7 @@ CREATE TABLE `caja` (
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -235,7 +235,7 @@ CREATE TABLE `canje` (
   CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
   CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -350,7 +350,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=376 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=406 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -452,7 +452,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=571 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -581,7 +581,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=159 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=163 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1046,7 +1046,7 @@ CREATE TABLE `detalle_factura` (
   CONSTRAINT `chk_df_precio` CHECK (`precio_unitario` >= 0),
   CONSTRAINT `chk_df_iva` CHECK (`tasa_iva` in (0,5,10)),
   CONSTRAINT `chk_df_item` CHECK (`id_servicio` is not null and `id_producto` is null or `id_servicio` is null and `id_producto` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=140 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=146 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1114,7 +1114,7 @@ CREATE TABLE `detalle_pago_personal` (
   CONSTRAINT `fk_dpp_pago` FOREIGN KEY (`id_pago_personal`) REFERENCES `pago_personal` (`id_pago_personal`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_dpp_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dpp_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=715 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=839 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1372,7 +1372,7 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1482,7 +1482,7 @@ CREATE TABLE `factura_descuento` (
   CONSTRAINT `fk_fd_descuento` FOREIGN KEY (`id_descuento`) REFERENCES `descuento` (`id_descuento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_fd_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_fd_monto` CHECK (`monto_aplicado` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1579,7 +1579,7 @@ CREATE TABLE `movimiento_caja` (
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1618,7 +1618,7 @@ CREATE TABLE `movimiento_inventario` (
   CONSTRAINT `fk_mi_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=269 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=283 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1732,7 +1732,7 @@ CREATE TABLE `movimiento_punto` (
   CONSTRAINT `fk_mp_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mp_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_mp_tipo` CHECK (`tipo` = 'ACUMULA' and `puntos` > 0 or `tipo` = 'CANJE' and `puntos` < 0 or `tipo` = 'AJUSTE' and `puntos` <> 0)
-) ENGINE=InnoDB AUTO_INCREMENT=163 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=181 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1830,7 +1830,7 @@ CREATE TABLE `notificacion` (
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB AUTO_INCREMENT=477 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=495 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1871,7 +1871,7 @@ CREATE TABLE `pago_personal` (
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario_registro` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2153,7 +2153,7 @@ CREATE TABLE `producto_utilizado` (
   CONSTRAINT `fk_pu_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pu_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_pu_cantidad` CHECK (`cantidad` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=124 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=126 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2364,7 +2364,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2429,7 +2429,7 @@ CREATE TABLE `servicio_realizado` (
   CONSTRAINT `fk_sr_detalle_factura` FOREIGN KEY (`id_detalle_factura`) REFERENCES `detalle_factura` (`id_detalle_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=136 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=142 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2511,7 +2511,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=141 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2731,7 +2731,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2828,7 +2828,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3198,6 +3198,7 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_bajo_stock` AS SELECT
  1 AS `id_producto`,
+  1 AS `id_sucursal`,
   1 AS `nombre`,
   1 AS `categoria`,
   1 AS `stock_actual`,
@@ -3216,6 +3217,7 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_stock` AS SELECT
  1 AS `id_producto`,
+  1 AS `id_sucursal`,
   1 AS `nombre`,
   1 AS `categoria`,
   1 AS `unidad_medida`,
@@ -5401,12 +5403,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 SET character_set_client      = cp850 */;
+/*!50001 SET character_set_results     = cp850 */;
+/*!50001 SET collation_connection      = cp850_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_bajo_stock` AS select `vw_producto_stock`.`id_producto` AS `id_producto`,`vw_producto_stock`.`nombre` AS `nombre`,`vw_producto_stock`.`categoria` AS `categoria`,`vw_producto_stock`.`stock_actual` AS `stock_actual`,`vw_producto_stock`.`stock_minimo` AS `stock_minimo`,`vw_producto_stock`.`stock_minimo` - `vw_producto_stock`.`stock_actual` AS `faltante`,`vw_producto_stock`.`precio_costo` AS `precio_costo` from `vw_producto_stock` where `vw_producto_stock`.`activo` = 1 and `vw_producto_stock`.`stock_actual` <= `vw_producto_stock`.`stock_minimo` */;
+/*!50001 VIEW `vw_producto_bajo_stock` AS select `v`.`id_producto` AS `id_producto`,`v`.`id_sucursal` AS `id_sucursal`,`v`.`nombre` AS `nombre`,`v`.`categoria` AS `categoria`,`v`.`stock_actual` AS `stock_actual`,`v`.`stock_minimo` AS `stock_minimo`,`v`.`stock_minimo` - `v`.`stock_actual` AS `faltante`,`v`.`precio_costo` AS `precio_costo` from `vw_producto_stock` `v` where `v`.`activo` = 1 and `v`.`stock_actual` <= `v`.`stock_minimo` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5419,12 +5421,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 SET character_set_client      = cp850 */;
+/*!50001 SET character_set_results     = cp850 */;
+/*!50001 SET collation_connection      = cp850_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
+/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5474,4 +5476,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 23:39:45
+-- Dump completed on 2026-08-15 23:49:48

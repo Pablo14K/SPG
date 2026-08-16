@@ -3172,6 +3172,7 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_bajo_stock` AS SELECT
  1 AS `id_producto`,
+  1 AS `id_sucursal`,
   1 AS `nombre`,
   1 AS `categoria`,
   1 AS `stock_actual`,
@@ -3190,6 +3191,7 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_stock` AS SELECT
  1 AS `id_producto`,
+  1 AS `id_sucursal`,
   1 AS `nombre`,
   1 AS `categoria`,
   1 AS `unidad_medida`,
@@ -5375,12 +5377,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 SET character_set_client      = cp850 */;
+/*!50001 SET character_set_results     = cp850 */;
+/*!50001 SET collation_connection      = cp850_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_bajo_stock` AS select `vw_producto_stock`.`id_producto` AS `id_producto`,`vw_producto_stock`.`nombre` AS `nombre`,`vw_producto_stock`.`categoria` AS `categoria`,`vw_producto_stock`.`stock_actual` AS `stock_actual`,`vw_producto_stock`.`stock_minimo` AS `stock_minimo`,`vw_producto_stock`.`stock_minimo` - `vw_producto_stock`.`stock_actual` AS `faltante`,`vw_producto_stock`.`precio_costo` AS `precio_costo` from `vw_producto_stock` where `vw_producto_stock`.`activo` = 1 and `vw_producto_stock`.`stock_actual` <= `vw_producto_stock`.`stock_minimo` */;
+/*!50001 VIEW `vw_producto_bajo_stock` AS select `v`.`id_producto` AS `id_producto`,`v`.`id_sucursal` AS `id_sucursal`,`v`.`nombre` AS `nombre`,`v`.`categoria` AS `categoria`,`v`.`stock_actual` AS `stock_actual`,`v`.`stock_minimo` AS `stock_minimo`,`v`.`stock_minimo` - `v`.`stock_actual` AS `faltante`,`v`.`precio_costo` AS `precio_costo` from `vw_producto_stock` `v` where `v`.`activo` = 1 and `v`.`stock_actual` <= `v`.`stock_minimo` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5393,12 +5395,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 SET character_set_client      = cp850 */;
+/*!50001 SET character_set_results     = cp850 */;
+/*!50001 SET collation_connection      = cp850_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
+/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5448,4 +5450,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 23:39:43
+-- Dump completed on 2026-08-15 23:49:45
