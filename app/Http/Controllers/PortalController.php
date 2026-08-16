@@ -83,16 +83,40 @@ class PortalController extends Controller
             'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion)]);
     }
 
-    public function reservar(): View
+    public function reservar(Request $request): View
     {
         $this->cliente();
 
+        // **La clienta elige el local, no está atada a ninguno.**
+        //
+        // Por eso el portal entra normal y la sucursal se pregunta acá: la
+        // misma persona se corta el pelo cerca del trabajo un martes y cerca
+        // de su casa un sábado. Hasta que elija no se le muestran servicios ni
+        // horarios, porque no serían de ningún lado en particular.
+        $sucursales = DB::select('SELECT id_sucursal, nombre, direccion, ciudad FROM sucursal
+                                   WHERE activo = 1 ORDER BY nombre');
+
+        $elegida = (int) $request->query('sucursal', 0);
+        if (! $elegida && count($sucursales) === 1) {
+            $elegida = (int) $sucursales[0]->id_sucursal;   // con una sola no se pregunta
+        }
+        if ($elegida && ! in_array($elegida, array_map(fn ($s) => (int) $s->id_sucursal, $sucursales), true)) {
+            $elegida = 0;
+        }
+
         return view('portal.reservar', [
-            'profs' => Agenda::profesionales(),
-            'servicios' => DB::select(
-                'SELECT id_servicio, nombre, precio, duracion_min, requiere_exclusividad
-                   FROM servicio WHERE activo = 1 ORDER BY nombre'
-            ),
+            'sucursales' => $sucursales,
+            'sucursal' => $elegida,
+            'profs' => $elegida ? Agenda::profesionales($elegida) : [],
+            // Sólo los servicios que ESE local publica. El catálogo es único
+            // —«Corte de dama» es un servicio con un precio— y cada sucursal
+            // marca cuáles ofrece, en `servicio_sucursal`.
+            'servicios' => $elegida ? DB::select(
+                'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad
+                   FROM servicio s
+                   JOIN servicio_sucursal ss ON ss.id_servicio = s.id_servicio
+                  WHERE s.activo = 1 AND ss.id_sucursal = ? ORDER BY s.nombre', [$elegida]
+            ) : [],
             // Lo que ya canjeó y todavía puede usar. **No cambia nada del
             // motor de la agenda**: el servicio canjeado ocupa el mismo tiempo
             // y lo tiene que hacer un profesional que lo haga, en un horario

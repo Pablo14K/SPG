@@ -13,6 +13,7 @@ use App\Servicios\Canje;
 use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
+use App\Servicios\Sucursales;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -103,6 +104,12 @@ class CitasController extends Controller
             $soloMias = ' AND c.id_usuario = :yo';
             $par['yo'] = (int) session('uid');
         }
+
+        // **La agenda es la del local en el que se está trabajando.**
+        // Sin esto, el Administrador que entra a una sucursal veía también las
+        // citas de la otra mezcladas en la misma grilla, y el mismo horario
+        // aparecía ocupado por alguien que atiende a treinta cuadras.
+        $soloMias .= Sucursales::filtro('c', $par);
 
         // El comprobante viene en la misma consulta porque la agenda tiene que
         // poder contestar «¿esto ya se cobró?» sin salir de la pantalla: una

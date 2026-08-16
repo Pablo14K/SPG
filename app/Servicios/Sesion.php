@@ -137,7 +137,15 @@ class Sesion
             // Cliente es cualquier rol que NO sea personal: así un rol nuevo
             // marcado como «no personal» también va al portal, sin tocar código.
             'es_cliente' => ! (bool) $u->es_personal,
-            'id_sucursal' => (int) ($u->id_sucursal ?? 0),
+            // **La sucursal arranca SIN elegir, a propósito.**
+            //
+            // Antes se dejaba puesta la de la ficha, y eso cortocircuitaba la
+            // elección: quien está asignado a dos locales entraba siempre al
+            // de su ficha sin que nadie le preguntara. `usuario.id_sucursal`
+            // dice dónde trabaja habitualmente; en cuál está HOY lo decide
+            // `Sesion::inicio()`, que con una sola la resuelve sola.
+            'id_sucursal' => 0,
+            'sucursal_nom' => '',
             'id_cliente' => null,
             // El tema se lee una vez al entrar y viaja en la sesión: lo dibuja
             // el layout en cada pantalla, y consultarlo por petición sería una
@@ -259,7 +267,20 @@ class Sesion
     /** A dónde va cada quien después de entrar. */
     public static function inicio(): string
     {
-        return self::esCliente() ? 'portal.index' : 'panel';
+        // La clienta entra a su portal como siempre: elige sucursal al
+        // agendar, no al entrar. No está atada a ningún local.
+        if (self::esCliente()) {
+            return 'portal.index';
+        }
+
+        // El personal trabaja DENTRO de una sucursal. Con una sola asignada se
+        // entra sola —preguntar algo de una única respuesta hace perder un
+        // clic—; con varias hay que elegir antes de ver nada del sistema.
+        if (Sucursales::activa() === 0 && ! Sucursales::resolverAlIngresar()) {
+            return 'sucursal.elegir';
+        }
+
+        return 'panel';
     }
 
     public static function cerrar(): void

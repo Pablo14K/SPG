@@ -130,6 +130,7 @@ DROP TABLE IF EXISTS `caja`;
 CREATE TABLE `caja` (
   `id_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `id_estado_caja` int(10) unsigned NOT NULL,
   `fecha_apertura` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_cierre` datetime DEFAULT NULL,
@@ -137,7 +138,9 @@ CREATE TABLE `caja` (
   PRIMARY KEY (`id_caja`),
   KEY `idx_caja_usuario` (`id_usuario`),
   KEY `idx_caja_estado` (`id_estado_caja`),
+  KEY `fk_caja_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_estado` FOREIGN KEY (`id_estado_caja`) REFERENCES `estado_caja` (`id_estado_caja`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -240,6 +243,33 @@ LOCK TABLES `canje` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `canjeable_sucursal`
+--
+
+DROP TABLE IF EXISTS `canjeable_sucursal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `canjeable_sucursal` (
+  `id_servicio_canjeable` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id_servicio_canjeable`,`id_sucursal`),
+  KEY `ix_canjsuc_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_canjsuc_canjeable` FOREIGN KEY (`id_servicio_canjeable`) REFERENCES `servicio_canjeable` (`id_servicio_canjeable`),
+  CONSTRAINT `fk_canjsuc_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `canjeable_sucursal`
+--
+
+LOCK TABLES `canjeable_sucursal` WRITE;
+/*!40000 ALTER TABLE `canjeable_sucursal` DISABLE KEYS */;
+INSERT INTO `canjeable_sucursal` VALUES (1,1),(2,1);
+/*!40000 ALTER TABLE `canjeable_sucursal` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `categoria_producto`
 --
 
@@ -300,6 +330,7 @@ CREATE TABLE `cita` (
   `id_cita` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `id_estado_cita` int(10) unsigned NOT NULL,
   `fecha_hora` datetime NOT NULL,
   `fecha_registro` datetime NOT NULL DEFAULT current_timestamp(),
@@ -309,8 +340,10 @@ CREATE TABLE `cita` (
   KEY `idx_cita_usuario` (`id_usuario`,`fecha_hora`),
   KEY `idx_cita_estado` (`id_estado_cita`),
   KEY `idx_cita_fecha` (`fecha_hora`),
+  KEY `fk_cita_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -735,6 +768,7 @@ CREATE TABLE `compra` (
   `id_compra` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_proveedor` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `id_estado_compra` int(10) unsigned NOT NULL,
   `id_condicion_venta` int(10) unsigned NOT NULL DEFAULT 1,
   `nro_factura_proveedor` varchar(20) DEFAULT NULL,
@@ -746,9 +780,11 @@ CREATE TABLE `compra` (
   KEY `idx_compra_estado` (`id_estado_compra`),
   KEY `idx_compra_condicion` (`id_condicion_venta`),
   KEY `idx_compra_fecha` (`fecha`),
+  KEY `fk_compra_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_compra_condicion` FOREIGN KEY (`id_condicion_venta`) REFERENCES `condicion_venta` (`id_condicion_venta`) ON UPDATE CASCADE,
   CONSTRAINT `fk_compra_estado` FOREIGN KEY (`id_estado_compra`) REFERENCES `estado_compra` (`id_estado_compra`) ON UPDATE CASCADE,
   CONSTRAINT `fk_compra_proveedor` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedor` (`id_proveedor`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_compra_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_compra_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2041,6 +2077,7 @@ DROP TABLE IF EXISTS `producto`;
 CREATE TABLE `producto` (
   `id_producto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `unidad_medida` varchar(20) NOT NULL DEFAULT 'unidad',
@@ -2054,7 +2091,9 @@ CREATE TABLE `producto` (
   PRIMARY KEY (`id_producto`),
   KEY `idx_producto_categoria` (`id_categoria`),
   KEY `idx_producto_nombre` (`nombre`),
+  KEY `fk_producto_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_producto_categoria` FOREIGN KEY (`id_categoria`) REFERENCES `categoria_producto` (`id_categoria`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_producto_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_producto_stkmin` CHECK (`stock_minimo` >= 0),
   CONSTRAINT `chk_producto_costo` CHECK (`precio_costo` >= 0),
   CONSTRAINT `chk_producto_venta` CHECK (`precio_venta` >= 0),
@@ -2069,7 +2108,7 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',3.00,85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',3.00,80000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',4.00,35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',6.00,45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',10.00,18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',5.00,40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',2.00,38000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',3.00,25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',8.00,22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',5.00,45000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (1,2,1,'Shampoo profesional 1L','Para lavado en el salón','unidad',3.00,85000.00,130000.00,10,1,1000.00,'ml'),(2,2,1,'Acondicionador 1L','Para lavado en el salón','unidad',3.00,80000.00,125000.00,10,1,1000.00,'ml'),(3,1,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',4.00,35000.00,55000.00,10,1,900.00,'ml'),(4,1,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',6.00,45000.00,70000.00,10,1,NULL,NULL),(5,2,1,'Ampolla de keratina','Sachet individual','unidad',10.00,18000.00,32000.00,10,1,NULL,NULL),(6,2,1,'Serum reparador 100ml','Puntas abiertas','unidad',5.00,40000.00,68000.00,10,1,NULL,NULL),(7,3,1,'Guantes de latex (caja)','Caja por 100 unidades','caja',2.00,38000.00,60000.00,10,1,NULL,NULL),(8,3,1,'Toallas descartables','Paquete por 50','paquete',3.00,25000.00,40000.00,10,1,NULL,NULL),(9,4,1,'Esmalte semipermanente','Frasco de 15 ml','unidad',8.00,22000.00,38000.00,10,1,NULL,NULL),(10,5,1,'Shampoo x 300ml (venta)','Para llevar','unidad',5.00,45000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2402,6 +2441,33 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `servicio_sucursal`
+--
+
+DROP TABLE IF EXISTS `servicio_sucursal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `servicio_sucursal` (
+  `id_servicio` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id_servicio`,`id_sucursal`),
+  KEY `ix_servsuc_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_servsuc_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
+  CONSTRAINT `fk_servsuc_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `servicio_sucursal`
+--
+
+LOCK TABLES `servicio_sucursal` WRITE;
+/*!40000 ALTER TABLE `servicio_sucursal` DISABLE KEYS */;
+INSERT INTO `servicio_sucursal` VALUES (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1),(14,1),(15,1);
+/*!40000 ALTER TABLE `servicio_sucursal` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `sucursal`
@@ -2803,7 +2869,7 @@ CREATE TABLE `usuario_sucursal` (
 
 LOCK TABLES `usuario_sucursal` WRITE;
 /*!40000 ALTER TABLE `usuario_sucursal` DISABLE KEYS */;
-INSERT INTO `usuario_sucursal` VALUES (1,1);
+INSERT INTO `usuario_sucursal` VALUES (1,1),(10,1),(11,1),(12,1),(13,1);
 /*!40000 ALTER TABLE `usuario_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -4162,17 +4228,18 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_abrir_caja`(
     IN  p_id_usuario    INT UNSIGNED,
     IN  p_monto_inicial DECIMAL(14,2),
+    IN  p_id_sucursal   INT UNSIGNED,
     OUT p_id_caja       INT UNSIGNED)
 BEGIN
-  INSERT INTO caja (id_usuario, id_estado_caja, monto_inicial)
-  VALUES (p_id_usuario, 1, p_monto_inicial);
+  INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
+  VALUES (p_id_usuario, p_id_sucursal, 1, p_monto_inicial);
   SET p_id_caja = LAST_INSERT_ID();
 END ;;
 DELIMITER ;
@@ -4186,38 +4253,45 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_agendar_cita`(
-                IN  p_id_cliente    INT UNSIGNED,
-                IN  p_id_usuario    INT UNSIGNED,
-                IN  p_fecha_hora    DATETIME,
-                IN  p_duracion_min  INT,
-                IN  p_observaciones VARCHAR(300),
-                OUT p_id_cita       INT UNSIGNED)
+    IN  p_id_cliente    INT UNSIGNED,
+    IN  p_id_usuario    INT UNSIGNED,
+    IN  p_fecha_hora    DATETIME,
+    IN  p_duracion_min  INT,
+    IN  p_observaciones VARCHAR(300),
+    IN  p_id_sucursal   INT UNSIGNED,
+    OUT p_id_cita       INT UNSIGNED)
 BEGIN
-              DECLARE v_lock INT UNSIGNED;
+  DECLARE v_lock INT UNSIGNED;
 
-              -- Candado sobre el profesional: cualquier otra petición que
-              -- quiera agendarle a él espera acá hasta que esta termine.
-              SELECT id_usuario INTO v_lock FROM usuario
-               WHERE id_usuario = p_id_usuario FOR UPDATE;
+  
+  
+  SELECT id_usuario INTO v_lock FROM usuario
+   WHERE id_usuario = p_id_usuario FOR UPDATE;
 
-              IF fn_verificar_disponibilidad(p_id_usuario, p_fecha_hora, p_duracion_min, NULL) = 0 THEN
-                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en ese horario.';
-              END IF;
+  IF fn_verificar_disponibilidad(p_id_usuario, p_fecha_hora, p_duracion_min, NULL) = 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en ese horario.';
+  END IF;
 
-              INSERT INTO cita (id_cliente, id_usuario, id_estado_cita, fecha_hora, observaciones)
-              VALUES (p_id_cliente, p_id_usuario, 1, p_fecha_hora, p_observaciones);
-              SET p_id_cita = LAST_INSERT_ID();
+  
+  
+  IF NOT EXISTS (SELECT 1 FROM sucursal WHERE id_sucursal = p_id_sucursal AND activo = 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa sucursal no existe o esta dada de baja.';
+  END IF;
 
-              INSERT INTO notificacion (id_tipo_notificacion, id_cliente, id_cita, canal, mensaje, estado)
-              VALUES (2, p_id_cliente, p_id_cita, 'WHATSAPP',
-                      CONCAT('Cita confirmada para el ', DATE_FORMAT(p_fecha_hora, '%d/%m/%Y a las %H:%i'), '.'),
-                      'PENDIENTE');
-            END ;;
+  INSERT INTO cita (id_cliente, id_usuario, id_sucursal, id_estado_cita, fecha_hora, observaciones)
+  VALUES (p_id_cliente, p_id_usuario, p_id_sucursal, 1, p_fecha_hora, p_observaciones);
+  SET p_id_cita = LAST_INSERT_ID();
+
+  INSERT INTO notificacion (id_tipo_notificacion, id_cliente, id_cita, canal, mensaje, estado)
+  VALUES (2, p_id_cliente, p_id_cita, 'WHATSAPP',
+          CONCAT('Cita confirmada para el ', DATE_FORMAT(p_fecha_hora, '%d/%m/%Y a las %H:%i'), '.'),
+          'PENDIENTE');
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -5374,4 +5448,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 17:15:20
+-- Dump completed on 2026-08-15 23:39:43

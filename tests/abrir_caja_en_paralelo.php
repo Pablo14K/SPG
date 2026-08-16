@@ -31,7 +31,7 @@ if ($arranque > 0) {
 }
 
 try {
-    echo 'OK ' . App\Servicios\Caja::abrir($usuario, 100000.0) . PHP_EOL;
+    echo 'OK ' . App\Servicios\Caja::abrir($usuario, 100000.0, 1) . PHP_EOL;
 } catch (Throwable $e) {
     echo 'NO ' . str_replace(["\n", "\r"], ' ', $e->getMessage()) . PHP_EOL;
 }

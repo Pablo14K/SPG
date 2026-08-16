@@ -698,7 +698,7 @@ class ReglasDeNegocioTest extends TestCase
             'El Profesional no tendría que administrar timbrados.');
 
         // Y la ruta lo rechaza, no solo la pantalla lo esconde
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
     }
 
@@ -849,7 +849,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         // Y la ruta lo rechaza de verdad, no sólo esconde el botón.
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('servicios.form'))->assertForbidden();
         $this->get(route('servicios.descuentos'))->assertForbidden();
 
@@ -1013,7 +1013,7 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rolProf, 'seguridad.roles']);
         Permisos::olvidar($rolProf);
 
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('seguridad.roles'))
             ->assertOk()
             ->assertSee('dejás de poder entrar acá', false);
@@ -1120,7 +1120,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // Una cita del dueño, con el segundo servicio repartido a la otra.
         // `cita` NO guarda la duración: es derivada y la calcula fn_cita_duracion.
-        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
             [$cliente, $dueno, 1, ahora_bd('Y-m-d H:i:s')]);
         $idCita = (int) DB::getPdo()->lastInsertId();
         DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $sA]);
@@ -1172,7 +1172,7 @@ class ReglasDeNegocioTest extends TestCase
         }
         $pedir = (float) $prod->stock + 1000;
 
-        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
             [$cliente, $prof, 1, date('Y-m-d H:i:s', strtotime('+3 hours'))]);
         $idCita = (int) DB::getPdo()->lastInsertId();
         DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $servicio]);
@@ -1392,7 +1392,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         $crear = function (int $prof, string $cuando, int $cliente) use ($servicio): int {
-            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
                 [$cliente, $prof, 1, $cuando]);
             $id = (int) DB::getPdo()->lastInsertId();
             DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$id, $servicio]);
@@ -1504,7 +1504,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         // Se usa en una cita…
-        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,4,NOW())',
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,4,NOW(),1)',
             [$cliente, $prof]);
         $idCita = (int) DB::getPdo()->lastInsertId();
         foreach ([$regalado, $pagado] as $s) {
@@ -1561,7 +1561,7 @@ class ReglasDeNegocioTest extends TestCase
         // cita ya cargada y hacer saltar `trg_citaserv_bi` («no se repite el
         // mismo servicio en el día»), que no es lo que esta prueba mide.
         $cita = function (int $cliente, string $cuando = '+300 day') use ($prof, $servicio): int {
-            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,1,?,1)',
                 [$cliente, $prof, date('Y-m-d H:i:s', strtotime($cuando))]);
             $id = (int) DB::getPdo()->lastInsertId();
             DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$id, $servicio]);
@@ -1620,7 +1620,7 @@ class ReglasDeNegocioTest extends TestCase
         // botón no es el control. La caché de permisos es estática y sobrevive
         // entre pruebas del mismo proceso, así que se la olvida antes.
         Permisos::olvidar();
-        session(['uid' => 999999, 'rol' => 2, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 999999, 'rol' => 2, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
 
         $this->get(route('facturacion.caja'))->assertForbidden();
 
@@ -1752,7 +1752,7 @@ class ReglasDeNegocioTest extends TestCase
         $idCanje = Canje::canjear($cliente, $canjeado);
 
         // Una cita que NO incluye el servicio canjeado
-        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,1,?,1)',
             [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+320 day'))]);
         $sinElServicio = (int) DB::getPdo()->lastInsertId();
         DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$sinElServicio, $otro]);
@@ -1763,7 +1763,7 @@ class ReglasDeNegocioTest extends TestCase
             'Y sobre todo: el canje sigue disponible, la clienta no perdió los puntos.');
 
         // Con el servicio adentro, sí
-        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,1,?,1)',
             [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+330 day'))]);
         $conElServicio = (int) DB::getPdo()->lastInsertId();
         DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$conElServicio, $canjeado]);

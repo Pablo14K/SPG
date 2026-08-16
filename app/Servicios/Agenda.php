@@ -63,7 +63,7 @@ class Agenda
      * devuelve a todo el personal, que si no la agenda quedaría vacía el
      * primer día y no se podría agendar nada.
      */
-    public static function profesionales(): array
+    public static function profesionales(?int $idSucursal = null): array
     {
         $soloConTurno = self::elSalonUsaTurnos()
             ? 'AND EXISTS (SELECT 1
@@ -72,13 +72,27 @@ class Agenda
                             WHERE ut.id_usuario = u.id_usuario)'
             : '';
 
+        // Quién atiende en ESTE local. Sin el filtro, la clienta del portal
+        // podía pedir a alguien que trabaja en la otra punta de la ciudad, y
+        // la agenda del panel ofrecía gente que ese día no está en el local.
+        // Se mira `usuario_sucursal` —la asignación real— y no la ficha, que
+        // dice sólo dónde trabaja habitualmente.
+        $idSucursal ??= Sucursales::activa();
+        $par = [];
+        $deEsteLocal = '';
+        if ($idSucursal) {
+            $deEsteLocal = 'AND EXISTS (SELECT 1 FROM usuario_sucursal us
+                                         WHERE us.id_usuario = u.id_usuario AND us.id_sucursal = ?)';
+            $par[] = $idSucursal;
+        }
+
         return DB::select(
             "SELECT u.id_usuario, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS nombre
                FROM usuario u
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.activo = 1 AND r.es_personal = 1 $soloConTurno
-              ORDER BY pe_u.nombre, pe_u.apellido"
+              WHERE u.activo = 1 AND r.es_personal = 1 $soloConTurno $deEsteLocal
+              ORDER BY pe_u.nombre, pe_u.apellido", $par
         );
     }
 
@@ -580,10 +594,24 @@ class Agenda
      *
      * @param  array  $asignacion  [id_servicio => id_usuario] (0 = el principal)
      */
-    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion): int
+    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion, ?int $idSucursal = null): int
     {
-        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion) {
-            $idCita = Bd::idDe('sp_agendar_cita', [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones]);
+        // Sin sucursal explícita se usa la activa de la sesión, que es el caso
+        // del panel. El portal SÍ la pasa: la clienta elige el local al
+        // agendar, y no está atada a ninguno.
+        //
+        // Y si tampoco hay sesión —un comando, una prueba, el cron— se cae a
+        // la sucursal del propio profesional. Es la única respuesta razonable:
+        // sin eso quedaría en 0, que no es ninguna sucursal y la clave foránea
+        // rechaza la cita con un error que no dice nada.
+        $idSucursal ??= Sucursales::activa();
+        if (! $idSucursal) {
+            $idSucursal = (int) DB::scalar('SELECT id_sucursal FROM usuario WHERE id_usuario = ?', [$idUsuario]);
+        }
+
+        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion, $idSucursal) {
+            $idCita = Bd::idDe('sp_agendar_cita',
+                [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $idSucursal]);
 
             foreach ($asignacion as $idServicio => $idProf) {
                 $otro = (int) $idProf;

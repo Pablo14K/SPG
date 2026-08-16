@@ -16,6 +16,7 @@ use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\SeguridadController;
 use App\Http\Controllers\ServiciosController;
+use App\Http\Controllers\SucursalController;
 use App\Http\Controllers\WebauthnController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +54,12 @@ Route::post('huella/entrar', [WebauthnController::class, 'login'])
     ->name('webauthn.login')->middleware('throttle:20,1');
 
 Route::middleware('sesion')->group(function () {
+    // Elegir sucursal va con `sesion` y NO con `personal`: ese middleware es
+    // justamente el que manda acá cuando todavía no se eligió, y pedirlo sería
+    // un redirect infinito. La clienta no llega nunca — entra a su portal.
+    Route::get('sucursal', [SucursalController::class, 'elegir'])->name('sucursal.elegir');
+    Route::post('sucursal', [SucursalController::class, 'entrar'])->name('sucursal.entrar');
+
     Route::get('huella/activar', [WebauthnController::class, 'preguntar'])->name('webauthn.preguntar');
     Route::post('huella/preguntado', [WebauthnController::class, 'marcarPreguntado'])->name('webauthn.preguntado');
     Route::post('huella/registro/opciones', [WebauthnController::class, 'opcionesRegistro'])->name('webauthn.reg_options');

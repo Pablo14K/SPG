@@ -285,6 +285,18 @@ class AccesoTest extends TestCase
     }
 
     #[Test]
+    public function mi_cuenta_se_dibuja_entera(): void
+    {
+        // Faltaba en la lista, y se notó al sumarle el bloque de sucursal: el
+        // controlador usaba `Sucursales::` sin importarla, y eso no es un
+        // error de sintaxis — revienta al abrir la pantalla, no al arrancar.
+        // Es la misma lección que dejó Auditoría con `a.fecha`.
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+
+        $this->get(route('cuenta.index'))->assertOk()->assertSee('Tus datos');
+    }
+
+    #[Test]
     public function el_panel_muestra_los_numeros_que_da_la_base(): void
     {
         $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);

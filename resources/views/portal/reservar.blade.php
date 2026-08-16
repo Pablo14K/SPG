@@ -9,9 +9,43 @@
         <div class="sub">Elegí los servicios y te mostramos los horarios que quedan libres de verdad.</div>
     </div>
 
+    {{-- **Primero el local.** Los servicios, los horarios y los profesionales
+         son de una sucursal, así que mostrarlos antes de saber cuál sería
+         ofrecer algo que después puede no existir ahí. Con una sola sucursal
+         este bloque no aparece: se elige sola. --}}
+    @if (count($sucursales) > 1)
+        <div class="spg-panel mb-3" style="max-width:760px">
+            <label class="form-label">¿En qué local? *</label>
+            <div class="d-flex flex-wrap gap-2 mt-1">
+                @foreach ($sucursales as $s)
+                    <a class="spg-chip {{ (int) $s->id_sucursal === $sucursal ? 'activo' : '' }}"
+                       href="{{ route('portal.reservar', ['sucursal' => $s->id_sucursal]) }}">
+                        <i class="bi bi-shop"></i> {{ $s->nombre }}
+                        @if ($s->ciudad)<span class="text-muted-warm">· {{ $s->ciudad }}</span>@endif
+                    </a>
+                @endforeach
+            </div>
+            @unless ($sucursal)
+                <p class="text-muted-warm mt-2 mb-0" style="font-size:.82rem">
+                    Elegí el local y te mostramos sus servicios y horarios.
+                </p>
+            @endunless
+        </div>
+    @endif
+
+    @if (! $sucursal)
+        <div class="spg-panel" style="max-width:760px">
+            <div class="spg-vacio">
+                <i class="bi bi-shop"></i>
+                <div class="t">Elegí primero la sucursal.</div>
+                <div class="d">Cada local tiene sus servicios, sus profesionales y sus horarios.</div>
+            </div>
+        </div>
+    @else
     <div class="spg-panel" style="max-width:760px">
         <form method="post" action="{{ route('portal.guardar_reserva') }}">
             @csrf
+            <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
 
             <div class="mb-3">
                 <label class="form-label">¿Qué te querés hacer? *</label>
@@ -108,5 +142,6 @@
                 <i class="bi bi-calendar-check"></i> Reservar</button>
         </form>
     </div>
+    @endif
 @endsection
 

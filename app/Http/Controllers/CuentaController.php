@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Servicios\Auditoria;
 use App\Servicios\Seguridad;
 use App\Servicios\Sesion;
+use App\Servicios\Sucursales;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,11 @@ class CuentaController extends Controller
             'pendiente' => (bool) session('cambio_pass'),
             'bioActivo' => (int) DB::scalar('SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$uid]),
             'tema' => Sesion::tema(),
+            // En qué local está trabajando y a cuáles puede pasarse. La
+            // clienta no tiene ninguno: elige al agendar, no al entrar.
+            'sucursalActiva' => Sucursales::nombreActiva(),
+            'misSucursales' => Sesion::esCliente() ? [] : Sucursales::delUsuario(),
+            'idSucursalActiva' => Sucursales::activa(),
         ]);
     }
 

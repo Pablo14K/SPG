@@ -294,7 +294,7 @@ class ConcurrenciaCobroTest extends TestCase
             }
             [$donde, $adonde] = $huecos;
 
-            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,?,?)',
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
                 [$cliente, $prof, 1, $donde]);
             $idCita = (int) DB::getPdo()->lastInsertId();
             DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $servicio]);

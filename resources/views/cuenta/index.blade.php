@@ -27,9 +27,38 @@
                         <tr><td class="text-muted-warm">Rol</td><td>{{ $perfil->rol }}</td></tr>
                         <tr><td class="text-muted-warm">Email</td><td>{{ $perfil->email ?: '—' }}</td></tr>
                         <tr><td class="text-muted-warm">Teléfono</td><td>{{ $perfil->telefono ?: '—' }}</td></tr>
+                        @if ($sucursalActiva)
+                            <tr><td class="text-muted-warm">Sucursal</td>
+                                <td><strong class="txt-oro">{{ $sucursalActiva }}</strong></td></tr>
+                        @endif
                     </tbody>
                 </table>
             </div>
+
+            {{-- Cambiar de local sin volver a entrar. Sólo aparece si la
+                 persona tiene más de una asignada: con una sola no hay nada
+                 que elegir, y un selector de una opción es ruido. --}}
+            @if (count($misSucursales) > 1)
+                <div class="spg-panel mt-3">
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal</h2>
+                    <p class="text-muted-warm mb-3" style="font-size:.82rem">
+                        La agenda, la caja y el stock que ves son los de este local. Al cambiar,
+                        cambia todo el sistema — no hace falta cerrar sesión.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach ($misSucursales as $s)
+                            <form method="post" action="{{ route('sucursal.entrar') }}">
+                                @csrf
+                                <input type="hidden" name="id_sucursal" value="{{ $s->id_sucursal }}">
+                                <button class="btn btn-sm {{ (int) $s->id_sucursal === $idSucursalActiva ? 'btn-oro' : 'btn-rapido' }}"
+                                        @disabled((int) $s->id_sucursal === $idSucursalActiva)>
+                                    <i class="bi bi-shop"></i> {{ $s->nombre }}
+                                </button>
+                            </form>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             {{-- Tema de la interfaz. Es una preferencia de cada persona, no del
                  salón: dos que comparten la computadora pueden tener uno cada

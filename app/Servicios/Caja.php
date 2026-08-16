@@ -44,7 +44,14 @@ class Caja
                    JOIN usuario u   ON u.id_usuario = c.id_usuario
                    JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                   WHERE c.id_estado_caja = 1
-                  ORDER BY c.fecha_apertura DESC LIMIT 1"
+                    AND (:s = 0 OR c.id_sucursal = :s2)
+                  ORDER BY c.fecha_apertura DESC LIMIT 1",
+                // **La caja es del local, no del salón.** Cada sucursal cuenta
+                // su propio cajón: sin este filtro, abrir la caja en un local
+                // dejaba «caja abierta» en todos, y el arqueo de uno se comía
+                // los cobros del otro. El 0 es la red para lo que corre sin
+                // sesión —el cron, un comando—: ahí no se filtra.
+                ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             );
         } catch (Throwable) {
             self::$cache = null;
@@ -58,10 +65,16 @@ class Caja
         self::$cache = false;
     }
 
-    /** Abre la caja del salón y devuelve su id. */
-    public static function abrir(int $idUsuario, float $montoInicial): int
+    /**
+     * Abre la caja de ESTA sucursal y devuelve su id.
+     *
+     * La caja es del local, no del salón: cada sucursal cuenta su propio
+     * cajón. La sucursal va como parámetro y no deducida de quien abre,
+     * porque la misma persona puede estar asignada a varias.
+     */
+    public static function abrir(int $idUsuario, float $montoInicial, ?int $idSucursal = null): int
     {
-        $id = Bd::idDe('sp_abrir_caja', [$idUsuario, $montoInicial]);
+        $id = Bd::idDe('sp_abrir_caja', [$idUsuario, $montoInicial, $idSucursal ?? Sucursales::activa()]);
         self::olvidar();
 
         return $id;
