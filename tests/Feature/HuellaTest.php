@@ -50,7 +50,7 @@ class HuellaTest extends TestCase
         // que todo lo que esta vista manda con @push se perdía en silencio: la
         // página salía completa pero sin una línea de JavaScript, los dos
         // botones quedaban sin nada detrás y no se podía salir de ahí.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->get(route('webauthn.preguntar'))
             ->assertOk()
@@ -66,7 +66,7 @@ class HuellaTest extends TestCase
         // tiene que andar aunque el JavaScript no cargue. Un POST normal (sin
         // cabecera de AJAX) tiene que devolver un redirect, no un JSON que el
         // navegador mostraría como texto pelado.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->post(route('webauthn.preguntado'))
             ->assertRedirect();
@@ -89,7 +89,7 @@ class HuellaTest extends TestCase
     {
         // El botón de activar usa fetch y espera JSON. Que «Ahora no» ahora
         // redirija no puede haber roto ese camino.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->postJson(route('webauthn.preguntado'))
             ->assertOk()

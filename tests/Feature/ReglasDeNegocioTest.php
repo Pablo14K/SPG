@@ -73,7 +73,7 @@ class ReglasDeNegocioTest extends TestCase
             'rol' => (int) config('permisos.rol_admin', 1),
             'es_personal' => true,
             'es_cliente' => false,
-        ]);
+        ]); $this->conSucursal();
     }
 
     // -----------------------------------------------------------------
@@ -719,7 +719,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // La pantalla sale con el atributo, que es lo que el CSS mira.
         session(['uid' => $u, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false, 'tema' => 'oscuro']);
+                 'es_personal' => true, 'es_cliente' => false, 'tema' => 'oscuro']); $this->conSucursal();
         $this->get(route('panel'))->assertOk()->assertSee('data-tema="oscuro"', false);
 
         // **El papel no**: un informe impreso en oscuro sería tinta sobre negro.
@@ -933,9 +933,15 @@ class ReglasDeNegocioTest extends TestCase
         session([
             'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
             'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
-        ]);
+        ]); $this->conSucursal();
 
-        $this->get(route('portal.reservar'))
+        // Con más de un local, el portal pide la sucursal ANTES de mostrar
+        // servicios y horarios —no serían de ningún lado— así que se la pasa
+        // explícita. Con uno solo se elige sola y el parámetro sobra, pero no
+        // molesta: la prueba queda igual de válida en los dos casos.
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
+
+        $this->get(route('portal.reservar', ['sucursal' => $suc]))
             ->assertOk()
             ->assertDontSee('¿Con quién?')
             ->assertSee('prof_servicio', false);   // el selector fino sigue
@@ -948,7 +954,7 @@ class ReglasDeNegocioTest extends TestCase
         // ficha no viajan y la pantalla se redibujaba vacía. `app.js` adjunta
         // una copia en `_borrador` y el controlador la devuelve a la sesión.
         $admin = (int) config('permisos.rol_admin', 1);
-        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $ficha = [
             'nombre' => 'Rocío', 'apellido' => 'Benítez', 'username' => 'rocio.b',
@@ -979,7 +985,7 @@ class ReglasDeNegocioTest extends TestCase
         // un input vacío: en una pantalla de edición, un `old()` vacío le
         // ganaría al valor que la vista muestra por defecto y borraría la ficha.
         $admin = (int) config('permisos.rol_admin', 1);
-        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $this->post(route('seguridad.sucursal.rapida'), [
             'nombre' => 'Sucursal Sin JS ' . uniqid(),
@@ -998,7 +1004,7 @@ class ReglasDeNegocioTest extends TestCase
         // propio rol se edita ahí y puede quedarse sin la llave.
         $admin = (int) config('permisos.rol_admin', 1);
 
-        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
         $this->get(route('seguridad.roles'))
             ->assertOk()
             ->assertDontSee('dejás de poder entrar acá');
@@ -1034,7 +1040,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false]);
+                 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $this->post(route('seguridad.rol.editar'), [
             'id_rol' => $cliente,
@@ -1225,7 +1231,7 @@ class ReglasDeNegocioTest extends TestCase
         DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo IN
                     ('facturacion','facturacion.cobros','facturacion.caja','inventario','inventario.stock')", [$rolProf]);
 
-        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
         $panel = $this->get(route('panel'))->assertOk();
 
         $panel->assertDontSee('Ingresos de hoy')
@@ -1239,7 +1245,7 @@ class ReglasDeNegocioTest extends TestCase
         $admin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
             [(int) config('permisos.rol_admin', 1)]);
         session(['uid' => $admin, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false]);
+                 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
         $this->get(route('panel'))->assertOk()
              ->assertSee('Ingresos de hoy')
              ->assertSee('Citas de hoy');
@@ -1439,7 +1445,7 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT IGNORE INTO rol_modulo (id_rol, modulo) VALUES (?, ?)',
             [$rolProf, 'seguridad.asistencia']);
 
-        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $this->assertSame('Asistencia', Navegacion::subDe('seguridad', 'NO DEBERÍA CAER ACÁ'),
             'La tarjeta tiene que listar sólo lo que este rol puede abrir.');
@@ -1448,7 +1454,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // Y el Administrador las sigue viendo todas, que es el otro lado.
         session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false]);
+                 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
         $sub = Navegacion::subDe('seguridad', '');
         foreach (['Usuarios', 'Roles', 'Turnos', 'Auditoría'] as $pantalla) {
             $this->assertStringContainsString($pantalla, $sub);
@@ -1830,7 +1836,7 @@ class ReglasDeNegocioTest extends TestCase
 
         $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
             [$rolProf]) ?: 999999;
-        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]);
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $antes = Canje::puntos($cliente);
 
@@ -1913,7 +1919,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false]);
+                 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $this->get(route('citas.agenda', ['dia' => $cita->dia]))
             ->assertOk()
@@ -1945,7 +1951,7 @@ class ReglasDeNegocioTest extends TestCase
         // Se pasa por la PANTALLA, no por el servicio: el servicio ya estaba
         // escrito y andaba — lo que faltaba era que alguien lo llamara.
         session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
-                 'es_personal' => true, 'es_cliente' => false]);
+                 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
         $this->post(route('citas.ausencia.guardar'), [
             'id_usuario' => (int) $cita->id_usuario,

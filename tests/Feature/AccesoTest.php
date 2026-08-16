@@ -87,10 +87,20 @@ class AccesoTest extends TestCase
     #[Test]
     public function con_las_credenciales_correctas_se_entra_al_panel(): void
     {
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE])
-            ->assertRedirect(route('panel'));
+        // **A dónde cae depende de cuántas sucursales tenga esa cuenta**, y las
+        // dos respuestas son correctas: con una sola se entra derecho al panel
+        // —preguntar algo de una única respuesta hace perder un clic— y con
+        // varias hay que elegir el local antes de ver nada. La prueba acepta
+        // las dos, porque si no depende de cuántas sucursales haya cargadas.
+        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE, 'forzar' => 1])
+            ->assertRedirect(
+                count(\App\Servicios\Sucursales::delUsuario()) > 1
+                    ? route('sucursal.elegir')
+                    : route('panel')
+            );
 
         $this->assertNotNull(session('uid'));
+        $this->conSucursal();
 
         $this->get(route('panel'))
             ->assertOk()
@@ -101,7 +111,7 @@ class AccesoTest extends TestCase
     #[Test]
     public function al_salir_se_pierde_la_sesion(): void
     {
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
         $this->assertNotNull(session('uid'));
 
         $this->post(route('salir'))->assertRedirect(route('login'));
@@ -114,7 +124,7 @@ class AccesoTest extends TestCase
     public function salir_no_funciona_por_get(): void
     {
         // Con GET, cualquier enlace o precarga del navegador cerraría la sesión.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->get('/salir')->assertStatus(405);
         $this->assertNotNull(session('uid'), 'La sesión tenía que seguir abierta.');
@@ -123,7 +133,7 @@ class AccesoTest extends TestCase
     #[Test]
     public function el_administrador_ve_los_siete_modulos(): void
     {
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $respuesta = $this->get(route('panel'))->assertOk();
         foreach (config('permisos.modulos') as $etiqueta) {
@@ -138,7 +148,7 @@ class AccesoTest extends TestCase
         // pantallas cambiaron de nombre de ruta en masa. Un `route()` que quedó
         // con el nombre viejo no se nota hasta que alguien abre la pantalla:
         // revienta al dibujarla, no al arrancar. Por eso se abren todas.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $pantallas = [
             'seguridad.index', 'seguridad.usuarios', 'seguridad.usuario_form',
@@ -168,7 +178,7 @@ class AccesoTest extends TestCase
     #[Test]
     public function las_pantallas_de_la_operacion_diaria_se_dibujan_enteras(): void
     {
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $dia = DB::scalar(
             'SELECT DATE(c.fecha_hora) FROM cita c
@@ -259,7 +269,7 @@ class AccesoTest extends TestCase
         // controlador no admite ese tipo de retorno, revienta con un TypeError
         // que NO se ve abriendo la pantalla — sólo al apretar el botón. Fue lo
         // que pasó con Auditoría, declarada `: View` mientras bajaba un CSV.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         foreach (self::LISTAS as $ruta) {
             $this->get(route($ruta, ['export' => 'csv']))
@@ -277,7 +287,7 @@ class AccesoTest extends TestCase
     {
         // `?export=xlsx` no tiene que bajar nada ni reventar: se ignora y se
         // dibuja la lista, que es lo que la persona tiene delante.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->get(route('clientes.lista', ['export' => 'xlsx']))
             ->assertOk()
@@ -291,7 +301,7 @@ class AccesoTest extends TestCase
         // controlador usaba `Sucursales::` sin importarla, y eso no es un
         // error de sintaxis — revienta al abrir la pantalla, no al arrancar.
         // Es la misma lección que dejó Auditoría con `a.fecha`.
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $this->get(route('cuenta.index'))->assertOk()->assertSee('Tus datos');
     }
@@ -299,7 +309,7 @@ class AccesoTest extends TestCase
     #[Test]
     public function el_panel_muestra_los_numeros_que_da_la_base(): void
     {
-        $this->post(route('login'), ['usuario' => self::ADMIN, 'password' => self::CLAVE]);
+        $this->entrarComo(self::ADMIN, self::CLAVE);
 
         $clientes = (int) DB::scalar('SELECT COUNT(*) FROM cliente WHERE activo = 1');
 
