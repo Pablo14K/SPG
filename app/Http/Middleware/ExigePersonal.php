@@ -30,6 +30,22 @@ class ExigePersonal
         // mostrar la operación de todos los locales mezclada, se manda a
         // elegir. Con una sola sucursal esto no se nota: `Sesion::inicio()` ya
         // la dejó puesta al entrar.
+        // **La sucursal de la sesión tiene que seguir existiendo.**
+        //
+        // La marca vive en la sesión, y una sesión dura más que muchas cosas:
+        // el Administrador puede dar de baja el local, o sacarle la asignación
+        // a esa persona, y la sesión seguiría diciendo que trabaja ahí. Peor
+        // todavía si la base se reimportó: la ficha de arriba mostraba el
+        // nombre de una sucursal que ya no está, y los filtros apuntaban a un
+        // id inexistente — o sea, pantallas vacías sin explicación.
+        //
+        // Se comprueba en cada petición, junto con el rol, que ya se relee acá
+        // por el mismo motivo.
+        if (Sucursales::activa() !== 0 && ! Sucursales::puedeEntrar(Sucursales::activa())) {
+            Sucursales::salir();
+            flash('La sucursal en la que estabas trabajando ya no está disponible. Elegí otra.', 'warning');
+        }
+
         if (Sucursales::activa() === 0
             && ! $request->routeIs('sucursal.*')
             && ! Sucursales::resolverAlIngresar()) {

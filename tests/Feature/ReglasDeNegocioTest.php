@@ -698,7 +698,7 @@ class ReglasDeNegocioTest extends TestCase
             'El Profesional no tendría que administrar timbrados.');
 
         // Y la ruta lo rechaza, no solo la pantalla lo esconde
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
+        session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rolProf]) ?: 1), 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('facturacion.timbrados'))->assertForbidden();
     }
 
@@ -849,7 +849,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         // Y la ruta lo rechaza de verdad, no sólo esconde el botón.
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
+        session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rolProf]) ?: 1), 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('servicios.form'))->assertForbidden();
         $this->get(route('servicios.descuentos'))->assertForbidden();
 
@@ -1013,7 +1013,7 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rolProf, 'seguridad.roles']);
         Permisos::olvidar($rolProf);
 
-        session(['uid' => 999999, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
+        session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rolProf]) ?: 1), 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
         $this->get(route('seguridad.roles'))
             ->assertOk()
             ->assertSee('dejás de poder entrar acá', false);
@@ -1620,7 +1620,7 @@ class ReglasDeNegocioTest extends TestCase
         // botón no es el control. La caché de permisos es estática y sobrevive
         // entre pruebas del mismo proceso, así que se la olvida antes.
         Permisos::olvidar();
-        session(['uid' => 999999, 'rol' => 2, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
+        session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 2 AND activo = 1 LIMIT 1') ?: 1), 'rol' => 2, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
 
         $this->get(route('facturacion.caja'))->assertForbidden();
 

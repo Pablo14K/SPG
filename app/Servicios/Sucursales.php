@@ -121,6 +121,19 @@ class Sucursales
         return " AND $alias.id_sucursal = :$marca";
     }
 
+    /**
+     * Suelta la sucursal activa, sin cerrar la sesión.
+     *
+     * Se usa cuando la que estaba dejó de servir —el local se dio de baja, le
+     * sacaron la asignación, o la base se reimportó— para que la persona
+     * vuelva a elegir en vez de seguir trabajando contra un id que ya no
+     * existe.
+     */
+    public static function salir(): void
+    {
+        session(['id_sucursal' => 0, 'sucursal_nom' => '']);
+    }
+
     /** La sucursal en la que se está trabajando ahora (0 si todavía no eligió). */
     public static function activa(): int
     {
