@@ -109,6 +109,43 @@
                     <input type="hidden" name="fecha_hora" id="fecha_hora" value="{{ old('fecha_hora') }}">
                 </div>
 
+                {{-- Canjes por puntos de la clienta elegida.
+                     Vienen los de TODAS y el JS muestra los de la elegida,
+                     porque la clienta se elige en esta misma pantalla. El
+                     filtro es comodidad, no control: quien decide es
+                     Canje::aplicarACita(), que comprueba contra la clienta de
+                     la cita Y contra los servicios que la cita tiene. --}}
+                @if (count($canjes))
+                    <div class="col-12" id="bloqueCanjes" hidden>
+                        <label class="form-label">
+                            <i class="bi bi-gift txt-oro"></i> Canjes por puntos de esta clienta
+                        </label>
+                        <p class="text-muted-warm" style="font-size:.82rem">
+                            Marcá el canje <strong>y también el servicio de arriba</strong>: el canje no
+                            reemplaza al servicio, lo acompaña. El servicio ocupa el mismo tiempo en la
+                            agenda; lo único que cambia es que no se cobra.
+                        </p>
+                        <div class="spg-check-lista">
+                            @foreach ($canjes as $cj)
+                                <div class="form-check spg-canje" data-cliente="{{ $cj->id_cliente }}"
+                                     data-servicio="{{ $cj->id_servicio }}" hidden>
+                                    <input class="form-check-input" type="checkbox" name="canjes[]"
+                                           value="{{ $cj->id_canje }}" id="cjm{{ $cj->id_canje }}"
+                                           @checked(in_array((string) $cj->id_canje, (array) old('canjes', []), false))>
+                                    <label class="form-check-label" for="cjm{{ $cj->id_canje }}">
+                                        {{ $cj->nombre }}
+                                        <span class="text-muted-warm">
+                                            · vale {{ money($cj->precio) }} ·
+                                            vence el {{ fecha($cj->vence_en, 'd/m/Y') }}
+                                            ({{ (int) $cj->dias_restantes }} día(s))
+                                        </span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label>
                     <textarea class="form-control" id="observaciones" name="observaciones"
@@ -176,4 +213,50 @@
         </div>
     @endif
 @endsection
+
+@push('scripts')
+<script>
+// Muestra sólo los canjes de la clienta elegida, y marca su servicio cuando se
+// marca el canje —el canje NO reemplaza al servicio: lo acompaña, y sin el
+// servicio marcado el vale no se aplica y se pierde el viaje—.
+(function () {
+    var bloque = document.getElementById('bloqueCanjes');
+    var sel = document.getElementById('id_cliente');
+    if (!bloque || !sel) { return; }
+
+    var filas = bloque.querySelectorAll('.spg-canje');
+
+    function refrescar() {
+        var cli = sel.value;
+        var visibles = 0;
+        filas.forEach(function (f) {
+            var mio = cli && f.dataset.cliente === cli;
+            f.hidden = !mio;
+            // Un canje que deja de verse no puede irse marcado en el POST
+            if (!mio) { f.querySelector('input').checked = false; }
+            if (mio) { visibles++; }
+        });
+        bloque.hidden = visibles === 0;
+    }
+
+    sel.addEventListener('change', refrescar);
+
+    // Al marcar el canje se marca su servicio, que es lo que hace falta para
+    // que el canje sirva de algo. El evento se dispara a mano porque de él
+    // cuelga el recálculo de horarios del selector de agenda.
+    filas.forEach(function (f) {
+        f.querySelector('input').addEventListener('change', function () {
+            if (!this.checked) { return; }
+            var srv = document.querySelector('.srv[value="' + f.dataset.servicio + '"]');
+            if (srv && !srv.checked) {
+                srv.checked = true;
+                srv.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    refrescar();
+})();
+</script>
+@endpush
 

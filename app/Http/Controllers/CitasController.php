@@ -9,6 +9,7 @@ use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Borrador;
 use App\Servicios\Caja;
+use App\Servicios\Canje;
 use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -181,6 +182,15 @@ class CitasController extends Controller
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'
             ),
             'sel_cliente' => (int) $request->query('cliente', 0),
+            // **Los canjes también se usan desde el mostrador.** Hasta la
+            // 7.28.0 el campo `canjes[]` existía sólo en el portal, así que a
+            // la clienta que canjeaba en el local —que es la mayoría: no tiene
+            // cuenta— se le descontaban los puntos y no tenía dónde gastar el
+            // vale. En 60 días se hicieron 5 canjes y se usó 0.
+            //
+            // Vienen los de TODAS las clientas porque la clienta se elige en
+            // esta misma pantalla; el JS muestra los de la elegida.
+            'canjes' => Canje::disponiblesDelSalon(),
         ]);
     }
 
@@ -280,7 +290,23 @@ class CitasController extends Controller
             $equipo = count(array_filter(array_values($asignacion))) > 0;
             Auditoria::registrar('ALTA', 'Citas', 'cita', $idCita,
                 'Cita agendada para ' . $fecha . ($equipo ? ' con varios profesionales' : ''));
-            flash('Cita agendada para el ' . fecha($fecha) . '.');
+
+            // Los canjes que se marcaron quedan atados a esta cita, y con eso
+            // el servicio va **a cero** en el comprobante. `aplicarACita()`
+            // comprueba contra la clienta de la cita y contra los servicios
+            // que la cita tiene de verdad, así que un canje marcado sin marcar
+            // su servicio no se gasta: se avisa y queda para la próxima.
+            $pedidos = array_unique(array_filter(array_map('intval', (array) $request->input('canjes', []))));
+            $usados = Canje::aplicarACita($pedidos, $idCita, $idCliente);
+            $sobraron = count($pedidos) - $usados;
+
+            flash('Cita agendada para el ' . fecha($fecha) . '.'
+                . ($usados ? ' Se usó ' . $usados . ' canje(s): ese servicio no se cobra.' : '')
+                . ($sobraron > 0
+                    ? ' Ojo: ' . $sobraron . ' canje(s) NO se aplicaron porque su servicio no quedó en la cita. '
+                      . 'La clienta los conserva.'
+                    : ''),
+                $sobraron > 0 ? 'warning' : 'success');
         } catch (Throwable $ex) {
             // Si el procedimiento dice «no disponible» acá, es porque otra
             // persona se quedó con el hueco entre nuestra verificación y el

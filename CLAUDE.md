@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.28.0 | 15/08/2026 | **Los dos defectos ALTO que encontró la simulación de 2 meses.** **La nota de crédito no se declaraba ante la DNIT**, aunque `config/sifen.php` la lista en `tipos_electronicos` junto con la factura desde la 7.0.0. `notaCredito()` emitía el comprobante, copiaba el detalle, descontaba el efectivo del cajón y revertía los puntos **sin llamar a `Sifen::` en ninguna línea**: en 60 días se declararon 70 de 70 facturas y **0 de 5 notas**, así que la DNIT seguía viendo la venta y no su reverso — un salón que devuelve todos los meses termina declarando de más ante la SET, y ninguna pantalla lo dice. Lo raro es que la pieza andaba: declarada a mano por `sifen/enviar` devolvía el CDC. Faltaba la llamada, y va **después de emitir y no atada a ella**, la regla de siempre: la nota ya es válida sin la DNIT, así que si el envío falla queda PENDIENTE y se reintenta desde el comprobante. **Y el canje por puntos ya se puede usar desde el mostrador**, que era la otra mitad que faltaba: el campo `canjes[]` existía **sólo** en el portal y `CitasController` ni lo leía, así que a la clienta que canjea en el local —la mayoría, que no tiene cuenta— se le descontaban los puntos y no tenía dónde gastar el vale. En 60 días: **5 canjes, 0 usados, 3 de clientas sin cuenta**. Ahora Nueva cita muestra los canjes de la clienta elegida; vienen los de todas y el JS filtra, porque la clienta se elige en esa misma pantalla — **el filtro es comodidad, no control**: quien decide sigue siendo `Canje::aplicarACita()`. De paso se tapó un agujero que tenían **los dos** caminos: **un canje marcado sin marcar su servicio se gastaba igual**, y ahí la clienta perdía los puntos sin recibir nada. Ahora el canje sólo se aplica si su servicio está de verdad en la cita, y si no, se avisa y se lo conserva. Al marcar el canje se marca su servicio solo, que es lo que las dos pantallas venían pidiendo por escrito sin poder garantizar. **82 pruebas**, dos nuevas —que el canje no se gasta sin su servicio, y que la nota de crédito es un tipo que se declara **y** que el controlador lo llama—. Una prueba vieja se corrigió sin aflojar la regla: su cita de mentira no tenía `cita_servicio`, y una cita sin servicios no es una cita; de paso sus fechas se mudaron lejos, porque `peluqueria_test` trae el mes simulado y una fecha cercana chocaba con `trg_citaserv_bi` |
 | 7.27.2 | 15/08/2026 | **Entra el banco de la simulación de 2 meses y su informe**, que es la validación de que las correcciones de la 7.20.0 a la 7.27.1 aguantan en operación real. `_sim60/` es una copia del banco de 90 días adaptada a esta versión —la liquidación al personal ahora pide medio de pago (7.22.0), y se sumaron escenarios para el canje por puntos, la reasignación de citas y las devoluciones—, más las piezas que faltaban para armar el informe solo: `estado.php` (foto antes y después), `series.php` (las series diarias), `analizar.py`, `graficos.py` e `informe.js`. **El banco de 90 días quedó intacto**, porque es la evidencia del informe anterior. Resultado: **60 días, 8.362 peticiones, 352 citas, 267 comprobantes, Gs. 33.097.000 cobrados, cero respuestas 5xx** y **los 18 hallazgos anteriores siguen cerrados** —se comprueban uno por uno en la auditoría de cierre—. Aparecieron **dos defectos ALTO nuevos**, los dos de coherencia y ninguno de los que rompen: **la nota de crédito no se declara ante la DNIT** aunque `config/sifen.php` la lista en `tipos_electronicos` (70 de 70 facturas declaradas, 0 de 5 notas; `notaCredito()` no llama a `Sifen::`, y declarada a mano anda perfecto), y **el canje por puntos sólo se puede usar reservando desde el portal** —`canjes[]` está sólo en `portal/reservar`, `CitasController` ni lee el campo—, así que a la clienta del mostrador se le descuentan los puntos y no tiene dónde gastar el vale: 5 canjes, 0 usados, 3 de clientas sin cuenta. Es la mitad que faltaba de IN-03. De paso quedó anotado que **el rol Profesional se entrega con `facturacion.caja`** y este documento dice lo contrario en la 7.13.1: comprobado que abre y cierra el arqueo del salón. **Y una alerta se descartó por falsa**: el detector marcó fuga de datos en el panel del Profesional y la verificación mostró que el panel sí filtra —no le dibuja «Productos bajo stock» y su rótulo dice «Mis citas de hoy»—; ve los ingresos porque su rol tiene `facturacion.cobros`. Queda escrito en el informe, porque un detector que se equivoca hay que decir cuándo se equivocó |
 | 7.27.1 | 15/08/2026 | **Entran al repositorio el banco de pruebas de QA y su informe**, que hasta ahora vivían sueltos en la carpeta y no estaban versionados. `_sim/` es la herramienta que corrió los 90 días simulados —el motor (`momento.php`), la librería de peticiones HTTP y los nueve guiones de escenario: concurrencia, permisos, portal, anomalías, cierre y auditoría final— y `INFORME_QA_SIMULACION_90_DIAS.docx` es lo que salió de ella, que es de donde se sacaron los 18 hallazgos de las versiones 7.20.0 a 7.24.0. Se versiona porque **este repositorio es el respaldo del TCC** y el informe es evidencia de la validación: sin el banco, el informe no se puede volver a producir. **Lo que NO entra es `_sim/log/`**, y va al `.gitignore`: son 1,6 MB de operaciones crudas de una corrida, envejecen al día siguiente y lo que importa de ellas ya está resumido en el informe. Se revisó que los guiones no lleven credenciales: las únicas que aparecen son las contraseñas de prueba que este documento ya publica |
 | 7.27.0 | 15/08/2026 | **Cuánto vale un punto lo decide el salón, no el código.** `puntos_cada_gs` vivía en `config/spg.php`, así que cambiar la relación era editar un archivo y **volver a desplegar** — un número comercial escondido detrás de un despliegue. Pasa a `configuracion.puntos_cada_gs` y se edita con un formulario de un renglón en **Servicios → Descuentos**: «1 punto por cada ___ facturados». Va ahí y no en un archivo de ajustes porque **contesta la misma pregunta que los descuentos** —cuánto le devuelve el salón al cliente por comprar acá— y por eso comparte permiso con ellos: subir o bajar la relación es fijar cuánto regala el salón, la misma razón por la que el Profesional no tiene `servicios.descuentos` desde la 6.4.0. **La tabla es de UNA fila con columnas tipadas, no de clave/valor**, y la diferencia importa para el TCC: con clave/valor todo es texto —sin tipo y sin `CHECK` que valga— y cualquier parámetro nuevo entra sin que el modelo lo describa; con una columna por parámetro, cada uno tiene el suyo. `chk_config_unica` (`id_configuracion = 1`) garantiza que no haya dos verdades, y `chk_config_puntos` evita los dos accidentes caros: un 0 dividiría por cero y un 1 regalaría un punto por guaraní. **`config/spg.php` queda de respaldo**, para una base que todavía no se reimportó: si la tabla no está, se sigue acumulando como siempre en vez de reventar. Y la pantalla dice lo que la gente va a preguntar — que **los puntos ya acumulados no cambian**, porque son movimientos ya escritos en `movimiento_punto`. **80 pruebas**, una nueva que comprueba que el valor guardado cambia de verdad lo que se acumula y que los absurdos no entran |
@@ -322,7 +323,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 63 pruebas
+tests/Feature/             Las 82 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -1458,6 +1459,9 @@ paso evita el clásico del estado que se olvidó de actualizar.
 | Clientes → Fidelización | quien atiende, **por** la clienta que vino al local | `clientes.fidelizacion` |
 | Clientes → Canjes por puntos | el salón, para armar el **catálogo** | `clientes.canjes` |
 
+Y se **usa** desde dos: Portal → Reservar y **Citas → Nueva cita**, las dos por
+`Canje::aplicarACita()`.
+
 Los dos primeros pasan por el mismo `sp_canjear_servicio`: mismo candado, mismas validaciones
 y mismo descuento. Lo único distinto es quién aprieta el botón, y eso queda en la auditoría.
 
@@ -1472,6 +1476,22 @@ como cualquier otro —tiene que ocupar su tiempo y su profesional en la agenda�
 el canje. **El motor de disponibilidad no cambia en nada**: un servicio canjeado dura lo
 mismo, lo hace quien lo hace y necesita un hueco libre igual. Lo único que cambia es que no
 se cobra.
+
+**Y se usa desde los dos lados, no sólo desde el portal.** Hasta la 7.28.0 el campo
+`canjes[]` existía únicamente en `portal/reservar` y `CitasController` ni lo leía, así que a
+la clienta que canjeaba en el mostrador —que es la mayoría: no tiene cuenta— se le
+descontaban los puntos y **no tenía dónde gastar el vale**. En la simulación de 60 días eso
+dio 5 canjes y 0 usados, con 3 de clientas sin cuenta. Hoy **Nueva cita** los ofrece también:
+vienen los de todas las clientas y el JS muestra los de la elegida, porque la clienta se
+elige en esa misma pantalla.
+
+> **El filtro de la pantalla no es el control.** Quien decide es
+> `Canje::aplicarACita()`, que comprueba **contra la clienta de la cita** —no contra lo que
+> mandó el formulario— y **contra los servicios que la cita tiene de verdad**. Lo segundo
+> tapa un agujero que tenían los dos caminos: un canje marcado sin marcar su servicio se
+> gastaba igual, y ahí la clienta perdía los puntos sin recibir nada. Ahora no se aplica, se
+> avisa, y el vale le queda. Lo fija
+> `ReglasDeNegocioTest::el_canje_no_se_gasta_si_su_servicio_no_esta_en_la_cita`.
 
 **En el comprobante el servicio canjeado va a CERO, no se omite.** Se hizo, así que tiene que
 constar; lo que no corresponde es cobrarlo. Un comprobante que no lo nombra deja a la clienta
@@ -2132,7 +2152,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 63 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 82 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
@@ -2192,7 +2212,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**80 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**82 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

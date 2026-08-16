@@ -1548,11 +1548,21 @@ class ReglasDeNegocioTest extends TestCase
         DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)', [$clientes[0], 'AJUSTE', 100, 'prueba']);
         $idCanje = Canje::canjear($clientes[0], $servicio);
 
-        $cita = function (int $cliente) use ($prof): int {
+        // **La cita lleva su servicio**, que no es un detalle del andamiaje:
+        // desde la 7.28.0 el canje sólo se aplica si el servicio canjeado está
+        // de verdad en la cita. Una cita sin filas en `cita_servicio` tampoco
+        // sería una cita — dura cero minutos y no se pisa con nada.
+        // Las fechas van MUY adelante a propósito: `peluqueria_test` trae el
+        // mes simulado del QA, así que una fecha cercana puede chocar con una
+        // cita ya cargada y hacer saltar `trg_citaserv_bi` («no se repite el
+        // mismo servicio en el día»), que no es lo que esta prueba mide.
+        $cita = function (int $cliente, string $cuando = '+300 day') use ($prof, $servicio): int {
             DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
-                [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+5 hours'))]);
+                [$cliente, $prof, date('Y-m-d H:i:s', strtotime($cuando))]);
+            $id = (int) DB::getPdo()->lastInsertId();
+            DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$id, $servicio]);
 
-            return (int) DB::getPdo()->lastInsertId();
+            return $id;
         };
 
         // **La otra clienta no puede usarlo**, aunque mande el id a mano.
@@ -1564,7 +1574,10 @@ class ReglasDeNegocioTest extends TestCase
         $propia = $cita($clientes[0]);
         $this->assertSame(1, Canje::aplicarACita([$idCanje], $propia, $clientes[0]));
 
-        $otra = $cita($clientes[0]);
+        // La segunda va otro día: `trg_citaserv_bi` no deja repetirle a la
+        // misma clienta el mismo servicio el mismo día, y acá lo que se mide
+        // es el canje, no esa regla.
+        $otra = $cita($clientes[0], '+310 day');
         $this->assertSame(0, Canje::aplicarACita([$idCanje], $otra, $clientes[0]),
             'Un canje ya usado no se puede volver a usar.');
 
@@ -1576,6 +1589,84 @@ class ReglasDeNegocioTest extends TestCase
             'Cancelar la cita devuelve el canje.');
         $this->assertSame($puntos, Canje::puntos($clientes[0]),
             'Y NO devuelve los puntos: sería regalarle las dos cosas.');
+    }
+
+    /**
+     * Un canje marcado sin marcar su servicio NO se gasta.
+     *
+     * Es el accidente que las dos pantallas piden evitar («marcá el canje y
+     * también el servicio de arriba») y que ninguna impedía: si el canje se
+     * aplicara igual, la clienta perdería el vale sin que el servicio se haga.
+     * La comprobación va en el servicio y no en el controlador porque protege
+     * los dos caminos, el del portal y el del mostrador.
+     */
+    #[Test]
+    public function el_canje_no_se_gasta_si_su_servicio_no_esta_en_la_cita(): void
+    {
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 LIMIT 1');
+        $prof = (int) DB::scalar('SELECT u.id_usuario FROM usuario u
+                                    JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario LIMIT 1');
+        $dos = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 2');
+        if (! $cliente || ! $prof || count($dos) < 2) {
+            $this->markTestSkipped('Faltan cliente, profesional con turno o dos servicios.');
+        }
+        $canjeado = (int) $dos[0]->id_servicio;
+        $otro = (int) $dos[1]->id_servicio;
+
+        DB::insert('INSERT INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo) VALUES (?,?,?,1)',
+            [$canjeado, 10, 30]);
+        DB::statement('CALL sp_registrar_puntos(?, NULL, ?, ?, ?)', [$cliente, 'AJUSTE', 100, 'prueba']);
+        $idCanje = Canje::canjear($cliente, $canjeado);
+
+        // Una cita que NO incluye el servicio canjeado
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+            [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+320 day'))]);
+        $sinElServicio = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$sinElServicio, $otro]);
+
+        $this->assertSame(0, Canje::aplicarACita([$idCanje], $sinElServicio, $cliente),
+            'El canje no se aplica a una cita que no tiene su servicio.');
+        $this->assertSame('DISPONIBLE', DB::scalar('SELECT fn_canje_estado(?)', [$idCanje]),
+            'Y sobre todo: el canje sigue disponible, la clienta no perdió los puntos.');
+
+        // Con el servicio adentro, sí
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora) VALUES (?,?,1,?)',
+            [$cliente, $prof, date('Y-m-d H:i:s', strtotime('+330 day'))]);
+        $conElServicio = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$conElServicio, $canjeado]);
+
+        $this->assertSame(1, Canje::aplicarACita([$idCanje], $conElServicio, $cliente),
+            'Con el servicio marcado, el canje se aplica.');
+    }
+
+    /**
+     * La nota de crédito se declara ante la DNIT, como la factura.
+     *
+     * `config/sifen.php` lista los dos tipos en `tipos_electronicos` desde la
+     * 7.0.0, pero `notaCredito()` no llamaba a `Sifen::` en ninguna línea: en
+     * la simulación de 60 días se declararon 70 de 70 facturas y 0 de 5 notas,
+     * así que la DNIT veía la venta y no su reverso. Acá se fija lo que hace
+     * falta para que eso no vuelva a pasar sin que nadie se entere.
+     */
+    #[Test]
+    public function la_nota_de_credito_es_un_comprobante_que_se_declara(): void
+    {
+        $this->assertTrue(Sifen::esElectronico(1),
+            'La factura se declara.');
+        $this->assertTrue(Sifen::esElectronico(5),
+            'Y la nota de crédito también: si esto deja de valer, hay que revisar notaCredito().');
+        $this->assertFalse(Sifen::esElectronico(8),
+            'El Comprobante de pago es interno del salón y NO se declara.');
+
+        // Y el controlador tiene que llamarlo: sin esto, la nota se emite,
+        // descuenta el efectivo y revierte los puntos sin avisarle a la DNIT.
+        $codigo = file_get_contents(app_path('Http/Controllers/FacturacionController.php'));
+        $desde = strpos($codigo, 'public function notaCredito');
+        $hasta = strpos($codigo, 'public function sena', $desde ?: 0);
+        $cuerpo = substr($codigo, (int) $desde, max(0, (int) $hasta - (int) $desde));
+
+        $this->assertStringContainsString('Sifen::enviar', $cuerpo,
+            'notaCredito() tiene que declarar la nota ante la DNIT.');
     }
 
     /**

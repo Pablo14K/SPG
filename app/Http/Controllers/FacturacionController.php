@@ -1145,11 +1145,33 @@ class FacturacionController extends Controller
             }
 
             $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito');
+
+            // **La nota de crédito también se declara ante la DNIT**, y hasta
+            // acá no se mandaba nunca. `config/sifen.php` la lista en
+            // `tipos_electronicos` junto con la factura desde la 7.0.0, pero
+            // este método emitía, copiaba el detalle, descontaba el efectivo y
+            // revertía los puntos **sin llamar a `Sifen::` en ninguna línea**:
+            // en la simulación de 60 días se declararon 70 de 70 facturas y
+            // 0 de 5 notas, así que la DNIT seguía viendo la venta original y
+            // no su reverso. Un salón que devuelve todos los meses termina
+            // declarando de más ante la SET sin que ninguna pantalla lo diga.
+            //
+            // Va **después** de emitir y no atada a ella, que es la regla de
+            // siempre: la nota ya es válida sin la DNIT, así que si el envío
+            // falla queda PENDIENTE y se reintenta desde el comprobante.
+            $avisoSifen = '';
+            if (Sifen::activo() && Sifen::esElectronico(5)) {
+                $envio = Sifen::enviar($idNota);
+                $avisoSifen = ' ' . $envio['mensaje']
+                    . ($envio['ok'] ? '' : ' La nota es válida igual: podés reintentar el envío desde el comprobante.');
+            }
+
             flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro . '.'
                 . ($enEfectivo > 0
                     ? ' Se descontaron ' . money($enEfectivo) . ' del efectivo de la caja.'
                     : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.')
-                . ($devueltos ? ' Se le descontaron al cliente los ' . $devueltos . ' punto(s) de esa venta.' : ''));
+                . ($devueltos ? ' Se le descontaron al cliente los ' . $devueltos . ' punto(s) de esa venta.' : '')
+                . $avisoSifen);
 
             return redirect()->route('facturacion.factura_ver', ['id' => $idNota]);
         } catch (Throwable $ex) {

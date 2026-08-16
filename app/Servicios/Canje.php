@@ -44,6 +44,30 @@ class Canje
     }
 
     /**
+     * Los canjes disponibles de TODAS las clientas, para el alta de cita del
+     * mostrador: ahí la clienta se elige en la misma pantalla, así que no se
+     * sabe de quién son hasta que la eligen.
+     *
+     * Cada fila trae su `id_cliente` para que la pantalla muestre sólo los de
+     * la clienta elegida. **El filtro de la pantalla no es el control**: quien
+     * decide es `aplicarACita()`, que comprueba contra la clienta de la cita.
+     *
+     * @return list<object>
+     */
+    public static function disponiblesDelSalon(): array
+    {
+        return DB::select(
+            "SELECT c.id_canje, c.id_cliente, c.id_servicio, c.puntos, c.vence_en,
+                    s.nombre, s.precio,
+                    DATEDIFF(c.vence_en, CURDATE()) AS dias_restantes
+               FROM canje c
+               JOIN servicio s ON s.id_servicio = c.id_servicio
+              WHERE c.id_cita IS NULL AND c.vence_en >= CURDATE()
+              ORDER BY c.vence_en, s.nombre"
+        );
+    }
+
+    /**
      * Los canjes de una clienta, con su estado deducido.
      *
      * `$soloDisponibles` es lo que hace falta al agendar: ahí sólo sirven los
@@ -94,17 +118,38 @@ class Canje
      * formulario**: con el id suelto, alguien podría gastar el canje de otra
      * persona cambiando un campo oculto. Devuelve cuántos se aplicaron.
      *
+     * **Y el servicio del canje tiene que estar en la cita.** Si no está, el
+     * canje no se aplica: aplicarlo gastaría el vale sin que el servicio se
+     * haga, y la clienta perdería los puntos por nada. Es el caso de quien
+     * marca el canje y se olvida de marcar el servicio de arriba, que las dos
+     * pantallas piden hacer pero ninguna obligaba.
+     *
      * @param  list<int>  $idsCanje
      */
     public static function aplicarACita(array $idsCanje, int $idCita, int $idCliente): int
     {
+        $ids = array_unique(array_filter(array_map('intval', $idsCanje)));
+        if (! $ids) {
+            return 0;
+        }
+
+        $servicios = array_map(
+            fn ($r) => (int) $r->id_servicio,
+            DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$idCita])
+        );
+        if (! $servicios) {
+            return 0;
+        }
+        $huecos = implode(',', array_fill(0, count($servicios), '?'));
+
         $n = 0;
-        foreach (array_unique(array_filter(array_map('intval', $idsCanje))) as $idCanje) {
+        foreach ($ids as $idCanje) {
             $n += DB::update(
-                'UPDATE canje SET id_cita = ?
+                "UPDATE canje SET id_cita = ?
                   WHERE id_canje = ? AND id_cliente = ?
-                    AND id_cita IS NULL AND vence_en >= CURDATE()',
-                [$idCita, $idCanje, $idCliente]
+                    AND id_cita IS NULL AND vence_en >= CURDATE()
+                    AND id_servicio IN ($huecos)",
+                array_merge([$idCita, $idCanje, $idCliente], $servicios)
             );
         }
 
