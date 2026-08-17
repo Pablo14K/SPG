@@ -1117,7 +1117,7 @@ class ReglasDeNegocioTest extends TestCase
         }
         [$dueno, $ayuda] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
 
-        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $cliente = $this->clienteLibreHoy();
         $servicios = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 2');
         if (! $cliente || count($servicios) < 2) {
             $this->markTestSkipped('Falta un cliente o dos servicios en la base de prueba.');
@@ -1162,7 +1162,7 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function un_producto_sin_stock_no_tumba_los_servicios_de_la_atencion(): void
     {
-        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        $cliente = $this->clienteLibreHoy();
         $prof = (int) DB::scalar('SELECT id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
                                    WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 1');
         $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');

@@ -152,6 +152,10 @@ class InventarioController extends Controller
         ];
         $stockInicial = num($request->input('stock_inicial'));
 
+        // Un producto nace en el local en el que se está trabajando: cada
+        // sucursal tiene su catálogo, por decisión del usuario.
+        $d['id_sucursal'] = Sucursales::activa() ?: 1;
+
         // **El precio de venta ya NO se pide** —el salón vende servicios, no
         // productos— pero la columna es NOT NULL y sigue en la base, así que
         // hay que darle un valor. Y hay que darle **el que ya tenía**: leerlo
@@ -202,9 +206,9 @@ class InventarioController extends Controller
                 flash('Producto actualizado.');
             } else {
                 DB::insert(
-                    'INSERT INTO producto (id_categoria,nombre,descripcion,unidad_medida,contenido,unidad_consumo,
+                    'INSERT INTO producto (id_sucursal,id_categoria,nombre,descripcion,unidad_medida,contenido,unidad_consumo,
                         stock_minimo,precio_costo,precio_venta,tasa_iva)
-                     VALUES (:id_categoria,:nombre,:descripcion,:unidad_medida,:contenido,:unidad_consumo,
+                     VALUES (:id_sucursal,:id_categoria,:nombre,:descripcion,:unidad_medida,:contenido,:unidad_consumo,
                         :stock_minimo,:precio_costo,:precio_venta,:tasa_iva)', $d
                 );
                 $id = (int) DB::getPdo()->lastInsertId();
@@ -848,10 +852,11 @@ class InventarioController extends Controller
         try {
             $r = DB::transaction(function () use ($idProveedor, $idCondicion, $nroFactura, $obs, $lineas, $dias, $request) {
                 DB::insert(
-                    'INSERT INTO compra (id_proveedor,id_usuario,id_estado_compra,id_condicion_venta,
+                    'INSERT INTO compra (id_sucursal,id_proveedor,id_usuario,id_estado_compra,id_condicion_venta,
                         nro_factura_proveedor,observaciones)
-                     VALUES (?,?,1,?,?,?)',
-                    [$idProveedor, (int) session('uid'), $idCondicion, $nroFactura, $obs]
+                     VALUES (?,?,?,1,?,?,?)',
+                    [Sucursales::activa() ?: 1, $idProveedor, (int) session('uid'),
+                     $idCondicion, $nroFactura, $obs]
                 );
                 $idCompra = (int) DB::getPdo()->lastInsertId();
 
@@ -882,9 +887,9 @@ class InventarioController extends Controller
                             // Antes se copiaba el costo como precio de venta, que era
                             // vender al costo. Va en 0 por lo mismo que en el alta:
                             // el salón no vende productos.
-                            "INSERT INTO producto (id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva)
+                            "INSERT INTO producto (id_sucursal,id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva)
                              VALUES (?,?, 'unidad', ?, 0, 10)",
-                            [$l['categoria'], $l['nombre'], $l['precio']]
+                            [Sucursales::activa() ?: 1, $l['categoria'], $l['nombre'], $l['precio']]
                         );
                         $idp = (int) DB::getPdo()->lastInsertId();
                         $creados[] = $l['nombre'];
@@ -981,8 +986,8 @@ class InventarioController extends Controller
                 // `precio_venta` va en 0: el salón vende servicios, no productos,
                 // así que el campo salió de la pantalla. La columna es NOT NULL
                 // y sigue en la base por si se revierte la decisión.
-                'INSERT INTO producto (id_categoria,nombre,unidad_medida,stock_minimo,precio_costo,precio_venta,tasa_iva,activo)
-                 VALUES (?,?,?,0,?,0,10,1)', [$idCat, $nombre, $unidad, $costo]
+                'INSERT INTO producto (id_sucursal,id_categoria,nombre,unidad_medida,stock_minimo,precio_costo,precio_venta,tasa_iva,activo)
+                 VALUES (?,?,?,?,0,?,0,10,1)', [Sucursales::activa() ?: 1, $idCat, $nombre, $unidad, $costo]
             );
             $idp = (int) DB::getPdo()->lastInsertId();
 

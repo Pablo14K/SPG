@@ -78,6 +78,31 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- **En qué locales se ofrece.** El catálogo es único —«Corte
+                     de dama» es UN servicio con un precio— y cada sucursal marca
+                     cuáles publica. Sin esto, un local nuevo nacía sin un solo
+                     servicio y la clienta no veía nada al querer reservar ahí.
+                     Con una sola sucursal el bloque no se dibuja. --}}
+                @if (count($sucursales) > 1)
+                    <div class="col-12">
+                        <label class="form-label">¿En qué sucursales se ofrece?</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            @foreach ($sucursales as $suc)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="sucursales[]"
+                                           value="{{ $suc->id_sucursal }}" id="sv{{ $suc->id_sucursal }}"
+                                           @checked(in_array((int) $suc->id_sucursal, $publicado, true))>
+                                    <label class="form-check-label" for="sv{{ $suc->id_sucursal }}">{{ $suc->nombre }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">
+                            Si no marcás ninguna, se ofrece en todas. Un servicio que no se publica en
+                            ningún local no se lo puede reservar nadie.
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="mt-4 d-flex gap-2">

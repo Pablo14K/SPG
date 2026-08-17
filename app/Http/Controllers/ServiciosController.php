@@ -91,6 +91,16 @@ class ServiciosController extends Controller
         return view('servicios.form', [
             's' => $s,
             'cats' => DB::select('SELECT * FROM categoria_servicio ORDER BY nombre'),
+            // **En qué locales se ofrece.** El catálogo es único —«Corte de
+            // dama» es UN servicio con un precio— y cada sucursal marca cuáles
+            // publica. Sin esta pantalla, un local nuevo nacía sin un solo
+            // servicio y la clienta no veía nada al querer reservar ahí.
+            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
+            'publicado' => $id
+                ? array_map(fn ($r) => (int) $r->id_sucursal,
+                    DB::select('SELECT id_sucursal FROM servicio_sucursal WHERE id_servicio = ?', [$id]))
+                : array_map(fn ($r) => (int) $r->id_sucursal,
+                    DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1')),
         ]);
     }
 
@@ -159,8 +169,25 @@ class ServiciosController extends Controller
                     'INSERT INTO servicio (id_categoria_servicio,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad)
                      VALUES (:id_categoria_servicio,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad)', $d
                 );
-                Auditoria::registrar('ALTA', 'Servicios', 'servicio', (int) DB::getPdo()->lastInsertId(), $d['nombre']);
+                $id = (int) DB::getPdo()->lastInsertId();
+                Auditoria::registrar('ALTA', 'Servicios', 'servicio', $id, $d['nombre']);
                 flash('Servicio creado.');
+            }
+
+            // **En qué locales se publica.** Se reescribe entero: es una lista
+            // de casillas, así que lo que no vino es lo que se destildó. Sin
+            // marcar ninguna se publica en todas — un servicio que no se ofrece
+            // en ningún lado no le sirve a nadie, y es lo que espera quien
+            // todavía tiene un solo local.
+            $sucursales = array_values(array_filter(array_map('intval', (array) $request->input('sucursales', []))));
+            if (! $sucursales) {
+                $sucursales = array_map(fn ($s) => (int) $s->id_sucursal,
+                    DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1'));
+            }
+            DB::delete('DELETE FROM servicio_sucursal WHERE id_servicio = ?', [$id]);
+            foreach ($sucursales as $idSuc) {
+                DB::insert('INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal) VALUES (?,?)',
+                    [$id, $idSuc]);
             }
         } catch (Throwable) {
             flash('No se pudo guardar (¿nombre duplicado?).', 'error');

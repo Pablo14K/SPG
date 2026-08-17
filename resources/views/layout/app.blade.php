@@ -164,15 +164,14 @@
         </div>
     @endif
 
-    @if ($spgRapidos)
-        <nav class="spg-rapidos" aria-label="Accesos rápidos">
-            <span class="spg-rapidos-lbl"><i class="bi bi-lightning-charge-fill"></i> Ir a</span>
-            @foreach ($spgRapidos as $spgA)
-                <a class="spg-chip" href="{{ $spgA['url'] }}">
-                    <i class="bi bi-{{ $spgA['icono'] }}"></i> {{ $spgA['titulo'] }}</a>
-            @endforeach
-        </nav>
-    @endif
+    {{-- Acá iba la barra de accesos rápidos («Ir a: Nueva cita · Clientes…»).
+         Se saca por pedido del usuario: competía con la barra de módulos y con
+         las tarjetas del módulo, que ya contestan a dónde ir. Tres niveles de
+         navegación apilados arriba del contenido es ruido, no ayuda.
+
+         La maquinaria sigue en `Navegacion::accesosRapidos()` y en
+         `config/navegacion.php` por si se la quiere devolver en otro lugar —
+         un pie de pantalla, por ejemplo— pero hoy no la dibuja nadie. --}}
 
     @yield('contenido')
 </main>

@@ -53,4 +53,35 @@ abstract class TestCase extends BaseTestCase
             $this->conSucursal();
         }
     }
+
+    /**
+     * Una clienta que hoy no tenga ninguna cita.
+     *
+     * **`peluqueria_test` trae el mes simulado, y ese mes se mueve con el
+     * calendario.** Una prueba que agarra la primera clienta (`LIMIT 1`) y le
+     * agenda para hoy funciona todos los días salvo aquellos en que la
+     * simulación ya le puso una cita: ahí `trg_citaserv_bi` la rechaza con «esa
+     * clienta ya tiene ese servicio agendado para el mismo día». Pasó el
+     * 17/08/2026 con dos pruebas que el día anterior estaban en verde.
+     *
+     * Es el mismo defecto que la 7.31.3 corrigió con `conSucursal()`: **una
+     * batería que dice cosas distintas según el día —o según cuántos locales
+     * haya— no sirve para decir si el sistema anda.** El disparador estaba
+     * haciendo su trabajo; el que elegía mal era el andamiaje.
+     *
+     * La otra salida —mudar la cita lejos, como se hizo en la 7.28.0— acá no
+     * vale: atender exige que la cita ya haya llegado, así que tiene que ser hoy.
+     */
+    protected function clienteLibreHoy(): int
+    {
+        return (int) DB::scalar(
+            'SELECT c.id_cliente
+               FROM cliente c
+              WHERE c.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cita ci
+                                 WHERE ci.id_cliente = c.id_cliente
+                                   AND DATE(ci.fecha_hora) = CURDATE())
+              ORDER BY c.id_cliente LIMIT 1'
+        );
+    }
 }
