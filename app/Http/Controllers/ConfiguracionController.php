@@ -30,6 +30,10 @@ class ConfiguracionController extends Controller
     public function sucursales(): View
     {
         return view('seguridad.sucursales', [
+            // El nombre y el logo del sistema. Van en esta pantalla por pedido del
+            // usuario, y NO son de cada local: uno solo para todo el sistema.
+            'nombreSalon' => Config::nombreSalon(),
+            'logo' => Config::logo(),
             'rows' => DB::select(
                 'SELECT s.*, (SELECT COUNT(*) FROM usuario u WHERE u.id_sucursal = s.id_sucursal) AS personal
                    FROM sucursal s ORDER BY s.nombre'
@@ -142,13 +146,16 @@ class ConfiguracionController extends Controller
         return view('seguridad.contacto', [
             'contactos' => $contactos,
             'canales' => Contacto::canales(),
-            'nombreSalon' => Config::nombreSalon(),
-            'logo' => Config::logo(),
         ]);
     }
 
     /**
-     * El nombre y el logo con los que se presenta el salón.
+     * El nombre y el logo con los que se presenta el sistema.
+     *
+     * **Es UNO para todo el sistema, no uno por sucursal**, aunque viva en la
+     * pantalla de Sucursales por pedido del usuario. Es el mismo criterio que
+     * el Centro de Ayuda y Soporte: la clienta entra por un único portal y ve
+     * una sola marca, y quien atiende ve la misma trabaje donde trabaje.
      *
      * **Se ven en el ingreso y en la barra de arriba, o sea antes y después de
      * entrar**, así que un archivo roto acá rompe la pantalla desde la que se
@@ -162,7 +169,7 @@ class ConfiguracionController extends Controller
      */
     public function identidadGuardar(Request $request): RedirectResponse
     {
-        $volver = redirect()->route('seguridad.contacto');
+        $volver = redirect()->route('seguridad.sucursales');
         $nombre = trim((string) $request->input('nombre_salon', ''));
 
         if (mb_strlen($nombre) < 2 || mb_strlen($nombre) > 60) {
@@ -236,7 +243,7 @@ class ConfiguracionController extends Controller
         Auditoria::registrar('MODIFICACION', 'Configuracion', 'configuracion', 1, 'Se quitó el logo del salón');
         flash('Logo quitado. Vuelve el ícono por defecto.');
 
-        return redirect()->route('seguridad.contacto');
+        return redirect()->route('seguridad.sucursales');
     }
 
     public function contactoGuardar(Request $request): RedirectResponse

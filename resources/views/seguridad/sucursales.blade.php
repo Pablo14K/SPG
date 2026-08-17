@@ -7,6 +7,61 @@
         sub="Los locales del salón. El RUC y la dirección de la sucursal son los que se imprimen en el comprobante."
         :accion="['ruta' => 'seguridad.sucursal_form', 't' => 'Nueva sucursal', 'ic' => 'plus-lg']" />
 
+    {{-- **La identidad va arriba, y va acá por pedido del usuario.**
+
+         Un aviso que la pantalla tiene que dar sola: el nombre y el logo son
+         **de todo el sistema, no de cada local**. Puesto entre una lista de
+         sucursales se puede leer al revés, y es el mismo criterio que el Centro
+         de Ayuda y Soporte —uno para todo el negocio—: la clienta entra por un
+         único portal y ve una sola marca.
+
+         Se ven en la pantalla de ingreso —o sea antes de que nadie entre— y en
+         la barra de arriba de todas las pantallas. Antes vivían en `APP_NAME`,
+         así que cambiarlos era editar el `.env` y volver a desplegar. --}}
+    <div class="spg-panel mb-3" style="max-width:860px">
+        <h2 style="font-size:1rem;font-weight:500;">Identidad del salón</h2>
+        <p class="text-muted-warm mb-3" style="font-size:.82rem">
+            Son de <strong>todo el sistema, no de cada sucursal</strong>: se ven en la pantalla de
+            ingreso y arriba de todas las pantallas, en los correos y en lo que se imprime, para el
+            equipo y para las clientas, trabajen en el local que trabajen. El cambio se aplica de
+            una, sin volver a entrar.
+        </p>
+
+        <form method="post" action="{{ route('seguridad.identidad.guardar') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label" for="nombre_salon">Nombre del salón *</label>
+                    <input class="form-control" id="nombre_salon" name="nombre_salon" required
+                           maxlength="60" value="{{ old('nombre_salon', $nombreSalon) }}">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="logo">Logo</label>
+                    <input type="file" class="form-control" id="logo" name="logo"
+                           accept="image/png,image/jpeg,image/webp">
+                    <div class="form-text">PNG, JPG o WEBP, hasta 512 KB. Si no subís nada, queda el que está.</div>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
+                </div>
+            </div>
+        </form>
+
+        @if ($logo)
+            <div class="d-flex align-items-center gap-3 mt-3 pt-3" style="border-top:1px solid var(--gris-calido)">
+                <img src="{{ $logo }}" alt="Logo del salón"
+                     style="height:44px;width:auto;border-radius:6px;background:var(--negro);padding:4px">
+                <span class="text-muted-warm" style="font-size:.82rem">Logo actual</span>
+                <form method="post" action="{{ route('seguridad.identidad.logo.quitar') }}" class="d-inline">
+                    @csrf
+                    <button class="btn btn-sm btn-outline-neutro"
+                            data-confirmar="¿Quitar el logo y volver al ícono por defecto?">
+                        <i class="bi bi-trash"></i> Quitar</button>
+                </form>
+            </div>
+        @endif
+    </div>
+
     <div class="spg-panel">
         <div class="table-responsive">
             <table class="table align-middle mb-0">
