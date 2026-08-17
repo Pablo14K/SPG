@@ -893,6 +893,70 @@ class ReglasDeNegocioTest extends TestCase
      * compra la trae en `compra.id_sucursal`, la cita en `cita.id_sucursal` y
      * la factura en el timbrado con el que se numeró.
      */
+    /**
+     * El panel muestra los ingresos de ESTE local, no los del negocio entero.
+     *
+     * Era la única métrica del panel sin filtro de sucursal: las citas, el
+     * stock y la caja ya lo tenían desde la 7.31.0. Con dos locales, la sede 2
+     * veía la recaudación de la sede 1 en su propia pantalla de inicio — y
+     * quien trabaja en un local no tiene por qué ver la plata del otro.
+     *
+     * Comprobada en las dos direcciones: sacándole el filtro a la consulta, la
+     * prueba falla.
+     */
+    #[Test]
+    public function el_panel_muestra_los_ingresos_de_su_propio_local(): void
+    {
+        $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1',
+            [(int) config('permisos.rol_admin', 1)]);
+
+        DB::statement('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_estado_caja = 1');
+
+        $suc1 = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Ingresos']);
+        $suc2 = (int) DB::getPdo()->lastInsertId();
+
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo='EFECTIVO' AND activo=1 LIMIT 1");
+        $fact = DB::selectOne('SELECT id_factura FROM factura WHERE id_estado_factura = 1 ORDER BY id_factura DESC LIMIT 1');
+
+        // Una caja y un cobro en cada local, el mismo día.
+        foreach ([$suc1 => 111000.0, $suc2 => 222000.0] as $s => $monto) {
+            DB::insert('INSERT INTO caja (id_usuario,id_sucursal,id_estado_caja,monto_inicial) VALUES (?,?,1,0)',
+                [$uid, $s]);
+            $idCaja = (int) DB::getPdo()->lastInsertId();
+
+            DB::insert('INSERT INTO cobro (id_factura,id_metodo_pago,id_estado_cobro,id_usuario,id_caja,monto,fecha)
+                        VALUES (?,?,1,?,?,?,NOW())',
+                [$fact->id_factura ?? null, $metodo, $uid, $idCaja, $monto]);
+        }
+
+        $delLocal = fn (int $s) => (float) DB::scalar(
+            'SELECT COALESCE(SUM(co.monto),0) FROM cobro co
+               LEFT JOIN caja k ON k.id_caja = co.id_caja
+               LEFT JOIN cita ci ON ci.id_cita = co.id_cita
+              WHERE DATE(co.fecha) = CURDATE() AND co.id_estado_cobro = 1
+                AND COALESCE(k.id_sucursal, ci.id_sucursal) = ?', [$s]);
+
+        $enUno = $delLocal($suc1);
+        $enDos = $delLocal($suc2);
+        $total = (float) DB::scalar(
+            'SELECT COALESCE(SUM(monto),0) FROM cobro WHERE DATE(fecha) = CURDATE() AND id_estado_cobro = 1');
+
+        // El local nuevo cuenta lo suyo y nada más: 222.000 exactos, porque la
+        // sucursal se creó en esta prueba y no puede tener otros cobros.
+        $this->assertEqualsWithDelta(222000.0, $enDos, 0.01,
+            'El local nuevo tiene que contar sólo su propio cobro.');
+
+        // La comparación contra el total es la que detecta la fuga: sin filtro,
+        // los dos locales verían la misma cifra.
+        $this->assertGreaterThan($enDos, $total,
+            'La prueba no está midiendo nada: el total tiene que incluir lo de los dos locales.');
+        $this->assertNotEqualsWithDelta($total, $enDos, 0.01,
+            'El local nuevo está viendo la recaudación de todo el negocio, no la suya.');
+        $this->assertNotEqualsWithDelta($total, $enUno, 0.01,
+            'El local 1 está viendo también la plata del local nuevo.');
+    }
+
     #[Test]
     public function el_cobro_va_a_la_caja_del_local_no_a_la_de_quien_opera(): void
     {

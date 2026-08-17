@@ -148,8 +148,22 @@ INSERT IGNORE INTO timbrado (id_sucursal, id_tipo_comprobante, nro_timbrado, est
 --
 -- La vigencia es de 30 días, que es el plazo con el que viene el formulario.
 -- El salón lo cambia desde Clientes → Canjes por puntos, sin tocar código.
+-- **La escala tiene que ser alcanzable, o el programa es decorativo.**
+--
+-- Se entregaba con 3.000 y 2.000 puntos, y a razón de 1 punto cada Gs. 10.000
+-- eso pide Gs. 30.000.000 y Gs. 20.000.000 de consumo ACUMULADO. La simulación
+-- de 30 días lo midió: la clienta que más juntó llegó a 326 puntos. O sea que
+-- el portal le mostraba un catálogo que nadie podía alcanzar nunca — la misma
+-- clase de problema que una función apagada en silencio.
+--
+-- Con estos valores, una clienta habitual —unos Gs. 200.000 por visita, una vez
+-- al mes— llega al lavado en poco más de medio año y a la coloración en dos.
+-- Es lo que un programa de fidelización tiene que hacer: premiar la vuelta.
+--
+-- Los dos números se editan sin tocar código: los puntos desde Clientes →
+-- Canjes por puntos, y la relación con el guaraní desde Servicios → Descuentos.
 INSERT IGNORE INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo)
-SELECT s.id_servicio, 3000, 30, 1 FROM servicio s WHERE s.nombre = 'Coloración completa';
+SELECT s.id_servicio, 400, 30, 1 FROM servicio s WHERE s.nombre = 'Coloración completa';
 
 INSERT IGNORE INTO servicio_canjeable (id_servicio, puntos, dias_vigencia, activo)
-SELECT s.id_servicio, 2000, 30, 1 FROM servicio s WHERE s.nombre = 'Lavado y acondicionado';
+SELECT s.id_servicio, 150, 30, 1 FROM servicio s WHERE s.nombre = 'Lavado y acondicionado';

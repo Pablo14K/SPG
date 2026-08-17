@@ -52,9 +52,24 @@ class PanelController extends Controller
                 ? (int) DB::scalar('SELECT COUNT(*) FROM cliente WHERE activo = 1')
                 : null,
             'bajo_stock' => Permisos::puede('inventario.stock') ? $this->bajoStock() : null,
+            // **Los ingresos son los de ESTE local, no los del negocio entero.**
+            // Era la única métrica del panel que no filtraba por sucursal: las
+            // citas, el stock y la caja ya lo hacían, así que la sede 2 veía la
+            // plata de la sede 1 en su propia pantalla de inicio.
+            //
+            // La sucursal del cobro sale de su caja, que es donde entró; los
+            // pocos que pudieran no tenerla —una seña vieja— se ubican por la
+            // cita. Sin caja abierta no se cobra, así que en la práctica siempre
+            // hay una.
             'ingresos_hoy' => Permisos::puede('facturacion.cobros')
                 ? (float) DB::scalar(
-                    'SELECT COALESCE(SUM(monto),0) FROM cobro WHERE DATE(fecha) = ? AND id_estado_cobro = 1', [$hoy]
+                    'SELECT COALESCE(SUM(co.monto),0)
+                       FROM cobro co
+                       LEFT JOIN caja k ON k.id_caja = co.id_caja
+                       LEFT JOIN cita ci ON ci.id_cita = co.id_cita
+                      WHERE DATE(co.fecha) = :d AND co.id_estado_cobro = 1
+                        AND (:s = 0 OR COALESCE(k.id_sucursal, ci.id_sucursal) = :s2)',
+                    ['d' => $hoy, 's' => Sucursales::activa(), 's2' => Sucursales::activa()]
                 )
                 : null,
         ];

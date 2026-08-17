@@ -2401,7 +2401,7 @@ CREATE TABLE `servicio_canjeable` (
 
 LOCK TABLES `servicio_canjeable` WRITE;
 /*!40000 ALTER TABLE `servicio_canjeable` DISABLE KEYS */;
-INSERT INTO `servicio_canjeable` VALUES (1,6,3000,30,1),(2,9,2000,30,1);
+INSERT INTO `servicio_canjeable` VALUES (1,6,400,30,1),(2,9,150,30,1);
 /*!40000 ALTER TABLE `servicio_canjeable` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5598,4 +5598,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17 18:57:41
+-- Dump completed on 2026-08-17 19:13:36
