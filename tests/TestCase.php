@@ -34,8 +34,33 @@ abstract class TestCase extends BaseTestCase
         $nombre = (string) DB::scalar('SELECT nombre FROM sucursal WHERE id_sucursal = ?', [$id]);
 
         session(['id_sucursal' => $id, 'sucursal_nom' => $nombre]);
+        $this->conMarcaDeSesion();
 
         return $id;
+    }
+
+    /**
+     * Le copia a la sesión la marca de sesión única que tenga la cuenta.
+     *
+     * **Una sesión armada a mano tiene que ser creíble entera, no a medias.** La
+     * 7.13.0 puso una sola sesión por cuenta: `usuario.sesion_activa` guarda cuál
+     * es la buena y `ExigeSesion` echa a la que no coincida. Un `session([...])`
+     * escrito en la prueba no pone esa marca, así que si la cuenta tiene una
+     * sesión abierta —la dejó otra prueba que sí ingresó por el formulario, o
+     * alguien usando el sistema— la petición termina en 302 hacia el ingreso.
+     *
+     * Eso hacía que la batería contestara **según lo que hubiera quedado de
+     * antes**: 86 en verde en una máquina y 11 rotas en la de al lado, con el
+     * mismo código y los mismos datos. Es el mismo problema que resolvieron
+     * `conSucursal()` en la 7.31.3 y `clienteLibreHoy()` acá: el defecto está en
+     * el andamiaje, no en la regla, y la regla no se toca.
+     */
+    protected function conMarcaDeSesion(): void
+    {
+        $uid = (int) session('uid', 0);
+        if ($uid) {
+            session(['sesion_marca' => DB::scalar('SELECT sesion_activa FROM usuario WHERE id_usuario = ?', [$uid])]);
+        }
     }
 
     /**

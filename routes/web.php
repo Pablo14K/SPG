@@ -277,6 +277,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
                 ->whereNumber('id')->name('producto_form');
             Route::post('productos/guardar', [InventarioController::class, 'productoGuardar'])->name('producto.guardar');
             Route::post('productos/baja', [InventarioController::class, 'productoBaja'])->name('producto.baja');
+            // Manejar acá un producto que ya existe en otro local, en vez de
+            // cargarlo de nuevo con un nombre parecido. Ver `productoTraer()`.
+            Route::post('productos/traer', [InventarioController::class, 'productoTraer'])->name('producto.traer');
             Route::post('productos/rapido', [InventarioController::class, 'productoRapido'])->name('producto.rapido');
 
             Route::get('categorias', [InventarioController::class, 'categorias'])->name('categorias');
@@ -383,6 +386,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('form/{id?}', [ServiciosController::class, 'form'])->whereNumber('id')->name('form');
             Route::post('guardar', [ServiciosController::class, 'guardar'])->name('guardar');
             Route::post('baja', [ServiciosController::class, 'baja'])->name('baja');
+            // Traer a este local un servicio que ya existe en otro, en vez de
+            // volver a cargarlo con un nombre parecido. Ver `publicar()`.
+            Route::post('publicar', [ServiciosController::class, 'publicar'])->name('publicar');
         });
 
         Route::middleware('modulo:servicios.categorias')->group(function () {

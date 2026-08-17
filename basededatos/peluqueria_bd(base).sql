@@ -1584,6 +1584,7 @@ DROP TABLE IF EXISTS `movimiento_inventario`;
 CREATE TABLE `movimiento_inventario` (
   `id_movimiento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_producto` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_tipo_movimiento` int(10) unsigned NOT NULL,
   `cantidad` decimal(12,4) NOT NULL,
@@ -1596,9 +1597,11 @@ CREATE TABLE `movimiento_inventario` (
   KEY `idx_mi_usuario` (`id_usuario`),
   KEY `idx_mi_tipo` (`id_tipo_movimiento`),
   KEY `idx_mi_referencia` (`referencia`),
+  KEY `fk_movinv_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_mi_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_mi_tipo` FOREIGN KEY (`id_tipo_movimiento`) REFERENCES `tipo_movimiento_inventario` (`id_tipo_movimiento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_mi_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_movinv_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1628,10 +1631,13 @@ BEGIN
   DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
   DECLARE v_lock  INT UNSIGNED DEFAULT NULL;
 
-  
-  
-  SELECT id_producto INTO v_lock FROM producto
-   WHERE id_producto = NEW.id_producto FOR UPDATE;
+  SELECT id_producto INTO v_lock FROM producto_sucursal
+   WHERE id_producto = NEW.id_producto AND id_sucursal = NEW.id_sucursal FOR UPDATE;
+
+  IF v_lock IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Ese producto no esta habilitado en esa sucursal.';
+  END IF;
 
   SELECT signo INTO v_signo FROM tipo_movimiento_inventario
    WHERE id_tipo_movimiento = NEW.id_tipo_movimiento;
@@ -1641,7 +1647,8 @@ BEGIN
       INTO v_stock
     FROM movimiento_inventario m
     JOIN tipo_movimiento_inventario t ON t.id_tipo_movimiento = m.id_tipo_movimiento
-    WHERE m.id_producto = NEW.id_producto;
+    WHERE m.id_producto = NEW.id_producto
+      AND m.id_sucursal = NEW.id_sucursal;
 
     IF v_stock - NEW.cantidad < 0 THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay stock suficiente para esa salida.';
@@ -1656,34 +1663,40 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_ai
-AFTER INSERT ON movimiento_inventario FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_ai AFTER INSERT ON movimiento_inventario
+FOR EACH ROW
 BEGIN
   DECLARE v_stock  DECIMAL(12,4) DEFAULT 0;
   DECLARE v_minimo DECIMAL(10,2) DEFAULT 0;
   DECLARE v_nombre VARCHAR(100);
+  DECLARE v_local  VARCHAR(100);
   DECLARE v_activo TINYINT(1) DEFAULT 0;
 
-  SELECT nombre, stock_minimo, activo INTO v_nombre, v_minimo, v_activo
-  FROM producto WHERE id_producto = NEW.id_producto;
+  SELECT p.nombre, ps.stock_minimo, ps.activo, su.nombre
+    INTO v_nombre, v_minimo, v_activo, v_local
+  FROM producto p
+  JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = NEW.id_sucursal
+  JOIN sucursal su ON su.id_sucursal = NEW.id_sucursal
+  WHERE p.id_producto = NEW.id_producto AND p.activo = 1;
 
-  SET v_stock = fn_producto_stock(NEW.id_producto);
+  SET v_stock = fn_producto_stock(NEW.id_producto, NEW.id_sucursal);
 
   IF v_activo = 1 AND v_stock <= v_minimo
      AND NOT EXISTS (SELECT 1 FROM notificacion
                       WHERE id_producto = NEW.id_producto
+                        AND id_sucursal = NEW.id_sucursal
                         AND id_tipo_notificacion = 5
                         AND estado = 'PENDIENTE') THEN
-    INSERT INTO notificacion (id_tipo_notificacion, id_producto, canal, mensaje, estado)
-    VALUES (5, NEW.id_producto, 'SISTEMA',
+    INSERT INTO notificacion (id_tipo_notificacion, id_producto, id_sucursal, canal, mensaje, estado)
+    VALUES (5, NEW.id_producto, NEW.id_sucursal, 'SISTEMA',
             CONCAT('El producto ', v_nombre, ' quedo en ', v_stock,
-                   ' (minimo ', v_minimo, '). Conviene reponer.'),
+                   ' (minimo ', v_minimo, ') en ', v_local, '. Conviene reponer.'),
             'PENDIENTE');
   END IF;
 END */;;
@@ -1792,6 +1805,7 @@ CREATE TABLE `notificacion` (
   `id_usuario` int(10) unsigned DEFAULT NULL,
   `id_cita` int(10) unsigned DEFAULT NULL,
   `id_producto` int(10) unsigned DEFAULT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `canal` varchar(20) NOT NULL DEFAULT 'SISTEMA',
   `mensaje` varchar(300) DEFAULT NULL,
   `estado` varchar(20) NOT NULL DEFAULT 'PENDIENTE',
@@ -1804,9 +1818,11 @@ CREATE TABLE `notificacion` (
   KEY `idx_notif_cita` (`id_cita`),
   KEY `idx_notif_producto` (`id_producto`),
   KEY `idx_notif_estado` (`estado`),
+  KEY `fk_notif_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_notif_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_notif_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_notif_tipo` FOREIGN KEY (`id_tipo_notificacion`) REFERENCES `tipo_notificacion` (`id_tipo_notificacion`) ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
@@ -2077,11 +2093,9 @@ DROP TABLE IF EXISTS `producto`;
 CREATE TABLE `producto` (
   `id_producto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria` int(10) unsigned NOT NULL,
-  `id_sucursal` int(10) unsigned NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `unidad_medida` varchar(20) NOT NULL DEFAULT 'unidad',
-  `stock_minimo` decimal(10,2) NOT NULL DEFAULT 0.00,
   `precio_costo` decimal(12,2) NOT NULL DEFAULT 0.00,
   `precio_venta` decimal(12,2) NOT NULL DEFAULT 0.00,
   `tasa_iva` tinyint(3) unsigned NOT NULL DEFAULT 10,
@@ -2091,10 +2105,7 @@ CREATE TABLE `producto` (
   PRIMARY KEY (`id_producto`),
   KEY `idx_producto_categoria` (`id_categoria`),
   KEY `idx_producto_nombre` (`nombre`),
-  KEY `fk_producto_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_producto_categoria` FOREIGN KEY (`id_categoria`) REFERENCES `categoria_producto` (`id_categoria`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_producto_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
-  CONSTRAINT `chk_producto_stkmin` CHECK (`stock_minimo` >= 0),
   CONSTRAINT `chk_producto_costo` CHECK (`precio_costo` >= 0),
   CONSTRAINT `chk_producto_venta` CHECK (`precio_venta` >= 0),
   CONSTRAINT `chk_producto_iva` CHECK (`tasa_iva` in (0,5,10)),
@@ -2108,8 +2119,38 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (1,2,1,'Shampoo profesional 1L','Para lavado en el salón','unidad',3.00,85000.00,130000.00,10,1,1000.00,'ml'),(2,2,1,'Acondicionador 1L','Para lavado en el salón','unidad',3.00,80000.00,125000.00,10,1,1000.00,'ml'),(3,1,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',4.00,35000.00,55000.00,10,1,900.00,'ml'),(4,1,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',6.00,45000.00,70000.00,10,1,NULL,NULL),(5,2,1,'Ampolla de keratina','Sachet individual','unidad',10.00,18000.00,32000.00,10,1,NULL,NULL),(6,2,1,'Serum reparador 100ml','Puntas abiertas','unidad',5.00,40000.00,68000.00,10,1,NULL,NULL),(7,3,1,'Guantes de latex (caja)','Caja por 100 unidades','caja',2.00,38000.00,60000.00,10,1,NULL,NULL),(8,3,1,'Toallas descartables','Paquete por 50','paquete',3.00,25000.00,40000.00,10,1,NULL,NULL),(9,4,1,'Esmalte semipermanente','Frasco de 15 ml','unidad',8.00,22000.00,38000.00,10,1,NULL,NULL),(10,5,1,'Shampoo x 300ml (venta)','Para llevar','unidad',5.00,45000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',80000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',38000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',45000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `producto_sucursal`
+--
+
+DROP TABLE IF EXISTS `producto_sucursal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `producto_sucursal` (
+  `id_producto` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  `stock_minimo` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_producto`,`id_sucursal`),
+  KEY `fk_prodsuc_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_prodsuc_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`),
+  CONSTRAINT `fk_prodsuc_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
+  CONSTRAINT `chk_prodsuc_minimo` CHECK (`stock_minimo` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `producto_sucursal`
+--
+
+LOCK TABLES `producto_sucursal` WRITE;
+/*!40000 ALTER TABLE `producto_sucursal` DISABLE KEYS */;
+INSERT INTO `producto_sucursal` VALUES (1,1,3.00,1),(2,1,3.00,1),(3,1,4.00,1),(4,1,6.00,1),(5,1,10.00,1),(6,1,5.00,1),(7,1,2.00,1),(8,1,3.00,1),(9,1,8.00,1),(10,1,5.00,1);
+/*!40000 ALTER TABLE `producto_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -2150,15 +2191,20 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_produtil_ai
-AFTER INSERT ON producto_utilizado FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_produtil_ai AFTER INSERT ON producto_utilizado
+FOR EACH ROW
 BEGIN
-  DECLARE v_usuario INT UNSIGNED;
-  SELECT id_usuario INTO v_usuario FROM servicio_realizado
-   WHERE id_servicio_realizado = NEW.id_servicio_realizado;
+  DECLARE v_usuario  INT UNSIGNED;
+  DECLARE v_sucursal INT UNSIGNED;
 
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, referencia, observaciones)
-  VALUES (NEW.id_producto, v_usuario, 2, NEW.cantidad,
+  SELECT sr.id_usuario, c.id_sucursal INTO v_usuario, v_sucursal
+  FROM servicio_realizado sr
+  JOIN cita c ON c.id_cita = sr.id_cita
+  WHERE sr.id_servicio_realizado = NEW.id_servicio_realizado;
+
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, referencia, observaciones)
+  VALUES (NEW.id_producto, v_sucursal, v_usuario, 2, NEW.cantidad,
           CONCAT('SR#', NEW.id_servicio_realizado), 'Consumo durante el servicio');
 END */;;
 DELIMITER ;
@@ -3967,11 +4013,11 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED) RETURNS decimal(12,4)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED, p_id_sucursal INT UNSIGNED) RETURNS decimal(12,4)
     READS SQL DATA
 BEGIN
   DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
@@ -3979,7 +4025,8 @@ BEGIN
     INTO v_stock
   FROM movimiento_inventario m
   JOIN tipo_movimiento_inventario t ON t.id_tipo_movimiento = m.id_tipo_movimiento
-  WHERE m.id_producto = p_id_producto;
+  WHERE m.id_producto = p_id_producto
+    AND m.id_sucursal = p_id_sucursal;
   RETURN v_stock;
 END ;;
 DELIMITER ;
@@ -4580,11 +4627,15 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_confirmar_compra`(
-    IN p_id_compra  INT UNSIGNED,
-    IN p_id_usuario INT UNSIGNED)
+  IN p_id_compra  INT UNSIGNED,
+  IN p_id_usuario INT UNSIGNED
+)
 BEGIN
-  DECLARE v_estado INT UNSIGNED DEFAULT NULL;
-  SELECT id_estado_compra INTO v_estado FROM compra WHERE id_compra = p_id_compra;
+  DECLARE v_estado   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal INT UNSIGNED DEFAULT NULL;
+
+  SELECT id_estado_compra, id_sucursal INTO v_estado, v_sucursal
+  FROM compra WHERE id_compra = p_id_compra;
 
   IF v_estado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La compra no existe.';
@@ -4594,8 +4645,9 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La compra ya fue confirmada.';
   END IF;
 
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, precio_unitario, referencia, observaciones)
-  SELECT dc.id_producto, p_id_usuario, 1, dc.cantidad, dc.precio_unitario,
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, precio_unitario, referencia, observaciones)
+  SELECT dc.id_producto, v_sucursal, p_id_usuario, 1, dc.cantidad, dc.precio_unitario,
          CONCAT('COM#', p_id_compra), 'Entrada por compra confirmada'
   FROM detalle_compra dc WHERE dc.id_compra = p_id_compra;
 
@@ -4908,21 +4960,25 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_movimiento_inventario`(
-    IN p_id_producto        INT UNSIGNED,
-    IN p_id_usuario         INT UNSIGNED,
-    IN p_id_tipo_movimiento INT UNSIGNED,
-    IN p_cantidad           DECIMAL(12,4),
-    IN p_precio_unitario    DECIMAL(12,2),
-    IN p_referencia         VARCHAR(40),
-    IN p_observaciones      VARCHAR(300))
+  IN p_id_producto        INT UNSIGNED,
+  IN p_id_sucursal        INT UNSIGNED,
+  IN p_id_usuario         INT UNSIGNED,
+  IN p_id_tipo_movimiento INT UNSIGNED,
+  IN p_cantidad           DECIMAL(12,4),
+  IN p_precio_unitario    DECIMAL(12,2),
+  IN p_referencia         VARCHAR(50),
+  IN p_observaciones      VARCHAR(255)
+)
 BEGIN
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, precio_unitario, referencia, observaciones)
-  VALUES (p_id_producto, p_id_usuario, p_id_tipo_movimiento, p_cantidad, p_precio_unitario, p_referencia, p_observaciones);
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, precio_unitario, referencia, observaciones)
+  VALUES (p_id_producto, p_id_sucursal, p_id_usuario, p_id_tipo_movimiento,
+          p_cantidad, p_precio_unitario, p_referencia, p_observaciones);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5378,9 +5434,9 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = cp850 */;
-/*!50001 SET character_set_results     = cp850 */;
-/*!50001 SET collation_connection      = cp850_general_ci */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `vw_producto_bajo_stock` AS select `v`.`id_producto` AS `id_producto`,`v`.`id_sucursal` AS `id_sucursal`,`v`.`nombre` AS `nombre`,`v`.`categoria` AS `categoria`,`v`.`stock_actual` AS `stock_actual`,`v`.`stock_minimo` AS `stock_minimo`,`v`.`stock_minimo` - `v`.`stock_actual` AS `faltante`,`v`.`precio_costo` AS `precio_costo` from `vw_producto_stock` `v` where `v`.`activo` = 1 and `v`.`stock_actual` <= `v`.`stock_minimo` */;
@@ -5396,12 +5452,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = cp850 */;
-/*!50001 SET character_set_results     = cp850 */;
-/*!50001 SET collation_connection      = cp850_general_ci */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
+/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`ps`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`,`ps`.`id_sucursal`) AS `stock_actual`,`ps`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` = 1 and `ps`.`activo` = 1 AS `activo` from ((`producto` `p` join `producto_sucursal` `ps` on(`ps`.`id_producto` = `p`.`id_producto`)) join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5451,4 +5507,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-16  0:31:28
+-- Dump completed on 2026-08-17  8:53:44

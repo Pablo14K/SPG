@@ -38,7 +38,7 @@ try {
     // Tipo de movimiento 4 = ajuste negativo (signo S). Se llama al
     // procedimiento de verdad, que es por donde pasa la pantalla.
     App\Servicios\Bd::procedimiento('sp_registrar_movimiento_inventario',
-        [$producto, $usuario, 4, $cantidad, null, 'CONC', 'prueba de concurrencia']);
+        [$producto, 1, $usuario, 4, $cantidad, null, 'CONC', 'prueba de concurrencia']);
     echo 'OK' . PHP_EOL;
 } catch (Throwable $e) {
     echo 'NO ' . str_replace(["\n", "\r"], ' ', $e->getMessage()) . PHP_EOL;

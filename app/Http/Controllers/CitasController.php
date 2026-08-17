@@ -806,8 +806,11 @@ class CitasController extends Controller
             ),
             'productos' => DB::select(
                 'SELECT p.id_producto, p.nombre, p.unidad_medida, p.contenido, p.unidad_consumo,
-                        fn_producto_stock(p.id_producto) AS stock
-                   FROM producto p WHERE p.activo = 1 ORDER BY p.nombre'
+                        fn_producto_stock(p.id_producto, ps.id_sucursal) AS stock
+                   FROM producto p
+                   JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = ?
+                  WHERE p.activo = 1 AND ps.activo = 1 ORDER BY p.nombre',
+                [Sucursales::activa() ?: 1]
             ),
             'usados' => DB::select(
                 'SELECT p.nombre, pu.cantidad, p.unidad_medida, p.contenido, p.unidad_consumo,
@@ -1139,7 +1142,7 @@ class CitasController extends Controller
                         // Precio en NULL, igual que el movimiento que genera el
                         // disparador: así las dos filas se ven iguales en el libro.
                         Bd::procedimiento('sp_registrar_movimiento_inventario', [
-                            $pid, $idUsuario, 2, $c, null,
+                            $pid, Sucursales::activa() ?: 1, $idUsuario, 2, $c, null,
                             'SR#' . $sr, 'Consumo adicional durante el servicio',
                         ]);
                     } else {

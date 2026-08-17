@@ -22,8 +22,15 @@
                 </thead>
                 <tbody>
                     @forelse ($rows as $p)
-                        @php $bajo = (float) $p->stock_actual < (float) $p->stock_minimo; @endphp
-                        <tr>
+                        {{-- **`aca` en NULL no es «cero stock»: es «este local no maneja
+                             este producto».** Son cosas distintas y la fila lo dice, con
+                             el botón para traerlo en vez de volver a cargarlo con otro
+                             nombre. El catálogo es único desde la 7.33.0. --}}
+                        @php
+                            $mio = (bool) $p->aca;
+                            $bajo = $mio && (float) $p->stock_actual < (float) $p->stock_minimo;
+                        @endphp
+                        <tr class="{{ $mio ? '' : 'text-muted-warm' }}">
                             <td>
                                 {{ $p->nombre }}
                                 @if (producto_fraccionado((array) $p))
@@ -33,22 +40,28 @@
                             </td>
                             <td class="text-muted-warm">{{ $p->categoria }}</td>
                             <td class="text-end">
-                                <strong class="{{ $bajo ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
-                                <span class="text-muted-warm">{{ $p->unidad_medida }}</span>
-                                @if (producto_fraccionado((array) $p))
-                                    <div class="text-muted-warm" style="font-size:.72rem">
-                                        {{ cant(stock_a_consumo((array) $p, (float) $p->stock_actual)) }}
-                                        {{ $p->unidad_consumo }}
-                                    </div>
+                                @if ($mio)
+                                    <strong class="{{ $bajo ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
+                                    <span class="text-muted-warm">{{ $p->unidad_medida }}</span>
+                                    @if (producto_fraccionado((array) $p))
+                                        <div class="text-muted-warm" style="font-size:.72rem">
+                                            {{ cant(stock_a_consumo((array) $p, (float) $p->stock_actual)) }}
+                                            {{ $p->unidad_consumo }}
+                                        </div>
+                                    @endif
+                                @else
+                                    <span class="text-muted-warm">—</span>
                                 @endif
                             </td>
-                            <td class="text-end text-muted-warm">{{ cant($p->stock_minimo) }}</td>
+                            <td class="text-end text-muted-warm">{{ $mio ? cant($p->stock_minimo) : '—' }}</td>
                             <td class="text-end">{{ money($p->precio_costo) }}</td>
                             {{-- Precio de venta: fuera de alcance (ver el formulario del producto).
                             <td class="text-end">{{ money($p->precio_venta) }}</td>
                             --}}
                             <td>
-                                @if (! $p->activo)
+                                @if (! $mio)
+                                    <span class="badge-estado e-muted">En otra sucursal</span>
+                                @elseif (! $p->activo)
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @elseif ($bajo)
                                     <span class="badge-estado e-warn">Reponer</span>
@@ -56,6 +69,16 @@
                                     <span class="badge-estado e-ok">Activo</span>
                                 @endif
                             </td>
+                            @if (! $mio)
+                                <td class="text-end" style="white-space:nowrap">
+                                    <form method="post" action="{{ route('inventario.producto.traer') }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="id_producto" value="{{ $p->id_producto }}">
+                                        <button class="btn btn-sm btn-rapido" title="Manejarlo también en esta sucursal">
+                                            <i class="bi bi-plus-lg"></i> Traer acá</button>
+                                    </form>
+                                </td>
+                            @else
                             <td class="text-end" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Cargar stock"
                                    href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
@@ -75,6 +98,7 @@
                                         <i class="bi bi-toggle-{{ $p->activo ? 'on' : 'off' }}"></i></button>
                                 </form>
                             </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>

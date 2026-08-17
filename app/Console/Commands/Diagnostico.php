@@ -139,7 +139,7 @@ class Diagnostico extends Command
         // MySQL contesta 1449 y el sistema entero deja de andar.
         $this->titulo('¿Responden las rutinas?');
         foreach ([
-            'fn_producto_stock(1)' => 'stock de un producto',
+            'fn_producto_stock(1,1)' => 'stock de un producto',
             'fn_cliente_nivel(1)' => 'nivel de fidelización',
             'fn_verificar_disponibilidad(1, NOW(), 30, NULL)' => 'disponibilidad de la agenda',
         ] as $llamada => $para) {

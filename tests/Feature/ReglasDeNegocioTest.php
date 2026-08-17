@@ -357,7 +357,7 @@ class ReglasDeNegocioTest extends TestCase
     public function el_stock_es_la_suma_de_los_movimientos_segun_su_signo(): void
     {
         $productos = DB::select(
-            "SELECT p.id_producto, p.nombre, fn_producto_stock(p.id_producto) AS stock,
+            "SELECT p.id_producto, p.nombre, fn_producto_stock(p.id_producto, 1) AS stock,
                     (SELECT COALESCE(SUM(CASE WHEN tm.signo = 'E' THEN m.cantidad ELSE -m.cantidad END),0)
                        FROM movimiento_inventario m
                        JOIN tipo_movimiento_inventario tm ON tm.id_tipo_movimiento = m.id_tipo_movimiento
@@ -377,7 +377,7 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function no_se_puede_sacar_mas_stock_del_que_hay(): void
     {
-        $p = DB::selectOne('SELECT id_producto, fn_producto_stock(id_producto) AS stock
+        $p = DB::selectOne('SELECT id_producto, fn_producto_stock(id_producto, 1) AS stock
                               FROM producto WHERE activo = 1 ORDER BY id_producto LIMIT 1');
         if (! $p) {
             $this->markTestSkipped('No hay productos en la base de prueba.');
@@ -386,8 +386,8 @@ class ReglasDeNegocioTest extends TestCase
         // El disparador de la base tiene que frenar la salida
         $this->expectException(Throwable::class);
 
-        DB::statement('CALL sp_registrar_movimiento_inventario(?,?,?,?,?,?,?)', [
-            $p->id_producto, 1, 2, (float) $p->stock + 9999, null, 'TEST', 'salida imposible',
+        DB::statement('CALL sp_registrar_movimiento_inventario(?,?,?,?,?,?,?,?)', [
+            $p->id_producto, 1, 1, 2, (float) $p->stock + 9999, null, 'TEST', 'salida imposible',
         ]);
     }
 
@@ -409,7 +409,7 @@ class ReglasDeNegocioTest extends TestCase
     {
         $p = DB::selectOne(
             'SELECT id_producto, nombre, contenido, unidad_consumo,
-                    fn_producto_stock(id_producto) AS stock
+                    fn_producto_stock(id_producto, 1) AS stock
                FROM producto
               WHERE activo = 1 AND contenido >= 900 AND unidad_consumo IS NOT NULL
               ORDER BY id_producto LIMIT 1'
@@ -426,11 +426,11 @@ class ReglasDeNegocioTest extends TestCase
             $this->assertGreaterThan(0, $enStock,
                 "{$ml} {$p->unidad_consumo} de «{$p->nombre}» no llega a descontar nada.");
 
-            DB::statement('CALL sp_registrar_movimiento_inventario(?,?,?,?,?,?,?)', [
-                $p->id_producto, 1, 2, $enStock, null, 'TEST', 'consumo fraccionado',
+            DB::statement('CALL sp_registrar_movimiento_inventario(?,?,?,?,?,?,?,?)', [
+                $p->id_producto, 1, 1, 2, $enStock, null, 'TEST', 'consumo fraccionado',
             ]);
 
-            $ahora = (float) DB::scalar('SELECT fn_producto_stock(?)', [$p->id_producto]);
+            $ahora = (float) DB::scalar('SELECT fn_producto_stock(?,1)', [$p->id_producto]);
             $this->assertEqualsWithDelta($antes - $enStock, $ahora, 0.00005,
                 "Descontar {$ml} {$p->unidad_consumo} no dio el stock esperado: se perdió precisión.");
 
@@ -1169,7 +1169,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // Un producto que NO tiene con qué: se pide mucho más de lo que hay.
         $prod = DB::selectOne(
-            'SELECT p.id_producto, fn_producto_stock(p.id_producto) AS stock
+            'SELECT p.id_producto, fn_producto_stock(p.id_producto, 1) AS stock
                FROM producto p WHERE p.activo = 1 AND p.contenido IS NULL
               ORDER BY p.id_producto LIMIT 1'
         );
@@ -1205,7 +1205,7 @@ class ReglasDeNegocioTest extends TestCase
               WHERE sr.id_cita = ?', [$idCita]),
             'El consumo que no se pudo descontar no se guarda: el stock quedaría mintiendo.');
 
-        $this->assertGreaterThanOrEqual(0, (float) DB::scalar('SELECT fn_producto_stock(?)', [$prod->id_producto]),
+        $this->assertGreaterThanOrEqual(0, (float) DB::scalar('SELECT fn_producto_stock(?,1)', [$prod->id_producto]),
             'Y el stock no se toca.');
     }
 
@@ -1318,9 +1318,13 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_precio_de_venta_no_se_pide_pero_tampoco_se_pierde(): void
     {
-        $prod = DB::selectOne('SELECT id_producto, id_categoria, nombre, unidad_medida, stock_minimo,
-                                      precio_costo, precio_venta, tasa_iva
-                                 FROM producto ORDER BY id_producto LIMIT 1');
+        $prod = DB::selectOne('SELECT p.id_producto, p.id_categoria, p.nombre, p.unidad_medida,
+                                      COALESCE(ps.stock_minimo, 0) AS stock_minimo,
+                                      p.precio_costo, p.precio_venta, p.tasa_iva
+                                 FROM producto p
+                                 LEFT JOIN producto_sucursal ps
+                                        ON ps.id_producto = p.id_producto AND ps.id_sucursal = 1
+                                ORDER BY p.id_producto LIMIT 1');
         if (! $prod) {
             $this->markTestSkipped('No hay productos en la base de prueba.');
         }

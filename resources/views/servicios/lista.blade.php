@@ -16,7 +16,7 @@
                     <tr>
                         <th>Servicio</th><th>Categoría</th><th class="text-end">Precio</th>
                         <th class="text-end">Duración</th><th class="text-end">IVA</th>
-                        <th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Estado</th>@if ($varias)<th>Acá</th>@endif<th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,6 +42,25 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
+                            @if ($varias)
+                                {{-- **Traer en vez de volver a cargar.** El catálogo es
+                                     único: lo que cambia entre locales es cuáles se
+                                     publican. Cargarlo de nuevo dejaría «Corte de dama»
+                                     escrito de dos formas y ningún informe podría
+                                     compararlo entre sucursales. --}}
+                                <td>
+                                    @if ($s->aca)
+                                        <span class="badge-estado e-ok">Sí</span>
+                                    @else
+                                        <form method="post" action="{{ route('servicios.publicar') }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="id_servicio" value="{{ $s->id_servicio }}">
+                                            <button class="btn btn-sm btn-rapido" title="Ofrecerlo también en esta sucursal">
+                                                <i class="bi bi-plus-lg"></i> Agregar acá</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            @endif
                             <td class="text-end" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.form', $s->id_servicio) }}"><i class="bi bi-pencil"></i></a>
@@ -57,7 +76,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="{{ $varias ? 8 : 7 }}">
                                 <div class="spg-vacio">
                                     <i class="bi bi-scissors"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún servicio coincide con esos filtros.' : 'Todavía no hay servicios cargados.' }}</div>

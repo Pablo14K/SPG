@@ -42,7 +42,7 @@ CREATE TABLE `asistencia` (
   CONSTRAINT `fk_asistencia_turno` FOREIGN KEY (`id_turno`) REFERENCES `turno_laboral` (`id_turno`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_asistencia_usuario` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_asistencia_extras` CHECK (`horas_extras` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=122 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=132 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -76,7 +76,7 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1867 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2104 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -110,7 +110,7 @@ CREATE TABLE `ausencia_agenda` (
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -146,7 +146,7 @@ CREATE TABLE `caja` (
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -235,7 +235,7 @@ CREATE TABLE `canje` (
   CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
   CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=65 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=109 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -350,7 +350,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=451 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=616 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -452,7 +452,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=656 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=839 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -581,7 +581,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=169 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1046,7 +1046,7 @@ CREATE TABLE `detalle_factura` (
   CONSTRAINT `chk_df_precio` CHECK (`precio_unitario` >= 0),
   CONSTRAINT `chk_df_iva` CHECK (`tasa_iva` in (0,5,10)),
   CONSTRAINT `chk_df_item` CHECK (`id_servicio` is not null and `id_producto` is null or `id_servicio` is null and `id_producto` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=155 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=187 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1114,7 +1114,7 @@ CREATE TABLE `detalle_pago_personal` (
   CONSTRAINT `fk_dpp_pago` FOREIGN KEY (`id_pago_personal`) REFERENCES `pago_personal` (`id_pago_personal`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_dpp_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dpp_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=1025 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1696 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1372,7 +1372,7 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=77 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=88 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1482,7 +1482,7 @@ CREATE TABLE `factura_descuento` (
   CONSTRAINT `fk_fd_descuento` FOREIGN KEY (`id_descuento`) REFERENCES `descuento` (`id_descuento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_fd_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_fd_monto` CHECK (`monto_aplicado` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1579,7 +1579,7 @@ CREATE TABLE `movimiento_caja` (
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1601,6 +1601,7 @@ DROP TABLE IF EXISTS `movimiento_inventario`;
 CREATE TABLE `movimiento_inventario` (
   `id_movimiento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_producto` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_tipo_movimiento` int(10) unsigned NOT NULL,
   `cantidad` decimal(12,4) NOT NULL,
@@ -1613,12 +1614,14 @@ CREATE TABLE `movimiento_inventario` (
   KEY `idx_mi_usuario` (`id_usuario`),
   KEY `idx_mi_tipo` (`id_tipo_movimiento`),
   KEY `idx_mi_referencia` (`referencia`),
+  KEY `fk_movinv_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_mi_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_mi_tipo` FOREIGN KEY (`id_tipo_movimiento`) REFERENCES `tipo_movimiento_inventario` (`id_tipo_movimiento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_mi_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_movinv_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=304 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=374 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1627,7 +1630,7 @@ CREATE TABLE `movimiento_inventario` (
 
 LOCK TABLES `movimiento_inventario` WRITE;
 /*!40000 ALTER TABLE `movimiento_inventario` DISABLE KEYS */;
-INSERT INTO `movimiento_inventario` VALUES (5,3,1,1,1.0000,50000.00,'COM#3','2026-08-04 22:21:51','Entrada por compra confirmada'),(6,4,1,1,2.0000,10000.00,'COM#3','2026-08-04 22:21:51','Entrada por compra confirmada'),(7,5,1,1,12.0000,85000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(8,6,1,1,10.0000,90000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(9,7,1,1,40.0000,45000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(10,8,1,1,8.0000,30000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(14,9,1,1,6.0000,25000.00,'COM#5','2026-08-08 13:03:21','Entrada por compra confirmada'),(15,10,1,1,12.0000,60000.00,'COM#5','2026-08-08 13:03:21','Entrada por compra confirmada'),(17,11,1,1,2.0000,85000.00,'COM#6','2026-08-08 13:03:21','Entrada por compra confirmada'),(18,8,10,2,0.0400,NULL,'SR#2','2026-08-08 13:08:57','Consumo durante el servicio'),(19,8,8,2,0.0300,NULL,'SR#4','2026-08-08 13:08:58','Consumo durante el servicio'),(20,11,8,2,1.0000,NULL,'SR#4','2026-08-08 13:08:58','Consumo durante el servicio'),(21,6,8,2,0.0500,NULL,'SR#6','2026-08-08 13:08:58','Consumo durante el servicio'),(22,3,8,2,1.0000,NULL,'SR#6','2026-08-08 13:08:58','Consumo durante el servicio'),(23,5,10,2,0.0400,NULL,'SR#8','2026-08-08 13:08:59','Consumo durante el servicio'),(24,8,8,2,0.0400,NULL,'SR#9','2026-08-08 13:09:00','Consumo durante el servicio'),(25,6,11,2,0.0300,NULL,'SR#11','2026-08-08 13:09:01','Consumo durante el servicio'),(26,6,9,2,0.0400,NULL,'SR#13','2026-08-08 13:09:01','Consumo durante el servicio'),(27,5,9,2,0.0500,NULL,'SR#16','2026-08-08 13:09:02','Consumo durante el servicio'),(28,5,8,2,0.0500,NULL,'SR#17','2026-07-10 13:11:50','Consumo durante el servicio'),(29,8,10,2,0.0200,NULL,'SR#18','2026-07-10 13:11:51','Consumo durante el servicio'),(30,6,11,2,0.0500,NULL,'SR#19','2026-07-10 13:11:51','Consumo durante el servicio'),(31,4,11,2,1.0000,NULL,'SR#19','2026-07-10 13:11:51','Consumo durante el servicio'),(32,5,9,2,0.0200,NULL,'SR#21','2026-07-10 13:11:52','Consumo durante el servicio'),(33,7,9,2,1.0000,NULL,'SR#21','2026-07-10 13:11:52','Consumo durante el servicio'),(34,6,8,2,0.0300,NULL,'SR#22','2026-07-11 13:11:53','Consumo durante el servicio'),(35,8,10,2,0.0200,NULL,'SR#24','2026-07-11 13:11:54','Consumo durante el servicio'),(36,5,8,2,0.0500,NULL,'SR#25','2026-07-13 13:11:55','Consumo durante el servicio'),(37,11,8,2,1.0000,NULL,'SR#25','2026-07-13 13:11:55','Consumo durante el servicio'),(39,5,10,2,0.0200,NULL,'SR#28','2026-07-14 13:11:56','Consumo durante el servicio'),(40,4,10,2,1.0000,NULL,'SR#28','2026-07-14 13:11:56','Consumo durante el servicio'),(41,6,10,2,0.0300,NULL,'SR#29','2026-07-14 13:11:56','Consumo durante el servicio'),(43,6,9,2,0.0200,NULL,'SR#32','2026-07-15 13:11:58','Consumo durante el servicio'),(44,6,9,2,0.0400,NULL,'SR#33','2026-07-16 13:11:59','Consumo durante el servicio'),(45,9,9,2,1.0000,NULL,'SR#33','2026-07-16 13:11:59','Consumo durante el servicio'),(46,6,11,2,0.0300,NULL,'SR#34','2026-07-16 13:11:59','Consumo durante el servicio'),(47,10,11,2,1.0000,NULL,'SR#34','2026-07-16 13:11:59','Consumo durante el servicio'),(48,8,11,2,0.0300,NULL,'SR#36','2026-07-16 13:12:00','Consumo durante el servicio'),(49,8,10,2,0.0600,NULL,'SR#37','2026-07-17 13:12:01','Consumo durante el servicio'),(50,10,10,2,1.0000,NULL,'SR#37','2026-07-17 13:12:01','Consumo durante el servicio'),(53,6,11,2,0.0200,NULL,'SR#42','2026-07-18 13:12:03','Consumo durante el servicio'),(54,5,11,2,0.0200,NULL,'SR#43','2026-07-18 13:12:03','Consumo durante el servicio'),(55,10,11,2,1.0000,NULL,'SR#43','2026-07-18 13:12:03','Consumo durante el servicio'),(56,5,8,2,0.0500,NULL,'SR#45','2026-07-20 13:12:04','Consumo durante el servicio'),(57,10,8,2,1.0000,NULL,'SR#45','2026-07-20 13:12:04','Consumo durante el servicio'),(58,6,10,2,0.0400,NULL,'SR#47','2026-07-20 13:12:05','Consumo durante el servicio'),(59,5,10,2,0.0500,NULL,'SR#49','2026-07-21 13:12:06','Consumo durante el servicio'),(60,9,10,2,1.0000,NULL,'SR#49','2026-07-21 13:12:06','Consumo durante el servicio'),(61,5,9,2,0.0500,NULL,'SR#51','2026-07-21 13:12:06','Consumo durante el servicio'),(62,8,11,2,0.0200,NULL,'SR#52','2026-07-22 13:12:08','Consumo durante el servicio'),(63,6,10,2,0.0300,NULL,'SR#54','2026-07-22 13:12:08','Consumo durante el servicio'),(64,9,10,2,1.0000,NULL,'SR#54','2026-07-22 13:12:08','Consumo durante el servicio'),(65,6,11,2,0.0300,NULL,'SR#56','2026-07-22 13:12:08','Consumo durante el servicio'),(66,5,10,2,0.0500,NULL,'SR#57','2026-07-23 13:12:09','Consumo durante el servicio'),(67,9,10,2,1.0000,NULL,'SR#57','2026-07-23 13:12:09','Consumo durante el servicio'),(68,5,8,2,0.0400,NULL,'SR#58','2026-07-23 13:12:10','Consumo durante el servicio'),(69,5,9,2,0.0300,NULL,'SR#60','2026-07-23 13:12:11','Consumo durante el servicio'),(70,5,8,2,0.0400,NULL,'SR#61','2026-07-24 13:12:12','Consumo durante el servicio'),(71,8,10,2,0.0600,NULL,'SR#63','2026-07-24 13:12:12','Consumo durante el servicio'),(72,7,10,2,1.0000,NULL,'SR#63','2026-07-24 13:12:12','Consumo durante el servicio'),(74,5,9,2,0.0400,NULL,'SR#65','2026-07-25 13:12:14','Consumo durante el servicio'),(75,10,9,2,1.0000,NULL,'SR#65','2026-07-25 13:12:14','Consumo durante el servicio'),(76,6,10,2,0.0400,NULL,'SR#66','2026-07-25 13:12:14','Consumo durante el servicio'),(77,7,10,2,1.0000,NULL,'SR#66','2026-07-25 13:12:14','Consumo durante el servicio'),(78,5,11,2,0.0200,NULL,'SR#67','2026-07-25 13:12:15','Consumo durante el servicio'),(79,5,9,2,0.0500,NULL,'SR#68','2026-07-27 13:12:16','Consumo durante el servicio'),(81,6,9,2,0.0200,NULL,'SR#72','2026-07-28 13:12:17','Consumo durante el servicio'),(82,6,11,2,0.0300,NULL,'SR#74','2026-07-28 13:12:18','Consumo durante el servicio'),(83,6,9,2,0.0400,NULL,'SR#75','2026-07-29 13:12:19','Consumo durante el servicio'),(84,6,10,2,0.0400,NULL,'SR#76','2026-07-29 13:12:20','Consumo durante el servicio'),(86,5,11,2,0.0300,NULL,'SR#79','2026-07-30 13:12:21','Consumo durante el servicio'),(87,9,11,2,1.0000,NULL,'SR#79','2026-07-30 13:12:21','Consumo durante el servicio'),(88,6,9,2,0.0200,NULL,'SR#81','2026-07-30 13:12:21','Consumo durante el servicio'),(89,9,9,2,1.0000,NULL,'SR#81','2026-07-30 13:12:21','Consumo durante el servicio'),(90,8,10,2,0.0200,NULL,'SR#83','2026-07-30 13:12:22','Consumo durante el servicio'),(91,8,8,2,0.0300,NULL,'SR#84','2026-07-31 13:12:23','Consumo durante el servicio'),(93,5,11,2,0.0300,NULL,'SR#86','2026-07-31 13:12:24','Consumo durante el servicio'),(94,5,9,2,0.0400,NULL,'SR#88','2026-08-01 13:12:25','Consumo durante el servicio'),(95,7,9,2,1.0000,NULL,'SR#88','2026-08-01 13:12:25','Consumo durante el servicio'),(96,8,9,2,0.0400,NULL,'SR#89','2026-08-01 13:12:25','Consumo durante el servicio'),(97,8,10,2,0.0300,NULL,'SR#90','2026-08-01 13:12:26','Consumo durante el servicio'),(98,10,10,2,1.0000,NULL,'SR#90','2026-08-01 13:12:26','Consumo durante el servicio'),(100,8,9,2,0.0400,NULL,'SR#92','2026-08-01 13:12:27','Consumo durante el servicio'),(103,6,9,2,0.0400,NULL,'SR#96','2026-08-04 13:12:29','Consumo durante el servicio'),(104,6,10,2,0.0200,NULL,'SR#97','2026-08-04 13:12:30','Consumo durante el servicio'),(105,7,10,2,1.0000,NULL,'SR#97','2026-08-04 13:12:30','Consumo durante el servicio'),(107,8,8,2,0.0300,NULL,'SR#100','2026-08-05 13:12:31','Consumo durante el servicio'),(108,10,8,2,1.0000,NULL,'SR#100','2026-08-05 13:12:31','Consumo durante el servicio'),(109,6,8,2,0.0400,NULL,'SR#101','2026-08-06 13:12:32','Consumo durante el servicio'),(110,7,8,2,1.0000,NULL,'SR#101','2026-08-06 13:12:32','Consumo durante el servicio'),(111,6,11,2,0.0400,NULL,'SR#102','2026-08-06 13:12:33','Consumo durante el servicio'),(114,5,8,2,0.0300,NULL,'SR#107','2026-08-07 13:12:34','Consumo durante el servicio'),(116,8,10,2,0.0400,NULL,'SR#110','2026-08-07 13:12:35','Consumo durante el servicio');
+INSERT INTO `movimiento_inventario` VALUES (5,3,1,1,1,1.0000,50000.00,'COM#3','2026-08-04 22:21:51','Entrada por compra confirmada'),(6,4,1,1,1,2.0000,10000.00,'COM#3','2026-08-04 22:21:51','Entrada por compra confirmada'),(7,5,1,1,1,12.0000,85000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(8,6,1,1,1,10.0000,90000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(9,7,1,1,1,40.0000,45000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(10,8,1,1,1,8.0000,30000.00,'COM#4','2026-08-08 13:03:21','Entrada por compra confirmada'),(14,9,1,1,1,6.0000,25000.00,'COM#5','2026-08-08 13:03:21','Entrada por compra confirmada'),(15,10,1,1,1,12.0000,60000.00,'COM#5','2026-08-08 13:03:21','Entrada por compra confirmada'),(17,11,1,1,1,2.0000,85000.00,'COM#6','2026-08-08 13:03:21','Entrada por compra confirmada'),(18,8,1,10,2,0.0400,NULL,'SR#2','2026-08-08 13:08:57','Consumo durante el servicio'),(19,8,1,8,2,0.0300,NULL,'SR#4','2026-08-08 13:08:58','Consumo durante el servicio'),(20,11,1,8,2,1.0000,NULL,'SR#4','2026-08-08 13:08:58','Consumo durante el servicio'),(21,6,1,8,2,0.0500,NULL,'SR#6','2026-08-08 13:08:58','Consumo durante el servicio'),(22,3,1,8,2,1.0000,NULL,'SR#6','2026-08-08 13:08:58','Consumo durante el servicio'),(23,5,1,10,2,0.0400,NULL,'SR#8','2026-08-08 13:08:59','Consumo durante el servicio'),(24,8,1,8,2,0.0400,NULL,'SR#9','2026-08-08 13:09:00','Consumo durante el servicio'),(25,6,1,11,2,0.0300,NULL,'SR#11','2026-08-08 13:09:01','Consumo durante el servicio'),(26,6,1,9,2,0.0400,NULL,'SR#13','2026-08-08 13:09:01','Consumo durante el servicio'),(27,5,1,9,2,0.0500,NULL,'SR#16','2026-08-08 13:09:02','Consumo durante el servicio'),(28,5,1,8,2,0.0500,NULL,'SR#17','2026-07-10 13:11:50','Consumo durante el servicio'),(29,8,1,10,2,0.0200,NULL,'SR#18','2026-07-10 13:11:51','Consumo durante el servicio'),(30,6,1,11,2,0.0500,NULL,'SR#19','2026-07-10 13:11:51','Consumo durante el servicio'),(31,4,1,11,2,1.0000,NULL,'SR#19','2026-07-10 13:11:51','Consumo durante el servicio'),(32,5,1,9,2,0.0200,NULL,'SR#21','2026-07-10 13:11:52','Consumo durante el servicio'),(33,7,1,9,2,1.0000,NULL,'SR#21','2026-07-10 13:11:52','Consumo durante el servicio'),(34,6,1,8,2,0.0300,NULL,'SR#22','2026-07-11 13:11:53','Consumo durante el servicio'),(35,8,1,10,2,0.0200,NULL,'SR#24','2026-07-11 13:11:54','Consumo durante el servicio'),(36,5,1,8,2,0.0500,NULL,'SR#25','2026-07-13 13:11:55','Consumo durante el servicio'),(37,11,1,8,2,1.0000,NULL,'SR#25','2026-07-13 13:11:55','Consumo durante el servicio'),(39,5,1,10,2,0.0200,NULL,'SR#28','2026-07-14 13:11:56','Consumo durante el servicio'),(40,4,1,10,2,1.0000,NULL,'SR#28','2026-07-14 13:11:56','Consumo durante el servicio'),(41,6,1,10,2,0.0300,NULL,'SR#29','2026-07-14 13:11:56','Consumo durante el servicio'),(43,6,1,9,2,0.0200,NULL,'SR#32','2026-07-15 13:11:58','Consumo durante el servicio'),(44,6,1,9,2,0.0400,NULL,'SR#33','2026-07-16 13:11:59','Consumo durante el servicio'),(45,9,1,9,2,1.0000,NULL,'SR#33','2026-07-16 13:11:59','Consumo durante el servicio'),(46,6,1,11,2,0.0300,NULL,'SR#34','2026-07-16 13:11:59','Consumo durante el servicio'),(47,10,1,11,2,1.0000,NULL,'SR#34','2026-07-16 13:11:59','Consumo durante el servicio'),(48,8,1,11,2,0.0300,NULL,'SR#36','2026-07-16 13:12:00','Consumo durante el servicio'),(49,8,1,10,2,0.0600,NULL,'SR#37','2026-07-17 13:12:01','Consumo durante el servicio'),(50,10,1,10,2,1.0000,NULL,'SR#37','2026-07-17 13:12:01','Consumo durante el servicio'),(53,6,1,11,2,0.0200,NULL,'SR#42','2026-07-18 13:12:03','Consumo durante el servicio'),(54,5,1,11,2,0.0200,NULL,'SR#43','2026-07-18 13:12:03','Consumo durante el servicio'),(55,10,1,11,2,1.0000,NULL,'SR#43','2026-07-18 13:12:03','Consumo durante el servicio'),(56,5,1,8,2,0.0500,NULL,'SR#45','2026-07-20 13:12:04','Consumo durante el servicio'),(57,10,1,8,2,1.0000,NULL,'SR#45','2026-07-20 13:12:04','Consumo durante el servicio'),(58,6,1,10,2,0.0400,NULL,'SR#47','2026-07-20 13:12:05','Consumo durante el servicio'),(59,5,1,10,2,0.0500,NULL,'SR#49','2026-07-21 13:12:06','Consumo durante el servicio'),(60,9,1,10,2,1.0000,NULL,'SR#49','2026-07-21 13:12:06','Consumo durante el servicio'),(61,5,1,9,2,0.0500,NULL,'SR#51','2026-07-21 13:12:06','Consumo durante el servicio'),(62,8,1,11,2,0.0200,NULL,'SR#52','2026-07-22 13:12:08','Consumo durante el servicio'),(63,6,1,10,2,0.0300,NULL,'SR#54','2026-07-22 13:12:08','Consumo durante el servicio'),(64,9,1,10,2,1.0000,NULL,'SR#54','2026-07-22 13:12:08','Consumo durante el servicio'),(65,6,1,11,2,0.0300,NULL,'SR#56','2026-07-22 13:12:08','Consumo durante el servicio'),(66,5,1,10,2,0.0500,NULL,'SR#57','2026-07-23 13:12:09','Consumo durante el servicio'),(67,9,1,10,2,1.0000,NULL,'SR#57','2026-07-23 13:12:09','Consumo durante el servicio'),(68,5,1,8,2,0.0400,NULL,'SR#58','2026-07-23 13:12:10','Consumo durante el servicio'),(69,5,1,9,2,0.0300,NULL,'SR#60','2026-07-23 13:12:11','Consumo durante el servicio'),(70,5,1,8,2,0.0400,NULL,'SR#61','2026-07-24 13:12:12','Consumo durante el servicio'),(71,8,1,10,2,0.0600,NULL,'SR#63','2026-07-24 13:12:12','Consumo durante el servicio'),(72,7,1,10,2,1.0000,NULL,'SR#63','2026-07-24 13:12:12','Consumo durante el servicio'),(74,5,1,9,2,0.0400,NULL,'SR#65','2026-07-25 13:12:14','Consumo durante el servicio'),(75,10,1,9,2,1.0000,NULL,'SR#65','2026-07-25 13:12:14','Consumo durante el servicio'),(76,6,1,10,2,0.0400,NULL,'SR#66','2026-07-25 13:12:14','Consumo durante el servicio'),(77,7,1,10,2,1.0000,NULL,'SR#66','2026-07-25 13:12:14','Consumo durante el servicio'),(78,5,1,11,2,0.0200,NULL,'SR#67','2026-07-25 13:12:15','Consumo durante el servicio'),(79,5,1,9,2,0.0500,NULL,'SR#68','2026-07-27 13:12:16','Consumo durante el servicio'),(81,6,1,9,2,0.0200,NULL,'SR#72','2026-07-28 13:12:17','Consumo durante el servicio'),(82,6,1,11,2,0.0300,NULL,'SR#74','2026-07-28 13:12:18','Consumo durante el servicio'),(83,6,1,9,2,0.0400,NULL,'SR#75','2026-07-29 13:12:19','Consumo durante el servicio'),(84,6,1,10,2,0.0400,NULL,'SR#76','2026-07-29 13:12:20','Consumo durante el servicio'),(86,5,1,11,2,0.0300,NULL,'SR#79','2026-07-30 13:12:21','Consumo durante el servicio'),(87,9,1,11,2,1.0000,NULL,'SR#79','2026-07-30 13:12:21','Consumo durante el servicio'),(88,6,1,9,2,0.0200,NULL,'SR#81','2026-07-30 13:12:21','Consumo durante el servicio'),(89,9,1,9,2,1.0000,NULL,'SR#81','2026-07-30 13:12:21','Consumo durante el servicio'),(90,8,1,10,2,0.0200,NULL,'SR#83','2026-07-30 13:12:22','Consumo durante el servicio'),(91,8,1,8,2,0.0300,NULL,'SR#84','2026-07-31 13:12:23','Consumo durante el servicio'),(93,5,1,11,2,0.0300,NULL,'SR#86','2026-07-31 13:12:24','Consumo durante el servicio'),(94,5,1,9,2,0.0400,NULL,'SR#88','2026-08-01 13:12:25','Consumo durante el servicio'),(95,7,1,9,2,1.0000,NULL,'SR#88','2026-08-01 13:12:25','Consumo durante el servicio'),(96,8,1,9,2,0.0400,NULL,'SR#89','2026-08-01 13:12:25','Consumo durante el servicio'),(97,8,1,10,2,0.0300,NULL,'SR#90','2026-08-01 13:12:26','Consumo durante el servicio'),(98,10,1,10,2,1.0000,NULL,'SR#90','2026-08-01 13:12:26','Consumo durante el servicio'),(100,8,1,9,2,0.0400,NULL,'SR#92','2026-08-01 13:12:27','Consumo durante el servicio'),(103,6,1,9,2,0.0400,NULL,'SR#96','2026-08-04 13:12:29','Consumo durante el servicio'),(104,6,1,10,2,0.0200,NULL,'SR#97','2026-08-04 13:12:30','Consumo durante el servicio'),(105,7,1,10,2,1.0000,NULL,'SR#97','2026-08-04 13:12:30','Consumo durante el servicio'),(107,8,1,8,2,0.0300,NULL,'SR#100','2026-08-05 13:12:31','Consumo durante el servicio'),(108,10,1,8,2,1.0000,NULL,'SR#100','2026-08-05 13:12:31','Consumo durante el servicio'),(109,6,1,8,2,0.0400,NULL,'SR#101','2026-08-06 13:12:32','Consumo durante el servicio'),(110,7,1,8,2,1.0000,NULL,'SR#101','2026-08-06 13:12:32','Consumo durante el servicio'),(111,6,1,11,2,0.0400,NULL,'SR#102','2026-08-06 13:12:33','Consumo durante el servicio'),(114,5,1,8,2,0.0300,NULL,'SR#107','2026-08-07 13:12:34','Consumo durante el servicio'),(116,8,1,10,2,0.0400,NULL,'SR#110','2026-08-07 13:12:35','Consumo durante el servicio');
 /*!40000 ALTER TABLE `movimiento_inventario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1646,10 +1649,13 @@ BEGIN
   DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
   DECLARE v_lock  INT UNSIGNED DEFAULT NULL;
 
-  
-  
-  SELECT id_producto INTO v_lock FROM producto
-   WHERE id_producto = NEW.id_producto FOR UPDATE;
+  SELECT id_producto INTO v_lock FROM producto_sucursal
+   WHERE id_producto = NEW.id_producto AND id_sucursal = NEW.id_sucursal FOR UPDATE;
+
+  IF v_lock IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Ese producto no esta habilitado en esa sucursal.';
+  END IF;
 
   SELECT signo INTO v_signo FROM tipo_movimiento_inventario
    WHERE id_tipo_movimiento = NEW.id_tipo_movimiento;
@@ -1659,7 +1665,8 @@ BEGIN
       INTO v_stock
     FROM movimiento_inventario m
     JOIN tipo_movimiento_inventario t ON t.id_tipo_movimiento = m.id_tipo_movimiento
-    WHERE m.id_producto = NEW.id_producto;
+    WHERE m.id_producto = NEW.id_producto
+      AND m.id_sucursal = NEW.id_sucursal;
 
     IF v_stock - NEW.cantidad < 0 THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay stock suficiente para esa salida.';
@@ -1674,34 +1681,40 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_ai
-AFTER INSERT ON movimiento_inventario FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_movinv_ai AFTER INSERT ON movimiento_inventario
+FOR EACH ROW
 BEGIN
   DECLARE v_stock  DECIMAL(12,4) DEFAULT 0;
   DECLARE v_minimo DECIMAL(10,2) DEFAULT 0;
   DECLARE v_nombre VARCHAR(100);
+  DECLARE v_local  VARCHAR(100);
   DECLARE v_activo TINYINT(1) DEFAULT 0;
 
-  SELECT nombre, stock_minimo, activo INTO v_nombre, v_minimo, v_activo
-  FROM producto WHERE id_producto = NEW.id_producto;
+  SELECT p.nombre, ps.stock_minimo, ps.activo, su.nombre
+    INTO v_nombre, v_minimo, v_activo, v_local
+  FROM producto p
+  JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = NEW.id_sucursal
+  JOIN sucursal su ON su.id_sucursal = NEW.id_sucursal
+  WHERE p.id_producto = NEW.id_producto AND p.activo = 1;
 
-  SET v_stock = fn_producto_stock(NEW.id_producto);
+  SET v_stock = fn_producto_stock(NEW.id_producto, NEW.id_sucursal);
 
   IF v_activo = 1 AND v_stock <= v_minimo
      AND NOT EXISTS (SELECT 1 FROM notificacion
                       WHERE id_producto = NEW.id_producto
+                        AND id_sucursal = NEW.id_sucursal
                         AND id_tipo_notificacion = 5
                         AND estado = 'PENDIENTE') THEN
-    INSERT INTO notificacion (id_tipo_notificacion, id_producto, canal, mensaje, estado)
-    VALUES (5, NEW.id_producto, 'SISTEMA',
+    INSERT INTO notificacion (id_tipo_notificacion, id_producto, id_sucursal, canal, mensaje, estado)
+    VALUES (5, NEW.id_producto, NEW.id_sucursal, 'SISTEMA',
             CONCAT('El producto ', v_nombre, ' quedo en ', v_stock,
-                   ' (minimo ', v_minimo, '). Conviene reponer.'),
+                   ' (minimo ', v_minimo, ') en ', v_local, '. Conviene reponer.'),
             'PENDIENTE');
   END IF;
 END */;;
@@ -1732,7 +1745,7 @@ CREATE TABLE `movimiento_punto` (
   CONSTRAINT `fk_mp_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mp_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_mp_tipo` CHECK (`tipo` = 'ACUMULA' and `puntos` > 0 or `tipo` = 'CANJE' and `puntos` < 0 or `tipo` = 'AJUSTE' and `puntos` <> 0)
-) ENGINE=InnoDB AUTO_INCREMENT=208 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=307 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1811,6 +1824,7 @@ CREATE TABLE `notificacion` (
   `id_usuario` int(10) unsigned DEFAULT NULL,
   `id_cita` int(10) unsigned DEFAULT NULL,
   `id_producto` int(10) unsigned DEFAULT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `canal` varchar(20) NOT NULL DEFAULT 'SISTEMA',
   `mensaje` varchar(300) DEFAULT NULL,
   `estado` varchar(20) NOT NULL DEFAULT 'PENDIENTE',
@@ -1823,14 +1837,16 @@ CREATE TABLE `notificacion` (
   KEY `idx_notif_cita` (`id_cita`),
   KEY `idx_notif_producto` (`id_producto`),
   KEY `idx_notif_estado` (`estado`),
+  KEY `fk_notif_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_notif_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_notif_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_notif_tipo` FOREIGN KEY (`id_tipo_notificacion`) REFERENCES `tipo_notificacion` (`id_tipo_notificacion`) ON UPDATE CASCADE,
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB AUTO_INCREMENT=522 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=622 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1839,7 +1855,7 @@ CREATE TABLE `notificacion` (
 
 LOCK TABLES `notificacion` WRITE;
 /*!40000 ALTER TABLE `notificacion` DISABLE KEYS */;
-INSERT INTO `notificacion` VALUES (1,2,9,NULL,3,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:35'),(2,2,7,NULL,4,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:40'),(3,2,27,NULL,5,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:44'),(4,2,8,NULL,6,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:48'),(5,2,5,NULL,7,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 17:20.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:53'),(6,2,9,NULL,8,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:15.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:57'),(7,2,7,NULL,9,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:25.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:06:01'),(8,2,5,NULL,10,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:10.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:05'),(9,2,10,NULL,11,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:09'),(10,2,7,NULL,12,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:13'),(11,2,7,NULL,13,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:03'),(12,2,12,NULL,14,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:08'),(13,2,18,NULL,15,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:12'),(14,2,8,NULL,16,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:20'),(15,2,5,NULL,17,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:25'),(16,2,14,NULL,18,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 15:25.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:29'),(17,2,8,NULL,19,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 16:15.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:35'),(18,2,1,NULL,20,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:39'),(19,2,1,NULL,21,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 09:45.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:43'),(20,2,11,NULL,22,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:49'),(21,2,10,NULL,23,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:16:58'),(22,2,1,NULL,24,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:17:03'),(23,2,33,NULL,25,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:17:07'),(24,2,14,NULL,26,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 11:25.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:11'),(25,2,21,NULL,27,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:50.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:16'),(26,2,30,NULL,28,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:27'),(27,2,22,NULL,29,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:31'),(28,2,8,NULL,30,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:36'),(29,2,9,NULL,31,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:40'),(30,2,10,NULL,32,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 16:05.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:44'),(31,2,7,NULL,33,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:28'),(32,2,34,NULL,34,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 18:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:32'),(33,2,19,NULL,35,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:45.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:37'),(34,2,1,NULL,36,NULL,'EMAIL','Cita confirmada para el 17/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:41'),(35,2,12,NULL,37,NULL,'EMAIL','Cita confirmada para el 18/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:45'),(36,2,7,NULL,38,NULL,'EMAIL','Cita confirmada para el 18/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:49'),(37,2,9,NULL,39,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:54'),(38,2,34,NULL,40,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:22:58'),(39,2,7,NULL,41,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:23:02'),(40,2,16,NULL,42,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:23:06'),(41,2,31,NULL,43,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:30'),(42,2,5,NULL,44,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:35'),(43,2,12,NULL,45,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:39'),(44,2,32,NULL,46,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:43'),(45,1,9,NULL,3,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 13:30 con Sofía Espínola.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:49'),(46,1,27,NULL,5,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 13:30 con Marta Cáceres.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:53'),(47,1,5,NULL,7,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 17:20 con Marta Cáceres.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:57'),(48,2,24,NULL,47,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:13','2026-08-08 13:29:01'),(49,2,9,NULL,48,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:29:06'),(50,2,7,NULL,49,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:29:10'),(51,2,10,NULL,50,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:55.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:32'),(52,2,5,NULL,51,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:36'),(53,2,26,NULL,52,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:40'),(54,2,7,NULL,53,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:44'),(55,2,8,NULL,54,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 11:05.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:48'),(56,2,32,NULL,55,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:33:52'),(57,2,1,NULL,56,NULL,'EMAIL','Cita confirmada para el 24/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:33:56'),(58,2,12,NULL,57,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:01'),(59,2,17,NULL,58,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 08:35.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:05'),(60,2,25,NULL,59,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:09'),(61,2,8,NULL,60,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 09:20.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:15'),(62,2,12,NULL,61,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:20'),(63,2,12,NULL,62,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:24'),(64,2,9,NULL,63,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:28'),(65,2,23,NULL,64,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:32'),(66,2,9,NULL,65,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:36'),(67,2,8,NULL,66,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:40'),(68,2,5,NULL,67,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:45'),(69,2,5,NULL,68,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:49'),(70,2,10,NULL,69,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 14:05.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:34:53'),(71,2,11,NULL,70,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 15:30.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:34:57'),(72,2,7,NULL,71,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 16:35.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:01'),(73,2,10,NULL,72,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:05'),(74,2,9,NULL,73,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:09'),(75,2,8,NULL,74,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:14'),(76,2,23,NULL,75,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 11:10.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:19'),(77,2,28,NULL,76,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 16:05.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:24'),(78,2,19,NULL,77,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:28'),(79,2,23,NULL,78,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:32'),(80,2,12,NULL,79,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 14:50.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:36'),(81,2,31,NULL,80,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:41'),(82,2,8,NULL,81,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:45'),(83,2,5,NULL,82,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:50'),(84,2,9,NULL,83,NULL,'EMAIL','Cita confirmada para el 02/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:54'),(85,2,22,NULL,84,NULL,'EMAIL','Cita confirmada para el 02/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:58'),(86,2,10,NULL,85,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:02'),(87,2,11,NULL,86,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 14:35.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:06'),(88,2,30,NULL,87,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 15:40.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:11'),(89,2,12,NULL,88,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:15'),(90,2,31,NULL,89,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:20'),(91,2,12,NULL,90,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 16:35.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:24'),(92,2,30,NULL,91,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 17:55.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:29'),(93,2,12,NULL,92,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:34'),(94,2,1,NULL,93,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:38'),(95,2,25,NULL,94,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:43'),(96,2,7,NULL,95,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 10:35.','ENVIADA','2026-08-08 13:06:22','2026-08-08 13:36:47'),(97,2,10,NULL,96,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 13:35.','ENVIADA','2026-08-08 13:06:22','2026-08-08 13:36:51'),(98,5,NULL,NULL,NULL,3,'SISTEMA','El producto Tintura quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:08:58',NULL),(99,2,10,NULL,97,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:50','2026-08-08 13:36:56'),(100,2,12,NULL,98,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:50','2026-08-08 13:37:00'),(101,2,7,NULL,99,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:51','2026-08-08 13:37:04'),(102,2,8,NULL,100,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:52','2026-08-08 16:50:42'),(103,2,9,NULL,101,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:47'),(104,3,9,NULL,101,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:51'),(105,2,5,NULL,102,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:56'),(106,2,1,NULL,103,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:11:54','2026-08-08 16:51:02'),(107,2,29,NULL,104,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:54','2026-08-08 16:51:07'),(108,2,20,NULL,105,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:55','2026-08-08 16:51:12'),(109,5,NULL,NULL,NULL,11,'SISTEMA','El producto Shampoo  profesional 1L quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:11:55',NULL),(110,2,8,NULL,106,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:55:33'),(111,2,34,NULL,107,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:51:29'),(112,5,NULL,NULL,NULL,4,'SISTEMA','El producto guantes de latex quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:11:56',NULL),(113,2,7,NULL,108,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:51:34'),(114,2,7,NULL,109,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:57','2026-08-08 16:51:38'),(115,2,27,NULL,110,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:57','2026-08-08 16:51:44'),(116,2,9,NULL,111,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:11:58','2026-08-08 16:51:58'),(117,2,12,NULL,112,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:59','2026-08-08 16:52:04'),(118,2,1,NULL,113,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:59','2026-08-08 16:52:09'),(119,2,7,NULL,114,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:00','2026-08-08 16:52:14'),(120,2,11,NULL,115,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:01','2026-08-08 16:55:38'),(121,2,8,NULL,116,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:01','2026-08-08 16:52:39'),(122,2,11,NULL,117,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:02','2026-08-08 16:52:45'),(123,2,9,NULL,118,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:52:57'),(124,2,34,NULL,119,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:02'),(125,3,34,NULL,119,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:07'),(126,2,9,NULL,120,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:11'),(127,2,10,NULL,121,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:04','2026-08-08 16:53:16'),(128,2,20,NULL,122,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:05','2026-08-08 16:53:21'),(129,2,12,NULL,123,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:06','2026-08-08 16:53:26'),(130,2,12,NULL,124,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:06','2026-08-08 16:53:31'),(131,2,9,NULL,125,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:07','2026-08-08 16:53:36'),(132,2,12,NULL,126,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:08','2026-08-08 16:53:40'),(133,2,8,NULL,127,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:08','2026-08-08 16:53:45'),(134,2,8,NULL,128,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:09','2026-08-08 16:53:51'),(135,5,NULL,NULL,NULL,9,'SISTEMA','El producto Guantes de latex (caja) quedo en 2.00 (minimo 2.00). Conviene reponer.','PENDIENTE','2026-08-08 13:12:09',NULL),(136,2,1,NULL,129,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:10','2026-08-08 16:53:55'),(137,2,33,NULL,130,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:11','2026-08-08 16:54:02'),(138,2,12,NULL,131,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:11','2026-08-08 16:54:07'),(139,2,10,NULL,132,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:12','2026-08-08 16:54:12'),(140,2,17,NULL,133,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:13','2026-08-08 16:54:17'),(141,2,34,NULL,134,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:13','2026-08-08 16:54:22'),(142,2,11,NULL,135,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:14','2026-08-08 16:54:27'),(143,2,17,NULL,136,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:15','2026-08-08 16:54:32'),(144,2,1,NULL,137,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:16','2026-08-08 16:54:37'),(145,2,1,NULL,138,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:16','2026-08-08 16:54:42'),(146,2,12,NULL,139,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:17','2026-08-08 16:54:47'),(147,2,23,NULL,140,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:17','2026-08-08 16:54:52'),(148,2,8,NULL,141,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:18','2026-08-08 16:54:57'),(149,2,7,NULL,142,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:02'),(150,3,7,NULL,142,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:07'),(151,2,10,NULL,143,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:12'),(152,2,12,NULL,144,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:20','2026-08-08 16:55:18'),(153,2,9,NULL,145,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:20','2026-08-08 16:55:23'),(154,2,12,NULL,146,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:21','2026-08-08 16:55:28'),(155,2,15,NULL,147,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:21','2026-08-08 16:55:43'),(156,2,5,NULL,148,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:22','2026-08-08 16:55:48'),(157,2,9,NULL,149,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:23','2026-08-08 16:55:53'),(158,2,13,NULL,150,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:23','2026-08-08 16:55:58'),(159,2,12,NULL,151,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:24','2026-08-08 16:56:02'),(160,2,22,NULL,152,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:25','2026-08-08 16:56:07'),(161,2,20,NULL,153,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:25','2026-08-08 16:56:13'),(162,2,25,NULL,154,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:26','2026-08-08 16:56:17'),(163,2,9,NULL,155,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:27','2026-08-08 16:56:22'),(164,2,5,NULL,156,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 17:45.','ENVIADA','2026-08-08 13:12:27','2026-08-08 16:56:27'),(165,2,10,NULL,157,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:32'),(166,2,1,NULL,158,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:37'),(167,3,1,NULL,158,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:41'),(168,2,10,NULL,159,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:29','2026-08-08 16:56:46'),(169,2,11,NULL,160,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:29','2026-08-08 16:56:51'),(170,2,1,NULL,161,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:30','2026-08-08 16:56:56'),(171,2,32,NULL,162,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:31','2026-08-08 16:57:01'),(172,2,10,NULL,163,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:31','2026-08-08 16:57:06'),(173,5,NULL,NULL,NULL,10,'SISTEMA','El producto Serum reparador 100ml quedo en 5.00 (minimo 5.00). Conviene reponer.','PENDIENTE','2026-08-08 13:12:31',NULL),(174,2,13,NULL,164,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:32','2026-08-08 16:57:10'),(175,2,12,NULL,165,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:15'),(176,2,14,NULL,166,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:26'),(177,3,14,NULL,166,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:31'),(178,2,8,NULL,167,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:36'),(179,2,1,NULL,168,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:34','2026-08-08 16:57:41'),(180,2,5,NULL,169,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:34','2026-08-08 16:57:47'),(181,2,8,NULL,170,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:35','2026-08-08 16:57:52'),(182,2,1,NULL,171,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:12:35','2026-08-08 16:57:56'),(183,3,12,NULL,37,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 18/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:15:02','2026-08-08 16:58:01'),(184,3,9,NULL,39,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 19/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:15:02','2026-08-08 16:58:06'),(185,3,12,NULL,37,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 18/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:17:46','2026-08-08 16:58:11'),(186,3,9,NULL,39,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 19/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:17:46','2026-08-08 16:58:16'),(187,2,1,NULL,172,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 09:00.','ENVIADA','2026-08-08 13:25:01','2026-08-08 16:58:21'),(188,2,1,NULL,173,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:30.','ENVIADA','2026-08-08 13:25:54','2026-08-08 16:58:25'),(189,2,11,NULL,174,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 14:00.','ENVIADA','2026-08-08 16:59:58','2026-08-10 16:31:24'),(190,1,12,NULL,14,NULL,'EMAIL','Te recordamos tu cita del 11/08/2026 a las 13:30 con Sofía Espínola.','ENVIADA','2026-08-10 16:31:24','2026-08-10 16:31:24'),(191,1,1,NULL,172,NULL,'EMAIL','Te recordamos tu cita del 11/08/2026 a las 09:00 con Rocío Duarte.','ENVIADA','2026-08-10 16:31:24','2026-08-10 16:31:24'),(342,1,22,NULL,29,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:00 con Rocío Duarte.','ENVIADA','2026-08-14 15:49:23','2026-08-14 15:49:28'),(343,1,8,NULL,30,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:00 con Lucía Benítez.','PENDIENTE','2026-08-14 15:49:23',NULL),(344,1,9,NULL,31,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 13:30 con Marta Cáceres.','PENDIENTE','2026-08-14 15:49:23',NULL),(345,1,7,NULL,33,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 10:05 con Lucía Benítez.','PENDIENTE','2026-08-14 15:49:23',NULL),(346,1,19,NULL,35,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:45 con Rocío Duarte.','PENDIENTE','2026-08-14 15:49:23',NULL);
+INSERT INTO `notificacion` VALUES (1,2,9,NULL,3,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:35'),(2,2,7,NULL,4,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:40'),(3,2,27,NULL,5,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:44'),(4,2,8,NULL,6,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:48'),(5,2,5,NULL,7,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 17:20.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:53'),(6,2,9,NULL,8,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:15.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:05:57'),(7,2,7,NULL,9,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:25.','ENVIADA','2026-08-08 13:05:25','2026-08-08 13:06:01'),(8,2,5,NULL,10,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:10.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:05'),(9,2,10,NULL,11,NULL,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:09'),(10,2,7,NULL,12,NULL,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:06:13'),(11,2,7,NULL,13,NULL,NULL,'EMAIL','Cita confirmada para el 10/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:03'),(12,2,12,NULL,14,NULL,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:08'),(13,2,18,NULL,15,NULL,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:12'),(14,2,8,NULL,16,NULL,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:20'),(15,2,5,NULL,17,NULL,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:26','2026-08-08 13:11:25'),(16,2,14,NULL,18,NULL,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 15:25.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:29'),(17,2,8,NULL,19,NULL,NULL,'EMAIL','Cita confirmada para el 12/08/2026 a las 16:15.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:35'),(18,2,1,NULL,20,NULL,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:39'),(19,2,1,NULL,21,NULL,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 09:45.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:43'),(20,2,11,NULL,22,NULL,NULL,'EMAIL','Cita confirmada para el 13/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:11:49'),(21,2,10,NULL,23,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:16:58'),(22,2,1,NULL,24,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:17:03'),(23,2,33,NULL,25,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:27','2026-08-08 13:17:07'),(24,2,14,NULL,26,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 11:25.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:11'),(25,2,21,NULL,27,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 13:50.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:16'),(26,2,30,NULL,28,NULL,NULL,'EMAIL','Cita confirmada para el 14/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:27'),(27,2,22,NULL,29,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:31'),(28,2,8,NULL,30,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:36'),(29,2,9,NULL,31,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:40'),(30,2,10,NULL,32,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 16:05.','ENVIADA','2026-08-08 13:05:28','2026-08-08 13:17:44'),(31,2,7,NULL,33,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:28'),(32,2,34,NULL,34,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 18:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:32'),(33,2,19,NULL,35,NULL,NULL,'EMAIL','Cita confirmada para el 15/08/2026 a las 08:45.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:37'),(34,2,1,NULL,36,NULL,NULL,'EMAIL','Cita confirmada para el 17/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:41'),(35,2,12,NULL,37,NULL,NULL,'EMAIL','Cita confirmada para el 18/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:45'),(36,2,7,NULL,38,NULL,NULL,'EMAIL','Cita confirmada para el 18/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:49'),(37,2,9,NULL,39,NULL,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:29','2026-08-08 13:22:54'),(38,2,34,NULL,40,NULL,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:22:58'),(39,2,7,NULL,41,NULL,NULL,'EMAIL','Cita confirmada para el 19/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:23:02'),(40,2,16,NULL,42,NULL,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:23:06'),(41,2,31,NULL,43,NULL,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:30'),(42,2,5,NULL,44,NULL,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:35'),(43,2,12,NULL,45,NULL,NULL,'EMAIL','Cita confirmada para el 20/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:39'),(44,2,32,NULL,46,NULL,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:05:30','2026-08-08 13:28:43'),(45,1,9,NULL,3,NULL,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 13:30 con Sofía Espínola.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:49'),(46,1,27,NULL,5,NULL,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 13:30 con Marta Cáceres.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:53'),(47,1,5,NULL,7,NULL,NULL,'EMAIL','Te recordamos tu cita del 08/08/2026 a las 17:20 con Marta Cáceres.','ENVIADA','2026-08-08 13:05:31','2026-08-08 13:28:57'),(48,2,24,NULL,47,NULL,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:13','2026-08-08 13:29:01'),(49,2,9,NULL,48,NULL,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:29:06'),(50,2,7,NULL,49,NULL,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:29:10'),(51,2,10,NULL,50,NULL,NULL,'EMAIL','Cita confirmada para el 21/08/2026 a las 08:55.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:32'),(52,2,5,NULL,51,NULL,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:36'),(53,2,26,NULL,52,NULL,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:40'),(54,2,7,NULL,53,NULL,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:44'),(55,2,8,NULL,54,NULL,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 11:05.','ENVIADA','2026-08-08 13:06:14','2026-08-08 13:33:48'),(56,2,32,NULL,55,NULL,NULL,'EMAIL','Cita confirmada para el 22/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:33:52'),(57,2,1,NULL,56,NULL,NULL,'EMAIL','Cita confirmada para el 24/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:33:56'),(58,2,12,NULL,57,NULL,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:01'),(59,2,17,NULL,58,NULL,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 08:35.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:05'),(60,2,25,NULL,59,NULL,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:09'),(61,2,8,NULL,60,NULL,NULL,'EMAIL','Cita confirmada para el 25/08/2026 a las 09:20.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:15'),(62,2,12,NULL,61,NULL,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:15','2026-08-08 13:34:20'),(63,2,12,NULL,62,NULL,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:24'),(64,2,9,NULL,63,NULL,NULL,'EMAIL','Cita confirmada para el 26/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:28'),(65,2,23,NULL,64,NULL,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:32'),(66,2,9,NULL,65,NULL,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:36'),(67,2,8,NULL,66,NULL,NULL,'EMAIL','Cita confirmada para el 27/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:40'),(68,2,5,NULL,67,NULL,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:45'),(69,2,5,NULL,68,NULL,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:16','2026-08-08 13:34:49'),(70,2,10,NULL,69,NULL,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 14:05.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:34:53'),(71,2,11,NULL,70,NULL,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 15:30.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:34:57'),(72,2,7,NULL,71,NULL,NULL,'EMAIL','Cita confirmada para el 28/08/2026 a las 16:35.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:01'),(73,2,10,NULL,72,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:05'),(74,2,9,NULL,73,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:09'),(75,2,8,NULL,74,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 10:05.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:14'),(76,2,23,NULL,75,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 11:10.','ENVIADA','2026-08-08 13:06:17','2026-08-08 13:35:19'),(77,2,28,NULL,76,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 16:05.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:24'),(78,2,19,NULL,77,NULL,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:28'),(79,2,23,NULL,78,NULL,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:32'),(80,2,12,NULL,79,NULL,NULL,'EMAIL','Cita confirmada para el 31/08/2026 a las 14:50.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:36'),(81,2,31,NULL,80,NULL,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:18','2026-08-08 13:35:41'),(82,2,8,NULL,81,NULL,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:45'),(83,2,5,NULL,82,NULL,NULL,'EMAIL','Cita confirmada para el 01/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:50'),(84,2,9,NULL,83,NULL,NULL,'EMAIL','Cita confirmada para el 02/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:54'),(85,2,22,NULL,84,NULL,NULL,'EMAIL','Cita confirmada para el 02/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:35:58'),(86,2,10,NULL,85,NULL,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:02'),(87,2,11,NULL,86,NULL,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 14:35.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:06'),(88,2,30,NULL,87,NULL,NULL,'EMAIL','Cita confirmada para el 03/09/2026 a las 15:40.','ENVIADA','2026-08-08 13:06:19','2026-08-08 13:36:11'),(89,2,12,NULL,88,NULL,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:15'),(90,2,31,NULL,89,NULL,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:20'),(91,2,12,NULL,90,NULL,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 16:35.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:24'),(92,2,30,NULL,91,NULL,NULL,'EMAIL','Cita confirmada para el 04/09/2026 a las 17:55.','ENVIADA','2026-08-08 13:06:20','2026-08-08 13:36:29'),(93,2,12,NULL,92,NULL,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:34'),(94,2,1,NULL,93,NULL,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 13:30.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:38'),(95,2,25,NULL,94,NULL,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 08:00.','ENVIADA','2026-08-08 13:06:21','2026-08-08 13:36:43'),(96,2,7,NULL,95,NULL,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 10:35.','ENVIADA','2026-08-08 13:06:22','2026-08-08 13:36:47'),(97,2,10,NULL,96,NULL,NULL,'EMAIL','Cita confirmada para el 05/09/2026 a las 13:35.','ENVIADA','2026-08-08 13:06:22','2026-08-08 13:36:51'),(98,5,NULL,NULL,NULL,3,NULL,'SISTEMA','El producto Tintura quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:08:58',NULL),(99,2,10,NULL,97,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:50','2026-08-08 13:36:56'),(100,2,12,NULL,98,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:50','2026-08-08 13:37:00'),(101,2,7,NULL,99,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:51','2026-08-08 13:37:04'),(102,2,8,NULL,100,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:52','2026-08-08 16:50:42'),(103,2,9,NULL,101,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:47'),(104,3,9,NULL,101,NULL,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:51'),(105,2,5,NULL,102,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:53','2026-08-08 16:50:56'),(106,2,1,NULL,103,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:11:54','2026-08-08 16:51:02'),(107,2,29,NULL,104,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:54','2026-08-08 16:51:07'),(108,2,20,NULL,105,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:55','2026-08-08 16:51:12'),(109,5,NULL,NULL,NULL,11,NULL,'SISTEMA','El producto Shampoo  profesional 1L quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:11:55',NULL),(110,2,8,NULL,106,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:55:33'),(111,2,34,NULL,107,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:51:29'),(112,5,NULL,NULL,NULL,4,NULL,'SISTEMA','El producto guantes de latex quedo en 0.00 (minimo 0.00). Conviene reponer.','PENDIENTE','2026-08-08 13:11:56',NULL),(113,2,7,NULL,108,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:11:56','2026-08-08 16:51:34'),(114,2,7,NULL,109,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:11:57','2026-08-08 16:51:38'),(115,2,27,NULL,110,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:57','2026-08-08 16:51:44'),(116,2,9,NULL,111,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:11:58','2026-08-08 16:51:58'),(117,2,12,NULL,112,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:59','2026-08-08 16:52:04'),(118,2,1,NULL,113,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:11:59','2026-08-08 16:52:09'),(119,2,7,NULL,114,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:00','2026-08-08 16:52:14'),(120,2,11,NULL,115,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:01','2026-08-08 16:55:38'),(121,2,8,NULL,116,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:01','2026-08-08 16:52:39'),(122,2,11,NULL,117,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:02','2026-08-08 16:52:45'),(123,2,9,NULL,118,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:52:57'),(124,2,34,NULL,119,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:02'),(125,3,34,NULL,119,NULL,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:07'),(126,2,9,NULL,120,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:03','2026-08-08 16:53:11'),(127,2,10,NULL,121,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:04','2026-08-08 16:53:16'),(128,2,20,NULL,122,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:05','2026-08-08 16:53:21'),(129,2,12,NULL,123,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:06','2026-08-08 16:53:26'),(130,2,12,NULL,124,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:06','2026-08-08 16:53:31'),(131,2,9,NULL,125,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:07','2026-08-08 16:53:36'),(132,2,12,NULL,126,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:08','2026-08-08 16:53:40'),(133,2,8,NULL,127,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:08','2026-08-08 16:53:45'),(134,2,8,NULL,128,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:09','2026-08-08 16:53:51'),(135,5,NULL,NULL,NULL,9,NULL,'SISTEMA','El producto Guantes de latex (caja) quedo en 2.00 (minimo 2.00). Conviene reponer.','PENDIENTE','2026-08-08 13:12:09',NULL),(136,2,1,NULL,129,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:10','2026-08-08 16:53:55'),(137,2,33,NULL,130,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:11','2026-08-08 16:54:02'),(138,2,12,NULL,131,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:11','2026-08-08 16:54:07'),(139,2,10,NULL,132,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:12','2026-08-08 16:54:12'),(140,2,17,NULL,133,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:13','2026-08-08 16:54:17'),(141,2,34,NULL,134,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:13','2026-08-08 16:54:22'),(142,2,11,NULL,135,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:14','2026-08-08 16:54:27'),(143,2,17,NULL,136,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:15','2026-08-08 16:54:32'),(144,2,1,NULL,137,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:16','2026-08-08 16:54:37'),(145,2,1,NULL,138,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:16','2026-08-08 16:54:42'),(146,2,12,NULL,139,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:17','2026-08-08 16:54:47'),(147,2,23,NULL,140,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:17','2026-08-08 16:54:52'),(148,2,8,NULL,141,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:18','2026-08-08 16:54:57'),(149,2,7,NULL,142,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:02'),(150,3,7,NULL,142,NULL,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:07'),(151,2,10,NULL,143,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:19','2026-08-08 16:55:12'),(152,2,12,NULL,144,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:20','2026-08-08 16:55:18'),(153,2,9,NULL,145,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:20','2026-08-08 16:55:23'),(154,2,12,NULL,146,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:21','2026-08-08 16:55:28'),(155,2,15,NULL,147,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:21','2026-08-08 16:55:43'),(156,2,5,NULL,148,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:22','2026-08-08 16:55:48'),(157,2,9,NULL,149,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:23','2026-08-08 16:55:53'),(158,2,13,NULL,150,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:23','2026-08-08 16:55:58'),(159,2,12,NULL,151,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:24','2026-08-08 16:56:02'),(160,2,22,NULL,152,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:25','2026-08-08 16:56:07'),(161,2,20,NULL,153,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 16:30.','ENVIADA','2026-08-08 13:12:25','2026-08-08 16:56:13'),(162,2,25,NULL,154,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:26','2026-08-08 16:56:17'),(163,2,9,NULL,155,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:27','2026-08-08 16:56:22'),(164,2,5,NULL,156,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 17:45.','ENVIADA','2026-08-08 13:12:27','2026-08-08 16:56:27'),(165,2,10,NULL,157,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:32'),(166,2,1,NULL,158,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:37'),(167,3,1,NULL,158,NULL,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:28','2026-08-08 16:56:41'),(168,2,10,NULL,159,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:29','2026-08-08 16:56:46'),(169,2,11,NULL,160,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:29','2026-08-08 16:56:51'),(170,2,1,NULL,161,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:30','2026-08-08 16:56:56'),(171,2,32,NULL,162,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:31','2026-08-08 16:57:01'),(172,2,10,NULL,163,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:31','2026-08-08 16:57:06'),(173,5,NULL,NULL,NULL,10,NULL,'SISTEMA','El producto Serum reparador 100ml quedo en 5.00 (minimo 5.00). Conviene reponer.','PENDIENTE','2026-08-08 13:12:31',NULL),(174,2,13,NULL,164,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:32','2026-08-08 16:57:10'),(175,2,12,NULL,165,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:15'),(176,2,14,NULL,166,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:26'),(177,3,14,NULL,166,NULL,NULL,'EMAIL','Tu cita fue cancelada.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:31'),(178,2,8,NULL,167,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:12:33','2026-08-08 16:57:36'),(179,2,1,NULL,168,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 15:00.','ENVIADA','2026-08-08 13:12:34','2026-08-08 16:57:41'),(180,2,5,NULL,169,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:34','2026-08-08 16:57:47'),(181,2,8,NULL,170,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 09:30.','ENVIADA','2026-08-08 13:12:35','2026-08-08 16:57:52'),(182,2,1,NULL,171,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 11:00.','ENVIADA','2026-08-08 13:12:35','2026-08-08 16:57:56'),(183,3,12,NULL,37,NULL,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 18/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:15:02','2026-08-08 16:58:01'),(184,3,9,NULL,39,NULL,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 19/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:15:02','2026-08-08 16:58:06'),(185,3,12,NULL,37,NULL,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 18/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:17:46','2026-08-08 16:58:11'),(186,3,9,NULL,39,NULL,NULL,'EMAIL','Marta Cáceres no va a estar disponible el 19/08/2026 a las 13:30 (Vacaciones). Podés reprogramar tu cita o elegir otro profesional.','ENVIADA','2026-08-08 13:17:46','2026-08-08 16:58:16'),(187,2,1,NULL,172,NULL,NULL,'EMAIL','Cita confirmada para el 11/08/2026 a las 09:00.','ENVIADA','2026-08-08 13:25:01','2026-08-08 16:58:21'),(188,2,1,NULL,173,NULL,NULL,'EMAIL','Cita confirmada para el 08/08/2026 a las 08:30.','ENVIADA','2026-08-08 13:25:54','2026-08-08 16:58:25'),(189,2,11,NULL,174,NULL,NULL,'EMAIL','Cita confirmada para el 29/08/2026 a las 14:00.','ENVIADA','2026-08-08 16:59:58','2026-08-10 16:31:24'),(190,1,12,NULL,14,NULL,NULL,'EMAIL','Te recordamos tu cita del 11/08/2026 a las 13:30 con Sofía Espínola.','ENVIADA','2026-08-10 16:31:24','2026-08-10 16:31:24'),(191,1,1,NULL,172,NULL,NULL,'EMAIL','Te recordamos tu cita del 11/08/2026 a las 09:00 con Rocío Duarte.','ENVIADA','2026-08-10 16:31:24','2026-08-10 16:31:24'),(342,1,22,NULL,29,NULL,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:00 con Rocío Duarte.','ENVIADA','2026-08-14 15:49:23','2026-08-14 15:49:28'),(343,1,8,NULL,30,NULL,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:00 con Lucía Benítez.','PENDIENTE','2026-08-14 15:49:23',NULL),(344,1,9,NULL,31,NULL,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 13:30 con Marta Cáceres.','PENDIENTE','2026-08-14 15:49:23',NULL),(345,1,7,NULL,33,NULL,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 10:05 con Lucía Benítez.','PENDIENTE','2026-08-14 15:49:23',NULL),(346,1,19,NULL,35,NULL,NULL,'EMAIL','Te recordamos tu cita del 15/08/2026 a las 08:45 con Rocío Duarte.','PENDIENTE','2026-08-14 15:49:23',NULL),(604,5,NULL,NULL,NULL,10,1,'SISTEMA','El producto Serum reparador 100ml quedo en 0.0000 (minimo 5.00) en Peluqueria (local unico). Conviene reponer.','PENDIENTE','2026-08-17 08:50:25',NULL);
 /*!40000 ALTER TABLE `notificacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1871,7 +1887,7 @@ CREATE TABLE `pago_personal` (
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario_registro` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=57 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2100,11 +2116,9 @@ DROP TABLE IF EXISTS `producto`;
 CREATE TABLE `producto` (
   `id_producto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria` int(10) unsigned NOT NULL,
-  `id_sucursal` int(10) unsigned NOT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `unidad_medida` varchar(20) NOT NULL DEFAULT 'unidad',
-  `stock_minimo` decimal(10,2) NOT NULL DEFAULT 0.00,
   `precio_costo` decimal(12,2) NOT NULL DEFAULT 0.00,
   `precio_venta` decimal(12,2) NOT NULL DEFAULT 0.00,
   `tasa_iva` tinyint(3) unsigned NOT NULL DEFAULT 10,
@@ -2114,10 +2128,7 @@ CREATE TABLE `producto` (
   PRIMARY KEY (`id_producto`),
   KEY `idx_producto_categoria` (`id_categoria`),
   KEY `idx_producto_nombre` (`nombre`),
-  KEY `fk_producto_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_producto_categoria` FOREIGN KEY (`id_categoria`) REFERENCES `categoria_producto` (`id_categoria`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_producto_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
-  CONSTRAINT `chk_producto_stkmin` CHECK (`stock_minimo` >= 0),
   CONSTRAINT `chk_producto_costo` CHECK (`precio_costo` >= 0),
   CONSTRAINT `chk_producto_venta` CHECK (`precio_venta` >= 0),
   CONSTRAINT `chk_producto_iva` CHECK (`tasa_iva` in (0,5,10)),
@@ -2131,8 +2142,38 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (3,2,1,'Tintura',NULL,'unidad',0.00,50000.00,50000.00,10,1,NULL,NULL),(4,4,1,'guantes de latex',NULL,'unidad',0.00,10000.00,10000.00,10,1,NULL,NULL),(5,2,1,'Shampoo profesional 1L','Shampoo profesional 1L','unidad',3.00,85000.00,140000.00,10,1,1000.00,'ml'),(6,2,1,'Acondicionador 1L','Acondicionador 1L','unidad',3.00,90000.00,150000.00,10,1,1000.00,'ml'),(7,1,1,'Tintura profesional','Tintura profesional','unidad',10.00,45000.00,75000.00,10,1,NULL,NULL),(8,1,1,'Agua oxigenada 900ml','Agua oxigenada 900ml','unidad',4.00,30000.00,50000.00,10,1,900.00,'ml'),(9,3,1,'Guantes de latex (caja)','Guantes de latex (caja)','caja',2.00,25000.00,40000.00,10,1,100.00,'par'),(10,5,1,'Serum reparador 100ml','Serum reparador 100ml','unidad',5.00,60000.00,110000.00,10,1,NULL,NULL),(11,2,1,'Shampoo  profesional 1L',NULL,'unidad',0.00,85000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (3,2,'Tintura',NULL,'unidad',50000.00,50000.00,10,1,NULL,NULL),(4,4,'guantes de latex',NULL,'unidad',10000.00,10000.00,10,1,NULL,NULL),(5,2,'Shampoo profesional 1L','Shampoo profesional 1L','unidad',85000.00,140000.00,10,1,1000.00,'ml'),(6,2,'Acondicionador 1L','Acondicionador 1L','unidad',90000.00,150000.00,10,1,1000.00,'ml'),(7,1,'Tintura profesional','Tintura profesional','unidad',45000.00,75000.00,10,1,NULL,NULL),(8,1,'Agua oxigenada 900ml','Agua oxigenada 900ml','unidad',30000.00,50000.00,10,1,900.00,'ml'),(9,3,'Guantes de latex (caja)','Guantes de latex (caja)','caja',25000.00,40000.00,10,1,100.00,'par'),(10,5,'Serum reparador 100ml','Serum reparador 100ml','unidad',60000.00,110000.00,10,1,NULL,NULL),(11,2,'Shampoo  profesional 1L',NULL,'unidad',85000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `producto_sucursal`
+--
+
+DROP TABLE IF EXISTS `producto_sucursal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `producto_sucursal` (
+  `id_producto` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  `stock_minimo` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_producto`,`id_sucursal`),
+  KEY `fk_prodsuc_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_prodsuc_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`),
+  CONSTRAINT `fk_prodsuc_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
+  CONSTRAINT `chk_prodsuc_minimo` CHECK (`stock_minimo` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `producto_sucursal`
+--
+
+LOCK TABLES `producto_sucursal` WRITE;
+/*!40000 ALTER TABLE `producto_sucursal` DISABLE KEYS */;
+INSERT INTO `producto_sucursal` VALUES (3,1,0.00,1),(4,1,0.00,1),(5,1,3.00,1),(6,1,3.00,1),(7,1,10.00,1),(8,1,4.00,1),(9,1,2.00,1),(10,1,5.00,1),(11,1,0.00,1);
+/*!40000 ALTER TABLE `producto_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -2153,7 +2194,7 @@ CREATE TABLE `producto_utilizado` (
   CONSTRAINT `fk_pu_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pu_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_pu_cantidad` CHECK (`cantidad` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=129 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2174,15 +2215,20 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_produtil_ai
-AFTER INSERT ON producto_utilizado FOR EACH ROW
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_produtil_ai AFTER INSERT ON producto_utilizado
+FOR EACH ROW
 BEGIN
-  DECLARE v_usuario INT UNSIGNED;
-  SELECT id_usuario INTO v_usuario FROM servicio_realizado
-   WHERE id_servicio_realizado = NEW.id_servicio_realizado;
+  DECLARE v_usuario  INT UNSIGNED;
+  DECLARE v_sucursal INT UNSIGNED;
 
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, referencia, observaciones)
-  VALUES (NEW.id_producto, v_usuario, 2, NEW.cantidad,
+  SELECT sr.id_usuario, c.id_sucursal INTO v_usuario, v_sucursal
+  FROM servicio_realizado sr
+  JOIN cita c ON c.id_cita = sr.id_cita
+  WHERE sr.id_servicio_realizado = NEW.id_servicio_realizado;
+
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, referencia, observaciones)
+  VALUES (NEW.id_producto, v_sucursal, v_usuario, 2, NEW.cantidad,
           CONCAT('SR#', NEW.id_servicio_realizado), 'Consumo durante el servicio');
 END */;;
 DELIMITER ;
@@ -2364,7 +2410,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=111 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2429,7 +2475,7 @@ CREATE TABLE `servicio_realizado` (
   CONSTRAINT `fk_sr_detalle_factura` FOREIGN KEY (`id_detalle_factura`) REFERENCES `detalle_factura` (`id_detalle_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2511,7 +2557,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=147 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=170 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2731,7 +2777,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2828,7 +2874,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3993,11 +4039,11 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED) RETURNS decimal(12,4)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED, p_id_sucursal INT UNSIGNED) RETURNS decimal(12,4)
     READS SQL DATA
 BEGIN
   DECLARE v_stock DECIMAL(12,4) DEFAULT 0;
@@ -4005,7 +4051,8 @@ BEGIN
     INTO v_stock
   FROM movimiento_inventario m
   JOIN tipo_movimiento_inventario t ON t.id_tipo_movimiento = m.id_tipo_movimiento
-  WHERE m.id_producto = p_id_producto;
+  WHERE m.id_producto = p_id_producto
+    AND m.id_sucursal = p_id_sucursal;
   RETURN v_stock;
 END ;;
 DELIMITER ;
@@ -4606,11 +4653,15 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_confirmar_compra`(
-    IN p_id_compra  INT UNSIGNED,
-    IN p_id_usuario INT UNSIGNED)
+  IN p_id_compra  INT UNSIGNED,
+  IN p_id_usuario INT UNSIGNED
+)
 BEGIN
-  DECLARE v_estado INT UNSIGNED DEFAULT NULL;
-  SELECT id_estado_compra INTO v_estado FROM compra WHERE id_compra = p_id_compra;
+  DECLARE v_estado   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal INT UNSIGNED DEFAULT NULL;
+
+  SELECT id_estado_compra, id_sucursal INTO v_estado, v_sucursal
+  FROM compra WHERE id_compra = p_id_compra;
 
   IF v_estado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La compra no existe.';
@@ -4620,8 +4671,9 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La compra ya fue confirmada.';
   END IF;
 
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, precio_unitario, referencia, observaciones)
-  SELECT dc.id_producto, p_id_usuario, 1, dc.cantidad, dc.precio_unitario,
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, precio_unitario, referencia, observaciones)
+  SELECT dc.id_producto, v_sucursal, p_id_usuario, 1, dc.cantidad, dc.precio_unitario,
          CONCAT('COM#', p_id_compra), 'Entrada por compra confirmada'
   FROM detalle_compra dc WHERE dc.id_compra = p_id_compra;
 
@@ -4934,21 +4986,25 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_movimiento_inventario`(
-    IN p_id_producto        INT UNSIGNED,
-    IN p_id_usuario         INT UNSIGNED,
-    IN p_id_tipo_movimiento INT UNSIGNED,
-    IN p_cantidad           DECIMAL(12,4),
-    IN p_precio_unitario    DECIMAL(12,2),
-    IN p_referencia         VARCHAR(40),
-    IN p_observaciones      VARCHAR(300))
+  IN p_id_producto        INT UNSIGNED,
+  IN p_id_sucursal        INT UNSIGNED,
+  IN p_id_usuario         INT UNSIGNED,
+  IN p_id_tipo_movimiento INT UNSIGNED,
+  IN p_cantidad           DECIMAL(12,4),
+  IN p_precio_unitario    DECIMAL(12,2),
+  IN p_referencia         VARCHAR(50),
+  IN p_observaciones      VARCHAR(255)
+)
 BEGIN
-  INSERT INTO movimiento_inventario (id_producto, id_usuario, id_tipo_movimiento, cantidad, precio_unitario, referencia, observaciones)
-  VALUES (p_id_producto, p_id_usuario, p_id_tipo_movimiento, p_cantidad, p_precio_unitario, p_referencia, p_observaciones);
+  INSERT INTO movimiento_inventario (id_producto, id_sucursal, id_usuario, id_tipo_movimiento,
+                                     cantidad, precio_unitario, referencia, observaciones)
+  VALUES (p_id_producto, p_id_sucursal, p_id_usuario, p_id_tipo_movimiento,
+          p_cantidad, p_precio_unitario, p_referencia, p_observaciones);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5404,9 +5460,9 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = cp850 */;
-/*!50001 SET character_set_results     = cp850 */;
-/*!50001 SET collation_connection      = cp850_general_ci */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `vw_producto_bajo_stock` AS select `v`.`id_producto` AS `id_producto`,`v`.`id_sucursal` AS `id_sucursal`,`v`.`nombre` AS `nombre`,`v`.`categoria` AS `categoria`,`v`.`stock_actual` AS `stock_actual`,`v`.`stock_minimo` AS `stock_minimo`,`v`.`stock_minimo` - `v`.`stock_actual` AS `faltante`,`v`.`precio_costo` AS `precio_costo` from `vw_producto_stock` `v` where `v`.`activo` = 1 and `v`.`stock_actual` <= `v`.`stock_minimo` */;
@@ -5422,12 +5478,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = cp850 */;
-/*!50001 SET character_set_results     = cp850 */;
-/*!50001 SET collation_connection      = cp850_general_ci */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`p`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`) AS `stock_actual`,`p`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` AS `activo` from (`producto` `p` join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
+/*!50001 VIEW `vw_producto_stock` AS select `p`.`id_producto` AS `id_producto`,`ps`.`id_sucursal` AS `id_sucursal`,`p`.`nombre` AS `nombre`,`cp`.`nombre` AS `categoria`,`p`.`unidad_medida` AS `unidad_medida`,`fn_producto_stock`(`p`.`id_producto`,`ps`.`id_sucursal`) AS `stock_actual`,`ps`.`stock_minimo` AS `stock_minimo`,`p`.`precio_costo` AS `precio_costo`,`p`.`precio_venta` AS `precio_venta`,`p`.`activo` = 1 and `ps`.`activo` = 1 AS `activo` from ((`producto` `p` join `producto_sucursal` `ps` on(`ps`.`id_producto` = `p`.`id_producto`)) join `categoria_producto` `cp` on(`cp`.`id_categoria` = `p`.`id_categoria`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5477,4 +5533,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-15 23:59:52
+-- Dump completed on 2026-08-17  8:53:47

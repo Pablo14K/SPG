@@ -8,6 +8,7 @@ use App\Servicios\Auditoria;
 use App\Servicios\Config;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
+use App\Servicios\Sucursales;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,13 +34,30 @@ class ServiciosController extends Controller
 
     public function lista(): View|StreamedResponse
     {
-        $f = Listado::filtros([
+        // **El filtro de local sólo existe con más de una sucursal**, y con él
+        // aparece la mitad que faltaba: ver lo que el salón ya tiene cargado en
+        // OTRO local y traerlo acá con un clic, en vez de volver a escribirlo.
+        // Cargarlo de nuevo deja dos filas con el mismo servicio escrito
+        // distinto («Corte de dama» y «Corte dama»), y a partir de ahí ningún
+        // informe los puede comparar entre sucursales.
+        $sucursales = Sucursales::delUsuario();
+        $varias = count($sucursales) > 1;
+        $aqui = Sucursales::activa();
+
+        $campos = [
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nombre o descripción', 'ancho' => '240px'],
             'categoria' => ['tipo' => 'select', 'etiqueta' => 'Categoría',
                             'opciones' => ['' => 'Todas'] + $this->opcionesCategorias()],
             'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado',
                          'opciones' => ['' => 'Todos', '1' => 'Activos', '0' => 'Inactivos']],
-        ]);
+        ];
+        if ($varias && $aqui) {
+            $campos['local'] = ['tipo' => 'select', 'etiqueta' => 'Dónde se ofrece',
+                                'opciones' => ['' => 'Todos', 'aqui' => 'Acá',
+                                               'otras' => 'Sólo en otras sucursales']];
+        }
+
+        $f = Listado::filtros($campos);
         $f['csv'] = true;
 
         $w = ['1=1'];
@@ -54,6 +72,19 @@ class ServiciosController extends Controller
         if (Listado::hay($f, 'estado')) {
             $w[] = 's.activo = :e';
             $par['e'] = (int) Listado::valor($f, 'estado');
+        }
+
+        // **Sin filas en `servicio_sucursal` el servicio vale en TODAS**, que es
+        // lo que espera quien recién abre el segundo local: el catálogo que ya
+        // tenía no se le apaga solo. Por eso las dos ramas preguntan por la
+        // existencia de alguna fila antes de mirar la del local.
+        if ($varias && $aqui && Listado::hay($f, 'local')) {
+            $publicadoAca = 'EXISTS (SELECT 1 FROM servicio_sucursal ss
+                                      WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc)
+                             OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
+                                             WHERE ss2.id_servicio = s.id_servicio)';
+            $w[] = Listado::valor($f, 'local') === 'aqui' ? "($publicadoAca)" : "NOT ($publicadoAca)";
+            $par['loc'] = $aqui;
         }
 
         $desde = 'FROM servicio s JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
@@ -72,10 +103,21 @@ class ServiciosController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
+        // La columna «Acá» se calcula igual que el filtro: publicado en este
+        // local, o sin ninguna sucursal marcada (o sea, en todas).
+        $marca = $varias && $aqui
+            ? ', (EXISTS (SELECT 1 FROM servicio_sucursal ss WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc2)
+                  OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2 WHERE ss2.id_servicio = s.id_servicio)) AS aca'
+            : ', 1 AS aca';
+        if ($varias && $aqui) {
+            $par['loc2'] = $aqui;
+        }
+
         return view('servicios.lista', [
-            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria $marca $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
+            'varias' => $varias,
         ]);
     }
 
@@ -205,6 +247,57 @@ class ServiciosController extends Controller
         flash('Estado del servicio actualizado.');
 
         return redirect()->route('servicios.lista');
+    }
+
+    /**
+     * Trae a este local un servicio que ya existe en otro.
+     *
+     * **Es la alternativa a volver a cargarlo, y hace falta justamente para que
+     * nadie lo vuelva a cargar.** Escrito de nuevo, «Corte de dama» termina
+     * siendo dos filas con el nombre distinto según quién lo tipeó, cada una
+     * con su precio y su duración: a partir de ahí ningún informe puede
+     * comparar el mismo servicio entre sucursales, que es la razón por la que
+     * el catálogo es único desde la 7.30.0.
+     *
+     * No copia nada: agrega una fila en `servicio_sucursal` diciendo que este
+     * local también lo publica. El servicio sigue siendo uno.
+     */
+    public function publicar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_servicio', 0);
+        $suc = Sucursales::activa();
+
+        if (! $suc) {
+            flash('Elegí una sucursal antes de publicar un servicio.', 'error');
+
+            return redirect()->route('servicios.lista');
+        }
+
+        $s = DB::selectOne('SELECT nombre FROM servicio WHERE id_servicio = ?', [$id]);
+        if (! $s) {
+            flash('Servicio no encontrado.', 'error');
+
+            return redirect()->route('servicios.lista');
+        }
+
+        // Sin ninguna fila el servicio vale en todas, así que publicarlo acá
+        // sin más lo dejaría valiendo SÓLO acá — al revés de lo que se pidió.
+        // En ese caso se escriben todas las sucursales, que es el estado que
+        // ya tenía, y recién entonces la de este local sobra por estar incluida.
+        if (! DB::scalar('SELECT COUNT(*) FROM servicio_sucursal WHERE id_servicio = ?', [$id])) {
+            flash('«' . $s->nombre . '» ya se ofrece en todas las sucursales.', 'info');
+
+            return redirect()->route('servicios.lista');
+        }
+
+        DB::insert('INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal) VALUES (?,?)', [$id, $suc]);
+
+        Auditoria::registrar('PUBLICACION', 'servicios', 'servicio_sucursal', $id,
+            'Se publicó «' . $s->nombre . '» en ' . Sucursales::nombreActiva());
+
+        flash('«' . $s->nombre . '» ya se ofrece en ' . Sucursales::nombreActiva() . '.');
+
+        return redirect()->back();
     }
 
     // ---------- Categorías ----------

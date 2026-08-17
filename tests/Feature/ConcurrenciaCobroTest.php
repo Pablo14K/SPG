@@ -201,10 +201,10 @@ class ConcurrenciaCobroTest extends TestCase
         // total: si el control no toma candado, los tres suman lo mismo, los
         // tres pasan y el stock queda en el doble negativo.
         $prod = DB::selectOne(
-            'SELECT p.id_producto, fn_producto_stock(p.id_producto) AS stock
+            'SELECT p.id_producto, fn_producto_stock(p.id_producto, 1) AS stock
                FROM producto p
-              WHERE p.activo = 1 AND fn_producto_stock(p.id_producto) > 0
-              ORDER BY fn_producto_stock(p.id_producto) LIMIT 1'
+              WHERE p.activo = 1 AND fn_producto_stock(p.id_producto, 1) > 0
+              ORDER BY fn_producto_stock(p.id_producto, 1) LIMIT 1'
         );
         if (! $prod) {
             $this->markTestSkipped('No hay ningún producto con stock en la base de prueba.');
@@ -218,7 +218,7 @@ class ConcurrenciaCobroTest extends TestCase
         // la que dice que sí sin haber medido nada. El propio QA la reprodujo
         // 3 de 4 veces.
         for ($ronda = 1; $ronda <= self::RONDAS; $ronda++) {
-            $stock = (float) DB::scalar('SELECT fn_producto_stock(?)', [$idProducto]);
+            $stock = (float) DB::scalar('SELECT fn_producto_stock(?,1)', [$idProducto]);
             if ($stock <= 0) {
                 break;   // ya no queda nada que sacar
             }
@@ -236,7 +236,7 @@ class ConcurrenciaCobroTest extends TestCase
                 $this->movimientosCreados[] = (int) $m->id_movimiento;
             }
 
-            $stockFinal = (float) DB::scalar('SELECT fn_producto_stock(?)', [$idProducto]);
+            $stockFinal = (float) DB::scalar('SELECT fn_producto_stock(?,1)', [$idProducto]);
 
             $this->assertGreaterThanOrEqual(0, $stockFinal,
                 "Ronda $ronda: el stock quedó en $stockFinal. Un stock negativo no lo detecta "

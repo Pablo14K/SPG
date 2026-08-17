@@ -65,7 +65,16 @@ class InventarioController extends Controller
 
     public function productos(): View|StreamedResponse
     {
-        $f = Listado::filtros([
+        // **La lista sale del CATÁLOGO, no del stock de este local**, y esa es la
+        // diferencia que hace posible traer un producto de otra sucursal en vez
+        // de volver a cargarlo. Consultando `vw_producto_stock` a secas —que ya
+        // viene unida a `producto_sucursal`— lo que no se maneja acá no existe,
+        // así que la única salida era escribirlo de nuevo: dos filas para el
+        // mismo frasco, con el nombre puesto por dos personas distintas.
+        $varias = count(Sucursales::delUsuario()) > 1;
+        $aqui = Sucursales::activa();
+
+        $campos = [
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nombre del producto', 'ancho' => '240px'],
             'categoria' => ['tipo' => 'select', 'etiqueta' => 'Categoría',
                             'opciones' => ['' => 'Todas'] + $this->categoriasPorNombre()],
@@ -73,32 +82,62 @@ class InventarioController extends Controller
                          'opciones' => ['' => 'Todos', '1' => 'Activos', '0' => 'Inactivos']],
             'stock' => ['tipo' => 'select', 'etiqueta' => 'Existencias',
                         'opciones' => ['' => 'Todas', 'bajo' => 'Bajo el mínimo', 'cero' => 'Sin stock', 'hay' => 'Con stock']],
-        ]);
+        ];
+        if ($varias && $aqui) {
+            $campos['local'] = ['tipo' => 'select', 'etiqueta' => 'Dónde se maneja',
+                                'opciones' => ['' => 'Acá', 'otras' => 'Sólo en otras sucursales',
+                                               'todos' => 'Todo el catálogo']];
+        }
+
+        $f = Listado::filtros($campos);
         $f['csv'] = true;
 
         $w = ['1=1'];
-        $par = [];
+        $par = ['suc' => $aqui ?: 0];
         if (Listado::hay($f, 'q')) {
-            $w[] = Listado::likeVarias(['v.nombre'], Listado::valor($f, 'q'), 'q', $par);
+            $w[] = Listado::likeVarias(['p.nombre'], Listado::valor($f, 'q'), 'q', $par);
         }
         if (Listado::hay($f, 'categoria')) {
-            $w[] = 'v.categoria = :c';
+            $w[] = 'cp.nombre = :c';
             $par['c'] = Listado::valor($f, 'categoria');
         }
         if (Listado::hay($f, 'estado')) {
-            $w[] = 'v.activo = :e';
+            $w[] = 'p.activo = :e';
             $par['e'] = (int) Listado::valor($f, 'estado');
         }
+        // **Un marcador por uso, nunca el mismo dos veces**: la conexión abre PDO
+        // con `ATTR_EMULATE_PREPARES` en false, así que MySQL prepara de verdad y
+        // `:suc` repetido revienta con *Invalid parameter number*.
         if (Listado::hay($f, 'stock')) {
-            $w[] = ['bajo' => 'v.stock_actual < v.stock_minimo',
-                    'cero' => 'v.stock_actual <= 0',
-                    'hay' => 'v.stock_actual > 0'][Listado::valor($f, 'stock')];
+            $w[] = ['bajo' => 'fn_producto_stock(p.id_producto, :sucf) < ps.stock_minimo',
+                    'cero' => 'fn_producto_stock(p.id_producto, :sucf) <= 0',
+                    'hay' => 'fn_producto_stock(p.id_producto, :sucf) > 0'][Listado::valor($f, 'stock')];
+            $par['sucf'] = $aqui ?: 0;
         }
 
-        $w[] = ltrim(Sucursales::filtro('v', $par), ' AND') ?: '1=1';
-        $desde = 'FROM vw_producto_stock v WHERE ' . implode(' AND ', $w);
+        // Por defecto se ve lo de acá, que es con lo que se trabaja todos los
+        // días; lo de los otros locales hay que pedirlo.
+        $local = $varias && $aqui ? Listado::valor($f, 'local') : '';
+        if ($local === 'otras') {
+            $w[] = 'ps.id_producto IS NULL';
+        } elseif ($local !== 'todos' && $aqui) {
+            $w[] = 'ps.id_producto IS NOT NULL';
+        }
+
+        $desde = 'FROM producto p
+                  JOIN categoria_producto cp ON cp.id_categoria = p.id_categoria
+                  LEFT JOIN producto_sucursal ps
+                         ON ps.id_producto = p.id_producto AND ps.id_sucursal = :suc
+                  WHERE ' . implode(' AND ', $w);
+        $campoStock = 'p.id_producto, p.nombre, p.unidad_medida, p.precio_costo, p.precio_venta, p.activo,
+                       p.contenido, p.unidad_consumo,
+                       cp.nombre AS categoria, ps.id_producto AS aca,
+                       COALESCE(ps.stock_minimo, 0) AS stock_minimo,
+                       IF(ps.id_producto IS NULL, NULL, fn_producto_stock(p.id_producto, :sucs)) AS stock_actual';
 
         if (Listado::pideExport()) {
+            $parE = $par + ['sucs' => $aqui ?: 0];
+
             return Listado::exportar('productos',
                 // «Venta» sale de la exportación por lo mismo que de la pantalla:
                 // el salón vende servicios, no productos (ver el formulario del
@@ -106,17 +145,21 @@ class InventarioController extends Controller
                 ['Producto', 'Categoría', 'Unidad', 'Stock', 'Mínimo', 'Costo', 'Estado'],
                 array_map(fn ($r) => [$r->nombre, $r->categoria, $r->unidad_medida, $r->stock_actual,
                     $r->stock_minimo, $r->precio_costo, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT * $desde ORDER BY v.nombre", $par)),
+                    DB::select("SELECT $campoStock $desde ORDER BY p.nombre", $parE)),
                 $f, 'Productos'
             );
         }
 
+        // El COUNT no nombra `:sucs`, así que el marcador se suma DESPUÉS: PDO
+        // rechaza un parámetro que la consulta no usa.
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+        $par['sucs'] = $aqui ?: 0;
 
         return view('inventario.productos', [
-            'rows' => DB::select("SELECT * $desde ORDER BY v.nombre LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => DB::select("SELECT $campoStock $desde ORDER BY p.nombre LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
+            'varias' => $varias,
         ]);
     }
 
@@ -146,15 +189,17 @@ class InventarioController extends Controller
             // Los dos van juntos o ninguno: con uno solo no se puede convertir
             'contenido' => num($request->input('contenido')) ?: null,
             'unidad_consumo' => trim((string) $request->input('unidad_consumo', '')) ?: null,
-            'stock_minimo' => num($request->input('stock_minimo')),
             'precio_costo' => num($request->input('precio_costo')),
             'tasa_iva' => (int) $request->input('tasa_iva', 10),
         ];
         $stockInicial = num($request->input('stock_inicial'));
 
-        // Un producto nace en el local en el que se está trabajando: cada
-        // sucursal tiene su catálogo, por decisión del usuario.
-        $d['id_sucursal'] = Sucursales::activa() ?: 1;
+        // **El mínimo a reponer es del LOCAL, no del producto.** Un salón grande
+        // guarda más shampoo que el chico, así que el dato depende de (producto,
+        // sucursal) y vive en `producto_sucursal`. El nombre, la categoría, la
+        // unidad y el contenido son del producto y valen igual en los dos.
+        $minimo = num($request->input('stock_minimo'));
+        $suc = Sucursales::activa() ?: 1;
 
         // **El precio de venta ya NO se pide** —el salón vende servicios, no
         // productos— pero la columna es NOT NULL y sigue en la base, así que
@@ -175,7 +220,7 @@ class InventarioController extends Controller
             $error = 'Elegí una categoría válida.';
         } elseif (DB::scalar('SELECT COUNT(*) FROM producto WHERE nombre = ? AND id_producto <> ?', [$d['nombre'], $id])) {
             $error = 'Ya existe un producto con ese nombre.';
-        } elseif ($d['stock_minimo'] < 0 || $d['precio_costo'] < 0) {
+        } elseif ($minimo < 0 || $d['precio_costo'] < 0) {
             $error = 'El precio y el stock mínimo no pueden ser negativos.';
         } elseif (! in_array($d['tasa_iva'], [0, 5, 10], true)) {
             $error = 'La tasa de IVA debe ser 0, 5 o 10.';
@@ -198,26 +243,36 @@ class InventarioController extends Controller
                 DB::update(
                     'UPDATE producto SET id_categoria=:id_categoria, nombre=:nombre, descripcion=:descripcion,
                         unidad_medida=:unidad_medida, contenido=:contenido, unidad_consumo=:unidad_consumo,
-                        stock_minimo=:stock_minimo, precio_costo=:precio_costo, precio_venta=:precio_venta,
-                        tasa_iva=:tasa_iva
+                        precio_costo=:precio_costo, precio_venta=:precio_venta, tasa_iva=:tasa_iva
                       WHERE id_producto=:id', $d + ['id' => $id]
                 );
                 Auditoria::registrar('MODIFICACION', 'Inventario', 'producto', $id, $d['nombre']);
                 flash('Producto actualizado.');
             } else {
                 DB::insert(
-                    'INSERT INTO producto (id_sucursal,id_categoria,nombre,descripcion,unidad_medida,contenido,unidad_consumo,
-                        stock_minimo,precio_costo,precio_venta,tasa_iva)
-                     VALUES (:id_sucursal,:id_categoria,:nombre,:descripcion,:unidad_medida,:contenido,:unidad_consumo,
-                        :stock_minimo,:precio_costo,:precio_venta,:tasa_iva)', $d
+                    'INSERT INTO producto (id_categoria,nombre,descripcion,unidad_medida,contenido,unidad_consumo,
+                        precio_costo,precio_venta,tasa_iva)
+                     VALUES (:id_categoria,:nombre,:descripcion,:unidad_medida,:contenido,:unidad_consumo,
+                        :precio_costo,:precio_venta,:tasa_iva)', $d
                 );
                 $id = (int) DB::getPdo()->lastInsertId();
                 Auditoria::registrar('ALTA', 'Inventario', 'producto', $id, $d['nombre']);
+            }
 
+            // El producto queda habilitado en el local en el que se trabaja, con
+            // su mínimo. Va en las dos ramas: editando desde el segundo local, un
+            // producto del catálogo que ese local todavía no manejaba entra acá.
+            DB::insert(
+                'INSERT INTO producto_sucursal (id_producto,id_sucursal,stock_minimo)
+                 VALUES (?,?,?) ON DUPLICATE KEY UPDATE stock_minimo = VALUES(stock_minimo)',
+                [$id, $suc, $minimo]
+            );
+
+            if (! (int) $request->input('id_producto', 0)) {
                 // Stock inicial sin pasar por una compra
                 if ($stockInicial > 0) {
                     Bd::procedimiento('sp_registrar_movimiento_inventario', [
-                        $id, (int) session('uid'), self::STOCK_INICIAL, $stockInicial,
+                        $id, $suc, (int) session('uid'), self::STOCK_INICIAL, $stockInicial,
                         $d['precio_costo'], 'ALTA', 'Stock inicial cargado al crear el producto',
                     ]);
                     flash('Producto creado con un stock inicial de ' . cant($stockInicial) . ' ' . $d['unidad_medida'] . '.');
@@ -255,6 +310,50 @@ class InventarioController extends Controller
         flash('Estado del producto actualizado.');
 
         return redirect()->route('inventario.productos');
+    }
+
+    /**
+     * Trae a este local un producto que ya existe en el catálogo.
+     *
+     * **Es la alternativa a cargarlo de nuevo, y existe para que nadie lo
+     * cargue de nuevo.** Escrito otra vez, «Shampoo profesional 1L» termina
+     * siendo dos filas —«Shampoo profesional 1 L», «Shampoo prof. 1L»— con dos
+     * unidades y dos contenidos puestos por dos personas distintas, y a partir
+     * de ahí ni el consumo fraccionado ni ningún informe pueden comparar el
+     * mismo frasco entre sucursales.
+     *
+     * No copia nada: agrega la fila de `producto_sucursal` que dice que este
+     * local también lo maneja. El producto sigue siendo uno, con su nombre, su
+     * unidad y su contenido; **lo que es del local es el stock y el mínimo**, y
+     * el stock arranca en cero porque todavía no llegó ni un frasco acá.
+     */
+    public function productoTraer(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_producto', 0);
+        $suc = Sucursales::activa();
+
+        if (! $suc) {
+            flash('Elegí una sucursal antes de traer un producto.', 'error');
+
+            return redirect()->route('inventario.productos');
+        }
+
+        $p = DB::selectOne('SELECT nombre, unidad_medida FROM producto WHERE id_producto = ?', [$id]);
+        if (! $p) {
+            flash('Producto no encontrado.', 'error');
+
+            return redirect()->route('inventario.productos');
+        }
+
+        DB::insert('INSERT IGNORE INTO producto_sucursal (id_producto,id_sucursal) VALUES (?,?)', [$id, $suc]);
+
+        Auditoria::registrar('ALTA', 'Inventario', 'producto_sucursal', $id,
+            '«' . $p->nombre . '» pasa a manejarse en ' . Sucursales::nombreActiva());
+
+        flash('«' . $p->nombre . '» ya se maneja en ' . Sucursales::nombreActiva()
+            . '. Empieza en cero: cargale stock cuando lo tengas.');
+
+        return redirect()->route('inventario.ajuste', ['producto' => $id]);
     }
 
     // ---------- Categorías de producto ----------
@@ -419,8 +518,9 @@ class InventarioController extends Controller
             'f' => $f,
             'pag' => $pag,
             'prod' => $idp ? DB::selectOne(
-                'SELECT nombre, unidad_medida, contenido, unidad_consumo, fn_producto_stock(id_producto) AS stock
-                   FROM producto WHERE id_producto = ?', [$idp]
+                'SELECT nombre, unidad_medida, contenido, unidad_consumo,
+                        fn_producto_stock(id_producto, ?) AS stock
+                   FROM producto WHERE id_producto = ?', [Sucursales::activa() ?: 1, $idp]
             ) : null,
         ]);
     }
@@ -439,9 +539,11 @@ class InventarioController extends Controller
 
         return view('inventario.ajuste', [
             'prods' => DB::select(
-                'SELECT id_producto, nombre, unidad_medida, contenido, unidad_consumo, precio_costo,
-                        fn_producto_stock(id_producto) AS stock
-                   FROM producto WHERE activo = 1' . Sucursales::filtro('producto', $pp) . ' ORDER BY nombre', $pp
+                'SELECT p.id_producto, p.nombre, p.unidad_medida, p.contenido, p.unidad_consumo, p.precio_costo,
+                        fn_producto_stock(p.id_producto, ps.id_sucursal) AS stock
+                   FROM producto p
+                   JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = ?
+                  WHERE p.activo = 1 AND ps.activo = 1 ORDER BY p.nombre', [Sucursales::activa() ?: 1]
             ),
             'tipos' => DB::select('SELECT * FROM tipo_movimiento_inventario WHERE activo = 1 ORDER BY signo DESC, nombre'),
             'cats' => DB::select('SELECT id_categoria, nombre FROM categoria_producto ORDER BY nombre'),
@@ -459,8 +561,12 @@ class InventarioController extends Controller
         $volver = redirect()->route('inventario.ajuste');
 
         $prod = DB::selectOne(
-            'SELECT id_producto, nombre, unidad_medida, precio_costo, fn_producto_stock(id_producto) AS stock
-               FROM producto WHERE id_producto = ? AND activo = 1', [$idp]
+            'SELECT p.id_producto, p.nombre, p.unidad_medida, p.precio_costo,
+                    fn_producto_stock(p.id_producto, ?) AS stock
+               FROM producto p
+               JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = ?
+              WHERE p.id_producto = ? AND p.activo = 1',
+            [Sucursales::activa() ?: 1, Sucursales::activa() ?: 1, $idp]
         );
         if (! $prod) {
             flash('Elegí un producto activo.', 'error');
@@ -490,7 +596,8 @@ class InventarioController extends Controller
 
             try {
                 Bd::procedimiento('sp_registrar_movimiento_inventario', [
-                    $idp, (int) session('uid'), $dif > 0 ? self::AJUSTE_MAS : self::AJUSTE_MENOS,
+                    $idp, Sucursales::activa() ?: 1, (int) session('uid'),
+                    $dif > 0 ? self::AJUSTE_MAS : self::AJUSTE_MENOS,
                     abs($dif), $precio ?: (float) $prod->precio_costo, $ref ?: 'AJUSTE',
                     $obs ?: ('Stock fijado en ' . cant($destino) . ' (antes ' . cant($actual) . ')'),
                 ]);
@@ -530,7 +637,7 @@ class InventarioController extends Controller
 
         try {
             Bd::procedimiento('sp_registrar_movimiento_inventario',
-                [$idp, (int) session('uid'), $tipoMov, $cantidad, $precio, $ref, $obs]);
+                [$idp, Sucursales::activa() ?: 1, (int) session('uid'), $tipoMov, $cantidad, $precio, $ref, $obs]);
             Auditoria::registrar('MOVIMIENTO_STOCK', 'Inventario', 'producto', $idp,
                 $tipo->nombre . ' de ' . cant($cantidad) . ' — ' . $prod->nombre);
             flash('Movimiento registrado: ' . $tipo->nombre . ' de ' . cant($cantidad) . ' ' . $prod->unidad_medida . '.');
@@ -887,13 +994,21 @@ class InventarioController extends Controller
                             // Antes se copiaba el costo como precio de venta, que era
                             // vender al costo. Va en 0 por lo mismo que en el alta:
                             // el salón no vende productos.
-                            "INSERT INTO producto (id_sucursal,id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva)
+                            "INSERT INTO producto (id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva)
                              VALUES (?,?, 'unidad', ?, 0, 10)",
-                            [Sucursales::activa() ?: 1, $l['categoria'], $l['nombre'], $l['precio']]
+                            [$l['categoria'], $l['nombre'], $l['precio']]
                         );
                         $idp = (int) DB::getPdo()->lastInsertId();
                         $creados[] = $l['nombre'];
                     }
+
+                    // Comprar un producto en un local lo habilita en ese local:
+                    // es lo que hace la compra. Sin la fila, `sp_confirmar_compra`
+                    // se cae al generar el movimiento de entrada. Vale también
+                    // para uno del catálogo que este local todavía no manejaba,
+                    // que es justamente el caso de traerlo de otra sucursal.
+                    DB::insert('INSERT IGNORE INTO producto_sucursal (id_producto,id_sucursal) VALUES (?,?)',
+                        [$idp, Sucursales::activa() ?: 1]);
 
                     DB::insert('INSERT INTO detalle_compra (id_compra,id_producto,cantidad,precio_unitario) VALUES (?,?,?,?)',
                         [$idCompra, $idp, $l['cantidad'], $l['precio']]);
@@ -986,14 +1101,19 @@ class InventarioController extends Controller
                 // `precio_venta` va en 0: el salón vende servicios, no productos,
                 // así que el campo salió de la pantalla. La columna es NOT NULL
                 // y sigue en la base por si se revierte la decisión.
-                'INSERT INTO producto (id_sucursal,id_categoria,nombre,unidad_medida,stock_minimo,precio_costo,precio_venta,tasa_iva,activo)
-                 VALUES (?,?,?,?,0,?,0,10,1)', [Sucursales::activa() ?: 1, $idCat, $nombre, $unidad, $costo]
+                'INSERT INTO producto (id_categoria,nombre,unidad_medida,precio_costo,precio_venta,tasa_iva,activo)
+                 VALUES (?,?,?,?,0,10,1)', [$idCat, $nombre, $unidad, $costo]
             );
             $idp = (int) DB::getPdo()->lastInsertId();
 
+            // Sin esta fila el producto existe en el catálogo y no lo maneja
+            // ningún local: `trg_movinv_bi` rechazaría el stock inicial.
+            DB::insert('INSERT IGNORE INTO producto_sucursal (id_producto,id_sucursal) VALUES (?,?)',
+                [$idp, Sucursales::activa() ?: 1]);
+
             if ($stock > 0) {
                 Bd::procedimiento('sp_registrar_movimiento_inventario', [
-                    $idp, (int) session('uid'), self::STOCK_INICIAL, $stock, $costo,
+                    $idp, Sucursales::activa() ?: 1, (int) session('uid'), self::STOCK_INICIAL, $stock, $costo,
                     'ALTA', 'Stock inicial (alta directa, sin compra)',
                 ]);
             }

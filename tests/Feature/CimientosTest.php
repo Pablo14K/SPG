@@ -124,7 +124,7 @@ class CimientosTest extends TestCase
 
         // Si el DEFINER de la rutina no existe en este servidor, esto revienta
         // con el error 1449 y es justo lo que hay que detectar temprano.
-        $stock = Bd::funcion('fn_producto_stock(?)', [$idProducto]);
+        $stock = Bd::funcion('fn_producto_stock(?,1)', [$idProducto]);
 
         $this->assertIsNumeric($stock);
     }
