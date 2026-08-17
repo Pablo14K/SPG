@@ -406,12 +406,14 @@ class FacturacionController extends Controller
                 ['sel' => (int) $request->query('cita', 0)]
             ),
             // Solo los comprobantes de venta que hoy tienen timbrado vigente
+            // **en este local**: ofrecer uno que se va a numerar con el
+            // timbrado de otra sede es prometer un comprobante que sale mal.
             'tipos' => DB::select(
                 'SELECT tc.id_tipo_comprobante, tc.nombre
                    FROM tipo_comprobante tc
                   WHERE tc.activo = 1 AND tc.signo = 1 AND tc.requiere_origen = 0
-                    AND fn_timbrado_vigente(tc.id_tipo_comprobante, CURDATE()) IS NOT NULL
-                  ORDER BY tc.id_tipo_comprobante'
+                    AND fn_timbrado_vigente(tc.id_tipo_comprobante, CURDATE(), ?) IS NOT NULL
+                  ORDER BY tc.id_tipo_comprobante', [Sucursales::activa()]
             ),
             'condiciones' => DB::select(
                 'SELECT id_condicion_venta, nombre, dias_credito FROM condicion_venta WHERE activo = 1

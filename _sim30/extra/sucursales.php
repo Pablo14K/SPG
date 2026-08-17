@@ -447,16 +447,31 @@ function faseSucursalesN(int $dia): void
                                  AND mp.tipo = 'EFECTIVO'), 0)
                   + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN mc.monto ELSE -mc.monto END)
                                 FROM movimiento_caja mc WHERE mc.id_caja = k.id_caja), 0)
-                  - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp
-                                JOIN metodo_pago mp2 USING(id_metodo_pago)
-                               WHERE pp.id_caja = k.id_caja AND pp.id_estado_pago = 1
+                  -- **`pago_proveedor` y `pago_personal` NO guardan el monto**:
+                  -- sale de su detalle, y la base ya tiene la función que lo
+                  -- suma. Escribir `pp.monto` hacía fallar la consulta ENTERA,
+                  -- y como `DB::scalar` levanta la excepción y el escenario la
+                  -- deja pasar, **este arqueo por local no llegó a comprobarse
+                  -- nunca**: 70 errores en el log que nadie miró. Una prueba
+                  -- que falla en silencio es peor que no tenerla — da por
+                  -- verificado lo que no se verificó.
+                  - COALESCE((SELECT SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor))
+                                FROM pago_proveedor pp
+                                JOIN metodo_pago mp2 ON mp2.id_metodo_pago = pp.id_metodo_pago
+                               WHERE pp.id_caja = k.id_caja AND pp.id_estado_pago_proveedor = 1
                                  AND mp2.tipo = 'EFECTIVO'), 0)
-                  - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps
-                                JOIN metodo_pago mp3 USING(id_metodo_pago)
+                  - COALESCE((SELECT SUM(fn_pago_personal_monto(ps.id_pago_personal))
+                                FROM pago_personal ps
+                                JOIN metodo_pago mp3 ON mp3.id_metodo_pago = ps.id_metodo_pago
                                WHERE ps.id_caja = k.id_caja AND ps.id_estado_pago = 1
                                  AND mp3.tipo = 'EFECTIVO'), 0)
                FROM caja k WHERE k.id_caja = ?", [(int) $c->id_caja]);
         $sis = (float) DB::scalar('SELECT fn_caja_saldo(?)', [(int) $c->id_caja]);
+
+        // Que la comprobación CORRIÓ es en sí un dato: si vuelve a romperse, el
+        // informe tiene que poder decir que no se midió, en vez de callarse.
+        sim_log(['tipo' => 'SUCN_ARQUEO_OK', 'caja' => (int) $c->id_caja,
+                 'recalculado' => $teo, 'sistema' => $sis]);
 
         if (abs($teo - $sis) > 0.51) {
             sim_incidente('SUCN_ARQUEO',
@@ -467,6 +482,124 @@ function faseSucursalesN(int $dia): void
     sim_log(['tipo' => 'SUCN_FIN', 'dia' => $dia, 'locales' => count($locales), 'con_caja' => $conCaja]);
 }
 
+
+/**
+ * El local nuevo cierra su circuito: atiende, factura y cobra lo suyo.
+ *
+ * **Agendar no alcanza.** La corrida anterior le dio 92 citas propias y 0
+ * facturas: las 170 salieron del timbrado de la casa central, porque las fases
+ * de atención y cobro operan sobre el personal de la sede principal. O sea que
+ * el circuito de facturación de una sucursal secundaria —el que emite con SU
+ * timbrado y cobra en SU cajón— nunca se ejercitó de punta a punta. Es
+ * justamente donde vivía CJ-03, así que dejarlo sin cobertura es dejar sin
+ * mirar el lugar donde ya apareció un defecto.
+ */
+function faseSucursalFactura(int $suc, int $dia): void
+{
+    $prof = (int) (DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'noelia'") ?: 0);
+    if (! $prof) {
+        return;
+    }
+
+    // --- Fichar: atender lo exige -----------------------------------------
+    $turno = (int) (DB::scalar(
+        'SELECT ut.id_turno FROM usuario_turno ut
+           JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+          WHERE ut.id_usuario = ? LIMIT 1', [$prof]) ?: 0);
+    if ($turno) {
+        DB::statement(
+            'INSERT IGNORE INTO asistencia (id_turno, id_usuario, fecha, hora_entrada, id_usuario_registro)
+             VALUES (?,?,?,?,?)',
+            [$turno, $prof, ahora_bd('Y-m-d'), ahora_bd('H:i:s'), $prof]);
+    }
+
+    // --- Las citas de HOY de este local que ya pasaron de hora -------------
+    $citas = DB::select(
+        "SELECT c.id_cita FROM cita c
+          WHERE c.id_sucursal = ? AND DATE(c.fecha_hora) = CURDATE()
+            AND c.fecha_hora <= NOW() AND c.id_estado_cita IN (1,2)
+          ORDER BY c.fecha_hora LIMIT 4", [$suc]);
+
+    if (! $citas) {
+        return;
+    }
+
+    $n = new Nav();
+    if (! $n->entrar('recepcion', 'recepcion123', true, $suc)) {
+        return;
+    }
+
+    $atendidas = 0;
+    $facturadas = 0;
+    $cobradas = 0;
+
+    foreach ($citas as $c) {
+        $idc = (int) $c->id_cita;
+
+        // 1) Atender: los servicios que la cita traía.
+        $servs = array_map(fn ($x) => (int) $x->id_servicio,
+            DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$idc]));
+        if (! $servs) {
+            continue;
+        }
+        $n->post('/citas/atender', ['id_cita' => $idc, 'servicios' => $servs])->seguir();
+        if ((int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idc]) !== 4) {
+            continue;
+        }
+        $atendidas++;
+
+        // 2) Emitir con el timbrado de ESTE local.
+        $n->post('/facturacion/emitir', [
+            'id_cita' => $idc, 'id_tipo_comprobante' => 8, 'id_condicion_venta' => 1,
+        ])->seguir();
+
+        $f = DB::selectOne(
+            'SELECT f.id_factura, t.id_sucursal FROM factura f
+               LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+              WHERE f.id_cita = ? AND f.id_estado_factura = 1 ORDER BY f.id_factura DESC LIMIT 1', [$idc]);
+        if (! $f) {
+            continue;
+        }
+        $facturadas++;
+
+        // **El comprobante tiene que salir con el timbrado del local**, que es
+        // de donde la SET saca el establecimiento. Si sale con el de la casa
+        // central, la numeración de las dos sedes se pisa.
+        if ((int) $f->id_sucursal !== $suc) {
+            sim_incidente('SUC_TIMBRADO_AJENO',
+                "La factura {$f->id_factura} del local $suc se emitió con el timbrado de la sucursal "
+                . $f->id_sucursal . ': la numeración de los dos locales se pisa', 'ALTO');
+        }
+
+        // 3) Cobrar, y comprobar que la plata entra al cajón de ESTE local.
+        $saldo = (float) DB::scalar('SELECT fn_factura_saldo(?)', [(int) $f->id_factura]);
+        if ($saldo <= 0) {
+            continue;
+        }
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo='EFECTIVO' AND activo=1 LIMIT 1");
+        $n->post('/facturacion/cobrar', [
+            'id_factura' => (int) $f->id_factura,
+            'metodo' => [$metodo], 'monto' => [(string) round($saldo)],
+            'referencia' => ['S' . $suc . '-' . $dia],
+        ])->seguir();
+
+        $donde = (int) (DB::scalar(
+            'SELECT k.id_sucursal FROM cobro co JOIN caja k ON k.id_caja = co.id_caja
+              WHERE co.id_factura = ? ORDER BY co.id_cobro DESC LIMIT 1', [(int) $f->id_factura]) ?: 0);
+
+        if ($donde && $donde !== $suc) {
+            sim_incidente('SUC_COBRO_AJENO',
+                "El cobro de la factura {$f->id_factura} del local $suc entró al cajón de la sucursal "
+                . "$donde: el arqueo de un local se come la plata del otro", 'CRITICO');
+        } elseif ($donde === $suc) {
+            $cobradas++;
+        }
+    }
+
+    sim_log(['tipo' => 'SUC_FACTURA', 'sucursal' => $suc, 'dia' => $dia,
+             'atendidas' => $atendidas, 'facturadas' => $facturadas, 'cobradas' => $cobradas]);
+}
+
 // ---------------------------------------------------------------------------
 //  Despacho: el día 2 se inaugura, de ahí en adelante opera.
 // ---------------------------------------------------------------------------
@@ -475,6 +608,12 @@ if ($DIA <= 2) {
     faseSucursalesAlta();
 } else {
     faseSucursalesOpera($DIA);
+    // El local nuevo cierra su circuito: atiende, factura con SU timbrado y
+    // cobra en SU cajón. Sin esto sólo se probaba que agenda.
+    $sucOpera = (int) (DB::scalar("SELECT id_sucursal FROM sucursal WHERE nombre = 'Peluqueria San Lorenzo' AND activo = 1") ?: 0);
+    if ($sucOpera) {
+        faseSucursalFactura($sucOpera, $DIA);
+    }
     // El barrido sobre los N locales cada tres días: comprueba invariantes que
     // no cambian de un día para el otro, así que correrlo a diario sólo
     // alargaba la corrida.

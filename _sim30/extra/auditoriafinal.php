@@ -15,7 +15,7 @@ $mal = function (string $cod, string $det, string $sev = 'ALTO') { sim_incidente
 // =========================================================================
 // 1. INVENTARIO — stock recalculado a mano contra fn_producto_stock
 // =========================================================================
-$movs = DB::select('SELECT m.id_producto, m.cantidad, t.signo
+$movs = DB::select('SELECT m.id_producto, m.id_sucursal, m.cantidad, t.signo
                       FROM movimiento_inventario m
                       JOIN tipo_movimiento_inventario t ON t.id_tipo_movimiento = m.id_tipo_movimiento');
 $calc = [];
@@ -23,15 +23,30 @@ foreach ($movs as $m) {
     $calc[(int) $m->id_producto] = ($calc[(int) $m->id_producto] ?? 0.0)
         + ($m->signo === 'E' ? (float) $m->cantidad : -(float) $m->cantidad);
 }
+// **El stock es de (producto, sucursal), no del producto.** Desde la 7.33.0 el
+// catálogo es único y lo que es de cada local es la existencia, así que sumar
+// todos los movimientos y compararlos contra el stock de UNA sucursal daba una
+// discrepancia crítica en cada corrida — siempre falsa. Un detector que grita
+// lobo en todas las corridas deja de servir para detectar.
+$calcSuc = [];
+foreach ($movs as $m) {
+    $k = (int) $m->id_producto . '-' . (int) $m->id_sucursal;
+    $calcSuc[$k] = ($calcSuc[$k] ?? 0.0) + ($m->signo === 'E' ? (float) $m->cantidad : -(float) $m->cantidad);
+}
 $difStock = 0; $negativos = [];
-foreach (DB::select('SELECT id_producto, nombre, fn_producto_stock(id_producto, 1) AS stock FROM producto') as $p) {
-    $mio = round($calc[(int) $p->id_producto] ?? 0.0, 4);
+foreach (DB::select('SELECT ps.id_producto, ps.id_sucursal, p.nombre, su.nombre AS local,
+                            fn_producto_stock(ps.id_producto, ps.id_sucursal) AS stock
+                       FROM producto_sucursal ps
+                       JOIN producto p ON p.id_producto = ps.id_producto
+                       JOIN sucursal su ON su.id_sucursal = ps.id_sucursal') as $p) {
+    $mio = round($calcSuc[(int) $p->id_producto . '-' . (int) $p->id_sucursal] ?? 0.0, 4);
     $suyo = round((float) $p->stock, 4);
     if (abs($mio - $suyo) > 0.0001) {
         $difStock++;
-        $mal('AUD_STOCK_DIFIERE', "Producto {$p->id_producto} ({$p->nombre}): recalculado $mio, el sistema dice $suyo", 'CRITICO');
+        $mal('AUD_STOCK_DIFIERE',
+            "«{$p->nombre}» en {$p->local}: recalculado $mio, el sistema dice $suyo", 'CRITICO');
     }
-    if ($suyo < -0.0001) { $negativos[] = $p->nombre . ' = ' . $suyo; }
+    if ($suyo < -0.0001) { $negativos[] = $p->nombre . ' en ' . $p->local . ' = ' . $suyo; }
 }
 if ($negativos) {
     $mal('AUD_STOCK_NEGATIVO', 'Productos con stock negativo: ' . implode(', ', $negativos), 'CRITICO');
@@ -176,12 +191,17 @@ foreach (DB::select('SELECT id_caja, monto_inicial, id_estado_caja, fn_caja_sald
 $put('cajas', (int) DB::scalar('SELECT COUNT(*) FROM caja'));
 $put('cajas_diferencia', $difCaja);
 $put('cajas_abiertas_ahora', (int) DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja=1'));
+// **Una caja abierta por vez y POR SUCURSAL.** Dos sedes con su cajón abierto
+// al mismo tiempo es lo correcto desde la 7.31.0 — son cajones distintos. Lo
+// que no puede pasar es que un mismo local tenga dos.
 $solapadas = (int) DB::scalar('SELECT COUNT(*) FROM caja a JOIN caja b ON b.id_caja > a.id_caja
-                                WHERE a.fecha_apertura < COALESCE(b.fecha_cierre, NOW())
+                                WHERE a.id_sucursal = b.id_sucursal
+                                  AND a.fecha_apertura < COALESCE(b.fecha_cierre, NOW())
                                   AND b.fecha_apertura < COALESCE(a.fecha_cierre, NOW())');
 $put('cajas_solapadas', $solapadas);
 if ($solapadas) {
-    $mal('AUD_CAJAS_SOLAPADAS', "$solapadas par(es) de cajas estuvieron abiertas al mismo tiempo (debería haber una sola)", 'ALTO');
+    $mal('AUD_CAJAS_SOLAPADAS',
+        "$solapadas par(es) de cajas del MISMO local estuvieron abiertas a la vez", 'ALTO');
 }
 
 // Cobros y pagos que quedaron FUERA de toda caja
@@ -516,7 +536,18 @@ if ($n->entrar('admin', 'admin123')) {
 // =========================================================================
 // 11 bis. ¿Qué ve una profesional en el panel?
 // =========================================================================
-$ingHoy = (float) DB::scalar('SELECT COALESCE(SUM(monto),0) FROM cobro WHERE DATE(fecha)=CURDATE() AND id_estado_cobro=1');
+// **Los ingresos del panel son los de SU local, no los del salón** (7.36.4).
+// La comprobación leía bien la pantalla pero comparaba contra el total del
+// negocio, así que con casi toda la plata en una sola sede coincidían por
+// casualidad y gritaba una fuga que no existía. La referencia correcta es la
+// recaudación de la sucursal en la que esa persona está trabajando.
+$sucProf = (int) (DB::scalar("SELECT COALESCE((SELECT us.id_sucursal FROM usuario_sucursal us JOIN usuario u USING(id_usuario) WHERE u.username='marta' ORDER BY us.id_sucursal LIMIT 1), (SELECT MIN(id_sucursal) FROM sucursal WHERE activo=1))") ?: 1);
+$ingHoy = (float) DB::scalar('SELECT COALESCE(SUM(co.monto),0) FROM cobro co
+                               LEFT JOIN caja k ON k.id_caja = co.id_caja
+                               LEFT JOIN cita ci ON ci.id_cita = co.id_cita
+                              WHERE DATE(co.fecha)=CURDATE() AND co.id_estado_cobro=1
+                                AND COALESCE(k.id_sucursal, ci.id_sucursal) = ?', [$sucProf]);
+$ingSalon = (float) DB::scalar('SELECT COALESCE(SUM(monto),0) FROM cobro WHERE DATE(fecha)=CURDATE() AND id_estado_cobro=1');
 $citasHoy = (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE DATE(fecha_hora)=CURDATE() AND id_estado_cita NOT IN (3,6)');
 $pp = new Nav();
 if ($pp->entrar('marta', 'profesional123')) {
@@ -532,7 +563,8 @@ if ($pp->entrar('marta', 'profesional123')) {
     $veIngresos = preg_match('#<div class="val oro">(Gs\.[^<]*)</div>#', $html, $m) ? trim($m[1]) : null;
     $put('panel_profesional_ingresos', $veIngresos);
     $put('panel_ingresos_reales', 'Gs. ' . number_format($ingHoy, 0, ',', '.'));
-    if ($veIngresos !== null && $ingHoy > 0 && $veIngresos === 'Gs. ' . number_format($ingHoy, 0, ',', '.')) {
+    if ($veIngresos !== null && $ingSalon > $ingHoy + 0.5
+        && $veIngresos === 'Gs. ' . number_format($ingSalon, 0, ',', '.')) {
         $mal('AUD_PANEL_FUGA_INGRESOS',
             'Una Profesional (sin permiso de caja) ve en el panel los ingresos de TODO el salón: ' . $veIngresos
             . '. La corrección de la 7.13.1 tapó la barra de caja pero no las cuatro métricas de arriba, '
@@ -701,7 +733,10 @@ $regresion = [
         'SELECT COUNT(*) FROM factura f JOIN tipo_comprobante tc USING(id_tipo_comprobante)
           WHERE f.id_estado_factura=1 AND tc.signo=1 AND fn_factura_saldo(f.id_factura) < -0.01'),
     'IN-01 stock negativo' => (int) DB::scalar('SELECT COUNT(*) FROM producto WHERE fn_producto_stock(id_producto, 1) < -0.0001'),
-    'CJ-01 dos cajas abiertas' => max(0, (int) DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja=1') - 1),
+    // Por SUCURSAL: N locales con N cajas abiertas es lo correcto.
+    'CJ-01 dos cajas abiertas' => (int) DB::scalar(
+        'SELECT COALESCE(SUM(n - 1), 0) FROM (SELECT id_sucursal, COUNT(*) n FROM caja
+           WHERE id_estado_caja = 1 GROUP BY id_sucursal HAVING COUNT(*) > 1) x'),
     'AG-02 comision a quien no trabajo' => (int) DB::scalar(
         'SELECT COUNT(*) FROM servicio_realizado sr JOIN cita_servicio cs ON cs.id_cita=sr.id_cita AND cs.id_servicio=sr.id_servicio
           WHERE cs.id_usuario IS NOT NULL AND cs.id_usuario <> sr.id_usuario'),

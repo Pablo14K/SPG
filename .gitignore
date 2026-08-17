@@ -33,3 +33,4 @@ Thumbs.db
 # siguiente. El resultado que sí importa está en el informe, que sí se commitea.
 _sim/log/
 _sim60/log/
+_sim30/log/

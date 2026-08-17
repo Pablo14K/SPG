@@ -28,7 +28,13 @@ class Facturacion
     /** Emite el comprobante de una cita ya atendida. Devuelve su id. */
     public static function emitir(int $idCliente, int $idCita, int $idUsuario, int $idTipo, int $idCondicion): int
     {
-        return Bd::idDe('sp_emitir_factura', [$idCliente, $idCita, $idUsuario, $idTipo, $idCondicion]);
+        // **La sucursal va al procedimiento**, que la necesita para elegir el
+        // timbrado: el número impreso lleva el establecimiento del local, y con
+        // el timbrado de otra sede el comprobante diría que salió de ahí. Si la
+        // factura cuelga de una cita, la del procedimiento manda — el hecho
+        // ocurrió donde ocurrió.
+        return Bd::idDe('sp_emitir_factura',
+            [$idCliente, $idCita, $idUsuario, $idTipo, $idCondicion, Sucursales::activa()]);
     }
 
     public static function numero(int $idFactura): string
@@ -48,7 +54,8 @@ class Facturacion
 
     public static function hayTimbrado(int $idTipoComprobante): bool
     {
-        return (bool) Bd::funcion('fn_timbrado_vigente(?, CURDATE())', [$idTipoComprobante]);
+        return (bool) Bd::funcion('fn_timbrado_vigente(?, CURDATE(), ?)',
+            [$idTipoComprobante, Sucursales::activa()]);
     }
 
     /**

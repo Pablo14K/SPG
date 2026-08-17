@@ -4229,17 +4229,35 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_timbrado_vigente`(p_id_tipo_comprobante INT UNSIGNED, p_fecha DATE) RETURNS int(10) unsigned
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_timbrado_vigente`(p_id_tipo_comprobante INT UNSIGNED,
+  p_fecha               DATE,
+  p_id_sucursal         INT UNSIGNED
+) RETURNS int(10) unsigned
     READS SQL DATA
 BEGIN
   DECLARE v_id INT UNSIGNED DEFAULT NULL;
-  SELECT t.id_timbrado INTO v_id
-  FROM timbrado t
-  WHERE t.id_tipo_comprobante = p_id_tipo_comprobante
-    AND t.activo = 1
-    AND p_fecha BETWEEN t.fecha_inicio AND t.fecha_fin
-  ORDER BY t.fecha_fin ASC, t.id_timbrado ASC
-  LIMIT 1;
+
+  IF p_id_sucursal IS NOT NULL AND p_id_sucursal > 0 THEN
+    SELECT t.id_timbrado INTO v_id
+    FROM timbrado t
+    WHERE t.id_tipo_comprobante = p_id_tipo_comprobante
+      AND t.id_sucursal = p_id_sucursal
+      AND t.activo = 1
+      AND p_fecha BETWEEN t.fecha_inicio AND t.fecha_fin
+    ORDER BY t.fecha_fin ASC, t.id_timbrado ASC
+    LIMIT 1;
+  END IF;
+
+  IF v_id IS NULL THEN
+    SELECT t.id_timbrado INTO v_id
+    FROM timbrado t
+    WHERE t.id_tipo_comprobante = p_id_tipo_comprobante
+      AND t.activo = 1
+      AND p_fecha BETWEEN t.fecha_inicio AND t.fecha_fin
+    ORDER BY t.fecha_fin ASC, t.id_timbrado ASC
+    LIMIT 1;
+  END IF;
+
   RETURN v_id;
 END ;;
 DELIMITER ;
@@ -4739,22 +4757,32 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_factura`(
-    IN  p_id_cliente           INT UNSIGNED,
-    IN  p_id_cita              INT UNSIGNED,
-    IN  p_id_usuario           INT UNSIGNED,
-    IN  p_id_tipo_comprobante  INT UNSIGNED,
-    IN  p_id_condicion_venta   INT UNSIGNED,
-    OUT p_id_factura           INT UNSIGNED
+  IN  p_id_cliente           INT UNSIGNED,
+  IN  p_id_cita              INT UNSIGNED,
+  IN  p_id_usuario           INT UNSIGNED,
+  IN  p_id_tipo_comprobante  INT UNSIGNED,
+  IN  p_id_condicion_venta   INT UNSIGNED,
+  IN  p_id_sucursal          INT UNSIGNED,
+  OUT p_id_factura           INT UNSIGNED
 )
 BEGIN
   DECLARE v_timbrado  INT UNSIGNED DEFAULT NULL;
   DECLARE v_nro       INT UNSIGNED DEFAULT 0;
   DECLARE v_nivel     INT UNSIGNED DEFAULT NULL;
   DECLARE v_promo     INT UNSIGNED DEFAULT NULL;
+  DECLARE v_suc       INT UNSIGNED DEFAULT NULL;
   DECLARE v_m_nivel   DECIMAL(14,2) DEFAULT 0;
   DECLARE v_m_promo   DECIMAL(14,2) DEFAULT 0;
 
-  SET v_timbrado = fn_timbrado_vigente(p_id_tipo_comprobante, CURRENT_DATE);
+  
+  
+  
+  SET v_suc = p_id_sucursal;
+  IF p_id_cita IS NOT NULL THEN
+    SELECT id_sucursal INTO v_suc FROM cita WHERE id_cita = p_id_cita;
+  END IF;
+
+  SET v_timbrado = fn_timbrado_vigente(p_id_tipo_comprobante, CURRENT_DATE, v_suc);
   IF v_timbrado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para ese tipo de comprobante.';
   END IF;
@@ -5598,4 +5626,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17 19:13:36
+-- Dump completed on 2026-08-17 20:24:21

@@ -957,6 +957,70 @@ class ReglasDeNegocioTest extends TestCase
             'El local 1 está viendo también la plata del local nuevo.');
     }
 
+    /**
+     * El comprobante se numera con el timbrado DEL LOCAL que lo emite.
+     *
+     * `fn_timbrado_vigente` elegía el primer timbrado vigente de ese tipo **sin
+     * mirar la sucursal**, así que el segundo local emitía con el de la casa
+     * central. Dos cosas se rompen: el **establecimiento** —los tres primeros
+     * dígitos del número impreso, que es lo que la SET usa para saber de qué
+     * local salió— queda mal, y los correlativos de las dos sedes se mezclan.
+     * Y arrastra la plata: desde la 7.36.3 el cobro deduce su sucursal del
+     * timbrado, así que la factura ajena lleva el cobro al cajón equivocado.
+     *
+     * Lo encontró la simulación al hacer que el segundo local **facturara** de
+     * verdad. Hasta entonces sólo agendaba, y este camino no tenía cobertura:
+     * es el ejemplo de que un hueco de cobertura esconde defectos, no ausencia
+     * de defectos.
+     */
+    #[Test]
+    public function el_comprobante_usa_el_timbrado_de_su_propio_local(): void
+    {
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_cliente, c.id_usuario, c.id_sucursal FROM cita c
+              WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+                AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1');
+        if (! $cita) {
+            $this->markTestSkipped('Hace falta una cita con servicios y sin comprobante.');
+        }
+
+        // Un segundo local con SU timbrado del mismo tipo, vigente.
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Timbrado']);
+        $otra = (int) DB::getPdo()->lastInsertId();
+
+        $tipo = (int) DB::scalar(
+            'SELECT t.id_tipo_comprobante FROM timbrado t
+              WHERE t.activo = 1 AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin LIMIT 1');
+
+        DB::insert(
+            'INSERT INTO timbrado (id_sucursal, id_tipo_comprobante, nro_timbrado, establecimiento,
+                                   punto_expedicion, nro_desde, nro_hasta, fecha_inicio, fecha_fin, activo)
+             VALUES (?,?,?,?,?,?,?,?,?,1)',
+            [$otra, $tipo, '99887766', '009', '001', 1, 9999999,
+             // **Vence ANTES que los demás, a propósito.** `fn_timbrado_vigente`
+             // ordena por `fecha_fin ASC`, así que con un vencimiento posterior la
+             // versión rota igual elegía el correcto y la prueba pasaba por
+             // casualidad. Con éste primero en el orden, si la función no mira la
+             // sucursal se lleva el ajeno — que es justo lo que hay que detectar.
+             date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('+2 days'))]);
+        $timbradoAjeno = (int) DB::getPdo()->lastInsertId();
+
+        // Emitiendo la cita —que es del local 1— el timbrado tiene que ser el
+        // de ESE local, no el que acabamos de crear en el otro.
+        $idFactura = Bd::idDe('sp_emitir_factura',
+            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra]);
+
+        $usado = (int) DB::scalar('SELECT id_timbrado FROM factura WHERE id_factura = ?', [$idFactura]);
+        $sucUsada = (int) DB::scalar('SELECT id_sucursal FROM timbrado WHERE id_timbrado = ?', [$usado]);
+
+        $this->assertSame((int) $cita->id_sucursal, $sucUsada,
+            'El comprobante tiene que numerarse con el timbrado del local donde ocurrió la atención: '
+            . 'con el de otra sede, el establecimiento impreso miente y los correlativos se mezclan.');
+        $this->assertNotSame($timbradoAjeno, $usado,
+            'Se usó el timbrado del otro local.');
+    }
+
     #[Test]
     public function el_cobro_va_a_la_caja_del_local_no_a_la_de_quien_opera(): void
     {
@@ -1726,7 +1790,9 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame('USADO', DB::scalar('SELECT fn_canje_estado(?)', [$idCanje]));
 
         // …y el comprobante lo NOMBRA pero no lo cobra.
-        $idFactura = Bd::idDe('sp_emitir_factura', [$cliente, $idCita, $prof, 1, 1]);
+        // El sexto parámetro es la sucursal, para elegir el timbrado del local. Con
+        // una cita cargada manda la de la cita, así que el 0 acá es sólo la red.
+        $idFactura = Bd::idDe('sp_emitir_factura', [$cliente, $idCita, $prof, 1, 1, 0]);
         $renglones = DB::select(
             'SELECT df.id_servicio, df.precio_unitario FROM detalle_factura df WHERE df.id_factura = ?', [$idFactura]
         );
