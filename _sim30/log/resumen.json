@@ -2188,7 +2188,8 @@
    "detalle": "La pantalla «Nueva compra» (GET /inventario/compras/nueva) contesta 500 siempre que haya una sucursal activa. La consulta que arma la lista de productos filtra con `Sucursales::filtro('producto', ...)`, que genera `AND producto.id_sucursal = :suc`, y esa columna dejó de existir en la 7.33.0 cuando el catálogo de productos pasó a ser único y el local se mudó a `producto_sucursal`.",
    "reproduccion": "Entrar con cualquier cuenta con permiso `inventario.compras`, elegir sucursal y abrir Inventario → Compras → Nueva compra. Error de MariaDB 1054: «Unknown column 'producto.id_sucursal' in 'where clause'».",
    "impacto": "Bloquea por completo el alta de compras: el salón no puede registrar el ingreso de mercadería por el camino normal. El stock sólo se puede mover por ajuste manual.",
-   "origen": "Regresión introducida en la 7.33.0. Ninguna prueba abre esa pantalla."
+   "origen": "Regresión introducida en la 7.33.0. Ninguna prueba abre esa pantalla.",
+   "estado": "CORREGIDO en 7.36.3 — «Nueva compra» vuelve a dibujarse (HTTP 200), verificado contra la base de la simulación. Entra a la lista de pantallas que la batería abre, que es donde faltaba."
   },
   {
    "codigo": "CJ-03",
@@ -2199,7 +2200,8 @@
    "detalle": "El control que impide entregar efectivo que no está en el cajón mira la caja de la SUCURSAL ACTIVA (`Caja::abierta()`, que filtra por `Sucursales::activa()`), pero `sp_pagar_compra` graba el pago en la caja DEL USUARIO (`WHERE id_usuario = p_id_usuario AND id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1`). Con más de un local abierto a la vez, esas dos cajas pueden ser distintas: se valida contra una y se descuenta de otra. El controlador sólo corrige `id_caja` cuando el procedimiento lo dejó en NULL, así que no alcanza a enmendarlo.",
    "reproduccion": "Una cuenta asignada a dos sucursales abre la caja en ambas. Trabajando en el local con más efectivo, registrar un pago a proveedor en efectivo mayor al saldo del OTRO local. Evidencia: caja #19 (sucursal 2), monto inicial Gs. 150.000, pago a proveedor #2 en efectivo por Gs. 1.150.000 aplicado, saldo final Gs. -1.000.000.",
    "impacto": "Arqueo imposible de cuadrar en el local afectado y salida de efectivo no respaldada. Es la misma clase de defecto que CJ-01, ahora por la vía de la sucursal.",
-   "origen": "Aparece con el multisucursal de la 7.30.0; sin cobertura previa."
+   "origen": "Aparece con el multisucursal de la 7.30.0; sin cobertura previa.",
+   "estado": "CORREGIDO en 7.36.3 — las tres rutinas deducen la sucursal de su propio documento. Verificado: con dos cajas abiertas por la misma persona, la seña entró a la del local de la cita y no a la abierta después en el otro."
   },
   {
    "codigo": "IN-06",
@@ -2210,7 +2212,8 @@
    "detalle": "Al registrar la atención en un local que no maneja ese producto, `trg_movinv_bi` rechaza el movimiento con «Ese producto no esta habilitado en esa sucursal». El disparador hace bien su trabajo —el candado se mudó a `producto_sucursal` en la 7.33.0—, pero la atención queda registrada sin ese consumo y el aviso no dice cómo resolverlo: falta indicar que el producto se trae desde Inventario → Productos → «Traer acá».",
    "reproduccion": "Atender una cita en la sucursal 2 cargando un producto que sólo está habilitado en la sucursal 1. La atención se registra; la línea de consumo no.",
    "impacto": "El stock no refleja lo que se usó y quien atiende no sabe por qué. No hay pérdida de datos: la atención y los servicios sí quedan.",
-   "origen": "Consecuencia esperable de la 7.33.0, con el mensaje incompleto."
+   "origen": "Consecuencia esperable de la 7.33.0, con el mensaje incompleto.",
+   "estado": "CORREGIDO en 7.36.3 — el aviso ya no dice «no hay stock»: nombra el camino para traer el producto a la sucursal."
   }
  ],
  "descartados_verificados": [
@@ -2245,7 +2248,8 @@
  ],
  "notas_banco": [
   "Dos errores de MariaDB del log («Unknown column 't.token'» y «Unknown column 'monto_final'») provienen de consultas del propio banco de pruebas, no del sistema.",
-  "La caja del local nuevo no abría por CJ-04, corregido durante la corrida a pedido del usuario (versión 7.36.2) para que el multisucursal pudiera probarse de verdad."
+  "La caja del local nuevo no abría por CJ-04, corregido durante la corrida a pedido del usuario (versión 7.36.2) para que el multisucursal pudiera probarse de verdad.",
+  "Los tres hallazgos se corrigieron a pedido del usuario una vez cerrada la corrida (versión 7.36.3) y se verificaron contra la propia base de la simulación. La batería pasa de 89 a 91 pruebas."
  ],
  "severidades_verificadas": {
   "CRITICO": 2,

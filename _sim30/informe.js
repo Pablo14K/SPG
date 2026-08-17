@@ -931,6 +931,7 @@ function detalleHallazgo(f, id) {
   const quePasa = f.detalle || f.primer_detalle;
   if (quePasa) H.push(ricos([['Qué pasa. ', true], quePasa], { size: 19 }));
   if (f.origen) H.push(ricos([['De dónde viene. ', true], f.origen], { size: 19 }));
+  if (f.estado) H.push(ricos([['Estado. ', true], [f.estado, true, VERDE]], { size: 19 }));
   if (f.reproduccion) H.push(ricos([['Cómo reproducirlo. ', true], f.reproduccion], { size: 19 }));
   if (f.evidencia) H.push(ricos([['Evidencia. ', true], f.evidencia], { size: 19 }));
   if (f.impacto) H.push(ricos([['Impacto. ', true], f.impacto], { size: 19 }));
