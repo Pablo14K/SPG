@@ -27,7 +27,12 @@ $CUENTAS = [
  */
 function enParalelo(array $trabajos): array
 {
-    $largada = microtime(true) + 3.0;
+    // **Un retardo, no un instante.** `libfaketime` le reinicia el reloj a cada
+    // proceso hijo en el ancla del día, así que un instante absoluto del padre
+    // le queda al hijo tan lejos en el futuro como lleve corriendo el padre — y
+    // lo esperaba en tiempo real. Con un retardo, los hijos largan juntos
+    // igual y la espera nunca pasa de esos segundos.
+    $largada = 2.0;
     $php = PHP_BINARY;
     $script = '/app/_sim30/worker.php';
     $procs = [];

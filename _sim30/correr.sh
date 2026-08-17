@@ -47,22 +47,22 @@ while [ "$D" -le "$HASTA" ]; do
   # Con 30 días se comprimen: cada escenario corre más veces que en la de 60,
   # que es de lo que se trata la alta densidad.
   case $D in
-    2|11|21|29)              corre "$D" permisos     15:30:00 ;;
+    2|16|28)                 corre "$D" permisos     15:30:00 ;;
   esac
   case $D in
-    3|7|12|17|22|26|30)      corre "$D" anomalias    15:50:00 ;;
+    3|13|24)                 corre "$D" anomalias    15:50:00 ;;
   esac
   case $D in
-    6|14|22|29)              corre "$D" concurrencia 16:10:00 ;;
+    7|19|27)                 corre "$D" concurrencia 16:10:00 ;;
   esac
   case $D in
-    6|13|18|23|27)           corre "$D" canjes       16:25:00 ;;
+    9|22)                    corre "$D" canjes       16:25:00 ;;
   esac
   case $D in
-    10|16|25)                corre "$D" bajas        16:40:00 ;;
+    18)                       corre "$D" bajas        16:40:00 ;;
   esac
   case $D in
-    5|8|13|20|24|29)         corre "$D" portal       16:55:00 ;;
+    5|15|26)                 corre "$D" portal       16:55:00 ;;
   esac
   corre "$D" tarde    18:58:00
   corre "$D" cierre   19:15:00

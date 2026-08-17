@@ -17,8 +17,8 @@ if ($usr !== '-') {
 
 $datos = json_decode($json ?: '[]', true) ?: [];
 
-// Todos largan juntos
-$t = (float) $largada;
+// Todos largan juntos: el retardo se mide contra el reloj de ESTE proceso.
+$t = microtime(true) + max(0.0, min(10.0, (float) $largada));
 while (microtime(true) < $t) {
     usleep(500);
 }

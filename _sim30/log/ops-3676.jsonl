@@ -1,6 +1,0 @@
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 16:10:02"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 05\/09\/2026 16:30."],"t":"2026-09-04 16:10:04"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-05","st":200,"flash":[],"t":"2026-09-04 16:10:05"}

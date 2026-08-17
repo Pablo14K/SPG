@@ -17,7 +17,40 @@ d2 cierre 2026-09-02 ok
 d3 apertura 2026-09-03 ok
 d3 manana 2026-09-03 ok
 d3 mediodia 2026-09-03 ok
-d3 sucursales 2026-09-03 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 3)                              
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
 d3 anomalias 2026-09-03 ok
 d3 tarde 2026-09-03 ok
 d3 cierre 2026-09-03 ok
@@ -26,26 +59,9 @@ d4 apertura 2026-09-04 ok
 d4 manana 2026-09-04 ok
 d4 mediodia 2026-09-04 ok
 d4 sucursales 2026-09-04 ok
-
-In Connection.php line 857:
-                                                                               
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
-  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
-  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
-  inal = monto_inicial                                                         
-                      WHERE id_estado_caja = 1)                                
-                                                                               
-
-In Connection.php line 595:
-                                                                               
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
-  eld list'                                                                    
-                                                                               
-
 d4 tarde 2026-09-04 ok
 d4 cierre 2026-09-04 ok
 == dia 4 listo ==
-SIMULACION TERMINADA 1..4
 d5 apertura 2026-09-05 ok
 d5 manana 2026-09-05 ok
 d5 mediodia 2026-09-05 ok
@@ -75,8 +91,40 @@ d5 cierre 2026-09-05 ok
 d6 apertura 2026-09-06 ok
 d6 manana 2026-09-06 ok
 d6 mediodia 2026-09-06 ok
-d6 sucursales 2026-09-06 ok
-d6 canjes 2026-09-06 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 6)                              
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
 d6 tarde 2026-09-06 ok
 d6 cierre 2026-09-06 ok
 == dia 6 listo ==
@@ -84,7 +132,22 @@ d7 apertura 2026-09-07 ok
 d7 manana 2026-09-07 ok
 d7 mediodia 2026-09-07 ok
 d7 sucursales 2026-09-07 ok
-d7 anomalias 2026-09-07 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
+  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
+  inal = monto_inicial                                                         
+                      WHERE id_estado_caja = 1)                                
+                                                                               
+
+In Connection.php line 595:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list'                                                                    
+                                                                               
+
 d7 tarde 2026-09-07 ok
 d7 cierre 2026-09-07 ok
 == dia 7 listo ==
@@ -92,6 +155,156 @@ d8 apertura 2026-09-08 ok
 d8 manana 2026-09-08 ok
 d8 mediodia 2026-09-08 ok
 d8 sucursales 2026-09-08 ok
+d8 tarde 2026-09-08 ok
+d8 cierre 2026-09-08 ok
+== dia 8 listo ==
+d9 apertura 2026-09-09 ok
+d9 manana 2026-09-09 ok
+d9 mediodia 2026-09-09 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 13)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d9 canjes 2026-09-09 ok
+d9 tarde 2026-09-09 ok
+d9 cierre 2026-09-09 ok
+== dia 9 listo ==
+d10 apertura 2026-09-10 ok
+d10 manana 2026-09-10 ok
+d10 mediodia 2026-09-10 ok
+d10 sucursales 2026-09-10 ok
+d10 tarde 2026-09-10 ok
+d10 cierre 2026-09-10 ok
+== dia 10 listo ==
+d11 apertura 2026-09-11 ok
+d11 manana 2026-09-11 ok
+d11 mediodia 2026-09-11 ok
+d11 sucursales 2026-09-11 ok
+d11 tarde 2026-09-11 ok
+d11 cierre 2026-09-11 ok
+== dia 11 listo ==
+d12 apertura 2026-09-12 ok
+d12 manana 2026-09-12 ok
+d12 mediodia 2026-09-12 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 16)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d12 tarde 2026-09-12 ok
+d12 cierre 2026-09-12 ok
+== dia 12 listo ==
+d13 apertura 2026-09-13 ok
+d13 manana 2026-09-13 ok
+d13 mediodia 2026-09-13 ok
+d13 sucursales 2026-09-13 ok
+d13 anomalias 2026-09-13 ok
+d13 tarde 2026-09-13 ok
+d13 cierre 2026-09-13 ok
+== dia 13 listo ==
+d14 apertura 2026-09-14 ok
+d14 manana 2026-09-14 ok
+d14 mediodia 2026-09-14 ok
+d14 sucursales 2026-09-14 ok
+d14 tarde 2026-09-14 ok
+d14 cierre 2026-09-14 ok
+== dia 14 listo ==
+d15 apertura 2026-09-15 ok
+d15 manana 2026-09-15 ok
+d15 mediodia 2026-09-15 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 22)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
 
 In Connection.php line 857:
                                                                                
@@ -111,10 +324,366 @@ In Connection.php line 435:
   list'                                                                        
                                                                                
 
-d8 tarde 2026-09-08 ok
-d8 cierre 2026-09-08 ok
-== dia 8 listo ==
-d9 apertura 2026-09-09 ok
-d9 manana 2026-09-09 ok
-d9 mediodia 2026-09-09 ok
-d9 sucursales 2026-09-09 ok
+d15 tarde 2026-09-15 ok
+d15 cierre 2026-09-15 ok
+== dia 15 listo ==
+d16 apertura 2026-09-16 ok
+d16 manana 2026-09-16 ok
+d16 mediodia 2026-09-16 ok
+d16 sucursales 2026-09-16 ok
+d16 permisos 2026-09-16 ok
+d16 tarde 2026-09-16 ok
+d16 cierre 2026-09-16 ok
+== dia 16 listo ==
+d17 apertura 2026-09-17 ok
+d17 manana 2026-09-17 ok
+d17 mediodia 2026-09-17 ok
+d17 sucursales 2026-09-17 ok
+d17 tarde 2026-09-17 ok
+d17 cierre 2026-09-17 ok
+== dia 17 listo ==
+d18 apertura 2026-09-18 ok
+d18 manana 2026-09-18 ok
+d18 mediodia 2026-09-18 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 25)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d18 bajas 2026-09-18 ok
+d18 tarde 2026-09-18 ok
+d18 cierre 2026-09-18 ok
+== dia 18 listo ==
+d19 apertura 2026-09-19 ok
+d19 manana 2026-09-19 ok
+d19 mediodia 2026-09-19 ok
+d19 sucursales 2026-09-19 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
+  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
+  inal = monto_inicial                                                         
+                      WHERE id_estado_caja = 1)                                
+                                                                               
+
+In Connection.php line 595:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list'                                                                    
+                                                                               
+
+d19 tarde 2026-09-19 ok
+d19 cierre 2026-09-19 ok
+== dia 19 listo ==
+d20 apertura 2026-09-20 ok
+d20 manana 2026-09-20 ok
+d20 mediodia 2026-09-20 ok
+d20 sucursales 2026-09-20 ok
+d20 tarde 2026-09-20 ok
+d20 cierre 2026-09-20 ok
+== dia 20 listo ==
+d21 apertura 2026-09-21 ok
+d21 manana 2026-09-21 ok
+d21 mediodia 2026-09-21 ok
+d19 apertura 2026-09-19 ok
+d19 manana 2026-09-19 ok
+d19 mediodia 2026-09-19 ok
+d19 sucursales 2026-09-19 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
+  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
+  inal = monto_inicial                                                         
+                      WHERE id_estado_caja = 1)                                
+                                                                               
+
+In Connection.php line 595:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list'                                                                    
+                                                                               
+
+d19 tarde 2026-09-19 ok
+d19 cierre 2026-09-19 ok
+== dia 19 listo ==
+d20 apertura 2026-09-20 ok
+d20 manana 2026-09-20 ok
+d20 mediodia 2026-09-20 ok
+d20 sucursales 2026-09-20 ok
+d20 tarde 2026-09-20 ok
+d20 cierre 2026-09-20 ok
+== dia 20 listo ==
+d21 apertura 2026-09-21 ok
+d21 manana 2026-09-21 ok
+d21 mediodia 2026-09-21 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 34)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d21 tarde 2026-09-21 ok
+d21 cierre 2026-09-21 ok
+== dia 21 listo ==
+d22 apertura 2026-09-22 ok
+d22 manana 2026-09-22 ok
+d22 mediodia 2026-09-22 ok
+d22 sucursales 2026-09-22 ok
+d22 canjes 2026-09-22 ok
+d22 tarde 2026-09-22 ok
+d22 cierre 2026-09-22 ok
+== dia 22 listo ==
+d23 apertura 2026-09-23 ok
+d23 manana 2026-09-23 ok
+d23 mediodia 2026-09-23 ok
+d23 sucursales 2026-09-23 ok
+d23 tarde 2026-09-23 ok
+d23 cierre 2026-09-23 ok
+== dia 23 listo ==
+d24 apertura 2026-09-24 ok
+d24 manana 2026-09-24 ok
+d24 mediodia 2026-09-24 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 37)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d24 anomalias 2026-09-24 ok
+d24 tarde 2026-09-24 ok
+d24 cierre 2026-09-24 ok
+== dia 24 listo ==
+d25 apertura 2026-09-25 ok
+d25 manana 2026-09-25 ok
+d25 mediodia 2026-09-25 ok
+d25 sucursales 2026-09-25 ok
+d25 tarde 2026-09-25 ok
+d25 cierre 2026-09-25 ok
+== dia 25 listo ==
+d26 apertura 2026-09-26 ok
+d26 manana 2026-09-26 ok
+d26 mediodia 2026-09-26 ok
+d26 sucursales 2026-09-26 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim,  
+   SQL: SELECT t.token, t.id_cita FROM token_cita t                            
+                          JOIN cita c ON c.id_cita = t.id_cita                 
+                         WHERE c.id_estado_cita IN (1,2) AND c.fecha_hora > N  
+  OW()                                                                         
+                           AND (t.expira_en IS NULL OR t.expira_en > NOW()) L  
+  IMIT 1)                                                                      
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list'                                                                        
+                                                                               
+
+d26 tarde 2026-09-26 ok
+d26 cierre 2026-09-26 ok
+== dia 26 listo ==
+d27 apertura 2026-09-27 ok
+d27 manana 2026-09-27 ok
+d27 mediodia 2026-09-27 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 44)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
+  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
+  inal = monto_inicial                                                         
+                      WHERE id_estado_caja = 1)                                
+                                                                               
+
+In Connection.php line 595:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list'                                                                    
+                                                                               
+
+d27 tarde 2026-09-27 ok
+d27 cierre 2026-09-27 ok
+== dia 27 listo ==
+d28 apertura 2026-09-28 ok
+d28 manana 2026-09-28 ok
+d28 mediodia 2026-09-28 ok
+d28 sucursales 2026-09-28 ok
+d28 permisos 2026-09-28 ok
+d28 tarde 2026-09-28 ok
+d28 cierre 2026-09-28 ok
+== dia 28 listo ==
+d29 apertura 2026-09-29 ok
+d29 manana 2026-09-29 ok
+d29 mediodia 2026-09-29 ok
+d29 sucursales 2026-09-29 ok
+d29 tarde 2026-09-29 ok
+d29 cierre 2026-09-29 ok
+== dia 29 listo ==
+d30 apertura 2026-09-30 ok
+d30 manana 2026-09-30 ok
+d30 mediodia 2026-09-30 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim  
+  , SQL: SELECT k.monto_inicial                                                
+                    + COALESCE((SELECT SUM(co.monto) FROM cobro co             
+                                  JOIN metodo_pago mp USING(id_metodo_pago)    
+                                 WHERE co.id_caja = k.id_caja AND co.id_estad  
+  o_cobro = 1                                                                  
+                                   AND mp.tipo = 'EFECTIVO'), 0)               
+                    + COALESCE((SELECT SUM(CASE WHEN mc.tipo='INGRESO' THEN m  
+  c.monto ELSE -mc.monto END)                                                  
+                                  FROM movimiento_caja mc WHERE mc.id_caja =   
+  k.id_caja), 0)                                                               
+                    - COALESCE((SELECT SUM(pp.monto) FROM pago_proveedor pp    
+                                  JOIN metodo_pago mp2 USING(id_metodo_pago)   
+                                 WHERE pp.id_caja = k.id_caja AND pp.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp2.tipo = 'EFECTIVO'), 0)              
+                    - COALESCE((SELECT SUM(ps.monto) FROM pago_personal ps     
+                                  JOIN metodo_pago mp3 USING(id_metodo_pago)   
+                                 WHERE ps.id_caja = k.id_caja AND ps.id_estad  
+  o_pago = 1                                                                   
+                                   AND mp3.tipo = 'EFECTIVO'), 0)              
+                 FROM caja k WHERE k.id_caja = 47)                             
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'pp.monto' in 'field  
+   list'                                                                       
+                                                                               
+
+d30 tarde 2026-09-30 ok
+d30 cierre 2026-09-30 ok
+== dia 30 listo ==
+SIMULACION TERMINADA 19..30

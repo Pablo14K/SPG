@@ -4905,19 +4905,22 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
-    IN  p_id_compra  INT UNSIGNED,
-    IN  p_id_metodo  INT UNSIGNED,
-    IN  p_id_usuario INT UNSIGNED,
-    IN  p_monto      DECIMAL(14,2),
-    IN  p_referencia VARCHAR(100),
-    OUT p_id_pago    INT UNSIGNED)
+  IN  p_id_compra    INT UNSIGNED,
+  IN  p_id_metodo    INT UNSIGNED,
+  IN  p_id_usuario   INT UNSIGNED,
+  IN  p_monto        DECIMAL(14,2),
+  IN  p_referencia   VARCHAR(50),
+  OUT p_id_pago      INT UNSIGNED
+)
 BEGIN
   DECLARE v_estado    INT UNSIGNED DEFAULT NULL;
   DECLARE v_proveedor INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal  INT UNSIGNED DEFAULT NULL;
   DECLARE v_saldo     DECIMAL(14,2) DEFAULT 0;
   DECLARE v_caja      INT UNSIGNED DEFAULT NULL;
 
-  SELECT id_estado_compra, id_proveedor INTO v_estado, v_proveedor
+  SELECT id_estado_compra, id_proveedor, id_sucursal
+    INTO v_estado, v_proveedor, v_sucursal
   FROM compra WHERE id_compra = p_id_compra;
 
   IF v_estado IS NULL THEN
@@ -4938,9 +4941,16 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El monto supera el saldo pendiente de la compra.';
   END IF;
 
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
    ORDER BY id_caja DESC LIMIT 1;
+
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+     ORDER BY id_caja DESC LIMIT 1;
+  END IF;
 
   INSERT INTO pago_proveedor (id_proveedor, id_usuario, id_metodo_pago, id_estado_pago_proveedor, id_caja, referencia)
   VALUES (v_proveedor, p_id_usuario, p_id_metodo, 1, v_caja, p_referencia);
@@ -4965,28 +4975,30 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
-    IN  p_id_factura  INT UNSIGNED,
-    IN  p_id_metodo   INT UNSIGNED,
-    IN  p_id_usuario  INT UNSIGNED,
-    IN  p_monto       DECIMAL(14,2),
-    IN  p_referencia  VARCHAR(100),
-    OUT p_id_cobro    INT UNSIGNED
+  IN  p_id_factura  INT UNSIGNED,
+  IN  p_id_metodo   INT UNSIGNED,
+  IN  p_id_usuario  INT UNSIGNED,
+  IN  p_monto       DECIMAL(14,2),
+  IN  p_referencia  VARCHAR(50),
+  OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
-  DECLARE v_estado INT UNSIGNED DEFAULT NULL;
-  DECLARE v_signo  TINYINT DEFAULT 0;
-  DECLARE v_saldo  DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_caja   INT UNSIGNED DEFAULT NULL;
-  DECLARE v_lock   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_estado    INT UNSIGNED DEFAULT NULL;
+  DECLARE v_signo     TINYINT DEFAULT 0;
+  DECLARE v_saldo     DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_caja      INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_lock      INT UNSIGNED DEFAULT NULL;
 
   
   
   SELECT id_factura INTO v_lock FROM factura WHERE id_factura = p_id_factura FOR UPDATE;
 
-  SELECT f.id_estado_factura, tc.signo
-    INTO v_estado, v_signo
+  SELECT f.id_estado_factura, tc.signo, t.id_sucursal
+    INTO v_estado, v_signo, v_sucursal
   FROM factura f
   JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+  LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
   WHERE f.id_factura = p_id_factura;
 
   IF v_estado IS NULL THEN
@@ -5006,9 +5018,17 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El monto supera el saldo pendiente de la factura.';
   END IF;
 
+  
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
    ORDER BY id_caja DESC LIMIT 1;
+
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+     ORDER BY id_caja DESC LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia)
   VALUES (p_id_factura, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia);
@@ -5121,25 +5141,25 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
-    IN  p_id_cita    INT UNSIGNED,
-    IN  p_id_metodo  INT UNSIGNED,
-    IN  p_id_usuario INT UNSIGNED,
-    IN  p_monto      DECIMAL(14,2),
-    IN  p_referencia VARCHAR(100),
-    OUT p_id_cobro   INT UNSIGNED
+  IN  p_id_cita     INT UNSIGNED,
+  IN  p_id_metodo   INT UNSIGNED,
+  IN  p_id_usuario  INT UNSIGNED,
+  IN  p_monto       DECIMAL(14,2),
+  IN  p_referencia  VARCHAR(50),
+  OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
-  DECLARE v_estado INT UNSIGNED DEFAULT NULL;
-  DECLARE v_caja   INT UNSIGNED DEFAULT NULL;
-  DECLARE v_total  DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_senado DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_lock   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_estado    INT UNSIGNED DEFAULT NULL;
+  DECLARE v_caja      INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_total     DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_senado    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_lock      INT UNSIGNED DEFAULT NULL;
 
-  
-  
   SELECT id_cita INTO v_lock FROM cita WHERE id_cita = p_id_cita FOR UPDATE;
 
-  SELECT id_estado_cita INTO v_estado FROM cita WHERE id_cita = p_id_cita;
+  SELECT id_estado_cita, id_sucursal INTO v_estado, v_sucursal
+  FROM cita WHERE id_cita = p_id_cita;
 
   IF v_estado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cita no existe.';
@@ -5149,7 +5169,6 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La sena tiene que ser mayor que cero.';
   END IF;
 
-  
   SELECT COALESCE(SUM(s.precio), 0) INTO v_total
     FROM cita_servicio cs
     JOIN servicio s ON s.id_servicio = cs.id_servicio
@@ -5167,9 +5186,16 @@ BEGIN
       SET MESSAGE_TEXT = 'El monto no puede superar lo que valen los servicios de la cita.';
   END IF;
 
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
    ORDER BY id_caja DESC LIMIT 1;
+
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
+     ORDER BY id_caja DESC LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_cita, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia, observaciones)
   VALUES (NULL, p_id_cita, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia, 'Sena de reserva');
@@ -5572,4 +5598,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17 17:35:19
+-- Dump completed on 2026-08-17 18:57:41

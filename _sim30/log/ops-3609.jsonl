@@ -1,9 +1,0 @@
-{"tipo":"FASE_INI","dia":1,"fase":"tarde","fecha":"2026-09-01","dow":2,"t":"2026-09-01 18:58:00"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-01 18:58:00"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=3&id_usuario=11&fecha=2026-09-03","st":200,"flash":[],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/reprogramar","st":302,"flash":["success: Cita reprogramada para el 03\/09\/2026 15:30."],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-03","st":200,"flash":[],"t":"2026-09-01 18:58:01"}
-{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-01 18:58:01"}

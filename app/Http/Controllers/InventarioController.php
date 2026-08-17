@@ -867,7 +867,6 @@ class InventarioController extends Controller
     public function compraForm(Request $request): View
     {
         // Sólo los productos de este local: una compra ingresa mercadería acá.
-        $pc = [];
 
         return view('inventario.compra_form', [
             'proveedores' => DB::select(
@@ -880,8 +879,17 @@ class InventarioController extends Controller
             // El id va junto al nombre: la pantalla manda el id cuando el
             // producto ya existe, así un espacio de más no termina creando un
             // producto duplicado y partiendo el stock en dos.
-            'productos' => DB::select('SELECT id_producto, nombre FROM producto WHERE activo = 1'
-                . Sucursales::filtro('producto', $pc) . ' ORDER BY nombre', $pc),
+            //
+            // **Se ofrece el catálogo entero, no sólo lo que este local maneja.**
+            // Comprar es justamente cómo un producto entra por primera vez a una
+            // sucursal: filtrar por lo que ya tiene dejaría fuera lo que se va a
+            // comprar. `compraGuardar` lo habilita acá al confirmar.
+            //
+            // Antes esto filtraba con `Sucursales::filtro('producto', …)`, que
+            // arma `producto.id_sucursal` — columna que la 7.33.0 eliminó al
+            // pasar el catálogo a único. La pantalla contestaba 500 siempre, así
+            // que **no se podía registrar ninguna compra**.
+            'productos' => DB::select('SELECT id_producto, nombre FROM producto WHERE activo = 1 ORDER BY nombre'),
             'sel_proveedor' => (int) $request->query('proveedor', 0),
         ]);
     }

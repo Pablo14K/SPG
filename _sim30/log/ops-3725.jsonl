@@ -1,6 +1,0 @@
-{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-04 16:10:01"}
-{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 16:10:02"}
-{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/facturacion\/anular-cobro","st":302,"flash":["success: Cobro de Gs. 165.000 anulado. El saldo de la factura se recalculó solo."],"t":"2026-09-04 16:12:55"}
-{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/facturacion\/cobros","st":200,"flash":[],"t":"2026-09-04 16:12:55"}

@@ -876,6 +876,63 @@ class ReglasDeNegocioTest extends TestCase
      * lo que hay que sostener: el sistema tiene que funcionar con N sucursales,
      * no con dos.
      */
+    /**
+     * La plata entra y sale de la caja DEL LOCAL donde ocurrió el hecho.
+     *
+     * **Las tres rutinas que mueven dinero elegían el cajón de quien opera, no
+     * el del local.** Con un solo cajón en todo el salón daba lo mismo; desde
+     * que cada sucursal tiene el suyo y una persona puede estar asignada a
+     * varias, ese `ORDER BY id_caja DESC` devolvía la última que esa persona
+     * hubiera abierto — que puede ser la de otro local.
+     *
+     * Medido en la simulación de 30 días: un pago a proveedor en efectivo por
+     * Gs. 1.150.000 se validó contra el cajón de la sucursal activa y se grabó
+     * en el de la otra, que tenía Gs. 150.000. Quedó en **−1.000.000**.
+     *
+     * Ahora cada documento dice dónde ocurrió y la sucursal se deduce: la
+     * compra la trae en `compra.id_sucursal`, la cita en `cita.id_sucursal` y
+     * la factura en el timbrado con el que se numeró.
+     */
+    #[Test]
+    public function el_cobro_va_a_la_caja_del_local_no_a_la_de_quien_opera(): void
+    {
+        $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE activo = 1 ORDER BY id_usuario LIMIT 1');
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_sucursal FROM cita c
+              WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1');
+        if (! $uid || ! $cita) {
+            $this->markTestSkipped('Hace falta una cita con servicios en la base de prueba.');
+        }
+
+        DB::statement('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_estado_caja = 1');
+
+        // Un segundo local, con su propia caja, abierta por la MISMA persona y
+        // DESPUÉS que la del local de la cita: es el orden que hacía fallar el
+        // `ORDER BY id_caja DESC`.
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Caja Local']);
+        $otra = (int) DB::getPdo()->lastInsertId();
+
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
+                    VALUES (?,?,1,100000)', [$uid, (int) $cita->id_sucursal]);
+        $cajaDelLocal = (int) DB::getPdo()->lastInsertId();
+
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
+                    VALUES (?,?,1,900000)', [$uid, $otra]);
+        $cajaAjena = (int) DB::getPdo()->lastInsertId();
+
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
+        $idCobro = Bd::idDe('sp_registrar_sena', [(int) $cita->id_cita, $metodo, $uid, 1000.0, 'TEST-LOCAL']);
+
+        $quedo = (int) DB::scalar('SELECT id_caja FROM cobro WHERE id_cobro = ?', [$idCobro]);
+
+        $this->assertSame($cajaDelLocal, $quedo,
+            'La seña tiene que entrar al cajón del local de la cita. Si cae en el de otra sucursal, '
+            . 'el arqueo de un local se come la plata del otro.');
+        $this->assertNotSame($cajaAjena, $quedo,
+            'Entró a la caja que esa persona abrió último, no a la del local: es el defecto CJ-03.');
+    }
+
     #[Test]
     public function cada_sucursal_abre_su_caja_y_solo_una(): void
     {

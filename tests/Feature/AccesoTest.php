@@ -225,6 +225,13 @@ class AccesoTest extends TestCase
             ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
             ['facturacion.caja', []],
             ['inventario.productos', []],
+            ['inventario.stock', []],
+            ['inventario.ajuste', []],
+            // **Nueva compra faltaba en esta lista**, y por eso nadie vio que
+            // devolvía 500: filtraba por `producto.id_sucursal`, columna que la
+            // 7.33.0 eliminó. No se podía registrar ninguna compra.
+            ['inventario.compra_form', []],
+            ['inventario.compras', []],
             ['clientes.canjes', []],
             ['reportes.index', []],
             // El informe en papel, entero y por bloques: cada uno arma sus

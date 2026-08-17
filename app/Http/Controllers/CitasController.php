@@ -1152,11 +1152,20 @@ class CitasController extends Controller
                 });
                 $ok++;
             } catch (QueryException $ex) {
+                // **«No habilitado en esa sucursal» no es lo mismo que «sin
+                // stock», y decirlo así mandaba a comprar lo que ya hay.** El
+                // candado se mudó a `producto_sucursal` en la 7.33.0: el
+                // producto existe y puede estar lleno en otro local, lo que
+                // falta es traerlo a éste. Sin nombrar ese camino, quien
+                // atiende no tiene forma de saber qué hacer.
                 $fallidos[] = $nombre . ': ' . Bd::traducir($ex, [
+                    'habilitado en esa sucursal' => 'no se maneja en esta sucursal — traelo desde '
+                        . 'Inventario → Productos, con el filtro «Sólo en otras sucursales» y el botón «Traer acá»',
                     'stock' => 'no hay stock suficiente',
                 ], 'no se pudo descontar (el detalle quedó registrado)');
 
-                if (! str_contains($ex->getMessage(), 'stock')) {
+                if (! str_contains($ex->getMessage(), 'stock')
+                    && ! str_contains($ex->getMessage(), 'habilitado en esa sucursal')) {
                     Log::error('Consumo de la cita ' . $idCita . ', producto ' . $pid . ': ' . $ex->getMessage());
                 }
             } catch (Throwable $ex) {

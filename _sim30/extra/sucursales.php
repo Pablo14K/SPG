@@ -171,32 +171,70 @@ function faseSucursalesOpera(int $dia): void
     }
 
     // --- Agenda del local nuevo -----------------------------------------
+    //
+    // **Se le piden los huecos al sistema, no se inventa la hora.** Es el mismo
+    // camino que recorre una recepcionista: elige servicios, mira qué días y
+    // horas hay libres, y reserva uno de ésos. Inventar la hora hacía que el
+    // sistema rechazara casi todo por caer fuera del turno, y la simulación
+    // terminaba midiendo el rechazo en vez de la agenda.
     $servicios = DB::select(
         'SELECT s.id_servicio FROM servicio s
           WHERE s.activo = 1
             AND (EXISTS (SELECT 1 FROM servicio_sucursal ss WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = ?)
                  OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2 WHERE ss2.id_servicio = s.id_servicio))
-          ORDER BY RAND() LIMIT 3', [$suc2]);
+          ORDER BY RAND() LIMIT 6', [$suc2]);
 
-    $prof = (int) (DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'noelia'") ?: 0);
-    $cuantas = mt_rand(4, 9);
+    $cuantas = mt_rand(3, 6);
+    $hechas = 0;
 
     for ($i = 0; $i < $cuantas && $servicios; $i++) {
         $cli = DB::selectOne('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY RAND() LIMIT 1');
         if (! $cli) {
             break;
         }
+
         $sv = $servicios[array_rand($servicios)];
-        $hora = sprintf('%02d:%02d', mt_rand(8, 16), [0, 15, 30, 45][mt_rand(0, 3)]);
-        $rec->post('/citas/guardar', [
+        $servs = [(int) $sv->id_servicio];
+        $fecha = date('Y-m-d', strtotime('+' . mt_rand(1, 8) . ' day'));
+
+        $rec->get('/citas/disponibilidad', ['servicios' => $servs, 'fecha' => $fecha]);
+        $j = json_decode($rec->body, true);
+        if (empty($j['horas'])) {
+            continue;   // ese día no hay huecos: la clienta elige otro
+        }
+
+        $slot = $j['horas'][array_rand($j['horas'])];
+        $d = [
             'id_cliente' => (int) $cli->id_cliente,
-            'id_usuario' => $prof,
-            'servicios' => [(int) $sv->id_servicio],
-            'fecha' => date('Y-m-d', strtotime('+' . mt_rand(1, 5) . ' days')),
-            'hora' => $hora,
+            'fecha_hora' => $fecha . ' ' . $slot['hora'],
+            'servicios' => $servs,
             'observaciones' => 'Cita del local de San Lorenzo',
-        ])->seguir();
+        ];
+        // La mayoría pide a alguien en particular, de entre los que atienden acá.
+        if (! empty($slot['profesionales']) && mt_rand(1, 100) <= 75) {
+            $d['id_usuario'] = (string) $slot['profesionales'][array_rand($slot['profesionales'])];
+        }
+
+        $rec->post('/citas/guardar', $d)->seguir();
+        if ($rec->dice('Cita agendada')) {
+            $hechas++;
+        }
     }
+
+    // **La cita tiene que quedar en el local en que se la agendó.** Si cayera
+    // en otro, el aislamiento no serviría de nada: la agenda del día mostraría
+    // clientas que nunca van a llegar a ese salón.
+    $ultimas = DB::select(
+        'SELECT id_cita, id_sucursal FROM cita ORDER BY id_cita DESC LIMIT ?', [max(1, $hechas)]);
+    foreach ($ultimas as $u) {
+        if ($hechas > 0 && (int) $u->id_sucursal !== $suc2) {
+            sim_incidente('SUC_CITA_EN_OTRO_LOCAL',
+                "La cita {$u->id_cita} se agendó desde San Lorenzo y quedó en la sucursal {$u->id_sucursal}", 'ALTO');
+            break;
+        }
+    }
+
+    sim_log(['tipo' => 'SUC_AGENDA', 'dia' => $dia, 'intentos' => $cuantas, 'agendadas' => $hechas]);
 
     // --- AISLAMIENTO: lo del otro local no se ve desde acá ---------------
     // La agenda del día, mirada desde el local nuevo, no puede traer citas
@@ -437,5 +475,10 @@ if ($DIA <= 2) {
     faseSucursalesAlta();
 } else {
     faseSucursalesOpera($DIA);
-    faseSucursalesN($DIA);
+    // El barrido sobre los N locales cada tres días: comprueba invariantes que
+    // no cambian de un día para el otro, así que correrlo a diario sólo
+    // alargaba la corrida.
+    if ($DIA % 3 === 0) {
+        faseSucursalesN($DIA);
+    }
 }

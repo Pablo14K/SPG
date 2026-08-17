@@ -1,0 +1,2256 @@
+{
+ "peticiones_http": 7749,
+ "operaciones_por_usuario": {
+  "recepcion": 5004,
+  "marta": 773,
+  "admin": 689,
+  "rocio": 301,
+  "sofia": 245,
+  "lucia": 213,
+  "karen": 205,
+  "noelia": 122,
+  "cliente": 49,
+  "clienta5": 30,
+  "clienta15": 30,
+  "clienta26": 28,
+  "anonimo": 27,
+  "fuerzabruta": 18,
+  "intruso": 15
+ },
+ "http_por_estado": {
+  "200": 3916,
+  "302": 3725,
+  "403": 98,
+  "429": 3,
+  "500": 7
+ },
+ "http_5xx": 7,
+ "comprobaciones_totales": 279,
+ "comprobaciones_ok": 255,
+ "incidencias_registradas": 24,
+ "defectos_distintos": 12,
+ "fallos": [
+  {
+   "codigo": "HTTP_500",
+   "severidad": "CRITICO",
+   "ocurrencias": 7,
+   "primer_detalle": "recepcion GET /inventario/compras/nueva → \n\n    \n        \n        \n\n        Server Error\n\n        \n            /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}a{background-color:transparent}code{font-family:monospace,monospace;font-size:1em}[hidden]{display:none}html{font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica",
+   "detalles": [
+    "recepcion GET /inventario/compras/nueva → \n\n    \n        \n        \n\n        Server Error\n\n        \n            /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */html{line-height:1.15;-webkit-text-size-adjust:100%}body{margin:0}a{background-color:transparent}code{font-family:monospace,monospace;font-size:1em}[hidden]{display:none}html{font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica",
+    "admin GET /inventario/compras/nueva → \n\n\n    \n    \n\n    Peluquería Luque\n\n    \n\n    /*! tailwindcss v4.3.1 | MIT License | https://tailwindcss.com */\n@layer properties{@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){*,:before,:after,::backdrop{--tw-rotate-x:initial;--tw-rotate-y:initial;--tw-rotate-z:initial;--tw-skew-x:initial;--tw-skew-y:initial;--t"
+   ],
+   "primera_vez": "2026-09-03 15:50:02",
+   "modulo": "Otros",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_STOCK_DIFIERE",
+   "severidad": "CRITICO",
+   "ocurrencias": 4,
+   "primer_detalle": "Producto 2 (Acondicionador 1L): recalculado 323.788, el sistema dice 26.012",
+   "detalles": [
+    "Producto 2 (Acondicionador 1L): recalculado 323.788, el sistema dice 26.012",
+    "Producto 3 (Agua oxigenada 900ml): recalculado 273.6366, el sistema dice 5.0455",
+    "Producto 1 (Shampoo profesional 1L): recalculado 346.023, el sistema dice 16.604",
+    "Producto 4 (Tintura profesional): recalculado 263, el sistema dice 0"
+   ],
+   "primera_vez": "2026-09-30 20:00:00",
+   "modulo": "Inventario",
+   "titulo": ""
+  },
+  {
+   "codigo": "F2_CAJA_NEGATIVA",
+   "severidad": "CRITICO",
+   "ocurrencias": 2,
+   "primer_detalle": "La caja quedó en -1000000 tras un pago en efectivo",
+   "detalles": [
+    "La caja quedó en -1000000 tras un pago en efectivo"
+   ],
+   "primera_vez": "2026-09-13 15:50:04",
+   "modulo": "Tesorería (facturación y caja)",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_CAJA_NEGATIVA",
+   "severidad": "CRITICO",
+   "ocurrencias": 2,
+   "primer_detalle": "Caja #19 quedó en -1000000.00",
+   "detalles": [
+    "Caja #19 quedó en -1000000.00",
+    "Caja #41 quedó en -340000.00"
+   ],
+   "primera_vez": "2026-09-30 20:00:01",
+   "modulo": "Tesorería (facturación y caja)",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_PANTALLA_ROTA",
+   "severidad": "CRITICO",
+   "ocurrencias": 1,
+   "primer_detalle": "La pantalla /inventario/compras/nueva devolvió HTTP 500",
+   "detalles": [
+    "La pantalla /inventario/compras/nueva devolvió HTTP 500"
+   ],
+   "primera_vez": "2026-09-30 20:00:09",
+   "modulo": "Otros",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_REGRESION",
+   "severidad": "CRITICO",
+   "ocurrencias": 1,
+   "primer_detalle": "Volvió a aparecer: CJ-01 dos cajas abiertas → 1 caso(s)",
+   "detalles": [
+    "Volvió a aparecer: CJ-01 dos cajas abiertas → 1 caso(s)"
+   ],
+   "primera_vez": "2026-09-30 20:00:12",
+   "modulo": "Integridad transversal",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_TEMPORAL",
+   "severidad": "ALTO",
+   "ocurrencias": 2,
+   "primer_detalle": "cobro fuera de la caja: 11 fila(s)",
+   "detalles": [
+    "cobro fuera de la caja: 11 fila(s)",
+    "caja cerrada antes de abrir: 2 fila(s)"
+   ],
+   "primera_vez": "2026-09-30 20:00:01",
+   "modulo": "Integridad transversal",
+   "titulo": ""
+  },
+  {
+   "codigo": "NC_CAJA_NO_BAJA",
+   "severidad": "ALTO",
+   "ocurrencias": 1,
+   "primer_detalle": "Se acreditó una venta pagada con 23750 en efectivo y la caja bajó 0",
+   "detalles": [
+    "Se acreditó una venta pagada con 23750 en efectivo y la caja bajó 0"
+   ],
+   "primera_vez": "2026-09-18 16:40:07",
+   "modulo": "Tesorería (facturación y caja)",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_CAJAS_SOLAPADAS",
+   "severidad": "ALTO",
+   "ocurrencias": 1,
+   "primer_detalle": "45 par(es) de cajas estuvieron abiertas al mismo tiempo (debería haber una sola)",
+   "detalles": [
+    "45 par(es) de cajas estuvieron abiertas al mismo tiempo (debería haber una sola)"
+   ],
+   "primera_vez": "2026-09-30 20:00:01",
+   "modulo": "Tesorería (facturación y caja)",
+   "titulo": ""
+  }
+ ],
+ "avisos": [
+  {
+   "codigo": "AUD_PANEL_FUGA_INGRESOS",
+   "severidad": "MEDIO",
+   "ocurrencias": 1,
+   "primer_detalle": "Una Profesional (sin permiso de caja) ve en el panel los ingresos de TODO el salón: Gs. 1.153.500. La corrección de la 7.13.1 tapó la barra de caja pero no las cuatro métricas de arriba, que se calculan siempre sin filtrar por rol",
+   "detalles": [
+    "Una Profesional (sin permiso de caja) ve en el panel los ingresos de TODO el salón: Gs. 1.153.500. La corrección de la 7.13.1 tapó la barra de caja pero no las cuatro métricas de arriba, que se calculan siempre sin filtrar por rol"
+   ],
+   "primera_vez": "2026-09-30 20:00:12",
+   "modulo": "Panel",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_FIDELIZACION_INALCANZABLE",
+   "severidad": "MEDIO",
+   "ocurrencias": 1,
+   "primer_detalle": "En 60 días la clienta que más puntos juntó llegó a 326 y el canje más barato cuesta 400. El catálogo de canjes está publicado y ninguna clienta puede usarlo: el portal le muestra premios que no puede alcanzar",
+   "detalles": [
+    "En 60 días la clienta que más puntos juntó llegó a 326 y el canje más barato cuesta 400. El catálogo de canjes está publicado y ninguna clienta puede usarlo: el portal le muestra premios que no puede alcanzar"
+   ],
+   "primera_vez": "2026-09-30 20:00:12",
+   "modulo": "Clientes y fidelización",
+   "titulo": ""
+  },
+  {
+   "codigo": "AUD_SIN_VENTA_DE_PRODUCTOS",
+   "severidad": "BAJO",
+   "ocurrencias": 1,
+   "primer_detalle": "En 60 días no se facturó ni un producto. Es lo esperado: la venta quedó fuera de alcance por decisión del usuario (7.23.1) y `producto.precio_venta`, el tipo de movimiento 7 y trg_detfactura_ai se dejaron en el modelo a propósito. Queda anotado para que el modelo no prometa lo que la pantalla no da",
+   "detalles": [
+    "En 60 días no se facturó ni un producto. Es lo esperado: la venta quedó fuera de alcance por decisión del usuario (7.23.1) y `producto.precio_venta`, el tipo de movimiento 7 y trg_detfactura_ai se dejaron en el modelo a propósito. Queda anotado para que el modelo no prometa lo que la pantalla no da"
+   ],
+   "primera_vez": "2026-09-30 20:00:12",
+   "modulo": "Inventario",
+   "titulo": "La venta de productos no tiene pantalla (fuera de alcance)"
+  }
+ ],
+ "severidades": {
+  "CRITICO": 6,
+  "ALTO": 3,
+  "MEDIO": 2,
+  "BAJO": 1
+ },
+ "concurrencia": [
+  {
+   "caso": "A_AGENDA",
+   "procesos": 5,
+   "aceptadas": 1,
+   "datos": {
+    "hueco": "2026-09-08 08:00:00",
+    "prof": 15,
+    "antes": 0,
+    "despues": 1
+   }
+  },
+  {
+   "caso": "D_STOCK",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "producto": 3,
+    "antes": 27.5589,
+    "pedido": "27",
+    "despues": 0.5589
+   }
+  },
+  {
+   "caso": "E_CLIENTE",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "cedula": "4900007",
+    "personas": 1,
+    "clientes": 1
+   }
+  },
+  {
+   "caso": "G_CITA",
+   "procesos": 2,
+   "aceptadas": 2,
+   "datos": {
+    "cita": 12,
+    "estado_final": 3
+   }
+  },
+  {
+   "caso": "H_ANULA_COBRO",
+   "procesos": 2,
+   "aceptadas": 0,
+   "datos": {
+    "cobro": 1,
+    "auditorias": 0
+   }
+  },
+  {
+   "caso": "A_AGENDA",
+   "procesos": 5,
+   "aceptadas": 1,
+   "datos": {
+    "hueco": "2026-09-21 09:15:00",
+    "prof": 12,
+    "antes": 0,
+    "despues": 1
+   }
+  },
+  {
+   "caso": "C_COBRO",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "factura": 8,
+    "total": 75000,
+    "cobrado": 75000,
+    "saldo": 0
+   }
+  },
+  {
+   "caso": "D_STOCK",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "producto": 7,
+    "antes": 5,
+    "pedido": "5",
+    "despues": 0
+   }
+  },
+  {
+   "caso": "E_CLIENTE",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "cedula": "4900019",
+    "personas": 1,
+    "clientes": 1
+   }
+  },
+  {
+   "caso": "G_CITA",
+   "procesos": 2,
+   "aceptadas": 1,
+   "datos": {
+    "cita": 98,
+    "estado_final": 3
+   }
+  },
+  {
+   "caso": "H_ANULA_COBRO",
+   "procesos": 2,
+   "aceptadas": 0,
+   "datos": {
+    "cobro": 39,
+    "auditorias": 0
+   }
+  },
+  {
+   "caso": "A_AGENDA",
+   "procesos": 5,
+   "aceptadas": 1,
+   "datos": {
+    "hueco": "2026-09-21 08:00:00",
+    "prof": 15,
+    "antes": 1,
+    "despues": 1
+   }
+  },
+  {
+   "caso": "C_COBRO",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "factura": 9,
+    "total": 50000,
+    "cobrado": 50000,
+    "saldo": 0
+   }
+  },
+  {
+   "caso": "D_STOCK",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "producto": 5,
+    "antes": 21,
+    "pedido": "21",
+    "despues": 0
+   }
+  },
+  {
+   "caso": "E_CLIENTE",
+   "procesos": 3,
+   "aceptadas": 0,
+   "datos": {
+    "cedula": "4900019",
+    "personas": 1,
+    "clientes": 1
+   }
+  },
+  {
+   "caso": "G_CITA",
+   "procesos": 2,
+   "aceptadas": 1,
+   "datos": {
+    "cita": 196,
+    "estado_final": 3
+   }
+  },
+  {
+   "caso": "H_ANULA_COBRO",
+   "procesos": 2,
+   "aceptadas": 0,
+   "datos": {
+    "cobro": 43,
+    "auditorias": 0
+   }
+  },
+  {
+   "caso": "A_AGENDA",
+   "procesos": 5,
+   "aceptadas": 1,
+   "datos": {
+    "hueco": "2026-09-28 08:00:00",
+    "prof": 16,
+    "antes": 0,
+    "despues": 1
+   }
+  },
+  {
+   "caso": "C_COBRO",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "factura": 10,
+    "total": 75000,
+    "cobrado": 75000,
+    "saldo": 0
+   }
+  },
+  {
+   "caso": "D_STOCK",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "producto": 9,
+    "antes": 8,
+    "pedido": "8",
+    "despues": 0
+   }
+  },
+  {
+   "caso": "E_CLIENTE",
+   "procesos": 3,
+   "aceptadas": 1,
+   "datos": {
+    "cedula": "4900027",
+    "personas": 1,
+    "clientes": 1
+   }
+  },
+  {
+   "caso": "G_CITA",
+   "procesos": 2,
+   "aceptadas": 1,
+   "datos": {
+    "cita": 309,
+    "estado_final": 3
+   }
+  },
+  {
+   "caso": "H_ANULA_COBRO",
+   "procesos": 2,
+   "aceptadas": 1,
+   "datos": {
+    "cobro": 112,
+    "auditorias": 0
+   }
+  }
+ ],
+ "cobertura": [
+  {
+   "modulo": "Acceso y cuenta",
+   "rutas": 4,
+   "peticiones": 1590,
+   "pass": 0,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Citas y agenda",
+   "rutas": 11,
+   "peticiones": 2498,
+   "pass": 33,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Clientes y fidelización",
+   "rutas": 8,
+   "peticiones": 99,
+   "pass": 17,
+   "fail": 0,
+   "warn": 1,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Integridad transversal",
+   "rutas": 0,
+   "peticiones": 0,
+   "pass": 0,
+   "fail": 2,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Inventario",
+   "rutas": 10,
+   "peticiones": 406,
+   "pass": 10,
+   "fail": 1,
+   "warn": 1,
+   "http5xx": 7
+  },
+  {
+   "modulo": "Otros",
+   "rutas": 1,
+   "peticiones": 532,
+   "pass": 32,
+   "fail": 2,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Panel",
+   "rutas": 1,
+   "peticiones": 613,
+   "pass": 0,
+   "fail": 0,
+   "warn": 1,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Portal de la clienta",
+   "rutas": 11,
+   "peticiones": 88,
+   "pass": 0,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Reportes",
+   "rutas": 2,
+   "peticiones": 14,
+   "pass": 6,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Seguridad",
+   "rutas": 14,
+   "peticiones": 644,
+   "pass": 81,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Servicios y descuentos",
+   "rutas": 7,
+   "peticiones": 33,
+   "pass": 0,
+   "fail": 0,
+   "warn": 0,
+   "http5xx": 0
+  },
+  {
+   "modulo": "Tesorería (facturación y caja)",
+   "rutas": 20,
+   "peticiones": 1232,
+   "pass": 76,
+   "fail": 4,
+   "warn": 0,
+   "http5xx": 0
+  }
+ ],
+ "estado_inicial": {
+  "etiqueta": "foto",
+  "cuando": "2026-09-01 06:55:00",
+  "tablas": {
+   "persona": 9,
+   "cliente": 1,
+   "usuario": 6,
+   "cita": 0,
+   "cita_servicio": 0,
+   "servicio_realizado": 0,
+   "producto_utilizado": 0,
+   "factura": 0,
+   "detalle_factura": 0,
+   "cobro": 0,
+   "cobro_tarjeta": 0,
+   "cobro_banco": 0,
+   "caja": 0,
+   "movimiento_caja": 0,
+   "compra": 0,
+   "detalle_compra": 0,
+   "compra_cuota": 0,
+   "pago_proveedor": 0,
+   "pago_personal": 0,
+   "detalle_pago_personal": 0,
+   "movimiento_inventario": 0,
+   "movimiento_punto": 0,
+   "asistencia": 0,
+   "auditoria": 0,
+   "notificacion": 0,
+   "calificacion": 0,
+   "cita_pedido": 0,
+   "token_cita": 0,
+   "token_seguridad": 0,
+   "sena_solicitud": 0,
+   "canje": 0,
+   "servicio_canjeable": 2,
+   "descuento": 3,
+   "servicio_descuento": 0,
+   "ausencia": "ERROR",
+   "factura_electronica": 0,
+   "preferencia_recordatorio": 0
+  },
+  "citas_por_estado": [],
+  "facturas_por_estado": [],
+  "facturas_por_tipo": [],
+  "cobros_por_metodo": [],
+  "cajas_por_estado": [],
+  "notif_por_estado": [],
+  "auditoria_por_accion": [],
+  "facturado_total": 0,
+  "acreditado_total": 0,
+  "cobrado_total": 0,
+  "cobrado_efectivo": 0,
+  "saldo_pendiente": 0,
+  "puntos_totales": 0,
+  "pagado_proveedores": "ERROR: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto' in 'field list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim, SQL: SELECT COALESCE(SUM(monto),0) FROM pago_proveedor WHERE id_estado_pago=1)",
+  "pagado_personal": "ERROR: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto' in 'field list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim, SQL: SELECT COALESCE(SUM(monto),0) FROM pago_personal WHERE id_estado_pago=1)",
+  "egresos_manuales": 0,
+  "ingresos_manuales": 0,
+  "stock_negativo": 0,
+  "stock_total": 0,
+  "clientes_con_puntos": 0,
+  "puntos_max_cliente": 0,
+  "relacion_puntos": 10000
+ },
+ "estado_final": {
+  "etiqueta": "final",
+  "cuando": "2026-09-30 20:00:01",
+  "tablas": {
+   "persona": 32,
+   "cliente": 21,
+   "usuario": 12,
+   "cita": 353,
+   "cita_servicio": 430,
+   "servicio_realizado": 238,
+   "producto_utilizado": 271,
+   "factura": 189,
+   "detalle_factura": 239,
+   "cobro": 268,
+   "cobro_tarjeta": 33,
+   "cobro_banco": 30,
+   "caja": 51,
+   "movimiento_caja": 1,
+   "compra": 3,
+   "detalle_compra": 20,
+   "compra_cuota": 4,
+   "pago_proveedor": 4,
+   "pago_personal": 3,
+   "detalle_pago_personal": 161,
+   "movimiento_inventario": 431,
+   "movimiento_punto": 189,
+   "asistencia": 130,
+   "auditoria": 2647,
+   "notificacion": 652,
+   "calificacion": 0,
+   "cita_pedido": 0,
+   "token_cita": 351,
+   "token_seguridad": 3,
+   "sena_solicitud": 3,
+   "canje": 0,
+   "servicio_canjeable": 3,
+   "descuento": 4,
+   "servicio_descuento": 2,
+   "ausencia": "ERROR",
+   "factura_electronica": 51,
+   "preferencia_recordatorio": 3
+  },
+  "citas_por_estado": {
+   "Atendida": 188,
+   "Atrasada": 1,
+   "Ausente": 67,
+   "Cancelada": 21,
+   "Programada": 68,
+   "Reprogramada": 8
+  },
+  "facturas_por_estado": {
+   "Emitida": 189
+  },
+  "facturas_por_tipo": {
+   "Comprobante de pago": 138,
+   "Factura": 50,
+   "Nota de credito": 1
+  },
+  "cobros_por_metodo": {
+   "Efectivo": 204,
+   "Tarjeta de credito": 33,
+   "Transferencia bancaria": 30
+  },
+  "cajas_por_estado": {
+   "Abierta": 2,
+   "Cerrada": 49
+  },
+  "notif_por_estado": {
+   "ENVIADA": 640,
+   "LEIDA": 1,
+   "PENDIENTE": 11
+  },
+  "auditoria_por_accion": {
+   "LOGIN": 571,
+   "SUCURSAL": 470,
+   "ALTA": 382,
+   "MODIFICACION": 287,
+   "ATENCION": 188,
+   "EMISION": 188,
+   "COBRO": 187,
+   "MOVIMIENTO_STOCK": 140,
+   "SIFEN": 51,
+   "CAJA_APERTURA": 51,
+   "CAJA_CIERRE": 49,
+   "SENA": 48,
+   "CANCELACION": 19,
+   "PAGO_PROVEEDOR": 4,
+   "VERIFICACION": 3,
+   "COMPRA": 3,
+   "PAGO_PERSONAL": 3,
+   "ANULAR": 1,
+   "AUSENCIA": 1,
+   "NOTA_CREDITO": 1
+  },
+  "facturado_total": 26559000,
+  "acreditado_total": 23750,
+  "cobrado_total": 26157000,
+  "cobrado_efectivo": 20634125,
+  "saldo_pendiente": 402000,
+  "puntos_totales": 2604,
+  "pagado_proveedores": "ERROR: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto' in 'field list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim, SQL: SELECT COALESCE(SUM(monto),0) FROM pago_proveedor WHERE id_estado_pago=1)",
+  "pagado_personal": "ERROR: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto' in 'field list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim, SQL: SELECT COALESCE(SUM(monto),0) FROM pago_personal WHERE id_estado_pago=1)",
+  "egresos_manuales": 23750,
+  "ingresos_manuales": 0,
+  "stock_negativo": 0,
+  "stock_total": 103.6615,
+  "clientes_con_puntos": 18,
+  "puntos_max_cliente": 326,
+  "relacion_puntos": 10000
+ },
+ "series": {
+  "citas_por_dia": {
+   "2026-09-03": 2,
+   "2026-09-05": 5,
+   "2026-09-07": 5,
+   "2026-09-08": 8,
+   "2026-09-09": 7,
+   "2026-09-10": 6,
+   "2026-09-11": 13,
+   "2026-09-12": 11,
+   "2026-09-14": 15,
+   "2026-09-15": 7,
+   "2026-09-16": 14,
+   "2026-09-17": 12,
+   "2026-09-18": 15,
+   "2026-09-19": 11,
+   "2026-09-21": 21,
+   "2026-09-22": 16,
+   "2026-09-23": 16,
+   "2026-09-24": 18,
+   "2026-09-25": 11,
+   "2026-09-26": 16,
+   "2026-09-28": 16,
+   "2026-09-29": 13,
+   "2026-09-30": 16,
+   "2026-10-01": 10,
+   "2026-10-02": 13,
+   "2026-10-03": 13,
+   "2026-10-05": 13,
+   "2026-10-06": 6,
+   "2026-10-07": 10,
+   "2026-10-08": 8,
+   "2026-10-09": 1,
+   "2026-10-10": 2,
+   "2026-10-12": 3
+  },
+  "citas_atendidas_por_dia": {
+   "2026-09-03": 2,
+   "2026-09-05": 3,
+   "2026-09-07": 5,
+   "2026-09-08": 6,
+   "2026-09-09": 3,
+   "2026-09-10": 4,
+   "2026-09-11": 11,
+   "2026-09-12": 8,
+   "2026-09-14": 11,
+   "2026-09-15": 4,
+   "2026-09-16": 8,
+   "2026-09-17": 9,
+   "2026-09-18": 9,
+   "2026-09-19": 6,
+   "2026-09-21": 13,
+   "2026-09-22": 11,
+   "2026-09-23": 10,
+   "2026-09-24": 11,
+   "2026-09-25": 10,
+   "2026-09-26": 13,
+   "2026-09-28": 10,
+   "2026-09-29": 10,
+   "2026-09-30": 11
+  },
+  "citas_canceladas_por_dia": {
+   "2026-09-05": 1,
+   "2026-09-09": 1,
+   "2026-09-14": 1,
+   "2026-09-15": 1,
+   "2026-09-16": 3,
+   "2026-09-18": 1,
+   "2026-09-21": 2,
+   "2026-09-22": 1,
+   "2026-09-23": 2,
+   "2026-09-24": 1,
+   "2026-09-25": 1,
+   "2026-09-28": 2,
+   "2026-09-30": 1,
+   "2026-10-01": 1,
+   "2026-10-02": 1,
+   "2026-10-05": 1
+  },
+  "citas_ausentes_por_dia": {
+   "2026-09-05": 1,
+   "2026-09-08": 2,
+   "2026-09-09": 3,
+   "2026-09-10": 2,
+   "2026-09-11": 2,
+   "2026-09-12": 3,
+   "2026-09-14": 3,
+   "2026-09-15": 2,
+   "2026-09-16": 3,
+   "2026-09-17": 3,
+   "2026-09-18": 5,
+   "2026-09-19": 5,
+   "2026-09-21": 6,
+   "2026-09-22": 4,
+   "2026-09-23": 4,
+   "2026-09-24": 6,
+   "2026-09-26": 3,
+   "2026-09-28": 4,
+   "2026-09-29": 3,
+   "2026-09-30": 3
+  },
+  "facturado_por_dia": {
+   "2026-09-03": 395000,
+   "2026-09-05": 735000,
+   "2026-09-07": 390000,
+   "2026-09-08": 1144000,
+   "2026-09-09": 927000,
+   "2026-09-10": 687000,
+   "2026-09-11": 905000,
+   "2026-09-12": 1166250,
+   "2026-09-14": 2046000,
+   "2026-09-15": 894500,
+   "2026-09-16": 930000,
+   "2026-09-17": 1531000,
+   "2026-09-18": 1248250,
+   "2026-09-19": 752000,
+   "2026-09-21": 1408250,
+   "2026-09-22": 1870750,
+   "2026-09-23": 1393750,
+   "2026-09-24": 1797500,
+   "2026-09-25": 1592500,
+   "2026-09-26": 1157250,
+   "2026-09-28": 1614000,
+   "2026-09-29": 820500,
+   "2026-09-30": 1153500
+  },
+  "cobrado_por_dia": {
+   "2026-09-03": 395000,
+   "2026-09-05": 735000,
+   "2026-09-07": 190000,
+   "2026-09-08": 1144000,
+   "2026-09-09": 927000,
+   "2026-09-10": 687000,
+   "2026-09-11": 905000,
+   "2026-09-12": 1166250,
+   "2026-09-14": 2046000,
+   "2026-09-15": 894500,
+   "2026-09-16": 930000,
+   "2026-09-17": 1531000,
+   "2026-09-18": 1098250,
+   "2026-09-19": 625000,
+   "2026-09-21": 1408250,
+   "2026-09-22": 1870750,
+   "2026-09-23": 1393750,
+   "2026-09-24": 1797500,
+   "2026-09-25": 1592500,
+   "2026-09-26": 1157250,
+   "2026-09-27": 75000,
+   "2026-09-28": 1614000,
+   "2026-09-29": 820500,
+   "2026-09-30": 1153500
+  },
+  "comprobantes_por_dia": {
+   "2026-09-03": 2,
+   "2026-09-05": 3,
+   "2026-09-07": 5,
+   "2026-09-08": 6,
+   "2026-09-09": 3,
+   "2026-09-10": 4,
+   "2026-09-11": 10,
+   "2026-09-12": 8,
+   "2026-09-14": 12,
+   "2026-09-15": 4,
+   "2026-09-16": 8,
+   "2026-09-17": 9,
+   "2026-09-18": 10,
+   "2026-09-19": 6,
+   "2026-09-21": 12,
+   "2026-09-22": 11,
+   "2026-09-23": 10,
+   "2026-09-24": 12,
+   "2026-09-25": 10,
+   "2026-09-26": 13,
+   "2026-09-28": 10,
+   "2026-09-29": 10,
+   "2026-09-30": 11
+  },
+  "clientes_acumulados": {
+   "2026-07-14": 1,
+   "2026-09-01": 14,
+   "2026-09-05": 1,
+   "2026-09-07": 1,
+   "2026-09-15": 1,
+   "2026-09-19": 1,
+   "2026-09-26": 1,
+   "2026-09-27": 1
+  },
+  "movimientos_inventario_por_dia": {
+   "2026-09-01": 10,
+   "2026-09-03": 16,
+   "2026-09-04": 4,
+   "2026-09-05": 14,
+   "2026-09-06": 5,
+   "2026-09-07": 15,
+   "2026-09-08": 10,
+   "2026-09-09": 12,
+   "2026-09-10": 13,
+   "2026-09-11": 15,
+   "2026-09-12": 18,
+   "2026-09-13": 4,
+   "2026-09-14": 19,
+   "2026-09-15": 15,
+   "2026-09-16": 19,
+   "2026-09-17": 25,
+   "2026-09-18": 22,
+   "2026-09-19": 23,
+   "2026-09-20": 8,
+   "2026-09-21": 23,
+   "2026-09-22": 16,
+   "2026-09-23": 22,
+   "2026-09-24": 17,
+   "2026-09-25": 18,
+   "2026-09-26": 21,
+   "2026-09-27": 6,
+   "2026-09-28": 12,
+   "2026-09-29": 13,
+   "2026-09-30": 16
+  },
+  "auditoria_por_dia": {
+   "2026-09-01": 51,
+   "2026-09-02": 26,
+   "2026-09-03": 65,
+   "2026-09-04": 46,
+   "2026-09-05": 70,
+   "2026-09-06": 32,
+   "2026-09-07": 98,
+   "2026-09-08": 70,
+   "2026-09-09": 73,
+   "2026-09-10": 69,
+   "2026-09-11": 94,
+   "2026-09-12": 105,
+   "2026-09-13": 26,
+   "2026-09-14": 109,
+   "2026-09-15": 81,
+   "2026-09-16": 85,
+   "2026-09-17": 95,
+   "2026-09-18": 114,
+   "2026-09-19": 198,
+   "2026-09-20": 38,
+   "2026-09-21": 145,
+   "2026-09-22": 109,
+   "2026-09-23": 96,
+   "2026-09-24": 125,
+   "2026-09-25": 98,
+   "2026-09-26": 120,
+   "2026-09-27": 72,
+   "2026-09-28": 108,
+   "2026-09-29": 98,
+   "2026-09-30": 131
+  },
+  "notificaciones_por_dia": {
+   "2026-09-01": 7,
+   "2026-09-02": 7,
+   "2026-09-03": 7,
+   "2026-09-04": 21,
+   "2026-09-05": 20,
+   "2026-09-06": 9,
+   "2026-09-07": 20,
+   "2026-09-08": 10,
+   "2026-09-09": 16,
+   "2026-09-10": 28,
+   "2026-09-11": 23,
+   "2026-09-12": 20,
+   "2026-09-13": 19,
+   "2026-09-14": 22,
+   "2026-09-15": 26,
+   "2026-09-16": 19,
+   "2026-09-17": 28,
+   "2026-09-18": 28,
+   "2026-09-19": 34,
+   "2026-09-20": 25,
+   "2026-09-21": 39,
+   "2026-09-22": 27,
+   "2026-09-23": 26,
+   "2026-09-24": 19,
+   "2026-09-25": 27,
+   "2026-09-26": 19,
+   "2026-09-27": 23,
+   "2026-09-28": 22,
+   "2026-09-29": 31,
+   "2026-09-30": 30
+  },
+  "saldo_caja_por_dia": {
+   "2026-09-01": 300000,
+   "2026-09-02": 300000,
+   "2026-09-03": 565000,
+   "2026-09-05": 1185000,
+   "2026-09-06": 620000,
+   "2026-09-08": 1549000,
+   "2026-09-09": 1512000,
+   "2026-09-11": 3680000,
+   "2026-09-12": -580250,
+   "2026-09-14": 150000,
+   "2026-09-15": 2273500,
+   "2026-09-17": 2412500,
+   "2026-09-18": 1102500,
+   "2026-09-20": 300000,
+   "2026-09-21": 2897475,
+   "2026-09-23": 3290500,
+   "2026-09-24": 1422500,
+   "2026-09-26": 150000,
+   "2026-09-27": 1869000,
+   "2026-09-28": 150000,
+   "2026-09-29": 539000,
+   "2026-09-30": 942250
+  },
+  "stock_final": [
+   {
+    "id": 1,
+    "nombre": "Shampoo profesional 1L",
+    "unidad": "unidad",
+    "minimo": 3,
+    "entradas": 350,
+    "salidas": 3.977,
+    "teorico": 346.023,
+    "sistema": 16.604
+   },
+   {
+    "id": 2,
+    "nombre": "Acondicionador 1L",
+    "unidad": "unidad",
+    "minimo": 3,
+    "entradas": 325,
+    "salidas": 1.212,
+    "teorico": 323.788,
+    "sistema": 26.012
+   },
+   {
+    "id": 3,
+    "nombre": "Agua oxigenada 900ml",
+    "unidad": "unidad",
+    "minimo": 4,
+    "entradas": 304,
+    "salidas": 30.3634,
+    "teorico": 273.6366,
+    "sistema": 5.0455
+   },
+   {
+    "id": 4,
+    "nombre": "Tintura profesional",
+    "unidad": "unidad",
+    "minimo": 6,
+    "entradas": 300,
+    "salidas": 37,
+    "teorico": 263,
+    "sistema": 0
+   },
+   {
+    "id": 5,
+    "nombre": "Ampolla de keratina",
+    "unidad": "unidad",
+    "minimo": 10,
+    "entradas": 29,
+    "salidas": 29,
+    "teorico": 0,
+    "sistema": 0
+   },
+   {
+    "id": 6,
+    "nombre": "Serum reparador 100ml",
+    "unidad": "unidad",
+    "minimo": 5,
+    "entradas": 30,
+    "salidas": 14,
+    "teorico": 16,
+    "sistema": 16
+   },
+   {
+    "id": 7,
+    "nombre": "Guantes de latex (caja)",
+    "unidad": "caja",
+    "minimo": 2,
+    "entradas": 27,
+    "salidas": 27,
+    "teorico": 0,
+    "sistema": 0
+   },
+   {
+    "id": 8,
+    "nombre": "Toallas descartables",
+    "unidad": "paquete",
+    "minimo": 3,
+    "entradas": 19,
+    "salidas": 0,
+    "teorico": 19,
+    "sistema": 19
+   },
+   {
+    "id": 9,
+    "nombre": "Esmalte semipermanente",
+    "unidad": "unidad",
+    "minimo": 8,
+    "entradas": 28,
+    "salidas": 28,
+    "teorico": 0,
+    "sistema": 0
+   },
+   {
+    "id": 10,
+    "nombre": "Shampoo x 300ml (venta)",
+    "unidad": "unidad",
+    "minimo": 5,
+    "entradas": 21,
+    "salidas": 0,
+    "teorico": 21,
+    "sistema": 21
+   }
+  ],
+  "equipo": [
+   {
+    "usuario": "sofia",
+    "nombre": "Sofía Espínola",
+    "activo": 1,
+    "citas": 66,
+    "servicios": 53,
+    "generado": 6440000,
+    "comision": 966000,
+    "tiene_comision": 1
+   },
+   {
+    "usuario": "rocio",
+    "nombre": "Rocío Duarte",
+    "activo": 1,
+    "citas": 62,
+    "servicios": 51,
+    "generado": 6135000,
+    "comision": 920250,
+    "tiene_comision": 1
+   },
+   {
+    "usuario": "marta",
+    "nombre": "Marta Cáceres",
+    "activo": 1,
+    "citas": 73,
+    "servicios": 57,
+    "generado": 5630000,
+    "comision": 844500,
+    "tiene_comision": 1
+   },
+   {
+    "usuario": "karen",
+    "nombre": "Karen Giménez",
+    "activo": 1,
+    "citas": 47,
+    "servicios": 39,
+    "generado": 5320000,
+    "comision": 798000,
+    "tiene_comision": 1
+   },
+   {
+    "usuario": "lucia",
+    "nombre": "Lucía Benítez",
+    "activo": 1,
+    "citas": 46,
+    "servicios": 38,
+    "generado": 4070000,
+    "comision": 610500,
+    "tiene_comision": 1
+   },
+   {
+    "usuario": "noelia",
+    "nombre": "Noelia Cardozo",
+    "activo": 1,
+    "citas": 59,
+    "servicios": 0,
+    "generado": 0,
+    "comision": 0,
+    "tiene_comision": 0
+   },
+   {
+    "usuario": "recepcion",
+    "nombre": "Claudia Ortiz",
+    "activo": 1,
+    "citas": 0,
+    "servicios": 0,
+    "generado": 0,
+    "comision": 0,
+    "tiene_comision": 0
+   },
+   {
+    "usuario": "admin",
+    "nombre": "Ana Propietaria",
+    "activo": 1,
+    "citas": 0,
+    "servicios": 0,
+    "generado": 0,
+    "comision": 0,
+    "tiene_comision": 0
+   }
+  ],
+  "cajas": [
+   {
+    "id": 1,
+    "dia": "2026-09-01",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 300000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 2,
+    "dia": "2026-09-02",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 300000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 3,
+    "dia": "2026-09-03",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 180000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 225000,
+    "egresos": 0,
+    "prov_efectivo": 120000,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 4,
+    "dia": "2026-09-03",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 5,
+    "dia": "2026-09-03",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 235000,
+    "cobros_efectivo": 85000,
+    "cobros_otros": 85000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 6,
+    "dia": "2026-09-05",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 670000,
+    "cobros_efectivo": 370000,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 7,
+    "dia": "2026-09-05",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 515000,
+    "cobros_efectivo": 365000,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 8,
+    "dia": "2026-09-06",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 9,
+    "dia": "2026-09-06",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 320000,
+    "cobros_efectivo": 170000,
+    "cobros_otros": 20000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 10,
+    "dia": "2026-09-06",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 11,
+    "dia": "2026-09-08",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 1399000,
+    "cobros_efectivo": 1099000,
+    "cobros_otros": 45000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 12,
+    "dia": "2026-09-08",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 13,
+    "dia": "2026-09-09",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 552000,
+    "cobros_efectivo": 252000,
+    "cobros_otros": 50000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 14,
+    "dia": "2026-09-09",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 270000,
+    "cobros_efectivo": 120000,
+    "cobros_otros": 315000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 15,
+    "dia": "2026-09-09",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 690000,
+    "cobros_efectivo": 540000,
+    "cobros_otros": 337000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 16,
+    "dia": "2026-09-11",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 3202500,
+    "cobros_efectivo": 2902500,
+    "cobros_otros": 477500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 17,
+    "dia": "2026-09-11",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 477500,
+    "cobros_efectivo": 327500,
+    "cobros_otros": 87500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 18,
+    "dia": "2026-09-12",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 19,
+    "dia": "2026-09-12",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": -1000000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 1150000,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 20,
+    "dia": "2026-09-12",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 269750,
+    "cobros_efectivo": 119750,
+    "cobros_otros": 202500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 21,
+    "dia": "2026-09-14",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 22,
+    "dia": "2026-09-15",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 663750,
+    "cobros_efectivo": 363750,
+    "cobros_otros": 25000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 23,
+    "dia": "2026-09-15",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 738750,
+    "cobros_efectivo": 588750,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 24,
+    "dia": "2026-09-15",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 871000,
+    "cobros_efectivo": 721000,
+    "cobros_otros": 126000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 25,
+    "dia": "2026-09-17",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 1792000,
+    "cobros_efectivo": 1515750,
+    "cobros_otros": 479500,
+    "egresos": 23750,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 26,
+    "dia": "2026-09-17",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 620500,
+    "cobros_efectivo": 470500,
+    "cobros_otros": 28500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 27,
+    "dia": "2026-09-18",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 28,
+    "dia": "2026-09-18",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 712500,
+    "cobros_efectivo": 562500,
+    "cobros_otros": 12500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 29,
+    "dia": "2026-09-18",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 240000,
+    "cobros_efectivo": 90000,
+    "cobros_otros": 45000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 30,
+    "dia": "2026-09-20",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 31,
+    "dia": "2026-09-21",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 992500,
+    "cobros_efectivo": 692500,
+    "cobros_otros": 52500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 32,
+    "dia": "2026-09-21",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 200000,
+    "cobros_efectivo": 50000,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 33,
+    "dia": "2026-09-20",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 34,
+    "dia": "2026-09-21",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 473850,
+    "cobros_efectivo": 489750,
+    "cobros_otros": 760000,
+    "egresos": 0,
+    "prov_efectivo": 315900,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 35,
+    "dia": "2026-09-21",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 850500,
+    "cobros_efectivo": 700500,
+    "cobros_otros": 202500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 36,
+    "dia": "2026-09-21",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 380625,
+    "cobros_efectivo": 230625,
+    "cobros_otros": 150625,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 37,
+    "dia": "2026-09-23",
+    "inicial": 300000,
+    "estado": 2,
+    "saldo": 2545500,
+    "cobros_efectivo": 2245500,
+    "cobros_otros": 555500,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 38,
+    "dia": "2026-09-23",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 745000,
+    "cobros_efectivo": 595000,
+    "cobros_otros": 45000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 39,
+    "dia": "2026-09-24",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 40,
+    "dia": "2026-09-24",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 1612500,
+    "cobros_efectivo": 1462500,
+    "cobros_otros": 130000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 41,
+    "dia": "2026-09-24",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": -340000,
+    "cobros_efectivo": 660000,
+    "cobros_otros": 247500,
+    "egresos": 0,
+    "prov_efectivo": 1150000,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 42,
+    "dia": "2026-09-26",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 43,
+    "dia": "2026-09-27",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 44,
+    "dia": "2026-09-27",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 1569000,
+    "cobros_efectivo": 1419000,
+    "cobros_otros": 270000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 45,
+    "dia": "2026-09-27",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 46,
+    "dia": "2026-09-28",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 47,
+    "dia": "2026-09-29",
+    "inicial": 300000,
+    "estado": 1,
+    "saldo": 80750,
+    "cobros_efectivo": 625250,
+    "cobros_otros": 180000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 844500
+   },
+   {
+    "id": 48,
+    "dia": "2026-09-29",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 458250,
+    "cobros_efectivo": 308250,
+    "cobros_otros": 68250,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 49,
+    "dia": "2026-09-30",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 50,
+    "dia": "2026-09-30",
+    "inicial": 150000,
+    "estado": 1,
+    "saldo": 150000,
+    "cobros_efectivo": 0,
+    "cobros_otros": 0,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   },
+   {
+    "id": 51,
+    "dia": "2026-09-30",
+    "inicial": 150000,
+    "estado": 2,
+    "saldo": 642250,
+    "cobros_efectivo": 492250,
+    "cobros_otros": 300000,
+    "egresos": 0,
+    "prov_efectivo": 0,
+    "pers_efectivo": 0
+   }
+  ]
+ },
+ "auditoria_final": {
+  "stock_diferencias": 4,
+  "stock_negativos": 0,
+  "consumo_producto_utilizado": 107.5524,
+  "consumo_movimientos": 107.5524,
+  "facturas": 189,
+  "facturas_total_mal": 0,
+  "facturas_sin_detalle": 0,
+  "facturas_saldo_negativo": 0,
+  "timbrado_4": "1..50 n=50",
+  "timbrado_5": "1..1 n=1",
+  "timbrado_6": "1..138 n=138",
+  "cobros_sobre_anuladas": 0,
+  "citas_con_dos_comprobantes": 0,
+  "facturas_de_citas_no_atendidas": 0,
+  "cajas": 51,
+  "cajas_diferencia": 0,
+  "cajas_abiertas_ahora": 2,
+  "cajas_solapadas": 45,
+  "cobros_sin_caja": 0,
+  "pagado_al_personal": 2730750,
+  "movimiento_caja_filas": 1,
+  "liquidaciones_sin_caja_ni_medio": 0,
+  "liquidado_en_efectivo": 844500,
+  "solapes_agenda": 0,
+  "citas_fuera_de_turno": 0,
+  "citas_a_personal_sin_turno": 0,
+  "citas_en_domingo": 0,
+  "citas_a_no_profesionales": 0,
+  "atendidas_sin_servicio": 0,
+  "servicios_con_profesional_equivocado": 0,
+  "huerfano_cita_sin_cliente": 0,
+  "huerfano_cita_sin_usuario": 0,
+  "huerfano_cita_servicio_sin_cita": 0,
+  "huerfano_servicio_realizado_sin_cita": 0,
+  "huerfano_producto_utilizado_sin_sr": 0,
+  "huerfano_detalle_factura_sin_factura": 0,
+  "huerfano_cobro_sin_destino": 0,
+  "huerfano_cobro_con_dos_destinos": 0,
+  "huerfano_factura_sin_timbrado": 0,
+  "huerfano_nota_de_credito_sin_origen": 0,
+  "huerfano_movimiento_sin_producto": 0,
+  "huerfano_auditoria_sin_usuario": 0,
+  "huerfano_cliente_sin_persona": 0,
+  "huerfano_persona_duplicada_por_cedula": 0,
+  "huerfano_clientes_duplicados_por_email": 0,
+  "tiempo_factura_anterior_a_su_cita": 0,
+  "tiempo_cobro_anterior_a_su_factura": 0,
+  "tiempo_cobro_fuera_de_la_caja": 11,
+  "tiempo_caja_cerrada_antes_de_abrir": 2,
+  "tiempo_asistencia_con_salida_antes_de_la_entrada": 0,
+  "tiempo_asistencia_de_un_dia_futuro": 0,
+  "tiempo_servicio_realizado_antes_de_la_cita": 0,
+  "tiempo_auditoria_en_el_futuro": 0,
+  "tiempo_movimiento_de_inventario_en_el_futuro": 0,
+  "facturas_emitidas": 189,
+  "auditoria_emision": 189,
+  "facturas_anuladas": 0,
+  "auditoria_anulacion_factura": 0,
+  "cobros_anulados": 1,
+  "auditoria_anulacion_cobro": 0,
+  "auditoria_total": 2647,
+  "auditoria_acciones": "LOGIN:571, SUCURSAL:470, ALTA:382, MODIFICACION:287, EMISION:188, ATENCION:188, COBRO:187, MOVIMIENTO_STOCK:140, SIFEN:51, CAJA_APERTURA:51, CAJA_CIERRE:49, SENA:48, CANCELACION:19, PAGO_PROVEEDOR:4, VERIFICACION:3, COMPRA:3, PAGO_PERSONAL:3, ANULAR:1, AUSENCIA:1, NOTA_CREDITO:1",
+  "auditoria_citas": 656,
+  "notificaciones": 652,
+  "notif_por_estado": "ENVIADA:640, LEIDA:1, PENDIENTE:11",
+  "notif_pendientes_viejas": 0,
+  "recordatorios_enviados_tras_cancelar": 0,
+  "recordatorios_con_fecha_vieja": 0,
+  "recordatorios_pendientes_de_citas_pasadas": 0,
+  "puntos_total": 2604,
+  "clientes_con_puntos_negativos": 0,
+  "puntos_de_facturas_anuladas": 0,
+  "reporte_citas": "353 vs 353",
+  "reporte_atendidas": "188 vs 188",
+  "reporte_ingresos": "Gs. 26.157.000 vs Gs. 26.157.000",
+  "panel_profesional_ingresos": "Gs. 1.153.500",
+  "panel_ingresos_reales": "Gs. 1.153.500",
+  "renglones_de_producto_facturados": 0,
+  "movimientos_venta_de_producto": 0,
+  "liquidaciones_activas": 3,
+  "liquidaciones_con_servicios_de_otro_mes": 0,
+  "liquidaciones_por_cero": 0,
+  "clientes": 21,
+  "clientes_activos": 21,
+  "clientes_con_cuenta": 4,
+  "usuarios": 12,
+  "citas": 353,
+  "citas_atendidas": 188,
+  "citas_canceladas": 21,
+  "citas_ausentes": 67,
+  "citas_atrasadas": 1,
+  "citas_programadas": 76,
+  "servicios_realizados": 238,
+  "productos_usados": 271,
+  "comprobantes": 189,
+  "comprobantes_factura": 50,
+  "comprobantes_pago": 138,
+  "notas_credito": 1,
+  "facturado": "26559000.00",
+  "cobrado": "26157000.00",
+  "cobrado_efectivo": "20634125.00",
+  "senas": 48,
+  "compras": 3,
+  "comprado": "11354000.00",
+  "pagado_a_proveedores": "2735900.00",
+  "deuda_proveedores": "8618100.00",
+  "movimientos_inventario": 431,
+  "liquidaciones": 3,
+  "calificaciones": 0,
+  "solicitudes_sena": 3,
+  "pedidos_portal": 0,
+  "asistencias": 130,
+  "canjes_catalogo": 3,
+  "canjes_hechos": 0,
+  "canjes_usados": 0,
+  "canjes_vencidos": 0,
+  "relacion_puntos_final": 10000,
+  "puntos_max_cliente": 326,
+  "canje_mas_barato": 400,
+  "canjes_atados_a_cita_muerta": 0,
+  "canjes_cobrados_igual": 0,
+  "puntos_en_canjes": 0,
+  "puntos_movimiento_canje": 0,
+  "regresion_AG01_agenda_vende_a_quien_no_atiende": 0,
+  "regresion_FA01_factura_con_saldo_negativo": 0,
+  "regresion_IN01_stock_negativo": 0,
+  "regresion_CJ01_dos_cajas_abiertas": 1,
+  "regresion_AG02_comision_a_quien_no_trabajo": 0,
+  "regresion_FA03_sena_mayor_a_la_cita": 0,
+  "regresion_CJ02_liquidacion_fuera_del_arqueo": 0,
+  "regresion_FA02_nota_de_credito_sin_egreso": 0,
+  "regresion_SE01_panel_filtra_por_rol": 0,
+  "suc_citas_sin_sucursal": 0,
+  "suc_cajas_sin_sucursal": 0,
+  "suc_compras_sin_sucursal": 0,
+  "suc_movinv_sin_sucursal": 0,
+  "suc_huerfanas_cita": 0,
+  "suc_huerfanas_caja": 0,
+  "suc_huerfanas_compra": 0,
+  "suc_huerfanas_movimiento_inventario": 0,
+  "suc_cajas_abiertas_duplicadas": 0,
+  "prod_nombres_duplicados": 0,
+  "prod_mov_sin_habilitacion": 0,
+  "prod_stock_discrepancias": 0,
+  "excl_exclusivos_en_paralelo": 0,
+  "excl_solapes_con_turno": 0,
+  "cfg_nombre_salon": "Peluquería Luque",
+  "cfg_filas_configuracion": 1
+ },
+ "fidelizacion": [
+  {
+   "tipo": "FIDELIZACION",
+   "dia": 9,
+   "relacion": 10000,
+   "top_cliente": 14,
+   "top_puntos": 81,
+   "canje_mas_barato": 2000,
+   "facturado_total": 2714000,
+   "t": "2026-09-09 16:25:00"
+  },
+  {
+   "tipo": "FIDELIZACION",
+   "dia": 22,
+   "relacion": 10000,
+   "top_cliente": 15,
+   "top_puntos": 211,
+   "canje_mas_barato": 400,
+   "facturado_total": 16086000,
+   "t": "2026-09-22 16:25:00"
+  }
+ ],
+ "reservas_por_dia": [
+  {
+   "tipo": "RESERVAS",
+   "dia": 1,
+   "n": 7,
+   "t": "2026-09-01 12:45:02"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 2,
+   "n": 5,
+   "t": "2026-09-02 12:45:02"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 3,
+   "n": 5,
+   "t": "2026-09-03 12:45:04"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 4,
+   "n": 14,
+   "t": "2026-09-04 12:45:04"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 5,
+   "n": 13,
+   "t": "2026-09-05 12:45:16"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 7,
+   "n": 6,
+   "t": "2026-09-07 12:45:05"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 8,
+   "n": 1,
+   "t": "2026-09-08 12:45:26"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 9,
+   "n": 6,
+   "t": "2026-09-09 12:45:06"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 10,
+   "n": 12,
+   "t": "2026-09-10 12:45:17"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 11,
+   "n": 10,
+   "t": "2026-09-11 12:45:17"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 12,
+   "n": 12,
+   "t": "2026-09-12 12:45:17"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 14,
+   "n": 12,
+   "t": "2026-09-14 12:45:09"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 15,
+   "n": 8,
+   "t": "2026-09-15 12:45:04"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 16,
+   "n": 4,
+   "t": "2026-09-16 12:45:14"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 17,
+   "n": 8,
+   "t": "2026-09-17 12:45:17"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 18,
+   "n": 12,
+   "t": "2026-09-18 12:45:10"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 19,
+   "n": 9,
+   "t": "2026-09-19 12:45:27"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 21,
+   "n": 5,
+   "t": "2026-09-21 12:45:08"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 19,
+   "n": 13,
+   "t": "2026-09-19 12:45:03"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 21,
+   "n": 9,
+   "t": "2026-09-21 12:45:06"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 22,
+   "n": 10,
+   "t": "2026-09-22 12:45:10"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 23,
+   "n": 7,
+   "t": "2026-09-23 12:45:09"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 24,
+   "n": 6,
+   "t": "2026-09-24 12:45:18"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 25,
+   "n": 7,
+   "t": "2026-09-25 12:45:41"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 26,
+   "n": 14,
+   "t": "2026-09-26 12:45:10"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 28,
+   "n": 8,
+   "t": "2026-09-28 12:45:33"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 29,
+   "n": 13,
+   "t": "2026-09-29 12:45:14"
+  },
+  {
+   "tipo": "RESERVAS",
+   "dia": 30,
+   "n": 16,
+   "t": "2026-09-30 12:45:39"
+  }
+ ],
+ "throttle": [
+  {
+   "tipo": "THROTTLE",
+   "intentos_hasta_429": 5,
+   "t": "2026-09-02 15:30:05"
+  },
+  {
+   "tipo": "THROTTLE",
+   "intentos_hasta_429": 5,
+   "t": "2026-09-16 15:30:04"
+  },
+  {
+   "tipo": "THROTTLE",
+   "intentos_hasta_429": 5,
+   "t": "2026-09-28 15:30:05"
+  }
+ ],
+ "descartados": {},
+ "no_verificado": [],
+ "verificacion": {},
+ "verificacion2": {},
+ "porcentaje_exito": 91.4,
+ "fallos_verificados": [
+  {
+   "codigo": "IN-05",
+   "severidad": "CRITICO",
+   "modulo": "Inventario",
+   "titulo": "Registrar una compra devuelve HTTP 500: no se puede cargar mercadería",
+   "ocurrencias": 7,
+   "detalle": "La pantalla «Nueva compra» (GET /inventario/compras/nueva) contesta 500 siempre que haya una sucursal activa. La consulta que arma la lista de productos filtra con `Sucursales::filtro('producto', ...)`, que genera `AND producto.id_sucursal = :suc`, y esa columna dejó de existir en la 7.33.0 cuando el catálogo de productos pasó a ser único y el local se mudó a `producto_sucursal`.",
+   "reproduccion": "Entrar con cualquier cuenta con permiso `inventario.compras`, elegir sucursal y abrir Inventario → Compras → Nueva compra. Error de MariaDB 1054: «Unknown column 'producto.id_sucursal' in 'where clause'».",
+   "impacto": "Bloquea por completo el alta de compras: el salón no puede registrar el ingreso de mercadería por el camino normal. El stock sólo se puede mover por ajuste manual.",
+   "origen": "Regresión introducida en la 7.33.0. Ninguna prueba abre esa pantalla."
+  },
+  {
+   "codigo": "CJ-03",
+   "severidad": "CRITICO",
+   "modulo": "Tesorería / Caja",
+   "titulo": "Un pago a proveedor puede dejar la caja de otra sucursal en negativo",
+   "ocurrencias": 2,
+   "detalle": "El control que impide entregar efectivo que no está en el cajón mira la caja de la SUCURSAL ACTIVA (`Caja::abierta()`, que filtra por `Sucursales::activa()`), pero `sp_pagar_compra` graba el pago en la caja DEL USUARIO (`WHERE id_usuario = p_id_usuario AND id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1`). Con más de un local abierto a la vez, esas dos cajas pueden ser distintas: se valida contra una y se descuenta de otra. El controlador sólo corrige `id_caja` cuando el procedimiento lo dejó en NULL, así que no alcanza a enmendarlo.",
+   "reproduccion": "Una cuenta asignada a dos sucursales abre la caja en ambas. Trabajando en el local con más efectivo, registrar un pago a proveedor en efectivo mayor al saldo del OTRO local. Evidencia: caja #19 (sucursal 2), monto inicial Gs. 150.000, pago a proveedor #2 en efectivo por Gs. 1.150.000 aplicado, saldo final Gs. -1.000.000.",
+   "impacto": "Arqueo imposible de cuadrar en el local afectado y salida de efectivo no respaldada. Es la misma clase de defecto que CJ-01, ahora por la vía de la sucursal.",
+   "origen": "Aparece con el multisucursal de la 7.30.0; sin cobertura previa."
+  },
+  {
+   "codigo": "IN-06",
+   "severidad": "MEDIO",
+   "modulo": "Inventario / Citas",
+   "titulo": "El consumo de un producto no habilitado en la sucursal se pierde sin que la pantalla lo explique",
+   "ocurrencias": 3,
+   "detalle": "Al registrar la atención en un local que no maneja ese producto, `trg_movinv_bi` rechaza el movimiento con «Ese producto no esta habilitado en esa sucursal». El disparador hace bien su trabajo —el candado se mudó a `producto_sucursal` en la 7.33.0—, pero la atención queda registrada sin ese consumo y el aviso no dice cómo resolverlo: falta indicar que el producto se trae desde Inventario → Productos → «Traer acá».",
+   "reproduccion": "Atender una cita en la sucursal 2 cargando un producto que sólo está habilitado en la sucursal 1. La atención se registra; la línea de consumo no.",
+   "impacto": "El stock no refleja lo que se usó y quien atiende no sabe por qué. No hay pérdida de datos: la atención y los servicios sí quedan.",
+   "origen": "Consecuencia esperable de la 7.33.0, con el mensaje incompleto."
+  }
+ ],
+ "descartados_verificados": [
+  {
+   "codigo": "AUD_STOCK_DIFIERE",
+   "motivo": "FALSO POSITIVO del banco. La sección 1 de la auditoría recalcula el stock sumando TODOS los movimientos del producto sin distinguir sucursal, y lo compara contra `fn_producto_stock(id, 1)`, que devuelve el de la sucursal 1. Con el catálogo compartido de la 7.33.0 esa comparación no tiene sentido. La comprobación correcta —por (producto, sucursal)— se agregó en la sección 15 y no encontró ninguna discrepancia."
+  },
+  {
+   "codigo": "AUD_CAJAS_SOLAPADAS",
+   "motivo": "FALSO POSITIVO del banco. La comprobación es anterior al multisucursal y da por hecho que sólo puede haber una caja abierta en todo el salón. Desde la 7.31.0 cada local cuenta su propio cajón, así que N cajas abiertas a la vez —una por sucursal— es lo correcto. Lo que sí se comprobó, y pasó, es que ninguna sucursal tenga dos."
+  },
+  {
+   "codigo": "AUD_REGRESION",
+   "motivo": "FALSO POSITIVO del banco, por el mismo motivo: la regresión de CJ-01 se mide contando cajas abiertas en todo el salón. Reformulada por sucursal, no reaparece."
+  },
+  {
+   "codigo": "AUD_CAJA_NEGATIVA",
+   "motivo": "Es el mismo hecho que CJ-03, contado de nuevo por la auditoría final. Se consolida en un solo hallazgo para no inflar la cuenta."
+  },
+  {
+   "codigo": "AUD_TEMPORAL",
+   "motivo": "NO CONCLUYENTE. «Cobro fuera de la caja: 11 filas» se mide contra la ventana de la caja del salón, sin separar por sucursal. Con dos locales abiertos en paralelo la ventana no es única, así que la comprobación no distingue un cobro mal fechado de uno correcto de otro local. Queda como NO VERIFICADO."
+  },
+  {
+   "codigo": "NC_CAJA_NO_BAJA",
+   "motivo": "NO CONCLUYENTE. La nota de crédito descuenta del cajón lo que la clienta había pagado en efectivo; con cajas por sucursal no se pudo determinar en esta corrida si el egreso fue al local correcto o si directamente no se registró. Queda como NO VERIFICADO y merece una prueba dirigida."
+  },
+  {
+   "codigo": "AUD_PANTALLA_ROTA",
+   "motivo": "Es el mismo hecho que IN-05, detectado por la auditoría final."
+  }
+ ],
+ "notas_banco": [
+  "Dos errores de MariaDB del log («Unknown column 't.token'» y «Unknown column 'monto_final'») provienen de consultas del propio banco de pruebas, no del sistema.",
+  "La caja del local nuevo no abría por CJ-04, corregido durante la corrida a pedido del usuario (versión 7.36.2) para que el multisucursal pudiera probarse de verdad."
+ ],
+ "severidades_verificadas": {
+  "CRITICO": 2,
+  "ALTO": 0,
+  "MEDIO": 1,
+  "BAJO": 0
+ }
+}

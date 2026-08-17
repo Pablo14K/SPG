@@ -191,7 +191,15 @@ const colorSev = (s) => ({ CRITICO: ROJO, ALTO: NARANJA, MEDIO: '8A6C1E', BAJO: 
 // =======================================================================
 //  Datos derivados
 // =======================================================================
-const fallos = R.fallos || [];
+// **Los hallazgos VERIFICADOS, no los crudos.** El registro en bruto mezcla
+// defectos del sistema con artefactos del banco de pruebas —comprobaciones
+// escritas cuando el sistema operaba sobre un solo local, y que con N sucursales
+// comparan lo que no corresponde—. Un informe que los mezcla manda a arreglar lo
+// que no está roto, así que cada uno se verificó a mano contra la base y el
+// código antes de clasificarlo, y los descartados se conservan con su motivo.
+const fallos = R.fallos_verificados || R.fallos || [];
+const descartadosVerif = R.descartados_verificados || [];
+const notasBanco = R.notas_banco || [];
 const avisos = R.avisos || [];
 const criticos = fallos.filter((f) => f.severidad === 'CRITICO');
 const altos = fallos.filter((f) => f.severidad === 'ALTO');
@@ -920,7 +928,9 @@ function detalleHallazgo(f, id) {
     '     ', ['Módulo: ', true], f.modulo || '—',
     '     ', ['Código: ', true], f.codigo,
   ], { size: 18 }));
-  if (f.primer_detalle) H.push(ricos([['Qué pasa. ', true], f.primer_detalle], { size: 19 }));
+  const quePasa = f.detalle || f.primer_detalle;
+  if (quePasa) H.push(ricos([['Qué pasa. ', true], quePasa], { size: 19 }));
+  if (f.origen) H.push(ricos([['De dónde viene. ', true], f.origen], { size: 19 }));
   if (f.reproduccion) H.push(ricos([['Cómo reproducirlo. ', true], f.reproduccion], { size: 19 }));
   if (f.evidencia) H.push(ricos([['Evidencia. ', true], f.evidencia], { size: 19 }));
   if (f.impacto) H.push(ricos([['Impacto. ', true], f.impacto], { size: 19 }));
@@ -936,6 +946,21 @@ H.push(salto());
 // =======================================================================
 //  15. WARNINGS
 // =======================================================================
+if (descartadosVerif.length) {
+  H.push(h2('14.2 Alertas descartadas tras verificarlas'));
+  H.push(p('El detector marcó estas y la verificación mostró que no son defectos del sistema. Se publican con su motivo: un detector que se equivoca hay que decir cuándo se equivocó, y quien lea el informe tiene que poder distinguir lo que hay que arreglar de lo que no.'));
+  H.push(tabla(['Código', 'Por qué se descarta'],
+    descartadosVerif.map((d) => [
+      { t: d.codigo, bold: true, align: AlignmentType.LEFT },
+      { t: d.motivo, align: AlignmentType.LEFT },
+    ]), [2200, 6820], { tamano: 16 }));
+}
+if (notasBanco.length) {
+  H.push(h2('14.3 Anotaciones sobre el banco de pruebas'));
+  notasBanco.forEach((n) => H.push(p('· ' + n, { size: 19 })));
+}
+H.push(salto());
+
 H.push(h1('15. Warnings'));
 H.push(p('Comportamientos que no rompen nada hoy, pero que conviene mirar: o dependen de una configuración que el salón podría cambiar, o dejan una función publicada sin que se pueda usar.'));
 if (avisos.length === 0) {

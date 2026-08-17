@@ -34,7 +34,13 @@ function demanda(int $dow, int $dia): int
     // número inventado — es lo que hace falta para que 30 días sometan a la
     // agenda, la caja y el stock a la presión de varios meses de uso real.
     if ($dow === 7) return 0;
-    $base = [1 => 13, 2 => 17, 3 => 18, 4 => 20, 5 => 26, 6 => 32][$dow] ?? 16;
+    // Bajada a pedido del usuario para que la corrida entre en 30 minutos.
+    // **Se sacrifica volumen, no cobertura**: siguen todos los módulos, todos
+    // los escenarios y todas las comprobaciones; lo que baja es cuántas
+    // operaciones de cada tipo. La forma de la curva —lunes flojo, sábado
+    // fuerte, picos y valles— se conserva, que es lo que prueba el sistema
+    // bajo cambios bruscos de carga.
+    $base = [1 => 6, 2 => 8, 3 => 8, 4 => 9, 5 => 12, 6 => 14][$dow] ?? 7;
 
     // Picos de máxima presión: fin de mes, quincena y un fin de semana largo.
     if (in_array($dia, [13, 14, 15], true))     $base = (int) ($base * 1.7);
