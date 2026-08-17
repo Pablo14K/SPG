@@ -138,9 +138,45 @@
             <a class="spg-nav-item {{ $spgRuta === 'panel' ? 'activo' : '' }}" href="{{ Navegacion::url('panel') }}">
                 <i class="bi bi-house-door"></i><span>Panel</span></a>
             @foreach ($spgMenu as $spgMod)
-                <a class="spg-nav-item {{ $spgModulo === $spgMod['mod'] ? 'activo' : '' }}"
-                   href="{{ $spgMod['url'] }}" title="{{ $spgMod['sub'] }}">
-                    <i class="bi bi-{{ $spgMod['ic'] }}"></i><span>{{ $spgMod['titulo'] }}</span></a>
+                @php
+                    // Con una sola pantalla el desplegable repetiría el propio
+                    // enlace del módulo: Reportes es una sola pantalla, así que
+                    // ahí no se dibuja nada. Un menú de un renglón que lleva al
+                    // mismo lugar es ruido.
+                    $spgPant = Navegacion::pantallasDe($spgMod['mod']);
+                    $spgPant = count($spgPant) > 1 ? $spgPant : [];
+                @endphp
+                {{-- **El módulo se abre al pasar el mouse**, para llegar a la
+                     pantalla sin pasar por la tarjeta del medio: eran dos clics
+                     y una pantalla entera de por medio para algo que se hace
+                     veinte veces por día.
+
+                     El enlace del módulo sigue estando y sigue llevando a su
+                     tarjeta: el desplegable es un atajo, no un reemplazo. Por
+                     eso se abre con `:hover` de CSS y **no con JavaScript** —así
+                     funciona igual si `app.js` no cargó— y por eso también se
+                     abre con el foco del teclado (`:focus-within`), que si no
+                     quien navega con Tab se queda sin los atajos.
+
+                     Sale del catálogo de pantallas, con el mismo filtro por
+                     permiso que pide el middleware. Ver `pantallasDe()`. --}}
+                <div class="spg-nav-grupo">
+                    <a class="spg-nav-item {{ $spgModulo === $spgMod['mod'] ? 'activo' : '' }}"
+                       href="{{ $spgMod['url'] }}" title="{{ $spgMod['sub'] }}"
+                       @if ($spgPant) aria-haspopup="true" @endif>
+                        <i class="bi bi-{{ $spgMod['ic'] }}"></i><span>{{ $spgMod['titulo'] }}</span>
+                        @if ($spgPant)<i class="bi bi-chevron-down spg-nav-flecha"></i>@endif</a>
+
+                    @if ($spgPant)
+                        <div class="spg-nav-menu" role="menu" aria-label="{{ $spgMod['titulo'] }}">
+                            @foreach ($spgPant as $spgP)
+                                <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
+                                   href="{{ $spgP['url'] }}">
+                                    <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['t'] }}</span></a>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             @endforeach
         </div>
     </nav>

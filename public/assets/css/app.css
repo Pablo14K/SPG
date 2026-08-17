@@ -645,6 +645,70 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-nav-item.activo{color:var(--oro);border-bottom-color:var(--oro);font-weight:500;}
 .spg-nav-item.activo i{opacity:1;}
 
+/* ---- El módulo se abre al pasar el mouse ----
+   Llegar a una pantalla eran dos clics con una tarjeta de por medio, y eso se
+   hace veinte veces por día. El desplegable es un ATAJO: el enlace del módulo
+   sigue llevando a su tarjeta, así que nada depende de que esto funcione.
+
+   Tres decisiones que no son adorno y conviene no perder al tocarlo:
+
+   · **Se abre con CSS, no con JavaScript.** Si `app.js` no cargó, la barra
+     sigue navegando igual — la misma regla que la salida de la pantalla de la
+     huella.
+   · **Sólo donde hay mouse de verdad** (`hover:hover`). En una pantalla táctil
+     el hover no existe y el navegador lo emula con el primer toque: tocar
+     «Clientes» abriría el menú en vez de entrar al módulo, o sea que el atajo
+     rompería la navegación normal. Ahí la barra se queda como estaba.
+   · **`overflow` vuelve a `visible` en ese caso.** `.spg-nav-in` scrollea en
+     horizontal para las pantallas angostas, y un desplegable dentro de un
+     contenedor con overflow se recorta: se vería la primera línea y nada más. */
+@media (hover:hover) and (min-width:768px) {
+  .spg-nav-in{overflow:visible;}
+  .spg-nav-grupo{position:relative;display:inline-flex;}
+  .spg-nav-flecha{font-size:.6rem !important;opacity:.5 !important;margin-left:-.15rem;
+                  transition:transform .13s,opacity .13s;}
+  .spg-nav-grupo:hover .spg-nav-flecha,
+  .spg-nav-grupo:focus-within .spg-nav-flecha{opacity:.9 !important;transform:rotate(180deg);}
+
+  .spg-nav-menu{
+    position:absolute;top:100%;left:0;min-width:210px;z-index:1030;
+    background:var(--sup-oscura);border:1px solid var(--sup-oscura-borde);
+    border-top:2px solid var(--oro);border-radius:0 0 6px 6px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);padding:.3rem;
+    /* Oculto pero enfocable no sirve: `display:none` saca los enlaces del
+       recorrido del teclado y `:focus-within` no podría dispararse nunca. */
+    /* `visibility:hidden` y no `display:none` para poder animarlo. Los dos
+       sacan los enlaces del recorrido del teclado, y está bien que así sea: el
+       menú cerrado no es navegable. Lo que hace andar el teclado es que el
+       disparador de `:focus-within` es el enlace del módulo, que SIEMPRE es
+       visible y enfocable — al llegarle con Tab el menú se abre y recién
+       entonces sus enlaces entran al recorrido. */
+    opacity:0;visibility:hidden;transform:translateY(-4px);
+    transition:opacity .13s,transform .13s,visibility .13s;
+  }
+  .spg-nav-grupo:hover .spg-nav-menu,
+  .spg-nav-grupo:focus-within .spg-nav-menu{opacity:1;visibility:visible;transform:none;}
+
+  .spg-nav-menu a{
+    display:flex;align-items:center;gap:.55rem;white-space:nowrap;
+    padding:.45rem .6rem;border-radius:4px;
+    color:var(--sobre-oscura);text-decoration:none;font-size:.8rem;
+  }
+  .spg-nav-menu a i{font-size:.9rem;opacity:.7;width:1rem;text-align:center;}
+  .spg-nav-menu a:hover,.spg-nav-menu a:focus-visible{background:var(--sup-oscura-2);color:var(--oro-claro);}
+  .spg-nav-menu a:hover i,.spg-nav-menu a:focus-visible i{opacity:1;}
+  .spg-nav-menu a.activo{color:var(--oro);font-weight:500;}
+  .spg-nav-menu a.activo i{opacity:1;}
+
+  /* El último módulo queda pegado al borde derecho: su menú se alinea al
+     revés para no salirse de la pantalla. */
+  .spg-nav-grupo:last-child .spg-nav-menu{left:auto;right:0;}
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .spg-nav-menu,.spg-nav-flecha{transition:none;}
+}
+
 /* ---- Pie ---- */
 .spg-footer{background:var(--sup-oscura);color:var(--sobre-oscura);margin-top:2.5rem;}
 /* Las secciones van en tres columnas, no en una lista larga: apiladas

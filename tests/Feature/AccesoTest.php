@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Servicios\Navegacion;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -314,5 +315,42 @@ class AccesoTest extends TestCase
         $clientes = (int) DB::scalar('SELECT COUNT(*) FROM cliente WHERE activo = 1');
 
         $this->get(route('panel'))->assertOk()->assertSee((string) $clientes);
+    }
+
+    /**
+     * El desplegable de la barra recorre el catálogo entero, y eso no puede
+     * tumbar el sistema.
+     *
+     * `Navegacion::url()` hacía `route($clave)` sin más, así que una pantalla
+     * que necesita un parámetro —`clientes.historial` es `clientes/{id}/historial`—
+     * levantaba `UrlGenerationException`. Mientras nadie la pidiera sin el id el
+     * agujero estaba tapado por casualidad; **apenas el menú recorrió el
+     * catálogo, el panel entero devolvió 500**. Quien arma un menú no tiene ese
+     * id ni tiene por qué saber cuáles lo piden.
+     *
+     * Se comprueba con la pantalla concreta que lo rompió y con todos los
+     * módulos, que es lo que hace de verdad la barra en cada petición.
+     */
+    #[Test]
+    public function el_menu_de_la_barra_se_arma_para_todos_los_modulos(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        $this->assertNull(Navegacion::url('clientes.historial'),
+            'Una pantalla que necesita un parámetro no se puede nombrar sin él: '
+            . 'tiene que dar null, no reventar.');
+
+        foreach (Navegacion::modulos() as $m) {
+            $pantallas = Navegacion::pantallasDe((string) $m['mod']);
+            foreach ($pantallas as $p) {
+                $this->assertNotNull($p['url'],
+                    'El menú de ' . $m['titulo'] . ' ofrece «' . $p['t'] . '» sin URL.');
+            }
+        }
+
+        // Y la barra se dibuja de verdad, con las pantallas adentro.
+        $this->get(route('panel'))->assertOk()
+             ->assertSee('spg-nav-menu', false)
+             ->assertSee('Nueva cita');
     }
 }

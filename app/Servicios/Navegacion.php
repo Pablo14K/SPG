@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Servicios;
 
+use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -16,10 +17,29 @@ use Illuminate\Support\Facades\Route;
  */
 class Navegacion
 {
-    /** URL de una pantalla del catálogo, o null si todavía no está migrada. */
+    /**
+     * URL de una pantalla del catálogo, o null si todavía no está migrada.
+     *
+     * **Devuelve null también cuando la ruta necesita un parámetro que no se le
+     * dio**, en vez de reventar. `clientes.historial` es `clientes/{id}/historial`
+     * y sin el id `route()` levanta `UrlGenerationException`: quien la llama
+     * armando un menú no tiene ese id ni tiene por qué saber cuáles lo piden, y
+     * una pantalla que no se puede nombrar sin dato es una que ese menú no puede
+     * ofrecer. Antes nadie la pedía sin parámetros, así que el agujero estaba
+     * tapado por casualidad — y apareció apenas el desplegable recorrió el
+     * catálogo entero: **500 en el panel**, o sea el sistema entero caído.
+     */
     public static function url(string $clave, array $parametros = []): ?string
     {
-        return Route::has($clave) ? route($clave, $parametros) : null;
+        if (! Route::has($clave)) {
+            return null;
+        }
+
+        try {
+            return route($clave, $parametros);
+        } catch (UrlGenerationException) {
+            return null;
+        }
     }
 
     public static function existe(string $clave): bool
@@ -84,6 +104,47 @@ class Navegacion
         }
 
         return $titulos ? implode(' · ', $titulos) : $porDefecto;
+    }
+
+    /**
+     * Las pantallas de un módulo, para el desplegable de la barra.
+     *
+     * Sale del **mismo catálogo** que la tarjeta del módulo y que los accesos
+     * rápidos, con el **mismo filtro por permiso** —la clave que pide el
+     * middleware—, así que el desplegable no puede ofrecer algo que conteste
+     * «Sin permiso». Es la corrección de la 7.24.0 aplicada acá desde el
+     * principio: un menú que anuncia lo que no se puede abrir miente.
+     *
+     * **No se deduplica por permiso**, al revés que `subDe()`: ahí el texto es
+     * un resumen y repetir «Usuarios» dos veces sobra, pero acá cada renglón es
+     * un destino distinto —«Usuarios» lleva a la lista y «Nuevo usuario» al
+     * formulario— y perder uno sería perder media navegación.
+     */
+    public static function pantallasDe(string $modulo): array
+    {
+        $out = [];
+        foreach (config('navegacion.pantallas', []) as $clave => $p) {
+            if (! str_starts_with((string) $clave, $modulo . '.')) {
+                continue;
+            }
+            [$titulo, $ic, $permiso] = $p;
+            // **El cuarto valor dice si es una entrada del módulo.** Sin marcar
+            // es que sí, que es el caso normal. Se marca `false` la pantalla de
+            // detalle, la que no significa nada sin un dato: «Ver comprobante»
+            // necesita saber cuál, «Informe para imprimir» es el papel del
+            // informe que se está mirando. Ofrecerlas en un menú es prometer
+            // una pantalla que no se puede abrir desde ahí.
+            if (($p[3] ?? true) === false || ! Permisos::puede((string) $permiso)) {
+                continue;
+            }
+            $url = self::url((string) $clave);
+            if ($url === null) {
+                continue;   // pantalla catalogada sin ruta declarada
+            }
+            $out[] = ['t' => (string) $titulo, 'ic' => (string) $ic, 'url' => $url, 'clave' => (string) $clave];
+        }
+
+        return $out;
     }
 
     /**

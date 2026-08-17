@@ -196,6 +196,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.34.0 | 17/08/2026 | **El módulo de la barra se abre al pasar el mouse y muestra sus pantallas.** Llegar a una eran dos clics con una tarjeta de por medio, y eso se hace veinte veces por día. Sale del **mismo catálogo** que la tarjeta del módulo, con el **mismo filtro por permiso** que pide el middleware, así que el menú no puede ofrecer algo que conteste «Sin permiso» — es la corrección de la 7.24.0 aplicada acá desde el principio. Tres decisiones que no son adorno: **se abre con CSS y no con JavaScript**, así que si `app.js` no cargó la barra navega igual; **sólo donde hay mouse de verdad** (`hover:hover`), porque en una pantalla táctil el navegador emula el hover con el primer toque y tocar «Clientes» abriría el menú en vez de entrar al módulo, o sea que el atajo rompería la navegación normal; y **`overflow` vuelve a `visible` en ese caso**, porque `.spg-nav-in` scrollea en horizontal para las pantallas angostas y un desplegable dentro de un contenedor con overflow se recorta — se vería la primera línea y nada más. El enlace del módulo sigue estando y sigue llevando a su tarjeta: el desplegable es un atajo, no un reemplazo. **Y el catálogo gana un cuarto valor**, para distinguir la entrada del módulo de la pantalla de detalle: «Ver comprobante» necesita saber cuál y «Informe para imprimir» es el papel del informe que se está mirando, así que ofrecerlas en un menú es prometer algo que no se puede abrir desde ahí. **Probándolo en el navegador apareció un 500 en el panel entero**: `Navegacion::url()` hacía `route($clave)` sin más, y `clientes.historial` es `clientes/{id}/historial` — sin el id levanta `UrlGenerationException`. Mientras nadie la pidiera sin parámetros el agujero estaba tapado por casualidad, y el menú, que recorre el catálogo completo, lo destapó de una. Ahora devuelve null, que es lo que corresponde: quien arma un menú no tiene ese id ni tiene por qué saber cuáles lo piden. **87 pruebas**, una nueva que arma el menú de todos los módulos y fija ese caso |
 | 7.33.0 | 17/08/2026 | **Un producto o un servicio que ya existe en otro local se trae con un clic, en vez de volver a cargarlo.** Por pedido del usuario, y el motivo que dio es el correcto: cargarlo de nuevo lo escribe distinto. «Shampoo profesional 1L» tipeado por dos personas queda como dos filas —«Shampoo prof. 1 L», «Shampoo profesional 1L»— con dos unidades y dos contenidos, y a partir de ahí ni el consumo fraccionado ni ningún informe pueden comparar el mismo frasco entre sucursales. **Servicios ya tenía el modelo bueno** —catálogo único y `servicio_sucursal` diciendo quién lo publica—, así que sólo faltaba la pantalla: un filtro «Dónde se ofrece» y un botón **Agregar acá**. **Productos no lo tenía, y ahí hubo que corregir el modelo.** La 7.30.0 le puso `id_sucursal` a `producto` con el criterio «el local no se deduce de quién opera»; para una CITA eso es correcto —es un hecho que ocurre en un lugar— pero un producto **no es un hecho, es una entidad de catálogo**, y con la columna el nombre, la categoría, la unidad, el contenido y el precio se repetían por local: redundancia de entidad, que la regla número dos prohíbe. Ahora el catálogo es único, **`producto_sucursal`** dice qué locales lo manejan y con qué mínimo —el mínimo **sí** es del local: un salón grande guarda más—, y **`movimiento_inventario` gana `id_sucursal`** porque ya no se puede deducir del producto. `fn_producto_stock` **pasa a pedir el local**, y es a propósito: con catálogo compartido, «cuánto shampoo hay» sin decir dónde sumaría los dos locales y el inventario no cerraría en ninguno. El candado de `trg_movinv_bi` se muda de `producto` a `producto_sucursal`, que si no dos salidas de sucursales distintas se serializarían sin motivo. Y **`notificacion` gana `id_sucursal`**: el aviso de reposición pendiente de un local tapaba el del otro, así que el segundo se quedaba sin mercadería en silencio. De paso apareció **la tercera prueba que dependía del entorno y no de la regla**: 86 en verde en el host y **11 rotas en el contenedor**, con el mismo código y los mismos datos. Las sesiones armadas a mano no ponen la marca de sesión única de la 7.13.0, así que si la cuenta tenía una sesión abierta —la dejó otra prueba que sí ingresó— `ExigeSesion` las echaba al ingreso. Entra `conMarcaDeSesion()`, que la copia de la base: una sesión armada a mano tiene que ser creíble entera, no a medias. **86 pruebas en los dos entornos** y los dos `.sql` regenerados |
 | 7.32.0 | 17/08/2026 | **Cargar un producto o una compra desde el segundo local reventaba, y los servicios no tenían dónde elegir su sucursal.** Las dos mitades que la 7.30.0 dejó a medias. `producto.id_sucursal` y `compra.id_sucursal` son `NOT NULL` **sin valor por defecto** y ninguno de los cuatro `INSERT` los escribía: el alta de producto, las dos altas rápidas y el alta de compra contestaban `1364 Field 'id_sucursal' doesn't have a default value` — o sea que **desde el segundo local no se podía cargar mercadería en absoluto**. Ahora los cuatro graban `Sucursales::activa()`. Y **`servicio_sucursal` existía desde la 7.30.0 sin una sola pantalla que la escribiera**: un local nuevo nacía con cero servicios publicados y la clienta que elegía esa sucursal en el portal no veía nada que reservar — el error se lo había creado la propia versión que trajo la tabla. El bloque va en el formulario del servicio y **sólo se dibuja con más de una sucursal**: preguntar algo de una única respuesta hace perder un clic. Sin marcar ninguna vale en todas, que es lo que espera quien recién abre el segundo local. **Y salen los accesos rápidos**, por pedido del usuario: eran el cuarto nivel de navegación y contestaban «¿qué suelo hacer después de esto?», una pregunta que las tarjetas del módulo ya contestaban más arriba. De paso, **dos pruebas dependían del día del calendario**: agarraban la primera clienta y le agendaban para hoy, y el 17/08 el mes simulado ya le tenía una cita con ese servicio, así que `trg_citaserv_bi` las rechazaba —el 16 estaban en verde—. Es el defecto de la 7.31.3 otra vez, con el calendario en lugar de las sucursales: entra `clienteLibreHoy()` en `Tests\TestCase`. Mudarlas lejos, como en la 7.28.0, acá no valía: atender exige que la cita ya haya llegado. **86 pruebas** |
 | 7.31.3 | 16/08/2026 | **La batería dependía de cuántas sucursales tuviera la base.** Se vio al actualizar Docker: las 86 pruebas pasaban en el host —una sucursal— y **19 fallaban dentro del contenedor**, que tenía dos. Ninguna era un defecto del sistema: las pruebas armaban la sesión a mano y se saltaban la elección de local, que `ExigePersonal` exige. Con una sola no se notaba porque `Sesion::inicio()` la resuelve sola; con dos, cada pantalla contestaba **302 hacia «elegí la sucursal»**. Una batería que dice cosas distintas según cuántos locales haya cargados no sirve para decir si el sistema anda. Entran dos ayudas en `Tests\TestCase`: **`conSucursal()`**, que deja una elegida, y **`entrarComo()`**, que ingresa y resuelve el local — que es lo que hace una persona—. Las 19 sesiones armadas a mano y los 12 ingresos por POST pasan por ellas. Y dos pruebas se corrigieron sin aflojar lo que comprueban: la del ingreso ahora **acepta las dos respuestas correctas** —al panel con un local, a elegir con varios— y la del portal pasa la sucursal explícita, porque con más de una el portal pide el local **antes** de mostrar servicios y horarios. Verificado en los dos entornos a la vez: **86 en verde con una sucursal y con dos** |
@@ -331,7 +332,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 85 pruebas
+tests/Feature/             Las 87 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -515,16 +516,37 @@ Tres reglas al tocarlo:
 ## Interfaz
 
 - Bootstrap 5.3 + Bootstrap Icons **por CDN**, con la paleta de arriba aplicada encima.
-- **Cuatro niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
+- **Tres niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
   alguno, la anterior vuelve a quedar sin respuesta:
   | Nivel | Dónde | Qué responde |
   |---|---|---|
   | Barra de módulos (`.spg-nav`) | fija bajo el encabezado | *¿a qué otro módulo voy?* — el actual va marcado en oro |
+  | Desplegable del módulo (`.spg-nav-menu`) | al pasar el mouse por la barra | *¿a qué pantalla de ese módulo voy, sin pasar por la tarjeta?* |
   | Migas (`.spg-migas`) | arriba del título | *¿dónde estoy y cómo vuelvo?* |
   | Tarjetas | panel → módulo → submódulos | *¿qué hay dentro de este módulo?* |
-  | Accesos rápidos (`.spg-chip`) | bajo las migas | *¿qué suelo hacer después de esto?* |
-  Los dos primeros salen solos del encabezado; los accesos rápidos se configuran en
-  `config/navegacion.php`, no en cada vista.
+  Los dos primeros salen solos del encabezado, del catálogo de
+  `config/navegacion.php` y no de cada vista.
+
+  > **Había un cuarto nivel, los accesos rápidos (`.spg-chip`), y salió en la 7.32.0 por
+  > pedido del usuario.** Contestaban «¿qué suelo hacer después de esto?», una pregunta que
+  > las tarjetas del módulo ya contestaban unos centímetros más arriba. El arreglo de
+  > `config/navegacion.php` (`rapidos`) **se dejó donde está**, por el mismo motivo que
+  > `sp_generar_recordatorios`: no molesta, y borrarlo es tirar la configuración de una
+  > función que el salón puede querer de vuelta. `Navegacion::accesosRapidos()` sigue
+  > existiendo y ninguna vista la dibuja.
+
+  > **El desplegable es un ATAJO, no un reemplazo.** El enlace del módulo sigue llevando a su
+  > tarjeta, así que nada depende de que funcione. Tres cosas que conviene no perder al
+  > tocarlo, y las tres están comentadas en `app.css`: se abre con **CSS y no con
+  > JavaScript**; sólo donde hay **mouse de verdad** (`hover:hover`), porque en una pantalla
+  > táctil el primer toque abriría el menú en vez de entrar al módulo; y **`overflow` vuelve
+  > a `visible`** ahí, porque `.spg-nav-in` scrollea en horizontal y un desplegable dentro de
+  > un contenedor con overflow se recorta.
+  >
+  > **Las pantallas de detalle se marcan con un cuarto valor en `false`** en
+  > `config/navegacion.php`. «Ver comprobante» necesita saber cuál y «Informe para imprimir»
+  > es el papel del informe que se está mirando: ofrecerlas en un menú es prometer una
+  > pantalla que desde ahí no se puede abrir. Sin marcar es que sí, que es el caso normal.
 - El **pie** tiene cuatro bloques: identidad, **Secciones** (los módulos del rol, en tres columnas),
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
@@ -2207,7 +2229,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 85 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 87 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
@@ -2267,7 +2289,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**85 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**87 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
