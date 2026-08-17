@@ -1,0 +1,6 @@
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-09 16:10:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-09 16:10:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-09 16:10:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-09 16:10:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["warning: Ese horario lo tomó otra persona mientras completabas la reserva. Noelia Cardozo ya tiene una cita a las 08:00. Elegí otro de los horarios que quedan libres."],"t":"2026-09-09 16:10:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/nueva?cliente=17","st":200,"flash":[],"t":"2026-09-09 16:10:03"}

@@ -1,0 +1,18 @@
+{"tipo":"FASE_INI","dia":3,"fase":"cierre","fecha":"2026-09-03","dow":4,"t":"2026-09-03 19:15:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-03 19:15:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Salida de Rocío Duarte registrada a las 19:15. Se le contaron 0,25 hora(s) extra."],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-03","st":200,"flash":[],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Salida de Sofía Espínola registrada a las 19:15. Se le contaron 0,25 hora(s) extra."],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-03","st":200,"flash":[],"t":"2026-09-03 19:15:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/facturacion\/caja\/cerrar","st":302,"flash":["success: Caja cerrada. Saldo final: Gs. 340.000."],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/facturacion\/caja","st":200,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-03 19:15:03"}
+{"tipo":"CRON","salida":"citas marcadas atrasadas: 0\n  recordatorios nuevos: 3\n  avisos internos cerrados: 0\n  enviados: 22 · fallidos: 0 · sin correo: 0","t":"2026-09-03 19:15:06"}

@@ -1,0 +1,81 @@
+{"tipo":"FASE_INI","dia":8,"fase":"manana","fecha":"2026-09-08","dow":2,"t":"2026-09-08 12:45:00"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-08 12:45:00"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-08 12:45:01"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-08 12:45:01"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:01"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 1 servicio(s). Se quitaron 1 servicio(s) agendado(s) que no se realizaron: no se van a facturar. El stock de los productos usados fue descontado."],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 2 servicio(s). El stock de los productos usados fue descontado."],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 1 servicio(s). El stock de los productos usados fue descontado."],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:02"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 1 servicio(s)."],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"karen","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"karen","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 1 servicio(s). El stock de los productos usados fue descontado."],"t":"2026-09-08 12:45:03"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/citas\/estado","st":302,"flash":["success: Estado de la cita actualizado."],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/citas\/atender","st":302,"flash":["success: Atención registrada: 1 servicio(s). El stock de los productos usados fue descontado."],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"marta","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"marta","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-08 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/receptor","st":302,"flash":["success: Factura 001-001-0000006 emitida. El cliente sumó 7 punto(s). Declarado. CDC 01800123456001001000000622026090818956247358. El PDF le fue enviado a gabriela.rojas6@correo.com.py."],"t":"2026-09-08 12:45:10"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/comprobante?id=23","st":200,"flash":[],"t":"2026-09-08 12:45:10"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 75.000. La factura quedó saldada."],"t":"2026-09-08 12:45:10"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:11"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/emitir","st":302,"flash":["success: Comprobante 001-999-0000018 emitido. El cliente sumó 25 punto(s) de fidelización. Queda cobrar Gs. 252.000: está abajo, con el botón Cobrar."],"t":"2026-09-08 12:45:11"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas?q=001-999-0000018","st":200,"flash":[],"t":"2026-09-08 12:45:11"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 252.000. La factura quedó saldada."],"t":"2026-09-08 12:45:11"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:11"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/receptor","st":302,"flash":["success: Factura 001-001-0000007 emitida. El cliente sumó 9 punto(s). Declarado. CDC 01800123456001001000000722026090812592361936. El PDF le fue enviado a fatima.insfran8@correo.com.py."],"t":"2026-09-08 12:45:17"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/comprobante?id=25","st":200,"flash":[],"t":"2026-09-08 12:45:17"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 90.000. La factura quedó saldada."],"t":"2026-09-08 12:45:18"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:18"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/emitir","st":302,"flash":["success: Comprobante 001-999-0000019 emitido. El cliente sumó 19 punto(s) de fidelización. Queda cobrar Gs. 195.000: está abajo, con el botón Cobrar."],"t":"2026-09-08 12:45:18"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas?q=001-999-0000019","st":200,"flash":[],"t":"2026-09-08 12:45:19"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 195.000. (Efectivo Gs. 97.500 + Tarjeta de credito Gs. 97.500) La factura quedó saldada."],"t":"2026-09-08 12:45:19"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:19"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/emitir","st":302,"flash":["success: Comprobante 001-999-0000020 emitido. El cliente sumó 5 punto(s) de fidelización. Queda cobrar Gs. 50.000: está abajo, con el botón Cobrar."],"t":"2026-09-08 12:45:19"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas?q=001-999-0000020","st":200,"flash":[],"t":"2026-09-08 12:45:20"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 50.000. La factura quedó saldada."],"t":"2026-09-08 12:45:20"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:20"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/sena","st":302,"flash":["success: Cobrado Gs. 15.000 a Ana Gimenez. Ahora elegí el comprobante que pida: se descuenta solo del total."],"t":"2026-09-08 12:45:20"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/emitir?cita=97","st":200,"flash":[],"t":"2026-09-08 12:45:20"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/receptor","st":302,"flash":["success: Factura 001-001-0000008 emitida. El cliente sumó 3 punto(s). Declarado. CDC 01800123456001001000000822026090815681297659. El PDF le fue enviado a ana.cliente@example.com."],"t":"2026-09-08 12:45:26"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/comprobante?id=28","st":200,"flash":[],"t":"2026-09-08 12:45:26"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/facturacion\/cobrar","st":302,"flash":["success: Cobro registrado por Gs. 15.000. La factura quedó saldada."],"t":"2026-09-08 12:45:26"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/facturacion\/facturas","st":200,"flash":[],"t":"2026-09-08 12:45:26"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-08 12:45:27"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-08 12:45:27"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-08 12:45:28"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-08 12:45:28"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-08 12:45:28"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=10&fecha=2026-09-15","st":200,"flash":[],"t":"2026-09-08 12:45:28"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 15\/09\/2026 15:15."],"t":"2026-09-08 12:45:28"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-15","st":200,"flash":[],"t":"2026-09-08 12:45:29"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=14&fecha=2026-09-10","st":200,"flash":[],"t":"2026-09-08 12:45:29"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 10\/09\/2026 11:30."],"t":"2026-09-08 12:45:29"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-10","st":200,"flash":[],"t":"2026-09-08 12:45:29"}
+{"tipo":"RESERVAS","dia":8,"n":2,"t":"2026-09-08 12:45:29"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-08 12:45:29"}

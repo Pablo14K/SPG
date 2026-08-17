@@ -1,0 +1,7 @@
+{"tipo":"FASE_INI","dia":6,"fase":"cierre","fecha":"2026-09-06","dow":7,"t":"2026-09-06 19:15:00"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-06 19:15:00"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-06 19:15:00"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-06 19:15:00"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-06 19:15:00"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-06 19:15:00"}
+{"tipo":"CRON","salida":"citas marcadas atrasadas: 0\n  recordatorios nuevos: 7\n  avisos internos cerrados: 0\n  enviados: 16 · fallidos: 0 · sin correo: 0","t":"2026-09-06 19:15:01"}

@@ -1,0 +1,120 @@
+d1 init 2026-09-01 ok
+d1 apertura 2026-09-01 ok
+d1 manana 2026-09-01 ok
+d1 mediodia 2026-09-01 ok
+d1 sucursales 2026-09-01 ok
+d1 tarde 2026-09-01 ok
+d1 cierre 2026-09-01 ok
+== dia 1 listo ==
+d2 apertura 2026-09-02 ok
+d2 manana 2026-09-02 ok
+d2 mediodia 2026-09-02 ok
+d2 sucursales 2026-09-02 ok
+d2 permisos 2026-09-02 ok
+d2 tarde 2026-09-02 ok
+d2 cierre 2026-09-02 ok
+== dia 2 listo ==
+d3 apertura 2026-09-03 ok
+d3 manana 2026-09-03 ok
+d3 mediodia 2026-09-03 ok
+d3 sucursales 2026-09-03 ok
+d3 anomalias 2026-09-03 ok
+d3 tarde 2026-09-03 ok
+d3 cierre 2026-09-03 ok
+== dia 3 listo ==
+d4 apertura 2026-09-04 ok
+d4 manana 2026-09-04 ok
+d4 mediodia 2026-09-04 ok
+d4 sucursales 2026-09-04 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
+  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
+  inal = monto_inicial                                                         
+                      WHERE id_estado_caja = 1)                                
+                                                                               
+
+In Connection.php line 595:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
+  eld list'                                                                    
+                                                                               
+
+d4 tarde 2026-09-04 ok
+d4 cierre 2026-09-04 ok
+== dia 4 listo ==
+SIMULACION TERMINADA 1..4
+d5 apertura 2026-09-05 ok
+d5 manana 2026-09-05 ok
+d5 mediodia 2026-09-05 ok
+d5 sucursales 2026-09-05 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim,  
+   SQL: SELECT t.token, t.id_cita FROM token_cita t                            
+                          JOIN cita c ON c.id_cita = t.id_cita                 
+                         WHERE c.id_estado_cita IN (1,2) AND c.fecha_hora > N  
+  OW()                                                                         
+                           AND (t.expira_en IS NULL OR t.expira_en > NOW()) L  
+  IMIT 1)                                                                      
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list'                                                                        
+                                                                               
+
+d5 tarde 2026-09-05 ok
+d5 cierre 2026-09-05 ok
+== dia 5 listo ==
+d6 apertura 2026-09-06 ok
+d6 manana 2026-09-06 ok
+d6 mediodia 2026-09-06 ok
+d6 sucursales 2026-09-06 ok
+d6 canjes 2026-09-06 ok
+d6 tarde 2026-09-06 ok
+d6 cierre 2026-09-06 ok
+== dia 6 listo ==
+d7 apertura 2026-09-07 ok
+d7 manana 2026-09-07 ok
+d7 mediodia 2026-09-07 ok
+d7 sucursales 2026-09-07 ok
+d7 anomalias 2026-09-07 ok
+d7 tarde 2026-09-07 ok
+d7 cierre 2026-09-07 ok
+== dia 7 listo ==
+d8 apertura 2026-09-08 ok
+d8 manana 2026-09-08 ok
+d8 mediodia 2026-09-08 ok
+d8 sucursales 2026-09-08 ok
+
+In Connection.php line 857:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_sim,  
+   SQL: SELECT t.token, t.id_cita FROM token_cita t                            
+                          JOIN cita c ON c.id_cita = t.id_cita                 
+                         WHERE c.id_estado_cita IN (1,2) AND c.fecha_hora > N  
+  OW()                                                                         
+                           AND (t.expira_en IS NULL OR t.expira_en > NOW()) L  
+  IMIT 1)                                                                      
+                                                                               
+
+In Connection.php line 435:
+                                                                               
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't.token' in 'field   
+  list'                                                                        
+                                                                               
+
+d8 tarde 2026-09-08 ok
+d8 cierre 2026-09-08 ok
+== dia 8 listo ==
+d9 apertura 2026-09-09 ok
+d9 manana 2026-09-09 ok
+d9 mediodia 2026-09-09 ok
+d9 sucursales 2026-09-09 ok

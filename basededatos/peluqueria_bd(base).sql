@@ -167,9 +167,11 @@ DELIMITER ;;
 FOR EACH ROW
 BEGIN
   IF NEW.id_estado_caja = 1
-     AND EXISTS (SELECT 1 FROM caja WHERE id_estado_caja = 1) THEN
+     AND EXISTS (SELECT 1 FROM caja
+                  WHERE id_estado_caja = 1
+                    AND id_sucursal = NEW.id_sucursal) THEN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Ya hay una caja abierta en el salon. Cerrala antes de abrir otra.';
+      SET MESSAGE_TEXT = 'Ya hay una caja abierta en esta sucursal. Cerrala antes de abrir otra.';
   END IF;
 END */;;
 DELIMITER ;
@@ -5570,4 +5572,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17 10:04:29
+-- Dump completed on 2026-08-17 17:35:19

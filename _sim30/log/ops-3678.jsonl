@@ -1,0 +1,6 @@
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 16:10:01"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 16:10:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/huella\/preguntado","st":302,"flash":[],"t":"2026-09-04 16:10:02"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 16:10:02"}
+{"tipo":"REQ","quien":"lucia","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["warning: Ese horario lo tomó otra persona mientras completabas la reserva. Rocío Duarte ya tiene una cita a las 16:30. Elegí otro de los horarios que quedan libres."],"t":"2026-09-04 16:10:04"}
+{"tipo":"REQ","quien":"lucia","m":"GET","uri":"\/citas\/nueva?cliente=9","st":200,"flash":[],"t":"2026-09-04 16:10:05"}

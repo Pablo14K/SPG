@@ -1,0 +1,19 @@
+{"tipo":"FASE_INI","dia":4,"fase":"concurrencia","fecha":"2026-09-04","dow":5,"t":"2026-09-04 16:10:00"}
+{"tipo":"CONC","caso":"A_AGENDA","hueco":"2026-09-05 16:30:00","prof":11,"antes":0,"despues":1,"salidas":[{"etq":"res0","st":200,"flash":["error: Ese horario lo tomó otra persona mientras completabas la reserva. Rocío Duarte ya tiene una cita a las 16:30. Elegí otro de los horarios que quedan libres."]},{"etq":"res1","st":200,"flash":["success: Cita agendada para el 05\/09\/2026 16:30."]},{"etq":"res2","st":200,"flash":["error: Ese horario lo tomó otra persona mientras completabas la reserva. Rocío Duarte ya tiene una cita a las 16:30. Elegí otro de los horarios que quedan libres."]},{"etq":"res3","st":200,"flash":["error: Ese horario lo tomó otra persona mientras completabas la reserva. Rocío Duarte ya tiene una cita a las 16:30. Elegí otro de los horarios que quedan libres."]},{"etq":"res4","st":200,"flash":["warning: Ese horario lo tomó otra persona mientras completabas la reserva. Rocío Duarte ya tiene una cita a las 16:30. Elegí otro de los horarios que quedan libres."]}],"t":"2026-09-04 16:10:06"}
+{"tipo":"CHECK_OK","cod":"CONC_A_DOBLE_RESERVA","t":"2026-09-04 16:10:06"}
+{"tipo":"CONC","caso":"D_STOCK","producto":10,"antes":21,"pedido":"21","despues":0,"salidas":[{"etq":"stk0","st":200,"flash":["error: No hay stock suficiente para esa salida."]},{"etq":"stk1","st":200,"flash":["success: Movimiento registrado: Ajuste negativo de 21 unidad."]},{"etq":"stk2","st":403,"flash":[]}],"t":"2026-09-04 16:10:17"}
+{"tipo":"CHECK_OK","cod":"CONC_D_STOCK_NEGATIVO","t":"2026-09-04 16:10:17"}
+{"tipo":"CONC","caso":"E_CLIENTE","cedula":"4900004","personas":1,"clientes":1,"salidas":[{"etq":"cli0","st":200,"flash":["success: Cliente registrado."]},{"etq":"cli1","st":200,"flash":["error: No se pudo guardar (¿cédula o RUC duplicado?)."]},{"etq":"cli2","st":200,"flash":["error: No se pudo guardar (¿cédula o RUC duplicado?)."]}],"t":"2026-09-04 16:10:39"}
+{"tipo":"CHECK_OK","cod":"CONC_E_CLIENTE_DUPLICADO","t":"2026-09-04 16:10:39"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 16:10:39"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 16:10:39"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-04 16:10:39"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 16:10:40"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/facturacion\/caja\/cerrar","st":302,"flash":["success: Caja cerrada. Saldo final: Gs. 460.000."],"t":"2026-09-04 16:10:40"}
+{"tipo":"REQ","quien":"admin","m":"GET","uri":"\/facturacion\/caja","st":200,"flash":[],"t":"2026-09-04 16:10:40"}
+{"tipo":"REQ","quien":"admin","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-04 16:10:40"}
+{"tipo":"CONC","caso":"F_CAJA","abiertas":1,"salidas":[{"etq":"caj0","st":200,"flash":["success: Caja abierta con Gs. 150.000."]},{"etq":"caj1","st":200,"flash":["error: No se pudo abrir la caja. El detalle quedó registrado."]},{"etq":"caj2","st":403,"flash":[]}],"t":"2026-09-04 16:11:24"}
+{"tipo":"CHECK_OK","cod":"CONC_F_CAJAS_ABIERTAS","t":"2026-09-04 16:11:24"}
+{"tipo":"CONC","caso":"G_CITA","cita":55,"estado_final":3,"salidas":[{"etq":"can","st":200,"flash":["success: Cita cancelada."]},{"etq":"rep","st":200,"flash":["error: No se pudo reprogramar."]}],"t":"2026-09-04 16:12:51"}
+{"tipo":"CONC","caso":"H_ANULA_COBRO","cobro":1,"auditorias":0,"salidas":[{"etq":"an0","st":200,"flash":["success: Cobro de Gs. 165.000 anulado. El saldo de la factura se recalculó solo."]},{"etq":"an1","st":200,"flash":["success: Cobro de Gs. 165.000 anulado. El saldo de la factura se recalculó solo."]}],"t":"2026-09-04 16:15:47"}
+{"tipo":"CONC_FIN","dia":4,"t":"2026-09-04 16:15:47"}

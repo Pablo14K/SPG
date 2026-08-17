@@ -1,0 +1,16 @@
+{"tipo":"FASE_INI","dia":4,"fase":"mediodia","fecha":"2026-09-04","dow":5,"t":"2026-09-04 13:05:00"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 13:05:00"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Salida de Marta Cáceres registrada a las 13:05. Se le contaron 0,08 hora(s) extra."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Salida de Lucía Benítez registrada a las 13:05. Se le contaron 0,08 hora(s) extra."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Salida de Karen Giménez registrada a las 13:05. Se le contaron 0,08 hora(s) extra."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Entrada de Rocío Duarte registrada a las 13:05."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/seguridad\/asistencia","st":302,"flash":["success: Entrada de Sofía Espínola registrada a las 13:05."],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/seguridad\/asistencia?fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-04 13:05:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-04 13:05:02"}

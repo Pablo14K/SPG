@@ -858,6 +858,64 @@ class ReglasDeNegocioTest extends TestCase
         $this->get(route('citas.form'))->assertOk();
     }
 
+    /**
+     * Cada sucursal abre su propia caja, y sólo una.
+     *
+     * **La caja es del local desde la 7.31.0 — salvo el disparador, que se
+     * quedó mirando el salón entero.** `caja.id_sucursal`, `sp_abrir_caja`,
+     * `Caja::abierta()` y `vw_caja_resumen` ya trabajaban por sucursal;
+     * `trg_caja_bi` seguía preguntando si había **alguna** caja abierta, así
+     * que mientras un local tuviera la suya, **ningún otro podía abrir la
+     * propia en todo el día**. Y sin caja no se cobra ni se factura: la
+     * sucursal nueva quedaba sin mostrador.
+     *
+     * Lo destapó la simulación intensiva de 30 días — de 123 citas, sólo 2
+     * eran del segundo local, y no por la agenda sino por esto.
+     *
+     * Se comprueba en las dos direcciones y **con más de dos locales**, que es
+     * lo que hay que sostener: el sistema tiene que funcionar con N sucursales,
+     * no con dos.
+     */
+    #[Test]
+    public function cada_sucursal_abre_su_caja_y_solo_una(): void
+    {
+        $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE activo = 1 ORDER BY id_usuario LIMIT 1');
+        if (! $uid) {
+            $this->markTestSkipped('No hay usuarios en la base de prueba.');
+        }
+
+        // Se parte de cero cajas abiertas para que la prueba mida la regla y no
+        // el estado que dejó otra.
+        DB::statement('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_estado_caja = 1');
+
+        $sucursales = [(int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1')];
+        foreach (['Prueba N1', 'Prueba N2'] as $nombre) {
+            DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', [$nombre]);
+            $sucursales[] = (int) DB::getPdo()->lastInsertId();
+        }
+
+        // 1) Cada local abre la suya, sin estorbarse.
+        foreach ($sucursales as $s) {
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
+                        VALUES (?,?,1,100000)', [$uid, $s]);
+        }
+        $this->assertSame(count($sucursales), (int) DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1'),
+            'Cada sucursal tiene que poder abrir su propio cajón: si una bloquea a las demás, '
+            . 'esos locales no cobran en todo el día.');
+
+        // 2) Y dentro de un mismo local sigue habiendo una sola.
+        foreach ($sucursales as $s) {
+            try {
+                DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
+                            VALUES (?,?,1,50000)', [$uid, $s]);
+                $this->fail("La sucursal $s dejó abrir una segunda caja: el arqueo de ese local no cerraría.");
+            } catch (\Illuminate\Database\QueryException $e) {
+                $this->assertStringContainsString('sucursal', $e->getMessage(),
+                    'El aviso tiene que decir que la caja abierta es la de ESTA sucursal.');
+            }
+        }
+    }
+
     #[Test]
     public function dos_servicios_exclusivos_van_en_secuencia_no_en_paralelo(): void
     {

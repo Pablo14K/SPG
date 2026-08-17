@@ -1,0 +1,6 @@
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-04 16:10:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-04 16:10:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-04 16:10:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-04 16:10:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/inventario\/cargar-stock","st":302,"flash":["success: Movimiento registrado: Ajuste negativo de 21 unidad."],"t":"2026-09-04 16:10:10"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/inventario\/stock","st":200,"flash":[],"t":"2026-09-04 16:10:10"}

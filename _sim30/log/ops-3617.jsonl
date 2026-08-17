@@ -1,0 +1,57 @@
+{"tipo":"FASE_INI","dia":2,"fase":"manana","fecha":"2026-09-02","dow":3,"t":"2026-09-02 12:45:00"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/entrar","st":200,"flash":[],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/entrar","st":302,"flash":[],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/sucursal","st":302,"flash":["success: Estás trabajando en Peluqueria (local unico)."],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/panel","st":200,"flash":[],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=10","st":200,"flash":[],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=10&fecha=2026-09-14","st":200,"flash":[],"t":"2026-09-02 12:45:01"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 14\/09\/2026 15:15."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-14","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=9&fecha=2026-09-06","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=1&fecha=2026-09-12","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 12\/09\/2026 18:15."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-12","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=8&fecha=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 10\/09\/2026 08:00."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=14&servicios%5B1%5D=3&fecha=2026-09-05","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 05\/09\/2026 15:30."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-05","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=15&servicios%5B1%5D=13&fecha=2026-09-08","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 08\/09\/2026 08:30."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-08","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=14&servicios%5B1%5D=10","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=14&servicios%5B1%5D=10&fecha=2026-09-07","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 07\/09\/2026 16:45."],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-07","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=14&fecha=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:02"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 09\/09\/2026 10:00."],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=13","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=13&fecha=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 09\/09\/2026 15:00."],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=13&fecha=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 09\/09\/2026 11:15."],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-09","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=3&servicios%5B1%5D=14&fecha=2026-09-04","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 04\/09\/2026 16:45."],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-04","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=2&fecha=2026-09-05","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["warning: Esa clienta ya tiene \"Corte de caballero\" agendado para ese mismo dia. No se repite el mismo servicio en el dia: cambia la fecha, o cancela la otra cita primero"],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/nueva?cliente=15","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=6&fecha=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 10\/09\/2026 15:15."],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:03"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=2","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=2&fecha=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 10\/09\/2026 13:15."],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-10","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=10&servicios%5B1%5D=11&fecha=2026-09-12","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 12\/09\/2026 14:00."],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-12","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/disponibilidad?servicios%5B0%5D=6&fecha=2026-09-14","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/citas\/guardar","st":302,"flash":["success: Cita agendada para el 14\/09\/2026 16:15."],"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"GET","uri":"\/citas\/agenda?dia=2026-09-14","st":200,"flash":[],"t":"2026-09-02 12:45:04"}
+{"tipo":"RESERVAS","dia":2,"n":14,"t":"2026-09-02 12:45:04"}
+{"tipo":"REQ","quien":"recepcion","m":"POST","uri":"\/salir","st":302,"flash":[],"t":"2026-09-02 12:45:04"}
