@@ -859,7 +859,7 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     #[Test]
-    public function dos_servicios_exclusivos_no_pueden_ir_en_paralelo(): void
+    public function dos_servicios_exclusivos_van_en_secuencia_no_en_paralelo(): void
     {
         // «Requiere atención exclusiva» significa que ese servicio no se puede
         // hacer al mismo tiempo que otro igual: una coloración y una keratina
@@ -901,13 +901,35 @@ class ReglasDeNegocioTest extends TestCase
             $this->markTestSkipped('No hay ningún horario en que los dos trabajen.');
         }
 
-        // Dos exclusivos, uno con cada profesional: se pisan sobre la clienta.
-        $this->assertNotNull(
+        // **Dos exclusivos con personas distintas SE PUEDEN**, y es lo que
+        // pidió el usuario: no a la vez, pero sí uno después del otro. Antes se
+        // rechazaba y la única salida que ofrecía el mensaje era ponerlos con la
+        // misma persona, cosa que en el salón no siempre se puede.
+        $this->assertNull(
             Agenda::validarReparto([$a => $p1, $b => $p2], $p1, $cuando),
-            'Dos servicios exclusivos en paralelo tendrían que rechazarse.'
+            'Dos exclusivos con personas distintas tienen que poder agendarse en secuencia.'
         );
 
-        // Los mismos dos, con la misma persona: van uno después del otro.
+        // **Que se acepte no alcanza: tiene que quedar SECUENCIADO.** Si se
+        // aceptara en paralelo, la clienta estaría en dos sillones a la vez y
+        // el segundo profesional quedaría libre justo cuando va a atenderla.
+        $turnos = Agenda::turnos([$a => $p1, $b => $p2], $p1);
+        $this->assertSame(0, $turnos[$p1]['inicio'], 'El primero arranca con la cita.');
+        $this->assertGreaterThan(0, $turnos[$p2]['inicio'],
+            'El segundo tiene que esperar a que el primero termine, no arrancar a la vez.');
+        $this->assertSame($turnos[$p1]['minutos'], $turnos[$p2]['inicio'],
+            'El segundo arranca exactamente cuando el primero termina.');
+
+        // Y la cita dura la SUMA, no el bloque más largo: la clienta está
+        // ocupada de punta a punta.
+        $this->assertSame(
+            $turnos[$p1]['minutos'] + $turnos[$p2]['minutos'],
+            Agenda::duracionReparto([$a => $p1, $b => $p2], $p1),
+            'En secuencia la cita dura lo que suman los dos, no lo que dura el más largo.'
+        );
+
+        // Los mismos dos, con la misma persona: van uno después del otro y no
+        // hay nada que secuenciar entre profesionales.
         $this->assertNull(
             Agenda::validarReparto([$a => $p1, $b => $p1], $p1, $cuando),
             'Con un solo profesional no hay paralelo, así que no hay conflicto.'

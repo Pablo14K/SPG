@@ -154,21 +154,28 @@ class Agenda
         // hace el lavado de 20, a los 20 queda libre.
         $ocupado = [];
         foreach (DB::select(
-            'SELECT c.fecha_hora, fn_cita_duracion_de(c.id_cita, :u) AS dur
+            // **Y desde cuándo**, que no siempre es la hora de la cita: cuando
+            // hay servicios que ocupan a la clienta entera, los profesionales
+            // se turnan y el segundo arranca cuando el primero termina
+            // (`fn_cita_inicio_de`). Sin eso quedaría bloqueado desde el
+            // principio —cuando en realidad está libre— y libre al final,
+            // que es cuando de verdad está atendiendo acá.
+            'SELECT c.fecha_hora, fn_cita_inicio_de(c.id_cita, :u0) AS ini,
+                    fn_cita_duracion_de(c.id_cita, :u) AS dur
                FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE ec.bloquea_agenda = 1
                 AND (c.id_usuario = :u2
                      OR EXISTS (SELECT 1 FROM cita_servicio cs
                                  WHERE cs.id_cita = c.id_cita AND cs.id_usuario = :u3))
                 AND c.fecha_hora >= :d AND c.fecha_hora < DATE_ADD(:h, INTERVAL 1 DAY)',
-            ['u' => $idUsuario, 'u2' => $idUsuario, 'u3' => $idUsuario,
+            ['u0' => $idUsuario, 'u' => $idUsuario, 'u2' => $idUsuario, 'u3' => $idUsuario,
              'd' => $desde . ' 00:00:00', 'h' => $hasta]
         ) as $c) {
             $dur = (int) $c->dur;
             if ($dur <= 0) {
                 continue;   // no hace nada en esa cita
             }
-            $ini = strtotime((string) $c->fecha_hora);
+            $ini = strtotime((string) $c->fecha_hora) + (int) $c->ini * 60;
             $ocupado[] = [$ini, $ini + $dur * 60];
         }
 
@@ -406,37 +413,23 @@ class Agenda
             return 'Alguno de los servicios elegidos ya no está disponible.';
         }
 
-        // --- Regla de la exclusividad ---
-        // Dos servicios que ocupan a la clienta entera no pueden ir en
-        // paralelo. Con el mismo profesional no hay problema: los hace uno
-        // después del otro.
-        $exclusivos = [];
-        foreach ($servicios as $s) {
-            if (! (int) $s->requiere_exclusividad) {
-                continue;
-            }
-            $prof = (int) ($asignacion[(int) $s->id_servicio] ?? 0) ?: $idPrincipal;
-            $exclusivos[$prof][] = $s->nombre;
-        }
-        if (count($exclusivos) > 1) {
-            $nombres = [];
-            foreach ($exclusivos as $lista) {
-                $nombres[] = $lista[0];
-            }
-
-            return 'No se pueden hacer «' . implode('» y «', array_slice($nombres, 0, 2)) . '» al mismo tiempo: '
-                . 'las dos ocupan a la clienta, así que una tiene que esperar a la otra. '
-                . 'Poné las dos con el mismo profesional (se hacen una después de la otra) '
-                . 'o reservá la segunda para otro horario.';
-        }
-
         // --- Cada profesional tiene que estar libre por su bloque completo ---
-        foreach (self::bloques($asignacion, $idPrincipal) as $idProf => $minutos) {
-            if ($minutos <= 0) {
+        //
+        // **Y desde su propio turno.** Lo que ocupa a la clienta entera se hace
+        // por turnos, así que el segundo profesional no empieza a la hora de la
+        // cita: empieza cuando el primero terminó. Comprobarlo desde la hora de
+        // la cita lo daría por ocupado cuando está libre, y —peor— lo dejaría
+        // libre para otra clienta justo en la franja en la que va a estar acá.
+        foreach (self::turnos($asignacion, $idPrincipal) as $idProf => $t) {
+            if ($t['minutos'] <= 0) {
                 continue;
             }
-            if (! self::huecoLibre($idProf, $fechaHora, $minutos, $excluirCita)) {
-                return self::motivoHuecoPerdido($idProf, $fechaHora, $minutos, $excluirCita);
+            $arranca = $t['inicio']
+                ? date('Y-m-d H:i:s', strtotime($fechaHora) + $t['inicio'] * 60)
+                : $fechaHora;
+
+            if (! self::huecoLibre($idProf, $arranca, $t['minutos'], $excluirCita)) {
+                return self::motivoHuecoPerdido($idProf, $arranca, $t['minutos'], $excluirCita);
             }
         }
 
@@ -444,15 +437,84 @@ class Agenda
     }
 
     /**
-     * Cuánto dura la cita entera: el bloque más largo, porque los
-     * profesionales trabajan en paralelo. Color de 45 min + uñas de 30 min a
-     * la vez son 45 minutos de cita, no 75.
+     * Quién trabaja cuándo dentro de la cita: `[id_usuario => [inicio, minutos]]`.
+     *
+     * **Los servicios que ocupan a la clienta entera se hacen por turnos, no a
+     * la vez, y eso ahora se puede representar.** Antes el modelo daba por hecho
+     * que todos los profesionales de una cita trabajan en paralelo, así que dos
+     * servicios exclusivos en manos distintas se pisaban sobre la clienta y
+     * `validarReparto()` los rechazaba: la única salida que ofrecía era ponerlos
+     * con la misma persona. Eso no dejaba reservar una coloración con una y un
+     * corte con otra, que en el salón se hace todos los días — primero una,
+     * después la otra.
+     *
+     * El reparto en turnos es **por profesional**, no por servicio: si alguien
+     * hace algo exclusivo, ocupa a la clienta hasta que termina todo lo suyo.
+     * Quien no hace nada exclusivo va en el turno 0, en paralelo con el resto —
+     * el lavado y la pedicura conviven sin problema.
+     *
+     * El orden entre los que sí lo hacen es **de mayor a menor bloque**, y no es
+     * capricho: el primer turno es el único que puede solaparse con los no
+     * exclusivos, así que poniendo adelante al más largo se aprovecha esa
+     * franja y la cita entera termina antes.
+     */
+    public static function turnos(array $asignacion, int $idPrincipal): array
+    {
+        $bloques = self::bloques($asignacion, $idPrincipal);
+        if (! $bloques) {
+            return [];
+        }
+
+        // Qué profesionales ocupan a la clienta entera.
+        $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $exclusivos = [];
+        foreach (DB::select("SELECT id_servicio FROM servicio
+                              WHERE requiere_exclusividad = 1 AND id_servicio IN ($in)", $ids) as $s) {
+            $prof = (int) ($asignacion[(int) $s->id_servicio] ?? 0) ?: $idPrincipal;
+            $exclusivos[$prof] = true;
+        }
+
+        $out = [];
+        foreach ($bloques as $prof => $minutos) {
+            $out[$prof] = ['inicio' => 0, 'minutos' => $minutos, 'orden' => 0];
+        }
+
+        // Con uno solo —o ninguno— no hay nada que secuenciar: es el caso de
+        // siempre y todo arranca a la hora de la cita.
+        if (count($exclusivos) < 2) {
+            return $out;
+        }
+
+        $enTurnos = array_intersect_key($bloques, $exclusivos);
+        arsort($enTurnos);   // el bloque más largo primero
+
+        $acumulado = 0;
+        $orden = 0;
+        foreach ($enTurnos as $prof => $minutos) {
+            $out[$prof] = ['inicio' => $acumulado, 'minutos' => $minutos, 'orden' => $orden];
+            $acumulado += $minutos;
+            $orden++;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Cuánto dura la cita entera.
+     *
+     * En paralelo es el bloque más largo —color de 45 min + uñas de 30 a la vez
+     * son 45 minutos de cita, no 75—; por turnos, hasta que termina el último.
+     * Es la misma cuenta que hace `fn_cita_duracion` en la base.
      */
     public static function duracionReparto(array $asignacion, int $idPrincipal): int
     {
-        $bloques = self::bloques($asignacion, $idPrincipal);
+        $fin = 0;
+        foreach (self::turnos($asignacion, $idPrincipal) as $t) {
+            $fin = max($fin, $t['inicio'] + $t['minutos']);
+        }
 
-        return $bloques ? max($bloques) : 0;
+        return $fin;
     }
 
     /**
@@ -613,11 +675,19 @@ class Agenda
             $idCita = Bd::idDe('sp_agendar_cita',
                 [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $idSucursal]);
 
+            // El turno de cada uno se guarda con el servicio: es lo que después
+            // le dice a la agenda desde cuándo está ocupado ese profesional,
+            // vía `fn_cita_inicio_de`. Sin esto, el segundo quedaría libre en la
+            // franja en la que va a estar atendiendo acá.
+            $turnos = self::turnos($asignacion, $idUsuario);
+
             foreach ($asignacion as $idServicio => $idProf) {
                 $otro = (int) $idProf;
+                $de = ($otro && $otro !== $idUsuario) ? $otro : $idUsuario;
                 DB::insert(
-                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario) VALUES (?,?,?)',
-                    [$idCita, (int) $idServicio, ($otro && $otro !== $idUsuario) ? $otro : null]
+                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden) VALUES (?,?,?,?)',
+                    [$idCita, (int) $idServicio, $de === $idUsuario ? null : $de,
+                     (int) ($turnos[$de]['orden'] ?? 0)]
                 );
             }
 

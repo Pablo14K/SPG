@@ -439,6 +439,7 @@ CREATE TABLE `cita_servicio` (
   `id_cita` int(10) unsigned NOT NULL,
   `id_servicio` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned DEFAULT NULL,
+  `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_cita_servicio`),
   UNIQUE KEY `uq_cita_servicio` (`id_cita`,`id_servicio`),
   KEY `idx_cs_servicio` (`id_servicio`),
@@ -3387,22 +3388,27 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion`(p_id_cita INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
-    DETERMINISTIC
 BEGIN
-              DECLARE v_dur INT DEFAULT 0;
-              SELECT COALESCE(MAX(bloque), 0) INTO v_dur FROM (
-                SELECT SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
-                  FROM cita_servicio cs
-                  JOIN cita c     ON c.id_cita = cs.id_cita
-                  JOIN servicio s ON s.id_servicio = cs.id_servicio
-                  LEFT JOIN usuario_servicio us
-                         ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
-                        AND us.id_servicio = s.id_servicio AND us.activo = 1
-                 WHERE cs.id_cita = p_id_cita
-                 GROUP BY COALESCE(cs.id_usuario, c.id_usuario)
-              ) bloques;
-              RETURN IF(v_dur > 0, v_dur, 60);
-            END ;;
+  DECLARE v_dur INT DEFAULT 0;
+
+  SELECT COALESCE(SUM(paso), 0) INTO v_dur FROM (
+    SELECT MAX(b.bloque) AS paso FROM (
+      SELECT cs.orden AS orden,
+             COALESCE(cs.id_usuario, c.id_usuario) AS prof,
+             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+        FROM cita_servicio cs
+        JOIN cita c     ON c.id_cita = cs.id_cita
+        JOIN servicio s ON s.id_servicio = cs.id_servicio
+        LEFT JOIN usuario_servicio us
+               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+              AND us.id_servicio = s.id_servicio AND us.activo = 1
+       WHERE cs.id_cita = p_id_cita
+       GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
+    ) b GROUP BY b.orden
+  ) p;
+
+  RETURN IF(v_dur > 0, v_dur, 60);
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -3433,6 +3439,54 @@ BEGIN
                  AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
               RETURN v_dur;
             END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_inicio_de` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_inicio_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
+    READS SQL DATA
+BEGIN
+  DECLARE v_orden TINYINT UNSIGNED DEFAULT 0;
+  DECLARE v_ini   INT DEFAULT 0;
+
+  SELECT COALESCE(MIN(cs.orden), 0) INTO v_orden
+    FROM cita_servicio cs
+    JOIN cita c ON c.id_cita = cs.id_cita
+   WHERE cs.id_cita = p_id_cita
+     AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
+
+  IF v_orden = 0 THEN
+    RETURN 0;
+  END IF;
+
+  SELECT COALESCE(SUM(paso), 0) INTO v_ini FROM (
+    SELECT MAX(b.bloque) AS paso FROM (
+      SELECT cs.orden AS orden,
+             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+        FROM cita_servicio cs
+        JOIN cita c     ON c.id_cita = cs.id_cita
+        JOIN servicio s ON s.id_servicio = cs.id_servicio
+        LEFT JOIN usuario_servicio us
+               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+              AND us.id_servicio = s.id_servicio AND us.activo = 1
+       WHERE cs.id_cita = p_id_cita AND cs.orden < v_orden
+       GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
+    ) b GROUP BY b.orden
+  ) p;
+
+  RETURN v_ini;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -4201,10 +4255,10 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario     INT,
-    p_fecha_hora     DATETIME,
-    p_duracion_min   INT,
-    p_id_cita_excluir INT
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario      INT UNSIGNED,
+  p_fecha_hora      DATETIME,
+  p_duracion_min    INT,
+  p_id_cita_excluir INT UNSIGNED
 ) RETURNS tinyint(1)
     READS SQL DATA
 BEGIN
@@ -4228,20 +4282,17 @@ BEGIN
   END IF;
 
   
+  
   SELECT COUNT(*) INTO v_turnos
     FROM usuario_turno ut
     JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
    WHERE ut.id_usuario = p_id_usuario;
 
   IF v_turnos = 0 THEN
-    
-    
     SELECT COUNT(*) INTO v_salon
       FROM usuario_turno ut
       JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
     IF v_salon > 0 THEN RETURN 0; END IF;
-    
-    
   ELSE
     SELECT COUNT(*) INTO v_cubre
       FROM usuario_turno ut
@@ -4256,6 +4307,13 @@ BEGIN
   END IF;
 
   
+  
+  
+  
+  
+  
+  
+  
   SELECT COUNT(*) INTO v_conflictos
     FROM cita c
     JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
@@ -4265,8 +4323,10 @@ BEGIN
           OR EXISTS (SELECT 1 FROM cita_servicio cs
                       WHERE cs.id_cita = c.id_cita AND cs.id_usuario = p_id_usuario))
      AND fn_cita_duracion_de(c.id_cita, p_id_usuario) > 0
-     AND c.fecha_hora < v_fin
-     AND p_fecha_hora < (c.fecha_hora + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
+     AND (c.fecha_hora + INTERVAL fn_cita_inicio_de(c.id_cita, p_id_usuario) MINUTE) < v_fin
+     AND p_fecha_hora < (c.fecha_hora
+                         + INTERVAL fn_cita_inicio_de(c.id_cita, p_id_usuario) MINUTE
+                         + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
 
   RETURN IF(v_conflictos = 0, 1, 0);
 END ;;
@@ -5510,4 +5570,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17  9:53:19
+-- Dump completed on 2026-08-17 10:04:29

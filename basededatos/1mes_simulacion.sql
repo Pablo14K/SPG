@@ -42,7 +42,7 @@ CREATE TABLE `asistencia` (
   CONSTRAINT `fk_asistencia_turno` FOREIGN KEY (`id_turno`) REFERENCES `turno_laboral` (`id_turno`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_asistencia_usuario` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_asistencia_extras` CHECK (`horas_extras` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=140 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -76,7 +76,7 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2308 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -110,7 +110,7 @@ CREATE TABLE `ausencia_agenda` (
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -146,7 +146,7 @@ CREATE TABLE `caja` (
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -235,7 +235,7 @@ CREATE TABLE `canje` (
   CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
   CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=133 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=141 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -350,7 +350,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=706 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=738 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -445,6 +445,7 @@ CREATE TABLE `cita_servicio` (
   `id_cita` int(10) unsigned NOT NULL,
   `id_servicio` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned DEFAULT NULL,
+  `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_cita_servicio`),
   UNIQUE KEY `uq_cita_servicio` (`id_cita`,`id_servicio`),
   KEY `idx_cs_servicio` (`id_servicio`),
@@ -452,7 +453,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=941 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=979 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -461,7 +462,7 @@ CREATE TABLE `cita_servicio` (
 
 LOCK TABLES `cita_servicio` WRITE;
 /*!40000 ALTER TABLE `cita_servicio` DISABLE KEYS */;
-INSERT INTO `cita_servicio` VALUES (3,3,5,NULL),(4,3,11,NULL),(5,4,10,NULL),(6,4,12,NULL),(7,5,3,NULL),(8,5,5,NULL),(9,5,7,NULL),(10,6,5,NULL),(11,6,10,NULL),(12,7,8,NULL),(13,8,4,NULL),(14,8,13,NULL),(15,9,5,NULL),(16,10,13,NULL),(17,10,14,NULL),(18,11,6,NULL),(19,11,11,NULL),(20,12,3,NULL),(21,13,5,NULL),(22,13,10,NULL),(23,13,13,NULL),(24,14,9,NULL),(25,15,3,NULL),(26,16,5,NULL),(27,16,6,NULL),(28,17,8,NULL),(29,17,13,NULL),(30,18,5,NULL),(31,18,14,NULL),(32,19,13,NULL),(33,19,14,NULL),(34,20,8,NULL),(35,20,10,NULL),(36,21,7,NULL),(37,22,8,NULL),(38,22,9,NULL),(39,23,7,NULL),(40,23,13,NULL),(41,24,14,NULL),(42,25,10,NULL),(43,26,8,NULL),(44,27,8,NULL),(45,27,11,NULL),(46,27,12,NULL),(47,28,9,NULL),(48,29,12,NULL),(49,30,3,NULL),(50,30,11,NULL),(51,31,7,NULL),(52,32,8,NULL),(53,32,13,NULL),(54,33,5,NULL),(55,33,8,NULL),(56,34,10,NULL),(57,35,12,NULL),(58,36,3,NULL),(59,36,10,NULL),(60,37,8,NULL),(61,38,13,NULL),(62,38,14,NULL),(63,39,12,NULL),(64,40,8,NULL),(65,40,11,NULL),(66,41,4,NULL),(67,41,13,NULL),(68,42,9,NULL),(69,42,14,NULL),(70,43,3,NULL),(71,44,11,NULL),(72,45,13,NULL),(73,46,3,NULL),(74,46,10,NULL),(75,47,13,NULL),(76,48,3,NULL),(77,48,11,NULL),(78,49,6,NULL),(79,50,8,NULL),(80,50,10,NULL),(81,50,14,NULL),(82,51,9,NULL),(83,52,3,NULL),(84,52,11,NULL),(85,53,9,NULL),(86,54,5,NULL),(87,55,11,NULL),(88,56,13,NULL),(89,57,5,NULL),(90,58,12,NULL),(91,59,8,NULL),(92,59,10,NULL),(93,59,11,NULL),(94,60,10,NULL),(95,60,13,NULL),(96,61,6,NULL),(97,62,10,NULL),(98,63,10,NULL),(99,64,11,NULL),(100,65,11,NULL),(101,66,3,NULL),(102,66,5,NULL),(103,67,5,NULL),(104,68,6,NULL),(105,69,10,NULL),(106,69,12,NULL),(107,70,8,NULL),(108,71,14,NULL),(109,72,6,NULL),(110,73,7,NULL),(111,74,4,NULL),(112,74,5,NULL),(113,75,12,NULL),(114,76,10,NULL),(115,76,14,NULL),(116,77,11,NULL),(117,78,7,NULL),(118,78,14,NULL),(119,79,4,NULL),(120,80,10,NULL),(121,80,13,NULL),(122,81,5,NULL),(123,81,10,NULL),(124,82,4,NULL),(125,82,5,NULL),(126,83,6,NULL),(127,83,10,NULL),(128,83,14,NULL),(129,84,7,NULL),(130,85,8,NULL),(131,86,4,NULL),(132,86,5,NULL),(133,87,3,NULL),(134,87,11,NULL),(135,88,6,NULL),(136,89,7,NULL),(137,90,8,NULL),(138,90,14,NULL),(139,91,4,NULL),(140,91,5,NULL),(141,92,3,NULL),(142,92,7,NULL),(143,92,11,NULL),(144,93,7,NULL),(145,94,7,NULL),(146,95,10,NULL),(147,96,8,NULL),(148,96,12,NULL),(164,97,4,NULL),(166,98,4,NULL),(168,99,4,NULL),(169,99,6,NULL),(172,100,4,NULL),(174,101,4,NULL),(175,102,4,NULL),(176,102,13,NULL),(179,103,3,NULL),(181,104,12,NULL),(182,105,5,NULL),(184,106,10,NULL),(185,106,12,NULL),(188,107,3,NULL),(190,108,10,NULL),(191,108,13,NULL),(194,109,5,NULL),(195,110,13,NULL),(197,111,3,NULL),(199,112,7,NULL),(201,113,8,NULL),(202,113,12,NULL),(205,114,14,NULL),(207,115,4,NULL),(208,115,12,NULL),(211,116,5,NULL),(213,117,8,NULL),(214,117,13,NULL),(217,118,7,NULL),(219,119,6,NULL),(220,120,3,NULL),(221,120,10,NULL),(224,121,4,NULL),(225,121,10,NULL),(228,122,3,NULL),(229,122,10,NULL),(232,123,10,NULL),(233,123,13,NULL),(236,124,9,NULL),(238,125,9,NULL),(239,125,12,NULL),(242,126,5,NULL),(243,126,10,NULL),(246,127,6,NULL),(248,128,9,NULL),(250,129,13,NULL),(251,129,14,NULL),(254,130,6,NULL),(256,131,5,NULL),(257,131,12,NULL),(260,132,14,NULL),(262,133,7,NULL),(264,134,6,NULL),(266,135,12,NULL),(268,136,12,NULL),(270,137,4,NULL),(271,137,9,NULL),(274,138,3,NULL),(275,139,10,NULL),(276,139,11,NULL),(279,140,5,NULL),(280,140,7,NULL),(283,141,14,NULL),(285,142,6,NULL),(286,143,5,NULL),(288,144,6,NULL),(289,144,12,NULL),(292,145,12,NULL),(294,146,8,NULL),(295,146,9,NULL),(298,147,3,NULL),(299,147,14,NULL),(302,148,5,NULL),(304,149,12,NULL),(306,150,8,NULL),(308,151,4,NULL),(309,151,14,NULL),(312,152,10,NULL),(314,153,7,NULL),(316,154,10,NULL),(318,155,8,NULL),(320,156,10,NULL),(322,157,14,NULL),(324,158,11,NULL),(325,159,4,NULL),(326,159,11,NULL),(329,160,6,NULL),(331,161,5,NULL),(333,162,10,NULL),(334,162,11,NULL),(337,163,11,NULL),(339,164,5,NULL),(341,165,3,NULL),(342,165,5,NULL),(345,166,5,NULL),(346,166,10,NULL),(347,167,10,NULL),(348,167,13,NULL),(351,168,13,NULL),(353,169,4,NULL),(355,170,3,NULL),(356,170,4,NULL),(359,171,11,NULL),(361,172,3,NULL),(362,173,4,NULL),(364,174,4,NULL);
+INSERT INTO `cita_servicio` VALUES (3,3,5,NULL,0),(4,3,11,NULL,0),(5,4,10,NULL,0),(6,4,12,NULL,0),(7,5,3,NULL,0),(8,5,5,NULL,0),(9,5,7,NULL,0),(10,6,5,NULL,0),(11,6,10,NULL,0),(12,7,8,NULL,0),(13,8,4,NULL,0),(14,8,13,NULL,0),(15,9,5,NULL,0),(16,10,13,NULL,0),(17,10,14,NULL,0),(18,11,6,NULL,0),(19,11,11,NULL,0),(20,12,3,NULL,0),(21,13,5,NULL,0),(22,13,10,NULL,0),(23,13,13,NULL,0),(24,14,9,NULL,0),(25,15,3,NULL,0),(26,16,5,NULL,0),(27,16,6,NULL,0),(28,17,8,NULL,0),(29,17,13,NULL,0),(30,18,5,NULL,0),(31,18,14,NULL,0),(32,19,13,NULL,0),(33,19,14,NULL,0),(34,20,8,NULL,0),(35,20,10,NULL,0),(36,21,7,NULL,0),(37,22,8,NULL,0),(38,22,9,NULL,0),(39,23,7,NULL,0),(40,23,13,NULL,0),(41,24,14,NULL,0),(42,25,10,NULL,0),(43,26,8,NULL,0),(44,27,8,NULL,0),(45,27,11,NULL,0),(46,27,12,NULL,0),(47,28,9,NULL,0),(48,29,12,NULL,0),(49,30,3,NULL,0),(50,30,11,NULL,0),(51,31,7,NULL,0),(52,32,8,NULL,0),(53,32,13,NULL,0),(54,33,5,NULL,0),(55,33,8,NULL,0),(56,34,10,NULL,0),(57,35,12,NULL,0),(58,36,3,NULL,0),(59,36,10,NULL,0),(60,37,8,NULL,0),(61,38,13,NULL,0),(62,38,14,NULL,0),(63,39,12,NULL,0),(64,40,8,NULL,0),(65,40,11,NULL,0),(66,41,4,NULL,0),(67,41,13,NULL,0),(68,42,9,NULL,0),(69,42,14,NULL,0),(70,43,3,NULL,0),(71,44,11,NULL,0),(72,45,13,NULL,0),(73,46,3,NULL,0),(74,46,10,NULL,0),(75,47,13,NULL,0),(76,48,3,NULL,0),(77,48,11,NULL,0),(78,49,6,NULL,0),(79,50,8,NULL,0),(80,50,10,NULL,0),(81,50,14,NULL,0),(82,51,9,NULL,0),(83,52,3,NULL,0),(84,52,11,NULL,0),(85,53,9,NULL,0),(86,54,5,NULL,0),(87,55,11,NULL,0),(88,56,13,NULL,0),(89,57,5,NULL,0),(90,58,12,NULL,0),(91,59,8,NULL,0),(92,59,10,NULL,0),(93,59,11,NULL,0),(94,60,10,NULL,0),(95,60,13,NULL,0),(96,61,6,NULL,0),(97,62,10,NULL,0),(98,63,10,NULL,0),(99,64,11,NULL,0),(100,65,11,NULL,0),(101,66,3,NULL,0),(102,66,5,NULL,0),(103,67,5,NULL,0),(104,68,6,NULL,0),(105,69,10,NULL,0),(106,69,12,NULL,0),(107,70,8,NULL,0),(108,71,14,NULL,0),(109,72,6,NULL,0),(110,73,7,NULL,0),(111,74,4,NULL,0),(112,74,5,NULL,0),(113,75,12,NULL,0),(114,76,10,NULL,0),(115,76,14,NULL,0),(116,77,11,NULL,0),(117,78,7,NULL,0),(118,78,14,NULL,0),(119,79,4,NULL,0),(120,80,10,NULL,0),(121,80,13,NULL,0),(122,81,5,NULL,0),(123,81,10,NULL,0),(124,82,4,NULL,0),(125,82,5,NULL,0),(126,83,6,NULL,0),(127,83,10,NULL,0),(128,83,14,NULL,0),(129,84,7,NULL,0),(130,85,8,NULL,0),(131,86,4,NULL,0),(132,86,5,NULL,0),(133,87,3,NULL,0),(134,87,11,NULL,0),(135,88,6,NULL,0),(136,89,7,NULL,0),(137,90,8,NULL,0),(138,90,14,NULL,0),(139,91,4,NULL,0),(140,91,5,NULL,0),(141,92,3,NULL,0),(142,92,7,NULL,0),(143,92,11,NULL,0),(144,93,7,NULL,0),(145,94,7,NULL,0),(146,95,10,NULL,0),(147,96,8,NULL,0),(148,96,12,NULL,0),(164,97,4,NULL,0),(166,98,4,NULL,0),(168,99,4,NULL,0),(169,99,6,NULL,0),(172,100,4,NULL,0),(174,101,4,NULL,0),(175,102,4,NULL,0),(176,102,13,NULL,0),(179,103,3,NULL,0),(181,104,12,NULL,0),(182,105,5,NULL,0),(184,106,10,NULL,0),(185,106,12,NULL,0),(188,107,3,NULL,0),(190,108,10,NULL,0),(191,108,13,NULL,0),(194,109,5,NULL,0),(195,110,13,NULL,0),(197,111,3,NULL,0),(199,112,7,NULL,0),(201,113,8,NULL,0),(202,113,12,NULL,0),(205,114,14,NULL,0),(207,115,4,NULL,0),(208,115,12,NULL,0),(211,116,5,NULL,0),(213,117,8,NULL,0),(214,117,13,NULL,0),(217,118,7,NULL,0),(219,119,6,NULL,0),(220,120,3,NULL,0),(221,120,10,NULL,0),(224,121,4,NULL,0),(225,121,10,NULL,0),(228,122,3,NULL,0),(229,122,10,NULL,0),(232,123,10,NULL,0),(233,123,13,NULL,0),(236,124,9,NULL,0),(238,125,9,NULL,0),(239,125,12,NULL,0),(242,126,5,NULL,0),(243,126,10,NULL,0),(246,127,6,NULL,0),(248,128,9,NULL,0),(250,129,13,NULL,0),(251,129,14,NULL,0),(254,130,6,NULL,0),(256,131,5,NULL,0),(257,131,12,NULL,0),(260,132,14,NULL,0),(262,133,7,NULL,0),(264,134,6,NULL,0),(266,135,12,NULL,0),(268,136,12,NULL,0),(270,137,4,NULL,0),(271,137,9,NULL,0),(274,138,3,NULL,0),(275,139,10,NULL,0),(276,139,11,NULL,0),(279,140,5,NULL,0),(280,140,7,NULL,0),(283,141,14,NULL,0),(285,142,6,NULL,0),(286,143,5,NULL,0),(288,144,6,NULL,0),(289,144,12,NULL,0),(292,145,12,NULL,0),(294,146,8,NULL,0),(295,146,9,NULL,0),(298,147,3,NULL,0),(299,147,14,NULL,0),(302,148,5,NULL,0),(304,149,12,NULL,0),(306,150,8,NULL,0),(308,151,4,NULL,0),(309,151,14,NULL,0),(312,152,10,NULL,0),(314,153,7,NULL,0),(316,154,10,NULL,0),(318,155,8,NULL,0),(320,156,10,NULL,0),(322,157,14,NULL,0),(324,158,11,NULL,0),(325,159,4,NULL,0),(326,159,11,NULL,0),(329,160,6,NULL,0),(331,161,5,NULL,0),(333,162,10,NULL,0),(334,162,11,NULL,0),(337,163,11,NULL,0),(339,164,5,NULL,0),(341,165,3,NULL,0),(342,165,5,NULL,0),(345,166,5,NULL,0),(346,166,10,NULL,0),(347,167,10,NULL,0),(348,167,13,NULL,0),(351,168,13,NULL,0),(353,169,4,NULL,0),(355,170,3,NULL,0),(356,170,4,NULL,0),(359,171,11,NULL,0),(361,172,3,NULL,0),(362,173,4,NULL,0),(364,174,4,NULL,0);
 /*!40000 ALTER TABLE `cita_servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -581,7 +582,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=203 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=207 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1049,7 +1050,7 @@ CREATE TABLE `detalle_factura` (
   CONSTRAINT `chk_df_precio` CHECK (`precio_unitario` >= 0),
   CONSTRAINT `chk_df_iva` CHECK (`tasa_iva` in (0,5,10)),
   CONSTRAINT `chk_df_item` CHECK (`id_servicio` is not null and `id_producto` is null or `id_servicio` is null and `id_producto` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=205 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1117,7 +1118,7 @@ CREATE TABLE `detalle_pago_personal` (
   CONSTRAINT `fk_dpp_pago` FOREIGN KEY (`id_pago_personal`) REFERENCES `pago_personal` (`id_pago_personal`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_dpp_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dpp_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=2068 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2192 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1375,7 +1376,7 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=94 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1485,7 +1486,7 @@ CREATE TABLE `factura_descuento` (
   CONSTRAINT `fk_fd_descuento` FOREIGN KEY (`id_descuento`) REFERENCES `descuento` (`id_descuento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_fd_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_fd_monto` CHECK (`monto_aplicado` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1582,7 +1583,7 @@ CREATE TABLE `movimiento_caja` (
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=71 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1624,7 +1625,7 @@ CREATE TABLE `movimiento_inventario` (
   CONSTRAINT `fk_movinv_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=416 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=430 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1748,7 +1749,7 @@ CREATE TABLE `movimiento_punto` (
   CONSTRAINT `fk_mp_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mp_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_mp_tipo` CHECK (`tipo` = 'ACUMULA' and `puntos` > 0 or `tipo` = 'CANJE' and `puntos` < 0 or `tipo` = 'AJUSTE' and `puntos` <> 0)
-) ENGINE=InnoDB AUTO_INCREMENT=361 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=379 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1849,7 +1850,7 @@ CREATE TABLE `notificacion` (
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB AUTO_INCREMENT=676 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=696 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1890,7 +1891,7 @@ CREATE TABLE `pago_personal` (
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario_registro` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=69 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2197,7 +2198,7 @@ CREATE TABLE `producto_utilizado` (
   CONSTRAINT `fk_pu_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pu_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_pu_cantidad` CHECK (`cantidad` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=144 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=146 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2413,7 +2414,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB AUTO_INCREMENT=135 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2478,7 +2479,7 @@ CREATE TABLE `servicio_realizado` (
   CONSTRAINT `fk_sr_detalle_factura` FOREIGN KEY (`id_detalle_factura`) REFERENCES `detalle_factura` (`id_detalle_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=198 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=204 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2560,7 +2561,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=188 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2780,7 +2781,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2877,7 +2878,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=63 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3413,22 +3414,27 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion`(p_id_cita INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
-    DETERMINISTIC
 BEGIN
-              DECLARE v_dur INT DEFAULT 0;
-              SELECT COALESCE(MAX(bloque), 0) INTO v_dur FROM (
-                SELECT SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
-                  FROM cita_servicio cs
-                  JOIN cita c     ON c.id_cita = cs.id_cita
-                  JOIN servicio s ON s.id_servicio = cs.id_servicio
-                  LEFT JOIN usuario_servicio us
-                         ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
-                        AND us.id_servicio = s.id_servicio AND us.activo = 1
-                 WHERE cs.id_cita = p_id_cita
-                 GROUP BY COALESCE(cs.id_usuario, c.id_usuario)
-              ) bloques;
-              RETURN IF(v_dur > 0, v_dur, 60);
-            END ;;
+  DECLARE v_dur INT DEFAULT 0;
+
+  SELECT COALESCE(SUM(paso), 0) INTO v_dur FROM (
+    SELECT MAX(b.bloque) AS paso FROM (
+      SELECT cs.orden AS orden,
+             COALESCE(cs.id_usuario, c.id_usuario) AS prof,
+             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+        FROM cita_servicio cs
+        JOIN cita c     ON c.id_cita = cs.id_cita
+        JOIN servicio s ON s.id_servicio = cs.id_servicio
+        LEFT JOIN usuario_servicio us
+               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+              AND us.id_servicio = s.id_servicio AND us.activo = 1
+       WHERE cs.id_cita = p_id_cita
+       GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
+    ) b GROUP BY b.orden
+  ) p;
+
+  RETURN IF(v_dur > 0, v_dur, 60);
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -3459,6 +3465,54 @@ BEGIN
                  AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
               RETURN v_dur;
             END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_inicio_de` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_inicio_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
+    READS SQL DATA
+BEGIN
+  DECLARE v_orden TINYINT UNSIGNED DEFAULT 0;
+  DECLARE v_ini   INT DEFAULT 0;
+
+  SELECT COALESCE(MIN(cs.orden), 0) INTO v_orden
+    FROM cita_servicio cs
+    JOIN cita c ON c.id_cita = cs.id_cita
+   WHERE cs.id_cita = p_id_cita
+     AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
+
+  IF v_orden = 0 THEN
+    RETURN 0;
+  END IF;
+
+  SELECT COALESCE(SUM(paso), 0) INTO v_ini FROM (
+    SELECT MAX(b.bloque) AS paso FROM (
+      SELECT cs.orden AS orden,
+             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+        FROM cita_servicio cs
+        JOIN cita c     ON c.id_cita = cs.id_cita
+        JOIN servicio s ON s.id_servicio = cs.id_servicio
+        LEFT JOIN usuario_servicio us
+               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+              AND us.id_servicio = s.id_servicio AND us.activo = 1
+       WHERE cs.id_cita = p_id_cita AND cs.orden < v_orden
+       GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
+    ) b GROUP BY b.orden
+  ) p;
+
+  RETURN v_ini;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -4227,10 +4281,10 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario     INT,
-    p_fecha_hora     DATETIME,
-    p_duracion_min   INT,
-    p_id_cita_excluir INT
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario      INT UNSIGNED,
+  p_fecha_hora      DATETIME,
+  p_duracion_min    INT,
+  p_id_cita_excluir INT UNSIGNED
 ) RETURNS tinyint(1)
     READS SQL DATA
 BEGIN
@@ -4254,20 +4308,17 @@ BEGIN
   END IF;
 
   
+  
   SELECT COUNT(*) INTO v_turnos
     FROM usuario_turno ut
     JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
    WHERE ut.id_usuario = p_id_usuario;
 
   IF v_turnos = 0 THEN
-    
-    
     SELECT COUNT(*) INTO v_salon
       FROM usuario_turno ut
       JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
     IF v_salon > 0 THEN RETURN 0; END IF;
-    
-    
   ELSE
     SELECT COUNT(*) INTO v_cubre
       FROM usuario_turno ut
@@ -4282,6 +4333,13 @@ BEGIN
   END IF;
 
   
+  
+  
+  
+  
+  
+  
+  
   SELECT COUNT(*) INTO v_conflictos
     FROM cita c
     JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
@@ -4291,8 +4349,10 @@ BEGIN
           OR EXISTS (SELECT 1 FROM cita_servicio cs
                       WHERE cs.id_cita = c.id_cita AND cs.id_usuario = p_id_usuario))
      AND fn_cita_duracion_de(c.id_cita, p_id_usuario) > 0
-     AND c.fecha_hora < v_fin
-     AND p_fecha_hora < (c.fecha_hora + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
+     AND (c.fecha_hora + INTERVAL fn_cita_inicio_de(c.id_cita, p_id_usuario) MINUTE) < v_fin
+     AND p_fecha_hora < (c.fecha_hora
+                         + INTERVAL fn_cita_inicio_de(c.id_cita, p_id_usuario) MINUTE
+                         + INTERVAL fn_cita_duracion_de(c.id_cita, p_id_usuario) MINUTE);
 
   RETURN IF(v_conflictos = 0, 1, 0);
 END ;;
@@ -5536,4 +5596,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17  9:53:23
+-- Dump completed on 2026-08-17 10:04:31

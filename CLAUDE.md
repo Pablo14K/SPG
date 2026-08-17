@@ -12,8 +12,8 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **21 procedimientos, 32 funciones, 17 triggers y 17 vistas**,
-más **66 restricciones `CHECK`**.
+La base (`peluqueria_bd`) tiene **21 procedimientos, 33 funciones, 17 triggers y 17 vistas**,
+más **67 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -45,8 +45,9 @@ desde PDO: los parámetros de salida (`Bd::idDe()`), cerrar el cursor después d
 | Nivel / visitas del cliente | `fn_cliente_nivel`, `fn_cliente_visitas`, `fn_cliente_puntos` |
 | Comisión de un servicio | `fn_comision_servicio(id_servicio_realizado)` |
 | Quién trabaja tal día | `turno_laboral` ⋈ `turno_dia` ⋈ `usuario_turno` — ver la sección **Turnos** |
-| Cuánto dura una cita | `fn_cita_duracion(id)` — el bloque **más largo**, no la suma: los profesionales trabajan en paralelo |
+| Cuánto dura una cita | `fn_cita_duracion(id)` — la suma de los **turnos**, y cada turno dura lo que el profesional que más tarda en él. Con un solo turno —el caso normal— es el bloque más largo y no la suma |
 | Cuánto le toca a uno en esa cita | `fn_cita_duracion_de(id_cita, id_usuario)` — es lo que le bloquea la agenda |
+| Desde cuándo le toca | `fn_cita_inicio_de(id_cita, id_usuario)` — cero salvo que haya turnos: con servicios exclusivos repartidos, el segundo arranca cuando el primero termina |
 | Convertir 30 ml a stock | `consumo_a_stock()` / `stock_a_consumo()` de `app/Ayudas/formato.php` |
 | La hora real del reloj | `ahora_bd()` de `app/Ayudas/formato.php`, **nunca `date()`** — ver la sección **La hora** |
 
@@ -196,9 +197,10 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.36.0 | 17/08/2026 | **Dos servicios que ocupan a la clienta entera ya se pueden reservar juntos: no a la vez, pero sí uno después del otro.** Es el punto que quedaba de la revisión, y el reporte era exacto —«se sabe que no se pueden hacer al mismo tiempo, es lógico, pero se pueden hacer uno después del otro… y no me deja reservar la cita»—. **El modelo daba por hecho que todos los profesionales de una cita trabajan en paralelo**: cada uno arrancaba a la hora de la cita y `fn_cita_duracion` devolvía el bloque más largo, así que dos exclusivos en manos distintas se pisaban sobre la clienta y `validarReparto()` los rechazaba. La única salida que ofrecía el mensaje era ponerlos con la misma persona, que en el salón no siempre se puede. Lo que faltaba era poder decir **en qué turno** va cada servicio: entra **`cita_servicio.orden`** —mismo orden a la vez, orden mayor después— y **`fn_cita_inicio_de`**, que dice a los cuántos minutos le toca a cada uno. **Se turnan los profesionales, no los servicios**: quien hace algo exclusivo ocupa a la clienta hasta terminar todo lo suyo, y quien no hace nada exclusivo sigue en paralelo —el lavado y la pedicura conviven—. El orden va de mayor a menor bloque, porque el primer turno es el único que puede solaparse con los no exclusivos y así la cita entera termina antes. **Con todo en `orden = 0` las funciones devuelven exactamente lo de antes**, así que ninguna cita ya agendada cambió de duración. **`fn_verificar_disponibilidad` tuvo que aprenderlo también, y ahí estaba el caso peligroso**: medía el solape desde `cita.fecha_hora`, o sea que daba al segundo profesional por ocupado al principio —cuando está libre— y **libre al final, que es justo cuando va a estar atendiendo**; le vendía ese horario a otra clienta. Comprobado en las dos direcciones. Y **la comparación entre el espejo de PHP y la base deja de ser algo que hay que acordarse de correr**: era una verificación manual que este documento pedía rehacer «cada vez que toques las reglas», y pasa a ser una prueba que recorre la grilla entera de tres profesionales por diez días —no sólo lo que PHP ofrece, así también se ve lo que esconde de más—. La prueba de exclusividad se reescribió para la regla nueva y quedó **más exigente**: no alcanza con que acepte, tiene que quedar secuenciado, el segundo tiene que arrancar exactamente cuando el primero termina y la cita tiene que durar la suma. **89 pruebas**, dos nuevas, y los dos `.sql` regenerados |
 | 7.35.0 | 17/08/2026 | **Cuatro puntos de la revisión: el panel, el informe del equipo, el nombre y el logo, y los servicios del segundo local.** **El panel estaba recargado**: «Clientes atrasados» y «Próximas citas» eran dos tablas completas apiladas —ocho filas y seis, cada una con encabezado y párrafo— que empujaban las tarjetas de módulo fuera de la pantalla. Pasan a **listas compactas lado a lado**, cuatro cada una, de 700 px a **214**. El total de atrasados **se cuenta aparte y es el de verdad**: mostrar «4» cuando hay once no es resumir, es informar mal, porque con ese número se decide si hay que ir a la agenda ahora. **El informe del equipo confundía dos ausencias distintas**: la columna decía «Ausencias» en una tabla de profesionales —o sea que se leía como faltas del profesional— y contaba lo contrario, las citas en las que **no vino la clienta**. Ahora van separadas: «No vino la clienta», de `cita`, y «Faltó», del fichaje (`asistencia.justificada`), con el detalle de cuántas fueron sin aviso. Se revisó el resto del informe, como se pidió: el resumen de arriba y las dos tablas de demanda decían lo mismo mal. **El nombre y el logo del salón los decide el salón**: vivían en `APP_NAME`, así que cambiarlos era editar el `.env` y volver a desplegar —y en Docker, entrar al contenedor—. Van a `configuracion`, la tabla de una fila de la 7.27.0, y se editan en **Seguridad → Contacto**. **El nombre se pisa una sola vez al arrancar** y no vista por vista: `config(app.name)` aparece en más de veinte lugares —cada título de pestaña, la barra, el pie, el ingreso, las tres plantillas de correo y las dos de impresión— y cambiarlos uno por uno sería cambiar veinte y olvidarse de dos. Del logo se guarda **el nombre del archivo, no el archivo**; se comprueba que sea una imagen de verdad con `getimagesize` y no por la extensión, y **SVG no entra**, que se sirve como marcado y esto se dibuja en todas las pantallas. **Y una sucursal nueva abre con el catálogo de servicios**: la convención «sin filas vale en todas» no alcanzaba sola, porque en cuanto un servicio tiene UNA fila deja de valer en todas — así que el local nuevo nacía sin nada y la clienta que lo elegía en el portal no veía qué reservar. El portal además usaba `JOIN` en vez de la convención, o sea que la tenía al revés. **88 pruebas** y los dos `.sql` regenerados |
 | 7.34.1 | 17/08/2026 | **La barra de módulos sale del Panel y se queda dentro de los módulos.** Por pedido del usuario, y el motivo se ve mirando la pantalla: el Panel ya muestra los siete módulos en tarjetas grandes unos centímetros más abajo, así que la barra repetía la misma lista dos veces. La pregunta que contesta —*¿a qué otro módulo voy?*— recién aparece cuando ya estás adentro de uno, que es donde las tarjetas ya no están. Con el desplegable de la 7.34.0 encima, ahí sí gana: se salta la tarjeta del medio. La prueba del menú pasa a mirarlo **dentro de un módulo** y comprueba además que en el Panel no esté |
-| 7.34.0 | 17/08/2026 | **El módulo de la barra se abre al pasar el mouse y muestra sus pantallas.** Llegar a una eran dos clics con una tarjeta de por medio, y eso se hace veinte veces por día. Sale del **mismo catálogo** que la tarjeta del módulo, con el **mismo filtro por permiso** que pide el middleware, así que el menú no puede ofrecer algo que conteste «Sin permiso» — es la corrección de la 7.24.0 aplicada acá desde el principio. Tres decisiones que no son adorno: **se abre con CSS y no con JavaScript**, así que si `app.js` no cargó la barra navega igual; **sólo donde hay mouse de verdad** (`hover:hover`), porque en una pantalla táctil el navegador emula el hover con el primer toque y tocar «Clientes» abriría el menú en vez de entrar al módulo, o sea que el atajo rompería la navegación normal; y **`overflow` vuelve a `visible` en ese caso**, porque `.spg-nav-in` scrollea en horizontal para las pantallas angostas y un desplegable dentro de un contenedor con overflow se recorta — se vería la primera línea y nada más. El enlace del módulo sigue estando y sigue llevando a su tarjeta: el desplegable es un atajo, no un reemplazo. **Y el catálogo gana un cuarto valor**, para distinguir la entrada del módulo de la pantalla de detalle: «Ver comprobante» necesita saber cuál y «Informe para imprimir» es el papel del informe que se está mirando, así que ofrecerlas en un menú es prometer algo que no se puede abrir desde ahí. **Probándolo en el navegador apareció un 500 en el panel entero**: `Navegacion::url()` hacía `route($clave)` sin más, y `clientes.historial` es `clientes/{id}/historial` — sin el id levanta `UrlGenerationException`. Mientras nadie la pidiera sin parámetros el agujero estaba tapado por casualidad, y el menú, que recorre el catálogo completo, lo destapó de una. Ahora devuelve null, que es lo que corresponde: quien arma un menú no tiene ese id ni tiene por qué saber cuáles lo piden. **87 pruebas**, una nueva que arma el menú de todos los módulos y fija ese caso |
+| 7.34.0 | 17/08/2026 | **El módulo de la barra se abre al pasar el mouse y muestra sus pantallas.** Llegar a una eran dos clics con una tarjeta de por medio, y eso se hace veinte veces por día. Sale del **mismo catálogo** que la tarjeta del módulo, con el **mismo filtro por permiso** que pide el middleware, así que el menú no puede ofrecer algo que conteste «Sin permiso» — es la corrección de la 7.24.0 aplicada acá desde el principio. Tres decisiones que no son adorno: **se abre con CSS y no con JavaScript**, así que si `app.js` no cargó la barra navega igual; **sólo donde hay mouse de verdad** (`hover:hover`), porque en una pantalla táctil el navegador emula el hover con el primer toque y tocar «Clientes» abriría el menú en vez de entrar al módulo, o sea que el atajo rompería la navegación normal; y **`overflow` vuelve a `visible` en ese caso**, porque `.spg-nav-in` scrollea en horizontal para las pantallas angostas y un desplegable dentro de un contenedor con overflow se recorta — se vería la primera línea y nada más. El enlace del módulo sigue estando y sigue llevando a su tarjeta: el desplegable es un atajo, no un reemplazo. **Y el catálogo gana un cuarto valor**, para distinguir la entrada del módulo de la pantalla de detalle: «Ver comprobante» necesita saber cuál y «Informe para imprimir» es el papel del informe que se está mirando, así que ofrecerlas en un menú es prometer algo que no se puede abrir desde ahí. **Probándolo en el navegador apareció un 500 en el panel entero**: `Navegacion::url()` hacía `route($clave)` sin más, y `clientes.historial` es `clientes/{id}/historial` — sin el id levanta `UrlGenerationException`. Mientras nadie la pidiera sin parámetros el agujero estaba tapado por casualidad, y el menú, que recorre el catálogo completo, lo destapó de una. Ahora devuelve null, que es lo que corresponde: quien arma un menú no tiene ese id ni tiene por qué saber cuáles lo piden. **89 pruebas**, una nueva que arma el menú de todos los módulos y fija ese caso |
 | 7.33.0 | 17/08/2026 | **Un producto o un servicio que ya existe en otro local se trae con un clic, en vez de volver a cargarlo.** Por pedido del usuario, y el motivo que dio es el correcto: cargarlo de nuevo lo escribe distinto. «Shampoo profesional 1L» tipeado por dos personas queda como dos filas —«Shampoo prof. 1 L», «Shampoo profesional 1L»— con dos unidades y dos contenidos, y a partir de ahí ni el consumo fraccionado ni ningún informe pueden comparar el mismo frasco entre sucursales. **Servicios ya tenía el modelo bueno** —catálogo único y `servicio_sucursal` diciendo quién lo publica—, así que sólo faltaba la pantalla: un filtro «Dónde se ofrece» y un botón **Agregar acá**. **Productos no lo tenía, y ahí hubo que corregir el modelo.** La 7.30.0 le puso `id_sucursal` a `producto` con el criterio «el local no se deduce de quién opera»; para una CITA eso es correcto —es un hecho que ocurre en un lugar— pero un producto **no es un hecho, es una entidad de catálogo**, y con la columna el nombre, la categoría, la unidad, el contenido y el precio se repetían por local: redundancia de entidad, que la regla número dos prohíbe. Ahora el catálogo es único, **`producto_sucursal`** dice qué locales lo manejan y con qué mínimo —el mínimo **sí** es del local: un salón grande guarda más—, y **`movimiento_inventario` gana `id_sucursal`** porque ya no se puede deducir del producto. `fn_producto_stock` **pasa a pedir el local**, y es a propósito: con catálogo compartido, «cuánto shampoo hay» sin decir dónde sumaría los dos locales y el inventario no cerraría en ninguno. El candado de `trg_movinv_bi` se muda de `producto` a `producto_sucursal`, que si no dos salidas de sucursales distintas se serializarían sin motivo. Y **`notificacion` gana `id_sucursal`**: el aviso de reposición pendiente de un local tapaba el del otro, así que el segundo se quedaba sin mercadería en silencio. De paso apareció **la tercera prueba que dependía del entorno y no de la regla**: 86 en verde en el host y **11 rotas en el contenedor**, con el mismo código y los mismos datos. Las sesiones armadas a mano no ponen la marca de sesión única de la 7.13.0, así que si la cuenta tenía una sesión abierta —la dejó otra prueba que sí ingresó— `ExigeSesion` las echaba al ingreso. Entra `conMarcaDeSesion()`, que la copia de la base: una sesión armada a mano tiene que ser creíble entera, no a medias. **86 pruebas en los dos entornos** y los dos `.sql` regenerados |
 | 7.32.0 | 17/08/2026 | **Cargar un producto o una compra desde el segundo local reventaba, y los servicios no tenían dónde elegir su sucursal.** Las dos mitades que la 7.30.0 dejó a medias. `producto.id_sucursal` y `compra.id_sucursal` son `NOT NULL` **sin valor por defecto** y ninguno de los cuatro `INSERT` los escribía: el alta de producto, las dos altas rápidas y el alta de compra contestaban `1364 Field 'id_sucursal' doesn't have a default value` — o sea que **desde el segundo local no se podía cargar mercadería en absoluto**. Ahora los cuatro graban `Sucursales::activa()`. Y **`servicio_sucursal` existía desde la 7.30.0 sin una sola pantalla que la escribiera**: un local nuevo nacía con cero servicios publicados y la clienta que elegía esa sucursal en el portal no veía nada que reservar — el error se lo había creado la propia versión que trajo la tabla. El bloque va en el formulario del servicio y **sólo se dibuja con más de una sucursal**: preguntar algo de una única respuesta hace perder un clic. Sin marcar ninguna vale en todas, que es lo que espera quien recién abre el segundo local. **Y salen los accesos rápidos**, por pedido del usuario: eran el cuarto nivel de navegación y contestaban «¿qué suelo hacer después de esto?», una pregunta que las tarjetas del módulo ya contestaban más arriba. De paso, **dos pruebas dependían del día del calendario**: agarraban la primera clienta y le agendaban para hoy, y el 17/08 el mes simulado ya le tenía una cita con ese servicio, así que `trg_citaserv_bi` las rechazaba —el 16 estaban en verde—. Es el defecto de la 7.31.3 otra vez, con el calendario en lugar de las sucursales: entra `clienteLibreHoy()` en `Tests\TestCase`. Mudarlas lejos, como en la 7.28.0, acá no valía: atender exige que la cita ya haya llegado. **86 pruebas** |
 | 7.31.3 | 16/08/2026 | **La batería dependía de cuántas sucursales tuviera la base.** Se vio al actualizar Docker: las 86 pruebas pasaban en el host —una sucursal— y **19 fallaban dentro del contenedor**, que tenía dos. Ninguna era un defecto del sistema: las pruebas armaban la sesión a mano y se saltaban la elección de local, que `ExigePersonal` exige. Con una sola no se notaba porque `Sesion::inicio()` la resuelve sola; con dos, cada pantalla contestaba **302 hacia «elegí la sucursal»**. Una batería que dice cosas distintas según cuántos locales haya cargados no sirve para decir si el sistema anda. Entran dos ayudas en `Tests\TestCase`: **`conSucursal()`**, que deja una elegida, y **`entrarComo()`**, que ingresa y resuelve el local — que es lo que hace una persona—. Las 19 sesiones armadas a mano y los 12 ingresos por POST pasan por ellas. Y dos pruebas se corrigieron sin aflojar lo que comprueban: la del ingreso ahora **acepta las dos respuestas correctas** —al panel con un local, a elegir con varios— y la del portal pasa la sucursal explícita, porque con más de una el portal pide el local **antes** de mostrar servicios y horarios. Verificado en los dos entornos a la vez: **86 en verde con una sucursal y con dos** |
@@ -334,7 +336,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 87 pruebas
+tests/Feature/             Las 89 pruebas
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -1154,9 +1156,10 @@ Ahora tarda **0,11 s**.
 > por costo. **La autoridad sigue siendo `fn_verificar_disponibilidad`**, que se consulta de
 > nuevo al guardar, dentro del candado del procedimiento. Si cambiás las reglas de
 > disponibilidad en la base, **hay que reflejarlas en `Agenda::slotsProfesional()`**, o la
-> pantalla va a ofrecer horarios que el servidor rechaza. Hay una prueba que compara los dos
-> caminos hueco por hueco (2.430 candidatos con el modelo viejo, 1.955 con el de turnos por
-> día; cero discrepancias en los dos). **Rehacela cada vez que toques las reglas.**
+> pantalla va a ofrecer horarios que el servidor rechaza. **`CimientosTest::el_espejo_de_php_dice_lo_mismo_que_la_base`
+> compara los dos caminos hueco por hueco** —la grilla entera de tres profesionales por diez
+> días, no sólo lo que PHP ofrece: así también se ve lo que esconde de más—. Antes era una
+> comprobación que había que acordarse de correr a mano; desde la 7.36.0 se rehace sola.
 
 Cuando alguien elige un horario que la pantalla mostraba libre y al guardar ya no lo está,
 `Agenda::motivoHuecoPerdido()` mira la base y explica **por qué**: si se lo ganó otra persona
@@ -1183,9 +1186,34 @@ manicurista queda libre a los 30 aunque la cita siga.
 
 **Servicios que ocupan a la clienta entera.** `servicio.requiere_exclusividad` marca los que
 no se pueden hacer al mismo tiempo que otro: una coloración y una keratina se pisan —las dos
-son sobre el pelo—, un lavado y una pedicura no. La regla se aplica **entre profesionales
-distintos**: si la misma persona hace los dos, van uno después del otro y no hay conflicto,
-así que se permite.
+son sobre el pelo—, un lavado y una pedicura no.
+
+**No se pueden hacer a la vez, pero sí uno después del otro, y eso vale también con
+profesionales distintos.** Hasta la 7.36.0 se rechazaba: el modelo daba por hecho que todos
+los profesionales de una cita trabajan **en paralelo**, así que dos exclusivos en manos
+distintas se pisaban sobre la clienta y el mensaje mandaba a ponerlos con la misma persona —
+que en el salón no siempre se puede, y por eso la cita no se podía reservar.
+
+Lo que faltaba era poder decir **en qué turno** va cada servicio, y eso es
+**`cita_servicio.orden`**: mismo orden = a la vez, orden mayor = después.
+
+| | |
+|---|---|
+| Quién se turna | **el profesional, no el servicio**: si alguien hace algo exclusivo, ocupa a la clienta hasta terminar todo lo suyo |
+| Quién no | el que no hace nada exclusivo va en el turno 0, en paralelo — el lavado y la pedicura conviven |
+| En qué orden | de mayor a menor bloque. El primer turno es el único que puede solaparse con los no exclusivos, así que poniendo adelante al más largo la cita termina antes |
+| Cuánto dura la cita | la suma de los turnos (`fn_cita_duracion`), no el bloque más largo |
+| Desde cuándo se ocupa cada uno | `fn_cita_inicio_de` — es lo que le dice a la agenda que el segundo está libre al principio y ocupado al final |
+
+> **Con todo en `orden = 0` —el caso de siempre— las tres funciones devuelven exactamente lo
+> mismo que antes**, así que ninguna cita ya agendada cambió de duración.
+
+> **Y `fn_verificar_disponibilidad` tuvo que aprenderlo también.** Medía el solape desde
+> `cita.fecha_hora`, o sea que daba al segundo profesional por ocupado al principio —cuando
+> está libre— y **libre al final, que es justo cuando va a estar atendiendo**: le vendía ese
+> horario a otra clienta. Es el caso peligroso, y por eso la prueba lo comprueba en las dos
+> direcciones. Como siempre que cambian las reglas de disponibilidad, hay que tocar la base
+> **y** su espejo de PHP (`Agenda::slotsProfesional()`, vía `Agenda::turnos()`).
 
 ## Cambio de contraseña: segundo factor
 
@@ -2079,7 +2107,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 32 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 33 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -2222,7 +2250,7 @@ aunque le pidieras otra.
 
 Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 
-- El export de phpMyAdmin **perdía las 66 restricciones `CHECK`**, así que la copia de pruebas
+- El export de phpMyAdmin **perdía las 67 restricciones `CHECK`**, así que la copia de pruebas
   aceptaba valores que la base real rechaza y una prueba podía dar un falso OK. Pasó de verdad
   con `movimiento_punto.tipo`. El `mysqldump` las conserva.
 - El archivo queda **sin `CREATE DATABASE` ni `USE`**, que es lo que permite cargarlo en una base
@@ -2231,7 +2259,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 87 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 89 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
@@ -2253,8 +2281,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 32 funciones,
-   17 triggers, 17 vistas y 66 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 33 funciones,
+   17 triggers, 17 vistas y 67 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -2291,7 +2319,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**87 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**89 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

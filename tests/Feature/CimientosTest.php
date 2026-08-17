@@ -201,6 +201,66 @@ class CimientosTest extends TestCase
         }
     }
 
+    /**
+     * El espejo de PHP y la base tienen que decir lo mismo, hueco por hueco.
+     *
+     * **Es la única parte del sistema donde una regla se replica a propósito**,
+     * y se hace por costo: preguntarle a `fn_verificar_disponibilidad` hueco por
+     * hueco daba ~12.000 consultas y 38 segundos para el calendario de 60 días.
+     * `Agenda::slotsProfesional()` arma los mismos huecos en memoria con tres
+     * consultas.
+     *
+     * El riesgo de replicar es que se desfasen, y el síntoma es feo: la pantalla
+     * ofrece un horario que el servidor después rechaza, o esconde uno que
+     * estaba libre. CLAUDE.md pide rehacer esta comparación cada vez que se
+     * tocan las reglas de disponibilidad —la última fue al permitir que dos
+     * servicios exclusivos vayan en secuencia—, así que en vez de correrla a
+     * mano queda escrita: ahora se rehace sola.
+     */
+    #[Test]
+    public function el_espejo_de_php_dice_lo_mismo_que_la_base(): void
+    {
+        $profs = Agenda::profesionales();
+        if (! $profs) {
+            $this->markTestSkipped('La base de prueba no tiene profesionales que atiendan.');
+        }
+
+        $duracion = 30;
+        $candidatos = 0;
+        $discrepancias = [];
+
+        foreach (array_slice($profs, 0, 3) as $p) {
+            $id = (int) $p->id_usuario;
+
+            for ($d = 1; $d <= 10; $d++) {
+                $dia = date('Y-m-d', strtotime("+$d days"));
+                $ofrecidos = Agenda::slotsProfesional($id, $dia, $duracion);
+
+                // No alcanza con recorrer lo que PHP ofrece: así sólo se
+                // detectaría que ofrece de más. Se recorre **la grilla entera**
+                // del día, así también se ve lo que esconde de más.
+                for ($m = 6 * 60; $m <= 22 * 60; $m += config('spg.agenda.paso_min', 15)) {
+                    $hora = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+                    $php = in_array($hora, $ofrecidos, true);
+                    $bd = Agenda::huecoLibre($id, "$dia $hora:00", $duracion);
+                    $candidatos++;
+
+                    if ($php !== $bd) {
+                        $discrepancias[] = "usuario $id, $dia $hora: PHP dice "
+                            . ($php ? 'libre' : 'ocupado') . ' y la base dice '
+                            . ($bd ? 'libre' : 'ocupado');
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(0, $candidatos, 'No se comparó ningún hueco: la prueba no midió nada.');
+        $this->assertSame([], array_slice($discrepancias, 0, 5),
+            'El espejo de PHP y `fn_verificar_disponibilidad` dicen cosas distintas. '
+            . 'La pantalla va a ofrecer horarios que el servidor rechaza, o a esconder '
+            . 'huecos libres. Se comparó sobre ' . $candidatos . ' candidatos.');
+    }
+
     // -----------------------------------------------------------------
     //  Que Laravel no ensucie la base que se entrega
     // -----------------------------------------------------------------
