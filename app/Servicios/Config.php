@@ -69,9 +69,64 @@ class Config
         return $gs;
     }
 
+    /** La fila entera, leída una vez por petición. */
+    private static ?object $identidad = null;
+
+    /**
+     * Cómo se llama el salón y con qué logo se presenta.
+     *
+     * **Vivían en `APP_NAME`**, así que cambiarlos era editar el `.env` y volver
+     * a desplegar —y en Docker, además, entrar al contenedor—. Es el mismo caso
+     * que `puntos_cada_gs` en la 7.27.0: un dato del negocio escondido detrás de
+     * un despliegue. Ahora lo edita el salón desde una pantalla, y **el cambio
+     * se ve en todas partes a la vez** porque todas las pantallas leen de acá.
+     *
+     * `config('app.name')` queda de respaldo, para una base que todavía no se
+     * reimportó: sin la columna se sigue mostrando lo de siempre en vez de
+     * reventar la pantalla de ingreso, que es la peor de todas para romper.
+     */
+    public static function nombreSalon(): string
+    {
+        $n = trim((string) (self::identidad()->nombre_salon ?? ''));
+
+        return $n !== '' ? $n : (string) config('app.name', 'SPG');
+    }
+
+    /**
+     * URL del logo, o null si el salón no cargó ninguno.
+     *
+     * Null NO es un error: sin logo se dibuja la tijera de siempre, que es la
+     * identidad por defecto del sistema.
+     */
+    public static function logo(): ?string
+    {
+        $l = trim((string) (self::identidad()->logo ?? ''));
+        if ($l === '' || ! is_file(public_path('assets/logo/' . $l))) {
+            return null;
+        }
+
+        return recurso('logo/' . $l);
+    }
+
+    private static function identidad(): object
+    {
+        if (self::$identidad !== null) {
+            return self::$identidad;
+        }
+
+        try {
+            $f = DB::selectOne('SELECT nombre_salon, logo FROM configuracion WHERE id_configuracion = 1');
+        } catch (Throwable) {
+            $f = null;   // la tabla o las columnas no están: base sin actualizar
+        }
+
+        return self::$identidad = $f ?: (object) ['nombre_salon' => '', 'logo' => null];
+    }
+
     /** Para las pruebas, que cambian el valor dentro de una transacción. */
     public static function olvidar(): void
     {
         self::$puntosCadaGs = null;
+        self::$identidad = null;
     }
 }

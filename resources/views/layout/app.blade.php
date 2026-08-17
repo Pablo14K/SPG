@@ -13,8 +13,12 @@
     que acá todo va con prefijo `spg`.
 --}}
 @php
+    use App\Servicios\Config;
     use App\Servicios\Navegacion;
     use App\Servicios\Permisos;
+
+    // El logo que cargó el salón, o null para la tijera de siempre.
+    $spgLogo = Config::logo();
 
     $spgRuta     = Route::currentRouteName() ?? '';
     $spgModulo   = strtok($spgRuta, '.');
@@ -51,7 +55,14 @@
 
 <header class="spg-topbar">
     <a class="spg-brand" href="{{ Navegacion::url($spgCliente ? 'portal.index' : 'panel') ?? url('/') }}">
-        <span class="spg-logo"><i class="bi bi-scissors"></i></span>
+        {{-- El logo del salón si lo cargó; si no, la tijera de siempre. --}}
+        <span class="spg-logo">
+            @if ($spgLogo)
+                <img src="{{ $spgLogo }}" alt="" style="height:100%;width:100%;object-fit:contain">
+            @else
+                <i class="bi bi-scissors"></i>
+            @endif
+        </span>
         <span class="spg-brand-txt">
             <span class="spg-brand-name">{{ config('app.name') }}</span>
             <span class="spg-brand-sub">Sistema de gestión</span>

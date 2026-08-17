@@ -74,11 +74,16 @@ class PanelController extends Controller
         }
         $soloMiasProx .= Sucursales::filtro('c', $parProx);
 
+        // **Cuatro y no seis.** El panel es la puerta de entrada y lo que tiene
+        // que resolver es «¿a dónde voy?»: las tarjetas de módulo son lo
+        // principal, y dos tablas largas apiladas encima las empujaban fuera de
+        // la pantalla. Cuatro alcanzan para saber qué se viene; para el resto
+        // está la agenda, que es la pantalla que existe justamente para eso.
         $proximas = DB::select(
             "SELECT v.* FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
               WHERE v.fecha_hora >= NOW() AND v.estado NOT IN ('Cancelada','Ausente') $soloMiasProx
-              ORDER BY v.fecha_hora LIMIT 6", $parProx
+              ORDER BY v.fecha_hora LIMIT 4", $parProx
         );
 
         // Las atrasadas van en su propio bloque, no mezcladas con las próximas.
@@ -95,7 +100,16 @@ class PanelController extends Controller
             "SELECT v.* FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
               WHERE v.estado = 'Atrasada' $soloMiasProx
-              ORDER BY v.fecha_hora LIMIT 8", $parProx
+              ORDER BY v.fecha_hora LIMIT 4", $parProx
+        );
+
+        // **El total va aparte de la lista, y tiene que ser el de verdad.**
+        // Mostrar «4» cuando hay once no es resumir, es informar mal: quien lee
+        // el panel decide con ese número si tiene que ir a la agenda ahora.
+        $atrasadasTotal = (int) DB::scalar(
+            "SELECT COUNT(*) FROM vw_agenda_citas v
+               JOIN cita c ON c.id_cita = v.id_cita
+              WHERE v.estado = 'Atrasada' $soloMiasProx", $parProx
         );
 
         // **La caja, sólo a quien tiene la caja.** Antes se preguntaba por el
@@ -108,6 +122,7 @@ class PanelController extends Controller
             'm' => $metricas,
             'proximas' => $proximas,
             'atrasadas' => $atrasadas,
+            'atrasadasTotal' => $atrasadasTotal,
             'verTodo' => $todaLaAgenda,
             'caja' => $verCaja ? Caja::abierta() : null,
             'verCaja' => $verCaja,

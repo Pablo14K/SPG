@@ -249,14 +249,25 @@ class ReportesController extends Controller
                    $joinCob GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo ORDER BY total DESC", $parC
             ),
             'equipo' => DB::select(
-                // Las ausencias son de quien NO vino a la cita, y por
-                // profesional dicen algo que el total no: si a una le fallan
-                // muchas, puede ser el horario o el recordatorio.
+                // **«Ausencias» en una tabla de profesionales se lee como faltas
+                // del profesional, y no lo era: contaba las citas en las que no
+                // vino LA CLIENTA.** Son dos cosas distintas y las dos importan
+                // —una habla del recordatorio y del horario, la otra del equipo—,
+                // así que ahora van separadas y cada una dice de quién es.
                 "SELECT CONCAT(pe.nombre,' ',pe.apellido) profesional,
                         COUNT(DISTINCT c.id_cita) citas,
                         SUM(c.id_estado_cita = 4) atendidas,
-                        SUM(c.id_estado_cita = 6) ausencias,
+                        SUM(c.id_estado_cita = 6) clienta_no_vino,
                         SUM(c.id_estado_cita = 3) canceladas,
+                        -- Las faltas del PROFESIONAL salen del fichaje, no de
+                        -- las citas: `justificada` NULL es que vino, 1 falta
+                        -- con aviso y 0 sin aviso.
+                        (SELECT COUNT(*) FROM asistencia a
+                          WHERE a.id_usuario = u.id_usuario AND a.justificada IS NOT NULL
+                            AND a.fecha BETWEEN :d6 AND :h6) falto,
+                        (SELECT COUNT(*) FROM asistencia a
+                          WHERE a.id_usuario = u.id_usuario AND a.justificada = 0
+                            AND a.fecha BETWEEN :d7 AND :h7) falto_sin_aviso,
                         (SELECT COUNT(*) FROM servicio_realizado sr WHERE sr.id_usuario = u.id_usuario
                            AND DATE(sr.fecha_hora) BETWEEN :d2 AND :h2) servicios,
                         -- Lo que trajo al salón, y lo que le toca a ella. La
@@ -282,7 +293,8 @@ class ReportesController extends Controller
                   GROUP BY u.id_usuario, pe.nombre, pe.apellido
                   ORDER BY atendidas DESC, citas DESC",
                 $par + ['d2' => $d, 'h2' => $h, 'd3' => $d, 'h3' => $h,
-                        'd4' => $d, 'h4' => $h, 'd5' => $d, 'h5' => $h]
+                        'd4' => $d, 'h4' => $h, 'd5' => $d, 'h5' => $h,
+                        'd6' => $d, 'h6' => $h, 'd7' => $d, 'h7' => $h]
             ),
             // La deuda con proveedores no depende del período: es deuda viva
             'prov' => DB::select('SELECT * FROM vw_cuenta_proveedor WHERE saldo > 0 ORDER BY vencida DESC, vencimiento LIMIT 30'),

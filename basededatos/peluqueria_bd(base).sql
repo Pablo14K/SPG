@@ -866,10 +866,13 @@ DROP TABLE IF EXISTS `configuracion`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `configuracion` (
   `id_configuracion` tinyint(3) unsigned NOT NULL DEFAULT 1,
+  `nombre_salon` varchar(60) NOT NULL DEFAULT 'Peluquería Luque',
+  `logo` varchar(120) DEFAULT NULL,
   `puntos_cada_gs` int(10) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY (`id_configuracion`),
   CONSTRAINT `chk_config_unica` CHECK (`id_configuracion` = 1),
-  CONSTRAINT `chk_config_puntos` CHECK (`puntos_cada_gs` between 100 and 10000000)
+  CONSTRAINT `chk_config_puntos` CHECK (`puntos_cada_gs` between 100 and 10000000),
+  CONSTRAINT `chk_config_nombre` CHECK (char_length(trim(`nombre_salon`)) >= 2)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -879,7 +882,7 @@ CREATE TABLE `configuracion` (
 
 LOCK TABLES `configuracion` WRITE;
 /*!40000 ALTER TABLE `configuracion` DISABLE KEYS */;
-INSERT INTO `configuracion` VALUES (1,10000);
+INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,10000);
 /*!40000 ALTER TABLE `configuracion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5507,4 +5510,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17  8:53:44
+-- Dump completed on 2026-08-17  9:53:19

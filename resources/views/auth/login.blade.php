@@ -1,3 +1,4 @@
+@php $spgLogo = \App\Servicios\Config::logo(); @endphp
 {{--
     Ingreso al sistema.
 
@@ -33,7 +34,7 @@
     {{-- Panel de la huella: aparece solo si ESTE navegador tiene una cuenta con
          huella activada y el equipo tiene sensor. Si no, ni se dibuja. --}}
     <div class="spg-login" id="bioPanel" style="display:none;text-align:center">
-        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <div class="logo-big">@if ($spgLogo)<img src="{{ $spgLogo }}" alt="" style="height:100%;width:100%;object-fit:contain">@else<i class="bi bi-scissors"></i>@endif</div>
         <h1 style="font-size:1.2rem;font-weight:500;margin-bottom:.2rem;">{{ config('app.name') }}</h1>
         <p class="text-muted-warm" style="font-size:.85rem;margin-bottom:1.1rem;">Ingresá con tu huella</p>
         <div style="font-size:.95rem;margin-bottom:1rem">
@@ -50,7 +51,7 @@
 
     <form class="spg-login" id="formLogin" method="post" action="{{ route('login') }}">
         @csrf
-        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <div class="logo-big">@if ($spgLogo)<img src="{{ $spgLogo }}" alt="" style="height:100%;width:100%;object-fit:contain">@else<i class="bi bi-scissors"></i>@endif</div>
         <h1 class="text-center" style="font-size:1.25rem;font-weight:500;margin-bottom:.2rem;">
             {{ config('app.name') }}
         </h1>

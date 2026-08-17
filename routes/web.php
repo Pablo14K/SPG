@@ -253,6 +253,11 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         Route::middleware('modulo:seguridad.contacto')->group(function () {
             Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
             Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
+            // El nombre y el logo del salón, que salen en el ingreso y en la
+            // barra de arriba. Comparte pantalla y permiso con los contactos
+            // porque contesta la misma pregunta: cómo se presenta el salón.
+            Route::post('identidad', [ConfiguracionController::class, 'identidadGuardar'])->name('identidad.guardar');
+            Route::post('identidad/logo/quitar', [ConfiguracionController::class, 'identidadLogoQuitar'])->name('identidad.logo.quitar');
         });
 
         Route::middleware('modulo:seguridad.roles')->group(function () {

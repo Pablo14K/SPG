@@ -111,11 +111,21 @@ class PortalController extends Controller
             // Sólo los servicios que ESE local publica. El catálogo es único
             // —«Corte de dama» es un servicio con un precio— y cada sucursal
             // marca cuáles ofrece, en `servicio_sucursal`.
+            // **Sin ninguna fila, el servicio vale en TODAS.** Con `JOIN` a secas
+            // pasaba lo contrario: un servicio que nadie marcó no se publicaba
+            // en ningún lado, así que abrir la segunda sucursal la dejaba sin un
+            // solo servicio y la clienta que la elegía no veía nada que
+            // reservar. Es la convención del resto del sistema —los canjes y la
+            // lista de servicios ya la usan— y acá estaba al revés.
             'servicios' => $elegida ? DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad
                    FROM servicio s
-                   JOIN servicio_sucursal ss ON ss.id_servicio = s.id_servicio
-                  WHERE s.activo = 1 AND ss.id_sucursal = ? ORDER BY s.nombre', [$elegida]
+                  WHERE s.activo = 1
+                    AND (EXISTS (SELECT 1 FROM servicio_sucursal ss
+                                  WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = ?)
+                         OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
+                                         WHERE ss2.id_servicio = s.id_servicio))
+                  ORDER BY s.nombre', [$elegida]
             ) : [],
             // Lo que ya canjeó y todavía puede usar. **No cambia nada del
             // motor de la agenda**: el servicio canjeado ocupa el mismo tiempo

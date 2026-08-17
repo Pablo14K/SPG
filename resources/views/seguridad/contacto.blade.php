@@ -3,7 +3,54 @@
 @section('titulo', 'Contacto y soporte')
 
 @section('contenido')
-    <x-encabezado sub="Los medios por los que la clienta le escribe al salón. Salen en el pie de todas las pantallas, bajo «Centro de Ayuda y Soporte». Si no cargás ninguno, el bloque no se dibuja." />
+    <x-encabezado sub="Cómo se presenta el salón: su nombre y su logo, y los medios por los que la clienta le escribe." />
+
+    {{-- **La identidad va arriba porque se ve antes que todo lo demás**: el
+         nombre y el logo salen en la pantalla de ingreso —o sea antes de que
+         nadie entre— y en la barra de arriba de todas las pantallas. Antes
+         vivían en `APP_NAME`, así que cambiarlos era editar el `.env` y volver
+         a desplegar. --}}
+    <div class="spg-panel mb-3" style="max-width:860px">
+        <h2 style="font-size:1rem;font-weight:500;">Identidad del salón</h2>
+        <p class="text-muted-warm mb-3" style="font-size:.82rem">
+            Se ven en la pantalla de ingreso y arriba de todas las pantallas, para el equipo
+            y para las clientas. El cambio se aplica de una, sin volver a entrar.
+        </p>
+
+        <form method="post" action="{{ route('seguridad.identidad.guardar') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label" for="nombre_salon">Nombre del salón *</label>
+                    <input class="form-control" id="nombre_salon" name="nombre_salon" required
+                           maxlength="60" value="{{ old('nombre_salon', $nombreSalon) }}">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="logo">Logo</label>
+                    <input type="file" class="form-control" id="logo" name="logo"
+                           accept="image/png,image/jpeg,image/webp">
+                    <div class="form-text">PNG, JPG o WEBP, hasta 512 KB. Si no subís nada, queda el que está.</div>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
+                </div>
+            </div>
+        </form>
+
+        @if ($logo)
+            <div class="d-flex align-items-center gap-3 mt-3 pt-3" style="border-top:1px solid var(--gris-calido)">
+                <img src="{{ $logo }}" alt="Logo del salón"
+                     style="height:44px;width:auto;border-radius:6px;background:var(--negro);padding:4px">
+                <span class="text-muted-warm" style="font-size:.82rem">Logo actual</span>
+                <form method="post" action="{{ route('seguridad.identidad.logo.quitar') }}" class="d-inline">
+                    @csrf
+                    <button class="btn btn-sm btn-outline-neutro"
+                            data-confirmar="¿Quitar el logo y volver al ícono por defecto?">
+                        <i class="bi bi-trash"></i> Quitar</button>
+                </form>
+            </div>
+        @endif
+    </div>
 
     <div class="spg-panel" style="max-width:860px">
         <form method="post" action="{{ route('seguridad.contacto.guardar') }}">

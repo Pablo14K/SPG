@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Config;
 use App\Servicios\Contacto;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -83,8 +85,30 @@ class ConfiguracionController extends Controller
                     'INSERT INTO sucursal (nombre,ruc,telefono,direccion,ciudad,activo)
                      VALUES (:nombre,:ruc,:telefono,:direccion,:ciudad,1)', $d
                 );
-                Auditoria::registrar('ALTA', 'Configuracion', 'sucursal', (int) DB::getPdo()->lastInsertId(), $d['nombre']);
-                flash('Sucursal creada.');
+                $nueva = (int) DB::getPdo()->lastInsertId();
+                Auditoria::registrar('ALTA', 'Configuracion', 'sucursal', $nueva, $d['nombre']);
+
+                // **Un local nuevo abre con el catálogo entero.** Es lo que
+                // espera quien inaugura la segunda sucursal: ofrece lo mismo, y
+                // después saca lo que ahí no hace.
+                //
+                // La convención «sin filas vale en todas» no alcanza sola: en
+                // cuanto un servicio tiene UNA fila —porque alguien abrió su
+                // formulario y guardó— deja de valer en todas, y la sucursal
+                // nueva nacería sin ese servicio. Eso es lo que dejaba a la
+                // clienta sin nada que reservar al elegir el local nuevo.
+                // Se copia sólo lo que ya está publicado en algún lado; lo que
+                // no tiene ninguna fila sigue valiendo en todas por su cuenta.
+                $publicados = DB::insert(
+                    'INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal)
+                     SELECT DISTINCT ss.id_servicio, ? FROM servicio_sucursal ss
+                       JOIN servicio s ON s.id_servicio = ss.id_servicio AND s.activo = 1',
+                    [$nueva]
+                );
+
+                flash('Sucursal creada' . ($publicados
+                    ? ', con el catálogo de servicios publicado. Sacale desde Servicios los que ahí no se hagan.'
+                    : '. Ya ofrece todos los servicios del salón.'));
             }
         } catch (Throwable) {
             flash('No se pudo guardar la sucursal.', 'error');
@@ -118,7 +142,101 @@ class ConfiguracionController extends Controller
         return view('seguridad.contacto', [
             'contactos' => $contactos,
             'canales' => Contacto::canales(),
+            'nombreSalon' => Config::nombreSalon(),
+            'logo' => Config::logo(),
         ]);
+    }
+
+    /**
+     * El nombre y el logo con los que se presenta el salón.
+     *
+     * **Se ven en el ingreso y en la barra de arriba, o sea antes y después de
+     * entrar**, así que un archivo roto acá rompe la pantalla desde la que se
+     * arregla. Por eso las tres defensas: se comprueba que sea una imagen de
+     * verdad (`getimagesize`, no la extensión que diga el nombre), se limita el
+     * tamaño, y **el archivo se escribe antes de tocar la base** — si falla la
+     * escritura, la configuración queda como estaba.
+     *
+     * SVG no entra a propósito: se sirve como marcado y puede traer scripts
+     * adentro, y este archivo se dibuja en **todas** las pantallas.
+     */
+    public function identidadGuardar(Request $request): RedirectResponse
+    {
+        $volver = redirect()->route('seguridad.contacto');
+        $nombre = trim((string) $request->input('nombre_salon', ''));
+
+        if (mb_strlen($nombre) < 2 || mb_strlen($nombre) > 60) {
+            flash('El nombre del salón tiene que tener entre 2 y 60 caracteres.', 'error');
+
+            return $volver;
+        }
+
+        $archivo = $request->file('logo');
+        $guardar = null;
+
+        if ($archivo !== null) {
+            if (! $archivo->isValid()) {
+                flash('El logo no llegó completo. Probá de nuevo.', 'error');
+
+                return $volver;
+            }
+            if ($archivo->getSize() > 512 * 1024) {
+                flash('El logo no puede pesar más de 512 KB. Achicalo y volvé a subirlo.', 'error');
+
+                return $volver;
+            }
+            // La extensión la elige quien sube el archivo; esto mira el contenido.
+            $info = @getimagesize($archivo->getRealPath());
+            $tipos = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_WEBP => 'webp'];
+            if (! $info || ! isset($tipos[$info[2]])) {
+                flash('El logo tiene que ser una imagen PNG, JPG o WEBP.', 'error');
+
+                return $volver;
+            }
+            // El nombre lleva la fecha para que el navegador no se quede con el
+            // logo viejo en caché, y para no pisar el anterior mientras se mira.
+            $guardar = 'logo-' . date('YmdHis') . '.' . $tipos[$info[2]];
+            try {
+                $archivo->move(public_path('assets/logo'), $guardar);
+            } catch (Throwable $e) {
+                Log::error('No se pudo guardar el logo: ' . $e->getMessage());
+                flash('No se pudo guardar el logo. El detalle quedó registrado.', 'error');
+
+                return $volver;
+            }
+        }
+
+        try {
+            $guardar === null
+                ? DB::update('UPDATE configuracion SET nombre_salon = ? WHERE id_configuracion = 1', [$nombre])
+                : DB::update('UPDATE configuracion SET nombre_salon = ?, logo = ? WHERE id_configuracion = 1',
+                    [$nombre, $guardar]);
+        } catch (Throwable $e) {
+            Log::error('No se pudo guardar la identidad del salón: ' . $e->getMessage());
+            flash('No se pudo guardar. El detalle quedó registrado.', 'error');
+
+            return $volver;
+        }
+
+        Config::olvidar();
+        Auditoria::registrar('MODIFICACION', 'Configuracion', 'configuracion', 1,
+            'Identidad del salón: «' . $nombre . '»' . ($guardar ? ' + logo nuevo' : ''));
+
+        flash('Listo. El nombre' . ($guardar ? ' y el logo' : '') . ' se ven en todas las pantallas, '
+            . 'para todo el equipo y para las clientas.');
+
+        return $volver;
+    }
+
+    /** Saca el logo y vuelve a la tijera de siempre. */
+    public function identidadLogoQuitar(): RedirectResponse
+    {
+        DB::update('UPDATE configuracion SET logo = NULL WHERE id_configuracion = 1');
+        Config::olvidar();
+        Auditoria::registrar('MODIFICACION', 'Configuracion', 'configuracion', 1, 'Se quitó el logo del salón');
+        flash('Logo quitado. Vuelve el ícono por defecto.');
+
+        return redirect()->route('seguridad.contacto');
     }
 
     public function contactoGuardar(Request $request): RedirectResponse

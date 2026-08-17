@@ -50,7 +50,7 @@
             <tr><td>Citas del período</td><td class="text-end">{{ (int) $citas->total }}</td></tr>
             <tr><td>Atendidas</td><td class="text-end">{{ (int) $citas->atendidas }}</td></tr>
             <tr><td>Canceladas</td><td class="text-end">{{ (int) $citas->canceladas }}</td></tr>
-            <tr><td>Ausencias</td><td class="text-end">{{ (int) $citas->ausencias }}</td></tr>
+            <tr><td>No vino la clienta</td><td class="text-end">{{ (int) $citas->ausencias }}</td></tr>
             <tr><td><strong>Ingresos cobrados</strong></td>
                 <td class="text-end"><strong>{{ money($ingresos) }}</strong></td></tr>
             @if ($devoluciones > 0)
@@ -110,8 +110,8 @@
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">El equipo</h2>
     <table class="table table-sm">
         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
-            <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
-            <th class="text-end">Servicios</th>
+            <th class="text-end">No vino</th><th class="text-end">Canceladas</th>
+            <th class="text-end">Faltó</th><th class="text-end">Servicios</th>
             <th class="text-end">Generado</th><th class="text-end">Comisión</th>
             <th class="text-end">Puntaje</th></tr></thead>
         <tbody>
@@ -120,15 +120,16 @@
                     <td>{{ $e->profesional }}</td>
                     <td class="text-end">{{ (int) $e->citas }}</td>
                     <td class="text-end">{{ (int) $e->atendidas }}</td>
-                    <td class="text-end">{{ (int) $e->ausencias }}</td>
+                    <td class="text-end">{{ (int) $e->clienta_no_vino }}</td>
                     <td class="text-end">{{ (int) $e->canceladas }}</td>
+                    <td class="text-end">{{ (int) $e->falto }}</td>
                     <td class="text-end">{{ (int) $e->servicios }}</td>
                     <td class="text-end">{{ money($e->generado) }}</td>
                     <td class="text-end">{{ $e->tiene_comision ? money($e->comision) : "sin cargar" }}</td>
                     <td class="text-end">{{ $e->puntaje ? cant($e->puntaje) : '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="9">Sin actividad en el período.</td></tr>
+                <tr><td colspan="10">Sin actividad en el período.</td></tr>
             @endforelse
         </tbody>
     </table>

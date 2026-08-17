@@ -358,4 +358,36 @@ class AccesoTest extends TestCase
         $this->get(route('panel'))->assertOk()
              ->assertDontSee('spg-nav-menu', false);
     }
+
+    /**
+     * El desplegable muestra las SECCIONES del módulo, no sus pantallas de
+     * acción.
+     *
+     * Llegó a listar «Cargar stock» y «Nueva compra» al lado de «Stock» y
+     * «Compras», que son las secciones de las que cuelgan: el menú mezclaba dos
+     * niveles y quedaba más largo que la propia tarjeta del módulo. La regla es
+     * que **el desplegable diga lo mismo que la tarjeta**, porque las dos
+     * contestan «¿qué hay adentro de este módulo?» y dos respuestas distintas a
+     * la misma pregunta es peor que una sola.
+     *
+     * Se marcan con el cuarto valor del catálogo en `false`. La prueba compara
+     * contra la pantalla del módulo dibujada de verdad, que es la única fuente
+     * que no se puede desfasar de sí misma.
+     */
+    #[Test]
+    public function el_desplegable_dice_lo_mismo_que_la_tarjeta_del_modulo(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        foreach (Navegacion::modulos() as $m) {
+            $landing = $this->get($m['url'])->assertOk()->getContent();
+
+            foreach (Navegacion::pantallasDe((string) $m['mod']) as $p) {
+                $this->assertStringContainsString($p['t'], $landing,
+                    'El menú de ' . $m['titulo'] . ' ofrece «' . $p['t'] . '», que no es una '
+                    . 'sección del módulo: la tarjeta no la muestra. Si es una pantalla de '
+                    . 'acción, marcala con `false` en config/navegacion.php.');
+            }
+        }
+    }
 }

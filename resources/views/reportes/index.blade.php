@@ -71,7 +71,7 @@
         <div class="spg-metric"><div class="lbl">Citas del período</div><div class="val">{{ (int) $citas->total }}</div></div>
         <div class="spg-metric"><div class="lbl">Atendidas</div><div class="val">{{ (int) $citas->atendidas }}</div></div>
         <div class="spg-metric">
-            <div class="lbl">Canceladas / ausentes</div>
+            <div class="lbl">Canceladas / no vinieron</div>
             <div class="val">{{ (int) $citas->canceladas }} / {{ (int) $citas->ausencias }}</div>
         </div>
         <div class="spg-metric"><div class="lbl">Ingresos cobrados</div><div class="val oro">{{ money($ingresos) }}</div></div>
@@ -147,11 +147,18 @@
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        {{-- Ausencias y canceladas por profesional: el total del
-                             período no dice a quién le fallan más, y ahí puede
-                             estar el horario o el recordatorio. --}}
+                        {{-- **Dos ausencias distintas, y antes eran una sola
+                             columna llamada «Ausencias».** En una tabla de
+                             profesionales eso se lee como faltas del profesional,
+                             y contaba lo contrario: las citas en las que no vino
+                             LA CLIENTA. Las dos importan y dicen cosas
+                             distintas —una habla del recordatorio y del horario,
+                             la otra del equipo—, así que cada una lleva su
+                             nombre y se ve de quién es. --}}
                         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
-                            <th class="text-end">Ausencias</th><th class="text-end">Canceladas</th>
+                            <th class="text-end" title="Citas en las que la clienta no se presentó">No vino la clienta</th>
+                            <th class="text-end">Canceladas</th>
+                            <th class="text-end" title="Días que el profesional no vino a trabajar, según el fichaje">Faltó</th>
                             <th class="text-end">Servicios</th>
                             <th class="text-end">Generado</th><th class="text-end">Comisión</th>
                             <th class="text-end">Puntaje</th></tr></thead>
@@ -161,9 +168,12 @@
                                     <td>{{ $e->profesional }}</td>
                                     <td class="text-end">{{ (int) $e->citas }}</td>
                                     <td class="text-end">{{ (int) $e->atendidas }}</td>
-                                    <td class="text-end {{ (int) $e->ausencias ? 'txt-no' : '' }}">
-                                        {{ (int) $e->ausencias ?: '—' }}</td>
+                                    <td class="text-end {{ (int) $e->clienta_no_vino ? 'txt-no' : '' }}">
+                                        {{ (int) $e->clienta_no_vino ?: '—' }}</td>
                                     <td class="text-end">{{ (int) $e->canceladas ?: '—' }}</td>
+                                    <td class="text-end {{ (int) $e->falto_sin_aviso ? 'txt-no' : '' }}"
+                                        title="{{ (int) $e->falto_sin_aviso }} sin aviso, {{ (int) $e->falto - (int) $e->falto_sin_aviso }} con aviso">
+                                        {{ (int) $e->falto ?: '—' }}</td>
                                     <td class="text-end">{{ (int) $e->servicios }}</td>
                                     <td class="text-end">{{ money($e->generado) }}</td>
                                     <td class="text-end @if ($e->tiene_comision) txt-oro @else text-muted-warm @endif">
@@ -176,7 +186,7 @@
                                     <td class="text-end txt-oro">{{ $e->puntaje ? cant($e->puntaje) . ' ★' : '—' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="9" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
+                                <tr><td colspan="10" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

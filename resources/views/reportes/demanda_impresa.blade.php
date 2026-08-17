@@ -12,7 +12,7 @@
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Demanda por hora</h2>
     <table class="table table-sm">
         <thead><tr><th>Hora</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
-            <th class="text-end">Ausencias</th></tr></thead>
+            <th class="text-end">No vino</th></tr></thead>
         <tbody>
             @forelse ($demanda as $h)
                 <tr>
@@ -30,7 +30,7 @@
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Demanda por día</h2>
     <table class="table table-sm">
         <thead><tr><th>Día</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
-            <th class="text-end">Ausencias</th></tr></thead>
+            <th class="text-end">No vino</th></tr></thead>
         <tbody>
             @forelse ($demandaDia as $x)
                 <tr>
