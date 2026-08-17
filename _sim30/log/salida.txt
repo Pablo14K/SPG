@@ -416,39 +416,6 @@ d20 cierre 2026-09-20 ok
 d21 apertura 2026-09-21 ok
 d21 manana 2026-09-21 ok
 d21 mediodia 2026-09-21 ok
-d19 apertura 2026-09-19 ok
-d19 manana 2026-09-19 ok
-d19 mediodia 2026-09-19 ok
-d19 sucursales 2026-09-19 ok
-
-In Connection.php line 857:
-                                                                               
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
-  eld list' (Connection: mariadb, Host: bd, Port: 3306, Database: peluqueria_  
-  sim, SQL: UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW(), monto_f  
-  inal = monto_inicial                                                         
-                      WHERE id_estado_caja = 1)                                
-                                                                               
-
-In Connection.php line 595:
-                                                                               
-  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'monto_final' in 'fi  
-  eld list'                                                                    
-                                                                               
-
-d19 tarde 2026-09-19 ok
-d19 cierre 2026-09-19 ok
-== dia 19 listo ==
-d20 apertura 2026-09-20 ok
-d20 manana 2026-09-20 ok
-d20 mediodia 2026-09-20 ok
-d20 sucursales 2026-09-20 ok
-d20 tarde 2026-09-20 ok
-d20 cierre 2026-09-20 ok
-== dia 20 listo ==
-d21 apertura 2026-09-21 ok
-d21 manana 2026-09-21 ok
-d21 mediodia 2026-09-21 ok
 
 In Connection.php line 857:
                                                                                
@@ -474,7 +441,7 @@ In Connection.php line 857:
                                  WHERE ps.id_caja = k.id_caja AND ps.id_estad  
   o_pago = 1                                                                   
                                    AND mp3.tipo = 'EFECTIVO'), 0)              
-                 FROM caja k WHERE k.id_caja = 34)                             
+                 FROM caja k WHERE k.id_caja = 31)                             
                                                                                
 
 In Connection.php line 435:
@@ -529,7 +496,7 @@ In Connection.php line 857:
                                  WHERE ps.id_caja = k.id_caja AND ps.id_estad  
   o_pago = 1                                                                   
                                    AND mp3.tipo = 'EFECTIVO'), 0)              
-                 FROM caja k WHERE k.id_caja = 37)                             
+                 FROM caja k WHERE k.id_caja = 34)                             
                                                                                
 
 In Connection.php line 435:
@@ -603,7 +570,7 @@ In Connection.php line 857:
                                  WHERE ps.id_caja = k.id_caja AND ps.id_estad  
   o_pago = 1                                                                   
                                    AND mp3.tipo = 'EFECTIVO'), 0)              
-                 FROM caja k WHERE k.id_caja = 44)                             
+                 FROM caja k WHERE k.id_caja = 41)                             
                                                                                
 
 In Connection.php line 435:
@@ -674,7 +641,7 @@ In Connection.php line 857:
                                  WHERE ps.id_caja = k.id_caja AND ps.id_estad  
   o_pago = 1                                                                   
                                    AND mp3.tipo = 'EFECTIVO'), 0)              
-                 FROM caja k WHERE k.id_caja = 47)                             
+                 FROM caja k WHERE k.id_caja = 44)                             
                                                                                
 
 In Connection.php line 435:
@@ -686,4 +653,4 @@ In Connection.php line 435:
 d30 tarde 2026-09-30 ok
 d30 cierre 2026-09-30 ok
 == dia 30 listo ==
-SIMULACION TERMINADA 19..30
+SIMULACION TERMINADA 1..30

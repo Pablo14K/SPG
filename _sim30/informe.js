@@ -291,7 +291,7 @@ H.push(new Paragraph({
 }));
 H.push(tabla(['Dato', 'Valor'], [
   ['Sistema analizado', { t: 'SPG — Laravel 13 + MariaDB 10.4', align: AlignmentType.LEFT }],
-  ['Versión', { t: '7.36.1 — 17/08/2026', align: AlignmentType.LEFT }],
+  ['Versión', { t: '7.36.4 — 17/08/2026 (corrida de verificación)', align: AlignmentType.LEFT }],
   ['Período simulado', { t: fechaEs(primerDia) + ' al ' + fechaEs(ultimoDia), align: AlignmentType.LEFT }],
   ['Duración', { t: '30 días consecutivos (1 mes), en alta densidad operativa', align: AlignmentType.LEFT }],
   ['Fecha de ejecución', { t: new Date().toLocaleDateString('es-PY'), align: AlignmentType.LEFT }],
@@ -314,7 +314,7 @@ H.push(salto());
 // =======================================================================
 H.push(h1('1. Resumen ejecutivo'));
 H.push(ricos([
-  'Se sometió al SPG ', ['versión 7.36.1', true], ' a una simulación de ',
+  'Se sometió al SPG ', ['versión 7.36.4', true], ' a una simulación de ',
   ['30 días consecutivos de operación intensiva', true], ' de una peluquería de Luque, del ',
   fechaEs(primerDia), ' al ', fechaEs(ultimoDia), '. La simulación arrancó desde una ',
   ['instalación limpia', true], ' —la misma base que recibe el salón el primer día, sin una sola cita ni factura— y toda la operación se generó ',
@@ -1192,7 +1192,7 @@ H.push(p('Los guiones quedan versionados en _sim60/. Desde la raíz del proyecto
 // =======================================================================
 const doc = new Document({
   creator: 'Equipo de QA — Simulación operativa SPG',
-  title: 'Informe de Simulación Operativa y QA — SPG 7.36.1',
+  title: 'Informe de Simulación Operativa y QA — SPG 7.36.4',
   description: 'Simulación intensiva de 30 días con usuarios en paralelo',
   numbering: {
     config: [{
@@ -1218,7 +1218,7 @@ const doc = new Document({
           alignment: AlignmentType.CENTER,
           border: { top: { style: BorderStyle.SINGLE, size: 4, color: BORDE, space: 8 } },
           children: [
-            new TextRun({ text: 'SPG 7.36.1 · Informe de Simulación Operativa y QA · ', size: 15, color: GRIS, font: 'Calibri' }),
+            new TextRun({ text: 'SPG 7.36.4 · Informe de Simulación Operativa y QA · ', size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ children: [PageNumber.CURRENT], size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ text: ' / ', size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, color: GRIS, font: 'Calibri' }),
