@@ -348,9 +348,14 @@ class AccesoTest extends TestCase
             }
         }
 
-        // Y la barra se dibuja de verdad, con las pantallas adentro.
-        $this->get(route('panel'))->assertOk()
+        // Y la barra se dibuja de verdad, con las pantallas adentro. Se mira
+        // **dentro de un módulo y no en el Panel**: ahí la barra no va, porque
+        // el Panel ya muestra los módulos en tarjetas y la repetiría.
+        $this->get(route('clientes.lista'))->assertOk()
              ->assertSee('spg-nav-menu', false)
              ->assertSee('Nueva cita');
+
+        $this->get(route('panel'))->assertOk()
+             ->assertDontSee('spg-nav-menu', false);
     }
 }

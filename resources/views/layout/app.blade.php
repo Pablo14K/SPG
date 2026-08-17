@@ -130,7 +130,13 @@
     @endif
 </header>
 
-@if ($spgMenu)
+{{-- **En el Panel la barra no se dibuja, y adentro de los módulos sí.** Es
+     pedido del usuario y el motivo se ve mirando la pantalla: el Panel ya
+     muestra los módulos en tarjetas grandes, unos centímetros más abajo, así
+     que la barra repite la misma lista dos veces y sólo agrega ruido. La
+     pregunta que contesta —«¿a qué otro módulo voy?»— recién aparece cuando ya
+     estás adentro de uno, que es donde las tarjetas ya no están. --}}
+@if ($spgMenu && $spgRuta !== 'panel')
     {{-- Los módulos siempre a la vista, con el actual marcado en oro. Antes
          había que abrir un desplegable para saber dónde se estaba parado. --}}
     <nav class="spg-nav" aria-label="Módulos del sistema">
