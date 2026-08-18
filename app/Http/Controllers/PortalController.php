@@ -82,14 +82,19 @@ class PortalController extends Controller
             return response()->json(['ok' => false, 'motivo' => 'Elegí primero el o los servicios.']);
         }
 
+        // La sucursal que eligio: el turno es del local, asi que sin esto la
+        // pantalla ofreceria los horarios de la sede equivocada.
+        $suc = ((int) $request->query('sucursal', 0)) ?: null;
+
         $fecha = (string) $request->query('fecha', '');
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             return response()->json(['ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion)]);
+                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $suc)]);
         }
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
-            'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion)]);
+            'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'),
+                                          (int) config('spg.agenda.dias_vista', 60), $duracion, $suc)]);
     }
 
     public function reservar(Request $request): View

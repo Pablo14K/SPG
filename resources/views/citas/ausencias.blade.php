@@ -24,6 +24,29 @@
                         </select>
                     </div>
 
+                    {{-- **En qué local.** Antes no se preguntaba y toda ausencia
+                         valía en todas las sucursales: cargar una acá dejaba a esa
+                         persona sin agenda en las otras. Sólo se dibuja con más de
+                         un local — preguntar algo de una única respuesta hace
+                         perder un clic. --}}
+                    @if (count($sucursales) > 1)
+                        <div class="mb-3">
+                            <label class="form-label" for="id_sucursal">¿En qué sucursal?</label>
+                            <select class="form-select" id="id_sucursal" name="id_sucursal">
+                                <option value="0">En todas</option>
+                                @foreach ($sucursales as $s)
+                                    <option value="{{ $s->id_sucursal }}"
+                                        @selected((int) old('id_sucursal') === (int) $s->id_sucursal)>{{ $s->nombre }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">
+                                Un feriado del salón va en todas. La licencia de una persona
+                                que trabaja en varios locales, también — si no, sigue
+                                apareciendo disponible en los otros.
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="mb-3">
                         <label class="form-label" for="id_tipo_ausencia">Tipo *</label>
                         <select class="form-select" id="id_tipo_ausencia" name="id_tipo_ausencia" required>
@@ -66,12 +89,13 @@
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Quién</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Motivo</th></tr>
+                            <tr><th>Quién</th><th>Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Motivo</th></tr>
                         </thead>
                         <tbody>
                             @forelse ($rows as $a)
                                 <tr>
                                     <td>{{ $a->quien }}</td>
+                                    <td class="text-muted-warm">{{ $a->donde }}</td>
                                     <td><span class="badge-estado e-prog">{{ $a->tipo }}</span></td>
                                     <td>{{ fecha($a->fecha_inicio) }}</td>
                                     <td>{{ fecha($a->fecha_fin) }}</td>
@@ -79,7 +103,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <div class="spg-vacio">
                                             <i class="bi bi-calendar-x"></i>
                                             <div class="t">No hay excepciones cargadas.</div>

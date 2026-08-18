@@ -31,7 +31,8 @@ use Illuminate\Support\Facades\DB;
 class Agenda
 {
     /** ¿Alguien en el salón tiene turnos cargados? (una vez por petición) */
-    private static ?bool $salonConTurnos = null;
+    /** Caché por sucursal: la pregunta «¿usa turnos?» es del local. */
+    private static array $salonConTurnos = [];
 
     /**
      * ¿El salón usa la agenda de turnos?
@@ -41,12 +42,22 @@ class Agenda
      * Se consulta una vez por petición porque el calendario de 60 días la
      * necesita por profesional y por día.
      */
-    public static function elSalonUsaTurnos(): bool
+    public static function elSalonUsaTurnos(?int $idSucursal = null): bool
     {
-        return self::$salonConTurnos ??= (bool) DB::scalar(
+        // **La pregunta es del LOCAL, no del salón entero.** El turno vive en
+        // `turno_laboral.id_sucursal` desde que existen las sucursales: un local
+        // que todavía no cargó ninguno tiene que seguir con el criterio
+        // permisivo, aunque la casa central sí los use. Sin esto, abrir una
+        // sucursal nueva la dejaba con la agenda vacía el primer día.
+        $idSucursal ??= Sucursales::activa();
+        $clave = (int) $idSucursal;
+
+        return self::$salonConTurnos[$clave] ??= (bool) DB::scalar(
             'SELECT EXISTS (SELECT 1
                               FROM usuario_turno ut
-                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1)'
+                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                             WHERE (? = 0 OR t.id_sucursal = ?))',
+            [$clave, $clave]
         );
     }
 
@@ -65,11 +76,17 @@ class Agenda
      */
     public static function profesionales(?int $idSucursal = null): array
     {
-        $soloConTurno = self::elSalonUsaTurnos()
+        // **Con turno EN ESTE LOCAL.** Antes alcanzaba con tener uno en
+        // cualquier sede: la agenda del segundo local ofrecía a la gente de la
+        // casa central, y la clienta reservaba con alguien que ese día está a
+        // la otra punta de la ciudad.
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+        $soloConTurno = self::elSalonUsaTurnos($suc ?: null)
             ? 'AND EXISTS (SELECT 1
                              FROM usuario_turno ut
                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-                            WHERE ut.id_usuario = u.id_usuario)'
+                            WHERE ut.id_usuario = u.id_usuario
+                              AND (' . $suc . ' = 0 OR t.id_sucursal = ' . $suc . '))'
             : '';
 
         // Quién atiende en ESTE local. Sin el filtro, la clienta del portal
@@ -118,17 +135,23 @@ class Agenda
      * WEEKDAY()+1 en la base. NO es el DAYOFWEEK() de MySQL, que arranca en
      * domingo: si se mezclan, la agenda se corre un día.
      */
-    public static function datosProfesional(int $idUsuario, string $desde, string $hasta): array
+    public static function datosProfesional(int $idUsuario, string $desde, string $hasta,
+                                            ?int $idSucursal = null): array
     {
+        // **El turno que cuenta es el de ESTE local.** Un empleado no arrastra
+        // su horario de otra sucursal: si trabaja de mañana acá y de tarde
+        // allá, acá se lo ofrece de mañana y nada más.
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+
         $turnos = [];
         foreach (DB::select(
             'SELECT td.dia_semana AS dia, t.hora_inicio, t.hora_fin
                FROM usuario_turno ut
                JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
                JOIN turno_dia td    ON td.id_turno = t.id_turno
-              WHERE ut.id_usuario = ?
+              WHERE ut.id_usuario = ? AND (? = 0 OR t.id_sucursal = ?)
               ORDER BY td.dia_semana, t.hora_inicio',
-            [$idUsuario]
+            [$idUsuario, $suc, $suc]
         ) as $t) {
             $turnos[(int) $t->dia][] = [$t->hora_inicio, $t->hora_fin];
         }
@@ -146,7 +169,7 @@ class Agenda
         //
         // Tiene que decir lo mismo que fn_verificar_disponibilidad: la base es
         // la autoridad al guardar, y esto sólo dibuja la pantalla.
-        $usaTurnos = $turnos !== [] || self::elSalonUsaTurnos();
+        $usaTurnos = $turnos !== [] || self::elSalonUsaTurnos($suc ?: null);
 
         // Citas que le ocupan la agenda: las suyas y aquellas en las que solo
         // hace algunos servicios. Se mide con SU bloque (fn_cita_duracion_de),
@@ -179,11 +202,14 @@ class Agenda
             $ocupado[] = [$ini, $ini + $dur * 60];
         }
 
+        // La ausencia sin sucursal vale en todas —así se carga el feriado del
+        // salón—; la que dice una, sólo ahí. Quien la registra lo indica.
         foreach (DB::select(
             'SELECT fecha_inicio, fecha_fin FROM ausencia_agenda
               WHERE activo=1 AND (id_usuario=? OR id_usuario IS NULL)
+                AND (? = 0 OR id_sucursal IS NULL OR id_sucursal = ?)
                 AND fecha_fin >= ? AND fecha_inicio < DATE_ADD(?, INTERVAL 1 DAY)',
-            [$idUsuario, $desde . ' 00:00:00', $hasta]
+            [$idUsuario, $suc, $suc, $desde . ' 00:00:00', $hasta]
         ) as $a) {
             $ocupado[] = [strtotime((string) $a->fecha_inicio), strtotime((string) $a->fecha_fin)];
         }
@@ -195,12 +221,13 @@ class Agenda
      * Huecos libres de un profesional en un día, para una duración dada.
      * Devuelve ['09:00', '09:15', …]: las horas en que la cita ENTERA entra.
      */
-    public static function slotsProfesional(int $idUsuario, string $fecha, int $duracion, ?array $datos = null): array
+    public static function slotsProfesional(int $idUsuario, string $fecha, int $duracion, ?array $datos = null,
+                                            ?int $idSucursal = null): array
     {
         if ($duracion <= 0) {
             return [];
         }
-        $datos ??= self::datosProfesional($idUsuario, $fecha, $fecha);
+        $datos ??= self::datosProfesional($idUsuario, $fecha, $fecha, $idSucursal);
 
         $turnos = $datos['turnos'][(int) date('N', strtotime($fecha))] ?? [];
         if (! $turnos) {
@@ -245,13 +272,17 @@ class Agenda
      * cliente que no tiene profesional de preferencia ve todos los horarios y
      * el sistema le asigna a quien esté libre.
      */
-    public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null): array
+    public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null,
+                                ?int $idSucursal = null): array
     {
-        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales();
+        // La sucursal viaja por toda la cadena: sin ella, cada eslabón caería
+        // en `Sucursales::activa()`, que para la clienta del portal no es la
+        // que eligió sino la de su sesión.
+        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales($idSucursal);
         $porHora = [];
         foreach ($profs as $p) {
             $idp = (int) $p->id_usuario;
-            foreach (self::slotsProfesional($idp, $fecha, $duracion, $cache[$idp] ?? null) as $h) {
+            foreach (self::slotsProfesional($idp, $fecha, $duracion, $cache[$idp] ?? null, $idSucursal) as $h) {
                 $porHora[$h][] = $idp;
             }
         }
@@ -269,7 +300,8 @@ class Agenda
      * Días con al menos un hueco. Es lo que pinta el calendario: los días sin
      * cupo ni se ofrecen.
      */
-    public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion): array
+    public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion,
+                                       ?int $idSucursal = null): array
     {
         if ($duracion <= 0) {
             return [];
@@ -280,16 +312,16 @@ class Agenda
 
         // Toda la agenda del rango de una sola vez: tres consultas por
         // profesional en lugar de una por cada hueco candidato.
-        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales();
+        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales($idSucursal);
         $cache = [];
         foreach ($profs as $p) {
-            $cache[(int) $p->id_usuario] = self::datosProfesional((int) $p->id_usuario, $desde, $hasta);
+            $cache[(int) $p->id_usuario] = self::datosProfesional((int) $p->id_usuario, $desde, $hasta, $idSucursal);
         }
 
         $out = [];
         for ($i = 0; $i < $dias; $i++) {
             $fecha = date('Y-m-d', strtotime("+$i day", $d));
-            if (self::slots($idUsuario, $fecha, $duracion, $cache)) {
+            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal)) {
                 $out[] = $fecha;
             }
         }
@@ -302,11 +334,15 @@ class Agenda
      * entre que se dibujó la pantalla y se apretó el botón pudo tomarlo otro.
      * Acá SÍ decide la base.
      */
-    public static function huecoLibre(int $idUsuario, string $fechaHora, int $duracion, ?int $excluirCita = null): bool
+    public static function huecoLibre(int $idUsuario, string $fechaHora, int $duracion, ?int $excluirCita = null,
+                                      ?int $idSucursal = null): bool
     {
+        // El turno es del local, así que la pregunta lleva la sucursal: sin
+        // ella la función no filtra y contesta por el salón entero, que es
+        // justo lo que dejaba agendar con gente de otra sede.
         return (bool) (int) Bd::funcion(
-            'fn_verificar_disponibilidad(?,?,?,?)',
-            [$idUsuario, $fechaHora, $duracion, $excluirCita]
+            'fn_verificar_disponibilidad(?,?,?,?,?)',
+            [$idUsuario, $fechaHora, $duracion, $excluirCita, $idSucursal ?? Sucursales::activa() ?: null]
         );
     }
 

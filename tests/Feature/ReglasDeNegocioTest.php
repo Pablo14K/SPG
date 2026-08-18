@@ -150,7 +150,8 @@ class ReglasDeNegocioTest extends TestCase
               WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
                 AND fn_cita_duracion(c.id_cita) > 0
                 AND fn_verificar_disponibilidad(c.id_usuario, c.fecha_hora,
-                                                fn_cita_duracion(c.id_cita), c.id_cita) = 1
+                                                fn_cita_duracion(c.id_cita), c.id_cita,
+                                                c.id_sucursal) = 1
               ORDER BY c.fecha_hora LIMIT 1'
         );
         if (! $cita) {
@@ -2703,5 +2704,89 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT COUNT(*) FROM usuario_sucursal WHERE id_usuario = ? AND id_sucursal = ?',
             [(int) $guardada->id_usuario, $suc]
         ), 'Y queda asignada de verdad, que es lo que el sistema lee para dejarla entrar.');
+    }
+
+    /**
+     * Un empleado no arrastra su horario de otra sucursal.
+     *
+     * El turno vive en `turno_laboral.id_sucursal` desde que existen las
+     * sucursales, y `fn_verificar_disponibilidad` **nunca lo miró**: preguntaba
+     * «¿tiene algún turno que cubra esta hora?» sin decir dónde. Una persona con
+     * turno sólo en la casa central quedaba disponible para agendar en el
+     * segundo local, y la clienta reservaba con alguien que ese día está a la
+     * otra punta de la ciudad.
+     *
+     * **La pregunta "¿el salón usa turnos?" también pasa a ser del local**, que
+     * es la parte fácil de romper: si fuera del salón entero, una sucursal recién
+     * abierta —sin ningún turno cargado— quedaría sin agenda el primer día
+     * porque la casa central sí los usa.
+     */
+    #[Test]
+    public function el_turno_de_una_sucursal_no_habilita_la_agenda_de_otra(): void
+    {
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+               JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        if (! $prof) {
+            $this->markTestSkipped('No hay ningún profesional con turno cargado.');
+        }
+
+        // Dónde tiene turno hoy, y una hora que ese turno cubra de verdad.
+        $t = DB::selectOne(
+            'SELECT t.id_sucursal, t.hora_inicio, td.dia_semana
+               FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td    ON td.id_turno = t.id_turno
+              WHERE ut.id_usuario = ? ORDER BY td.dia_semana, t.hora_inicio LIMIT 1', [$prof]
+        );
+        $suya = (int) $t->id_sucursal;
+
+        // Un día futuro que caiga en ese día de la semana, y libre de citas.
+        $cuando = null;
+        for ($d = 3; $d <= 30 && ! $cuando; $d++) {
+            $f = date('Y-m-d', strtotime("+$d days"));
+            if ((int) date('N', strtotime($f)) === (int) $t->dia_semana) {
+                $cuando = $f . ' ' . $t->hora_inicio;
+            }
+        }
+
+        // Un local nuevo donde esa persona NO tiene ningún turno.
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal sin turnos ' . uniqid(), 'Calle 4']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // 1) En su local, a su hora, está disponible.
+        $this->assertTrue(Agenda::huecoLibre($prof, $cuando, 30, null, $suya),
+            'En la sucursal donde tiene turno tiene que estar disponible.');
+
+        // 2) En el local nuevo NO, y ésa es la corrección: no arrastra el
+        //    horario. Como ese local todavía no tiene ningún turno cargado,
+        //    vale el criterio permisivo — así que primero se le carga uno a
+        //    otra persona, que es lo que hace que el local «use turnos».
+        $otroProf = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 AND u.id_usuario <> ?
+              ORDER BY u.id_usuario LIMIT 1', [$prof]
+        );
+        DB::insert('INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, activo)
+                    VALUES (?, ?, ?, ?, 1)', [$otra, 'Turno de prueba', '08:00:00', '12:00:00']);
+        $idTurno = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO turno_dia (id_turno, dia_semana) VALUES (?, ?)', [$idTurno, (int) $t->dia_semana]);
+        DB::insert('INSERT INTO usuario_turno (id_usuario, id_turno) VALUES (?, ?)', [$otroProf, $idTurno]);
+
+        $this->assertFalse(Agenda::huecoLibre($prof, $cuando, 30, null, $otra),
+            'Sin turno EN ESE LOCAL no puede estar disponible ahí, aunque lo tenga en otra sucursal.');
+
+        // 3) Y el otro, que sí tiene turno ahí, sí lo está: el filtro acota, no apaga.
+        $this->assertTrue(Agenda::huecoLibre($otroProf, date('Y-m-d', strtotime($cuando)) . ' 08:00:00', 30, null, $otra),
+            'Quien sí tiene turno en ese local tiene que estar disponible ahí.');
+
+        // 4) El espejo de PHP dice lo mismo: la pantalla no puede ofrecer un
+        //    horario que la base va a rechazar al guardar.
+        $php = Agenda::slotsProfesional($prof, date('Y-m-d', strtotime($cuando)), 30, null, $otra);
+        $this->assertNotContains(substr((string) $t->hora_inicio, 0, 5), $php,
+            'El espejo de PHP tiene que esconder el mismo horario que la base rechaza.');
     }
 }

@@ -683,14 +683,20 @@ class CitasController extends Controller
         return view('citas.ausencias', [
             'rows' => DB::select(
                 "SELECT a.*, ta.nombre AS tipo,
-                        COALESCE(CONCAT(pe_u.nombre,' ',pe_u.apellido),'Todo el salón') AS quien
+                        COALESCE(CONCAT(pe_u.nombre,' ',pe_u.apellido),'Todo el salón') AS quien,
+                        COALESCE(su.nombre,'Todas las sucursales') AS donde
                    FROM ausencia_agenda a
                    JOIN tipo_ausencia ta ON ta.id_tipo_ausencia = a.id_tipo_ausencia
                    LEFT JOIN usuario u   ON u.id_usuario = a.id_usuario
                    LEFT JOIN persona pe_u ON pe_u.id_persona = u.id_persona
-                  WHERE a.activo = 1 ORDER BY a.fecha_inicio DESC LIMIT 100"
+                   LEFT JOIN sucursal su  ON su.id_sucursal = a.id_sucursal
+                  WHERE a.activo = 1
+                    AND (:s = 0 OR a.id_sucursal IS NULL OR a.id_sucursal = :s2)
+                  ORDER BY a.fecha_inicio DESC LIMIT 100",
+                ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
             'profs' => Agenda::profesionales(),
+            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             'tipos' => DB::select('SELECT * FROM tipo_ausencia ORDER BY nombre'),
         ]);
     }
@@ -699,6 +705,10 @@ class CitasController extends Controller
     {
         $d = [
             'id_usuario' => ((int) $request->input('id_usuario', 0)) ?: null,
+            // **Quien la registra indica el local.** Vacio = en todas, que es
+            // como se sigue cargando un feriado del salon; una sucursal, solo
+            // ahi. Antes no se preguntaba y toda ausencia valia en todas.
+            'id_sucursal' => ((int) $request->input('id_sucursal', 0)) ?: null,
             'id_tipo_ausencia' => (int) $request->input('id_tipo_ausencia', 0),
             'fecha_inicio' => str_replace('T', ' ', trim((string) $request->input('fecha_inicio', ''))),
             'fecha_fin' => str_replace('T', ' ', trim((string) $request->input('fecha_fin', ''))),
@@ -713,6 +723,9 @@ class CitasController extends Controller
             $error = 'Elegí un tipo de excepción válido.';
         } elseif ($d['id_usuario'] && ! $this->esPersonalActivo((int) $d['id_usuario'])) {
             $error = 'Ese profesional no está activo.';
+        } elseif ($d['id_sucursal'] && ! DB::scalar(
+            'SELECT COUNT(*) FROM sucursal WHERE id_sucursal = ? AND activo = 1', [$d['id_sucursal']])) {
+            $error = 'Esa sucursal no está disponible.';
         } elseif (! strtotime($d['fecha_inicio']) || ! strtotime($d['fecha_fin'])) {
             $error = 'Las fechas no son válidas.';
         } elseif (strtotime($d['fecha_fin']) <= strtotime($d['fecha_inicio'])) {
@@ -729,15 +742,17 @@ class CitasController extends Controller
             'SELECT COUNT(*) FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE ec.bloquea_agenda = 1
                 AND (:u1 IS NULL OR c.id_usuario = :u2)
+                AND (:s1 IS NULL OR c.id_sucursal = :s2)
                 AND c.fecha_hora < :fin AND c.fecha_hora >= :ini',
             ['u1' => $d['id_usuario'], 'u2' => $d['id_usuario'],
+             's1' => $d['id_sucursal'], 's2' => $d['id_sucursal'],
              'ini' => $d['fecha_inicio'], 'fin' => $d['fecha_fin']]
         );
 
         try {
             DB::insert(
-                'INSERT INTO ausencia_agenda (id_usuario,id_tipo_ausencia,fecha_inicio,fecha_fin,motivo)
-                 VALUES (:id_usuario,:id_tipo_ausencia,:fecha_inicio,:fecha_fin,:motivo)', $d
+                'INSERT INTO ausencia_agenda (id_usuario,id_sucursal,id_tipo_ausencia,fecha_inicio,fecha_fin,motivo)
+                 VALUES (:id_usuario,:id_sucursal,:id_tipo_ausencia,:fecha_inicio,:fecha_fin,:motivo)', $d
             );
             Auditoria::registrar('ALTA', 'Citas', 'ausencia_agenda', (int) DB::getPdo()->lastInsertId(),
                 'Excepción ' . $d['fecha_inicio'] . ' a ' . $d['fecha_fin']);

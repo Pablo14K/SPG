@@ -306,6 +306,10 @@ window.SPGCarga = (function () {
     var p = new URLSearchParams();
     elegidos().forEach(function (s) { p.append('servicios[]', s); });
     p.append('id_usuario', profesional());
+    // La sucursal elegida viaja con la consulta: el turno es del local, asi
+    // que sin ella el servidor contestaria con los horarios de otra sede.
+    var suc = document.querySelector('[name="id_sucursal"]');
+    if (suc && suc.value) { p.append('sucursal', suc.value); }
     for (var k in (extra || {})) { p.append(k, extra[k]); }
 
     return p;

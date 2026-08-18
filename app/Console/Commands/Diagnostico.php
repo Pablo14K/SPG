@@ -141,7 +141,7 @@ class Diagnostico extends Command
         foreach ([
             'fn_producto_stock(1,1)' => 'stock de un producto',
             'fn_cliente_nivel(1)' => 'nivel de fidelización',
-            'fn_verificar_disponibilidad(1, NOW(), 30, NULL)' => 'disponibilidad de la agenda',
+            'fn_verificar_disponibilidad(1, NOW(), 30, NULL, NULL)' => 'disponibilidad de la agenda',
         ] as $llamada => $para) {
             try {
                 DB::scalar('SELECT ' . $llamada);

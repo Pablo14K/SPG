@@ -79,7 +79,7 @@ class Bd
      * Llama a una función de la base: fn_producto_stock(?), fn_factura_total(?)…
      *
      * Se le pasa la expresión completa para poder escribir cosas como
-     * `fn_verificar_disponibilidad(?, ?, ?, NULL)` sin inventar una firma.
+     * `fn_verificar_disponibilidad(?, ?, ?, NULL, ?)` sin inventar una firma.
      */
     public static function funcion(string $expresion, array $parametros = []): mixed
     {

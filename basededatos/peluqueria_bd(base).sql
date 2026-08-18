@@ -1,8 +1,8 @@
--- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
+-- MariaDB dump 10.19  Distrib 10.4.34-MariaDB, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: peluqueria_bd
 -- ------------------------------------------------------
--- Server version	10.4.32-MariaDB
+-- Server version	10.4.34-MariaDB-1:10.4.34+maria~ubu2004
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -75,7 +75,7 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -84,6 +84,7 @@ CREATE TABLE `auditoria` (
 
 LOCK TABLES `auditoria` WRITE;
 /*!40000 ALTER TABLE `auditoria` DISABLE KEYS */;
+INSERT INTO `auditoria` VALUES (1,1,'LOGIN','Seguridad','usuario',1,'2026-08-18 08:03:03','Inicio de sesión');
 /*!40000 ALTER TABLE `auditoria` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -97,6 +98,7 @@ DROP TABLE IF EXISTS `ausencia_agenda`;
 CREATE TABLE `ausencia_agenda` (
   `id_ausencia` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned DEFAULT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `id_tipo_ausencia` int(10) unsigned NOT NULL,
   `fecha_inicio` datetime NOT NULL,
   `fecha_fin` datetime NOT NULL,
@@ -105,6 +107,8 @@ CREATE TABLE `ausencia_agenda` (
   PRIMARY KEY (`id_ausencia`),
   KEY `idx_ausencia_usuario` (`id_usuario`,`fecha_inicio`),
   KEY `idx_ausencia_tipo` (`id_tipo_ausencia`),
+  KEY `fk_ausencia_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_ausencia_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
@@ -2085,7 +2089,7 @@ CREATE TABLE `preferencia_usuario` (
 
 LOCK TABLES `preferencia_usuario` WRITE;
 /*!40000 ALTER TABLE `preferencia_usuario` DISABLE KEYS */;
-INSERT INTO `preferencia_usuario` VALUES (1,'claro',0,1);
+INSERT INTO `preferencia_usuario` VALUES (1,'oscuro',0,1);
 /*!40000 ALTER TABLE `preferencia_usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2863,7 +2867,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,NULL,NULL),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',15,NULL,NULL),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'611edccee79d2720068ed929476c450b','2026-08-18 08:03:03'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',15,NULL,NULL),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -4266,7 +4270,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_verificar_disponibilidad` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4278,7 +4282,8 @@ DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario      INT UNSIGNED,
   p_fecha_hora      DATETIME,
   p_duracion_min    INT,
-  p_id_cita_excluir INT UNSIGNED
+  p_id_cita_excluir INT UNSIGNED,
+  p_id_sucursal     INT UNSIGNED
 ) RETURNS tinyint(1)
     READS SQL DATA
 BEGIN
@@ -4293,9 +4298,13 @@ BEGIN
   SET v_fin = p_fecha_hora + INTERVAL v_dur MINUTE;
 
   
+  
+  
   IF EXISTS (SELECT 1 FROM ausencia_agenda a
               WHERE a.activo = 1
                 AND (a.id_usuario = p_id_usuario OR a.id_usuario IS NULL)
+                AND (p_id_sucursal IS NULL OR a.id_sucursal IS NULL
+                     OR a.id_sucursal = p_id_sucursal)
                 AND a.fecha_inicio < v_fin
                 AND p_fecha_hora < a.fecha_fin) THEN
     RETURN 0;
@@ -4303,15 +4312,19 @@ BEGIN
 
   
   
+  
+  
   SELECT COUNT(*) INTO v_turnos
     FROM usuario_turno ut
     JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-   WHERE ut.id_usuario = p_id_usuario;
+   WHERE ut.id_usuario = p_id_usuario
+     AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
 
   IF v_turnos = 0 THEN
     SELECT COUNT(*) INTO v_salon
       FROM usuario_turno ut
-      JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
+      JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+     WHERE (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
     IF v_salon > 0 THEN RETURN 0; END IF;
   ELSE
     SELECT COUNT(*) INTO v_cubre
@@ -4319,6 +4332,7 @@ BEGIN
       JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
       JOIN turno_dia td    ON td.id_turno = t.id_turno
      WHERE ut.id_usuario = p_id_usuario
+       AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal)
        AND td.dia_semana = WEEKDAY(p_fecha_hora) + 1
        AND TIME(p_fecha_hora) >= t.hora_inicio
        AND TIME(v_fin) <= t.hora_fin
@@ -4326,11 +4340,6 @@ BEGIN
     IF v_cubre = 0 THEN RETURN 0; END IF;
   END IF;
 
-  
-  
-  
-  
-  
   
   
   
@@ -4381,14 +4390,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_agendar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_agendar_cita`(
     IN  p_id_cliente    INT UNSIGNED,
@@ -4406,15 +4415,22 @@ BEGIN
   SELECT id_usuario INTO v_lock FROM usuario
    WHERE id_usuario = p_id_usuario FOR UPDATE;
 
-  IF fn_verificar_disponibilidad(p_id_usuario, p_fecha_hora, p_duracion_min, NULL) = 0 THEN
+  IF NOT EXISTS (SELECT 1 FROM sucursal WHERE id_sucursal = p_id_sucursal AND activo = 1) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa sucursal no existe o esta dada de baja.';
+  END IF;
+
+  
+  
+  
+  
+  
+  
+  IF fn_verificar_disponibilidad(p_id_usuario, p_fecha_hora, p_duracion_min, NULL, p_id_sucursal) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en ese horario.';
   END IF;
 
   
   
-  IF NOT EXISTS (SELECT 1 FROM sucursal WHERE id_sucursal = p_id_sucursal AND activo = 1) THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa sucursal no existe o esta dada de baja.';
-  END IF;
 
   INSERT INTO cita (id_cliente, id_usuario, id_sucursal, id_estado_cita, fecha_hora, observaciones)
   VALUES (p_id_cliente, p_id_usuario, p_id_sucursal, 1, p_fecha_hora, p_observaciones);
@@ -5235,7 +5251,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_reprogramar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5275,7 +5291,10 @@ BEGIN
   SELECT id_usuario INTO v_lock FROM usuario
    WHERE id_usuario = v_usuario FOR UPDATE;
 
-  IF fn_verificar_disponibilidad(v_usuario, p_nueva_fecha, fn_cita_duracion(p_id_cita), p_id_cita) = 0 THEN
+  
+  
+  IF fn_verificar_disponibilidad(v_usuario, p_nueva_fecha, fn_cita_duracion(p_id_cita), p_id_cita,
+                                 (SELECT id_sucursal FROM cita WHERE id_cita = p_id_cita)) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en el nuevo horario.';
   END IF;
 
@@ -5626,4 +5645,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-17 20:24:21
+-- Dump completed on 2026-08-18  7:51:05
