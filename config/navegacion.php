@@ -139,12 +139,22 @@ return [
     // -----------------------------------------------------------------
     //  Secciones del portal, para el pie cuando quien mira es una clienta
     // -----------------------------------------------------------------
+    // Las secciones de la clienta. Alimentan **la barra de arriba y el pie**:
+    // hasta la 7.37.1 sólo el pie, así que para pasar de «Reservar» a «Mis
+    // citas» había que bajar hasta el final de la página. El personal tenía
+    // tres niveles de navegación y la clienta ninguno, justo en la parte del
+    // sistema que usa gente sin entrenamiento.
+    //
+    // «Mi cuenta» y «Mis recordatorios» quedan sólo en el pie y en el
+    // desplegable de la cuenta —que es donde se los busca—: en la barra
+    // competirían con lo que la clienta viene a hacer, que es reservar.
     'portal' => [
-        ['ruta' => 'portal.reservar',     'titulo' => 'Reservar cita'],
-        ['ruta' => 'portal.citas',        'titulo' => 'Mis citas'],
-        ['ruta' => 'portal.promociones',  'titulo' => 'Promociones'],
-        ['ruta' => 'portal.valoraciones', 'titulo' => 'Valoraciones'],
-        ['ruta' => 'portal.preferencias', 'titulo' => 'Mis recordatorios'],
-        ['ruta' => 'cuenta.index',        'titulo' => 'Mi cuenta'],
+        ['ruta' => 'portal.index',        'titulo' => 'Inicio',         'ic' => 'house-door', 'barra' => true],
+        ['ruta' => 'portal.reservar',     'titulo' => 'Reservar cita',  'ic' => 'calendar-plus', 'barra' => true],
+        ['ruta' => 'portal.citas',        'titulo' => 'Mis citas',      'ic' => 'calendar-week', 'barra' => true],
+        ['ruta' => 'portal.promociones',  'titulo' => 'Promociones',    'ic' => 'gift',          'barra' => true],
+        ['ruta' => 'portal.valoraciones', 'titulo' => 'Valoraciones',   'ic' => 'star',          'barra' => true],
+        ['ruta' => 'portal.preferencias', 'titulo' => 'Mis recordatorios', 'ic' => 'bell'],
+        ['ruta' => 'cuenta.index',        'titulo' => 'Mi cuenta',      'ic' => 'gear'],
     ],
 ];

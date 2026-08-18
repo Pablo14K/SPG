@@ -382,6 +382,21 @@ class FacturacionController extends Controller
     /** Citas atendidas que todavía no tienen factura. */
     public function emitir(Request $request): View
     {
+        $suc = Sucursales::activa();
+
+        // Los comprobantes de venta que hoy se pueden emitir. **`fn_timbrado_vigente`
+        // cae al timbrado de otra sede** cuando este local no tiene el suyo, así
+        // que esta lista NO es «los que tienen timbrado acá»: es «los que se
+        // pueden emitir», y con la caída puesta incluye los que van a salir con
+        // el número de otra sucursal. De eso avisa `timbradoDeOtroLocal()`.
+        $tipos = DB::select(
+            'SELECT tc.id_tipo_comprobante, tc.nombre
+               FROM tipo_comprobante tc
+              WHERE tc.activo = 1 AND tc.signo = 1 AND tc.requiere_origen = 0
+                AND fn_timbrado_vigente(tc.id_tipo_comprobante, CURDATE(), ?) IS NOT NULL
+              ORDER BY tc.id_tipo_comprobante', [$suc]
+        );
+
         return view('facturacion.emitir', [
             // Se llega acá desde la agenda con la cita ya elegida: la persona
             // termina de atender y cobra sin tener que buscar a la clienta en
@@ -405,16 +420,7 @@ class FacturacionController extends Controller
                   ORDER BY (c.id_cita = :sel) DESC, c.fecha_hora DESC LIMIT 100",
                 ['sel' => (int) $request->query('cita', 0)]
             ),
-            // Solo los comprobantes de venta que hoy tienen timbrado vigente
-            // **en este local**: ofrecer uno que se va a numerar con el
-            // timbrado de otra sede es prometer un comprobante que sale mal.
-            'tipos' => DB::select(
-                'SELECT tc.id_tipo_comprobante, tc.nombre
-                   FROM tipo_comprobante tc
-                  WHERE tc.activo = 1 AND tc.signo = 1 AND tc.requiere_origen = 0
-                    AND fn_timbrado_vigente(tc.id_tipo_comprobante, CURDATE(), ?) IS NOT NULL
-                  ORDER BY tc.id_tipo_comprobante', [Sucursales::activa()]
-            ),
+            'tipos' => $tipos,
             'condiciones' => DB::select(
                 'SELECT id_condicion_venta, nombre, dias_credito FROM condicion_venta WHERE activo = 1
                   ORDER BY id_condicion_venta'
@@ -428,7 +434,53 @@ class FacturacionController extends Controller
                 [(int) config('sifen.tipo_por_defecto', 3)]
             ) ?: 'Ticket'),
             'sifen' => Sifen::activo(),
+
+            // **Si este local no tiene timbrado propio, hay que decirlo.**
+            //
+            // `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local
+            // no tiene el suyo, y esa caída es deliberada: dejar de facturar
+            // sería peor. Pero arrastra dos cosas que no se ven: el
+            // establecimiento impreso —los tres dígitos con los que la SET sabe
+            // de qué local salió el comprobante— dice la sede ajena, y desde la
+            // 7.36.3 el cobro deduce su sucursal del timbrado, así que **la
+            // plata entra al cajón del otro local**.
+            //
+            // El sistema hace lo que dice que hace; lo que faltaba era que se
+            // notara. Una caída en silencio es indistinguible de un error.
+            'timbradoAjeno' => $this->timbradoDeOtroLocal($tipos, $suc),
         ]);
+    }
+
+    /**
+     * ¿Con qué local va a numerar este, si no es con el suyo?
+     *
+     * Devuelve el nombre de la sucursal cuyo timbrado se va a usar, o null si
+     * el local tiene el propio para todo lo que la pantalla ofrece — que es el
+     * caso normal y no necesita ningún cartel.
+     *
+     * **Se pregunta por cada tipo que se ofrece, no sólo por el que viene
+     * marcado.** Un local puede tener timbrado de Factura y no de Recibo, y la
+     * caída es por tipo: avisar sólo del primero dejaría al otro saliendo con
+     * el número ajeno en silencio, que es exactamente lo que se quiere evitar.
+     */
+    private function timbradoDeOtroLocal(array $tipos, ?int $suc): ?string
+    {
+        if (! $suc || ! $tipos) {
+            return null;
+        }
+
+        foreach ($tipos as $t) {
+            $duenio = (int) DB::scalar(
+                'SELECT id_sucursal FROM timbrado
+                  WHERE id_timbrado = fn_timbrado_vigente(?, CURDATE(), ?)',
+                [(int) $t->id_tipo_comprobante, $suc]
+            );
+            if ($duenio && $duenio !== $suc) {
+                return (string) DB::scalar('SELECT nombre FROM sucursal WHERE id_sucursal = ?', [$duenio]);
+            }
+        }
+
+        return null;
     }
 
     public function emitirGuardar(Request $request): RedirectResponse

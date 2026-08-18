@@ -105,6 +105,26 @@ function faseSucursalesAlta(): void
     sim_check($antes === $despues, 'SUC_TRAER_DUPLICA',
         "Traer productos de otro local cambió el catálogo de $antes a $despues filas: tendría que ser el mismo", 'ALTO');
 
+    // El TERCER local también recibe mercadería y personal: sin eso queda de
+    // adorno y no prueba nada. Se le trae la mitad del catálogo a propósito,
+    // para que convivan productos que un local maneja y otro no.
+    foreach (DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1 AND id_sucursal NOT IN (1, ?)',
+                        [$suc2]) as $sx) {
+        $s3 = (int) $sx->id_sucursal;
+        $n3 = new Nav();
+        if ($n3->entrar('admin', 'admin123', true, $s3)) {
+            foreach (DB::select('SELECT id_producto FROM producto ORDER BY id_producto LIMIT 4') as $p) {
+                $n3->post('/inventario/productos/traer', ['id_producto' => (int) $p->id_producto])->seguir();
+            }
+            $n3->post('/seguridad/usuarios/guardar', [
+                'id_rol' => 2, 'id_sucursal' => $s3, 'username' => 'carmen',
+                'nombre' => 'Carmen', 'apellido' => 'Duarte', 'cedula' => '3900888',
+                'telefono' => '0981200800', 'email' => 'carmen.duarte@peluqueria.local',
+                'password' => 'profesional123', 'sucursales' => [$s3], 'turnos' => [3],
+            ])->seguir();
+        }
+    }
+
     $traidos = (int) DB::scalar('SELECT COUNT(*) FROM producto_sucursal WHERE id_sucursal = ?', [$suc2]);
     sim_check($traidos >= 6, 'SUC_TRAER_HABILITA',
         "El local nuevo maneja $traidos producto(s); se trajeron 6", 'ALTO');
@@ -121,10 +141,16 @@ function faseSucursalesAlta(): void
     sim_log(['tipo' => 'SUC_ALTA_OK', 'sucursal' => $suc2, 'publicados' => $publicados, 'traidos' => $traidos]);
 }
 
-/** El segundo local opera: compra, agenda, atiende, cobra y cierra. */
-function faseSucursalesOpera(int $dia): void
+/**
+ * Un local secundario opera: repone, agenda, y comprueba su aislamiento.
+ *
+ * Recibe la sucursal en vez de buscar siempre la misma, para poder correrse
+ * sobre TODOS los locales secundarios: con uno solo operando, una regla escrita
+ * «el otro» funciona por casualidad y no se nota.
+ */
+function faseSucursalesOpera(int $dia, ?int $sucPedida = null): void
 {
-    $suc2 = (int) (DB::scalar("SELECT id_sucursal FROM sucursal WHERE nombre = 'Peluqueria San Lorenzo' AND activo = 1") ?: 0);
+    $suc2 = $sucPedida ?: (int) (DB::scalar("SELECT id_sucursal FROM sucursal WHERE nombre = 'Peluqueria San Lorenzo' AND activo = 1") ?: 0);
     if (! $suc2) {
         return;
     }
@@ -496,7 +522,14 @@ function faseSucursalesN(int $dia): void
  */
 function faseSucursalFactura(int $suc, int $dia): void
 {
-    $prof = (int) (DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'noelia'") ?: 0);
+    // El profesional de ESTE local, no siempre el mismo: con dos sedes
+    // operando hay que fichar y atender con quien trabaja en cada una.
+    $prof = (int) (DB::scalar(
+        'SELECT u.id_usuario FROM usuario u
+           JOIN usuario_sucursal us ON us.id_usuario = u.id_usuario AND us.id_sucursal = ?
+          WHERE u.activo = 1 AND u.id_rol = 2
+            AND EXISTS (SELECT 1 FROM usuario_turno ut WHERE ut.id_usuario = u.id_usuario)
+          ORDER BY u.id_usuario DESC LIMIT 1', [$suc]) ?: 0);
     if (! $prof) {
         return;
     }
@@ -607,12 +640,22 @@ function faseSucursalFactura(int $suc, int $dia): void
 if ($DIA <= 2) {
     faseSucursalesAlta();
 } else {
-    faseSucursalesOpera($DIA);
-    // El local nuevo cierra su circuito: atiende, factura con SU timbrado y
-    // cobra en SU cajón. Sin esto sólo se probaba que agenda.
-    $sucOpera = (int) (DB::scalar("SELECT id_sucursal FROM sucursal WHERE nombre = 'Peluqueria San Lorenzo' AND activo = 1") ?: 0);
-    if ($sucOpera) {
-        faseSucursalFactura($sucOpera, $DIA);
+    // Todos los locales secundarios operan, no sólo el segundo.
+    $principalOp = (int) (DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1') ?: 1);
+    foreach (DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1 AND id_sucursal <> ?',
+                        [$principalOp]) as $so) {
+        faseSucursalesOpera($DIA, (int) $so->id_sucursal);
+    }
+
+    // **Todos los locales secundarios cierran su circuito**, no sólo el
+    // segundo: atienden, facturan con SU timbrado y cobran en SU cajón. Con uno
+    // solo operando, el tercero quedaba de adorno — y un hueco de cobertura
+    // esconde defectos, no ausencia de defectos: el timbrado ajeno apareció
+    // recién cuando el segundo local facturó de verdad.
+    $principal = (int) (DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1') ?: 1);
+    foreach (DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1 AND id_sucursal <> ?',
+                        [$principal]) as $sx) {
+        faseSucursalFactura((int) $sx->id_sucursal, $DIA);
     }
     // El barrido sobre los N locales cada tres días: comprueba invariantes que
     // no cambian de un día para el otro, así que correrlo a diario sólo

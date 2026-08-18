@@ -199,7 +199,17 @@ class Navegacion
         $out = [];
         foreach (config('navegacion.portal', []) as $p) {
             if (($url = self::url((string) $p['ruta'])) !== null) {
-                $out[] = ['titulo' => $p['titulo'], 'url' => $url];
+                $out[] = [
+                    'titulo' => $p['titulo'],
+                    'url' => $url,
+                    'clave' => (string) $p['ruta'],
+                    'ic' => (string) ($p['ic'] ?? 'circle'),
+                    // Qué va en la barra de arriba. «Mi cuenta» y los
+                    // recordatorios se buscan en el desplegable de la cuenta,
+                    // no en la barra: ahí competirían con lo que la clienta
+                    // viene a hacer.
+                    'barra' => (bool) ($p['barra'] ?? false),
+                ];
             }
         }
 

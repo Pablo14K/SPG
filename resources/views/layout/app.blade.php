@@ -141,6 +141,28 @@
     @endif
 </header>
 
+{{-- **La barra de la clienta.** Hasta la 7.37.1 el portal no tenía ninguna: las
+     secciones vivían sólo en el pie, así que para pasar de «Reservar» a «Mis
+     citas» había que bajar hasta el final de la página. El personal tenía tres
+     niveles de navegación y la clienta ninguno — justo en la parte del sistema
+     que usa gente sin entrenamiento.
+
+     Usa la misma barra que el personal (`.spg-nav`), sin desplegable: las
+     secciones de la clienta no tienen pantallas adentro. --}}
+@if ($spgPortal)
+    <nav class="spg-nav" aria-label="Secciones">
+        <div class="spg-nav-in">
+            @foreach ($spgPortal as $spgP)
+                @if ($spgP['barra'])
+                    <a class="spg-nav-item {{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
+                       href="{{ $spgP['url'] }}">
+                        <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['titulo'] }}</span></a>
+                @endif
+            @endforeach
+        </div>
+    </nav>
+@endif
+
 {{-- **En el Panel la barra no se dibuja, y adentro de los módulos sí.** Es
      pedido del usuario y el motivo se ve mirando la pantalla: el Panel ya
      muestra los módulos en tarjetas grandes, unos centímetros más abajo, así

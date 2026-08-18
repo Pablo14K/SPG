@@ -38,6 +38,31 @@
         </div>
     @endif
 
+    {{-- **Este local va a numerar con el timbrado de otro.** No es un error: la
+         caída de `fn_timbrado_vigente` existe para que un local sin timbrado
+         propio pueda seguir facturando. Pero arrastra dos cosas que no se ven
+         en la pantalla y que quien atiende necesita saber: el establecimiento
+         impreso —los tres dígitos con los que la SET identifica el local— va a
+         decir la otra sede, y el cobro va a entrar al cajón de esa otra sede,
+         porque desde la 7.36.3 la sucursal del cobro se deduce del timbrado.
+
+         Una caída en silencio es indistinguible de un error. --}}
+    @if (! empty($timbradoAjeno))
+        <div class="alert alert-warning">
+            <strong>Esta sucursal no tiene timbrado propio.</strong>
+            Los comprobantes se van a numerar con el timbrado de
+            <strong>{{ $timbradoAjeno }}</strong>, así que van a salir impresos como si
+            hubieran sido emitidos ahí — y el cobro va a entrar al cajón de esa sucursal,
+            no al de acá.
+            @if (\App\Servicios\Permisos::puede('facturacion.timbrados'))
+                <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargale un timbrado a este local</a>
+                y cada comprobante queda donde corresponde.
+            @else
+                Pedile a quien maneja los timbrados que le cargue uno a este local.
+            @endif
+        </div>
+    @endif
+
     <div class="spg-panel">
         <div class="table-responsive">
             <table class="table align-middle mb-0">

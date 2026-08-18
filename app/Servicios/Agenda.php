@@ -541,14 +541,18 @@ class Agenda
      *     en vez de amontonarse en la primera del alfabeto. A igualdad, decide
      *     el nombre, para que el resultado sea siempre el mismo.
      */
-    public static function profesionalLibre(string $fechaHora, int $duracion): ?int
+    public static function profesionalLibre(string $fechaHora, int $duracion, ?int $idSucursal = null): ?int
     {
         $conTurno = self::losQueTienenTurno();
         $dia = substr($fechaHora, 0, 10);
         $carga = self::citasDelDia($dia);
 
+        // **El «sin preferencia» reparte entre quienes atienden EN ESE LOCAL.**
+        // Sin la sucursal elegía de todo el salón, así que a una clienta que
+        // reservaba en la segunda sede podía tocarle alguien de la casa central
+        // — y ese día nadie la esperaba donde ella fue.
         $libres = [];
-        foreach (self::profesionales() as $orden => $p) {
+        foreach (self::profesionales($idSucursal) as $orden => $p) {
             $id = (int) $p->id_usuario;
             if (self::huecoLibre($id, $fechaHora, $duracion)) {
                 $libres[] = [

@@ -2242,4 +2242,293 @@ class ReglasDeNegocioTest extends TestCase
             \App\Servicios\Notificaciones::avisarProfesionalNoDisponible(null, $desde, $hasta, 'feriado'),
             'Una excepción de todo el salón también tiene que avisar.');
     }
+
+    /**
+     * Una cita de hoy que ya terminó deja de anunciarse como próxima.
+     *
+     * El portal llegó a tener el criterio en los dos extremos: primero
+     * `fecha_hora >= NOW()`, que hacía desaparecer la cita **mientras la estaban
+     * atendiendo**, y después `OR DATE(v.fecha_hora) = CURDATE()`, que la dejaba
+     * en «Próximas» hasta la medianoche aunque hubiera terminado ocho horas
+     * antes. La clienta creía que todavía le quedaba una cita por delante.
+     *
+     * **Se comprueba en las dos direcciones**, que es lo que hace que la prueba
+     * signifique algo: la Programada que ya pasó tiene que salir de próximas, y
+     * la En proceso y la Atrasada tienen que seguir ahí — la segunda es
+     * justamente la que la clienta necesita ver para reclamar.
+     */
+    #[Test]
+    public function una_cita_de_hoy_que_ya_paso_deja_de_ser_proxima(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta de cliente en la base de prueba.');
+        }
+        $idc = (int) $u->id_cliente;
+
+        // Un servicio que esa clienta NO tenga ya reservado hoy: `trg_citaserv_bi`
+        // no deja repetir el mismo servicio el mismo día.
+        $srv = (int) DB::scalar(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
+                                  JOIN cita ci ON ci.id_cita = cs.id_cita
+                                  JOIN estado_cita ec ON ec.id_estado_cita = ci.id_estado_cita
+                                 WHERE ci.id_cliente = ? AND DATE(ci.fecha_hora) = CURDATE()
+                                   AND ec.bloquea_agenda = 1 AND cs.id_servicio = s.id_servicio)
+              ORDER BY s.id_servicio LIMIT 1', [$idc]
+        );
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        if (! $srv || ! $prof) {
+            $this->markTestSkipped('Falta catálogo para armar la cita.');
+        }
+
+        // Se inserta a mano y no con `sp_agendar_cita`: lo que se prueba es cómo
+        // el portal LEE una cita pasada, y el procedimiento —con razón— no deja
+        // agendar hacia atrás.
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::insert("INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?, ?, ?, CONCAT(CURDATE(), ' 00:15:00'), 1)", [$idc, $prof, $suc]);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)', [$idCita, $srv]);
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => $idc,
+        ]);
+        $this->conSucursal();
+
+        $proximas = fn () => array_map(
+            fn ($c) => (int) $c->id_cita,
+            $this->get(route('portal.citas'))->assertOk()->viewData('prox')
+        );
+
+        // 1) Programada, con la hora ya pasada: no es próxima, es pasada.
+        $this->assertNotContains($idCita, $proximas(),
+            'Una cita de hoy cuya hora ya terminó no puede seguir anunciándose como próxima.');
+        $this->assertContains($idCita, array_map(
+            fn ($c) => (int) $c->id_cita,
+            $this->get(route('portal.citas'))->viewData('pasadas')
+        ), 'Y tiene que aparecer entre las pasadas: no se pierde, cambia de lugar.');
+
+        // 2) En proceso: la están atendiendo ahora mismo. Tiene que seguir.
+        DB::update('UPDATE cita SET id_estado_cita = 5 WHERE id_cita = ?', [$idCita]);
+        $this->assertContains($idCita, $proximas(),
+            'La cita en curso no puede desaparecer del portal mientras está pasando.');
+
+        // 3) Atrasada: se pasó de hora y nadie la tocó. Es la que la clienta
+        //    necesita ver para reclamar, así que tampoco se va.
+        DB::update('UPDATE cita SET id_estado_cita = 7 WHERE id_cita = ?', [$idCita]);
+        $this->assertContains($idCita, $proximas(),
+            'La cita atrasada tiene que seguir a la vista: es la que hay que reclamar.');
+    }
+
+    /**
+     * La cita que la clienta reserva queda en la sucursal que ELIGIÓ.
+     *
+     * El formulario manda `id_sucursal` desde que existe el selector, y el
+     * controlador **no lo leía**: la cita se guardaba en la sucursal que
+     * `sp_agendar_cita` dedujera, o sea la de la ficha del profesional. Quien
+     * reservaba en el segundo local generaba una cita en la casa central, y el
+     * día de la cita nadie la esperaba donde ella fue.
+     *
+     * Y arrastra el resto: el comprobante se numera con el timbrado de esa otra
+     * sede (7.37.0) y el cobro entra a su cajón (7.36.3).
+     */
+    #[Test]
+    public function la_reserva_del_portal_queda_en_la_sucursal_que_eligio_la_clienta(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta de cliente en la base de prueba.');
+        }
+
+        // Un local nuevo, al que todavía no está asignado nadie.
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal de prueba ' . uniqid(), 'Calle 1']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // Alguien que atiende de verdad —con turno cargado—, hoy sólo del local 1.
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+               JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        $srv = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+        if (! $prof || ! $srv) {
+            $this->markTestSkipped('Falta catálogo para armar la reserva.');
+        }
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+        $this->conSucursal();
+
+        // La pantalla ofrece los huecos; se toma uno de ahí, que es lo que haría
+        // la clienta. Sin esto habría que adivinar un horario con turno.
+        $cuando = null;
+        for ($d = 2; $d <= 45 && ! $cuando; $d++) {
+            $dia = date('Y-m-d', strtotime("+$d days"));
+            $j = $this->getJson(route('portal.disponibilidad') . '?' . http_build_query([
+                'id_usuario' => $prof, 'servicios' => [$srv], 'fecha' => $dia,
+            ]))->json();
+            if (! empty($j['horas'])) {
+                $cuando = $dia . ' ' . $j['horas'][0]['hora'] . ':00';
+            }
+        }
+        if (! $cuando) {
+            $this->markTestSkipped('No hay ningún hueco libre para probar la reserva.');
+        }
+
+        $reservar = fn () => $this->post(route('portal.guardar_reserva'), [
+            'id_usuario' => $prof, 'id_sucursal' => $otra,
+            'servicios' => [$srv], 'fecha_hora' => $cuando,
+        ]);
+
+        // 1) Ese profesional no atiende ahí, así que la reserva se rechaza. Sin
+        //    esta mitad, la clienta reserva con alguien que ese día está en el
+        //    otro local: horario vendido y nadie para atenderla.
+        $antes = (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_sucursal = ?', [$otra]);
+        $reservar()->assertRedirect(route('portal.reservar'));
+        $this->assertSame($antes, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_sucursal = ?', [$otra]),
+            'Un profesional que no atiende en esa sucursal no puede quedar reservado ahí.');
+
+        // 2) Ahora sí lo asignan a ese local: la cita entra, y entra en ÉL.
+        DB::insert('INSERT INTO usuario_sucursal (id_usuario, id_sucursal) VALUES (?, ?)', [$prof, $otra]);
+        $reservar();
+
+        $idCita = (int) DB::scalar(
+            'SELECT id_cita FROM cita WHERE id_cliente = ? ORDER BY id_cita DESC LIMIT 1', [(int) $u->id_cliente]
+        );
+        $this->assertSame($otra, (int) DB::scalar('SELECT id_sucursal FROM cita WHERE id_cita = ?', [$idCita]),
+            'La cita tiene que quedar en la sucursal que eligió la clienta, no en la de la ficha del profesional.');
+        $this->assertSame($prof, (int) DB::scalar('SELECT id_usuario FROM cita WHERE id_cita = ?', [$idCita]),
+            'Y con el profesional que eligió.');
+    }
+
+    /**
+     * La clienta tiene barra de navegación, igual que el personal.
+     *
+     * El portal se movía sólo por los enlaces del pie y por lo que cada pantalla
+     * ofreciera: entrando a «Mis citas» no había forma de ir a «Promociones» sin
+     * volver al inicio. La barra sale del **mismo catálogo** que el pie
+     * (`config/navegacion.php`), así que no se pueden desfasar.
+     */
+    #[Test]
+    public function la_clienta_tiene_barra_de_navegacion_en_el_portal(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta de cliente en la base de prueba.');
+        }
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+        $this->conSucursal();
+
+        // En una pantalla de adentro, que es donde hacía falta: en el inicio
+        // siempre estuvieron los enlaces a la vista.
+        $r = $this->get(route('portal.citas'))->assertOk();
+
+        $enBarra = array_filter(Navegacion::portal(), fn ($p) => $p['barra']);
+        $this->assertNotEmpty($enBarra, 'El portal tiene que declarar qué va en la barra.');
+
+        $r->assertSee('spg-nav-item', false);
+        foreach ($enBarra as $p) {
+            $r->assertSee($p['url'], false);
+        }
+
+        // «Mi cuenta» NO va en la barra: se busca en el desplegable de la
+        // cuenta, y ahí arriba competiría con lo que la clienta viene a hacer.
+        foreach (Navegacion::portal() as $p) {
+            if ($p['clave'] === 'cuenta.index') {
+                $this->assertFalse($p['barra'], 'Mi cuenta no va en la barra del portal.');
+            }
+        }
+    }
+
+    /**
+     * Un local sin timbrado propio factura igual, pero la pantalla lo dice.
+     *
+     * `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local no
+     * tiene el suyo, y esa caída es deliberada: dejar de facturar sería peor
+     * que facturar con el número de la casa central. Lo que no puede pasar es
+     * que la caída sea **silenciosa**, porque arrastra dos cosas que no se ven
+     * en pantalla — el establecimiento impreso dice la otra sede, y el cobro
+     * entra al cajón de esa otra sede (7.36.3) —.
+     *
+     * Se comprueba en las dos direcciones: con timbrado propio el aviso NO
+     * aparece, que si no sería un cartel permanente y nadie lo leería.
+     */
+    #[Test]
+    public function el_local_sin_timbrado_propio_avisa_con_cual_va_a_numerar(): void
+    {
+        $admin = (int) config('permisos.rol_admin', 1);
+
+        // Un local nuevo, sin ningún timbrado suyo.
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal sin timbrado ' . uniqid(), 'Calle 2']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // Con qué tipo se va a topar la pantalla, y de quién es ese timbrado.
+        $t = DB::selectOne(
+            'SELECT t.id_timbrado, t.id_sucursal, t.id_tipo_comprobante, t.nro_timbrado,
+                    t.punto_expedicion, t.nro_desde, t.nro_hasta
+               FROM timbrado t
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = t.id_tipo_comprobante
+              WHERE t.activo = 1 AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin
+                AND tc.activo = 1 AND tc.signo = 1 AND tc.requiere_origen = 0
+              ORDER BY t.id_tipo_comprobante LIMIT 1'
+        );
+        if (! $t) {
+            $this->markTestSkipped('No hay ningún timbrado vigente con el que comparar.');
+        }
+        $nombreDuenio = (string) DB::scalar('SELECT nombre FROM sucursal WHERE id_sucursal = ?', [(int) $t->id_sucursal]);
+
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        $this->conSucursal($otra);
+
+        $this->get(route('facturacion.emitir'))
+            ->assertOk()
+            ->assertSee('Esta sucursal no tiene timbrado propio.', false)
+            ->assertSee($nombreDuenio, false);
+
+        // Y con el suyo cargado para TODO lo que la pantalla ofrece, el aviso se
+        // calla: es la mitad que evita que el cartel se vuelva parte del decorado.
+        foreach (DB::select(
+            'SELECT DISTINCT t.id_tipo_comprobante, t.nro_timbrado, t.punto_expedicion, t.nro_desde, t.nro_hasta
+               FROM timbrado t
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = t.id_tipo_comprobante
+              WHERE t.activo = 1 AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin
+                AND tc.activo = 1 AND tc.signo = 1 AND tc.requiere_origen = 0'
+        ) as $orig) {
+            DB::insert('INSERT INTO timbrado (id_sucursal, id_tipo_comprobante, nro_timbrado, establecimiento,
+                                              punto_expedicion, nro_desde, nro_hasta, fecha_inicio, fecha_fin, activo)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 2 DAY), 1)',
+                       [$otra, (int) $orig->id_tipo_comprobante, $orig->nro_timbrado, '002',
+                        $orig->punto_expedicion, $orig->nro_desde, $orig->nro_hasta]);
+        }
+
+        $this->get(route('facturacion.emitir'))
+            ->assertOk()
+            ->assertDontSee('Esta sucursal no tiene timbrado propio.', false);
+    }
 }

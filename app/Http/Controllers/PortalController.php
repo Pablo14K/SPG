@@ -29,13 +29,22 @@ class PortalController extends Controller
      * Criterio de «cita vigente» para el portal.
      *
      * Antes se pedía `fecha_hora >= NOW()`, y por eso una cita que ya había
-     * empezado —o cualquier cita de hoy pasada la hora— desaparecía del portal
-     * aunque siguiera en curso. Ahora vale mientras no haya terminado, y las
-     * de hoy se muestran todo el día.
+     * empezado desaparecía del portal aunque siguiera en curso. Se agregó
+     * entonces `OR DATE(v.fecha_hora) = CURDATE()`, y eso pasó al otro extremo:
+     * **cualquier cita de hoy quedaba en «Próximas» hasta la medianoche**, aunque
+     * hubiera terminado ocho horas antes. La clienta creía que todavía le
+     * quedaba una cita por delante.
+     *
+     * Lo que hay que sostener son las dos cosas a la vez: que la cita no
+     * desaparezca mientras está pasando, y que deje de anunciarse cuando ya
+     * pasó. La segunda rama queda acotada a la cita que **está siendo
+     * atendida** —«En proceso»— y a la que se pasó de hora sin que nadie la
+     * tocara —«Atrasada», que es justamente la que la clienta necesita ver para
+     * reclamar—. Una Programada cuya hora terminó ya no es próxima: es pasada.
      */
     private const VIGENTE = "ec.bloquea_agenda = 1
         AND (DATE_ADD(v.fecha_hora, INTERVAL v.duracion_min MINUTE) >= NOW()
-             OR DATE(v.fecha_hora) = CURDATE())";
+             OR (DATE(v.fecha_hora) = CURDATE() AND c.id_estado_cita IN (5, 7)))";
 
     public function index(): View
     {
@@ -139,6 +148,27 @@ class PortalController extends Controller
     {
         $idc = $this->cliente();
         $idUsuario = (int) $request->input('id_usuario', 0);
+
+        // **La sucursal que eligió la clienta.** El formulario la manda desde
+        // que existe el selector, pero acá no se leía: la cita terminaba en la
+        // sucursal de la FICHA del profesional, así que quien reservaba en el
+        // segundo local generaba una cita en la casa central — y el día de la
+        // cita nadie la esperaba donde ella fue. De ahí en cadena: el
+        // comprobante se numera con el timbrado de esa otra sede y el cobro
+        // entra a su cajón.
+        $idSucursal = (int) $request->input('id_sucursal', 0);
+        if ($idSucursal && ! DB::scalar('SELECT COUNT(*) FROM sucursal WHERE id_sucursal = ? AND activo = 1',
+                                        [$idSucursal])) {
+            flash('Esa sucursal no está disponible.', 'error');
+
+            return redirect()->route('portal.reservar');
+        }
+        if (! $idSucursal) {
+            // Con un solo local no hace falta elegir: se resuelve solo, igual
+            // que al entrar. Con varios, la pantalla no deja llegar hasta acá.
+            $idSucursal = (int) (DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1') ?: 0);
+        }
+
         $fecha = str_replace('T', ' ', trim((string) $request->input('fecha_hora', '')));
         if (strlen($fecha) === 16) {
             $fecha .= ':00';
@@ -152,8 +182,8 @@ class PortalController extends Controller
         $error = null;
         if ($fecha === '' || ! $servicios) {
             $error = 'Elegí al menos un servicio y la fecha/hora.';
-        } elseif ($idUsuario && ! $this->personalActivo($idUsuario)) {
-            $error = 'Ese profesional no está disponible.';
+        } elseif ($idUsuario && ! $this->personalActivo($idUsuario, $idSucursal)) {
+            $error = 'Ese profesional no atiende en la sucursal que elegiste.';
         } elseif (! strtotime($fecha)) {
             $error = 'La fecha y hora no son válidas.';
         } elseif (strtotime($fecha) < time()) {
@@ -184,7 +214,7 @@ class PortalController extends Controller
 
         if (! $idUsuario) {
             $delPrincipal = Agenda::duracion(array_keys(array_filter($asignacion, fn ($p) => $p === 0)));
-            $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal ?: $dur) ?? 0;
+            $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal ?: $dur, $idSucursal) ?? 0;
             if (! $idUsuario) {
                 flash('Ese horario se ocupó recién. Elegí otro, por favor.', 'warning');
 
@@ -193,7 +223,7 @@ class PortalController extends Controller
         }
 
         foreach (array_unique(array_values($asignacion)) as $idAyuda) {
-            if ($idAyuda > 0 && ! $this->personalActivo((int) $idAyuda)) {
+            if ($idAyuda > 0 && ! $this->personalActivo((int) $idAyuda, $idSucursal)) {
                 flash('Uno de los profesionales que elegiste ya no está disponible.', 'error');
 
                 return $volver;
@@ -208,7 +238,7 @@ class PortalController extends Controller
         $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
 
         try {
-            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion);
+            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null);
 
             // Los canjes que eligió quedan atados a esta cita, y con eso el
             // servicio va **a cero** en el comprobante. Se comprueban contra
@@ -622,12 +652,27 @@ class PortalController extends Controller
         return $idc;
     }
 
-    private function personalActivo(int $idUsuario): bool
+    /**
+     * ¿Atiende, y atiende ACÁ?
+     *
+     * Con `es_personal = 1` a secas se aceptaba a cualquiera del salón, así que
+     * la clienta podía quedar agendada con alguien que trabaja en otro local.
+     * La asignación real vive en `usuario_sucursal`, no en la ficha: la ficha
+     * dice dónde trabaja habitualmente, no dónde está disponible hoy.
+     */
+    private function personalActivo(int $idUsuario, ?int $idSucursal = null): bool
     {
-        return (bool) DB::scalar(
-            'SELECT COUNT(*) FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.id_usuario = ? AND u.activo = 1 AND r.es_personal = 1', [$idUsuario]
-        );
+        $sql = 'SELECT COUNT(*) FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                 WHERE u.id_usuario = ? AND u.activo = 1 AND r.es_personal = 1';
+        $par = [$idUsuario];
+
+        if ($idSucursal) {
+            $sql .= ' AND EXISTS (SELECT 1 FROM usuario_sucursal us
+                                   WHERE us.id_usuario = u.id_usuario AND us.id_sucursal = ?)';
+            $par[] = $idSucursal;
+        }
+
+        return (bool) DB::scalar($sql, $par);
     }
 
     /**
