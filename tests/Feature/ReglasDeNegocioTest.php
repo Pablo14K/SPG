@@ -3024,4 +3024,104 @@ class ReglasDeNegocioTest extends TestCase
                   - fn_cita_sena(?)', [$idCita, $idCita]
         ), 0.01, 'Y la cita tiene que quedar saldada.');
     }
+
+    /**
+     * Un profesional no queda asignado a un servicio que no hace.
+     *
+     * La agenda ofrecía a cualquiera para cualquier servicio: la manicurista
+     * para una coloración, la clienta reservaba y el día de la cita el salón no
+     * lo podía dar. Es el mismo problema que AG-01, con el servicio en lugar del
+     * turno.
+     *
+     * **El criterio es permisivo**, igual que el de los turnos: quien no tiene
+     * ninguno cargado los hace todos, así que un salón que no administra esto
+     * sigue funcionando igual. Se comprueba en las dos direcciones.
+     */
+    #[Test]
+    public function un_profesional_no_queda_asignado_a_un_servicio_que_no_hace(): void
+    {
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        $srv = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 2');
+        if (! $prof || count($srv) < 2) {
+            $this->markTestSkipped('Falta catálogo para armar la prueba.');
+        }
+        [$hace, $noHace] = [(int) $srv[0]->id_servicio, (int) $srv[1]->id_servicio];
+        $cuando = date('Y-m-d H:i:s', strtotime('+5 days 10:00'));
+
+        // 1) Sin nada cargado los hace todos: el criterio permisivo de siempre.
+        $this->assertSame(1, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$prof, $noHace]),
+            'Sin servicios cargados, esa persona los hace todos.');
+        // Se mira SÓLO el motivo que importa acá: `validarReparto` también
+        // valida turno y disponibilidad, y eso ya lo fijan otras pruebas.
+        $this->assertStringNotContainsString('no hace',
+            (string) Agenda::validarReparto([$noHace => $prof], $prof, $cuando),
+            'Sin servicios cargados, la agenda no puede rechazarlo por el servicio.');
+
+        // 2) En cuanto se le carga UNO, sólo hace ése.
+        DB::insert('INSERT INTO usuario_servicio (id_usuario, id_servicio) VALUES (?, ?)', [$prof, $hace]);
+
+        $this->assertSame(1, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$prof, $hace]),
+            'El que se le cargó, lo hace.');
+        $this->assertSame(0, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$prof, $noHace]),
+            'El que no, no.');
+
+        $problema = Agenda::validarReparto([$noHace => $prof], $prof, $cuando);
+        $this->assertNotNull($problema,
+            'La agenda no puede aceptar a alguien para un servicio que no hace.');
+        $this->assertStringContainsString('no hace', (string) $problema,
+            'Y el aviso tiene que decir por qué, no un «no se puede» a secas.');
+    }
+
+    /**
+     * Un movimiento de caja mal cargado se anula y el cajón vuelve a cuadrar.
+     *
+     * **Se anula, no se borra**, que es el mismo criterio que la factura y el
+     * cobro: el arqueo tiene que poder explicar qué pasó, y una fila que
+     * desaparece no explica nada. Lo que cambia es que `fn_caja_saldo` deja de
+     * contarlo.
+     */
+    #[Test]
+    public function un_movimiento_de_caja_anulado_deja_de_contar_en_el_arqueo(): void
+    {
+        $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
+        if (! $caja) {
+            $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+            Bd::idDe('sp_abrir_caja', [1, 0, $suc]);
+            $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
+        }
+        $id = (int) $caja->id_caja;
+
+        $antes = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]);
+
+        DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto)
+                    VALUES (?, 'INGRESO', 50000, 'De la prueba')", [$id]);
+        $idMov = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $this->assertEqualsWithDelta($antes + 50000, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]), 0.01,
+            'El movimiento tiene que entrar al arqueo.');
+
+        $this->entrarComoAdministrador();
+        $this->post(route('facturacion.caja.movimiento.anular'),
+            ['id_movimiento_caja' => $idMov, 'motivo' => 'Se cargó dos veces']);
+
+        $this->assertEqualsWithDelta($antes, (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]), 0.01,
+            'Anulado, el saldo tiene que volver a lo de antes.');
+        $fila = DB::selectOne('SELECT activo, anulado_motivo FROM movimiento_caja WHERE id_movimiento_caja = ?', [$idMov]);
+        $this->assertNotNull($fila, 'La fila NO se borra: el arqueo tiene que poder explicar qué pasó.');
+        $this->assertSame(0, (int) $fila->activo);
+        $this->assertSame('Se cargó dos veces', $fila->anulado_motivo,
+            'Y con su motivo, que es lo único que la explica al cerrar la caja.');
+
+        // Sin motivo no se anula: un movimiento anulado «porque sí» no se puede
+        // explicar seis meses después.
+        DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto)
+                    VALUES (?, 'INGRESO', 1000, 'Otra de la prueba')", [$id]);
+        $otro = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        $this->post(route('facturacion.caja.movimiento.anular'), ['id_movimiento_caja' => $otro, 'motivo' => '']);
+        $this->assertSame(1, (int) DB::scalar('SELECT activo FROM movimiento_caja WHERE id_movimiento_caja = ?', [$otro]),
+            'Sin motivo no se anula.');
+    }
 }

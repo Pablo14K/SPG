@@ -926,3 +926,39 @@ html,body{max-width:100%;overflow-x:hidden;}
   background:var(--oro-tinte);border:1px solid var(--gris-calido);border-radius:.4rem;
   padding:.45rem .6rem;font-size:.85rem;color:var(--carbon);}
 .spg-cobro-falta{margin-left:auto;color:var(--oro-texto);font-size:1rem;}
+
+/* ---------------------------------------------------------------------------
+   El portal en el celular.
+
+   La clienta entra casi siempre desde el teléfono, y hasta acá heredaba el
+   ancho del panel: la barra de secciones se cortaba, las tablas de «Mis citas»
+   empujaban la página a lo ancho —con el scroll horizontal que eso trae— y los
+   botones de acción de cada fila quedaban apretados uno contra otro.
+
+   Nada de esto es un componente nuevo: son las mismas clases, acomodadas.
+--------------------------------------------------------------------------- */
+@media (max-width:576px){
+  /* La barra ya scrollea sola; lo que faltaba era que no se pegue al borde
+     y que cada ítem se pueda tocar con el dedo. */
+  .spg-nav-in{padding-inline:.6rem;gap:.15rem;}
+  .spg-nav-item{padding:.55rem .6rem;font-size:.82rem;}
+
+  /* Una tabla de acciones en 360 px no entra: las celdas de botones pasan a
+     ocupar la fila entera y los botones se reparten el ancho. */
+  .table td[style*="white-space:nowrap"]{white-space:normal !important;}
+  .table .btn-sm{margin:.12rem 0;}
+  .table td .btn-sm,
+  .table td form.d-inline{display:inline-block;}
+
+  /* El encabezado de página deja de competir con el contenido. */
+  .spg-page-head h1{font-size:1.15rem;}
+  .spg-page-head .sub{font-size:.8rem;}
+  .spg-head-flex{flex-direction:column;align-items:stretch;gap:.5rem;}
+  .spg-head-acciones .btn{width:100%;}
+
+  /* Los modales del portal —seña, pedido— llegaban pegados a los bordes. */
+  .modal-dialog{margin:.5rem;}
+
+  /* El pie en una sola columna: en dos, los enlaces quedan de una palabra. */
+  .spg-footer-grid{grid-template-columns:1fr !important;}
+}

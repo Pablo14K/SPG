@@ -886,3 +886,55 @@ window.SPGCarga = (function () {
     reflejar();
   });
 })();
+
+//  Canje y servicio van juntos: el canje NO reemplaza al servicio, lo acompaña.
+//  Un servicio canjeado dura lo mismo, lo hace quien lo hace y necesita un hueco
+//  libre igual; lo único que cambia es que no se cobra.
+//
+//  Por eso los dos sentidos se atan solos:
+//   · marcar el canje marca su servicio —si no, el vale no se aplica y la
+//     clienta pierde los puntos sin recibir nada—;
+//   · **marcar el servicio marca su canje**, que es lo que faltaba: había que
+//     acordarse de bajar y tildarlo, y quien no lo hacía pagaba un servicio que
+//     ya tenía pago.
+//
+//  Se activa con `data-canjes="#bloque"` en el contenedor de servicios, y cada
+//  canje declara su servicio en `data-servicio`.
+(function () {
+  var bloques = document.querySelectorAll('[data-canjes]');
+  if (!bloques.length) { return; }
+
+  bloques.forEach(function (cont) {
+    var caja = document.querySelector(cont.dataset.canjes);
+    if (!caja) { return; }
+
+    function tildar(el, valor) {
+      if (!el || el.checked === valor) { return; }
+      el.checked = valor;
+      // El evento se dispara a mano porque de él cuelga el recálculo de
+      // horarios del selector de agenda.
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    caja.querySelectorAll('.spg-canje').forEach(function (f) {
+      var chk = f.querySelector('input[type="checkbox"]');
+      var srv = cont.querySelector('.srv[value="' + f.dataset.servicio + '"]');
+      if (!chk || !srv) { return; }
+
+      chk.addEventListener('change', function () {
+        if (chk.checked) { tildar(srv, true); }
+      });
+
+      srv.addEventListener('change', function () {
+        // Sólo se auto-marca lo que la clienta puede usar de verdad: un canje
+        // escondido —de otra clienta— no se toca.
+        if (f.hidden || f.closest('[hidden]')) { return; }
+        tildar(chk, srv.checked);
+      });
+
+      // Si el servicio ya venía marcado —vuelta de un intento fallido—, el
+      // canje tiene que reflejarlo desde el principio.
+      if (srv.checked && !f.hidden) { chk.checked = true; }
+    });
+  });
+})();

@@ -88,7 +88,31 @@
                             </td>
                             <td>{{ $c->cliente }}</td>
                             <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
-                            <td class="text-end">{{ money($c->total) }}</td>
+                            {{-- El total con lo que ya está pago por puntos y con el
+                                 descuento que la base va a aplicar sola. Antes salía la
+                                 suma pelada de los servicios, que casi nunca es lo que
+                                 se termina cobrando. --}}
+                            <td class="text-end">
+                                @php
+                                    $base = (float) $c->total - (float) ($c->canjeado ?? 0);
+                                    $desc = min((float) ($c->desc_monto ?? 0), $base);
+                                @endphp
+                                @if ((float) ($c->canjeado ?? 0) > 0 || $desc > 0)
+                                    <span class="text-muted-warm" style="text-decoration:line-through">
+                                        {{ money($c->total) }}</span><br>
+                                    @if ((float) ($c->canjeado ?? 0) > 0)
+                                        <span class="text-muted-warm" style="font-size:.75rem">
+                                            canje − {{ money($c->canjeado) }}</span><br>
+                                    @endif
+                                    @if ($desc > 0)
+                                        <span class="text-muted-warm" style="font-size:.75rem">
+                                            descuento − {{ money($desc) }}</span><br>
+                                    @endif
+                                    <strong class="txt-oro">{{ money($base - $desc) }}</strong>
+                                @else
+                                    {{ money($c->total) }}
+                                @endif
+                            </td>
                             <td class="text-end">
                                 @if ($tipos)
                                     <form method="post" action="{{ route('facturacion.emitir.guardar') }}"

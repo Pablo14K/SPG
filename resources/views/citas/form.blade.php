@@ -59,7 +59,7 @@
                         pueden hacer en paralelo con otro exclusivo.
                     </p>
 
-                    <div class="spg-check-lista" id="listaServicios">
+                    <div class="spg-check-lista" id="listaServicios" data-canjes="#bloqueCanjes">
                         @foreach ($servicios as $s)
                             <div class="d-flex align-items-center gap-2 flex-wrap py-1">
                                 <div class="form-check mb-0 flex-grow-1">

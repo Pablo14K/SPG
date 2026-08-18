@@ -361,6 +361,8 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // El gasto de caja chica, el retiro, la plata para el cambio: lo
             // único del arqueo que no sale de un cobro ni de un pago.
             Route::post('caja/movimiento', [FacturacionController::class, 'movimientoCaja'])->name('caja.movimiento');
+            Route::post('caja/movimiento/anular', [FacturacionController::class, 'movimientoCajaAnular'])
+                ->name('caja.movimiento.anular');
         });
 
         Route::middleware('modulo:facturacion.pagos')->group(function () {

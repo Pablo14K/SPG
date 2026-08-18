@@ -87,10 +87,30 @@
                 </thead>
                 <tbody>
                     @foreach ($lineas as $l)
+                        @php
+                            // Un renglón en cero casi siempre es un canje. Se dice cuál,
+                            // y cuánto valía: si no, el comprobante muestra un servicio
+                            // que parece regalado sin decir por qué.
+                            $cj = (float) $l->subtotal <= 0
+                                ? collect($canjes)->firstWhere('nombre', $l->item)
+                                : null;
+                        @endphp
                         <tr>
-                            <td>{{ $l->item }}</td>
+                            <td>
+                                {{ $l->item }}
+                                @if ($cj)
+                                    <span class="badge-estado e-ok">canjeado por {{ entero($cj->puntos) }} puntos</span>
+                                @endif
+                            </td>
                             <td class="text-end">{{ cant($l->cantidad) }}</td>
-                            <td class="text-end">{{ money($l->precio_unitario) }}</td>
+                            <td class="text-end">
+                                @if ($cj)
+                                    <span class="text-muted-warm" style="text-decoration:line-through">
+                                        {{ money($cj->precio) }}</span>
+                                @else
+                                    {{ money($l->precio_unitario) }}
+                                @endif
+                            </td>
                             <td class="text-end">{{ money($l->subtotal) }}</td>
                         </tr>
                     @endforeach
@@ -109,6 +129,17 @@
                         <tr>
                             <td>Descuento</td>
                             <td class="text-end txt-ok">− {{ money($f->descuento_total) }}</td>
+                        </tr>
+                    @endif
+                    @if (count($canjes))
+                        {{-- Lo que la clienta ya había pagado con puntos. No es un
+                             descuento del salón: es un premio que se ganó, y el
+                             comprobante tiene que poder explicar la diferencia entre
+                             lo que valen los servicios y lo que se cobra. --}}
+                        <tr>
+                            <td>Pagado con puntos</td>
+                            <td class="text-end txt-ok">
+                                − {{ money(collect($canjes)->sum(fn ($c) => (float) $c->precio)) }}</td>
                         </tr>
                     @endif
                     <tr>

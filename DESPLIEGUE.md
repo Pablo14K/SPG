@@ -202,3 +202,79 @@ Siempre con `mysqldump`, **nunca exportando desde phpMyAdmin**, que se come las 
 restricciones `CHECK` sin avisar.
 
 Para probar con datos está `1mes_simulacion.sql`, que es el mes simulado del QA.
+
+---
+
+## Cuando el sistema no está: qué hace el salón
+
+**Esto no es una función del sistema: es lo que el salón hace cuando el sistema
+no está.** Va acá porque es la carpeta que se abre cuando algo se cayó, y porque
+la mitad de las respuestas dependen de cómo quedó instalado.
+
+La regla de fondo, y es la única que hay que recordar bajo presión:
+**el salón sigue atendiendo y cobrando. Lo que se interrumpe es el registro, no
+el trabajo.** Todo lo que pase durante la caída se anota en papel y se carga
+después, con su fecha real.
+
+### Qué se cayó, y qué se puede hacer igual
+
+| Se cayó | Qué sigue andando | Qué no |
+|---|---|---|
+| **Internet** (el local sin conexión) | Nada del sistema: vive en el servidor | Agenda, cobro, comprobantes |
+| **La luz** | Nada, salvo que haya batería en el equipo | Todo, incluida la impresora |
+| **El servidor** (el sistema no responde, con internet OK) | Nada | Todo |
+| **El Automatizador SIFEN** | **Todo el sistema.** Se factura y se cobra igual | Sólo la declaración ante la DNIT, que queda PENDIENTE y se reintenta |
+
+> La última fila es la más importante y la que más se confunde: **que la DNIT no
+> conteste no frena el salón.** La factura ya es válida cuando el sistema la
+> numera; declararla es un paso posterior y con su propio botón. Está explicado
+> en `CLAUDE.md`, sección *Facturación electrónica*.
+
+### La planilla de contingencia
+
+Una hoja impresa, en el mostrador, con una fila por atención:
+
+```
+Fecha · Hora · Clienta · Teléfono · Servicios · Profesional · Monto · Cómo pagó · Nº de recibo manual
+```
+
+Tres cosas que conviene tener resueltas **antes** de necesitarlas:
+
+- **Un talonario de comprobantes preimpresos**, con su timbrado propio, para el
+  caso en que la clienta pida factura. Es un timbrado distinto del electrónico y
+  se pide a la SET aparte: si no está pedido de antes, el día de la caída no hay
+  nada que hacer.
+- **La agenda del día impresa cada mañana.** Es un clic desde Citas → Agenda, y
+  sin ella una caída a las 9 deja al salón sin saber quién viene.
+- **El teléfono de las clientas del día**, que sale en esa misma impresión: es lo
+  que permite avisar si hay que reprogramar.
+
+### Cuando el sistema vuelve
+
+En este orden, y **el orden importa**:
+
+1. **Abrir la caja** con el monto que había al empezar el día, no con el que hay
+   ahora. El sistema calcula el saldo sumando lo que se le carga; si se abre con
+   el efectivo actual, todo lo que se cargue después lo va a duplicar.
+2. **Cargar las citas atendidas**, una por una, con su fecha y hora reales.
+3. **Registrar la atención** de cada una, con los productos que se usaron.
+4. **Cobrar**, con el medio que corresponda a cada una.
+5. **Emitir los comprobantes.** Si se usó el talonario manual, el número impreso
+   se anota en la referencia del cobro: es lo que después permite cruzarlos.
+6. **Contar el cajón y compararlo** con el arqueo del sistema. Si no coincide,
+   la diferencia se carga como movimiento de caja con el concepto explicado —no
+   se ajusta a mano ni se deja pasar.
+
+> **Lo que NO hay que hacer**: cargar todo con la fecha de hoy. Un mes cerrado
+> con las citas del martes anotadas el jueves no le sirve a ningún informe, y es
+> el tipo de error que no se puede deshacer sin anular comprobante por
+> comprobante.
+
+### Cómo se acorta la caída
+
+- **Respaldo diario de la base**, con `mysqldump`, fuera del servidor. Es la
+  diferencia entre perder un día y perder el año.
+- **Un equipo de reserva** con el sistema apuntando al mismo servidor: si lo que
+  se rompió es la computadora del mostrador, el salón sigue en cinco minutos.
+- **La dirección del sistema anotada en papel**, en el mostrador. Suena tonto
+  hasta el día en que hay que entrar desde un celular y nadie la recuerda.

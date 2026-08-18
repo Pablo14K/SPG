@@ -126,12 +126,22 @@
                                name="requiere_exclusividad"
                                @checked(old('requiere_exclusividad', $s->requiere_exclusividad ?? 0))>
                         <label class="form-check-label" for="requiere_exclusividad">
-                            Requiere atención exclusiva
+                            Ocupa a la clienta entera
                         </label>
+                        {{-- **El nombre decía a quién ocupa mal.** «Requiere atención
+                             exclusiva» se leía como «necesita que el profesional no haga
+                             otra cosa», y no es eso: lo que ocupa es a la CLIENTA. Dos
+                             servicios así no pueden pasar a la vez sobre la misma persona
+                             aunque haya dos profesionales libres — es el cuerpo el que no
+                             se puede partir en dos. --}}
                         <div class="form-text">
-                            Marcalo cuando el servicio no se pueda hacer al mismo tiempo que otro igual: una
-                            coloración y una keratina se pisan —las dos son sobre el pelo—, un lavado y una
-                            pedicura no. Si los hace la misma persona, van uno después del otro y no hay conflicto.
+                            Marcalo cuando, mientras se hace, <strong>no se le puede hacer nada más a la
+                            clienta</strong>. Una coloración y una keratina se pisan porque las dos son sobre
+                            el pelo; un lavado y una pedicura conviven, porque son partes distintas.
+                            <br>
+                            No habla del profesional: habla de la clienta. Dos servicios así en la misma
+                            cita <strong>se agendan uno después del otro</strong> —aunque los hagan dos
+                            personas distintas— y la cita dura la suma, no el más largo.
                         </div>
                     </div>
                 </div>

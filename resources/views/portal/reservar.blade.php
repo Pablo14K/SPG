@@ -49,7 +49,7 @@
 
             <div class="mb-3">
                 <label class="form-label">¿Qué te querés hacer? *</label>
-                <div class="spg-check-lista">
+                <div class="spg-check-lista" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
                         <div class="d-flex align-items-center gap-2 flex-wrap py-1">
                             <div class="form-check mb-0 flex-grow-1">
@@ -89,12 +89,13 @@
                         <i class="bi bi-gift txt-oro"></i> ¿Usás algún canje?
                     </label>
                     <p class="text-muted-warm" style="font-size:.82rem">
-                        Marcá el canje <strong>y también el servicio de arriba</strong>: así reserva
-                        el tiempo que hace falta. Con el canje marcado, ese servicio no se te cobra.
+                        Marcá el canje y <strong>el servicio se marca solo</strong> —y al revés—, así
+                        queda reservado el tiempo que hace falta. Con el canje puesto, ese servicio
+                        no se te cobra.
                     </p>
-                    <div class="spg-check-lista">
+                    <div class="spg-check-lista" id="bloqueCanjes">
                         @foreach ($canjes as $c)
-                            <div class="form-check">
+                            <div class="form-check spg-canje" data-servicio="{{ $c->id_servicio }}">
                                 <input class="form-check-input" type="checkbox" name="canjes[]"
                                        value="{{ $c->id_canje }}" id="cj{{ $c->id_canje }}">
                                 <label class="form-check-label" for="cj{{ $c->id_canje }}">

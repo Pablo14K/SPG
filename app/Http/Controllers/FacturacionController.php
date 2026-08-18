@@ -187,6 +187,17 @@ class FacturacionController extends Controller
         return view('facturacion.factura_ver', [
             'f' => $f,
             'lineas' => DB::select('SELECT * FROM vw_detalle_factura WHERE id_factura = ? ORDER BY clase, item', [$id]),
+            // **Qué se pagó con puntos.** Un servicio canjeado va al comprobante
+            // en CERO —se hizo, así que tiene que constar—, y un cero pelado no
+            // se entiende: parece un error de la impresión. Con el canje al lado
+            // se lee lo que es, que la clienta ya lo había pagado con sus puntos.
+            'canjes' => DB::select(
+                'SELECT s.nombre, s.precio, cj.puntos
+                   FROM canje cj
+                   JOIN servicio s ON s.id_servicio = cj.id_servicio
+                  WHERE cj.id_cita = (SELECT id_cita FROM factura WHERE id_factura = ?)
+                  ORDER BY s.nombre', [$id]
+            ),
             'imp' => DB::selectOne('SELECT * FROM vw_factura_impuestos WHERE id_factura = ?', [$id]),
             'emisor' => DB::selectOne(
                 'SELECT s.nombre, s.ruc, s.telefono, s.direccion, s.ciudad,
@@ -420,7 +431,28 @@ class FacturacionController extends Controller
                           WHERE cs.id_cita = c.id_cita) AS servicios,
                         (SELECT COALESCE(SUM(s.precio),0)
                            FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
-                          WHERE cs.id_cita = c.id_cita) AS total
+                          WHERE cs.id_cita = c.id_cita) AS total,
+                        -- **El descuento que va a aplicar, antes de emitir.** La
+                        -- pantalla mostraba sólo la suma de los servicios, así
+                        -- que el total impreso salía más bajo que el anunciado y
+                        -- había que explicárselo a la clienta con el comprobante
+                        -- ya emitido. Sale del descuento del NIVEL, que es el que
+                        -- la base aplica sola; una promoción puede mejorarlo, y
+                        -- por eso el aviso dice «al menos».
+                        fn_cliente_descuento(c.id_cliente) AS id_descuento,
+                        -- El monto lo calcula la base con su propia función, que es
+                        -- la que sabe si el descuento es porcentaje o monto fijo y
+                        -- si está vigente. Acá no se reimplementa la regla.
+                        fn_descuento_monto(fn_cliente_descuento(c.id_cliente),
+                                           (SELECT COALESCE(SUM(s3.precio),0)
+                                              FROM cita_servicio cs3
+                                              JOIN servicio s3 ON s3.id_servicio = cs3.id_servicio
+                                             WHERE cs3.id_cita = c.id_cita)) AS desc_monto,
+                        -- Lo que ya está pago con puntos: en el comprobante va a
+                        -- cero, así que no forma parte de lo que se va a cobrar.
+                        (SELECT COALESCE(SUM(s2.precio),0)
+                           FROM canje cj JOIN servicio s2 ON s2.id_servicio = cj.id_servicio
+                          WHERE cj.id_cita = c.id_cita) AS canjeado
                    FROM cita c
                    JOIN cliente cl    ON cl.id_cliente = c.id_cliente
                    JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
@@ -541,7 +573,8 @@ class FacturacionController extends Controller
             $msg = $ex->getMessage();
             flash(str_contains($msg, 'timbrado') ? 'No hay timbrado vigente para la factura.'
                 : (str_contains($msg, 'agotado') ? 'Se agotó el rango de numeración del timbrado. Cargá uno nuevo.'
-                    : 'No se pudo emitir la factura.'), 'error');
+                    : 'No se pudo emitir la factura. El detalle quedó en el registro del sistema: '
+                        . 'mostrale este mensaje a quien lo mantiene.'), 'error');
 
             return redirect()->route('facturacion.emitir');
         }
@@ -828,7 +861,7 @@ class FacturacionController extends Controller
                     : (str_contains($msg, 'no se cobra') ? 'Ese tipo de comprobante no se cobra.'
                         : (str_contains($msg, 'tarjeta') ? 'El detalle de tarjeta no corresponde a ese medio de pago.'
                             : (str_contains($msg, 'banco') ? 'El detalle bancario no corresponde a ese medio de pago.'
-                                : 'No se pudo registrar el cobro.')))))
+                                : 'No se pudo registrar el cobro. El detalle quedó en el registro del sistema.')))))
                 . ' No se guardó ninguna de las líneas.', 'error');
         }
 
@@ -911,6 +944,60 @@ class FacturacionController extends Controller
         }
 
         return $lineas;
+    }
+
+    /**
+     * Anular un movimiento de efectivo mal cargado.
+     *
+     * **Se anula, no se borra**, que es el mismo criterio que la factura y el
+     * cobro: el arqueo tiene que poder explicar qué pasó, y una fila que
+     * desaparece no explica nada. `fn_caja_saldo` suma sólo los activos, así
+     * que el cajón vuelve a cuadrar en el momento.
+     *
+     * **Sólo mientras la caja siga abierta.** Después del cierre el arqueo ya
+     * se contó y se firmó: cambiarlo por atrás dejaría el cierre diciendo un
+     * número y la base otro. Si el error se descubre después, lo que
+     * corresponde es cargar el movimiento contrario en la caja de hoy, y el
+     * aviso lo dice en vez de contestar «no se puede».
+     */
+    public function movimientoCajaAnular(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_movimiento_caja', 0);
+        $motivo = trim((string) $request->input('motivo', ''));
+        $volver = redirect()->route('facturacion.caja');
+
+        $m = DB::selectOne(
+            'SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.activo, c.id_estado_caja
+               FROM movimiento_caja mc JOIN caja c ON c.id_caja = mc.id_caja
+              WHERE mc.id_movimiento_caja = ?', [$id]
+        );
+
+        $error = null;
+        if (! $m) {
+            $error = 'Ese movimiento no existe.';
+        } elseif (! (int) $m->activo) {
+            $error = 'Ese movimiento ya estaba anulado.';
+        } elseif ((int) $m->id_estado_caja !== 1) {
+            $error = 'Esa caja ya está cerrada, así que su arqueo no se toca. '
+                . 'Cargá el movimiento contrario en la caja de hoy y explicá el motivo en el concepto.';
+        } elseif ($motivo === '') {
+            $error = 'Escribí por qué lo anulás: es lo único que explica ese movimiento al cerrar la caja.';
+        }
+        if ($error) {
+            flash($error, 'error');
+
+            return $volver;
+        }
+
+        DB::update('UPDATE movimiento_caja SET activo = 0, anulado_motivo = ? WHERE id_movimiento_caja = ?',
+            [$motivo, $id]);
+
+        Auditoria::registrar('ANULACION', 'Facturacion', 'movimiento_caja', $id,
+            $m->tipo . ' de ' . money($m->monto) . ' (' . $m->concepto . ') — ' . $motivo);
+
+        flash('Movimiento anulado. El saldo del cajón ya no lo cuenta.');
+
+        return $volver;
     }
 
     /**
@@ -1189,13 +1276,6 @@ class FacturacionController extends Controller
             return redirect()->route('facturacion.timbrados');
         }
 
-        // Una nota de crédito le devuelve plata al cliente: es un movimiento y
-        // tiene que quedar dentro de un arqueo, igual que el cobro.
-        $caja = $this->exigeCaja('emitir una nota de crédito');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
-        }
-
         // **Cuánto se le devuelve en efectivo, y por lo tanto cuánto sale del
         // cajón** (FA-02). Sólo lo que la clienta pagó en efectivo: lo que pagó
         // con tarjeta o transferencia se le devuelve por el mismo camino y no
@@ -1210,7 +1290,18 @@ class FacturacionController extends Controller
             ['f1' => $id, 'f2' => $id]
         );
 
+        // **La caja hace falta sólo si sale efectivo.** Antes se exigía
+        // siempre, así que una devolución por transferencia —que no toca el
+        // cajón— quedaba bloqueada con la caja cerrada, y la clienta se iba sin
+        // su nota de crédito hasta el día siguiente. Es la misma regla que ya
+        // vale en el arqueo: lo que no es efectivo no mueve el cajón.
+        $caja = null;
         if ($enEfectivo > 0) {
+            $caja = $this->exigeCaja('devolver en efectivo con una nota de crédito');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
+
             $enCaja = Caja::saldo((int) $caja->id_caja);
             if ($enEfectivo > $enCaja + 0.01) {
                 flash('Habría que devolverle ' . money($enEfectivo) . ' y en la caja hay '
@@ -1279,7 +1370,8 @@ class FacturacionController extends Controller
             flash(str_contains($msg, 'timbrado') ? 'No hay timbrado vigente para notas de crédito.'
                 : (str_contains($msg, 'agotado') ? 'Se agotó la numeración del timbrado de notas de crédito.'
                     : (str_contains($msg, 'venta') ? 'Solo se puede acreditar un comprobante de venta.'
-                        : 'No se pudo emitir la nota de crédito.')), 'error');
+                        : 'No se pudo emitir la nota de crédito. El comprobante original no se tocó, '
+                        . 'así que se puede reintentar.')), 'error');
 
             return $volver;
         }
@@ -1483,7 +1575,8 @@ class FacturacionController extends Controller
             // de caja chica, un retiro, una devolución. Se listan acá porque
             // son lo único del arqueo que no sale de un cobro o de un pago.
             'movimientos' => $abierta ? DB::select(
-                'SELECT tipo, monto, concepto, fecha FROM movimiento_caja
+                'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
+                   FROM movimiento_caja
                   WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
             ) : [],
         ]);

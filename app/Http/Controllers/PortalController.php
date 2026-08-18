@@ -258,7 +258,8 @@ class PortalController extends Controller
             // esta reserva pasaba por el candado del procedimiento.
             flash(str_contains($ex->getMessage(), 'disponible')
                 ? Agenda::motivoHuecoPerdido($idUsuario, $fecha, $dur)
-                : 'No se pudo reservar la cita.', 'error');
+                : 'No se pudo reservar la cita. Probá con otro horario; si vuelve a pasar, '
+                . 'escribinos y la agendamos nosotros.', 'error');
 
             return $volver;
         }
@@ -332,8 +333,20 @@ class PortalController extends Controller
         // distintas y la pantalla las dice distinto: una es plata que ya
         // entró, la otra es un aviso de que va a entrar.
         $prox = DB::select(
+            // **Lo canjeado no se paga**, así que no entra en lo que se puede
+            // señar. Una cita cuyos servicios están todos canjeados no tiene
+            // nada que adelantar, y ofrecerle «dejar una seña» es pedirle plata
+            // por algo que ya pagó con sus puntos. Si además pidió otro
+            // servicio sin canje, ese sí se puede señar — por eso es una resta
+            // y no un «tiene canje: no muestres nada».
             'SELECT v.*, (v.fecha_hora <= NOW()) AS en_curso,
                     fn_cita_sena(v.id_cita) AS sena,
+                    (SELECT COALESCE(SUM(s.precio),0)
+                       FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
+                      WHERE cs.id_cita = v.id_cita) AS total_cita,
+                    (SELECT COALESCE(SUM(s2.precio),0)
+                       FROM canje cj JOIN servicio s2 ON s2.id_servicio = cj.id_servicio
+                      WHERE cj.id_cita = v.id_cita) AS canjeado,
                     (SELECT COALESCE(SUM(ss.monto),0) FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita
                         AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL) AS sena_pedida
@@ -737,6 +750,30 @@ class PortalController extends Controller
             'sena' => $sena,
             'aPagar' => max(0.0, $total - $sena),
             'enCurso' => (int) $cita->id_estado_cita === 5,
+
+            // **Hasta que el pago esté cerrado.** La pantalla terminaba con la
+            // atención, así que la clienta veía el detalle mientras la
+            // atendían y después se quedaba sin saber si el cobro se registró
+            // ni con qué comprobante — justo lo que va a querer mirar si algo
+            // no cuadra. El comprobante se busca por la cita: puede no existir
+            // todavía, y eso también es una respuesta.
+            'comprobante' => DB::selectOne(
+                'SELECT fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
+                        fn_factura_total(f.id_factura) AS total,
+                        fn_factura_saldo(f.id_factura) AS saldo
+                   FROM factura f
+                   JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+                  WHERE f.id_cita = ? AND f.id_estado_factura = 1
+                  ORDER BY f.id_factura DESC LIMIT 1', [$idCita]
+            ),
+            'cobrado' => (float) DB::scalar(
+                'SELECT COALESCE(SUM(co.monto),0) FROM cobro co
+                  WHERE co.id_estado_cobro = 1
+                    AND (co.id_cita = :c1
+                         OR co.id_factura IN (SELECT id_factura FROM factura
+                                               WHERE id_cita = :c2 AND id_estado_factura = 1))',
+                ['c1' => $idCita, 'c2' => $idCita]
+            ),
             'pedidos' => DB::select(
                 'SELECT observaciones, fecha_registro FROM cita_pedido
                   WHERE id_cita = ? ORDER BY fecha_registro DESC', [$idCita]

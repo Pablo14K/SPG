@@ -12,7 +12,7 @@ return [
     // Versión del sistema, con versionado semántico X.Y.Z. Se muestra en el pie
     // de todas las pantallas. La migración a Laravel es un cambio estructural,
     // de los que rompen la compatibilidad: por eso 6.0.0.
-    'version' => '7.41.0',
+    'version' => '7.42.0',
     'version_fecha' => '2026-08-18',
 
     'moneda' => 'Gs.',
@@ -34,6 +34,14 @@ return [
     'agenda' => [
         'paso_min' => 15,    // cada cuántos minutos se ofrece un horario
         'dias_vista' => 60,  // hasta cuántos días para adelante se reserva
+
+        // **La jornada de un salón que todavía no cargó turnos.** Es la red del
+        // criterio permisivo: mientras nadie tenga un turno, se ofrece esta
+        // franja. Estaba clavada en 08:00–20:00 dentro del código, así que un
+        // salón con otro horario le ofrecía a la clienta horas que no da. En
+        // cuanto se cargan turnos, mandan los turnos y esto deja de usarse.
+        'abre' => '08:00:00',
+        'cierra' => '20:00:00',
     ],
 
     // --- Listados ---------------------------------------------------------

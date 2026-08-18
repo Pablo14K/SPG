@@ -236,7 +236,17 @@ class Agenda
             if ($datos['usaTurnos']) {
                 return [];
             }
-            $turnos = [['08:00:00', '20:00:00']];
+            // **La jornada por defecto la decide el salón.** Estaba clavada en
+            // 08:00–20:00, así que un salón que abre a las 09:00 y cierra a las
+            // 18:00 le ofrecía a la clienta horarios que no da — y la cita se
+            // agendaba igual, porque sin turnos cargados la base tampoco los
+            // bloquea. Sigue siendo la red para el salón que todavía no usa
+            // turnos: lo que cambia es que ahora se puede ajustar sin tocar
+            // código, en `config/spg.php`.
+            $turnos = [[
+                (string) config('spg.agenda.abre', '08:00:00'),
+                (string) config('spg.agenda.cierra', '20:00:00'),
+            ]];
         }
 
         $paso = (int) config('spg.agenda.paso_min', 15);
@@ -447,6 +457,29 @@ class Agenda
         );
         if (count($servicios) !== count($ids)) {
             return 'Alguno de los servicios elegidos ya no está disponible.';
+        }
+
+        // **Quién puede hacer qué.** Sin esto la agenda ofrecía a cualquiera
+        // para cualquier servicio: la manicurista para una coloración, y el día
+        // de la cita el salón no lo podía dar. Es el mismo problema que AG-01
+        // con el servicio en lugar del turno.
+        //
+        // El criterio es permisivo, como el de los turnos: quien no tiene
+        // ninguno cargado los hace todos, así que un salón que no administra
+        // esto sigue funcionando igual — lo resuelve `fn_usuario_hace_servicio`.
+        foreach ($servicios as $sv) {
+            $quien = (int) ($asignacion[(int) $sv->id_servicio] ?? 0) ?: $idPrincipal;
+            if (! $quien) {
+                continue;   // «sin preferencia»: lo resuelve profesionalLibre()
+            }
+            if (! (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$quien, (int) $sv->id_servicio])) {
+                $nombre = (string) DB::scalar(
+                    "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
+                       JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [$quien]
+                );
+
+                return $nombre . ' no hace ' . $sv->nombre . '. Elegí a otra persona para ese servicio.';
+            }
         }
 
         // --- Cada profesional tiene que estar libre por su bloque completo ---

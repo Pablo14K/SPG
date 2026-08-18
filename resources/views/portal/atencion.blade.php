@@ -113,6 +113,40 @@
             </div>
         </div>
     @endif
+
+    {{-- **Cómo terminó el pago.** La pantalla se cortaba con la atención, así
+         que la clienta veía el detalle mientras la atendían y después se
+         quedaba sin saber si el cobro entró ni con qué comprobante — que es
+         justo lo que va a querer mirar si algo no cuadra. --}}
+    @if ($comprobante || (float) $cobrado > 0)
+        <div class="spg-panel mt-3">
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-receipt"></i> Tu pago</h2>
+            <table class="table table-sm mb-0" style="font-size:.9rem">
+                @if ($comprobante)
+                    <tr>
+                        <td>{{ $comprobante->tipo }}</td>
+                        <td class="text-end"><strong>{{ $comprobante->nro }}</strong></td>
+                    </tr>
+                    <tr><td>Total</td><td class="text-end">{{ money($comprobante->total) }}</td></tr>
+                @endif
+                <tr><td>Pagado</td><td class="text-end txt-ok">{{ money($cobrado) }}</td></tr>
+                @if ($comprobante && (float) $comprobante->saldo > 0.01)
+                    <tr>
+                        <td><strong>Falta</strong></td>
+                        <td class="text-end"><strong class="txt-no">{{ money($comprobante->saldo) }}</strong></td>
+                    </tr>
+                @elseif ($comprobante)
+                    <tr><td colspan="2" class="txt-ok">Está todo pago. ¡Gracias!</td></tr>
+                @endif
+            </table>
+            @unless ($comprobante)
+                <p class="text-muted-warm mb-0 mt-2" style="font-size:.82rem">
+                    El comprobante todavía no se emitió. Lo vas a ver acá apenas el salón lo haga.
+                </p>
+            @endunless
+        </div>
+    @endif
+
 @endsection
 
 @push('scripts')

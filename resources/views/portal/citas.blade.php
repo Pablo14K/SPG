@@ -37,7 +37,11 @@
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
-                                @if ($c->estado === 'En proceso')
+                                {{-- **Se puede seguir hasta que el pago esté cerrado.**
+                                     Antes el botón sólo estaba con la cita «En proceso», así
+                                     que la clienta veía el detalle mientras la atendían y lo
+                                     perdía justo cuando quería revisar el comprobante. --}}
+                                @if (in_array($c->estado, ['En proceso', 'Atendida'], true))
                                     <a class="btn btn-sm btn-oro" href="{{ route('portal.atencion', ['id' => $c->id_cita]) }}">
                                         <i class="bi bi-eye"></i> Ver</a>
                                 @elseif (! in_array($c->estado, ['Atendida', 'Cancelada'], true))
@@ -58,7 +62,15 @@
                                          y no la va a haber. Es un aviso, y el salón lo confirma
                                          cuando recibe el dinero. Por eso el botón dice
                                          «Registrar» y el modal lo aclara. --}}
-                                    @if ((float) $c->sena <= 0 && (float) $c->sena_pedida <= 0)
+                                    @php
+                                        // **Lo canjeado ya está pagado con puntos.** Si el canje
+                                        // cubre toda la cita no queda nada que adelantar, y
+                                        // ofrecerle una seña es pedirle plata dos veces. Si además
+                                        // pidió algo sin canje, eso sí se puede señar — por eso es
+                                        // una resta y no un «tiene canje: no muestres nada».
+                                        $porPagar = (float) ($c->total_cita ?? 0) - (float) ($c->canjeado ?? 0);
+                                    @endphp
+                                    @if ((float) $c->sena <= 0 && (float) $c->sena_pedida <= 0 && $porPagar > 0)
                                         <button type="button" class="btn btn-sm btn-outline-neutro"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i> Seña</button>

@@ -774,7 +774,8 @@ class CitasController extends Controller
                 . ($avisadas ? " Se le avisó a $avisadas clienta(s) para que reprogramen." : ''),
                 $choques ? 'warning' : 'success');
         } catch (Throwable) {
-            flash('No se pudo registrar la excepción.', 'error');
+            flash('No se pudo registrar la excepción. Revisá que las fechas sean válidas y que el rango '
+                . 'no esté ya cargado; si sigue igual, el detalle quedó en el registro del sistema.', 'error');
         }
 
         return $volver;

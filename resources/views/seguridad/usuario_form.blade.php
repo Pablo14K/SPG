@@ -100,6 +100,33 @@
                         </div>
                     </div>
 
+                    {{-- **Qué servicios hace.** Sin esto la agenda ofrecía a
+                         cualquiera para cualquier servicio: la manicurista para una
+                         coloración, la clienta reservaba y el día de la cita el salón
+                         no lo podía dar. Es el mismo problema que AG-01, con el
+                         servicio en lugar del turno.
+
+                         Sin marcar ninguno hace todos, que es la convención del
+                         proyecto y lo que espera un salón chico donde todas hacen de
+                         todo. --}}
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios que hace</h2>
+                    <div class="mb-3">
+                        <div class="d-flex gap-3 flex-wrap">
+                            @foreach ($servicios as $sv)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="servicios[]"
+                                           value="{{ $sv->id_servicio }}" id="sv{{ $sv->id_servicio }}"
+                                           @checked(in_array((int) $sv->id_servicio, old('servicios', $misServicios), false))>
+                                    <label class="form-check-label" for="sv{{ $sv->id_servicio }}">{{ $sv->nombre }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="form-text">
+                            Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique
+                            a lo suyo: la agenda deja de ofrecerlo para el resto.
+                        </div>
+                    </div>
+
                     <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja</h2>
                     <p class="text-muted-warm mb-2" style="font-size:.8rem">
                         <strong>Sin turno asignado no aparece en la agenda</strong>: el sistema no sabría

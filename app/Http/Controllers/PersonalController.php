@@ -131,6 +131,9 @@ class PersonalController extends Controller
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             'misSuc' => $id ? array_map(fn ($r) => (int) $r->id_sucursal,
                 DB::select('SELECT id_sucursal FROM usuario_sucursal WHERE id_usuario = ?', [$id])) : [],
+            'servicios' => DB::select('SELECT id_servicio, nombre FROM servicio WHERE activo = 1 ORDER BY nombre'),
+            'misServicios' => $id ? array_map(fn ($r) => (int) $r->id_servicio,
+                DB::select('SELECT id_servicio FROM usuario_servicio WHERE id_usuario = ?', [$id])) : [],
             'turnos' => $this->turnosDisponibles(),
             'misTurnos' => $id ? array_map(fn ($r) => (int) $r->id_turno,
                 DB::select('SELECT id_turno FROM usuario_turno WHERE id_usuario = ?', [$id])) : [],
@@ -155,6 +158,9 @@ class PersonalController extends Controller
         ];
         $pass = (string) $request->input('password', '');
         $sucs = array_values(array_unique(array_map('intval', (array) $request->input('sucursales', []))));
+        // Qué servicios hace. Se reescribe entero: es una lista de casillas, así
+        // que lo que no vino es lo que se destildó. Ninguna marcada = hace todos.
+        $srvs = array_values(array_unique(array_map('intval', (array) $request->input('servicios', []))));
         $turnos = array_values(array_unique(array_map('intval', (array) $request->input('turnos', []))));
         $volver = $id ? redirect()->route('seguridad.usuario_form', $id) : redirect()->route('seguridad.usuario_form');
 
@@ -204,7 +210,7 @@ class PersonalController extends Controller
         $d['id_sucursal'] = $sucs[0] ?? null;
 
         try {
-            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $turnos) {
+            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $srvs, $turnos) {
                 if ($id) {
                     $idPersona = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$id]);
                     Persona::guardar($idPersona, $d);
@@ -237,6 +243,16 @@ class PersonalController extends Controller
                     if ($s > 0 && DB::scalar('SELECT COUNT(*) FROM sucursal WHERE id_sucursal = ?', [$s])) {
                         DB::insert('INSERT IGNORE INTO usuario_sucursal (id_usuario,id_sucursal) VALUES (?,?)',
                             [$idUsuario, $s]);
+                    }
+                }
+
+                // Qué servicios hace. Ninguno marcado = hace todos, así que la
+                // tabla queda vacía y `fn_usuario_hace_servicio` contesta que sí.
+                DB::delete('DELETE FROM usuario_servicio WHERE id_usuario = ?', [$idUsuario]);
+                foreach ($srvs as $sv) {
+                    if ($sv > 0 && DB::scalar('SELECT COUNT(*) FROM servicio WHERE id_servicio = ?', [$sv])) {
+                        DB::insert('INSERT IGNORE INTO usuario_servicio (id_usuario,id_servicio) VALUES (?,?)',
+                            [$idUsuario, $sv]);
                     }
                 }
 

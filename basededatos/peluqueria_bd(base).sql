@@ -42,7 +42,7 @@ CREATE TABLE `asistencia` (
   CONSTRAINT `fk_asistencia_turno` FOREIGN KEY (`id_turno`) REFERENCES `turno_laboral` (`id_turno`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_asistencia_usuario` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_asistencia_extras` CHECK (`horas_extras` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -51,6 +51,7 @@ CREATE TABLE `asistencia` (
 
 LOCK TABLES `asistencia` WRITE;
 /*!40000 ALTER TABLE `asistencia` DISABLE KEYS */;
+INSERT INTO `asistencia` VALUES (1,5,12,'09:38:07',NULL,NULL,0.00,NULL,12,'2026-08-18',NULL);
 /*!40000 ALTER TABLE `asistencia` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -78,7 +79,7 @@ CREATE TABLE `auditoria` (
   KEY `fk_auditoria_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_auditoria_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -87,7 +88,7 @@ CREATE TABLE `auditoria` (
 
 LOCK TABLES `auditoria` WRITE;
 /*!40000 ALTER TABLE `auditoria` DISABLE KEYS */;
-INSERT INTO `auditoria` VALUES (1,1,NULL,'LOGIN','Seguridad','usuario',1,'2026-08-18 08:03:03','Inicio de sesión');
+INSERT INTO `auditoria` VALUES (1,1,NULL,'LOGIN','Seguridad','usuario',1,'2026-08-18 08:03:03','Inicio de sesión'),(2,1,NULL,'LOGIN','Seguridad','usuario',1,'2026-08-18 09:24:53','Inicio de sesión cerrando la sesión abierta en otro equipo'),(3,1,1,'ALTA','Configuracion','sucursal',2,'2026-08-18 09:26:22','Sucursal Central'),(4,2,NULL,'LOGIN','Seguridad','usuario',2,'2026-08-18 09:26:24','Inicio de sesión'),(5,1,1,'MODIFICACION','Configuracion','configuracion',1,'2026-08-18 09:27:03','Identidad del salón: «Bella Estilo» + logo nuevo'),(6,1,1,'MODIFICACION','Personal','usuario',1,'2026-08-18 09:27:50','Ana Propietaria'),(7,1,1,'ALTA','Personal','turno_laboral',5,'2026-08-18 09:33:16','Turno Mañana Central 08:00 a 12:00 · Martes, Sábado (alta rápida)'),(8,1,1,'MODIFICACION','Personal','usuario',12,'2026-08-18 09:34:03','Lucía Benítez'),(9,1,1,'MODIFICACION','Personal','turno_laboral',3,'2026-08-18 09:34:46','Turno Mañana 08:00 a 13:00 · Lunes, Miércoles, Jueves'),(10,1,1,'MODIFICACION','Personal','turno_laboral',3,'2026-08-18 09:35:05','Turno Mañana 08:00 a 13:00 · Lunes, Miércoles, Jueves, Viernes'),(11,1,1,'MODIFICACION','Personal','usuario',12,'2026-08-18 09:35:56','Lucía Benítez'),(12,2,NULL,'LOGIN','Seguridad','usuario',2,'2026-08-18 09:37:20','Inicio de sesión cerrando la sesión abierta en otro equipo'),(13,12,NULL,'LOGIN','Seguridad','usuario',12,'2026-08-18 09:37:38','Inicio de sesión'),(14,12,2,'SUCURSAL','Seguridad','sucursal',2,'2026-08-18 09:37:50','Ingresó a la sucursal Sucursal Central'),(15,1,NULL,'LOGIN','Seguridad','usuario',1,'2026-08-18 09:40:34','Inicio de sesión'),(16,1,1,'SUCURSAL','Seguridad','sucursal',1,'2026-08-18 09:40:43','Ingresó a la sucursal Peluqueria (local unico)'),(17,1,2,'SUCURSAL','Seguridad','sucursal',2,'2026-08-18 09:41:49','Ingresó a la sucursal Sucursal Central'),(18,1,2,'CAJA_APERTURA','Facturacion','caja',1,'2026-08-18 09:42:12','Apertura con Gs. 300.000'),(19,12,2,'SENA','Facturacion','cobro',1,'2026-08-18 09:43:53','Seña de Gs. 10.000 por la cita #2 (Ana Gimenez) — confirma la que registró la clienta desde el portal'),(20,12,2,'MODIFICACION','Citas','cita',2,'2026-08-18 09:44:05','Estado cambiado a En proceso'),(21,1,2,'COMPRA','Inventario','compra',1,'2026-08-18 09:45:41','3 producto(s), 0 nuevo(s), total Gs. 6.310.000'),(22,12,2,'ATENCION','Citas','servicio_realizado',2,'2026-08-18 09:46:48','2 servicio(s), 1 producto(s) consumido(s) — 1 sin descontar'),(23,12,2,'SENA','Facturacion','cobro',2,'2026-08-18 09:50:39','Cobro de Gs. 330.000 por la cita #2 (Ana Gimenez)'),(24,12,2,'EMISION','Facturacion','factura',1,'2026-08-18 09:51:54','Comprobante 001-001-0000001 de la cita #2'),(25,12,2,'SIFEN','Facturacion','factura',1,'2026-08-18 09:52:05','Comprobante 001-001-0000001 declarado. CDC 01800123456001001000000122026081815439383795'),(26,1,2,'ALTA','Clientes','servicio_canjeable',3,'2026-08-18 09:56:30','Corte de dama por 1 puntos, con 30 día(s) de vigencia — en 2 sucursal(es)'),(27,2,NULL,'CANJE','Portal','canje',1,'2026-08-18 09:56:55','Canje de Corte de dama por puntos'),(28,12,2,'MODIFICACION','Citas','cita',3,'2026-08-18 10:00:07','Estado cambiado a En proceso'),(29,12,2,'ATENCION','Citas','servicio_realizado',3,'2026-08-18 10:00:44','1 servicio(s), 1 producto(s) consumido(s)'),(30,12,2,'SENA','Facturacion','cobro',3,'2026-08-18 10:01:37','Cobro de Gs. 75.000 por la cita #3 (Ana Gimenez)'),(31,12,2,'EMISION','Facturacion','factura',2,'2026-08-18 10:01:48','Comprobante 001-999-0000001 de la cita #3'),(32,12,NULL,'ANULAR','Cobros','cobro',3,'2026-08-18 10:02:38','Cobro anulado. Monto: 75000.00 Motivo: Ggh'),(33,1,2,'ALTA','Clientes','servicio_canjeable',4,'2026-08-18 10:05:07','Mechas / balayage por 1 puntos, con 30 día(s) de vigencia — en 2 sucursal(es)'),(34,2,NULL,'CANJE','Portal','canje',2,'2026-08-18 10:05:43','Canje de Corte de dama por puntos'),(35,2,NULL,'CANJE','Portal','canje',3,'2026-08-18 10:05:54','Canje de Mechas / balayage por puntos'),(36,1,2,'MODIFICACION','Servicios','servicio',8,'2026-08-18 10:10:01','Mechas / balayage'),(37,12,2,'MODIFICACION','Citas','cita',4,'2026-08-18 10:17:49','Estado cambiado a En proceso'),(38,12,2,'ATENCION','Citas','servicio_realizado',4,'2026-08-18 10:18:04','2 servicio(s), 1 producto(s) consumido(s)'),(39,12,2,'SENA','Facturacion','cobro',4,'2026-08-18 10:18:10','Cobro de Gs. 120.000 por la cita #4 (Ana Gimenez)'),(40,12,2,'EMISION','Facturacion','factura',3,'2026-08-18 10:18:22','Comprobante 001-001-0000002 de la cita #4'),(41,12,2,'SIFEN','Facturacion','factura',3,'2026-08-18 10:18:29','Comprobante 001-001-0000002 declarado. CDC 01800123456001001000000222026081817036069261'),(42,1,2,'MOVIMIENTO_CAJA','Facturacion','movimiento_caja',1,'2026-08-18 10:38:19','Egreso de Gs. 250.000 — deliry');
 /*!40000 ALTER TABLE `auditoria` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -150,7 +151,7 @@ CREATE TABLE `caja` (
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -159,6 +160,7 @@ CREATE TABLE `caja` (
 
 LOCK TABLES `caja` WRITE;
 /*!40000 ALTER TABLE `caja` DISABLE KEYS */;
+INSERT INTO `caja` VALUES (1,1,2,1,'2026-08-18 09:42:12',NULL,300000.00);
 /*!40000 ALTER TABLE `caja` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -204,7 +206,7 @@ CREATE TABLE `calificacion` (
   UNIQUE KEY `uq_calificacion_cita` (`id_cita`),
   CONSTRAINT `fk_calificacion_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_calificacion_puntaje` CHECK (`puntaje` between 1 and 5)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -213,6 +215,7 @@ CREATE TABLE `calificacion` (
 
 LOCK TABLES `calificacion` WRITE;
 /*!40000 ALTER TABLE `calificacion` DISABLE KEYS */;
+INSERT INTO `calificacion` VALUES (1,4,1,'pesimo servicio','2026-08-18 10:23:08'),(2,3,2,'no  mdio vuelto','2026-08-18 10:23:22'),(3,2,5,NULL,'2026-08-18 10:27:27');
 /*!40000 ALTER TABLE `calificacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -239,7 +242,7 @@ CREATE TABLE `canje` (
   CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
   CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -248,6 +251,7 @@ CREATE TABLE `canje` (
 
 LOCK TABLES `canje` WRITE;
 /*!40000 ALTER TABLE `canje` DISABLE KEYS */;
+INSERT INTO `canje` VALUES (1,1,1,1,'2026-08-18 09:56:54','2026-09-17',3),(2,1,1,1,'2026-08-18 10:05:43','2026-09-17',4),(3,1,8,1,'2026-08-18 10:05:53','2026-09-17',NULL);
 /*!40000 ALTER TABLE `canje` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -274,7 +278,7 @@ CREATE TABLE `canjeable_sucursal` (
 
 LOCK TABLES `canjeable_sucursal` WRITE;
 /*!40000 ALTER TABLE `canjeable_sucursal` DISABLE KEYS */;
-INSERT INTO `canjeable_sucursal` VALUES (1,1),(2,1);
+INSERT INTO `canjeable_sucursal` VALUES (1,1),(2,1),(3,1),(3,2),(4,1),(4,2);
 /*!40000 ALTER TABLE `canjeable_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -354,7 +358,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -363,6 +367,7 @@ CREATE TABLE `cita` (
 
 LOCK TABLES `cita` WRITE;
 /*!40000 ALTER TABLE `cita` DISABLE KEYS */;
+INSERT INTO `cita` VALUES (1,1,12,2,1,'2026-08-22 08:00:00','2026-08-18 09:38:45',NULL),(2,1,12,2,4,'2026-08-18 09:45:00','2026-08-18 09:42:58',NULL),(3,1,12,2,4,'2026-08-18 10:00:00','2026-08-18 09:58:59',NULL),(4,1,12,2,4,'2026-08-18 10:30:00','2026-08-18 10:17:23',NULL);
 /*!40000 ALTER TABLE `cita` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -456,7 +461,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -465,6 +470,7 @@ CREATE TABLE `cita_servicio` (
 
 LOCK TABLES `cita_servicio` WRITE;
 /*!40000 ALTER TABLE `cita_servicio` DISABLE KEYS */;
+INSERT INTO `cita_servicio` VALUES (1,1,4,NULL,0),(2,1,1,NULL,0),(3,1,9,NULL,0),(4,1,5,NULL,0),(5,2,4,NULL,0),(6,2,6,NULL,0),(7,3,1,NULL,0),(8,4,1,NULL,0),(9,4,12,NULL,0);
 /*!40000 ALTER TABLE `cita_servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -584,7 +590,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -593,6 +599,7 @@ CREATE TABLE `cobro` (
 
 LOCK TABLES `cobro` WRITE;
 /*!40000 ALTER TABLE `cobro` DISABLE KEYS */;
+INSERT INTO `cobro` VALUES (1,NULL,2,1,1,12,1,'2026-08-18 09:43:53',10000.00,NULL,'Sena de reserva'),(2,NULL,2,1,1,12,1,'2026-08-18 09:50:39',330000.00,NULL,'Cobro de la atencion'),(3,NULL,3,1,3,12,1,'2026-08-18 10:01:37',75000.00,NULL,'Cobro de la atencion'),(4,NULL,4,1,1,12,1,'2026-08-18 10:18:10',120000.00,NULL,'Cobro de la atencion');
 /*!40000 ALTER TABLE `cobro` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -799,7 +806,7 @@ CREATE TABLE `compra` (
   CONSTRAINT `fk_compra_proveedor` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedor` (`id_proveedor`) ON UPDATE CASCADE,
   CONSTRAINT `fk_compra_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_compra_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -808,6 +815,7 @@ CREATE TABLE `compra` (
 
 LOCK TABLES `compra` WRITE;
 /*!40000 ALTER TABLE `compra` DISABLE KEYS */;
+INSERT INTO `compra` VALUES (1,5,1,2,2,1,'5780179039 -12','2026-08-18 09:45:41',NULL);
 /*!40000 ALTER TABLE `compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -895,7 +903,7 @@ CREATE TABLE `configuracion` (
 
 LOCK TABLES `configuracion` WRITE;
 /*!40000 ALTER TABLE `configuracion` DISABLE KEYS */;
-INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,10000);
+INSERT INTO `configuracion` VALUES (1,'Bella Estilo','logo-20260818092702.jpg',10000);
 /*!40000 ALTER TABLE `configuracion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1011,7 +1019,7 @@ CREATE TABLE `detalle_compra` (
   CONSTRAINT `fk_dc_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dc_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_dc_precio` CHECK (`precio_unitario` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1020,6 +1028,7 @@ CREATE TABLE `detalle_compra` (
 
 LOCK TABLES `detalle_compra` WRITE;
 /*!40000 ALTER TABLE `detalle_compra` DISABLE KEYS */;
+INSERT INTO `detalle_compra` VALUES (1,1,10,50.00,42000.00),(2,1,7,50.00,42200.00),(3,1,2,50.00,42000.00);
 /*!40000 ALTER TABLE `detalle_compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1049,7 +1058,7 @@ CREATE TABLE `detalle_factura` (
   CONSTRAINT `chk_df_precio` CHECK (`precio_unitario` >= 0),
   CONSTRAINT `chk_df_iva` CHECK (`tasa_iva` in (0,5,10)),
   CONSTRAINT `chk_df_item` CHECK (`id_servicio` is not null and `id_producto` is null or `id_servicio` is null and `id_producto` is not null)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1058,6 +1067,7 @@ CREATE TABLE `detalle_factura` (
 
 LOCK TABLES `detalle_factura` WRITE;
 /*!40000 ALTER TABLE `detalle_factura` DISABLE KEYS */;
+INSERT INTO `detalle_factura` VALUES (1,1,4,NULL,1.00,60000.00,10),(2,1,6,NULL,1.00,280000.00,10),(4,2,1,NULL,1.00,0.00,10),(5,3,1,NULL,1.00,0.00,10),(6,3,12,NULL,1.00,45000.00,10);
 /*!40000 ALTER TABLE `detalle_factura` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1373,7 +1383,7 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1382,6 +1392,7 @@ CREATE TABLE `factura` (
 
 LOCK TABLES `factura` WRITE;
 /*!40000 ALTER TABLE `factura` DISABLE KEYS */;
+INSERT INTO `factura` VALUES (1,1,2,12,1,1,4,1,NULL,1,'2026-08-18 09:51:53',NULL),(2,1,3,12,8,1,6,1,NULL,1,'2026-08-18 10:01:48',NULL),(3,1,4,12,1,1,4,1,NULL,2,'2026-08-18 10:18:22',NULL);
 /*!40000 ALTER TABLE `factura` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1519,7 +1530,7 @@ CREATE TABLE `factura_electronica` (
   CONSTRAINT `fk_fe_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE,
   CONSTRAINT `chk_fe_estado` CHECK (`estado` in ('PENDIENTE','ENVIADO','RECHAZADO')),
   CONSTRAINT `chk_fe_cdc` CHECK (`estado` <> 'ENVIADO' or `cdc` is not null)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1528,6 +1539,7 @@ CREATE TABLE `factura_electronica` (
 
 LOCK TABLES `factura_electronica` WRITE;
 /*!40000 ALTER TABLE `factura_electronica` DISABLE KEYS */;
+INSERT INTO `factura_electronica` VALUES (1,1,'01800123456001001000000122026081815439383795','ENVIADO','MOCK-20260818095155','https://ejemplosifen.lat/sifen_automatizador/public/descargar.php?f=01800123456001001000000122026081815439383795.pdf','https://ejemplosifen.lat/sifen_automatizador/public/descargar.php?f=01800123456001001000000122026081815439383795.xml','Declarado. CDC 01800123456001001000000122026081815439383795. El PDF le fue enviado a cacerespablo13m@gmail.com.',1,'2026-08-18 09:52:05','2026-08-18 09:52:05'),(2,3,'01800123456001001000000222026081817036069261','ENVIADO','MOCK-20260818101823','https://ejemplosifen.lat/sifen_automatizador/public/descargar.php?f=01800123456001001000000222026081817036069261.pdf','https://ejemplosifen.lat/sifen_automatizador/public/descargar.php?f=01800123456001001000000222026081817036069261.xml','Declarado. CDC 01800123456001001000000222026081817036069261. El PDF le fue enviado a cacerespablo13m@gmail.com.',1,'2026-08-18 10:18:28','2026-08-18 10:18:28');
 /*!40000 ALTER TABLE `factura_electronica` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1573,12 +1585,14 @@ CREATE TABLE `movimiento_caja` (
   `monto` decimal(14,2) NOT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `concepto` varchar(150) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `anulado_motivo` varchar(150) DEFAULT NULL,
   PRIMARY KEY (`id_movimiento_caja`),
   KEY `idx_mc_caja` (`id_caja`),
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1587,6 +1601,7 @@ CREATE TABLE `movimiento_caja` (
 
 LOCK TABLES `movimiento_caja` WRITE;
 /*!40000 ALTER TABLE `movimiento_caja` DISABLE KEYS */;
+INSERT INTO `movimiento_caja` VALUES (1,1,'EGRESO',250000.00,'2026-08-18 10:38:18','deliry',1,NULL);
 /*!40000 ALTER TABLE `movimiento_caja` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1620,7 +1635,7 @@ CREATE TABLE `movimiento_inventario` (
   CONSTRAINT `fk_movinv_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1629,6 +1644,7 @@ CREATE TABLE `movimiento_inventario` (
 
 LOCK TABLES `movimiento_inventario` WRITE;
 /*!40000 ALTER TABLE `movimiento_inventario` DISABLE KEYS */;
+INSERT INTO `movimiento_inventario` VALUES (1,10,2,1,1,50.0000,42000.00,'COM#1','2026-08-18 09:45:41','Entrada por compra confirmada'),(2,7,2,1,1,50.0000,42200.00,'COM#1','2026-08-18 09:45:41','Entrada por compra confirmada'),(3,2,2,1,1,50.0000,42000.00,'COM#1','2026-08-18 09:45:41','Entrada por compra confirmada'),(4,7,2,12,2,2.0000,NULL,'SR#2','2026-08-18 09:46:48','Consumo durante el servicio'),(5,7,2,12,2,1.0000,NULL,'SR#3','2026-08-18 10:00:44','Consumo durante el servicio'),(6,7,2,12,2,1.0000,NULL,'SR#4','2026-08-18 10:18:04','Consumo durante el servicio');
 /*!40000 ALTER TABLE `movimiento_inventario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1743,7 +1759,7 @@ CREATE TABLE `movimiento_punto` (
   CONSTRAINT `fk_mp_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mp_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_mp_tipo` CHECK (`tipo` = 'ACUMULA' and `puntos` > 0 or `tipo` = 'CANJE' and `puntos` < 0 or `tipo` = 'AJUSTE' and `puntos` <> 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1752,6 +1768,7 @@ CREATE TABLE `movimiento_punto` (
 
 LOCK TABLES `movimiento_punto` WRITE;
 /*!40000 ALTER TABLE `movimiento_punto` DISABLE KEYS */;
+INSERT INTO `movimiento_punto` VALUES (1,1,1,'ACUMULA',34,'2026-08-18 09:51:54','Emisión del comprobante 001-001-0000001'),(2,1,NULL,'CANJE',-1,'2026-08-18 09:56:54','Canje por Corte de dama'),(3,1,NULL,'CANJE',-1,'2026-08-18 10:05:43','Canje por Corte de dama'),(4,1,NULL,'CANJE',-1,'2026-08-18 10:05:53','Canje por Mechas / balayage'),(5,1,3,'ACUMULA',4,'2026-08-18 10:18:22','Emisión del comprobante 001-001-0000002');
 /*!40000 ALTER TABLE `movimiento_punto` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -1843,7 +1860,7 @@ CREATE TABLE `notificacion` (
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1852,6 +1869,7 @@ CREATE TABLE `notificacion` (
 
 LOCK TABLES `notificacion` WRITE;
 /*!40000 ALTER TABLE `notificacion` DISABLE KEYS */;
+INSERT INTO `notificacion` VALUES (1,2,1,NULL,1,NULL,NULL,'WHATSAPP','Cita confirmada para el 22/08/2026 a las 08:00.','PENDIENTE','2026-08-18 09:38:45',NULL),(2,2,1,NULL,2,NULL,NULL,'WHATSAPP','Cita confirmada para el 18/08/2026 a las 09:45.','PENDIENTE','2026-08-18 09:42:58',NULL),(3,2,1,NULL,3,NULL,NULL,'WHATSAPP','Cita confirmada para el 18/08/2026 a las 10:00.','PENDIENTE','2026-08-18 09:58:59',NULL),(4,2,1,NULL,4,NULL,NULL,'WHATSAPP','Cita confirmada para el 18/08/2026 a las 10:30.','PENDIENTE','2026-08-18 10:17:23',NULL);
 /*!40000 ALTER TABLE `notificacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2014,7 +2032,7 @@ CREATE TABLE `persona` (
 
 LOCK TABLES `persona` WRITE;
 /*!40000 ALTER TABLE `persona` DISABLE KEYS */;
-INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez',NULL,NULL,'0981-000000','ana.cliente@example.com',NULL,NULL,'2026-08-06 15:48:43'),(10,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-14 10:44:45'),(11,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 10:44:45'),(12,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-14 10:44:45'),(13,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(14,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(15,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(16,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45');
+INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cacerespablo13m@gmail.com','Toribio ocampos',NULL,'2026-08-06 15:48:43'),(10,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-14 10:44:45'),(11,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 10:44:45'),(12,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-14 10:44:45'),(13,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(14,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(15,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(16,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45');
 /*!40000 ALTER TABLE `persona` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2095,7 +2113,7 @@ CREATE TABLE `preferencia_usuario` (
 
 LOCK TABLES `preferencia_usuario` WRITE;
 /*!40000 ALTER TABLE `preferencia_usuario` DISABLE KEYS */;
-INSERT INTO `preferencia_usuario` VALUES (1,'oscuro',0,1);
+INSERT INTO `preferencia_usuario` VALUES (1,'oscuro',0,1),(2,'claro',0,1),(12,'claro',0,1);
 /*!40000 ALTER TABLE `preferencia_usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2135,7 +2153,7 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',80000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',38000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',45000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',42000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',42200.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',42000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2165,7 +2183,7 @@ CREATE TABLE `producto_sucursal` (
 
 LOCK TABLES `producto_sucursal` WRITE;
 /*!40000 ALTER TABLE `producto_sucursal` DISABLE KEYS */;
-INSERT INTO `producto_sucursal` VALUES (1,1,3.00,1),(2,1,3.00,1),(3,1,4.00,1),(4,1,6.00,1),(5,1,10.00,1),(6,1,5.00,1),(7,1,2.00,1),(8,1,3.00,1),(9,1,8.00,1),(10,1,5.00,1);
+INSERT INTO `producto_sucursal` VALUES (1,1,3.00,1),(2,1,3.00,1),(2,2,0.00,1),(3,1,4.00,1),(4,1,6.00,1),(5,1,10.00,1),(6,1,5.00,1),(7,1,2.00,1),(7,2,0.00,1),(8,1,3.00,1),(9,1,8.00,1),(10,1,5.00,1),(10,2,0.00,1);
 /*!40000 ALTER TABLE `producto_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2187,7 +2205,7 @@ CREATE TABLE `producto_utilizado` (
   CONSTRAINT `fk_pu_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pu_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_pu_cantidad` CHECK (`cantidad` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2196,6 +2214,7 @@ CREATE TABLE `producto_utilizado` (
 
 LOCK TABLES `producto_utilizado` WRITE;
 /*!40000 ALTER TABLE `producto_utilizado` DISABLE KEYS */;
+INSERT INTO `producto_utilizado` VALUES (1,2,7,2.0000),(2,3,7,1.0000),(3,4,7,1.0000);
 /*!40000 ALTER TABLE `producto_utilizado` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -2335,7 +2354,7 @@ CREATE TABLE `sena_solicitud` (
   CONSTRAINT `fk_senasol_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `chk_senasol_monto` CHECK (`monto` > 0),
   CONSTRAINT `chk_senasol_estado` CHECK (`id_cobro` is null or `rechazada_en` is null)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2344,6 +2363,7 @@ CREATE TABLE `sena_solicitud` (
 
 LOCK TABLES `sena_solicitud` WRITE;
 /*!40000 ALTER TABLE `sena_solicitud` DISABLE KEYS */;
+INSERT INTO `sena_solicitud` VALUES (1,2,10000.00,'2026-08-18 09:43:19',1,12,NULL,NULL);
 /*!40000 ALTER TABLE `sena_solicitud` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2380,7 +2400,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,1),(9,3,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
+INSERT INTO `servicio` VALUES (1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2402,7 +2422,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2411,7 +2431,7 @@ CREATE TABLE `servicio_canjeable` (
 
 LOCK TABLES `servicio_canjeable` WRITE;
 /*!40000 ALTER TABLE `servicio_canjeable` DISABLE KEYS */;
-INSERT INTO `servicio_canjeable` VALUES (1,6,400,30,1),(2,9,150,30,1);
+INSERT INTO `servicio_canjeable` VALUES (1,6,400,30,1),(2,9,150,30,1),(3,1,1,30,1),(4,8,1,30,1);
 /*!40000 ALTER TABLE `servicio_canjeable` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2467,7 +2487,7 @@ CREATE TABLE `servicio_realizado` (
   CONSTRAINT `fk_sr_detalle_factura` FOREIGN KEY (`id_detalle_factura`) REFERENCES `detalle_factura` (`id_detalle_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2476,6 +2496,7 @@ CREATE TABLE `servicio_realizado` (
 
 LOCK TABLES `servicio_realizado` WRITE;
 /*!40000 ALTER TABLE `servicio_realizado` DISABLE KEYS */;
+INSERT INTO `servicio_realizado` VALUES (1,2,4,12,1,'2026-08-18 09:46:48',NULL),(2,2,6,12,2,'2026-08-18 09:46:48',NULL),(3,3,1,12,4,'2026-08-18 10:00:44',NULL),(4,4,1,12,5,'2026-08-18 10:18:04',NULL),(5,4,12,12,6,'2026-08-18 10:18:04',NULL);
 /*!40000 ALTER TABLE `servicio_realizado` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -2527,7 +2548,7 @@ CREATE TABLE `servicio_sucursal` (
 
 LOCK TABLES `servicio_sucursal` WRITE;
 /*!40000 ALTER TABLE `servicio_sucursal` DISABLE KEYS */;
-INSERT INTO `servicio_sucursal` VALUES (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1),(14,1),(15,1);
+INSERT INTO `servicio_sucursal` VALUES (1,1),(1,2),(2,1),(2,2),(3,1),(3,2),(4,1),(4,2),(5,1),(5,2),(6,1),(6,2),(7,1),(7,2),(8,1),(8,2),(9,1),(9,2),(10,1),(10,2),(11,1),(11,2),(12,1),(12,2),(13,1),(13,2),(14,1),(14,2),(15,1),(15,2);
 /*!40000 ALTER TABLE `servicio_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2548,7 +2569,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2557,7 +2578,7 @@ CREATE TABLE `sucursal` (
 
 LOCK TABLES `sucursal` WRITE;
 /*!40000 ALTER TABLE `sucursal` DISABLE KEYS */;
-INSERT INTO `sucursal` VALUES (1,'Peluqueria (local unico)','80000000-0',NULL,NULL,'Luque',1);
+INSERT INTO `sucursal` VALUES (1,'Peluqueria (local unico)','80000000-0',NULL,NULL,'Luque',1),(2,'Sucursal Central',NULL,NULL,'Adv. Mariscal Lopez','Asuncion',1);
 /*!40000 ALTER TABLE `sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2801,7 +2822,7 @@ CREATE TABLE `turno_dia` (
 
 LOCK TABLES `turno_dia` WRITE;
 /*!40000 ALTER TABLE `turno_dia` DISABLE KEYS */;
-INSERT INTO `turno_dia` VALUES (3,1),(3,2),(3,3),(3,4),(3,5),(3,6),(4,1),(4,2),(4,3),(4,4),(4,5),(4,6);
+INSERT INTO `turno_dia` VALUES (3,1),(3,3),(3,4),(3,5),(4,1),(4,2),(4,3),(4,4),(4,5),(4,6),(5,2),(5,6);
 /*!40000 ALTER TABLE `turno_dia` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2824,7 +2845,7 @@ CREATE TABLE `turno_laboral` (
   KEY `idx_turno_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_turno_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON UPDATE CASCADE,
   CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2833,7 +2854,7 @@ CREATE TABLE `turno_laboral` (
 
 LOCK TABLES `turno_laboral` WRITE;
 /*!40000 ALTER TABLE `turno_laboral` DISABLE KEYS */;
-INSERT INTO `turno_laboral` VALUES (3,1,'Turno Mañana','08:00:00','13:00:00',1),(4,1,'Turno Tarde','13:00:00','19:00:00',1);
+INSERT INTO `turno_laboral` VALUES (3,1,'Turno Mañana','08:00:00','13:00:00',1),(4,1,'Turno Tarde','13:00:00','19:00:00',1),(5,2,'Turno Mañana Central','08:00:00','12:00:00',1);
 /*!40000 ALTER TABLE `turno_laboral` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2873,7 +2894,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'611edccee79d2720068ed929476c450b','2026-08-18 08:03:03'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',15,NULL,NULL),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'b6cb8b48293e127cd646505e0088871d','2026-08-18 09:40:34'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2931,7 +2952,7 @@ CREATE TABLE `usuario_sucursal` (
 
 LOCK TABLES `usuario_sucursal` WRITE;
 /*!40000 ALTER TABLE `usuario_sucursal` DISABLE KEYS */;
-INSERT INTO `usuario_sucursal` VALUES (1,1),(10,1),(11,1),(12,1),(13,1);
+INSERT INTO `usuario_sucursal` VALUES (1,1),(1,2),(10,1),(11,1),(12,1),(12,2),(13,1);
 /*!40000 ALTER TABLE `usuario_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2958,7 +2979,7 @@ CREATE TABLE `usuario_turno` (
 
 LOCK TABLES `usuario_turno` WRITE;
 /*!40000 ALTER TABLE `usuario_turno` DISABLE KEYS */;
-INSERT INTO `usuario_turno` VALUES (10,3),(11,4),(12,3),(13,4);
+INSERT INTO `usuario_turno` VALUES (1,3),(1,4),(10,3),(11,4),(12,3),(12,5),(13,4);
 /*!40000 ALTER TABLE `usuario_turno` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3306,14 +3327,14 @@ SET character_set_client = @saved_cs_client;
 -- Dumping routines for database 'peluqueria_bd'
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_caja_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_caja_saldo`(p_id_caja INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -3336,7 +3357,10 @@ BEGIN
   SELECT COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto END), 0),
          COALESCE(SUM(CASE WHEN tipo = 'EGRESO'  THEN monto END), 0)
     INTO v_ing, v_egr
-  FROM movimiento_caja WHERE id_caja = p_id_caja;
+  
+  
+  
+  FROM movimiento_caja WHERE id_caja = p_id_caja AND activo = 1;
 
   SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
   FROM pago_proveedor pp
@@ -4277,6 +4301,31 @@ BEGIN
   END IF;
 
   RETURN v_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_usuario_hace_servicio` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_usuario_hace_servicio`(p_id_usuario INT UNSIGNED, p_id_servicio INT UNSIGNED) RETURNS tinyint(1)
+    READS SQL DATA
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM usuario_servicio WHERE id_usuario = p_id_usuario) THEN
+    RETURN 1;
+  END IF;
+
+  RETURN IF(EXISTS (SELECT 1 FROM usuario_servicio
+                     WHERE id_usuario = p_id_usuario AND id_servicio = p_id_servicio), 1, 0);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5659,4 +5708,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-18  8:17:07
+-- Dump completed on 2026-08-18 12:05:14
