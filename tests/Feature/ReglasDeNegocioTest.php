@@ -977,22 +977,33 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_comprobante_usa_el_timbrado_de_su_propio_local(): void
     {
+        // **La cita tiene que ser de un local que TENGA timbrado propio.** Si
+        // no, `fn_timbrado_vigente` cae al de otra sede —que es lo correcto y
+        // deliberado— y la prueba mediría la caída en vez de la regla. Pasaba
+        // en el contenedor y no en el host: ahí había una cita de una sucursal
+        // sin timbrado, así que la prueba fallaba por el motivo equivocado.
         $cita = DB::selectOne(
             'SELECT c.id_cita, c.id_cliente, c.id_usuario, c.id_sucursal FROM cita c
               WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
                 AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita)
+                AND EXISTS (SELECT 1 FROM timbrado t
+                             WHERE t.id_sucursal = c.id_sucursal AND t.activo = 1
+                               AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin)
               ORDER BY c.id_cita DESC LIMIT 1');
         if (! $cita) {
-            $this->markTestSkipped('Hace falta una cita con servicios y sin comprobante.');
+            $this->markTestSkipped('Hace falta una cita sin comprobante en un local con timbrado propio.');
         }
 
         // Un segundo local con SU timbrado del mismo tipo, vigente.
         DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Timbrado']);
         $otra = (int) DB::getPdo()->lastInsertId();
 
+        // Un tipo que el local de la cita YA tenga: es la única forma de que
+        // los dos timbrados compitan y la elección signifique algo.
         $tipo = (int) DB::scalar(
             'SELECT t.id_tipo_comprobante FROM timbrado t
-              WHERE t.activo = 1 AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin LIMIT 1');
+              WHERE t.activo = 1 AND t.id_sucursal = ?
+                AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin LIMIT 1', [(int) $cita->id_sucursal]);
 
         DB::insert(
             'INSERT INTO timbrado (id_sucursal, id_tipo_comprobante, nro_timbrado, establecimiento,
@@ -2744,13 +2755,20 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_turno_de_una_sucursal_no_habilita_la_agenda_de_otra(): void
     {
+        // **Con turno Y con días cargados.** Un turno sin `turno_dia` no cubre
+        // ningún día de la semana, así que no sirve para medir esto — y la
+        // prueba reventaba con «property on null» en vez de saltearse. Pasó en
+        // el contenedor y no en el host: la misma clase de dependencia del
+        // entorno que corrigió la 7.31.3.
         $prof = (int) DB::scalar(
             'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
-               JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario
+               JOIN usuario_turno ut  ON ut.id_usuario = u.id_usuario
+               JOIN turno_laboral t   ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td      ON td.id_turno = t.id_turno
               WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
         );
         if (! $prof) {
-            $this->markTestSkipped('No hay ningún profesional con turno cargado.');
+            $this->markTestSkipped('No hay ningún profesional con turno y días cargados.');
         }
 
         // Dónde tiene turno hoy, y una hora que ese turno cubra de verdad.
