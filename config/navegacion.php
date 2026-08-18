@@ -57,6 +57,7 @@ return [
         'clientes.valoraciones'     => ['Valoraciones',          'star',               'clientes.valoraciones'],
         'servicios.lista'           => ['Servicios',             'scissors',           'servicios.catalogo'],
         'servicios.categorias'      => ['Categorías',            'tags',               'servicios.categorias'],
+        'servicios.zonas'           => ['Zonas del cuerpo',      'person-arms-up',     'servicios.categorias'],
         'servicios.descuentos'      => ['Descuentos',            'percent',            'servicios.descuentos'],
         'inventario.productos'      => ['Productos',             'box-seam',           'inventario.productos'],
         'inventario.categorias'     => ['Categorías',            'tags',               'inventario.productos'],

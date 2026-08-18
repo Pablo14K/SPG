@@ -398,6 +398,90 @@ class ServiciosController extends Controller
         return redirect()->route('servicios.categorias');
     }
 
+    // ---------- Zonas del cuerpo ----------
+    //
+    //  Qué parte del cuerpo ocupa cada servicio. **Es lo que decide si dos
+    //  servicios pueden hacerse a la vez**: dos cosas sobre el mismo pelo no,
+    //  el pelo y las manos sí. Se administran acá y no en un archivo de
+    //  configuración porque cada salón tiene las suyas — el que suma masajes o
+    //  depilación no debería necesitar una versión nueva del sistema.
+
+    public function zonas(): View
+    {
+        return view('servicios.zonas', [
+            'rows' => DB::select(
+                'SELECT z.*, (SELECT COUNT(*) FROM servicio s WHERE s.id_zona = z.id_zona) AS usos
+                   FROM zona_servicio z ORDER BY z.nombre'
+            ),
+            // Los que todavía no tienen zona: mientras estén así se pueden hacer
+            // junto con cualquier cosa, y eso casi nunca es lo que el salón
+            // quiere. Se dicen por su nombre en vez de dejar que se descubra
+            // cuando una cita salga durando menos de lo que dura de verdad.
+            'sinZona' => DB::select(
+                'SELECT id_servicio, nombre FROM servicio
+                  WHERE activo = 1 AND id_zona IS NULL ORDER BY nombre'
+            ),
+        ]);
+    }
+
+    public function zonaCrear(Request $request): RedirectResponse
+    {
+        $nombre = trim((string) $request->input('nombre', ''));
+        if ($nombre !== '') {
+            try {
+                DB::insert('INSERT INTO zona_servicio (nombre) VALUES (?)', [$nombre]);
+                Auditoria::registrar('ALTA', 'Servicios', 'zona_servicio',
+                    (int) DB::getPdo()->lastInsertId(), $nombre);
+                flash('Zona agregada.');
+            } catch (Throwable) {
+                flash('Esa zona ya existe.', 'error');
+            }
+        }
+
+        return redirect()->route('servicios.zonas');
+    }
+
+    public function zonaEditar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id', 0);
+        $nombre = trim((string) $request->input('nombre', ''));
+
+        if (! $id || $nombre === '') {
+            flash('El nombre no puede quedar vacío.', 'error');
+
+            return redirect()->route('servicios.zonas');
+        }
+
+        try {
+            DB::update('UPDATE zona_servicio SET nombre = ? WHERE id_zona = ?', [$nombre, $id]);
+            Auditoria::registrar('MODIFICACION', 'Servicios', 'zona_servicio', $id, $nombre);
+            flash('Zona actualizada.');
+        } catch (Throwable) {
+            flash('Ya existe otra zona con ese nombre.', 'error');
+        }
+
+        return redirect()->route('servicios.zonas');
+    }
+
+    public function zonaBorrar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id', 0);
+        $usos = (int) DB::scalar('SELECT COUNT(*) FROM servicio WHERE id_zona = ?', [$id]);
+
+        if ($usos) {
+            // No se borra con servicios adentro: quedarían sin zona y pasarían a
+            // poder hacerse junto con cualquier cosa, en silencio.
+            flash("No se puede eliminar: hay $usos servicio(s) en esa zona. "
+                . 'Cambialos de zona primero.', 'warning');
+        } else {
+            DB::delete('DELETE FROM zona_servicio WHERE id_zona = ?', [$id]);
+            Auditoria::registrar('BAJA', 'Servicios', 'zona_servicio', $id, 'Zona eliminada');
+            flash('Zona eliminada.');
+        }
+
+        return redirect()->route('servicios.zonas');
+    }
+
     // ---------- Descuentos y promociones ----------
 
     public function descuentos(): View

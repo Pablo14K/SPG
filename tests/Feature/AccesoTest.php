@@ -213,6 +213,9 @@ class AccesoTest extends TestCase
             ['citas.agenda', []],
             ['citas.form', []],
             ['citas.ausencias', []],
+            // Zonas del cuerpo: es la pantalla que decide qué se puede hacer a
+            // la vez, así que si revienta la agenda queda sin criterio.
+            ['servicios.zonas', []],
             // Reasignar, vacía y con una persona elegida: la segunda arma
             // consultas propias que la primera no toca.
             ['citas.reasignar', []],

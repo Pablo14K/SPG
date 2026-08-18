@@ -399,6 +399,14 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         });
 
         Route::middleware('modulo:servicios.categorias')->group(function () {
+            // Las zonas del cuerpo van con el mismo permiso que las categorías:
+            // las dos son la forma de clasificar el catálogo, y quien administra
+            // una administra la otra.
+            Route::get('zonas', [ServiciosController::class, 'zonas'])->name('zonas');
+            Route::post('zonas/crear', [ServiciosController::class, 'zonaCrear'])->name('zona.crear');
+            Route::post('zonas/editar', [ServiciosController::class, 'zonaEditar'])->name('zona.editar');
+            Route::post('zonas/borrar', [ServiciosController::class, 'zonaBorrar'])->name('zona.borrar');
+
             Route::get('categorias', [ServiciosController::class, 'categorias'])->name('categorias');
             Route::post('categorias/crear', [ServiciosController::class, 'categoriaCrear'])->name('categoria.crear');
             Route::post('categorias/editar', [ServiciosController::class, 'categoriaEditar'])->name('categoria.editar');
