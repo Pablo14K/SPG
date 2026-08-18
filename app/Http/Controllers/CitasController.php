@@ -82,6 +82,7 @@ class CitasController extends Controller
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario),
             'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion),
         ]);
     }

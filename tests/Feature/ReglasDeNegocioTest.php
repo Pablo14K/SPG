@@ -3124,4 +3124,52 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(1, (int) DB::scalar('SELECT activo FROM movimiento_caja WHERE id_movimiento_caja = ?', [$otro]),
             'Sin motivo no se anula.');
     }
+
+    /**
+     * Un calendario vacío dice POR QUÉ está vacío.
+     *
+     * El caso que lo motiva es real y lo reportó el usuario: mechas (180 min),
+     * corte de dama (45) y depilación de cejas (20) son **245 minutos**, y el
+     * único turno de esa sucursal dura **240**. No entra en ningún hueco de
+     * ningún día, así que el selector salía sin una sola fecha y la pantalla
+     * decía «no quedan días, probá con otro profesional» — que la manda a
+     * recorrer uno por uno algo que ninguno puede dar.
+     *
+     * No es que esté ocupado: es que no cabe. Son dos problemas distintos y se
+     * arreglan de formas distintas.
+     */
+    #[Test]
+    public function un_calendario_vacio_dice_si_es_que_no_entra_en_ningun_turno(): void
+    {
+        $t = DB::selectOne(
+            'SELECT t.id_sucursal, TIMESTAMPDIFF(MINUTE, t.hora_inicio, t.hora_fin) AS min
+               FROM turno_laboral t WHERE t.activo = 1
+              ORDER BY min ASC LIMIT 1'
+        );
+        if (! $t) {
+            $this->markTestSkipped('No hay turnos cargados en la base de prueba.');
+        }
+        $corto = (int) $t->min;
+
+        // Lo que entra en el turno no da motivo: si no hay días, es que está tomado.
+        $this->assertNull(Agenda::motivoSinCupo($corto, null, (int) $t->id_sucursal),
+            'Lo que cabe en el turno no puede explicarse con «no entra».');
+
+        // Un minuto más que el turno más largo de ese local ya no entra nunca.
+        $mayor = (int) DB::scalar(
+            'SELECT MAX(TIMESTAMPDIFF(MINUTE, hora_inicio, hora_fin)) FROM turno_laboral
+              WHERE activo = 1 AND id_sucursal = ?', [(int) $t->id_sucursal]
+        );
+        $motivo = Agenda::motivoSinCupo($mayor + 1, null, (int) $t->id_sucursal);
+
+        $this->assertNotNull($motivo,
+            'Lo que no entra en ningún turno tiene que explicarse, no dejar el calendario mudo.');
+        $this->assertStringContainsString('turno más largo', (string) $motivo,
+            'Y el aviso tiene que decir contra qué se está comparando.');
+
+        // Y con eso, el calendario efectivamente sale vacío: las dos mitades
+        // tienen que contar la misma historia.
+        $this->assertCount(0, Agenda::diasConCupo(null, date('Y-m-d'), 30, $mayor + 1, (int) $t->id_sucursal),
+            'Si no entra en ningún turno, no puede haber ni un día con lugar.');
+    }
 }

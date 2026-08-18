@@ -376,8 +376,11 @@ window.SPGCarga = (function () {
         return;
       }
       if (!d.dias || !d.dias.length) {
-        aviso.textContent = 'No quedan días con lugar en los próximos dos meses. '
-          + 'Probá con otro profesional o con menos servicios.';
+        // El servidor sabe distinguir «está todo tomado» de «no entra en
+        // ningún turno», que se arreglan de formas distintas.
+        aviso.textContent = d.motivo
+          || ('No quedan días con lugar en los próximos dos meses. '
+              + 'Probá con otro profesional o con menos servicios.');
         return;
       }
       aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos.';

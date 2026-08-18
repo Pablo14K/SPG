@@ -340,6 +340,55 @@ class Agenda
     }
 
     /**
+     * ¿Por qué no hay ni un día con lugar?
+     *
+     * Devuelve el motivo, o null si el calendario está vacío por el motivo
+     * normal —todo tomado— que la pantalla ya sabe explicar.
+     *
+     * **El caso que motiva esto**: la clienta elige mechas (180 min), corte de
+     * dama (45) y cejas (20). Son 245 minutos, y el único turno de esa sucursal
+     * dura 240. No entra en ningún hueco de ningún día, así que el calendario
+     * sale vacío — y la pantalla decía «no quedan días, probá con otro
+     * profesional», que la manda a recorrer uno por uno algo que ninguno puede
+     * dar. El problema no es que esté ocupado: es que no cabe.
+     *
+     * Se mide contra el turno **más largo** del local, que es el techo real de
+     * lo que ahí se puede atender de un tirón.
+     */
+    public static function motivoSinCupo(int $duracion, ?int $idUsuario = null, ?int $idSucursal = null): ?string
+    {
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+        if ($duracion <= 0) {
+            return null;
+        }
+
+        $mayor = (int) DB::scalar(
+            'SELECT COALESCE(MAX(TIMESTAMPDIFF(MINUTE, t.hora_inicio, t.hora_fin)), 0)
+               FROM turno_laboral t
+              WHERE t.activo = 1
+                AND (? = 0 OR t.id_sucursal = ?)
+                AND (? = 0 OR EXISTS (SELECT 1 FROM usuario_turno ut
+                                       WHERE ut.id_turno = t.id_turno AND ut.id_usuario = ?))',
+            [$suc, $suc, (int) $idUsuario, (int) $idUsuario]
+        );
+
+        if ($mayor <= 0 || $duracion <= $mayor) {
+            return null;   // hay turnos que lo aguantan: está ocupado, no es esto
+        }
+
+        $enHoras = function (int $m): string {
+            $h = intdiv($m, 60);
+            $r = $m % 60;
+
+            return $h > 0 ? ($h . ' h' . ($r ? ' ' . $r . ' min' : '')) : ($m . ' min');
+        };
+
+        return 'Lo que elegiste lleva ' . $enHoras($duracion)
+            . ' seguidos, y el turno más largo de esta sucursal es de ' . $enHoras($mayor) . '. '
+            . 'Sacá algún servicio y reservalo aparte, o probá en otra sucursal.';
+    }
+
+    /**
      * ¿Ese horario exacto sigue libre? Se vuelve a preguntar al guardar:
      * entre que se dibujó la pantalla y se apretó el botón pudo tomarlo otro.
      * Acá SÍ decide la base.

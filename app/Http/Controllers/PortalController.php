@@ -94,7 +94,11 @@ class PortalController extends Controller
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
             'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                          (int) config('spg.agenda.dias_vista', 60), $duracion, $suc)]);
+                                          (int) config('spg.agenda.dias_vista', 60), $duracion, $suc),
+            // Si el calendario sale vacío porque lo elegido no entra en ningún
+            // turno, hay que decirlo: «probá con otro profesional» manda a
+            // recorrer uno por uno algo que ninguno puede dar.
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc)]);
     }
 
     public function reservar(Request $request): View
