@@ -147,6 +147,7 @@ class ServiciosController extends Controller
             'ajenos' => $ajenos,
             's' => $s,
             'cats' => DB::select('SELECT * FROM categoria_servicio ORDER BY nombre'),
+            'zonas' => DB::select('SELECT id_zona, nombre FROM zona_servicio WHERE activo = 1 ORDER BY nombre'),
             // Dónde más se ofrece, sólo para decirlo al editar: el catálogo es
             // único —«Corte de dama» es UN servicio con un precio— y cada local
             // publica los suyos. Ya no se elige con casillas: dar de alta lo
@@ -173,7 +174,12 @@ class ServiciosController extends Controller
             'tasa_iva' => (int) $request->input('tasa_iva', 10),
             // Ocupa a la clienta entera: no se puede hacer en paralelo con otro
             // servicio exclusivo, porque los dos necesitan a la misma persona.
-            'requiere_exclusividad' => $request->boolean('requiere_exclusividad') ? 1 : 0,
+            // `requiere_exclusividad` queda en la base pero ya no se pregunta:
+            // lo reemplaza la zona. Se conserva la columna por el mismo motivo
+            // que las piezas de la venta de productos — bajar el conteo del
+            // modelo para sacar algo que no molesta es peor negocio.
+            'requiere_exclusividad' => 0,
+            'id_zona' => ((int) $request->input('id_zona', 0)) ?: null,
         ];
         $volver = $id ? redirect()->route('servicios.form', $id) : redirect()->route('servicios.form');
 
@@ -208,7 +214,7 @@ class ServiciosController extends Controller
                 DB::update(
                     'UPDATE servicio SET id_categoria_servicio=:id_categoria_servicio, nombre=:nombre,
                         descripcion=:descripcion, precio=:precio, duracion_min=:duracion_min,
-                        tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad
+                        tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad, id_zona=:id_zona
                       WHERE id_servicio=:id', $d + ['id' => $id]
                 );
                 $cambios = [];
@@ -223,8 +229,8 @@ class ServiciosController extends Controller
                 flash('Servicio actualizado.');
             } else {
                 DB::insert(
-                    'INSERT INTO servicio (id_categoria_servicio,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad)
-                     VALUES (:id_categoria_servicio,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad)', $d
+                    'INSERT INTO servicio (id_categoria_servicio,id_zona,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad)
+                     VALUES (:id_categoria_servicio,:id_zona,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad)', $d
                 );
                 $id = (int) DB::getPdo()->lastInsertId();
                 Auditoria::registrar('ALTA', 'Servicios', 'servicio', $id, $d['nombre']);

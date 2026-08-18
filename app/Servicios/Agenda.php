@@ -578,44 +578,109 @@ class Agenda
      */
     public static function turnos(array $asignacion, int $idPrincipal): array
     {
-        $bloques = self::bloques($asignacion, $idPrincipal);
-        if (! $bloques) {
+        $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
+        if (! $ids) {
             return [];
         }
 
-        // Qué profesionales ocupan a la clienta entera.
-        $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
+        // Duración y **zona del cuerpo** de cada servicio. La zona es la que
+        // decide qué puede pasar a la vez: dos cosas sobre el mismo pelo no,
+        // el pelo y las manos sí. Antes lo decidía una casilla por servicio
+        // —«requiere atención exclusiva»— y con eso no se podía expresar el
+        // caso normal: coloración y lavado suman aunque el lavado no sea
+        // «exclusivo», porque las dos son sobre la misma cabeza.
         $in = implode(',', array_fill(0, count($ids), '?'));
-        $exclusivos = [];
-        foreach (DB::select("SELECT id_servicio FROM servicio
-                              WHERE requiere_exclusividad = 1 AND id_servicio IN ($in)", $ids) as $s) {
-            $prof = (int) ($asignacion[(int) $s->id_servicio] ?? 0) ?: $idPrincipal;
-            $exclusivos[$prof] = true;
+        $srv = DB::select(
+            "SELECT s.id_servicio, s.duracion_min, s.id_zona
+               FROM servicio s WHERE s.id_servicio IN ($in)", $ids
+        );
+
+        // Cada servicio ocupa dos cosas a la vez: **la zona de la clienta** y
+        // **al profesional**. Dos servicios chocan si comparten cualquiera de
+        // las dos, y entonces tienen que ir en turnos distintos.
+        //
+        // Se acomodan de mayor a menor: el turno que más dura es el que fija el
+        // largo total, así que poniéndolo primero lo demás entra adentro y la
+        // cita termina antes.
+        $items = [];
+        foreach ($srv as $x) {
+            $prof = (int) ($asignacion[(int) $x->id_servicio] ?? 0) ?: $idPrincipal;
+            $items[] = [
+                'srv' => (int) $x->id_servicio,
+                'min' => (int) $x->duracion_min,
+                // Sin zona cargada no comparte con nadie: es el criterio
+                // permisivo de siempre, para el catálogo que todavía no se
+                // clasificó. Se usa una clave irrepetible por servicio.
+                'zona' => $x->id_zona !== null ? 'z' . (int) $x->id_zona : 's' . (int) $x->id_servicio,
+                'prof' => $prof,
+            ];
+        }
+        usort($items, fn ($a, $b) => $b['min'] <=> $a['min']);
+
+        // Se busca el primer turno libre de zona y de profesional.
+        $ocupado = [];   // [orden]['z5'] / [orden]['p3'] => true
+        $porServicio = [];
+        foreach ($items as $it) {
+            $orden = 0;
+            while (isset($ocupado[$orden][$it['zona']]) || isset($ocupado[$orden]['p' . $it['prof']])) {
+                $orden++;
+            }
+            $ocupado[$orden][$it['zona']] = true;
+            $ocupado[$orden]['p' . $it['prof']] = true;
+            $porServicio[$it['srv']] = ['orden' => $orden, 'min' => $it['min'], 'prof' => $it['prof']];
         }
 
-        $out = [];
-        foreach ($bloques as $prof => $minutos) {
-            $out[$prof] = ['inicio' => 0, 'minutos' => $minutos, 'orden' => 0];
+        // Cuánto dura cada turno: el servicio más largo que haya adentro. Es la
+        // misma cuenta que hace `fn_cita_duracion` en la base, y tiene que
+        // decir lo mismo — la base es la autoridad al guardar.
+        $largoDeTurno = [];
+        foreach ($porServicio as $d) {
+            $largoDeTurno[$d['orden']] = max($largoDeTurno[$d['orden']] ?? 0, $d['min']);
         }
+        ksort($largoDeTurno);
 
-        // Con uno solo —o ninguno— no hay nada que secuenciar: es el caso de
-        // siempre y todo arranca a la hora de la cita.
-        if (count($exclusivos) < 2) {
-            return $out;
-        }
-
-        $enTurnos = array_intersect_key($bloques, $exclusivos);
-        arsort($enTurnos);   // el bloque más largo primero
-
+        $inicioDeTurno = [];
         $acumulado = 0;
-        $orden = 0;
-        foreach ($enTurnos as $prof => $minutos) {
-            $out[$prof] = ['inicio' => $acumulado, 'minutos' => $minutos, 'orden' => $orden];
-            $acumulado += $minutos;
-            $orden++;
+        foreach ($largoDeTurno as $orden => $min) {
+            $inicioDeTurno[$orden] = $acumulado;
+            $acumulado += $min;
         }
+
+        // Lo que se devuelve sigue siendo **por profesional**, porque es lo que
+        // la agenda necesita: desde cuándo y por cuánto queda ocupado cada uno.
+        $out = [];
+        foreach ($porServicio as $idSrv => $d) {
+            $p = $d['prof'];
+            $desde = $inicioDeTurno[$d['orden']];
+            $hasta = $desde + $d['min'];
+            if (! isset($out[$p])) {
+                $out[$p] = ['inicio' => $desde, 'minutos' => $d['min'], 'orden' => $d['orden'], '_fin' => $hasta];
+                continue;
+            }
+            $out[$p]['inicio'] = min($out[$p]['inicio'], $desde);
+            $out[$p]['_fin'] = max($out[$p]['_fin'], $hasta);
+            $out[$p]['orden'] = min($out[$p]['orden'], $d['orden']);
+            $out[$p]['minutos'] = $out[$p]['_fin'] - $out[$p]['inicio'];
+        }
+        foreach ($out as $p => $d) {
+            unset($out[$p]['_fin']);
+        }
+
+        // El orden que se guarda en `cita_servicio` es el del servicio, no el
+        // del profesional: es lo que leen `fn_cita_duracion` y
+        // `fn_cita_inicio_de`.
+        self::$ordenPorServicio = array_map(fn ($d) => $d['orden'], $porServicio);
 
         return $out;
+    }
+
+    /** El turno que le tocó a cada servicio en el último reparto calculado. */
+    private static array $ordenPorServicio = [];
+
+    /** @return array<int,int> id_servicio => orden */
+    public static function ordenDeServicios(): array
+    {
+        return self::$ordenPorServicio;
     }
 
     /**
@@ -801,7 +866,13 @@ class Agenda
             // le dice a la agenda desde cuándo está ocupado ese profesional,
             // vía `fn_cita_inicio_de`. Sin esto, el segundo quedaría libre en la
             // franja en la que va a estar atendiendo acá.
-            $turnos = self::turnos($asignacion, $idUsuario);
+            self::turnos($asignacion, $idUsuario);
+            // **El turno es del SERVICIO, no del profesional.** Desde que la
+            // zona del cuerpo decide, la misma persona puede tener dos servicios
+            // en turnos distintos —coloración y lavado, las dos sobre el pelo—,
+            // así que guardar el turno del profesional los aplastaba en uno solo
+            // y la cita salía durando el más largo en vez de la suma.
+            $orden = self::ordenDeServicios();
 
             foreach ($asignacion as $idServicio => $idProf) {
                 $otro = (int) $idProf;
@@ -809,7 +880,7 @@ class Agenda
                 DB::insert(
                     'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden) VALUES (?,?,?,?)',
                     [$idCita, (int) $idServicio, $de === $idUsuario ? null : $de,
-                     (int) ($turnos[$de]['orden'] ?? 0)]
+                     (int) ($orden[(int) $idServicio] ?? 0)]
                 );
             }
 

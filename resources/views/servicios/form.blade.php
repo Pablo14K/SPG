@@ -121,27 +121,28 @@
                 </div>
 
                 <div class="col-12">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="1" id="requiere_exclusividad"
-                               name="requiere_exclusividad"
-                               @checked(old('requiere_exclusividad', $s->requiere_exclusividad ?? 0))>
-                        <label class="form-check-label" for="requiere_exclusividad">
-                            Ocupa a la clienta entera
-                        </label>
-                        {{-- **El nombre decía a quién ocupa mal.** «Requiere atención
-                             exclusiva» se leía como «necesita que el profesional no haga
-                             otra cosa», y no es eso: lo que ocupa es a la CLIENTA. Dos
-                             servicios así no pueden pasar a la vez sobre la misma persona
-                             aunque haya dos profesionales libres — es el cuerpo el que no
-                             se puede partir en dos. --}}
+                    {{-- **La zona decide qué se puede hacer a la vez.** Antes había
+                         acá una casilla, «Requiere atención exclusiva», y con un
+                         booleano no se podía expresar el caso normal: coloración y
+                         lavado suman aunque el lavado no sea «exclusivo», porque las
+                         dos son sobre la misma cabeza; coloración y manicura no, porque
+                         son partes distintas. Lo que impide el paralelo no es una
+                         propiedad del servicio: es que compartan la parte del cuerpo. --}}
+                    <div class="col-md-6">
+                        <label class="form-label" for="id_zona">¿Sobre qué parte trabaja?</label>
+                        <select class="form-select" id="id_zona" name="id_zona">
+                            <option value="">— sin especificar —</option>
+                            @foreach ($zonas as $z)
+                                <option value="{{ $z->id_zona }}"
+                                    @selected((int) old('id_zona', $s->id_zona ?? 0) === (int) $z->id_zona)>
+                                    {{ $z->nombre }}</option>
+                            @endforeach
+                        </select>
                         <div class="form-text">
-                            Marcalo cuando, mientras se hace, <strong>no se le puede hacer nada más a la
-                            clienta</strong>. Una coloración y una keratina se pisan porque las dos son sobre
-                            el pelo; un lavado y una pedicura conviven, porque son partes distintas.
-                            <br>
-                            No habla del profesional: habla de la clienta. Dos servicios así en la misma
-                            cita <strong>se agendan uno después del otro</strong> —aunque los hagan dos
-                            personas distintas— y la cita dura la suma, no el más largo.
+                            Dos servicios de la <strong>misma</strong> parte se hacen uno después del
+                            otro y los tiempos se suman; de partes distintas se hacen a la vez y la
+                            cita dura lo del más largo. Sin especificar, se puede hacer junto con
+                            cualquier cosa.
                         </div>
                     </div>
                 </div>

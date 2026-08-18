@@ -2377,6 +2377,7 @@ DROP TABLE IF EXISTS `servicio`;
 CREATE TABLE `servicio` (
   `id_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria_servicio` int(10) unsigned NOT NULL,
+  `id_zona` int(10) unsigned DEFAULT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `precio` decimal(12,2) NOT NULL DEFAULT 0.00,
@@ -2387,7 +2388,9 @@ CREATE TABLE `servicio` (
   PRIMARY KEY (`id_servicio`),
   UNIQUE KEY `uq_servicio_nombre` (`nombre`),
   KEY `idx_servicio_categoria` (`id_categoria_servicio`),
+  KEY `fk_servicio_zona` (`id_zona`),
   CONSTRAINT `fk_servicio_categoria` FOREIGN KEY (`id_categoria_servicio`) REFERENCES `categoria_servicio` (`id_categoria_servicio`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_servicio_zona` FOREIGN KEY (`id_zona`) REFERENCES `zona_servicio` (`id_zona`),
   CONSTRAINT `chk_servicio_precio` CHECK (`precio` >= 0),
   CONSTRAINT `chk_servicio_duracion` CHECK (`duracion_min` >= 0),
   CONSTRAINT `chk_servicio_iva` CHECK (`tasa_iva` in (0,5,10))
@@ -2400,7 +2403,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
+INSERT INTO `servicio` VALUES (1,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,1,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,1,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,1,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,4,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3318,6 +3321,32 @@ SET character_set_client = utf8;
   1 AS `precio`,
   1 AS `pagado` */;
 SET character_set_client = @saved_cs_client;
+
+--
+-- Table structure for table `zona_servicio`
+--
+
+DROP TABLE IF EXISTS `zona_servicio`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `zona_servicio` (
+  `id_zona` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(60) NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_zona`),
+  UNIQUE KEY `uq_zona_nombre` (`nombre`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `zona_servicio`
+--
+
+LOCK TABLES `zona_servicio` WRITE;
+/*!40000 ALTER TABLE `zona_servicio` DISABLE KEYS */;
+INSERT INTO `zona_servicio` VALUES (1,'Cabello',1),(2,'Manos',1),(3,'Pies',1),(4,'Rostro',1),(5,'Cuerpo',1);
+/*!40000 ALTER TABLE `zona_servicio` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Dumping events for database 'peluqueria_bd'
@@ -5708,4 +5737,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-18 12:05:14
+-- Dump completed on 2026-08-18 15:13:20

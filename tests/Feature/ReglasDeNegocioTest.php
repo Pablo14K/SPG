@@ -1105,14 +1105,22 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function dos_servicios_exclusivos_van_en_secuencia_no_en_paralelo(): void
     {
-        // «Requiere atención exclusiva» significa que ese servicio no se puede
-        // hacer al mismo tiempo que otro igual: una coloración y una keratina
-        // se pisan, las dos son sobre el pelo. La regla se aplica ENTRE
-        // profesionales distintos — si los hace la misma persona van uno
-        // después del otro y no hay conflicto.
-        $ex = DB::select('SELECT id_servicio FROM servicio WHERE activo = 1 AND requiere_exclusividad = 1 LIMIT 2');
+        // Dos servicios de la MISMA zona del cuerpo no se pueden hacer a la vez
+        // —una coloración y una keratina se pisan: las dos son sobre el pelo—
+        // así que van uno después del otro **aunque los hagan dos personas
+        // distintas**. Eso es lo que se mide acá: que queden secuenciados y que
+        // el segundo arranque exactamente cuando el primero termina.
+        //
+        // Hasta la 7.43.0 esto lo decidía la casilla «requiere atención
+        // exclusiva». Con un booleano el caso normal no se podía expresar:
+        // coloración y lavado suman aunque el lavado no sea «exclusivo».
+        $ex = DB::select(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1 AND s.id_zona = (SELECT id_zona FROM zona_servicio WHERE nombre = ?)
+              ORDER BY s.duracion_min ASC LIMIT 2', ['Cabello']
+        );
         if (count($ex) < 2) {
-            $this->markTestSkipped('Hacen falta dos servicios exclusivos en la base de prueba.');
+            $this->markTestSkipped('Hacen falta dos servicios de la misma zona en la base de prueba.');
         }
         [$a, $b] = [(int) $ex[0]->id_servicio, (int) $ex[1]->id_servicio];
 
@@ -1158,10 +1166,22 @@ class ReglasDeNegocioTest extends TestCase
         // aceptara en paralelo, la clienta estaría en dos sillones a la vez y
         // el segundo profesional quedaría libre justo cuando va a atenderla.
         $turnos = Agenda::turnos([$a => $p1, $b => $p2], $p1);
-        $this->assertSame(0, $turnos[$p1]['inicio'], 'El primero arranca con la cita.');
-        $this->assertGreaterThan(0, $turnos[$p2]['inicio'],
-            'El segundo tiene que esperar a que el primero termine, no arrancar a la vez.');
-        $this->assertSame($turnos[$p1]['minutos'], $turnos[$p2]['inicio'],
+
+        // **Cuál va primero no se fija acá, y es a propósito**: el reparto pone
+        // adelante el bloque más largo, porque el primer turno es el único que
+        // puede solaparse con lo de otras zonas y así la cita entera termina
+        // antes. Lo que la prueba exige es lo que importa: que uno arranque con
+        // la cita, que el otro NO arranque a la vez, y que no quede aire entre
+        // los dos.
+        $inicios = [$turnos[$p1]['inicio'], $turnos[$p2]['inicio']];
+        sort($inicios);
+        $this->assertSame(0, $inicios[0], 'Uno de los dos tiene que arrancar con la cita.');
+        $this->assertGreaterThan(0, $inicios[1],
+            'El otro tiene que esperar a que el primero termine, no arrancar a la vez.');
+
+        $primero = $turnos[$p1]['inicio'] === 0 ? $turnos[$p1] : $turnos[$p2];
+        $segundo = $turnos[$p1]['inicio'] === 0 ? $turnos[$p2] : $turnos[$p1];
+        $this->assertSame($primero['minutos'], $segundo['inicio'],
             'El segundo arranca exactamente cuando el primero termina.');
 
         // Y la cita dura la SUMA, no el bloque más largo: la clienta está
@@ -3171,5 +3191,60 @@ class ReglasDeNegocioTest extends TestCase
         // tienen que contar la misma historia.
         $this->assertCount(0, Agenda::diasConCupo(null, date('Y-m-d'), 30, $mayor + 1, (int) $t->id_sucursal),
             'Si no entra en ningún turno, no puede haber ni un día con lugar.');
+    }
+
+    /**
+     * Lo que decide si dos servicios pueden hacerse a la vez es LA ZONA.
+     *
+     * Antes lo decidía una casilla por servicio —«requiere atención exclusiva»—
+     * y con un booleano el caso normal no se podía expresar: coloración y lavado
+     * suman aunque el lavado no sea «exclusivo», porque las dos son sobre la
+     * misma cabeza; coloración y manicura no suman, porque son partes distintas.
+     * No es una propiedad del servicio: es que compartan la parte del cuerpo.
+     *
+     * **Y la persona también es un recurso**: una sola no puede hacer dos cosas
+     * a la vez aunque sean de zonas distintas.
+     */
+    #[Test]
+    public function la_zona_del_cuerpo_decide_que_se_puede_hacer_a_la_vez(): void
+    {
+        $srv = fn (string $zona, int $n) => DB::select(
+            'SELECT s.id_servicio, s.duracion_min FROM servicio s
+               JOIN zona_servicio z ON z.id_zona = s.id_zona
+              WHERE z.nombre = ? AND s.activo = 1 ORDER BY s.duracion_min DESC LIMIT ?', [$zona, $n]
+        );
+        $cabello = $srv('Cabello', 2);
+        $manos = $srv('Manos', 1);
+        $profs = array_map(fn ($r) => (int) $r->id_usuario, DB::select(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 2'
+        ));
+        if (count($cabello) < 2 || ! $manos || count($profs) < 2) {
+            $this->markTestSkipped('Falta catálogo clasificado por zona.');
+        }
+        [$c1, $c2] = $cabello;
+        $m = $manos[0];
+
+        // 1) Misma zona, personas distintas: NO pueden a la vez → suman.
+        $this->assertSame(
+            (int) $c1->duracion_min + (int) $c2->duracion_min,
+            Agenda::duracionReparto([(int) $c1->id_servicio => $profs[0], (int) $c2->id_servicio => $profs[1]], $profs[0]),
+            'Dos servicios sobre la misma parte del cuerpo se hacen uno después del otro.'
+        );
+
+        // 2) Zonas distintas, personas distintas: SÍ pueden a la vez → el más largo.
+        $this->assertSame(
+            max((int) $c1->duracion_min, (int) $m->duracion_min),
+            Agenda::duracionReparto([(int) $c1->id_servicio => $profs[0], (int) $m->id_servicio => $profs[1]], $profs[0]),
+            'Partes distintas se hacen a la vez, así que la cita dura lo del más largo.'
+        );
+
+        // 3) Zonas distintas pero UNA sola persona: tampoco puede a la vez.
+        //    La persona es un recurso más, igual que el cuerpo de la clienta.
+        $this->assertSame(
+            (int) $c1->duracion_min + (int) $m->duracion_min,
+            Agenda::duracionReparto([(int) $c1->id_servicio => $profs[0], (int) $m->id_servicio => $profs[0]], $profs[0]),
+            'Una sola persona no puede hacer dos cosas a la vez, aunque sean de zonas distintas.'
+        );
     }
 }

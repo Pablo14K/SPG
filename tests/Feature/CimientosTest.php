@@ -164,7 +164,19 @@ class CimientosTest extends TestCase
     {
         // Color de 45 min con una y uñas de 30 con otra, a la vez, son 45
         // minutos de cita — no 75. Con la misma persona, sí se suman.
-        $servicios = DB::select('SELECT id_servicio, duracion_min FROM servicio WHERE activo=1 ORDER BY id_servicio LIMIT 2');
+        //
+        // **Los dos servicios tienen que ser de ZONAS distintas**, que es lo que
+        // desde la 7.43.0 decide si pueden pasar a la vez: dos cosas sobre el
+        // mismo pelo se turnan aunque las hagan dos personas. Antes bastaba con
+        // tomar los dos primeros del catálogo, y la prueba pasaba por casualidad
+        // —los dos eran de cabello y el paralelo lo daba la casilla, no la zona—.
+        $servicios = DB::select(
+            'SELECT s.id_servicio, s.duracion_min FROM servicio s
+              WHERE s.activo = 1 AND s.id_zona IS NOT NULL
+                AND s.id_servicio = (SELECT MIN(x.id_servicio) FROM servicio x
+                                      WHERE x.id_zona = s.id_zona AND x.activo = 1)
+              ORDER BY s.id_zona LIMIT 2'
+        );
         if (count($servicios) < 2) {
             $this->markTestSkipped('Hacen falta dos servicios en la base de prueba.');
         }
