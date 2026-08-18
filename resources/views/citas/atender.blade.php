@@ -126,6 +126,29 @@
                 —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.
             </p>
 
+            {{-- **Un local que no maneja ningún producto tiene que decirlo.** El
+                 catálogo es único desde la 7.33.0 y `producto_sucursal` dice qué
+                 maneja cada sede, así que una sucursal recién abierta llega acá
+                 con la lista vacía: tres selectores con «— sin producto —» y nada
+                 más. La atención se registra igual —hay servicios que no consumen
+                 nada— pero quien atiende no tiene forma de saber si es que no hay
+                 productos o si es que el sistema se rompió. Es el mismo criterio
+                 de IN-06: nombrar el camino en vez de dejar la pantalla muda. --}}
+            @if (! count($productos))
+                <div class="alert alert-warning" style="font-size:.85rem">
+                    <strong>Esta sucursal todavía no maneja ningún producto</strong>, así que no
+                    hay nada que descontar. La atención se registra igual.
+                    @if (\App\Servicios\Permisos::puede('inventario.productos'))
+                        Para habilitarlos acá andá a
+                        <a class="link-oro" href="{{ route('inventario.productos') }}">Inventario → Productos</a>:
+                        con el filtro <em>«Sólo en otras sucursales»</em> aparecen los que ya existen
+                        en otro local y se traen con <em>«Traer acá»</em>, sin volver a cargarlos.
+                    @else
+                        Avisale a quien maneja el inventario para que los habilite en este local.
+                    @endif
+                </div>
+            @endif
+
             <div id="filasProductos">
                 @for ($i = 0; $i < 3; $i++)
                     <div class="row g-2 mb-2 filaProducto">

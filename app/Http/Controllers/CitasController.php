@@ -126,6 +126,13 @@ class CitasController extends Controller
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS sena_pedida,
                     f.id_factura,
+                    -- **Cuánto vale la cita**, para que el modal de cobro lo diga
+                    -- antes y no después. Es la MISMA expresión con la que la base
+                    -- topea la seña, así que la pantalla no puede ofrecer un monto
+                    -- que el procedimiento vaya a rechazar.
+                    (SELECT COALESCE(SUM(s2.precio),0) FROM cita_servicio cs2
+                       JOIN servicio s2 ON s2.id_servicio = cs2.id_servicio
+                      WHERE cs2.id_cita = v.id_cita) AS total_cita,
                     CASE WHEN f.id_factura IS NULL THEN NULL
                          ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
                     CASE WHEN f.id_factura IS NULL THEN NULL

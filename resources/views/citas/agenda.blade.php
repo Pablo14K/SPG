@@ -254,6 +254,15 @@
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
+                            @php
+                                // **Cuánto falta cobrar.** El monto no se adivina: la
+                                // base topea el cobro contra lo que valen los servicios
+                                // de la cita, así que hasta ahora la única forma de
+                                // enterarse del número era mandar uno de más y leer el
+                                // rechazo. Se calcula acá con la misma cuenta.
+                                $totalCita = (float) ($c->total_cita ?? 0);
+                                $falta = max(0, $totalCita - (float) $c->sena);
+                            @endphp
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.85rem">
                                     Cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
@@ -267,12 +276,36 @@
                                     @endif
                                 </p>
 
+                                {{-- Lo que hay que cobrar, arriba del campo y no en un
+                                     rechazo posterior. Un modal que pide un monto sin
+                                     decir cuál es el monto obliga a saberlo de memoria. --}}
+                                @if ($totalCita > 0)
+                                    <div class="spg-cobro-cuenta mb-2">
+                                        <span>La cita vale <strong>{{ money($totalCita) }}</strong></span>
+                                        @if ((float) $c->sena > 0)
+                                            <span>· ya cobrado <strong>{{ money($c->sena) }}</strong></span>
+                                        @endif
+                                        <strong class="spg-cobro-falta">A cobrar {{ money($falta) }}</strong>
+                                    </div>
+                                @else
+                                    {{-- Sin servicios cargados no hay monto que cobrar, y la
+                                         base lo rechaza igual: mejor decirlo antes. --}}
+                                    <div class="alert alert-warning py-2 mb-2" style="font-size:.82rem">
+                                        Esta cita no tiene servicios cargados, así que no hay monto que cobrar.
+                                    </div>
+                                @endif
+
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label" for="sm{{ $c->id_cita }}">Monto</label>
+                                        {{-- Viene con lo que falta: en el mostrador se cobra
+                                             el total casi siempre, y si no, se corrige. --}}
                                         <input class="form-control input-miles" id="sm{{ $c->id_cita }}"
-                                               name="monto" data-min="1" inputmode="numeric" required
-                                               value="{{ $c->id_solicitud ? monto_input($c->sena_pedida) : '' }}">
+                                               name="monto" data-min="1" data-max="{{ (int) $falta }}"
+                                               inputmode="numeric" required
+                                               value="{{ $c->id_solicitud
+                                                          ? monto_input($c->sena_pedida)
+                                                          : ($falta > 0 ? monto_input($falta) : '') }}">
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label" for="sp{{ $c->id_cita }}">Medio de pago</label>
@@ -289,8 +322,13 @@
                                     </div>
                                 </div>
 
+                                {{-- **La caja es del local, no de quien la abrió.** Desde la
+                                     7.36.3 la sucursal del cobro se deduce de la cita, así que
+                                     nombrar a la persona informaba mal: la plata entra al cajón
+                                     de esta sucursal, la haya abierto quien la haya abierto. --}}
                                 <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
-                                    Entra en la caja de <strong>{{ $caja->responsable }}</strong>
+                                    Entra en la caja de <strong>{{ session('sucursal_nom') ?: 'esta sucursal' }}</strong>
+                                    (la abrió {{ $caja->responsable }})
                                     @if ($c->estado === 'Atendida')
                                         y después elegís el comprobante: factura o comprobante de pago,
                                         lo que pida la clienta. Sale saldado solo.
@@ -301,7 +339,15 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                                <button class="btn btn-oro">Cobrar la seña</button>
+                                {{-- El título decía «Cobrar la atención» y el botón «Cobrar
+                                     la seña»: dos nombres para el mismo clic. --}}
+                                <button class="btn btn-oro">
+                                    @if ($c->estado === 'Atendida')
+                                        Cobrar
+                                    @else
+                                        {{ $c->id_solicitud ? 'Confirmar la seña' : 'Cobrar la seña' }}
+                                    @endif
+                                </button>
                             </div>
                         </form>
                     </div>

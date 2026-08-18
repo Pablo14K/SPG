@@ -917,3 +917,12 @@ html,body{max-width:100%;overflow-x:hidden;}
   .spg-barra-carga::before{animation:none;width:100%;opacity:.5;}
   .btn.cargando::after,.spg-spinner{animation-duration:2.5s;}
 }
+
+/* Cuánto vale la cita y cuánto falta cobrar, arriba del campo de monto del
+   modal de cobro. El importe pendiente va en oro porque es jerarquía —es EL
+   número de la pantalla—, que es uno de los usos permitidos; el resto del
+   renglón queda en neutro para que ese número destaque solo. */
+.spg-cobro-cuenta{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .5rem;
+  background:var(--oro-tinte);border:1px solid var(--gris-calido);border-radius:.4rem;
+  padding:.45rem .6rem;font-size:.85rem;color:var(--carbon);}
+.spg-cobro-falta{margin-left:auto;color:var(--oro-texto);font-size:1rem;}

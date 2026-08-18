@@ -2272,16 +2272,19 @@ class ReglasDeNegocioTest extends TestCase
 
         // Un servicio que esa clienta NO tenga ya reservado hoy: `trg_citaserv_bi`
         // no deja repetir el mismo servicio el mismo día.
-        $srv = (int) DB::scalar(
-            'SELECT s.id_servicio FROM servicio s
+        // El más corto de los que le quedan libres: de su duración depende cuánto
+        // del día tiene que haber transcurrido para que la cita ya haya terminado.
+        $s = DB::selectOne(
+            'SELECT s.id_servicio, s.duracion_min FROM servicio s
               WHERE s.activo = 1
                 AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
                                   JOIN cita ci ON ci.id_cita = cs.id_cita
                                   JOIN estado_cita ec ON ec.id_estado_cita = ci.id_estado_cita
                                  WHERE ci.id_cliente = ? AND DATE(ci.fecha_hora) = CURDATE()
                                    AND ec.bloquea_agenda = 1 AND cs.id_servicio = s.id_servicio)
-              ORDER BY s.id_servicio LIMIT 1', [$idc]
+              ORDER BY s.duracion_min, s.id_servicio LIMIT 1', [$idc]
         );
+        $srv = (int) ($s->id_servicio ?? 0);
         $prof = (int) DB::scalar(
             'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
               WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
@@ -2290,12 +2293,27 @@ class ReglasDeNegocioTest extends TestCase
             $this->markTestSkipped('Falta catálogo para armar la cita.');
         }
 
+        // La cita tiene que cumplir DOS cosas a la vez: ser de hoy y haber
+        // terminado. Una hora fija no sirve —esta prueba se escribió con
+        // `00:15` y falló en el contenedor, que estaba en las **00:03**: a esa
+        // hora una cita de las 00:15 todavía es futura y con razón salía en
+        // «Próximas»—. Se ubica contra el reloj de la base, que es el que manda.
+        $atras = (int) $s->duracion_min + 5;
+        $transcurrido = (int) DB::scalar('SELECT HOUR(NOW()) * 60 + MINUTE(NOW())');
+        if ($transcurrido < $atras) {
+            // Recién pasó la medianoche: hoy todavía no hay ninguna cita que
+            // pueda haber terminado. No hay nada que medir, y fingir que sí
+            // sería peor que decirlo.
+            $this->markTestSkipped('Recién pasó la medianoche: hoy no cabe una cita ya terminada.');
+        }
+
         // Se inserta a mano y no con `sp_agendar_cita`: lo que se prueba es cómo
         // el portal LEE una cita pasada, y el procedimiento —con razón— no deja
         // agendar hacia atrás.
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
-        DB::insert("INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
-                    VALUES (?, ?, ?, CONCAT(CURDATE(), ' 00:15:00'), 1)", [$idc, $prof, $suc]);
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? MINUTE), 1)',
+                   [$idc, $prof, $suc, $atras]);
         $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
         DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)', [$idCita, $srv]);
 
@@ -2530,5 +2548,160 @@ class ReglasDeNegocioTest extends TestCase
         $this->get(route('facturacion.emitir'))
             ->assertOk()
             ->assertDontSee('Esta sucursal no tiene timbrado propio.', false);
+    }
+
+    /**
+     * El modal de cobro dice cuánto vale la cita y cuánto falta cobrar.
+     *
+     * Pedía un monto y **no decía cuál**: la única forma de enterarse del número
+     * era mandar uno de más y leer el rechazo («Esa cita vale Gs. 60.000, así que
+     * no se puede cobrar…»). En el mostrador eso es obligar a saber de memoria lo
+     * que el sistema ya tiene calculado.
+     *
+     * El total sale de la **misma expresión** con la que la base topea el cobro,
+     * así que la pantalla no puede ofrecer un monto que el procedimiento rechace.
+     */
+    #[Test]
+    public function el_modal_de_cobro_dice_cuanto_hay_que_cobrar(): void
+    {
+        $cliente = $this->clienteLibreHoy();
+        $srv = DB::selectOne('SELECT id_servicio, precio FROM servicio WHERE activo = 1 AND precio > 0
+                               ORDER BY id_servicio LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        if (! $cliente || ! $srv || ! $prof) {
+            $this->markTestSkipped('Falta catálogo para armar la cita.');
+        }
+
+        // Atendida y sin comprobante: el caso en que la agenda ofrece «Cobrar».
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?, ?, ?, NOW(), 4)', [$cliente, $prof, $suc]);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)', [$idCita, (int) $srv->id_servicio]);
+
+        $this->entrarComoAdministrador();
+
+        $r = $this->get(route('citas.agenda', ['dia' => date('Y-m-d')]))->assertOk();
+
+        $html = $r->getContent();
+        $this->assertStringContainsString('A cobrar ' . money((float) $srv->precio), $html,
+            'El modal tiene que decir cuánto falta cobrar, no esperar a rechazarlo.');
+        $this->assertStringContainsString('La cita vale', $html,
+            'Y cuánto vale la cita, que es de dónde sale ese número.');
+    }
+
+    /**
+     * Un local que no maneja ningún producto lo dice al registrar la atención.
+     *
+     * El catálogo es único desde la 7.33.0 y `producto_sucursal` dice qué maneja
+     * cada sede, así que una sucursal recién abierta llega a «Registrar atención»
+     * con la lista vacía: tres selectores con «— sin producto —» y nada más. La
+     * atención se registra igual —hay servicios que no consumen nada— pero quien
+     * atiende no tiene cómo saber si es que no hay productos o si el sistema se
+     * rompió. Es el mismo criterio de IN-06: nombrar el camino en vez de callarse.
+     */
+    #[Test]
+    public function el_local_sin_productos_lo_dice_al_registrar_la_atencion(): void
+    {
+        $cliente = $this->clienteLibreHoy();
+        $srv = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+        if (! $cliente || ! $srv) {
+            $this->markTestSkipped('Falta catálogo para armar la cita.');
+        }
+
+        // Un local nuevo: ninguna fila en `producto_sucursal`, que es justo el
+        // estado en el que queda una sucursal recién abierta.
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal sin productos ' . uniqid(), 'Calle 3']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?, 1, ?, NOW(), 1)', [$cliente, $otra]);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)', [$idCita, $srv]);
+
+        $admin = (int) config('permisos.rol_admin', 1);
+        session(['uid' => 1, 'rol' => $admin, 'es_personal' => true, 'es_cliente' => false]);
+        $this->conSucursal($otra);
+
+        $this->get(route('citas.atender', ['id' => $idCita]))
+            ->assertOk()
+            ->assertSee('Esta sucursal todavía no maneja ningún producto', false);
+
+        // Y donde sí hay productos habilitados, el aviso no está: un cartel que
+        // sale siempre deja de leerse.
+        $conProductos = (int) DB::scalar(
+            'SELECT ps.id_sucursal FROM producto_sucursal ps
+               JOIN producto p ON p.id_producto = ps.id_producto
+              WHERE ps.activo = 1 AND p.activo = 1 LIMIT 1'
+        );
+        if ($conProductos) {
+            DB::update('UPDATE cita SET id_sucursal = ? WHERE id_cita = ?', [$conProductos, $idCita]);
+            $this->conSucursal($conProductos);
+            $this->get(route('citas.atender', ['id' => $idCita]))
+                ->assertOk()
+                ->assertDontSee('Esta sucursal todavía no maneja ningún producto', false);
+        }
+    }
+
+    /**
+     * La sucursal se pregunta UNA vez, y marcar alguna es obligatorio.
+     *
+     * El formulario preguntaba dos veces lo mismo: las casillas de «Sucursales
+     * donde trabaja» y, debajo, un selector de «Sucursal principal». En cuál
+     * está HOY lo decide la sesión al entrar desde la 7.30.0, así que el
+     * segundo campo no contestaba nada que el primero no contestara.
+     *
+     * Lo que queda de `usuario.id_sucursal` es la red para las cuentas viejas
+     * sin asignaciones (`Sucursales::delUsuario`) y para lo que agenda sin
+     * sesión (`Agenda::agendar`), así que se deduce de la primera marcada.
+     *
+     * **Y al sacar el selector, marcar al menos una pasa a ser obligatorio**:
+     * antes ese campo tapaba el caso, y sin él una cuenta sin ningún local no
+     * puede entrar a ninguna parte — la pantalla de elegir sucursal le sale
+     * vacía y sin decir por qué.
+     */
+    #[Test]
+    public function la_sucursal_del_usuario_se_pregunta_una_sola_vez(): void
+    {
+        $this->entrarComoAdministrador();
+
+        // Se compara sobre el contenido y no con assertSee/assertDontSee: cuando
+        // esas fallan, PHPUnit imprime la PÁGINA ENTERA en el mensaje de error.
+        $html = $this->get(route('seguridad.usuario_form'))->assertOk()->getContent();
+        $this->assertStringContainsString('name="sucursales[]"', $html,
+            'Las casillas de sucursales son la única pregunta que queda.');
+        // Se busca el rótulo y no `name="id_sucursal"`: ese nombre lo usa también
+        // el alta rápida de turno, que sí necesita decir de qué local es el turno.
+        $this->assertStringNotContainsString('Sucursal principal', $html,
+            'El selector de «Sucursal principal» preguntaba dos veces lo mismo.');
+
+        $rol = (int) DB::scalar('SELECT id_rol FROM rol WHERE es_personal = 1 AND activo = 1 ORDER BY id_rol LIMIT 1');
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
+        $u = 'prueba.' . substr(uniqid(), -8);
+
+        $ficha = [
+            'nombre' => 'Rocío', 'apellido' => 'Prueba', 'username' => $u,
+            'email' => $u . '@ejemplo.com', 'password' => 'secreto123', 'id_rol' => $rol,
+        ];
+
+        // 1) Sin ninguna marcada no entra: quedaría sin ningún local al que entrar.
+        $this->post(route('seguridad.usuario.guardar'), $ficha);
+        $this->assertSame(0, (int) DB::scalar('SELECT COUNT(*) FROM usuario WHERE username = ?', [$u]),
+            'Una cuenta de personal sin ninguna sucursal no puede guardarse.');
+
+        // 2) Con una marcada, la ficha queda apuntando a ésa sin haberla pedido aparte.
+        $this->post(route('seguridad.usuario.guardar'), $ficha + ['sucursales' => [$suc]]);
+        $guardada = DB::selectOne('SELECT id_usuario, id_sucursal FROM usuario WHERE username = ?', [$u]);
+        $this->assertNotNull($guardada, 'Con una sucursal marcada la cuenta tiene que guardarse.');
+        $this->assertSame($suc, (int) $guardada->id_sucursal,
+            'La sucursal de la ficha se deduce de la primera marcada, no de un campo aparte.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM usuario_sucursal WHERE id_usuario = ? AND id_sucursal = ?',
+            [(int) $guardada->id_usuario, $suc]
+        ), 'Y queda asignada de verdad, que es lo que el sistema lee para dejarla entrar.');
     }
 }

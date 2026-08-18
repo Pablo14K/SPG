@@ -142,7 +142,9 @@ class PersonalController extends Controller
         $id = (int) $request->input('id_usuario', 0);
         $d = [
             'id_rol' => (int) $request->input('id_rol', 0),
-            'id_sucursal' => ((int) $request->input('id_sucursal', 0)) ?: null,
+            // `id_sucursal` ya NO se pregunta: sale de la primera sucursal
+            // marcada, más abajo. Ver el comentario del formulario.
+            'id_sucursal' => null,
             'username' => trim((string) $request->input('username', '')),
             'nombre' => trim((string) $request->input('nombre', '')),
             'apellido' => trim((string) $request->input('apellido', '')),
@@ -178,6 +180,13 @@ class PersonalController extends Controller
             $error = 'Ya existe un usuario con esa cédula.';
         } elseif ($id === (int) session('uid') && $d['id_rol'] !== (int) config('permisos.rol_admin', 1)) {
             $error = 'No podés quitarte a vos mismo el rol de Administrador: pedile a otro Administrador que lo haga.';
+        } elseif (! $sucs) {
+            // **Ahora es obligatorio, y antes no lo era.** Mientras existía el
+            // selector de sucursal principal, una ficha sin ninguna marcada se
+            // salvaba con eso; sin él, la persona queda sin ningún local al que
+            // entrar y la pantalla de elegir sucursal le sale vacía, sin decir
+            // por qué. Una cuenta que no puede entrar a ningún lado no sirve.
+            $error = 'Marcá al menos una sucursal en la que trabaje.';
         } else {
             $error = Persona::error($d);
         }
@@ -187,13 +196,11 @@ class PersonalController extends Controller
             return $volver->withInput();
         }
 
-        // La sucursal principal tiene que estar entre las asignadas
-        if ($d['id_sucursal'] && ! in_array((int) $d['id_sucursal'], $sucs, true)) {
-            $sucs[] = (int) $d['id_sucursal'];
-        }
-        if (! $d['id_sucursal'] && $sucs) {
-            $d['id_sucursal'] = $sucs[0];
-        }
+        // La de la ficha es la primera marcada. No es un dato aparte: es la red
+        // para `Sucursales::delUsuario()` —cuentas viejas sin asignaciones— y para
+        // `Agenda::agendar()` cuando no hay sesión. En cuál está HOY lo decide la
+        // sesión al entrar, que es lo que hace la 7.30.0.
+        $d['id_sucursal'] = $sucs[0] ?? null;
 
         try {
             $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $turnos) {

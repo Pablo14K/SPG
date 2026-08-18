@@ -77,6 +77,16 @@
                     </div>
 
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursales donde trabaja</h2>
+                    {{-- **Una sola pregunta, no dos.** Acá había además un selector de
+                         «Sucursal principal» que repetía lo mismo con otras palabras: en
+                         cuál está HOY lo decide la sesión al entrar, no la ficha. Lo que
+                         queda de `usuario.id_sucursal` es la red para las cuentas viejas
+                         sin asignaciones y para lo que agenda sin sesión, así que se
+                         deduce de la primera marcada en vez de preguntarse aparte. --}}
+                    <p class="text-muted-warm mb-2" style="font-size:.8rem">
+                        Marcá todos los locales en los que atiende. Al entrar elige en cuál
+                        está ese día, y desde ahí ve la agenda, la caja y el stock de ese local.
+                    </p>
                     <div class="mb-3">
                         <div class="d-flex gap-3 flex-wrap">
                             @foreach ($sucursales as $s)
@@ -87,17 +97,6 @@
                                     <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label>
                                 </div>
                             @endforeach
-                        </div>
-                        <div class="mt-2">
-                            <label class="form-label" for="id_sucursal">Sucursal principal</label>
-                            <select class="form-select" id="id_sucursal" name="id_sucursal" style="max-width:280px">
-                                <option value="0">— la primera marcada —</option>
-                                @foreach ($sucursales as $s)
-                                    <option value="{{ $s->id_sucursal }}"
-                                        @selected((int) old('id_sucursal', $u->id_sucursal ?? 0) === (int) $s->id_sucursal)>
-                                        {{ $s->nombre }}</option>
-                                @endforeach
-                            </select>
                         </div>
                     </div>
 
