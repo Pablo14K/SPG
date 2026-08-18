@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Sucursales;
 use App\Servicios\Auditoria;
 use App\Servicios\Borrador;
 use App\Servicios\Listado;
@@ -548,13 +549,19 @@ class PersonalController extends Controller
         return view('seguridad.comisiones', [
             'rows' => DB::select(
                 "SELECT c.*, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS profesional,
-                        COALESCE(s.nombre,'Todos los servicios') AS servicio
+                        COALESCE(s.nombre,'Todos los servicios') AS servicio,
+                        COALESCE(su.nombre,'Todas las sucursales') AS donde
                    FROM comision c
                    JOIN usuario u  ON u.id_usuario = c.id_usuario
                    JOIN persona pe_u ON pe_u.id_persona = u.id_persona
-                   LEFT JOIN servicio s ON s.id_servicio = c.id_servicio
-                  WHERE c.activo = 1 ORDER BY pe_u.nombre, c.vigente_desde DESC"
+                   LEFT JOIN servicio s  ON s.id_servicio = c.id_servicio
+                   LEFT JOIN sucursal su ON su.id_sucursal = c.id_sucursal
+                  WHERE c.activo = 1
+                    AND (:s = 0 OR c.id_sucursal IS NULL OR c.id_sucursal = :s2)
+                  ORDER BY pe_u.nombre, c.vigente_desde DESC",
+                ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
+            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
         ]);
     }
 
@@ -568,6 +575,7 @@ class PersonalController extends Controller
                   WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY pe.nombre, pe.apellido"
             ),
             'servicios' => DB::select('SELECT id_servicio, nombre FROM servicio WHERE activo = 1 ORDER BY nombre'),
+            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
         ]);
     }
 
@@ -575,6 +583,10 @@ class PersonalController extends Controller
     {
         $d = [
             'id_usuario' => (int) $request->input('id_usuario', 0),
+            // **La comision puede ser distinta segun el local**, por decision
+            // del usuario. Vacio = vale en todas, que es lo que hay cargado de
+            // antes y lo que espera un salon de un solo local.
+            'id_sucursal' => ((int) $request->input('id_sucursal', 0)) ?: null,
             'id_servicio' => ((int) $request->input('id_servicio', 0)) ?: null,   // NULL = todos
             'tipo' => (string) $request->input('tipo', 'PORCENTAJE'),
             'valor' => num($request->input('valor')),
@@ -607,8 +619,8 @@ class PersonalController extends Controller
 
         try {
             DB::insert(
-                'INSERT INTO comision (id_usuario,id_servicio,tipo,valor,vigente_desde)
-                 VALUES (:id_usuario,:id_servicio,:tipo,:valor,:vigente_desde)', $d
+                'INSERT INTO comision (id_usuario,id_sucursal,id_servicio,tipo,valor,vigente_desde)
+                 VALUES (:id_usuario,:id_sucursal,:id_servicio,:tipo,:valor,:vigente_desde)', $d
             );
             Auditoria::registrar('ALTA', 'Personal', 'comision', (int) DB::getPdo()->lastInsertId(),
                 'Comisión ' . $d['tipo'] . ' ' . $d['valor']);

@@ -27,9 +27,20 @@ use Illuminate\Support\Facades\DB;
 class Canje
 {
     /** Servicios que hoy se pueden canjear, con lo que cuestan. */
-    public static function catalogo(bool $soloActivos = true): array
+    public static function catalogo(bool $soloActivos = true, ?int $idSucursal = null): array
     {
         $filtro = $soloActivos ? 'AND sc.activo = 1 AND s.activo = 1' : '';
+
+        // **El catalogo es de cada local**, por decision del usuario: lo que la
+        // casa central regala por 400 puntos no tiene por que regalarlo la otra
+        // sede. `canjeable_sucursal` ya guardaba eso; lo que faltaba era
+        // filtrar. Sin filas vale en todas, que es la convencion del proyecto y
+        // lo que espera quien recien abre el segundo local.
+        //
+        // **El VALE ya canjeado no se filtra acá y es a propósito**: los puntos
+        // son del salón —fidelización se comparte— así que el premio también.
+        // La clienta canjea donde junta y lo usa donde le queda cómodo.
+        $suc = $idSucursal ?? Sucursales::activa();
 
         return DB::select(
             "SELECT sc.id_servicio_canjeable, sc.id_servicio, sc.puntos, sc.dias_vigencia, sc.activo,
@@ -39,7 +50,14 @@ class Canje
                JOIN servicio s ON s.id_servicio = sc.id_servicio
                JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
               WHERE 1=1 $filtro
-              ORDER BY sc.puntos, s.nombre"
+                AND (:s1 = 0
+                     OR EXISTS (SELECT 1 FROM canjeable_sucursal cx
+                                 WHERE cx.id_servicio_canjeable = sc.id_servicio_canjeable
+                                   AND cx.id_sucursal = :s2)
+                     OR NOT EXISTS (SELECT 1 FROM canjeable_sucursal cy
+                                     WHERE cy.id_servicio_canjeable = sc.id_servicio_canjeable))
+              ORDER BY sc.puntos, s.nombre",
+            ['s1' => (int) $suc, 's2' => (int) $suc]
         );
     }
 

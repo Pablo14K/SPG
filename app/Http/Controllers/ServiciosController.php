@@ -51,11 +51,6 @@ class ServiciosController extends Controller
             'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado',
                          'opciones' => ['' => 'Todos', '1' => 'Activos', '0' => 'Inactivos']],
         ];
-        if ($varias && $aqui) {
-            $campos['local'] = ['tipo' => 'select', 'etiqueta' => 'Dónde se ofrece',
-                                'opciones' => ['' => 'Todos', 'aqui' => 'Acá',
-                                               'otras' => 'Sólo en otras sucursales']];
-        }
 
         $f = Listado::filtros($campos);
         $f['csv'] = true;
@@ -78,12 +73,21 @@ class ServiciosController extends Controller
         // lo que espera quien recién abre el segundo local: el catálogo que ya
         // tenía no se le apaga solo. Por eso las dos ramas preguntan por la
         // existencia de alguna fila antes de mirar la del local.
-        if ($varias && $aqui && Listado::hay($f, 'local')) {
-            $publicadoAca = 'EXISTS (SELECT 1 FROM servicio_sucursal ss
-                                      WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc)
-                             OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
-                                             WHERE ss2.id_servicio = s.id_servicio)';
-            $w[] = Listado::valor($f, 'local') === 'aqui' ? "($publicadoAca)" : "NOT ($publicadoAca)";
+        // **La lista es la de ESTE local.** Antes había un filtro «Dónde se
+        // ofrece» y una tabla con todo el catálogo diciendo si estaba activo
+        // acá; el usuario pidió lo contrario y tiene razón: quien administra el
+        // salón de San Lorenzo no tiene por qué ver una lista de servicios que
+        // no da, con una columna para adivinar cuáles sí. Lo que se ofrece en
+        // otro lado se trae desde el alta, con «traer uno existente».
+        //
+        // Sigue valiendo que **sin filas en `servicio_sucursal` el servicio vale
+        // en TODAS**: es la red para el catálogo que ya estaba cargado antes de
+        // que las sucursales importaran, y no se le apaga solo a nadie.
+        if ($aqui) {
+            $w[] = '(EXISTS (SELECT 1 FROM servicio_sucursal ss
+                              WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc)
+                     OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
+                                     WHERE ss2.id_servicio = s.id_servicio))';
             $par['loc'] = $aqui;
         }
 
@@ -103,18 +107,8 @@ class ServiciosController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
-        // La columna «Acá» se calcula igual que el filtro: publicado en este
-        // local, o sin ninguna sucursal marcada (o sea, en todas).
-        $marca = $varias && $aqui
-            ? ', (EXISTS (SELECT 1 FROM servicio_sucursal ss WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc2)
-                  OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2 WHERE ss2.id_servicio = s.id_servicio)) AS aca'
-            : ', 1 AS aca';
-        if ($varias && $aqui) {
-            $par['loc2'] = $aqui;
-        }
-
         return view('servicios.lista', [
-            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria $marca $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
             'varias' => $varias,
@@ -130,25 +124,46 @@ class ServiciosController extends Controller
             return redirect()->route('servicios.lista');
         }
 
+        // **Lo que ya existe se trae, no se vuelve a cargar.** Escrito de nuevo,
+        // «Corte de dama» termina siendo dos filas con el nombre distinto según
+        // quién lo tipeó, cada una con su precio y su duración: a partir de ahí
+        // ningún informe puede comparar el mismo servicio entre sucursales. Por
+        // eso el alta empieza ofreciendo el catálogo que este local todavía no
+        // publica, y traerlo es un clic — no copia nada, agrega la fila de
+        // `servicio_sucursal` que dice que acá también se ofrece.
+        $suc = Sucursales::activa();
+        $ajenos = ($suc && ! $id) ? DB::select(
+            'SELECT s.id_servicio, s.nombre, s.precio, cs.nombre AS categoria
+               FROM servicio s
+               JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
+              WHERE s.activo = 1
+                AND EXISTS (SELECT 1 FROM servicio_sucursal x WHERE x.id_servicio = s.id_servicio)
+                AND NOT EXISTS (SELECT 1 FROM servicio_sucursal y
+                                 WHERE y.id_servicio = s.id_servicio AND y.id_sucursal = ?)
+              ORDER BY cs.nombre, s.nombre', [$suc]
+        ) : [];
+
         return view('servicios.form', [
+            'ajenos' => $ajenos,
             's' => $s,
             'cats' => DB::select('SELECT * FROM categoria_servicio ORDER BY nombre'),
-            // **En qué locales se ofrece.** El catálogo es único —«Corte de
-            // dama» es UN servicio con un precio— y cada sucursal marca cuáles
-            // publica. Sin esta pantalla, un local nuevo nacía sin un solo
-            // servicio y la clienta no veía nada al querer reservar ahí.
-            'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
-            'publicado' => $id
-                ? array_map(fn ($r) => (int) $r->id_sucursal,
-                    DB::select('SELECT id_sucursal FROM servicio_sucursal WHERE id_servicio = ?', [$id]))
-                : array_map(fn ($r) => (int) $r->id_sucursal,
-                    DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1')),
+            // Dónde más se ofrece, sólo para decirlo al editar: el catálogo es
+            // único —«Corte de dama» es UN servicio con un precio— y cada local
+            // publica los suyos. Ya no se elige con casillas: dar de alta lo
+            // publica acá, y los demás lo traen con «traer uno existente».
+            'tambienEn' => $id ? DB::select(
+                'SELECT su.nombre FROM servicio_sucursal ss
+                   JOIN sucursal su ON su.id_sucursal = ss.id_sucursal
+                  WHERE ss.id_servicio = ? AND ss.id_sucursal <> ? ORDER BY su.nombre',
+                [$id, Sucursales::activa() ?: 0]
+            ) : [],
         ]);
     }
 
     public function guardar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_servicio', 0);
+        $esAlta = $id === 0;
         $d = [
             'id_categoria_servicio' => (int) $request->input('id_categoria_servicio', 0),
             'nombre' => trim((string) $request->input('nombre', '')),
@@ -216,17 +231,13 @@ class ServiciosController extends Controller
                 flash('Servicio creado.');
             }
 
-            // **En qué locales se publica.** Se reescribe entero: es una lista
-            // de casillas, así que lo que no vino es lo que se destildó. Sin
-            // marcar ninguna se publica en todas — un servicio que no se ofrece
-            // en ningún lado no le sirve a nadie, y es lo que espera quien
-            // todavía tiene un solo local.
-            $sucursales = array_values(array_filter(array_map('intval', (array) $request->input('sucursales', []))));
-            if (! $sucursales) {
-                $sucursales = array_map(fn ($s) => (int) $s->id_sucursal,
-                    DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1'));
-            }
-            DB::delete('DELETE FROM servicio_sucursal WHERE id_servicio = ?', [$id]);
+            // **Un servicio nuevo se publica en el local que lo crea, y nada
+            // más.** Antes había casillas para elegir en cuáles, y el usuario
+            // pidió sacarlas: cada sede administra lo suyo y lo trae si le sirve.
+            // **Editar no toca la publicación de nadie** — con las casillas, un
+            // cambio de precio hecho desde acá reescribía la lista entera y podía
+            // apagarle el servicio a otra sucursal sin que nadie se enterara.
+            $sucursales = ($esAlta && Sucursales::activa()) ? [Sucursales::activa()] : [];
             foreach ($sucursales as $idSuc) {
                 DB::insert('INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal) VALUES (?,?)',
                     [$id, $idSuc]);
@@ -305,10 +316,25 @@ class ServiciosController extends Controller
     public function categorias(): View
     {
         return view('servicios.categorias', [
+            // **Las categorias de este local SE DEDUCEN**, por decision del
+            // usuario: no hay tabla que diga cuales publica cada sede. Una
+            // categoria se ve si tiene al menos un servicio de aca, y se cuenta
+            // con los de aca — con el conteo del salon entero, una categoria con
+            // ocho servicios en la casa central y ninguno aca diria «8» y quien
+            // la mira no encontraria ninguno en su lista.
+            //
+            // Deducirlas evita una pantalla mas y evita el caso raro: una
+            // categoria marcada para un local pero sin un solo servicio ahi.
             'rows' => DB::select(
                 'SELECT cs.*, (SELECT COUNT(*) FROM servicio s
-                                WHERE s.id_categoria_servicio = cs.id_categoria_servicio) AS usos
-                   FROM categoria_servicio cs ORDER BY nombre'
+                                WHERE s.id_categoria_servicio = cs.id_categoria_servicio
+                                  AND (:s1 = 0
+                                       OR EXISTS (SELECT 1 FROM servicio_sucursal ss
+                                                   WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :s2)
+                                       OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
+                                                       WHERE ss2.id_servicio = s.id_servicio))) AS usos
+                   FROM categoria_servicio cs ORDER BY nombre',
+                ['s1' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
         ]);
     }

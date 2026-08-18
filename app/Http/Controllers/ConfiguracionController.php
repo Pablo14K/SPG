@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Sucursales;
 use App\Servicios\Auditoria;
 use App\Servicios\Config;
 use App\Servicios\Contacto;
@@ -622,10 +623,24 @@ class ConfiguracionController extends Controller
             return $out;
         };
 
+        // Las sucursales para el filtro. Se arma acá y no en el arreglo para
+        // que la opción vacía diga «Todas», que es lo que se ve por defecto.
+        $opcSucursal = function (): array {
+            $o = ['' => 'Todas'];
+            foreach (DB::select('SELECT id_sucursal, nombre FROM sucursal ORDER BY nombre') as $x) {
+                $o[(string) $x->id_sucursal] = $x->nombre;
+            }
+
+            return $o;
+        };
+
         $f = Listado::filtros([
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Detalle, tabla o usuario', 'ancho' => '250px'],
             'accion' => ['tipo' => 'select', 'etiqueta' => 'Acción', 'opciones' => $opcAccion()],
             'modulo' => ['tipo' => 'select', 'etiqueta' => 'Módulo', 'opciones' => $opc('modulo')],
+            // **Se ve todo y se puede acotar**, igual que los reportes: quien
+            // audita necesita el cuadro completo, y a veces revisar una sede.
+            'sucursal' => ['tipo' => 'select', 'etiqueta' => 'Sucursal', 'opciones' => $opcSucursal()],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
         ]);
@@ -636,6 +651,10 @@ class ConfiguracionController extends Controller
         if (Listado::hay($f, 'q')) {
             $w[] = Listado::likeVarias(['a.detalle', 'a.tabla_afectada', "CONCAT(pe.nombre,' ',pe.apellido)"],
                 Listado::valor($f, 'q'), 'q', $par);
+        }
+        if (Listado::hay($f, 'sucursal')) {
+            $w[] = 'a.id_sucursal = :suc';
+            $par['suc'] = (int) Listado::valor($f, 'sucursal');
         }
         if (Listado::hay($f, 'accion')) {
             // Si la acción elegida tiene sinónimo, se buscan las dos formas:
@@ -666,12 +685,19 @@ class ConfiguracionController extends Controller
             $par['h'] = Listado::valor($f, 'hasta');
         }
 
+        // **La auditoría se comparte, pero se puede mirar por local.** Es lo
+        // mismo que hacen los reportes: el consolidado es lo que se ve por
+        // defecto —quien audita necesita el cuadro completo— y el filtro acota
+        // cuando se quiere revisar una sede. La sucursal es DONDE OCURRIÓ el
+        // hecho, así que se guarda: no se deduce de nada.
         $desde = 'FROM auditoria a
                   JOIN usuario u  ON u.id_usuario = a.id_usuario
                   JOIN persona pe ON pe.id_persona = u.id_persona
+                  LEFT JOIN sucursal su ON su.id_sucursal = a.id_sucursal
                   WHERE ' . implode(' AND ', $w);
         $cols = "a.fecha_hora AS fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
-                 CONCAT(pe.nombre,' ',pe.apellido) AS usuario";
+                 CONCAT(pe.nombre,' ',pe.apellido) AS usuario,
+                 COALESCE(su.nombre,'—') AS sucursal";
 
         if (Listado::pideExport()) {
             return Listado::exportar('auditoria',

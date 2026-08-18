@@ -5,6 +5,41 @@
 @section('contenido')
     @php $id = $p->id_producto ?? 0; @endphp
 
+    {{-- **Antes de cargar uno nuevo, mira si ya existe.** Escrito de nuevo,
+         «Shampoo profesional 1L» queda como dos filas con dos unidades y dos
+         contenidos, y a partir de ahi ni el consumo fraccionado ni ningun
+         informe pueden comparar el mismo frasco entre sucursales. Traerlo no
+         copia nada: agrega la fila que dice que aca tambien se maneja. --}}
+    @if (! empty($ajenos))
+        <div class="spg-panel mb-3">
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en el catalogo</h2>
+            <p class="text-muted-warm mb-2" style="font-size:.82rem">
+                Estos productos ya estan cargados en otro local. Traelos aca en vez de
+                escribirlos de nuevo: es el mismo producto, con su unidad y su contenido.
+            </p>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label" for="traer">Producto</label>
+                    <select class="form-select" id="traer" form="formTraer" name="id_producto" required>
+                        <option value="">— elegi uno —</option>
+                        @foreach ($ajenos as $a)
+                            <option value="{{ $a->id_producto }}">
+                                {{ $a->nombre }} · {{ $a->categoria }} · por {{ $a->unidad_medida }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <form method="post" action="{{ route('inventario.producto.traer') }}" id="formTraer">
+                        @csrf
+                        <button class="btn btn-oro w-100"><i class="bi bi-plus-lg"></i> Traer aca</button>
+                    </form>
+                </div>
+            </div>
+            <input data-filtra="#traer" class="form-control form-control-sm mt-2"
+                   placeholder="Filtrar la lista…">
+        </div>
+    @endif
+
     <div class="spg-page-head">
         <a class="spg-back" href="{{ route('inventario.productos') }}"><i class="bi bi-arrow-left"></i> Productos</a>
         <h1 class="mt-1">{{ $id ? 'Editar producto' : 'Nuevo producto' }}</h1>

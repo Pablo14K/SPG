@@ -64,6 +64,7 @@ DROP TABLE IF EXISTS `auditoria`;
 CREATE TABLE `auditoria` (
   `id_auditoria` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `accion` varchar(40) NOT NULL,
   `modulo` varchar(40) NOT NULL,
   `tabla_afectada` varchar(60) NOT NULL,
@@ -74,7 +75,9 @@ CREATE TABLE `auditoria` (
   KEY `idx_aud_usuario` (`id_usuario`),
   KEY `idx_aud_fecha` (`fecha_hora`),
   KEY `idx_aud_tabla` (`tabla_afectada`),
-  CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
+  KEY `fk_auditoria_sucursal` (`id_sucursal`),
+  CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_auditoria_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -84,7 +87,7 @@ CREATE TABLE `auditoria` (
 
 LOCK TABLES `auditoria` WRITE;
 /*!40000 ALTER TABLE `auditoria` DISABLE KEYS */;
-INSERT INTO `auditoria` VALUES (1,1,'LOGIN','Seguridad','usuario',1,'2026-08-18 08:03:03','Inicio de sesión');
+INSERT INTO `auditoria` VALUES (1,1,NULL,'LOGIN','Seguridad','usuario',1,'2026-08-18 08:03:03','Inicio de sesión');
 /*!40000 ALTER TABLE `auditoria` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -739,6 +742,7 @@ DROP TABLE IF EXISTS `comision`;
 CREATE TABLE `comision` (
   `id_comision` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `id_servicio` int(10) unsigned DEFAULT NULL,
   `tipo` varchar(20) NOT NULL,
   `valor` decimal(12,2) NOT NULL DEFAULT 0.00,
@@ -747,7 +751,9 @@ CREATE TABLE `comision` (
   PRIMARY KEY (`id_comision`),
   UNIQUE KEY `uq_comision` (`id_usuario`,`id_servicio`,`vigente_desde`),
   KEY `idx_comision_servicio` (`id_servicio`),
+  KEY `fk_comision_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_comision_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_comision_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_comision_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_comision_tipo` CHECK (`tipo` in ('PORCENTAJE','MONTO')),
   CONSTRAINT `chk_comision_valor` CHECK (`valor` >= 0)
@@ -760,7 +766,7 @@ CREATE TABLE `comision` (
 
 LOCK TABLES `comision` WRITE;
 /*!40000 ALTER TABLE `comision` DISABLE KEYS */;
-INSERT INTO `comision` VALUES (8,12,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(9,10,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(10,11,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(11,13,NULL,'PORCENTAJE',15.00,'2026-08-14',1);
+INSERT INTO `comision` VALUES (8,12,NULL,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(9,10,NULL,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(10,11,NULL,NULL,'PORCENTAJE',15.00,'2026-08-14',1),(11,13,NULL,NULL,'PORCENTAJE',15.00,'2026-08-14',1);
 /*!40000 ALTER TABLE `comision` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3617,40 +3623,48 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_comision_servicio` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_comision_servicio`(p_id_servicio_realizado INT UNSIGNED) RETURNS decimal(14,2)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_comision_servicio`(p_id_servicio_realizado INT UNSIGNED) RETURNS decimal(12,2)
     READS SQL DATA
 BEGIN
   DECLARE v_usuario  INT UNSIGNED DEFAULT NULL;
   DECLARE v_servicio INT UNSIGNED DEFAULT NULL;
+  DECLARE v_sucursal INT UNSIGNED DEFAULT NULL;
   DECLARE v_fecha    DATE;
   DECLARE v_precio   DECIMAL(12,2) DEFAULT 0;
   DECLARE v_tipo     VARCHAR(20)   DEFAULT NULL;
   DECLARE v_valor    DECIMAL(12,2) DEFAULT 0;
 
-  SELECT sr.id_usuario, sr.id_servicio, DATE(sr.fecha_hora), s.precio
-    INTO v_usuario, v_servicio, v_fecha, v_precio
+  
+  
+  SELECT sr.id_usuario, sr.id_servicio, DATE(sr.fecha_hora), s.precio, c.id_sucursal
+    INTO v_usuario, v_servicio, v_fecha, v_precio, v_sucursal
   FROM servicio_realizado sr
   JOIN servicio s ON s.id_servicio = sr.id_servicio
+  LEFT JOIN cita c ON c.id_cita = sr.id_cita
   WHERE sr.id_servicio_realizado = p_id_servicio_realizado;
 
   IF v_usuario IS NULL THEN RETURN 0; END IF;
 
+  
+  
+  
   SELECT c.tipo, c.valor INTO v_tipo, v_valor
   FROM comision c
   WHERE c.id_usuario = v_usuario
     AND (c.id_servicio = v_servicio OR c.id_servicio IS NULL)
+    AND (c.id_sucursal = v_sucursal OR c.id_sucursal IS NULL)
     AND c.activo = 1
     AND c.vigente_desde <= v_fecha
-  ORDER BY (c.id_servicio IS NULL) ASC, c.vigente_desde DESC
+  ORDER BY (c.id_sucursal IS NULL) ASC, (c.id_servicio IS NULL) ASC, c.vigente_desde DESC
   LIMIT 1;
 
   IF v_tipo IS NULL THEN RETURN 0; END IF;
@@ -5645,4 +5659,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-18  7:51:05
+-- Dump completed on 2026-08-18  8:17:07

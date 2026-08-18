@@ -22,6 +22,26 @@
                 </select>
             </div>
 
+            {{-- **La comision puede ser distinta segun el local**, por decision
+                 del usuario: la misma persona puede cobrar un porcentaje aca y
+                 otro alla. Vacio vale en todas, que es lo que espera un salon de
+                 un solo local. Solo se dibuja con mas de una sucursal. --}}
+            @if (count($sucursales) > 1)
+                <div class="mb-3">
+                    <label class="form-label" for="id_sucursal">Sucursal</label>
+                    <select class="form-select" id="id_sucursal" name="id_sucursal">
+                        <option value="0">Todas las sucursales</option>
+                        @foreach ($sucursales as $su)
+                            <option value="{{ $su->id_sucursal }}">{{ $su->nombre }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">
+                        La del local le gana a la que vale en todas, y se aplica segun donde
+                        se haya prestado el servicio.
+                    </div>
+                </div>
+            @endif
+
             <div class="mb-3">
                 <label class="form-label" for="id_servicio">Servicio</label>
                 <select class="form-select" id="id_servicio" name="id_servicio">

@@ -54,6 +54,7 @@ class ReportesController extends Controller
         'demanda' => 'Demanda por hora y por día',
         'medios' => 'Medios de pago',
         'equipo' => 'El equipo',
+        'sucursales' => 'Por sucursal',
         'prov' => 'Deuda con proveedores',
     ];
 
@@ -244,6 +245,34 @@ class ReportesController extends Controller
             'maxDemanda' => $maxDemanda,
             'demandaDia' => $demandaDia,
             'maxDemandaDia' => $maxDemandaDia,
+            // **Cada local, en una sola tabla.** El selector ya dejaba mirar una
+            // sucursal por vez, pero para decidir dónde reforzar hace falta
+            // verlas juntas: con un local por consulta hay que anotar los
+            // números en un papel y compararlos a mano. Sólo se arma cuando se
+            // están mirando todas — con una elegida, la tabla tendría una fila
+            // y repetiría el resumen de arriba.
+            'porSucursal' => $suc !== '' ? [] : DB::select(
+                "SELECT su.nombre sucursal,
+                        COUNT(DISTINCT c.id_cita) citas,
+                        COUNT(DISTINCT CASE WHEN c.id_estado_cita = 4 THEN c.id_cita END) atendidas,
+                        COUNT(DISTINCT CASE WHEN c.id_estado_cita = 6 THEN c.id_cita END) ausentes,
+                        COUNT(DISTINCT c.id_cliente) clientes
+                   FROM cita c
+                   JOIN sucursal su ON su.id_sucursal = c.id_sucursal
+                  WHERE " . implode(' AND ', $wCita) . "
+                  GROUP BY su.id_sucursal, su.nombre ORDER BY citas DESC", $par
+            ),
+            // Lo cobrado sale de la caja, que es donde entró la plata: es el
+            // mismo criterio con el que el panel aisló los ingresos (7.36.4).
+            'ingresoSucursal' => $suc !== '' ? [] : DB::select(
+                "SELECT su.nombre sucursal, COALESCE(SUM(co.monto),0) total
+                   FROM cobro co
+                   JOIN caja cj ON cj.id_caja = co.id_caja
+                   JOIN sucursal su ON su.id_sucursal = cj.id_sucursal
+                  WHERE co.id_estado_cobro = 1 AND DATE(co.fecha) BETWEEN :d AND :h
+                  GROUP BY su.id_sucursal, su.nombre",
+                ['d' => $d, 'h' => $h]
+            ),
             'medios' => DB::select(
                 "SELECT mp.nombre medio, mp.tipo, COUNT(*) cantidad, COALESCE(SUM(co.monto),0) total
                    $joinCob GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo ORDER BY total DESC", $parC

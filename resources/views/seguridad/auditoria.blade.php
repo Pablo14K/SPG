@@ -11,7 +11,7 @@
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
-                    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Módulo</th>
+                    <tr><th>Fecha</th><th>Usuario</th><th>Sucursal</th><th>Acción</th><th>Módulo</th>
                         <th>Registro</th><th>Detalle</th></tr>
                 </thead>
                 <tbody>
@@ -19,6 +19,7 @@
                         <tr>
                             <td style="white-space:nowrap">{{ fecha($a->fecha) }}</td>
                             <td>{{ $a->usuario }}</td>
+                            <td class="text-muted-warm">{{ $a->sucursal }}</td>
                             <td><span class="badge-estado e-prog">{{ $a->accion }}</span></td>
                             <td class="text-muted-warm">{{ $a->modulo }}</td>
                             <td class="text-muted-warm" style="font-size:.8rem">
@@ -28,7 +29,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="spg-vacio">
                                     <i class="bi bi-journal-text"></i>
                                     <div class="t">{{ $f['activos'] ? 'Nada coincide con esos filtros.' : 'Todavía no hay registros de auditoría.' }}</div>

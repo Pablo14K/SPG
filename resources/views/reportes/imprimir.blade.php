@@ -106,6 +106,28 @@
 
     @endif
 
+    @if ($ver("sucursales") && count($porSucursal) > 1)
+    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Por sucursal</h2>
+    <table class="table table-sm">
+        <thead><tr><th>Sucursal</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
+            <th class="text-end">No vino</th><th class="text-end">Clientas</th>
+            <th class="text-end">Cobrado</th></tr></thead>
+        <tbody>
+            @foreach ($porSucursal as $s)
+                @php $ing = collect($ingresoSucursal)->firstWhere('sucursal', $s->sucursal); @endphp
+                <tr>
+                    <td>{{ $s->sucursal }}</td>
+                    <td class="text-end">{{ entero($s->citas) }}</td>
+                    <td class="text-end">{{ entero($s->atendidas) }}</td>
+                    <td class="text-end">{{ entero($s->ausentes) }}</td>
+                    <td class="text-end">{{ entero($s->clientes) }}</td>
+                    <td class="text-end">{{ money($ing->total ?? 0) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
     @if ($ver("equipo"))
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">El equipo</h2>
     <table class="table table-sm">

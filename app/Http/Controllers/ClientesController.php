@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Sucursales;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Canje;
@@ -535,6 +536,14 @@ class ClientesController extends Controller
             $w[] = 'DATE(cal.fecha) <= :h';
             $par['h'] = Listado::valor($f, 'hasta');
         }
+
+        // **La valoración es del local donde la atendieron.** Cuelga de la
+        // cita, así que la sucursal no hace falta guardarla: se deduce. Sin
+        // este filtro, la sede 2 leía las quejas de la sede 1 y al revés — y
+        // una valoración se lee para corregir algo que pasó en un lugar.
+        $w[] = '(:suc = 0 OR c.id_sucursal = :suc2)';
+        $par['suc'] = Sucursales::activa();
+        $par['suc2'] = Sucursales::activa();
 
         $desde = 'FROM calificacion cal
                   JOIN cita c        ON c.id_cita = cal.id_cita

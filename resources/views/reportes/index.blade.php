@@ -142,6 +142,40 @@
             </div>
         </div>
 
+        {{-- **Cada local, en una sola tabla.** El selector ya dejaba mirar una
+             sucursal por vez, pero para decidir dónde reforzar hace falta verlas
+             juntas. Sólo aparece mirando todas: con una elegida, la tabla
+             tendría una fila y repetiría el resumen de arriba. --}}
+        @if (count($porSucursal) > 1)
+            <div class="col-12">
+                <div class="spg-panel">
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Por sucursal</h2>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Sucursal</th><th class="text-end">Citas</th>
+                                <th class="text-end">Atendidas</th><th class="text-end">No vino</th>
+                                <th class="text-end">Clientas</th><th class="text-end">Cobrado</th></tr></thead>
+                            <tbody>
+                                @foreach ($porSucursal as $s)
+                                    @php
+                                        $ing = collect($ingresoSucursal)->firstWhere('sucursal', $s->sucursal);
+                                    @endphp
+                                    <tr>
+                                        <td><strong>{{ $s->sucursal }}</strong></td>
+                                        <td class="text-end">{{ entero($s->citas) }}</td>
+                                        <td class="text-end">{{ entero($s->atendidas) }}</td>
+                                        <td class="text-end">{{ entero($s->ausentes) }}</td>
+                                        <td class="text-end">{{ entero($s->clientes) }}</td>
+                                        <td class="text-end"><strong>{{ money($ing->total ?? 0) }}</strong></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="col-lg-7">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>

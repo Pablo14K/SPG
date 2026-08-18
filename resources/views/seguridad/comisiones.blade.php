@@ -11,13 +11,14 @@
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Profesional</th><th>Servicio</th><th>Tipo</th>
+                    <tr><th>Profesional</th><th>Sucursal</th><th>Servicio</th><th>Tipo</th>
                         <th class="text-end">Valor</th><th>Vigente desde</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
                             <td>{{ $c->profesional }}</td>
+                            <td class="text-muted-warm">{{ $c->donde }}</td>
                             <td class="text-muted-warm">{{ $c->servicio }}</td>
                             <td>{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</td>
                             <td class="text-end">
@@ -27,7 +28,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="spg-vacio">
                                     <i class="bi bi-percent"></i>
                                     <div class="t">Todavía no hay comisiones cargadas.</div>

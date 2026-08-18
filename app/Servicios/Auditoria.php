@@ -74,10 +74,16 @@ class Auditoria
     private static function escribir(int $idUsuario, string $accion, string $modulo, string $tabla, ?int $idRegistro, ?string $detalle): void
     {
         try {
+            // **Dónde ocurrió.** No se deduce de nada —la misma persona opera
+            // en varios locales— así que se sella con la sucursal activa. Queda
+            // NULL para lo que no ocurre en ningún local: crear un rol, cambiar
+            // el nombre del salón, o cualquier cosa que corra sin sesión (el
+            // cron, un comando). El módulo se comparte, pero se puede mirar por
+            // sucursal, igual que los reportes.
             DB::insert(
-                'INSERT INTO auditoria (id_usuario, accion, modulo, tabla_afectada, id_registro, detalle)
-                 VALUES (?,?,?,?,?,?)',
-                [$idUsuario, $accion, $modulo, $tabla, $idRegistro, $detalle]
+                'INSERT INTO auditoria (id_usuario, id_sucursal, accion, modulo, tabla_afectada, id_registro, detalle)
+                 VALUES (?,?,?,?,?,?,?)',
+                [$idUsuario, Sucursales::activa() ?: null, $accion, $modulo, $tabla, $idRegistro, $detalle]
             );
         } catch (Throwable) {
             // La auditoría nunca debe romper la operación principal

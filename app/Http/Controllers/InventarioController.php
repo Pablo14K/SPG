@@ -83,11 +83,6 @@ class InventarioController extends Controller
             'stock' => ['tipo' => 'select', 'etiqueta' => 'Existencias',
                         'opciones' => ['' => 'Todas', 'bajo' => 'Bajo el mínimo', 'cero' => 'Sin stock', 'hay' => 'Con stock']],
         ];
-        if ($varias && $aqui) {
-            $campos['local'] = ['tipo' => 'select', 'etiqueta' => 'Dónde se maneja',
-                                'opciones' => ['' => 'Acá', 'otras' => 'Sólo en otras sucursales',
-                                               'todos' => 'Todo el catálogo']];
-        }
 
         $f = Listado::filtros($campos);
         $f['csv'] = true;
@@ -117,10 +112,12 @@ class InventarioController extends Controller
 
         // Por defecto se ve lo de acá, que es con lo que se trabaja todos los
         // días; lo de los otros locales hay que pedirlo.
-        $local = $varias && $aqui ? Listado::valor($f, 'local') : '';
-        if ($local === 'otras') {
-            $w[] = 'ps.id_producto IS NULL';
-        } elseif ($local !== 'todos' && $aqui) {
+        // **La lista es la de ESTE local.** Había un filtro «Dónde se maneja»
+        // con «Sólo en otras sucursales» y «Todo el catálogo»; el usuario pidió
+        // lo contrario: quien maneja el depósito de San Lorenzo no tiene por qué
+        // ver una lista de productos que no tiene, con una columna para adivinar
+        // cuáles sí. Lo que existe en otro lado se trae desde el alta.
+        if ($aqui) {
             $w[] = 'ps.id_producto IS NOT NULL';
         }
 
@@ -172,9 +169,27 @@ class InventarioController extends Controller
             return redirect()->route('inventario.productos');
         }
 
+        // **Lo que ya existe se trae, no se vuelve a cargar.** Escrito de nuevo,
+        // «Shampoo profesional 1L» queda como dos filas —«Shampoo prof. 1 L» y
+        // «Shampoo profesional 1L»— con dos unidades y dos contenidos, y a
+        // partir de ahi ni el consumo fraccionado ni ningun informe pueden
+        // comparar el mismo frasco entre sucursales. Traerlo no copia nada:
+        // agrega la fila de `producto_sucursal` que dice que aca tambien se
+        // maneja, con su propio minimo.
+        $suc = Sucursales::activa();
+
         return view('inventario.producto_form', [
             'p' => $p,
             'cats' => DB::select('SELECT * FROM categoria_producto ORDER BY nombre'),
+            'ajenos' => ($suc && ! $id) ? DB::select(
+                'SELECT pr.id_producto, pr.nombre, pr.unidad_medida, cp.nombre AS categoria
+                   FROM producto pr
+                   JOIN categoria_producto cp ON cp.id_categoria = pr.id_categoria
+                  WHERE pr.activo = 1
+                    AND NOT EXISTS (SELECT 1 FROM producto_sucursal ps
+                                     WHERE ps.id_producto = pr.id_producto AND ps.id_sucursal = ?)
+                  ORDER BY cp.nombre, pr.nombre', [$suc]
+            ) : [],
         ]);
     }
 
@@ -361,9 +376,20 @@ class InventarioController extends Controller
     public function categorias(): View
     {
         return view('inventario.categorias', [
+            // **Las categorías de este local SE DEDUCEN**, por decisión del
+            // usuario: no hay tabla que diga cuáles maneja cada sede. Se cuenta
+            // con los productos de acá — con el conteo del salón entero, una
+            // categoría con ocho productos en la casa central y ninguno acá
+            // diría «8» y quien la mira no encontraría uno solo en su lista.
             'rows' => DB::select(
-                'SELECT c.*, (SELECT COUNT(*) FROM producto p WHERE p.id_categoria = c.id_categoria) AS usos
-                   FROM categoria_producto c ORDER BY c.nombre'
+                'SELECT c.*, (SELECT COUNT(*) FROM producto p
+                                WHERE p.id_categoria = c.id_categoria
+                                  AND (:s1 = 0
+                                       OR EXISTS (SELECT 1 FROM producto_sucursal ps
+                                                   WHERE ps.id_producto = p.id_producto
+                                                     AND ps.id_sucursal = :s2))) AS usos
+                   FROM categoria_producto c ORDER BY c.nombre',
+                ['s1' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
         ]);
     }

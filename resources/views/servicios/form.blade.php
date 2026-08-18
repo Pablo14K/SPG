@@ -3,6 +3,41 @@
 @section('titulo', $s ? 'Editar servicio' : 'Nuevo servicio')
 
 @section('contenido')
+
+    {{-- **Antes de cargar uno nuevo, mirá si ya existe.** Escrito de nuevo,
+         «Corte de dama» queda como dos filas con el nombre distinto según quién
+         lo tipeó, cada una con su precio y su duración, y a partir de ahí ningún
+         informe puede comparar el mismo servicio entre sucursales. Traerlo no
+         copia nada: agrega la fila que dice que este local también lo ofrece. --}}
+    @if (! empty($ajenos))
+        <div class="spg-panel mb-3">
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en otra sucursal</h2>
+            <p class="text-muted-warm mb-2" style="font-size:.82rem">
+                Estos servicios ya están cargados en otro local. Traelos acá en vez de
+                escribirlos de nuevo: es el mismo servicio, con su precio y su duración.
+            </p>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label" for="traer">Servicio</label>
+                    <select class="form-select" id="traer" form="formTraer" name="id_servicio" required>
+                        <option value="">— elegí uno —</option>
+                        @foreach ($ajenos as $a)
+                            <option value="{{ $a->id_servicio }}">
+                                {{ $a->nombre }} · {{ $a->categoria }} · {{ money($a->precio) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <form method="post" action="{{ route('servicios.publicar') }}" id="formTraer">
+                        @csrf
+                        <button class="btn btn-oro w-100"><i class="bi bi-plus-lg"></i> Traer acá</button>
+                    </form>
+                </div>
+            </div>
+            <input data-filtra="#traer" class="form-control form-control-sm mt-2"
+                   placeholder="Filtrar la lista…">
+        </div>
+    @endif
     @php $id = $s->id_servicio ?? 0; @endphp
 
     <div class="spg-page-head">
@@ -84,25 +119,6 @@
                      cuáles publica. Sin esto, un local nuevo nacía sin un solo
                      servicio y la clienta no veía nada al querer reservar ahí.
                      Con una sola sucursal el bloque no se dibuja. --}}
-                @if (count($sucursales) > 1)
-                    <div class="col-12">
-                        <label class="form-label">¿En qué sucursales se ofrece?</label>
-                        <div class="d-flex flex-wrap gap-3">
-                            @foreach ($sucursales as $suc)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="sucursales[]"
-                                           value="{{ $suc->id_sucursal }}" id="sv{{ $suc->id_sucursal }}"
-                                           @checked(in_array((int) $suc->id_sucursal, $publicado, true))>
-                                    <label class="form-check-label" for="sv{{ $suc->id_sucursal }}">{{ $suc->nombre }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="form-text">
-                            Si no marcás ninguna, se ofrece en todas. Un servicio que no se publica en
-                            ningún local no se lo puede reservar nadie.
-                        </div>
-                    </div>
-                @endif
             </div>
 
             <div class="mt-4 d-flex gap-2">

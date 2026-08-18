@@ -509,7 +509,10 @@ class PortalController extends Controller
             // Lo que puede llevarse con sus puntos, y lo que ya canjeó. El
             // programa de fidelización sólo sumaba: se acumulaban puntos y no
             // había forma de gastarlos.
-            'canjeables' => Canje::catalogo(),
+            // **La clienta ve el programa entero.** No está atada a un local
+            // —elige al agendar— y el vale ya canjeado vale en cualquier sede,
+            // así que filtrar acá le escondería premios que sí puede usar.
+            'canjeables' => Canje::catalogo(true, 0),
             'puntos' => Canje::puntos($idc),
             'misCanjes' => Canje::deCliente($idc),
         ]);

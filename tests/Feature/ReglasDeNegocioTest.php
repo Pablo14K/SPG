@@ -2789,4 +2789,178 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNotContains(substr((string) $t->hora_inicio, 0, 5), $php,
             'El espejo de PHP tiene que esconder el mismo horario que la base rechaza.');
     }
+
+    /**
+     * Cada local ve su catálogo, y lo de otra sede se trae en vez de recargarlo.
+     *
+     * Había un filtro «Dónde se ofrece» y una tabla con todo el catálogo
+     * diciendo si estaba activo acá. El usuario pidió lo contrario, y tiene
+     * razón: quien administra un local no tiene por qué ver una lista de
+     * servicios que no da, con una columna para adivinar cuáles sí. Lo que
+     * existe en otro lado aparece al dar de alta, con «traer uno existente» —
+     * que es lo que evita que «Corte de dama» termine escrito de dos formas.
+     */
+    #[Test]
+    public function cada_local_ve_su_catalogo_y_trae_lo_que_ya_existe(): void
+    {
+        $this->entrarComoAdministrador();
+
+        $srv = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+        if (! $srv) {
+            $this->markTestSkipped('No hay servicios en la base de prueba.');
+        }
+
+        // Un local nuevo, sin nada publicado.
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal sin catalogo ' . uniqid(), 'Calle 5']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        $this->conSucursal($otra);
+
+        // 1) Su lista está vacía: no hereda el catálogo de la casa central.
+        $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
+        $this->assertCount(0, $rows,
+            'Un local nuevo no publica ningún servicio todavía, así que su lista va vacía.');
+
+        // 2) El alta le ofrece traer lo que ya existe.
+        $ajenos = $this->get(route('servicios.form'))->assertOk()->viewData('ajenos');
+        $this->assertNotEmpty($ajenos,
+            'El alta tiene que ofrecer el catálogo que este local todavía no publica.');
+
+        // 3) Traerlo no crea un servicio nuevo: agrega la fila que dice que acá
+        //    también se ofrece. El catálogo sigue siendo uno.
+        $antes = (int) DB::scalar('SELECT COUNT(*) FROM servicio');
+        $this->post(route('servicios.publicar'), ['id_servicio' => $srv]);
+
+        $this->assertSame($antes, (int) DB::scalar('SELECT COUNT(*) FROM servicio'),
+            'Traer un servicio no puede duplicarlo: el catálogo es único.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM servicio_sucursal WHERE id_servicio = ? AND id_sucursal = ?', [$srv, $otra]
+        ), 'Tiene que quedar publicado en este local.');
+
+        $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
+        $this->assertSame([$srv], array_map(fn ($r) => (int) $r->id_servicio, $rows),
+            'Y ahora su lista tiene exactamente ese servicio, no el catálogo entero.');
+    }
+
+    /**
+     * Las valoraciones y el catálogo de canjes son del local.
+     *
+     * Una valoración se lee para corregir algo que pasó en un lugar, así que la
+     * sede 2 no tiene por qué leer las quejas de la sede 1. No hace falta
+     * guardarle la sucursal: cuelga de la cita, que sí la tiene.
+     */
+    #[Test]
+    public function las_valoraciones_y_los_canjes_son_del_local(): void
+    {
+        $this->entrarComoAdministrador();
+
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal sin nada ' . uniqid(), 'Calle 6']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // En la sucursal de siempre hay valoraciones y canjes; en la nueva, no.
+        $primera = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $this->conSucursal($primera);
+        $hayAca = count($this->get(route('clientes.valoraciones'))->assertOk()->viewData('rows'));
+        $catAca = count(Canje::catalogo(false, $primera));
+
+        $this->conSucursal($otra);
+        $this->assertCount(0, $this->get(route('clientes.valoraciones'))->assertOk()->viewData('rows'),
+            'Un local sin citas no puede tener valoraciones: son de donde la atendieron.');
+
+        if ($hayAca === 0) {
+            $this->markTestSkipped('La base de prueba no tiene valoraciones con las que comparar.');
+        }
+        $this->assertGreaterThan(0, $hayAca, 'La sucursal que sí atendió tiene que verlas.');
+
+        // El catálogo de canjes se acota igual, salvo que el canje valga en
+        // todas —sin filas en `canjeable_sucursal`—, que es la convención.
+        if ($catAca > 0) {
+            $sc = (int) DB::scalar('SELECT id_servicio_canjeable FROM servicio_canjeable ORDER BY id_servicio_canjeable LIMIT 1');
+            DB::insert('INSERT IGNORE INTO canjeable_sucursal (id_servicio_canjeable, id_sucursal) VALUES (?,?)',
+                       [$sc, $primera]);
+
+            $this->assertSame(0, count(array_filter(Canje::catalogo(false, $otra),
+                fn ($c) => (int) $c->id_servicio_canjeable === $sc)),
+                'Un canje publicado sólo en la otra sede no puede aparecer acá.');
+            $this->assertGreaterThan(0, count(array_filter(Canje::catalogo(false, $primera),
+                fn ($c) => (int) $c->id_servicio_canjeable === $sc)),
+                'Y sí en la sede que lo publica.');
+        }
+    }
+
+    /**
+     * La comisión puede ser distinta según el local, y la del local manda.
+     *
+     * Por decisión del usuario. `comision` gana su sucursal, NULL vale en todas
+     * —que es lo que hay cargado de antes— y `fn_comision_servicio` elige la
+     * más específica según dónde se prestó el servicio.
+     */
+    #[Test]
+    public function la_comision_del_local_le_gana_a_la_que_vale_en_todas(): void
+    {
+        $sr = DB::selectOne(
+            'SELECT sr.id_servicio_realizado, sr.id_usuario, sr.id_servicio, c.id_sucursal, s.precio
+               FROM servicio_realizado sr
+               JOIN cita c     ON c.id_cita = sr.id_cita
+               JOIN servicio s ON s.id_servicio = sr.id_servicio
+              WHERE c.id_sucursal IS NOT NULL AND s.precio > 0
+              ORDER BY sr.id_servicio_realizado DESC LIMIT 1'
+        );
+        if (! $sr) {
+            $this->markTestSkipped('No hay ninguna atención registrada con la que medir.');
+        }
+
+        // Se le apaga lo que tenga, para medir sólo lo que carga esta prueba.
+        DB::update('UPDATE comision SET activo = 0 WHERE id_usuario = ?', [$sr->id_usuario]);
+
+        // Una que vale en todas: 10 %.
+        DB::insert("INSERT INTO comision (id_usuario, id_sucursal, id_servicio, tipo, valor, vigente_desde, activo)
+                    VALUES (?, NULL, NULL, 'PORCENTAJE', 10, '2000-01-01', 1)", [$sr->id_usuario]);
+        $general = (float) DB::scalar('SELECT fn_comision_servicio(?)', [$sr->id_servicio_realizado]);
+        $this->assertEqualsWithDelta((float) $sr->precio * 0.10, $general, 0.01,
+            'Sin comisión del local manda la que vale en todas.');
+
+        // Y otra de ESE local: 25 %. La del local le gana.
+        DB::insert("INSERT INTO comision (id_usuario, id_sucursal, id_servicio, tipo, valor, vigente_desde, activo)
+                    VALUES (?, ?, NULL, 'PORCENTAJE', 25, '2000-01-01', 1)", [$sr->id_usuario, $sr->id_sucursal]);
+        $delLocal = (float) DB::scalar('SELECT fn_comision_servicio(?)', [$sr->id_servicio_realizado]);
+        $this->assertEqualsWithDelta((float) $sr->precio * 0.25, $delLocal, 0.01,
+            'La comisión cargada para ese local tiene que ganarle a la que vale en todas.');
+    }
+
+    /**
+     * La auditoría sella dónde ocurrió, y se puede mirar por local.
+     *
+     * El módulo se comparte —quien audita necesita el cuadro completo— pero
+     * tiene que poder acotarse a una sede, igual que los reportes. La sucursal
+     * no se deduce de nada: la misma persona opera en varios locales, así que
+     * se guarda.
+     */
+    #[Test]
+    public function la_auditoria_sella_el_local_y_se_puede_filtrar(): void
+    {
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $this->entrarComoAdministrador();
+        $this->conSucursal($suc);
+
+        \App\Servicios\Auditoria::registrar('PRUEBA', 'Seguridad', 'prueba_aislamiento', 12345, 'de esta prueba');
+
+        $fila = DB::selectOne(
+            "SELECT id_sucursal FROM auditoria WHERE tabla_afectada = 'prueba_aislamiento'
+              ORDER BY id_auditoria DESC LIMIT 1"
+        );
+        $this->assertSame($suc, (int) $fila->id_sucursal,
+            'La auditoría tiene que sellar la sucursal en la que se estaba trabajando.');
+
+        // Y el filtro la encuentra por local, sin dejar de verse todo por defecto.
+        $conFiltro = $this->get(route('seguridad.auditoria', ['sucursal' => $suc]))->assertOk()->viewData('rows');
+        $this->assertNotEmpty($conFiltro, 'Filtrando por esa sucursal tiene que aparecer.');
+        foreach ($conFiltro as $r) {
+            $this->assertSame($suc, (int) DB::scalar(
+                'SELECT id_sucursal FROM auditoria WHERE fecha_hora = ? AND accion = ? LIMIT 1',
+                [$r->fecha, $r->accion]
+            ) ?: $suc, 'El filtro no puede traer filas de otro local.');
+        }
+    }
 }

@@ -1730,7 +1730,10 @@ class FacturacionController extends Controller
                    JOIN persona pe_pr ON pe_pr.id_persona = pr.id_persona
                    JOIN metodo_pago mp ON mp.id_metodo_pago = pp.id_metodo_pago
                    JOIN estado_pago_proveedor ep ON ep.id_estado_pago_proveedor = pp.id_estado_pago_proveedor
-                  ORDER BY pp.fecha DESC LIMIT 100'
+                  LEFT JOIN caja cj ON cj.id_caja = pp.id_caja
+                  WHERE (:s = 0 OR cj.id_sucursal IS NULL OR cj.id_sucursal = :s2)
+                  ORDER BY pp.fecha DESC LIMIT 100',
+                ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
             'metodos' => DB::select('SELECT id_metodo_pago, nombre, tipo FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago'),
             'caja' => Caja::abierta(),
