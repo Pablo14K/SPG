@@ -141,7 +141,7 @@ class CitasController extends Controller
                JOIN cita c ON c.id_cita = v.id_cita
                LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
               WHERE DATE(v.fecha_hora) = :d $soloMias
-              ORDER BY v.fecha_hora", $par
+              ORDER BY (c.id_estado_cita IN (4, 3, 6)) ASC, v.fecha_hora", $par
         );
 
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
@@ -153,7 +153,10 @@ class CitasController extends Controller
             'verTodo' => $verTodo,
             'puedeCobrar' => $puedeCobrar,
             'metodos' => $puedeCobrar
-                ? DB::select('SELECT id_metodo_pago, nombre FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago')
+                ? DB::select(// `tipo` lo necesita el componente de cobro para saber qué detalle pedir:
+                // tarjeta, banco o nada. Sin él la pantalla revienta al dibujarse.
+                "SELECT id_metodo_pago, nombre, tipo FROM metodo_pago
+                  WHERE activo = 1 ORDER BY (tipo = 'EFECTIVO') DESC, nombre")
                 : [],
             'caja' => $puedeCobrar ? Caja::abierta() : null,
             // Emitir el comprobante es de `facturacion.facturas`, no de cobros:
@@ -825,6 +828,23 @@ class CitasController extends Controller
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre',
                 ['c1' => $id, 'c2' => $id]
+            ),
+            // **A qué servicio se le imputa el producto: sólo a los de ESTA
+            // cita.** El selector ofrecía el catálogo entero, así que se podía
+            // cargar el shampoo «en Pedicura» cuando la clienta no pidió
+            // pedicura — y ahí el consumo queda colgado de un servicio que no
+            // existe en la cita, con lo que ni el costo ni la comisión salen
+            // donde corresponde. Son los que pidió más los que ya se
+            // registraron: los dos son servicios reales de esta atención.
+            'servDeLaCita' => DB::select(
+                'SELECT DISTINCT s.id_servicio, s.nombre
+                   FROM servicio s
+                  WHERE EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = :c3 AND cs.id_servicio = s.id_servicio)
+                     OR EXISTS (SELECT 1 FROM servicio_realizado sr
+                                 WHERE sr.id_cita = :c4 AND sr.id_servicio = s.id_servicio)
+                  ORDER BY s.nombre',
+                ['c3' => $id, 'c4' => $id]
             ),
             'productos' => DB::select(
                 'SELECT p.id_producto, p.nombre, p.unidad_medida, p.contenido, p.unidad_consumo,

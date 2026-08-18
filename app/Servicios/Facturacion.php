@@ -105,7 +105,12 @@ class Facturacion
      * Si llegan datos de tarjeta en una línea de efectivo —un POST forjado, la
      * pantalla los oculta—, se descartan: el cobro se registra igual.
      */
-    private static function guardarDetalle(int $idCobro, string $tipo, array $d): void
+    /**
+     * El detalle 1 a 1 del medio: tarjeta o banco. **Es publica** porque el
+     * cobro desde la agenda tambien la necesita: ahi el cobro va contra la
+     * cita y no contra una factura, asi que no pasa por `cobrar()`.
+     */
+    public static function guardarDetalle(int $idCobro, string $tipo, array $d): void
     {
         $v = fn (string $k) => trim((string) ($d[$k] ?? '')) !== '' ? trim((string) $d[$k]) : null;
 

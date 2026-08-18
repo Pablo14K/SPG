@@ -4,6 +4,28 @@
 
 @section('contenido')
 
+    {{-- **Dónde se ofrece este servicio.** El catálogo es único y cada local
+         publica los suyos, así que al editar hace falta saber si lo que se está
+         tocando lo dan también en otra sede — un cambio de precio les llega a
+         todas. Antes esto no se dibujaba en ningún lado: el dato viajaba y la
+         pantalla lo ignoraba. --}}
+    @if (! empty($tambienEn))
+        <div class="alert alert-warning">
+            <strong>Este servicio también se ofrece en:</strong>
+            @foreach ($tambienEn as $t)
+                <span class="spg-rol-chip">{{ $t->nombre }}</span>
+            @endforeach
+            <div class="mt-1" style="font-size:.82rem">
+                El precio, la duración y el nombre son del catálogo, así que lo que cambies
+                acá vale también allá. Lo único que es de cada local es si lo publica o no.
+            </div>
+        </div>
+    @elseif (! empty($id))
+        <div class="alert alert-secondary" style="font-size:.85rem">
+            Este servicio lo ofrece <strong>sólo esta sucursal</strong>.
+        </div>
+    @endif
+
     {{-- **Antes de cargar uno nuevo, mirá si ya existe.** Escrito de nuevo,
          «Corte de dama» queda como dos filas con el nombre distinto según quién
          lo tipeó, cada una con su precio y su duración, y a partir de ahí ningún

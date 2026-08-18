@@ -175,9 +175,12 @@
                         </div>
                         <div class="col-md-4">
                             <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
+                                {{-- Sólo los servicios de ESTA cita: imputar el consumo a
+                                     uno que la clienta no pidió deja el costo colgado de algo
+                                     que no ocurrió. --}}
                                 <option value="0">— imputar al primer servicio —</option>
-                                @foreach ($servicios as $s)
-                                    <option value="{{ $s->id_servicio }}">en {{ $s->nombre }}</option>
+                                @foreach ($servDeLaCita as $sc)
+                                    <option value="{{ $sc->id_servicio }}">en {{ $sc->nombre }}</option>
                                 @endforeach
                             </select>
                         </div>

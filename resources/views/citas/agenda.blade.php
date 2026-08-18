@@ -295,32 +295,14 @@
                                     </div>
                                 @endif
 
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <label class="form-label" for="sm{{ $c->id_cita }}">Monto</label>
-                                        {{-- Viene con lo que falta: en el mostrador se cobra
-                                             el total casi siempre, y si no, se corrige. --}}
-                                        <input class="form-control input-miles" id="sm{{ $c->id_cita }}"
-                                               name="monto" data-min="1" data-max="{{ (int) $falta }}"
-                                               inputmode="numeric" required
-                                               value="{{ $c->id_solicitud
-                                                          ? monto_input($c->sena_pedida)
-                                                          : ($falta > 0 ? monto_input($falta) : '') }}">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label" for="sp{{ $c->id_cita }}">Medio de pago</label>
-                                        <select class="form-select" id="sp{{ $c->id_cita }}" name="id_metodo_pago" required>
-                                            @foreach ($metodos as $m)
-                                                <option value="{{ $m->id_metodo_pago }}">{{ $m->nombre }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="sr{{ $c->id_cita }}">Referencia</label>
-                                        <input class="form-control" id="sr{{ $c->id_cita }}" name="referencia"
-                                               placeholder="Nº de operación, boleta… (opcional)">
-                                    </div>
-                                </div>
+                                {{-- **Las mismas líneas que en Facturas.** Acá había un
+                                     solo monto y un solo medio: no se podía dividir el pago
+                                     —mitad efectivo, mitad tarjeta, que en el mostrador es
+                                     lo normal—, los campos de tarjeta y de banco no
+                                     aparecían nunca y no había vuelto. Es el mismo
+                                     componente, así que las dos pantallas no se pueden
+                                     desfasar. --}}
+                                <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos" />
 
                                 {{-- **La caja es del local, no de quien la abrió.** Desde la
                                      7.36.3 la sucursal del cobro se deduce de la cita, así que

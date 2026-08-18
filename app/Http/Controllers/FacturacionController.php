@@ -208,7 +208,16 @@ class FacturacionController extends Controller
             'cobros' => DB::select(
                 'SELECT co.id_cobro, co.fecha, co.monto, co.referencia,
                         mp.nombre AS metodo, mp.tipo, ec.nombre AS estado,
-                        (co.id_factura IS NULL) AS es_sena,
+                        -- **Seña es lo que se cobró ANTES de atender.** Con
+                        -- `id_factura IS NULL` a secas, el cobro de la atención
+                        -- —que desde la 7.19.0 va contra la cita y no contra el
+                        -- comprobante— salía rotulado «seña» en la factura, y no
+                        -- lo es: es el pago del trabajo hecho. El procedimiento
+                        -- deja la observación en «Sena de reserva» y el
+                        -- controlador la pisa con «Cobro de la atencion», así
+                        -- que el dato ya estaba: faltaba mirarlo.
+                        (co.id_factura IS NULL
+                         AND COALESCE(co.observaciones,\'\') NOT LIKE \'Cobro de la atencion%\') AS es_sena,
                         ct.marca, ct.tipo_tarjeta, ct.cuotas, ct.ultimos_4, ct.nro_boleta, ct.cod_autorizacion,
                         cb.banco, cb.nro_cheque, cb.nro_operacion, cb.fecha_emision
                    FROM cobro co
@@ -776,6 +785,77 @@ class FacturacionController extends Controller
         $montos = (array) $request->input('monto', []);
         $volver = redirect()->route('facturacion.facturas');
 
+        $lineas = $this->lineasDelPago($request, $volver);
+        if ($lineas instanceof RedirectResponse) {
+            return $lineas;
+        }
+
+        if (! $lineas) {
+            flash('Cargá al menos un medio de pago con su monto.', 'error');
+
+            return $volver;
+        }
+
+        $saldo = Facturacion::saldo($idFactura);
+        $suma = array_sum(array_column($lineas, 'monto'));
+        if ($suma - $saldo > 0.01) {
+            flash('La suma de los medios (' . money($suma) . ') supera el saldo pendiente ('
+                . money($saldo) . ').', 'error');
+
+            return $volver;
+        }
+
+        $caja = $this->exigeCaja('registrar un cobro');
+        if ($caja instanceof RedirectResponse) {
+            return $caja;
+        }
+
+        try {
+            $r = Facturacion::cobrar($idFactura, (int) session('uid'), $lineas, (int) $caja->id_caja);
+
+            Auditoria::registrar('COBRO', 'Facturacion', 'factura', $idFactura,
+                'Cobro ' . money($r['total'])
+                . (count($lineas) > 1 ? ' en ' . count($lineas) . ' medios: ' . implode(' + ', $r['detalle']) : ''));
+
+            $saldoNuevo = Facturacion::saldo($idFactura);
+            flash('Cobro registrado por ' . money($r['total']) . '.'
+                . (count($lineas) > 1 ? ' (' . implode(' + ', $r['detalle']) . ')' : '')
+                . ($saldoNuevo > 0.01 ? ' Queda un saldo de ' . money($saldoNuevo) . '.' : ' La factura quedó saldada.'));
+        } catch (Throwable $ex) {
+            $msg = $ex->getMessage();
+            flash((str_contains($msg, 'saldo') ? 'El monto supera el saldo pendiente de la factura.'
+                : (str_contains($msg, 'anulada') ? 'La factura está anulada.'
+                    : (str_contains($msg, 'no se cobra') ? 'Ese tipo de comprobante no se cobra.'
+                        : (str_contains($msg, 'tarjeta') ? 'El detalle de tarjeta no corresponde a ese medio de pago.'
+                            : (str_contains($msg, 'banco') ? 'El detalle bancario no corresponde a ese medio de pago.'
+                                : 'No se pudo registrar el cobro.')))))
+                . ' No se guardó ninguna de las líneas.', 'error');
+        }
+
+        return $volver;
+    }
+
+    /**
+     * Las líneas de un pago mixto, tal como las manda el componente de cobro.
+     *
+     * Estaba escrito dentro de `cobrar()` y **sólo servía para cobrar contra una
+     * factura**. Cobrar desde la agenda —que es como se cobra en el mostrador,
+     * antes de que exista el comprobante— pasaba por otro camino con un solo
+     * monto y un solo medio: no se podía dividir el pago ni cargar el detalle
+     * de la tarjeta. Las dos pantallas usan el mismo componente, así que ahora
+     * usan también el mismo lector.
+     *
+     * Devuelve el arreglo de líneas, o el redirect ya con el aviso puesto
+     * cuando alguna no sirve — se valida acá y no adentro de la transacción,
+     * porque si esto se cayera adentro se pierden las otras líneas.
+     *
+     * @return list<array<string,mixed>>|RedirectResponse
+     */
+    private function lineasDelPago(Request $request, RedirectResponse $volver): array|RedirectResponse
+    {
+        $metodos = (array) $request->input('metodo', []);
+        $montos = (array) $request->input('monto', []);
+
         $lineas = [];
         foreach ($metodos as $i => $m) {
             $idm = (int) $m;
@@ -830,49 +910,7 @@ class FacturacionController extends Controller
             ];
         }
 
-        if (! $lineas) {
-            flash('Cargá al menos un medio de pago con su monto.', 'error');
-
-            return $volver;
-        }
-
-        $saldo = Facturacion::saldo($idFactura);
-        $suma = array_sum(array_column($lineas, 'monto'));
-        if ($suma - $saldo > 0.01) {
-            flash('La suma de los medios (' . money($suma) . ') supera el saldo pendiente ('
-                . money($saldo) . ').', 'error');
-
-            return $volver;
-        }
-
-        $caja = $this->exigeCaja('registrar un cobro');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
-        }
-
-        try {
-            $r = Facturacion::cobrar($idFactura, (int) session('uid'), $lineas, (int) $caja->id_caja);
-
-            Auditoria::registrar('COBRO', 'Facturacion', 'factura', $idFactura,
-                'Cobro ' . money($r['total'])
-                . (count($lineas) > 1 ? ' en ' . count($lineas) . ' medios: ' . implode(' + ', $r['detalle']) : ''));
-
-            $saldoNuevo = Facturacion::saldo($idFactura);
-            flash('Cobro registrado por ' . money($r['total']) . '.'
-                . (count($lineas) > 1 ? ' (' . implode(' + ', $r['detalle']) . ')' : '')
-                . ($saldoNuevo > 0.01 ? ' Queda un saldo de ' . money($saldoNuevo) . '.' : ' La factura quedó saldada.'));
-        } catch (Throwable $ex) {
-            $msg = $ex->getMessage();
-            flash((str_contains($msg, 'saldo') ? 'El monto supera el saldo pendiente de la factura.'
-                : (str_contains($msg, 'anulada') ? 'La factura está anulada.'
-                    : (str_contains($msg, 'no se cobra') ? 'Ese tipo de comprobante no se cobra.'
-                        : (str_contains($msg, 'tarjeta') ? 'El detalle de tarjeta no corresponde a ese medio de pago.'
-                            : (str_contains($msg, 'banco') ? 'El detalle bancario no corresponde a ese medio de pago.'
-                                : 'No se pudo registrar el cobro.')))))
-                . ' No se guardó ninguna de las líneas.', 'error');
-        }
-
-        return $volver;
+        return $lineas;
     }
 
     /**
@@ -1254,11 +1292,35 @@ class FacturacionController extends Controller
     public function sena(Request $request): RedirectResponse
     {
         $idCita = (int) $request->input('id_cita', 0);
-        $idMetodo = (int) $request->input('id_metodo_pago', 0);
-        $monto = num($request->input('monto'));
-        $ref = trim((string) $request->input('referencia', '')) ?: null;
         $dia = (string) $request->input('dia', date('Y-m-d'));
         $volver = redirect()->route('citas.agenda', ['dia' => $dia]);
+
+        // **El pago se puede dividir, igual que contra una factura.** Antes acá
+        // había un solo monto y un solo medio: mitad efectivo y mitad tarjeta
+        // —que en el mostrador es lo normal— no se podía cargar, y el detalle
+        // de la tarjeta o del banco no se pedía nunca. La pantalla usa el mismo
+        // componente que Facturas, así que manda `metodo[]` y `monto[]`.
+        //
+        // Se conserva el formato viejo (`id_metodo_pago` + `monto` sueltos) por
+        // si algo todavía lo manda: no cuesta nada y evita romper un camino que
+        // no se ve desde acá.
+        $lineas = $this->lineasDelPago($request, $volver);
+        if ($lineas instanceof RedirectResponse) {
+            return $lineas;
+        }
+        if (! $lineas) {
+            $idm = (int) $request->input('id_metodo_pago', 0);
+            $mto = num($request->input('monto'));
+            if ($idm > 0 && $mto > 0) {
+                $lineas = [['metodo' => $idm, 'monto' => $mto,
+                            'ref' => trim((string) $request->input('referencia', '')) ?: null,
+                            'detalle' => []]];
+            }
+        }
+
+        $idMetodo = (int) ($lineas[0]['metodo'] ?? 0);
+        $monto = (float) array_sum(array_column($lineas, 'monto'));
+        $ref = $lineas[0]['ref'] ?? null;
 
         $cita = DB::selectOne(
             "SELECT c.id_cita, c.id_estado_cita, CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente
@@ -1298,7 +1360,22 @@ class FacturacionController extends Controller
         }
 
         try {
-            $idCobro = Facturacion::sena($idCita, $idMetodo, (int) session('uid'), $monto, $ref, (int) $caja->id_caja);
+            // **Una llamada por línea, todo en una transacción.** Es el mismo
+            // modelo que el cobro contra factura: `cobro` es cada pago, no el
+            // pago de la cita. Si una línea falla no queda media cita cobrada.
+            $idCobro = 0;
+            $cobrados = [];
+            Bd::enTransaccion(function () use ($lineas, $idCita, $caja, &$idCobro, &$cobrados) {
+                foreach ($lineas as $l) {
+                    $nuevo = Facturacion::sena($idCita, (int) $l['metodo'], (int) session('uid'),
+                        (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), (int) $caja->id_caja);
+                    $idCobro = $idCobro ?: $nuevo;
+                    $cobrados[] = $nuevo;
+                    if (! empty($l['detalle'])) {
+                        Facturacion::guardarDetalle($nuevo, (string) ($l['tipo'] ?? ''), $l['detalle']);
+                    }
+                }
+            });
 
             // Si esto confirma una seña que la clienta registró desde el
             // portal, se enlaza el cobro con la solicitud: es lo que la saca
@@ -1321,7 +1398,8 @@ class FacturacionController extends Controller
             // distinguirlas.
             $atendida = (int) $cita->id_estado_cita === 4;
             if ($atendida) {
-                DB::update("UPDATE cobro SET observaciones = 'Cobro de la atencion' WHERE id_cobro = ?", [$idCobro]);
+                DB::update('UPDATE cobro SET observaciones = ' . "'Cobro de la atencion'"
+                    . ' WHERE id_cobro IN (' . implode(',', array_map('intval', $cobrados)) . ')');
             }
 
             Auditoria::registrar('SENA', 'Facturacion', 'cobro', $idCobro,

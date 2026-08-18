@@ -2963,4 +2963,65 @@ class ReglasDeNegocioTest extends TestCase
             ) ?: $suc, 'El filtro no puede traer filas de otro local.');
         }
     }
+
+    /**
+     * Desde la agenda se puede dividir el pago, como contra una factura.
+     *
+     * El modal de la agenda tenía **un** monto y **un** medio: mitad efectivo y
+     * mitad tarjeta —que en el mostrador es lo normal— no se podía cargar, el
+     * detalle de la tarjeta o del banco no se pedía nunca y no había vuelto.
+     * Las dos pantallas usan ahora el mismo componente y el mismo lector de
+     * líneas, así que no se pueden desfasar.
+     *
+     * `cobro` es **cada pago**, no el pago de la cita: dos medios son dos filas.
+     */
+    #[Test]
+    public function el_cobro_de_la_agenda_se_puede_dividir_en_varios_medios(): void
+    {
+        $cliente = $this->clienteLibreHoy();
+        $srv = DB::selectOne('SELECT id_servicio, precio FROM servicio WHERE activo = 1 AND precio >= 20000
+                               ORDER BY id_servicio LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        $efectivo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
+        $otro = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo <> 'EFECTIVO' AND activo = 1 LIMIT 1");
+        if (! $cliente || ! $srv || ! $prof || ! $efectivo || ! $otro) {
+            $this->markTestSkipped('Falta catálogo para armar el cobro.');
+        }
+
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?, ?, ?, NOW(), 4)', [$cliente, $prof, $suc]);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)', [$idCita, (int) $srv->id_servicio]);
+
+        $this->entrarComoAdministrador();
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
+            // Sin caja abierta no se mueve un guaraní, así que se abre: es el
+            // camino real, no un atajo.
+            \App\Servicios\Bd::idDe('sp_abrir_caja', [1, 0, $suc]);
+        }
+
+        // Mitad y mitad, en dos medios distintos.
+        $mitad = (int) floor((float) $srv->precio / 2);
+        $this->post(route('facturacion.sena'), [
+            'id_cita' => $idCita,
+            'metodo' => [$efectivo, $otro],
+            'monto' => [(string) $mitad, (string) ((int) $srv->precio - $mitad)],
+            'referencia' => ['', 'OP-123'],
+        ]);
+
+        $cobros = DB::select('SELECT monto, id_metodo_pago FROM cobro WHERE id_cita = ? AND id_estado_cobro = 1', [$idCita]);
+        $this->assertCount(2, $cobros,
+            'Dos medios son dos cobros: `cobro` es cada pago, no el pago de la cita.');
+        $this->assertEqualsWithDelta((float) $srv->precio, array_sum(array_map(fn ($c) => (float) $c->monto, $cobros)), 0.01,
+            'Entre las dos líneas tiene que entrar el total de la cita.');
+        $this->assertEqualsWithDelta(0.0, (float) DB::scalar(
+            'SELECT (SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
+                       JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?)
+                  - fn_cita_sena(?)', [$idCita, $idCita]
+        ), 0.01, 'Y la cita tiene que quedar saldada.');
+    }
 }
