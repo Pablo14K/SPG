@@ -73,6 +73,7 @@ return [
         'facturacion.receptor'      => ['Datos para la factura', 'person-vcard',       'facturacion.facturas', false],
         'facturacion.cobros'        => ['Cobros',                'cash-coin',          'facturacion.cobros'],
         'facturacion.caja'          => ['Caja',                  'safe',               'facturacion.caja'],
+        'facturacion.movimientos'   => ['Movimiento de efectivo', 'cash-coin',      'facturacion.movimientos'],
         'facturacion.pagos'         => ['Pagos al personal',     'wallet2',            'facturacion.pagos'],
         'facturacion.proveedores'   => ['Pagos a proveedores',   'truck',              'facturacion.proveedores'],
         'facturacion.timbrados'     => ['Timbrados',             'file-earmark-text',  'facturacion.timbrados'],

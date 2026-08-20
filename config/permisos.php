@@ -62,6 +62,13 @@ return [
             'facturacion.facturas' => 'Facturas',
             'facturacion.cobros' => 'Cobros',
             'facturacion.caja' => 'Caja',
+            // **El movimiento de efectivo es su propia clave.** Abrir y cerrar
+            // el cajón es administrar el arqueo; meter o sacar plata a mano es
+            // mover dinero **sin un documento detrás** —no hay cobro ni pago que
+            // lo respalde, sólo un concepto escrito— así que es la parte que un
+            // salón puede querer dar por separado. Es el mismo criterio que
+            // separó Timbrados de Facturación en la 5.2.0.
+            'facturacion.movimientos' => 'Movimiento de efectivo',
             'facturacion.pagos' => 'Pagos al personal',
             'facturacion.proveedores' => 'Pagos a proveedores',
             'facturacion.timbrados' => 'Timbrados',

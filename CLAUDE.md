@@ -217,6 +217,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.46.0 | 18/08/2026 | **Caja se parte en dos submódulos, por decisión del usuario.** Abrir y cerrar el cajón es **administrar el arqueo**; meter o sacar plata a mano es **mover dinero sin un documento detrás** —no hay cobro ni pago que lo respalde, sólo un concepto escrito—, así que es la parte que un salón puede querer dar por separado. Entra `facturacion.movimientos` con su pantalla propia, y van **30 permisos**. Es el mismo criterio que separó Timbrados de Facturación en la 5.2.0. **Separar el permiso no le quita nada a quien ya lo hacía**: el `.sql` que se entrega se lo concede a todo rol que tuviera `facturacion.caja`, y de ahí en adelante el salón decide desde Roles — un permiso de menos es tan grave como uno de más. **Y la pantalla de Caja dice dónde quedó**, que es lo que se olvida al mudar algo: quien lo usaba todos los días lo busca donde estaba. La prueba comprueba las dos direcciones y destapó que **la matriz se lee una vez y queda en caché**, así que cambiarla a mitad de prueba medía la caché y no la regla; entra `Permisos::olvidar()` para eso. **111 pruebas** y los dos `.sql` regenerados |
 | 7.45.0 | 18/08/2026 | **Los tres puntos que quedaban de la revisión del mostrador.** **La clienta adjunta el comprobante de la transferencia** al registrar su seña: la cita se reserva desde afuera del local, así que no hay nada físico que entregar y quien confirma en el mostrador tenía que creerle de palabra o llamar al banco. **Es opcional a propósito** —también existe la clienta que pasa por el local y deja el efectivo, y ahí el comprobante lo da el salón—. Se acepta la foto de la pantalla y el PDF del banco, **mirando el contenido y no la extensión**, y el archivo va **fuera de `public/`**: es plata de una persona y no tiene por qué quedar colgando de una URL que alguien adivine. Lo sirve el sistema, con la sesión y el permiso ya comprobados, y el modal de confirmar lo ofrece con un clic — y cuando no hay, lo dice: «no adjuntó comprobante, confirmá sólo si el dinero ya está». **El formulario de nuevo turno deja de desaparecer al editar**: eran el mismo bloque que cambiaba de cara con `?editar=`, así que para cargar otro turno había que cancelar primero. Editar pasa a un emergente y el de crear queda fijo; los campos salen del mismo partial, así que no se pueden desfasar. **110 pruebas** |
 | 7.44.0 | 18/08/2026 | **Once de los catorce puntos de la revisión del mostrador.** **En Cobros la clienta no tenía nombre**: se la buscaba sólo por la factura, así que todo cobro contra la cita —la seña, y desde la 7.19.0 también el cobro de la atención— salía con una raya. El dato estaba a un JOIN de distancia. De paso, «seña» deja de rotularse sobre el cobro de la atención, que no lo es. **Confirmar una seña proponía el total de la cita**: la clienta registró un monto desde el portal y lo que hay que confirmar es ése — proponer lo que falta hacía cobrar de más con un clic. **El vuelto queda abierto** cuando el medio es efectivo, que es el caso normal: se ajustaba sólo al cambiar de medio, así que al abrir el modal no estaba. **Con la cita en proceso desaparecen tres botones** que ya no aplican —marcarla en proceso otra vez, marcarla ausente con la clienta en el sillón, y reprogramar algo que está pasando—. **La tarjeta oscura de Seguridad se invertía en el tema oscuro**: estaba escrita con `--carbon` y `--blanco-hueso`, que se dan vuelta al invertir la paleta, así que el fondo y el título quedaban los dos claros. Es el mismo error que dejó los enlaces del pie en 1,5:1 hasta la 7.2.1, y se arregla igual: con las variables que **no** se invierten. **Los turnos que se ven son los del local** — la pantalla los mostraba todos, así que se podía asignar gente a horarios de otra sede, justo lo que la 7.39.0 impidió en la agenda. **El precio de compra no puede quedar vacío**: entraba en cero y el costo del producto se perdía, y con él la cuenta con el proveedor. **En «Registrar atención» se separa lo agendado de lo que se agrega en el sillón**: son dos cosas distintas y estaban en una sola lista. **Tras un rechazo el selector de agenda recupera el día y la hora**: el formulario conservaba todo menos eso, y desde afuera se leía como que el sistema borraba lo cargado. **Los informes se eligen en pantalla**, filtrando en el navegador — sin JavaScript se ven todos, como antes. **Y los campos de ciudad sugieren** las del área metropolitana con un `datalist`, que sugiere sin encerrar. **La barra del portal sale de su panel principal**, por el mismo motivo que salió del Panel en la 7.34.1: ahí las tarjetas ya la repiten. **110 pruebas** |
 | 7.43.2 | 18/08/2026 | **El `.sql` que se entrega se había llenado con la base de trabajo, y dos pruebas dependían del entorno.** Al regenerar el volcado desde el contenedor —donde el usuario estuvo probando— se coló todo lo suyo: el nombre del salón cambiado a «Bella Estilo» con su logo, una segunda sucursal, y filas de citas, facturas, cobros, caja y auditoría. Es exactamente lo que la regla prohíbe: **`peluqueria_bd` no es una base de trabajo, es la que se sube con el programa**, y el salón que la instala no puede encontrarse con la operación de otro. El volcado se rehace desde una copia limpia: cero operación, un local, la marca de fábrica y el catálogo demo entero —15 servicios, 10 productos, 3 timbrados, las 5 zonas—. **`limpiar_base.sql` no sirve para esto y conviene saberlo**: es anterior a la 7.13.0 y borra el catálogo comercial, que desde entonces sí se entrega. Y **dos pruebas pasaban en el host y fallaban en el contenedor**, que es lo que la 7.31.3 prohíbe: la del turno por sucursal elegía un profesional con turno pero **sin días cargados** y reventaba con «property on null» en vez de saltearse; la del timbrado propio tomaba una cita de un local **sin timbrado**, así que medía la caída deliberada a otra sede en vez de la regla. Las dos piden ahora lo que necesitan para significar algo. **110 pruebas en el host y 103 + 7 salteadas en el contenedor, sin ninguna roja en los dos** |
@@ -336,7 +337,7 @@ app/
   Servicios/               La capa propia. Todo estático, sin estado.
     Bd.php                 El puente a las rutinas: idDe() enTransaccion() traducir()
     Agenda.php             Huecos, reparto entre profesionales, agendar con candado
-    Permisos.php           Los 29 submódulos y su jerarquía
+    Permisos.php           Los 30 submódulos y su jerarquía
     Sesion.php             Ingreso y datos de la sesión
     Seguridad.php          Códigos de un solo uso (token_seguridad)
     WebAuthn.php           Huella en PHP puro (CBOR, COSE→PEM, OpenSSL)
@@ -363,7 +364,7 @@ app/
 config/
   spg.php                  Versión, puntos, agenda, timbrado
   navegacion.php           Los cuatro niveles de navegación, en un solo lugar
-  permisos.php             Los 29 submódulos
+  permisos.php             Los 30 submódulos
 resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
@@ -893,7 +894,7 @@ los roles nuevos funcionan sin tocar código. El Administrador se detecta con
 
 ### Submódulos: ningún módulo es todo o nada
 
-**Los siete módulos se dan por partes**: son **29 permisos**, no 7. Quien registra la atención
+**Los siete módulos se dan por partes**: son **30 permisos**, no 7. Quien registra la atención
 no tiene por qué agendar; quien cobra no tiene por qué anular una liquidación al personal;
 el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La clave es
 `modulo.submodulo` y sigue siendo **un valor atómico por fila**, así que la 1FN se mantiene.
@@ -904,7 +905,7 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | `clientes` | `.registro` · `.fidelizacion` · `.canjes` · `.valoraciones` |
 | `servicios` | `.catalogo` · `.categorias` · `.descuentos` |
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
-| `facturacion` | `.facturas` · `.cobros` · `.caja` · `.pagos` · `.proveedores` · `.timbrados` |
+| `facturacion` | `.facturas` · `.cobros` · `.caja` · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
 | `reportes` | no se divide: es una sola pantalla |
 | `seguridad` | `.usuarios` · `.roles` · `.turnos` · `.asistencia` · `.comisiones` · `.sucursales` · `.contacto` · `.auditoria` |
 
@@ -2354,7 +2355,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 110 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 111 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
@@ -2414,7 +2415,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**110 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**111 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

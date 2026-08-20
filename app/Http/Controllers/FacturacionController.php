@@ -43,7 +43,9 @@ class FacturacionController extends Controller
                 ['p' => 'facturacion.cobros', 'ruta' => 'facturacion.cobros', 'ic' => 'cash-coin',
                  't' => 'Cobros', 'd' => 'Pagos recibidos de clientes'],
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'safe',
-                 't' => 'Caja', 'd' => 'Apertura, cierre y saldo'],
+                 't' => 'Caja', 'd' => 'Apertura, cierre y arqueo'],
+                ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
+                 't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale del cajon sin ser un cobro ni un pago'],
                 ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
                  't' => 'Pagos al personal', 'd' => 'Comisiones y liquidaciones'],
                 ['p' => 'facturacion.proveedores', 'ruta' => 'facturacion.proveedores', 'ic' => 'truck',
@@ -1589,6 +1591,33 @@ class FacturacionController extends Controller
     // -----------------------------------------------------------------
     //  Caja
     // -----------------------------------------------------------------
+
+    /**
+     * El movimiento de efectivo a mano: el gasto de caja chica, el retiro, la
+     * plata que se saca para el cambio.
+     *
+     * **Es su propia pantalla y su propio permiso.** Vivía dentro de Caja, y
+     * son dos cosas distintas: abrir y cerrar el cajón es administrar el
+     * arqueo; meter o sacar plata a mano es mover dinero **sin un documento
+     * detrás** —no hay cobro ni pago que lo respalde, sólo un concepto
+     * escrito—, así que es la parte que un salón puede querer dar por
+     * separado. Mismo criterio que separó Timbrados en la 5.2.0.
+     */
+    public function movimientos(): View
+    {
+        $pa = [];
+        $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta'"
+            . Sucursales::filtro('vw_caja_resumen', $pa) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pa);
+
+        return view('facturacion.movimientos', [
+            'abierta' => $abierta,
+            'movimientos' => $abierta ? DB::select(
+                'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
+                   FROM movimiento_caja
+                  WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
+            ) : [],
+        ]);
+    }
 
     public function caja(): View
     {

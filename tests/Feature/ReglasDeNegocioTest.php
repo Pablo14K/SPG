@@ -3265,4 +3265,56 @@ class ReglasDeNegocioTest extends TestCase
             'Una sola persona no puede hacer dos cosas a la vez, aunque sean de zonas distintas.'
         );
     }
+
+    /**
+     * El movimiento de efectivo es su propia clave, y separarlo no le quitó
+     * nada a quien ya lo hacía.
+     *
+     * Abrir y cerrar el cajón es administrar el arqueo; meter o sacar plata a
+     * mano es mover dinero **sin un documento detrás** —no hay cobro ni pago que
+     * lo respalde, sólo un concepto escrito—, así que es la parte que un salón
+     * puede querer dar por separado. Mismo criterio que separó Timbrados en la
+     * 5.2.0.
+     *
+     * **Se comprueba en las dos direcciones**, que es lo que hace que valga:
+     * sin la clave la pantalla contesta 403, y con ella se dibuja.
+     */
+    #[Test]
+    public function el_movimiento_de_efectivo_es_su_propia_clave(): void
+    {
+        $rol = (int) DB::scalar(
+            "SELECT r.id_rol FROM rol r JOIN rol_modulo rm ON rm.id_rol = r.id_rol
+              WHERE rm.modulo = 'facturacion.caja' AND r.es_personal = 1 LIMIT 1"
+        );
+        if (! $rol) {
+            $this->markTestSkipped('Ningún rol tiene la caja en la base de prueba.');
+        }
+
+        // **Separar el permiso no puede quitarle nada a quien ya lo hacía.** El
+        // `.sql` que se entrega se lo concede a todo rol que tuviera la caja, y
+        // de ahí en adelante el salón decide.
+        $this->assertSame(1, (int) DB::scalar(
+            "SELECT COUNT(*) FROM rol_modulo WHERE id_rol = ? AND modulo = 'facturacion.movimientos'", [$rol]
+        ), 'Quien administraba la caja tiene que conservar el movimiento de efectivo.');
+
+        $u = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rol]);
+        if (! $u) {
+            $this->markTestSkipped('Ese rol no tiene ninguna cuenta activa.');
+        }
+
+        session(['uid' => $u, 'rol' => $rol, 'es_personal' => true, 'es_cliente' => false]);
+        $this->conSucursal();
+
+        $this->get(route('facturacion.movimientos'))->assertOk();
+
+        // Y sin la clave, 403: **esconder el botón no es el control**.
+        DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo = 'facturacion.movimientos'", [$rol]);
+        // La matriz se lee una vez y queda en cache: sin tirarla, el rol sigue
+        // contestando lo de antes y la prueba mediria la cache, no la regla.
+        Permisos::olvidar();
+        $this->get(route('facturacion.movimientos'))->assertStatus(403);
+
+        // La caja sigue siendo suya: se separó una cosa, no se le sacó la otra.
+        $this->get(route('facturacion.caja'))->assertOk();
+    }
 }

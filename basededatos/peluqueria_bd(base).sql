@@ -2307,7 +2307,7 @@ CREATE TABLE `rol_modulo` (
 
 LOCK TABLES `rol_modulo` WRITE;
 /*!40000 ALTER TABLE `rol_modulo` DISABLE KEYS */;
-INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'seguridad.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'reportes'),(3,'seguridad.asistencia'),(3,'seguridad.turnos'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
+INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'seguridad.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'reportes'),(3,'seguridad.asistencia'),(3,'seguridad.turnos'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
 /*!40000 ALTER TABLE `rol_modulo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5718,4 +5718,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-19 22:10:07
+-- Dump completed on 2026-08-19 22:25:44

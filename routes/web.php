@@ -362,6 +362,12 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('caja', [FacturacionController::class, 'caja'])->name('caja');
             Route::post('caja/abrir', [FacturacionController::class, 'abrirCaja'])->name('caja.abrir');
             Route::post('caja/cerrar', [FacturacionController::class, 'cerrarCaja'])->name('caja.cerrar');
+        });
+
+        // El movimiento de efectivo a mano: su propia clave, porque mueve plata
+        // sin un documento que la respalde.
+        Route::middleware('modulo:facturacion.movimientos')->group(function () {
+            Route::get('caja/movimientos', [FacturacionController::class, 'movimientos'])->name('movimientos');
             // El gasto de caja chica, el retiro, la plata para el cambio: lo
             // único del arqueo que no sale de un cobro ni de un pago.
             Route::post('caja/movimiento', [FacturacionController::class, 'movimientoCaja'])->name('caja.movimiento');

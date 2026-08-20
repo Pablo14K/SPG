@@ -220,6 +220,7 @@ class AccesoTest extends TestCase
             // consultas propias que la primera no toca.
             ['citas.reasignar', []],
             ['facturacion.index', []],
+            ['facturacion.movimientos', []],
             ['facturacion.facturas', []],
             ['facturacion.emitir', []],
             // Con la cita ya elegida, que es como se llega desde la agenda
