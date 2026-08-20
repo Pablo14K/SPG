@@ -6,13 +6,13 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 > El sistema nació sin framework (PHP puro, front controller `index.php?r=…`) y se migró a
 > Laravel en la versión **6.0.0**, por pedido de la tutora. Aquella versión quedó archivada.
-> **La migración cambió la arquitectura, no las reglas**: las 53 rutinas de la base, los 17
+> **La migración cambió la arquitectura, no las reglas**: las 55 rutinas de la base, los 17
 > triggers y todo lo que este documento dice sobre facturación, caja, agenda, turnos y
 > permisos siguen valiendo igual, porque siguen viviendo donde siempre — en la base.
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **21 procedimientos, 33 funciones, 17 triggers y 17 vistas**,
+La base (`peluqueria_bd`) tiene **21 procedimientos, 34 funciones, 17 triggers y 17 vistas**,
 más **69 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
@@ -149,6 +149,19 @@ Van en esta lista, y **no se traen a colación mientras se está desarrollando**
 > hay que decirlas todas, y `spg:diagnostico --produccion` está justamente para
 > eso. Lo que no corresponde es interrumpir una tanda de desarrollo para
 > repetirlas.
+
+### Un aviso de mudanza sólo sirve si alguien conoció el lugar anterior
+
+**El sistema todavía no se entregó, así que no hay a quién avisarle.** Un cartel
+que dice «esto ahora está en tal lado» le habla a quien usaba la versión de
+antes; acá no existe esa persona, y lo que queda es ruido con forma de
+información. Se puso uno al partir Caja en dos y salió en la misma tanda, por
+pedido del usuario.
+
+La regla vale para las notas de transición, no para los avisos que explican una
+consecuencia: «esta sucursal no tiene timbrado propio» o «este local no maneja
+productos» siguen valiendo, porque dicen algo del estado de HOY y no de un
+cambio del sistema.
 
 ### Si al arreglar algo vas a dejar otra cosa sin funcionar, PREGUNTÁ ANTES
 
@@ -319,7 +332,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **167 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **181 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -372,9 +385,10 @@ config/
 resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
+                           <x-cobro-lineas>  las líneas del cobro, en Facturas y en la agenda
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 167 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 181 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
@@ -907,7 +921,7 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 |---|---|
 | `citas` | `.agenda` · `.atencion` · `.ausencias` |
 | `clientes` | `.registro` · `.fidelizacion` · `.canjes` · `.valoraciones` |
-| `servicios` | `.catalogo` · `.categorias` · `.descuentos` |
+| `servicios` | `.catalogo` · `.categorias` —que administra también **las zonas del cuerpo**— · `.descuentos` |
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
 | `facturacion` | `.facturas` · `.cobros` · `.caja` · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
 | `reportes` | no se divide: es una sola pantalla |
@@ -1280,29 +1294,41 @@ carga en la ficha del usuario y lo hace cumplir `Agenda::validarReparto()`.
 > servicio. Es el mismo caso que `movimiento_caja` antes de la 7.29.0 — una
 > pieza correcta que parecía una función y no lo era.
 
-**Servicios que ocupan a la clienta entera.** `servicio.requiere_exclusividad` marca los que
-no se pueden hacer al mismo tiempo que otro: una coloración y una keratina se pisan —las dos
-son sobre el pelo—, un lavado y una pedicura no.
+**Qué se puede hacer a la vez lo decide LA ZONA DEL CUERPO.** Dos servicios de
+la misma zona no pueden pasar al mismo tiempo —una coloración y un lavado son
+las dos sobre la misma cabeza— así que se turnan y los tiempos **se suman**. De
+zonas distintas sí conviven: coloración y manicura terminan en el bloque más
+largo, no en la suma.
 
-**No se pueden hacer a la vez, pero sí uno después del otro, y eso vale también con
-profesionales distintos.** Hasta la 7.36.0 se rechazaba: el modelo daba por hecho que todos
-los profesionales de una cita trabajan **en paralelo**, así que dos exclusivos en manos
-distintas se pisaban sobre la clienta y el mensaje mandaba a ponerlos con la misma persona —
-que en el salón no siempre se puede, y por eso la cita no se podía reservar.
+> **Y esto NO era un booleano por servicio, aunque lo fue hasta la 7.43.0.** Con
+> una casilla de «requiere atención exclusiva» el caso normal no se podía
+> expresar: el lavado no es «exclusivo» y aun así suma con la coloración. No es
+> una propiedad del servicio — es que compartan la parte del cuerpo.
+> `requiere_exclusividad` sigue en la base **sin uso**, por el mismo motivo que
+> las piezas de la venta de productos.
 
-Lo que faltaba era poder decir **en qué turno** va cada servicio, y eso es
-**`cita_servicio.orden`**: mismo orden = a la vez, orden mayor = después.
+`zona_servicio` es administrable —**Servicios → Zonas del cuerpo**, con el mismo
+permiso que las categorías— y cada servicio elige una en `servicio.id_zona`. Sin
+zona cargada no comparte con nadie: es el criterio permisivo de siempre, para el
+catálogo que todavía no se clasificó.
+
+**La persona también es un recurso.** Una sola no puede hacer dos cosas a la vez
+aunque sean de zonas distintas, así que `Agenda::turnos()` busca para cada
+servicio **el primer turno libre de zona Y de profesional**, acomodando de mayor
+a menor: el turno más largo es el que fija el total, así que poniéndolo adelante
+lo demás entra adentro.
 
 | | |
 |---|---|
-| Quién se turna | **el profesional, no el servicio**: si alguien hace algo exclusivo, ocupa a la clienta hasta terminar todo lo suyo |
-| Quién no | el que no hace nada exclusivo va en el turno 0, en paralelo — el lavado y la pedicura conviven |
-| En qué orden | de mayor a menor bloque. El primer turno es el único que puede solaparse con los no exclusivos, así que poniendo adelante al más largo la cita termina antes |
-| Cuánto dura la cita | la suma de los turnos (`fn_cita_duracion`), no el bloque más largo |
-| Desde cuándo se ocupa cada uno | `fn_cita_inicio_de` — es lo que le dice a la agenda que el segundo está libre al principio y ocupado al final |
+| Qué impide el paralelo | compartir **zona** (la clienta) o **profesional** (la persona) |
+| Cuánto dura la cita | la suma de los turnos (`fn_cita_duracion`) |
+| Desde cuándo se ocupa cada uno | `fn_cita_inicio_de` |
+| Dónde vive la regla | `Agenda::turnos()` **en PHP** — las funciones de la base ya calculaban por `orden` y no se tocaron |
 
-> **Con todo en `orden = 0` —el caso de siempre— las tres funciones devuelven exactamente lo
-> mismo que antes**, así que ninguna cita ya agendada cambió de duración.
+> **El orden que se guarda es del SERVICIO, no del profesional.** La misma
+> persona puede tener dos servicios en turnos distintos —coloración y lavado— y
+> guardando el del profesional se aplastaban en uno solo: la cita salía durando
+> el más largo en vez de la suma.
 
 > **Y `fn_verificar_disponibilidad` tuvo que aprenderlo también.** Medía el solape desde
 > `cita.fecha_hora`, o sea que daba al segundo profesional por ocupado al principio —cuando
@@ -1508,7 +1534,8 @@ productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock 
 con cuánta plata hay que ir a comprar.
 
 > Acá decía que lo dibujaba un componente `<x-aviso-stock>`. **Ese componente no existe**:
-> los cuatro que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>` y `<x-landing>`.
+> los cinco que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`
+> y `<x-cobro-lineas>`.
 > Quedaba además su CSS (`.spg-aviso-stock`, `.spg-aviso-item`, `.spg-aviso-mas`) sin marcado
 > que lo usara, heredado del sistema anterior; se borró en la 7.1.0. Si algún día se unifica
 > el aviso en un componente, este párrafo vuelve a valer.
@@ -2031,23 +2058,79 @@ físico y el movimiento total: `cobros_efectivo` / `cobros_otros` / `cobros`,
 **Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
 
-### El movimiento de efectivo que no es un cobro ni un pago
+### El movimiento de efectivo: nada entra ni sale de la nada
 
-`movimiento_caja` guarda lo que entra o sale del cajón sin ser ninguna de las dos cosas: el
-delivery, el taxi, la plata que se saca para el cambio, un retiro. Se carga desde
-**Tesorería → Caja**, pide `facturacion.caja` y exige caja abierta como todo lo que mueve
-plata.
+`movimiento_caja` guarda lo que mueve el cajón sin ser un cobro ni un pago. Es
+su **propio submódulo** desde la 7.46.0 —`facturacion.movimientos`, separado de
+`facturacion.caja`— porque abrir y cerrar el arqueo y mover plata a mano son
+cosas distintas, y la segunda es la que un salón puede querer dar aparte.
 
-> **Hasta la 7.29.0 esa tabla no la escribía ninguna pantalla.** `fn_caja_saldo` la restaba
-> desde siempre —cero filas en los 90 días de la primera simulación, y en los 60 de la
-> segunda sólo la escribía la nota de crédito—, así que el gasto real del mostrador quedaba
-> fuera del arqueo y el cierre no cuadraba **sin que se supiera por qué**. Es lo que el
-> informe de 90 días pedía como «lo completo» de CJ-02.
+**Hasta la 7.47.0 pedía tipo, monto y un texto libre**, así que quien tuviera la
+clave sacaba cualquier monto escribiendo «varios». Fiscalmente no se sostiene. Y
+metía en la misma bolsa cosas que no son lo mismo: un gasto tiene factura, un
+retiro de la propietaria no es un gasto sino retiro de utilidades, y un faltante
+de arqueo no es ninguna de las dos.
 
-Las reglas son las mismas que las del pago a proveedores, y por los mismos motivos: el monto
-tiene que ser mayor a cero, el concepto es obligatorio —es lo único que explica ese
-movimiento al cerrar la caja—, y **un egreso no puede sacar más de lo que hay en el cajón**.
-Todo queda en `auditoria` con el concepto.
+Ahora la clase la pone **`tipo_movimiento_caja`**, y el tipo decide dos cosas:
+
+| Clase | Signo | ¿Pide comprobante? | Quién lo emite |
+|---|---|---|---|
+| Gasto con comprobante | sale | **sí** | el proveedor — el delivery está obligado a facturar su servicio |
+| Retiro de la propietaria | sale | **sí** | ella, con **su** RUC y su punto de expedición (el salón emite con 001-001 y ella con 001-002) |
+| Faltante de caja | sale | no | es una diferencia, no una operación con un tercero |
+| Devolución al cliente | sale | no | la respalda la nota de crédito, que ya está emitida y numerada |
+
+> **El signo sale del TIPO, no de un selector aparte.** Un gasto no puede ser un
+> ingreso, y dejarlo elegir invitaba a cargar una salida como entrada.
+
+**Lo que pide un comprobante lo pide entero**: número, RUC de quien lo emitió
+—validado con el **mismo módulo 11 del SIFEN** que evita el rechazo 1309 de la
+DNIT— y la foto del papel, que va **fuera de `public/`** igual que el
+comprobante de la seña. El número suelto se puede escribir de memoria; el papel
+no.
+
+**Y el concepto no puede quedar vacío**, ahora por `CHECK`: es lo único que
+explica ese movimiento al cerrar la caja.
+
+> **Ninguna clase suma al cajón hoy, y es coherente**: lo único que entra
+> legítimamente son el monto de apertura y los cobros. El `INGRESO`/`EGRESO` del
+> controlador se deja igual —lo decide el signo del tipo— así que agregar mañana
+> una clase que entre no pide tocar código, sólo una fila en el catálogo.
+
+**Un movimiento mal cargado se anula, no se borra**, con motivo obligatorio y
+**sólo mientras la caja siga abierta**: después del cierre el arqueo ya se contó
+y cambiarlo por atrás dejaría el cierre diciendo un número y la base otro. El
+aviso dice qué hacer en ese caso —cargar el contrario en la caja de hoy— en vez
+de contestar «no se puede». `fn_caja_saldo` suma sólo los activos.
+
+### La devolución de una nota de crédito son DOS actos
+
+Emitir la nota y devolver la plata no pasan al mismo tiempo, y tratarlos como
+uno solo fue un error que costó una duplicidad:
+
+| Dónde | Qué pasa |
+|---|---|
+| **Facturas** | se **emite** la nota. No toca el cajón, así que **no necesita caja abierta** |
+| **Movimiento de efectivo** | se **confirma** la devolución, eligiendo la nota de una lista |
+
+Hasta la 7.48.0 la emisión escribía el egreso **sola**, y además la clase
+«Devolución al cliente» dejaba cargar otro a mano: **dos salidas por la misma
+devolución**, y con montos distintos si quien la cargaba escribía otro número —
+el cajón terminaba faltando plata que nunca salió.
+
+- **El monto sale del documento, no se tipea.** Es lo que impide que vuelvan a
+  quedar dos números para la misma devolución.
+- **Sólo las notas de este local.** La sucursal de un comprobante sale de su
+  timbrado, que es por sucursal desde siempre (7.37.0).
+- **Sólo lo que se pagó en efectivo**, que es lo único que estaba en el cajón;
+  lo que pagó con tarjeta se le devuelve por el mismo camino.
+- **Lo hace cumplir la base, no un `if`**: un índice único sobre
+  `(id_factura, activo)` impide la segunda devolución vigente. `activo` entra en
+  la clave a propósito, para que anular una deje volver a cargarla.
+
+> **Ojo con el orden al tocar ese índice**: la clave foránea `fk_movcaja_factura`
+> se apoya en él, así que hay que soltarla antes. Es la trampa que este documento
+> ya anota en *Cambiar el esquema*, y apareció al comprobar la prueba en reversa.
 
 > **Si agregás otra salida de dinero**, tiene que restarse en `fn_caja_saldo()` **sólo cuando
 > es en efectivo**, exponerse como columna en `vw_caja_resumen` separando efectivo de lo
@@ -2207,7 +2290,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 33 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 34 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -2270,9 +2353,25 @@ Lo que **queda** y lo que **se borra**:
 **Los catálogos no son «datos»: sin ellos el sistema no arranca.** Borrar `estado_cita` o
 `metodo_pago` no deja una base limpia, deja una base rota.
 
-Hay un guion listo en `basededatos/limpiar_base.sql` que hace exactamente esto y reinicia los
-`AUTO_INCREMENT`. Se corre con `SET FOREIGN_KEY_CHECKS = 0`, así que **después hay que
-comprobar que no quedaron huérfanos**.
+> **`limpiar_base.sql` NO sirve para esto, y conviene saberlo antes de correrlo.**
+> Es anterior a la 7.13.0 y borra el **catálogo comercial** —servicios, productos,
+> proveedores, timbrados—, que desde entonces **sí se entrega**: correrlo deja la
+> base sin nada que agendar. Sigue en la carpeta porque describe bien qué es
+> operación y qué es catálogo, pero para dejar la base lista hay que borrar sólo
+> la operación y devolver la marca de fábrica (`nombre_salon`, `logo`) y el
+> único local.
+
+**Y el riesgo real no es olvidarse de limpiar: es regenerar el `.sql` desde la
+base con la que se estuvo probando.** Pasó en la 7.43.2 — el volcado salió con
+el nombre del salón cambiado, un logo subido, una segunda sucursal y filas de
+citas, facturas y cobros. El salón que instalara el sistema arrancaba con la
+operación de otro. **El volcado se hace desde una copia limpia, no desde la base
+de trabajo**, y se comprueba antes de commitear:
+
+```bash
+grep -c "INSERT INTO \`cita\`" "basededatos/peluqueria_bd(base).sql"   # tiene que dar 0
+grep -o "INSERT INTO \`configuracion\` VALUES ([^;]*)" "basededatos/peluqueria_bd(base).sql"
+```
 
 > **Si volvés a cargar datos para probar, acordate de vaciarla antes de entregar**, y de
 > regenerar el archivo base en la misma tanda. Para probar con datos está `peluqueria_test`
@@ -2362,7 +2461,7 @@ tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 **Las 113 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
-> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 53 rutinas y sus 17
+> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 55 rutinas y sus 17
 > triggers. Las pruebas que escriben usan `DatabaseTransactions`, que revierte al terminar.
 > La única que no puede usarlo es `ConcurrenciaAgendaTest`, porque mide justamente qué ven
 > entre sí varias conexiones: esa limpia a mano en `tearDown()`.
@@ -2381,7 +2480,7 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 33 funciones,
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 34 funciones,
    17 triggers, 17 vistas y 69 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
@@ -2425,7 +2524,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 | Archivo | Qué cuida |
 |---|---|
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
-| `AccesoTest` | abre **las doce pantallas de Seguridad y las diez de la operación diaria**: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500 |
+| `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y quince—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500 |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `ConcurrenciaCobroTest` | los otros candados, con procesos de verdad: **3 cobros** de la misma factura (que no quede saldo negativo), **3 aperturas de caja con cuentas distintas** (que quede una sola abierta), **3 salidas del mismo stock** (que no quede en negativo) y **cancelar contra reprogramar** la misma cita (que el resultado sea el que el sistema contestó). Son los hallazgos FA-01, CJ-01, IN-01 y AG-04 de la simulación de 90 días |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
@@ -2433,7 +2532,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 
 Seis cosas que hay que saber antes de tocarlas:
 
-- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 53 rutinas. Las que escriben usan
+- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 55 rutinas. Las que escriben usan
   `DatabaseTransactions`.
 - **`ConcurrenciaAgendaTest` no puede correr dentro de una transacción**, porque mide qué ven
   entre sí conexiones distintas. Limpia a mano en `tearDown()`, con
