@@ -126,6 +126,11 @@ class CitasController extends Controller
                     (SELECT ss.monto FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS sena_pedida,
+                    -- El comprobante que adjuntó: es lo que deja confirmar sin
+                    -- llamar al banco ni creerle de palabra.
+                    (SELECT ss.comprobante FROM sena_solicitud ss
+                      WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
+                      ORDER BY ss.id_solicitud LIMIT 1) AS sena_comprobante,
                     f.id_factura,
                     -- **Cuánto vale la cita**, para que el modal de cobro lo diga
                     -- antes y no después. Es la MISMA expresión con la que la base

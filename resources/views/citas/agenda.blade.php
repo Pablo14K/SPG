@@ -290,6 +290,20 @@
                                     @endif
                                 </p>
 
+                                {{-- **El comprobante que adjuntó.** Sin esto, confirmar una
+                                     seña transferida es creerle de palabra o llamar al banco:
+                                     la cita se reserva desde afuera del local, así que no hay
+                                     nada físico que haya podido entregar. --}}
+                                @if ($c->id_solicitud && ! empty($c->sena_comprobante))
+                                    <a class="btn btn-sm btn-rapido mb-2" target="_blank" rel="noopener"
+                                       href="{{ route('facturacion.sena.comprobante', ['id' => $c->id_solicitud]) }}">
+                                        <i class="bi bi-paperclip"></i> Ver el comprobante que envió</a>
+                                @elseif ($c->id_solicitud)
+                                    <div class="text-muted-warm mb-2" style="font-size:.8rem">
+                                        No adjuntó comprobante: confirmá sólo si el dinero ya está.
+                                    </div>
+                                @endif
+
                                 {{-- Lo que hay que cobrar, arriba del campo y no en un
                                      rechazo posterior. Un modal que pide un monto sin
                                      decir cuál es el monto obliga a saberlo de memoria. --}}

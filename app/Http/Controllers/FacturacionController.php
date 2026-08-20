@@ -1001,6 +1001,39 @@ class FacturacionController extends Controller
     }
 
     /**
+     * El comprobante que la clienta adjuntó al registrar su seña.
+     *
+     * **Se sirve desde acá y no desde `public/`**: es plata de una persona y no
+     * tiene por qué quedar colgando de una URL que alguien adivine. Acá pasa
+     * por la sesión y por el permiso de cobros, como todo lo demás del
+     * mostrador.
+     */
+    public function senaComprobante(Request $request): Response|RedirectResponse
+    {
+        $id = (int) $request->query('id', 0);
+        $nombre = (string) DB::scalar(
+            'SELECT comprobante FROM sena_solicitud WHERE id_solicitud = ?', [$id]
+        );
+
+        // El nombre lo pone el sistema, pero se comprueba igual: si algún día lo
+        // pusiera otra cosa, un `../` acá serviría cualquier archivo del disco.
+        if ($nombre === '' || $nombre !== basename($nombre)) {
+            flash('Esa seña no tiene comprobante adjunto.', 'warning');
+
+            return redirect()->route('citas.agenda');
+        }
+
+        $ruta = storage_path('app/senas/' . $nombre);
+        if (! is_file($ruta)) {
+            flash('El comprobante ya no está guardado.', 'warning');
+
+            return redirect()->route('citas.agenda');
+        }
+
+        return response()->file($ruta);
+    }
+
+    /**
      * ¿La fecha de este cheque sirve? Devuelve el motivo, o null si está bien.
      *
      * La fecha es obligatoria: es lo que distingue un cheque al día de uno

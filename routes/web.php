@@ -352,6 +352,10 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('cobrar', [FacturacionController::class, 'cobrar'])->name('cobrar');
             Route::post('anular-cobro', [FacturacionController::class, 'anularCobro'])->name('cobro.anular');
             Route::post('sena', [FacturacionController::class, 'sena'])->name('sena');
+            // El comprobante que adjuntó la clienta. Se sirve desde el sistema
+            // porque vive fuera de `public/`.
+            Route::get('sena/comprobante', [FacturacionController::class, 'senaComprobante'])
+                ->name('sena.comprobante');
         });
 
         Route::middleware('modulo:facturacion.caja')->group(function () {

@@ -2322,6 +2322,7 @@ CREATE TABLE `sena_solicitud` (
   `id_solicitud` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
   `monto` decimal(12,2) NOT NULL,
+  `comprobante` varchar(120) DEFAULT NULL,
   `fecha_solicitud` datetime NOT NULL DEFAULT current_timestamp(),
   `id_cobro` int(10) unsigned DEFAULT NULL,
   `id_usuario` int(10) unsigned DEFAULT NULL COMMENT 'quien confirmo o rechazo',
@@ -5717,4 +5718,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-18 15:40:29
+-- Dump completed on 2026-08-19 22:10:07

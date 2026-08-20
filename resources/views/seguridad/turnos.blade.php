@@ -8,70 +8,8 @@
     <div class="row g-3">
         <div class="col-lg-5">
             <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2">
-                    <i class="bi bi-clock"></i> {{ $editar ? 'Editar turno' : 'Nuevo turno' }}
-                </h2>
-
-                <form method="post" action="{{ route('seguridad.turno.guardar') }}">
-                    @csrf
-                    <input type="hidden" name="id_turno" value="{{ $editar->id_turno ?? 0 }}">
-
-                    <div class="mb-2">
-                        <label class="form-label" for="nombre">Nombre *</label>
-                        <input class="form-control" id="nombre" name="nombre" required maxlength="60"
-                               placeholder="Turno Mañana"
-                               value="{{ old('nombre', $editar->nombre ?? '') }}">
-                    </div>
-
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label" for="hora_inicio">Desde *</label>
-                            <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" required
-                                   value="{{ old('hora_inicio', isset($editar) ? substr((string) $editar->hora_inicio, 0, 5) : '08:00') }}">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label" for="hora_fin">Hasta *</label>
-                            <input type="time" class="form-control" id="hora_fin" name="hora_fin" required
-                                   value="{{ old('hora_fin', isset($editar) ? substr((string) $editar->hora_fin, 0, 5) : '12:00') }}">
-                        </div>
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="form-label" for="id_sucursal">Sucursal *</label>
-                        <select class="form-select" id="id_sucursal" name="id_sucursal" required>
-                            @foreach ($sucursales as $s)
-                                <option value="{{ $s->id_sucursal }}"
-                                    @selected((int) old('id_sucursal', $editar->id_sucursal ?? 0) === (int) $s->id_sucursal)>
-                                    {{ $s->nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Días que se trabaja *</label>
-                        {{-- Un día por casilla, y en la base una fila por día:
-                             nunca una lista tipo 'LMXJVS' dentro de una columna. --}}
-                        <div class="d-flex gap-2 flex-wrap">
-                            @foreach ($dias as $n => $nombreDia)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="dias[]" value="{{ $n }}"
-                                           id="dia{{ $n }}"
-                                           @checked(in_array($n, old('dias', $editar->dias ?? [1, 2, 3, 4, 5, 6]), false))>
-                                    {{-- mb_substr y no substr: 'Miércoles' cortado a los 3 bytes
-                                         parte la é al medio y sale un rombo con un signo. --}}
-                                    <label class="form-check-label" for="dia{{ $n }}">{{ mb_substr($nombreDia, 0, 3) }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
-                        @if ($editar)
-                            <a class="btn btn-outline-neutro" href="{{ route('seguridad.turnos') }}">Cancelar</a>
-                        @endif
-                    </div>
-                </form>
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Nuevo turno</h2>
+                @include('seguridad._turno_form', ['t' => null])
             </div>
         </div>
 
@@ -103,9 +41,11 @@
                                         @endif
                                     </td>
                                     <td class="text-end" style="white-space:nowrap">
-                                        <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                           href="{{ route('seguridad.turnos', ['editar' => $t->id_turno]) }}">
-                                            <i class="bi bi-pencil"></i></a>
+                                        {{-- Abre el modal en vez de recargar: asi el formulario
+                                             de «Nuevo turno» sigue a la vista. --}}
+                                        <button type="button" class="btn btn-sm btn-outline-neutro" title="Editar"
+                                                data-bs-toggle="modal" data-bs-target="#modalTurno{{ $t->id_turno }}">
+                                            <i class="bi bi-pencil"></i></button>
                                         <form method="post" action="{{ route('seguridad.turno.baja') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="id_turno" value="{{ $t->id_turno }}">
@@ -134,4 +74,27 @@
             </div>
         </div>
     </div>
+
+    {{-- **Editar va en un emergente, no en el panel de la izquierda.** Antes los
+         dos formularios eran el mismo y cambiaba de cara con `?editar=`, así que
+         al tocar «editar» desaparecía el de crear: para cargar otro turno había
+         que cancelar primero. Son dos acciones distintas y ninguna tapa a la
+         otra. Los campos salen del mismo partial, así que no se pueden
+         desfasar. --}}
+    @foreach ($rows as $t)
+        <div class="modal fade" id="modalTurno{{ $t->id_turno }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="font-size:1rem">
+                            <i class="bi bi-clock"></i> Editar «{{ $t->nombre }}»</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        @include('seguridad._turno_form', ['t' => $t])
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
 @endsection

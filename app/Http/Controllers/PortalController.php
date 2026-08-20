@@ -320,10 +320,63 @@ class PortalController extends Controller
             return $volver;
         }
 
-        DB::insert('INSERT INTO sena_solicitud (id_cita, monto) VALUES (?,?)', [$idCita, $monto]);
+        // **El comprobante de la transferencia, si lo tiene.** Las citas se
+        // reservan desde afuera del local, así que la seña se transfiere y no
+        // hay nada físico que entregar: sin el comprobante, quien confirma en
+        // el mostrador tiene que creerle o llamar al banco.
+        //
+        // **Es opcional a propósito.** También existe la clienta que pasa por el
+        // local y deja el efectivo: ahí el comprobante lo da el salón, no ella.
+        $comprobante = null;
+        if ($request->hasFile('comprobante')) {
+            $archivo = $request->file('comprobante');
+
+            if (! $archivo->isValid()) {
+                flash('El comprobante no llegó completo. Probá de nuevo.', 'error');
+
+                return $volver;
+            }
+            if ($archivo->getSize() > 3 * 1024 * 1024) {
+                flash('El comprobante no puede pesar más de 3 MB. Sacale una foto más chica.', 'error');
+
+                return $volver;
+            }
+
+            // **Se mira el contenido, no la extensión**, que la elige quien
+            // sube el archivo. Se acepta la foto de la pantalla —que es como lo
+            // manda casi todo el mundo— y el PDF que dan algunos bancos.
+            $info = @getimagesize($archivo->getRealPath());
+            $tipos = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_WEBP => 'webp'];
+            $esPdf = str_starts_with((string) @file_get_contents($archivo->getRealPath(), false, null, 0, 5), '%PDF-');
+
+            if (! $esPdf && (! $info || ! isset($tipos[$info[2]]))) {
+                flash('El comprobante tiene que ser una imagen (PNG, JPG o WEBP) o un PDF.', 'error');
+
+                return $volver;
+            }
+
+            $comprobante = 'sena-' . $idCita . '-' . date('YmdHis') . '.'
+                . ($esPdf ? 'pdf' : $tipos[$info[2]]);
+            try {
+                // **Fuera de `public/`**: es plata de una persona y no tiene por
+                // qué quedar colgando de una URL que alguien adivine. Se sirve
+                // desde el sistema, con la sesión ya comprobada.
+                $archivo->move(storage_path('app/senas'), $comprobante);
+            } catch (Throwable $e) {
+                Log::error('No se pudo guardar el comprobante de seña: ' . $e->getMessage());
+                flash('No se pudo guardar el comprobante. El detalle quedó registrado.', 'error');
+
+                return $volver;
+            }
+        }
+
+        DB::insert('INSERT INTO sena_solicitud (id_cita, monto, comprobante) VALUES (?,?,?)',
+            [$idCita, $monto, $comprobante]);
 
         flash('Anotamos que vas a dejar ' . money($monto) . ' de seña para tu cita del '
-            . fecha($cita->fecha_hora) . '. Se confirma en el salón cuando entregues el dinero.');
+            . fecha($cita->fecha_hora) . '.'
+            . ($comprobante ? ' Recibimos tu comprobante.' : '')
+            . ' Se confirma en el salón cuando el dinero esté acreditado.');
 
         return $volver;
     }

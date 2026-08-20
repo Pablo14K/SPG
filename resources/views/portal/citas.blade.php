@@ -129,7 +129,7 @@
         <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <form method="post" action="{{ route('portal.sena') }}">
+                    <form method="post" action="{{ route('portal.sena') }}" enctype="multipart/form-data">
                         @csrf
                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                         <div class="modal-header">
@@ -145,6 +145,21 @@
                             <label class="form-label" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
                             <input class="form-control input-miles" id="ps{{ $c->id_cita }}"
                                    name="monto" data-min="1" inputmode="numeric" required>
+
+                            {{-- **El comprobante de la transferencia.** La cita se
+                                 reserva desde afuera del local, así que no hay nada
+                                 físico que entregar y el salón no tiene cómo saber que
+                                 la plata salió. Es opcional: si la clienta pasa por el
+                                 local y deja el efectivo, el comprobante lo da el salón. --}}
+                            <label class="form-label mt-3" for="pc{{ $c->id_cita }}">
+                                Comprobante de la transferencia
+                                <span class="text-muted-warm">(si ya la hiciste)</span>
+                            </label>
+                            <input class="form-control" id="pc{{ $c->id_cita }}" type="file"
+                                   name="comprobante" accept="image/*,application/pdf">
+                            <div class="form-text">
+                                Una foto de la pantalla alcanza. Hasta 3 MB.
+                            </div>
 
                             {{-- Que quede clarísimo que acá no se paga: la clienta
                                  no tiene que quedarse esperando un cobro que no
