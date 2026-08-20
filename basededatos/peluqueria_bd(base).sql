@@ -798,7 +798,7 @@ CREATE TABLE `compra` (
   CONSTRAINT `fk_compra_proveedor` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedor` (`id_proveedor`) ON UPDATE CASCADE,
   CONSTRAINT `fk_compra_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_compra_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -807,7 +807,6 @@ CREATE TABLE `compra` (
 
 LOCK TABLES `compra` WRITE;
 /*!40000 ALTER TABLE `compra` DISABLE KEYS */;
-INSERT INTO `compra` VALUES (1,5,1,2,2,1,'5780179039 -12','2026-08-18 09:45:41',NULL);
 /*!40000 ALTER TABLE `compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1011,7 +1010,7 @@ CREATE TABLE `detalle_compra` (
   CONSTRAINT `fk_dc_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dc_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_dc_precio` CHECK (`precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1020,7 +1019,6 @@ CREATE TABLE `detalle_compra` (
 
 LOCK TABLES `detalle_compra` WRITE;
 /*!40000 ALTER TABLE `detalle_compra` DISABLE KEYS */;
-INSERT INTO `detalle_compra` VALUES (1,1,10,50.00,42000.00),(2,1,7,50.00,42200.00),(3,1,2,50.00,42000.00);
 /*!40000 ALTER TABLE `detalle_compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1346,6 +1344,7 @@ CREATE TABLE `factura` (
   `id_factura` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
   `id_cita` int(10) unsigned DEFAULT NULL,
+  `id_sucursal` int(10) unsigned DEFAULT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_tipo_comprobante` int(10) unsigned NOT NULL,
   `id_condicion_venta` int(10) unsigned NOT NULL,
@@ -1365,11 +1364,13 @@ CREATE TABLE `factura` (
   KEY `idx_factura_estado` (`id_estado_factura`),
   KEY `idx_factura_origen` (`id_factura_origen`),
   KEY `idx_factura_fecha` (`fecha_emision`),
+  KEY `fk_factura_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_factura_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_condicion` FOREIGN KEY (`id_condicion_venta`) REFERENCES `condicion_venta` (`id_condicion_venta`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_estado` FOREIGN KEY (`id_estado_factura`) REFERENCES `estado_factura` (`id_estado_factura`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_origen` FOREIGN KEY (`id_factura_origen`) REFERENCES `factura` (`id_factura`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_factura_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_factura_timbrado` FOREIGN KEY (`id_timbrado`) REFERENCES `timbrado` (`id_timbrado`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
@@ -2568,7 +2569,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -4438,11 +4439,35 @@ BEGIN
      AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
 
   IF v_turnos = 0 THEN
+    
+    
+    
+    
+    
+    
+    
+    
     SELECT COUNT(*) INTO v_salon
       FROM usuario_turno ut
       JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-     WHERE (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
-    IF v_salon > 0 THEN RETURN 0; END IF;
+     WHERE ut.id_usuario = p_id_usuario;
+    IF v_salon = 0 THEN
+      
+      
+      SELECT COUNT(*) INTO v_salon
+        FROM usuario_turno ut
+        JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
+      IF v_salon > 0 THEN RETURN 0; END IF;
+    ELSE
+      
+      
+      
+      
+      SELECT COUNT(*) INTO v_salon
+        FROM turno_laboral t
+       WHERE t.activo = 1 AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
+      IF v_salon > 0 THEN RETURN 0; END IF;
+    END IF;
   ELSE
     SELECT COUNT(*) INTO v_cubre
       FROM usuario_turno ut
@@ -4880,7 +4905,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_emitir_factura` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4923,9 +4948,12 @@ BEGIN
   SET v_nro = fn_siguiente_correlativo(v_timbrado);
 
   INSERT INTO factura (id_cliente, id_cita, id_usuario, id_tipo_comprobante, id_condicion_venta,
-                       id_timbrado, id_estado_factura, nro_correlativo)
+                       id_sucursal, id_timbrado, id_estado_factura, nro_correlativo)
   VALUES (p_id_cliente, p_id_cita, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
-          v_timbrado, 1, v_nro);
+          
+          
+          
+          v_suc, v_timbrado, 1, v_nro);
   SET p_id_factura = LAST_INSERT_ID();
 
   IF p_id_cita IS NOT NULL THEN
@@ -4964,7 +4992,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_emitir_nota_credito` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4979,6 +5007,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_nota_credito`(
     IN  p_motivo            VARCHAR(300),
     OUT p_id_nota           INT UNSIGNED)
 BEGIN
+  DECLARE v_suc INT UNSIGNED DEFAULT NULL;
   DECLARE v_cliente   INT UNSIGNED DEFAULT NULL;
   DECLARE v_signo     TINYINT DEFAULT 0;
   DECLARE v_condicion INT UNSIGNED DEFAULT 1;
@@ -4999,7 +5028,18 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solo se puede acreditar un comprobante de venta.';
   END IF;
 
-  SET v_timbrado = fn_timbrado_vigente(5, CURRENT_DATE);
+  
+  
+  
+  
+  
+  
+  
+  SELECT COALESCE(f.id_sucursal, t.id_sucursal) INTO v_suc
+    FROM factura f LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+   WHERE f.id_factura = p_id_factura_origen;
+
+  SET v_timbrado = fn_timbrado_vigente(5, CURRENT_DATE, v_suc);
   IF v_timbrado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para notas de credito.';
   END IF;
@@ -5126,7 +5166,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_cobro` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5155,7 +5195,16 @@ BEGIN
   
   SELECT id_factura INTO v_lock FROM factura WHERE id_factura = p_id_factura FOR UPDATE;
 
-  SELECT f.id_estado_factura, tc.signo, t.id_sucursal
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  SELECT f.id_estado_factura, tc.signo, COALESCE(f.id_sucursal, t.id_sucursal)
     INTO v_estado, v_signo, v_sucursal
   FROM factura f
   JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
@@ -5762,4 +5811,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-19 23:52:13
+-- Dump completed on 2026-08-20 19:46:31

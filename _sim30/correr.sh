@@ -64,6 +64,12 @@ while [ "$D" -le "$HASTA" ]; do
   case $D in
     5|15|26)                 corre "$D" portal       16:55:00 ;;
   esac
+    # El movimiento de efectivo y la devolución por nota de crédito: las dos
+    # piezas más nuevas del módulo de dinero, y las que la corrida del 20/08
+    # dejó con CERO cobertura porque el banco no sabía subir archivos.
+    case $D in
+      4|11|17|23|29)           corre "$D" efectivo     17:10:00 ;;
+    esac
   corre "$D" tarde    18:58:00
   corre "$D" cierre   19:15:00
   echo "== dia $D listo ==" >> _sim30/log/salida.txt

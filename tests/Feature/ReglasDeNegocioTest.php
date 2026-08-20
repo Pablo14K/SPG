@@ -3471,4 +3471,175 @@ class ReglasDeNegocioTest extends TestCase
             array_map(fn ($n) => (int) $n->id_factura, $ofrecidas),
             'Una nota ya devuelta no puede seguir en la lista de pendientes.');
     }
+
+    /**
+     * El cobro entra al cajón del local de la ATENCIÓN, no al del timbrado.
+     *
+     * `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local no
+     * tiene el suyo, y hasta acá el cobro deducía su sucursal de ahí: la plata
+     * seguía al papel y entraba al arqueo del local ajeno. **La simulación de
+     * 30 días midió 43 cobros acreditados a la sucursal equivocada.**
+     *
+     * Con la caída puesta, el local **no es derivable** del timbrado, así que
+     * la factura lo guarda: no es redundancia, es un dato que el timbrado no
+     * puede expresar.
+     */
+    #[Test]
+    public function el_cobro_entra_al_cajon_del_local_de_la_atencion(): void
+    {
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_cliente, c.id_usuario, c.id_sucursal FROM cita c
+              WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+                AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('Hace falta una cita con servicios y sin comprobante.');
+        }
+
+        // Un local nuevo, SIN timbrado propio: el caso que dispara la caída.
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Sin timbrado ' . uniqid()]);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::update('UPDATE cita SET id_sucursal = ? WHERE id_cita = ?', [$otra, (int) $cita->id_cita]);
+
+        $tipo = (int) DB::scalar(
+            'SELECT id_tipo_comprobante FROM timbrado
+              WHERE activo = 1 AND CURDATE() BETWEEN fecha_inicio AND fecha_fin LIMIT 1'
+        );
+        $idFactura = Bd::idDe('sp_emitir_factura',
+            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra]);
+
+        // El timbrado es prestado —el local no tiene el suyo— y eso está bien:
+        // dejar de facturar sería peor. Lo que NO puede pasar es que la plata
+        // se vaya con él.
+        $delTimbrado = (int) DB::scalar(
+            'SELECT t.id_sucursal FROM factura f JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+              WHERE f.id_factura = ?', [$idFactura]
+        );
+        $this->assertNotSame($otra, $delTimbrado,
+            'El caso sólo significa algo si el timbrado es de otra sede.');
+
+        $this->assertSame($otra, (int) DB::scalar(
+            'SELECT id_sucursal FROM factura WHERE id_factura = ?', [$idFactura]
+        ), 'La factura tiene que decir dónde ocurrió la atención, no de quién es el timbrado.');
+
+        // Y el cobro va a la caja de ESE local.
+        $caja = (int) DB::scalar(
+            'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
+        );
+        if (! $caja) {
+            Bd::idDe('sp_abrir_caja', [1, 100000, $otra]);
+            $caja = (int) DB::scalar(
+                'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
+            );
+        }
+
+        $efectivo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
+        Bd::idDe('sp_registrar_cobro', [$idFactura, $efectivo, 1, 1000.0, null]);
+
+        $delCobro = (int) DB::scalar(
+            'SELECT k.id_sucursal FROM cobro co JOIN caja k ON k.id_caja = co.id_caja
+              WHERE co.id_factura = ? ORDER BY co.id_cobro DESC LIMIT 1', [$idFactura]
+        );
+        $this->assertSame($otra, $delCobro,
+            'La plata tiene que entrar al cajón del local que atendió, no al del timbrado prestado.');
+    }
+
+    /**
+     * Quien no tiene turno en NINGÚN local no atiende en ninguno.
+     *
+     * El criterio permisivo es del local —una sucursal sin turnos cargados
+     * ofrece la jornada por defecto, que es lo que la deja operar el primer
+     * día— pero eso dejaba la agenda abierta **para cualquiera**: la
+     * simulación de 30 días le vendió **71 citas a la asistente
+     * administrativa**, 10 en domingo, y el 40 % terminó ausente.
+     *
+     * Son dos preguntas distintas: **«¿esta persona atiende?»** es del salón,
+     * **«¿atiende acá?»** es del local.
+     */
+    #[Test]
+    public function quien_no_atiende_en_ningun_local_no_recibe_citas_en_el_nuevo(): void
+    {
+        $sinTurno = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM usuario_turno ut WHERE ut.id_usuario = u.id_usuario)
+              LIMIT 1'
+        );
+        $conTurno = (int) DB::scalar(
+            'SELECT ut.id_usuario FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1 LIMIT 1'
+        );
+        if (! $sinTurno || ! $conTurno) {
+            $this->markTestSkipped('Hacen falta una persona con turno y otra sin ninguno.');
+        }
+
+        // Un local recién abierto: sin un solo turno cargado.
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Recien abierta ' . uniqid()]);
+        $nueva = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $cuando = date('Y-m-d H:i:s', strtotime('+5 days 10:00'));
+
+        // 1) La que no atiende en ningún lado, tampoco acá.
+        $this->assertFalse(Agenda::huecoLibre($sinTurno, $cuando, 30, null, $nueva),
+            'Quien no tiene turno en ninguna sede no atiende clientes: no se le agenda en el local nuevo.');
+
+        // 2) La que sí atiende —aunque su turno sea de otra sede— entra por el
+        //    criterio permisivo: el local todavía no cargó turnos, y sin esto
+        //    quedaría sin agenda el primer día.
+        $this->assertTrue(Agenda::huecoLibre($conTurno, $cuando, 30, null, $nueva),
+            'Un local sin turnos propios tiene que poder operar el primer día.');
+
+        // 3) Y el espejo de PHP dice lo mismo, que es donde esto se rompe.
+        $this->assertSame([], Agenda::slotsProfesional($sinTurno, date('Y-m-d', strtotime('+5 days')), 30, null, $nueva),
+            'La pantalla no puede ofrecer huecos de alguien que la base va a rechazar.');
+    }
+
+    /**
+     * Una nota de crédito se puede emitir de verdad.
+     *
+     * **Estuvo rota desde la 7.37.0 y ninguna prueba lo vio.** Esa versión le
+     * agregó el tercer parámetro a `fn_timbrado_vigente` y
+     * `sp_emitir_nota_credito` se quedó llamándola con dos, así que emitir
+     * reventaba con el error 1318 —«Incorrect number of arguments»— y la
+     * pantalla lo traducía a «no hay timbrado vigente», que manda a mirar el
+     * lugar equivocado.
+     *
+     * Lo que faltaba era una prueba que EMITIERA una: las que había sólo
+     * comprobaban que la nota fuera un tipo declarable ante la DNIT. Un hueco
+     * de cobertura esconde defectos, no ausencia de defectos.
+     */
+    #[Test]
+    public function una_nota_de_credito_se_puede_emitir(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura FROM factura f
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+              WHERE f.id_estado_factura = 1 AND tc.signo = 1
+                AND NOT EXISTS (SELECT 1 FROM factura nc WHERE nc.id_factura_origen = f.id_factura)
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('No hay ninguna factura sin nota de crédito.');
+        }
+
+        $idNota = (int) Bd::idDe('sp_emitir_nota_credito',
+            [(int) $f->id_factura, 1, 'la clienta no quedó conforme']);
+
+        $this->assertGreaterThan(0, $idNota, 'La nota de crédito tiene que emitirse.');
+
+        $nota = DB::selectOne(
+            'SELECT id_tipo_comprobante, id_factura_origen, id_timbrado, id_sucursal
+               FROM factura WHERE id_factura = ?', [$idNota]
+        );
+        $this->assertSame(5, (int) $nota->id_tipo_comprobante, 'Tiene que ser del tipo 5.');
+        $this->assertSame((int) $f->id_factura, (int) $nota->id_factura_origen,
+            'Y colgar de la factura que reversa.');
+        $this->assertNotNull($nota->id_timbrado, 'Con su propio timbrado del tipo 5.');
+
+        // Y copia el detalle: una nota sin renglones no reversa nada.
+        $this->assertGreaterThan(0, (int) DB::scalar(
+            'SELECT COUNT(*) FROM detalle_factura WHERE id_factura = ?', [$idNota]
+        ), 'La nota tiene que copiar el detalle de la factura original.');
+    }
 }

@@ -45,12 +45,24 @@ class AuthController extends Controller
         // si no, quien cierra el navegador sin salir queda afuera para siempre,
         // porque la marca se limpia recién al salir.
         if ($r === Sesion::OCUPADA) {
+            $varios = (int) DB::scalar('SELECT COUNT(*) FROM sucursal WHERE activo = 1') > 1;
+
             return back()
                 ->withInput($request->only('usuario'))
                 ->with('spg_sesion_ocupada', true)
+                // **Con varios locales hay que decir la consecuencia.** Una
+                // cuenta es una identidad: entrar igual cierra la sesión de la
+                // otra sucursal en medio de su jornada, y quien está ahí se
+                // queda sin poder cobrar. La simulación de 30 días midió 34
+                // ingresos rechazados y 9 días en que un local no abrió su
+                // caja por esto. Con más de un local, cada persona necesita su
+                // propia cuenta — compartir una las deja peleándose la sesión.
                 ->withErrors(['usuario' => 'Esa cuenta ya tiene una sesión abierta en otro equipo. '
                     . 'Cerrala ahí y volvé a intentar, o marcá la casilla de abajo para entrar '
-                    . 'igual y cerrar la otra.']);
+                    . 'igual y cerrar la otra.'
+                    . ($varios ? ' Ojo: si la otra sesión es la de otra sucursal, esa sucursal '
+                        . 'se queda sin poder cobrar hasta que vuelva a entrar. Con varios '
+                        . 'locales conviene que cada persona tenga su propia cuenta.' : '')]);
         }
 
         if (! $r) {

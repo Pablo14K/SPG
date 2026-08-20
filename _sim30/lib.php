@@ -80,12 +80,51 @@ class Nav
         App\Servicios\Permisos::olvidar();
     }
 
-    public function req(string $metodo, string $uri, array $datos = []): self
+    /**
+     * Sube un archivo con el POST.
+     *
+     * **Sin esto, media pantalla queda sin cobertura y no se nota.** El gasto de
+     * caja y el retiro exigen adjuntar el comprobante desde la 7.47.0, y la seña
+     * de la clienta lo acepta desde la 7.45.0: sin poder subir un archivo, la
+     * simulación de 30 días registró **cero** movimientos de efectivo y no
+     * ejercitó ni una devolución. Un hueco de cobertura esconde defectos, no
+     * ausencia de defectos.
+     */
+    public function postConArchivo(string $uri, array $datos, string $campo, string $tipo = 'jpg'): self
+    {
+        $ruta = sys_get_temp_dir() . '/sim-' . uniqid() . '.' . $tipo;
+        // Un JPEG mínimo de verdad: el sistema mira el CONTENIDO con
+        // `getimagesize`, no la extensión, así que un archivo de mentira lo
+        // rechazaría y la prueba mediría la validación en vez de la operación.
+        if ($tipo === 'pdf') {
+            file_put_contents($ruta, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF");
+        } else {
+            // JPEG de 1x1 escrito a mano: el contenedor no trae GD, y de todos
+            // modos lo que importa es que `getimagesize` lo reconozca, que es con
+            // lo que el sistema valida — y `getimagesize` no depende de GD.
+            file_put_contents($ruta, base64_decode(
+                '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof'
+                . 'Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAAB'
+                . 'AAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=='
+            ));
+        }
+
+        $archivo = new \Illuminate\Http\UploadedFile(
+            $ruta, basename($ruta), $tipo === 'pdf' ? 'application/pdf' : 'image/jpeg', null, true
+        );
+
+        $r = $this->req('POST', $uri, $datos, [$campo => $archivo]);
+        @unlink($ruta);
+
+        return $r;
+    }
+
+    public function req(string $metodo, string $uri, array $datos = [], array $archivos = []): self
     {
         $this->reset();
         sim_reloj();
 
-        $req = Request::create($uri, $metodo, $datos, $this->cookies, [], [
+        $req = Request::create($uri, $metodo, $datos, $this->cookies, $archivos, [
             'HTTP_HOST' => 'localhost',
             'REMOTE_ADDR' => '127.0.0.1',
             'HTTP_USER_AGENT' => 'SPG-Simulador',

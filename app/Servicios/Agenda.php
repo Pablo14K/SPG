@@ -52,11 +52,13 @@ class Agenda
         $idSucursal ??= Sucursales::activa();
         $clave = (int) $idSucursal;
 
+        // **Se pregunta por los TURNOS del local, no por quién los tiene.**
+        // Antes miraba `usuario_turno`, así que un local con turnos cargados
+        // pero sin nadie asignado todavía contaba como «no usa turnos» y
+        // dejaba la agenda abierta.
         return self::$salonConTurnos[$clave] ??= (bool) DB::scalar(
-            'SELECT EXISTS (SELECT 1
-                              FROM usuario_turno ut
-                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-                             WHERE (? = 0 OR t.id_sucursal = ?))',
+            'SELECT EXISTS (SELECT 1 FROM turno_laboral t
+                             WHERE t.activo = 1 AND (? = 0 OR t.id_sucursal = ?))',
             [$clave, $clave]
         );
     }
@@ -169,7 +171,18 @@ class Agenda
         //
         // Tiene que decir lo mismo que fn_verificar_disponibilidad: la base es
         // la autoridad al guardar, y esto sólo dibuja la pantalla.
-        $usaTurnos = $turnos !== [] || self::elSalonUsaTurnos($suc ?: null);
+        // **Dos preguntas, igual que en la base.** Si esta persona no tiene
+        // turno en NINGUNA sede y el salón sí usa turnos, no atiende clientes
+        // —la propietaria, la recepcionista— y no se le ofrece ningún hueco en
+        // ningún local. Si atiende pero no acá, manda el criterio del local.
+        $tieneEnAlgunLado = (bool) DB::scalar(
+            'SELECT EXISTS (SELECT 1 FROM usuario_turno ut
+                              JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                             WHERE ut.id_usuario = ?)', [$idUsuario]
+        );
+        $noAtiendeNuncaJamas = ! $tieneEnAlgunLado && self::elSalonUsaTurnos(0);
+
+        $usaTurnos = $noAtiendeNuncaJamas || $turnos !== [] || self::elSalonUsaTurnos($suc ?: null);
 
         // Citas que le ocupan la agenda: las suyas y aquellas en las que solo
         // hace algunos servicios. Se mide con SU bloque (fn_cita_duracion_de),

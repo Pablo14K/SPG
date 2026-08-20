@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.49.0 | 20/08/2026 | **Los cinco hallazgos de la simulación de 30 días con tres locales, y uno más que apareció al taparle el hueco de cobertura.** Ese último es el peor: **emitir una nota de crédito estaba roto desde la 7.37.0**. Esa versión le agregó el tercer parámetro a `fn_timbrado_vigente` —la sucursal— y `sp_emitir_nota_credito` se quedó llamándola con dos, así que reventaba con el error 1318 y la pantalla lo traducía a «no hay timbrado vigente», mandando a mirar el lugar equivocado. **Once versiones rotas, y ninguna prueba lo vio porque ninguna emitía una**: sólo comprobaban que la nota fuera un tipo declarable. **El cobro deja de seguir al timbrado prestado**, que fue el crítico de la corrida: `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local no tiene el suyo —deliberado desde la 7.37.0, porque dejar de facturar sería peor— y el cobro deducía de ahí su cajón, así que **43 cobros entraron al arqueo del local equivocado**. Con esa caída puesta el local **no es derivable** del timbrado, así que `factura.id_sucursal` lo guarda: no rompe la 3FN porque no es copia de nada, es un dato que el timbrado no puede expresar. **Y la agenda separa dos preguntas que estaban fundidas en una**: «¿esta persona atiende?» es del **salón**, «¿atiende acá?» es del **local**. Resueltas juntas, una sucursal recién abierta —sin un turno cargado— le vendía horarios a cualquiera: la corrida midió **71 citas a la asistente administrativa**, 10 en domingo, y el 40 % terminó ausente contra el 33 % del local que sí tiene turnos. Es AG-01 otra vez, ahora por sucursal. **El criterio permisivo del primer día se conserva**, que es lo que hacía difícil el arreglo: quien sí atiende sigue entrando aunque su turno sea de otra sede. **El `.sql` que se entrega salía con una compra ajena adentro** — ver el aviso del guion de limpieza. **El aviso de sesión ocupada dice la consecuencia**: con varios locales, entrar igual le cierra la sesión a la otra sucursal y la deja sin poder cobrar, que es lo que explica los 9 días en que un local no abrió su caja. Y **el banco de pruebas aprende a subir archivos**, sin lo cual el movimiento de efectivo (7.47.0) y la devolución (7.48.0) quedaban con **cero cobertura** — las dos piezas más nuevas del módulo de dinero, ejercitadas exactamente nunca. **116 pruebas**, tres nuevas comprobadas en las dos direcciones |
 | 7.48.0 | 18/08/2026 | **La devolución de una nota de crédito podía cargarse dos veces, y con montos distintos.** Emitir la nota escribía el egreso **sola**, y además la clase «Devolución al cliente» dejaba cargar otro a mano: dos salidas por la misma devolución, y si quien la cargaba escribía otro número el cajón terminaba faltando plata que nunca salió. Se reordena en dos actos, que es lo que son: **desde Facturas se emite** la nota —y ya no toca el cajón, así que tampoco necesita caja abierta— y **desde Movimiento de efectivo se confirma la devolución**, eligiendo la nota de una lista. **El monto sale del documento, no se tipea**: es lo que impide que queden dos números para la misma devolución. La lista trae **sólo las de este local** —la sucursal de un comprobante sale de su timbrado (7.37.0)— con el nombre de la clienta y cuánto había pagado en efectivo, que es lo único que sale del cajón. **Y lo hace cumplir la base**, no un `if`: un índice único sobre `(id_factura, activo)` impide la segunda devolución vigente, y `activo` entra en la clave para que anular una deje volver a cargarla. Comprobado en las dos direcciones — sacando el índice, la prueba falla; y para sacarlo hay que soltar antes la clave foránea, que es la trampa que este documento ya anota. **113 pruebas** |
 | 7.47.2 | 18/08/2026 | **Salen tres clases de movimiento que el salón no usa**, por decisión del usuario: el fondo de cambio —que iba y volvía entre el cajón y la dueña— y el sobrante de arqueo. Quedan cuatro: gasto, retiro, faltante y devolución. **Se borran sólo si nadie las usó**; si alguna quedara referenciada se desactiva, porque una fila que un movimiento nombra es historia del arqueo y no se puede quitar sin romperlo. **Con esto ninguna clase suma al cajón**, y es coherente: lo único que entra son la apertura y los cobros. El `INGRESO`/`EGRESO` del controlador se deja como está —lo decide el signo del tipo— para que agregar mañana una clase que entre no pida tocar código. **112 pruebas** |
 | 7.47.1 | 18/08/2026 | **El retiro de la propietaria TAMBIÉN se factura, y la 7.47.0 daba por sentado lo contrario.** Ella tiene su propio RUC y su propio timbrado —el salón emite con el punto de expedición **001-001** y ella con el **001-002**—, así que cuando retira le factura al salón por ese monto: hay un papel que pedir. Lo mismo del otro lado, y por eso el gasto ya lo exigía: **el delivery está obligado a emitir factura** por el servicio que presta. Queda sin comprobante sólo lo que de verdad no es una operación con un tercero — mover plata al cambio, y el faltante o el sobrante de un arqueo, que son diferencias. **Y entra el caso que faltaba**: el arqueo podía cerrar con MÁS plata de la esperada y no había cómo anotarlo; un faltante y un sobrante son cosas distintas y ninguna se explica sola. De paso, los nombres del catálogo **traían la dirección adentro** y la pantalla se la agregaba otra vez: salía «Fondo de cambio (sale) (sale)». Cada fila se nombra ahora por lo que **es** —«Retiro para el cambio», «Reposición del cambio»— y el signo lo dice la columna. La pantalla explica además **quién emite** cada comprobante, que no es evidente y es lo que decide qué RUC va en el campo. **112 pruebas** |
@@ -2353,13 +2354,18 @@ Lo que **queda** y lo que **se borra**:
 **Los catálogos no son «datos»: sin ellos el sistema no arranca.** Borrar `estado_cita` o
 `metodo_pago` no deja una base limpia, deja una base rota.
 
-> **`limpiar_base.sql` NO sirve para esto, y conviene saberlo antes de correrlo.**
-> Es anterior a la 7.13.0 y borra el **catálogo comercial** —servicios, productos,
-> proveedores, timbrados—, que desde entonces **sí se entrega**: correrlo deja la
-> base sin nada que agendar. Sigue en la carpeta porque describe bien qué es
-> operación y qué es catálogo, pero para dejar la base lista hay que borrar sólo
-> la operación y devolver la marca de fábrica (`nombre_salon`, `logo`) y el
-> único local.
+**El guion es `basededatos/dejar_lista.sql`**: trunca la operación entera, deja
+el catálogo demo, devuelve la marca de fábrica y baja a un solo local.
+
+> **Reemplaza a `limpiar_base.sql`, que se retiró, y las dos razones importan.**
+> Aquél era anterior a la 7.13.0 y borraba el **catálogo comercial** —servicios,
+> productos, proveedores, timbrados—, que desde entonces **sí se entrega**:
+> correrlo dejaba la base sin nada que agendar. Y le faltaban **siete tablas** —
+> `compra`, `detalle_compra`, `compra_cuota`, `pago_proveedor`,
+> `detalle_pago_proveedor`, `pago_personal` y `detalle_pago_personal`—, así que
+> el `.sql` de la 7.48.0 se entregó con **una compra ajena adentro**, colgada de
+> una sucursal que ya no existía: el borrado corre con `FOREIGN_KEY_CHECKS = 0`
+> y no avisa de lo que deja huérfano.
 
 **Y el riesgo real no es olvidarse de limpiar: es regenerar el `.sql` desde la
 base con la que se estuvo probando.** Pasó en la 7.43.2 — el volcado salió con
@@ -2400,7 +2406,7 @@ Se regenera siempre con `mysqldump`, nunca exportando desde phpMyAdmin:
 ```
 
 Antes de regenerarlo, comprobá que la base esté **vacía de operación** (la tabla de arriba dice
-qué queda y qué se borra); si tiene datos de prueba, pasale primero `basededatos/limpiar_base.sql`.
+qué queda y qué se borra); si tiene datos de prueba, pasale primero `basededatos/dejar_lista.sql`.
 
 ### Una sola carpeta, y qué NO se sube al servidor
 
@@ -2458,7 +2464,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 113 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 116 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 55 rutinas y sus 17
@@ -2518,7 +2524,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**113 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**116 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
