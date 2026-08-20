@@ -50,7 +50,7 @@
                             <option value="{{ $t->id_tipo_mov_caja }}"
                                     data-doc="{{ (int) $t->exige_documento }}"
                                     @selected((int) old('id_tipo_mov_caja') === (int) $t->id_tipo_mov_caja)>
-                                {{ $t->nombre }} ({{ $t->signo === 'E' ? 'entra' : 'sale' }})</option>
+                                {{ $t->nombre }} · {{ $t->signo === 'E' ? 'entra al cajón' : 'sale del cajón' }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -82,6 +82,14 @@
                                 <div class="text-muted-warm" style="font-size:.78rem">
                                     Sin comprobante la plata sale de la nada, y eso no se puede justificar
                                     después. Van los tres: número, quién lo emitió y la foto del papel.
+                                    <br>
+                                    {{-- Quién emite el comprobante cambia según el caso, y no es
+                                         evidente: el delivery está obligado a facturar su servicio,
+                                         y la propietaria factura su propio retiro con su RUC. --}}
+                                    En un <strong>gasto</strong> lo emite el proveedor —el delivery está
+                                    obligado a facturar su servicio—. En un <strong>retiro</strong> lo emite
+                                    la propietaria con <strong>su</strong> RUC y su punto de expedición
+                                    (el salón factura con 001-001 y ella con 001-002).
                                 </div>
                             </div>
                             <div class="col-md-4">

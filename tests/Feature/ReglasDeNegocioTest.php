@@ -3325,10 +3325,12 @@ class ReglasDeNegocioTest extends TestCase
      * la clave sacaba cualquier monto escribiendo «varios». Fiscalmente eso no
      * se sostiene: un gasto tiene comprobante, y el sistema tiene que exigirlo.
      *
-     * **El retiro de la propietaria NO lleva comprobante**, y eso también se
-     * comprueba: no es un gasto sino retiro de utilidades, y pedirle un papel
-     * que no existe empujaría a disfrazarlo de otra cosa. Lo que lleva es
-     * motivo, y queda en auditoría.
+     * **El retiro de la propietaria también se factura**, y eso también se
+     * comprueba: ella tiene su propio RUC y su propio timbrado —el salón emite
+     * con el punto 001-001 y ella con el 001-002—, así que le factura al salón
+     * por lo que retira. Lo que de verdad no lleva comprobante es mover plata
+     * al cambio, o un faltante de arqueo: son diferencias, no operaciones con
+     * un tercero.
      */
     #[Test]
     public function un_gasto_de_caja_no_entra_sin_su_comprobante(): void
@@ -3336,10 +3338,17 @@ class ReglasDeNegocioTest extends TestCase
         $gasto = DB::selectOne(
             "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE exige_documento = 1 AND activo = 1 LIMIT 1"
         );
-        $retiro = DB::selectOne(
-            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE exige_documento = 0 AND signo = 'S' AND activo = 1 LIMIT 1"
+        // El que de verdad no lleva comprobante: mover plata al cambio o un
+        // faltante de arqueo. El retiro de la propietaria SÍ lo lleva.
+        $sinDoc = DB::selectOne(
+            "SELECT id_tipo_mov_caja, nombre FROM tipo_movimiento_caja
+              WHERE exige_documento = 0 AND signo = 'S' AND activo = 1 LIMIT 1"
         );
-        if (! $gasto || ! $retiro) {
+        $retiro = DB::selectOne(
+            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+              WHERE nombre = 'Retiro de la propietaria' AND activo = 1 LIMIT 1"
+        );
+        if (! $gasto || ! $retiro || ! $sinDoc) {
             $this->markTestSkipped('Falta el catálogo de tipos de movimiento.');
         }
 
@@ -3370,18 +3379,29 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame($antes, $cuantos(),
             'Un RUC con el dígito verificador mal no respalda nada.');
 
-        // 3) El retiro sí entra sin comprobante: no es un gasto.
+        // 3) **El retiro de la propietaria tampoco entra sin comprobante**: ella
+        //    factura su retiro con su propio RUC, así que hay un papel que pedir.
         $this->post(route('facturacion.caja.movimiento'), [
             'id_tipo_mov_caja' => (int) $retiro->id_tipo_mov_caja,
-            'monto' => '10000', 'concepto' => 'retiro de la dueña para el banco',
+            'monto' => '10000', 'concepto' => 'retiro de la dueña',
+        ]);
+        $this->assertSame($antes, $cuantos(),
+            'El retiro de la propietaria se factura con su RUC: también necesita su comprobante.');
+
+        // 4) Lo que de verdad no tiene documento —mover plata al cambio, un
+        //    faltante— sí entra: pedirle un papel que no existe empujaría a
+        //    disfrazarlo de otra cosa, que es justo lo que hay que evitar.
+        $this->post(route('facturacion.caja.movimiento'), [
+            'id_tipo_mov_caja' => (int) $sinDoc->id_tipo_mov_caja,
+            'monto' => '10000', 'concepto' => 'se saca para tener cambio',
         ]);
         $this->assertSame($antes + 1, $cuantos(),
-            'El retiro no lleva comprobante: pedirle uno empujaría a disfrazarlo de gasto.');
+            $sinDoc->nombre . ' no es una operación con un tercero, así que no hay comprobante que pedir.');
 
         // Y quedó con su clase y su autor, que es lo que lo hace auditable.
         $m = DB::selectOne('SELECT id_tipo_mov_caja, id_usuario, concepto FROM movimiento_caja
                              ORDER BY id_movimiento_caja DESC LIMIT 1');
-        $this->assertSame((int) $retiro->id_tipo_mov_caja, (int) $m->id_tipo_mov_caja,
+        $this->assertSame((int) $sinDoc->id_tipo_mov_caja, (int) $m->id_tipo_mov_caja,
             'El movimiento tiene que decir de qué clase es, no sólo si entra o sale.');
         $this->assertNotNull($m->id_usuario, 'Y quién lo cargó.');
     }

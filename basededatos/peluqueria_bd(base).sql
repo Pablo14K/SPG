@@ -2694,7 +2694,7 @@ CREATE TABLE `tipo_movimiento_caja` (
   PRIMARY KEY (`id_tipo_mov_caja`),
   UNIQUE KEY `uq_tipo_mov_caja` (`nombre`),
   CONSTRAINT `chk_tmc_signo` CHECK (`signo` in ('E','S'))
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2703,7 +2703,7 @@ CREATE TABLE `tipo_movimiento_caja` (
 
 LOCK TABLES `tipo_movimiento_caja` WRITE;
 /*!40000 ALTER TABLE `tipo_movimiento_caja` DISABLE KEYS */;
-INSERT INTO `tipo_movimiento_caja` VALUES (1,'Gasto con comprobante','S',1,1),(2,'Retiro de la propietaria','S',0,1),(3,'Fondo de cambio (sale)','S',0,1),(4,'Fondo de cambio (entra)','E',0,1),(5,'Ajuste de arqueo','S',0,1),(6,'Devolucion al cliente','S',0,1);
+INSERT INTO `tipo_movimiento_caja` VALUES (1,'Gasto con comprobante','S',1,1),(2,'Retiro de la propietaria','S',1,1),(3,'Retiro para el cambio','S',0,1),(4,'Reposición del cambio','E',0,1),(5,'Faltante de caja','S',0,1),(6,'Devolución al cliente','S',0,1),(7,'Sobrante de caja','E',0,1);
 /*!40000 ALTER TABLE `tipo_movimiento_caja` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5759,4 +5759,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-19 22:47:03
+-- Dump completed on 2026-08-19 23:23:52

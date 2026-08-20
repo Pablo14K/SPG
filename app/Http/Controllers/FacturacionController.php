@@ -1376,7 +1376,7 @@ class FacturacionController extends Controller
                     'INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, tipo, monto, concepto,
                                                   nro_comprobante, id_usuario)
                      VALUES (?, (SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
-                                  WHERE nombre = ' . "'Devolucion al cliente'" . ' LIMIT 1), ?,?,?,?,?)',
+                                  WHERE nombre = ' . "'Devolución al cliente'" . ' LIMIT 1), ?,?,?,?,?)',
                     [(int) $caja->id_caja, 'EGRESO', $enEfectivo,
                      'Devolución por nota de crédito ' . $nroNota . ' sobre ' . $f->nro,
                      $nroNota, (int) session('uid')]
@@ -1682,7 +1682,9 @@ class FacturacionController extends Controller
      *  · **el gasto** —taxi, delivery, insumos— que tiene factura y ahora la
      *    exige: número de comprobante, RUC de quien la emitió y la foto;
      *  · **el retiro de la propietaria**, que no es un gasto sino retiro de
-     *    utilidades: no lleva comprobante, lleva motivo y queda en auditoría;
+     *    utilidades — pero **también se factura**: ella tiene su propio RUC y su
+     *    propio timbrado (el salón emite con el punto 001-001 y ella con el
+     *    001-002), así que le factura al salón por lo que retira;
      *  · **el fondo de cambio**, que no es ni una cosa ni la otra — es plata
      *    que sale y vuelve, y por eso tiene su par de tipos.
      *
