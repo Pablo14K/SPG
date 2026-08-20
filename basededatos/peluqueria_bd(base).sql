@@ -798,7 +798,7 @@ CREATE TABLE `compra` (
   CONSTRAINT `fk_compra_proveedor` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedor` (`id_proveedor`) ON UPDATE CASCADE,
   CONSTRAINT `fk_compra_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_compra_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -807,6 +807,7 @@ CREATE TABLE `compra` (
 
 LOCK TABLES `compra` WRITE;
 /*!40000 ALTER TABLE `compra` DISABLE KEYS */;
+INSERT INTO `compra` VALUES (1,5,1,2,2,1,'5780179039 -12','2026-08-18 09:45:41',NULL);
 /*!40000 ALTER TABLE `compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1010,7 +1011,7 @@ CREATE TABLE `detalle_compra` (
   CONSTRAINT `fk_dc_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dc_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_dc_precio` CHECK (`precio_unitario` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1019,6 +1020,7 @@ CREATE TABLE `detalle_compra` (
 
 LOCK TABLES `detalle_compra` WRITE;
 /*!40000 ALTER TABLE `detalle_compra` DISABLE KEYS */;
+INSERT INTO `detalle_compra` VALUES (1,1,10,50.00,42000.00),(2,1,7,50.00,42200.00),(3,1,2,50.00,42000.00);
 /*!40000 ALTER TABLE `detalle_compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1569,16 +1571,26 @@ CREATE TABLE `movimiento_caja` (
   `id_movimiento_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_caja` int(10) unsigned NOT NULL,
   `tipo` varchar(10) NOT NULL,
+  `id_tipo_mov_caja` int(10) unsigned DEFAULT NULL,
   `monto` decimal(14,2) NOT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `concepto` varchar(150) DEFAULT NULL,
+  `nro_comprobante` varchar(30) DEFAULT NULL,
+  `ruc_emisor` varchar(20) DEFAULT NULL,
+  `archivo` varchar(120) DEFAULT NULL,
+  `id_usuario` int(10) unsigned DEFAULT NULL,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `anulado_motivo` varchar(150) DEFAULT NULL,
   PRIMARY KEY (`id_movimiento_caja`),
   KEY `idx_mc_caja` (`id_caja`),
+  KEY `fk_movcaja_tipo` (`id_tipo_mov_caja`),
+  KEY `fk_movcaja_usuario` (`id_usuario`),
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_movcaja_tipo` FOREIGN KEY (`id_tipo_mov_caja`) REFERENCES `tipo_movimiento_caja` (`id_tipo_mov_caja`),
+  CONSTRAINT `fk_movcaja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
-  CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0)
+  CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0),
+  CONSTRAINT `chk_movcaja_concepto` CHECK (`concepto` is not null and `concepto` <> '')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2667,6 +2679,35 @@ INSERT INTO `tipo_comprobante` VALUES (1,'01','Factura',1,0,1),(2,'02','Boleta d
 UNLOCK TABLES;
 
 --
+-- Table structure for table `tipo_movimiento_caja`
+--
+
+DROP TABLE IF EXISTS `tipo_movimiento_caja`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `tipo_movimiento_caja` (
+  `id_tipo_mov_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(60) NOT NULL,
+  `signo` char(1) NOT NULL,
+  `exige_documento` tinyint(1) NOT NULL DEFAULT 0,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_tipo_mov_caja`),
+  UNIQUE KEY `uq_tipo_mov_caja` (`nombre`),
+  CONSTRAINT `chk_tmc_signo` CHECK (`signo` in ('E','S'))
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tipo_movimiento_caja`
+--
+
+LOCK TABLES `tipo_movimiento_caja` WRITE;
+/*!40000 ALTER TABLE `tipo_movimiento_caja` DISABLE KEYS */;
+INSERT INTO `tipo_movimiento_caja` VALUES (1,'Gasto con comprobante','S',1,1),(2,'Retiro de la propietaria','S',0,1),(3,'Fondo de cambio (sale)','S',0,1),(4,'Fondo de cambio (entra)','E',0,1),(5,'Ajuste de arqueo','S',0,1),(6,'Devolucion al cliente','S',0,1);
+/*!40000 ALTER TABLE `tipo_movimiento_caja` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `tipo_movimiento_inventario`
 --
 
@@ -2878,7 +2919,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'b6cb8b48293e127cd646505e0088871d','2026-08-18 09:40:34'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'ef1abb51abd65d3486a1819ba7a5175c','2026-08-19 23:33:54'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -5718,4 +5759,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-19 22:25:44
+-- Dump completed on 2026-08-19 22:47:03

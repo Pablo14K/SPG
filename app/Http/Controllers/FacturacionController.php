@@ -1370,9 +1370,16 @@ class FacturacionController extends Controller
             // escribía**: cero filas en los 90 días de la simulación.
             if ($enEfectivo > 0) {
                 DB::insert(
-                    'INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?,?,?,?)',
+                    // La devolución tiene su clase propia: su respaldo es la
+                    // nota de crédito, que ya está emitida y numerada, así que
+                    // no se le pide comprobante aparte.
+                    'INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, tipo, monto, concepto,
+                                                  nro_comprobante, id_usuario)
+                     VALUES (?, (SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+                                  WHERE nombre = ' . "'Devolucion al cliente'" . ' LIMIT 1), ?,?,?,?,?)',
                     [(int) $caja->id_caja, 'EGRESO', $enEfectivo,
-                     'Devolución por nota de crédito ' . $nroNota . ' sobre ' . $f->nro]
+                     'Devolución por nota de crédito ' . $nroNota . ' sobre ' . $f->nro,
+                     $nroNota, (int) session('uid')]
                 );
             }
 
@@ -1611,6 +1618,8 @@ class FacturacionController extends Controller
 
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
+            'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
+                                     FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
             'movimientos' => $abierta ? DB::select(
                 'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
                    FROM movimiento_caja
@@ -1661,33 +1670,67 @@ class FacturacionController extends Controller
      * delivery, el taxi, la plata que se saca para el cambio— quedaba fuera
      * del arqueo y el cierre no cuadraba sin que se supiera por qué.
      */
+    /**
+     * Un movimiento de efectivo, con el respaldo que le corresponda.
+     *
+     * **Antes esto pedía tipo, monto y un texto libre**, así que quien tuviera
+     * la clave sacaba cualquier monto escribiendo «varios». Fiscalmente no se
+     * sostiene: el dinero no entra ni sale de la nada.
+     *
+     * Y metía en la misma bolsa tres cosas que NO son lo mismo:
+     *
+     *  · **el gasto** —taxi, delivery, insumos— que tiene factura y ahora la
+     *    exige: número de comprobante, RUC de quien la emitió y la foto;
+     *  · **el retiro de la propietaria**, que no es un gasto sino retiro de
+     *    utilidades: no lleva comprobante, lleva motivo y queda en auditoría;
+     *  · **el fondo de cambio**, que no es ni una cosa ni la otra — es plata
+     *    que sale y vuelve, y por eso tiene su par de tipos.
+     *
+     * El signo lo pone el TIPO, no un `<select>` aparte: un gasto no puede ser
+     * un ingreso, y dejarlo elegir invitaba a cargar un egreso como entrada.
+     */
     public function movimientoCaja(Request $request): RedirectResponse
     {
-        $volver = redirect()->route('facturacion.caja');
-        $tipo = strtoupper(trim((string) $request->input('tipo', '')));
+        $volver = redirect()->route('facturacion.movimientos');
+        $idTipo = (int) $request->input('id_tipo_mov_caja', 0);
         $monto = num($request->input('monto'));
         $concepto = trim((string) $request->input('concepto', ''));
+        $nroComp = trim((string) $request->input('nro_comprobante', ''));
+        $ruc = strtoupper(trim((string) $request->input('ruc_emisor', '')));
 
         $caja = $this->exigeCaja('cargar un movimiento de caja');
         if ($caja instanceof RedirectResponse) {
             return $caja;
         }
 
+        $t = DB::selectOne(
+            'SELECT id_tipo_mov_caja, nombre, signo, exige_documento
+               FROM tipo_movimiento_caja WHERE id_tipo_mov_caja = ? AND activo = 1', [$idTipo]
+        );
+
         $error = null;
-        if (! in_array($tipo, ['INGRESO', 'EGRESO'], true)) {
-            $error = 'Elegí si es un ingreso o un egreso.';
+        if (! $t) {
+            $error = 'Elegí qué clase de movimiento es.';
         } elseif ($monto <= 0) {
             $error = 'El monto tiene que ser mayor a cero.';
         } elseif ($concepto === '') {
             $error = 'Escribí el concepto: es lo único que explica ese movimiento al cerrar la caja.';
         } elseif (mb_strlen($concepto) > 150) {
             $error = 'El concepto no puede pasar de 150 caracteres.';
+        } elseif ($t->exige_documento && $nroComp === '') {
+            $error = 'Un gasto necesita el número del comprobante: sin él no hay cómo respaldarlo.';
+        } elseif ($t->exige_documento && $ruc === '') {
+            $error = 'Poné el RUC o la cédula de quien emitió el comprobante.';
+        } elseif ($t->exige_documento && ! $this->documentoValido($ruc)) {
+            $error = 'Ese RUC no es válido: revisá el número y el dígito verificador.';
         }
         if ($error) {
             flash($error, 'error');
 
             return $volver->withInput();
         }
+
+        $tipo = $t->signo === 'E' ? 'INGRESO' : 'EGRESO';
 
         // **No se saca del cajón lo que no está**, la misma regla que ya tenían
         // el pago a proveedores y la liquidación al personal.
@@ -1701,15 +1744,38 @@ class FacturacionController extends Controller
             }
         }
 
+        // La foto del ticket. Es obligatoria para el gasto: el número suelto se
+        // puede escribir de memoria, el papel no.
+        $archivo = null;
+        if ($request->hasFile('archivo')) {
+            $archivo = $this->guardarRespaldo($request->file('archivo'), 'mov');
+            if ($archivo === false) {
+                flash('El comprobante tiene que ser una imagen (PNG, JPG o WEBP) o un PDF de hasta 3 MB.', 'error');
+
+                return $volver->withInput();
+            }
+        }
+        if ($t->exige_documento && ! $archivo) {
+            flash('Adjuntá la foto del comprobante. Es lo que respalda que esa plata salió por algo.', 'error');
+
+            return $volver->withInput();
+        }
+
         try {
-            DB::insert('INSERT INTO movimiento_caja (id_caja, tipo, monto, concepto) VALUES (?,?,?,?)',
-                [(int) $caja->id_caja, $tipo, $monto, $concepto]);
+            DB::insert(
+                'INSERT INTO movimiento_caja
+                    (id_caja, id_tipo_mov_caja, tipo, monto, concepto, nro_comprobante, ruc_emisor, archivo, id_usuario)
+                 VALUES (?,?,?,?,?,?,?,?,?)',
+                [(int) $caja->id_caja, (int) $t->id_tipo_mov_caja, $tipo, $monto, $concepto,
+                 $nroComp ?: null, $ruc ?: null, $archivo, (int) session('uid')]
+            );
 
             Auditoria::registrar('MOVIMIENTO_CAJA', 'Facturacion', 'movimiento_caja',
                 (int) DB::getPdo()->lastInsertId(),
-                ($tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') . ' de ' . money($monto) . ' — ' . $concepto);
+                $t->nombre . ' de ' . money($monto) . ' — ' . $concepto
+                . ($nroComp ? ' · comp. ' . $nroComp . ' (' . $ruc . ')' : ''));
 
-            flash(($tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') . ' de ' . money($monto)
+            flash($t->nombre . ' de ' . money($monto)
                 . ' registrado. En la caja quedan ' . money(Caja::saldo((int) $caja->id_caja)) . '.');
         } catch (Throwable $ex) {
             flash('No se pudo registrar el movimiento. El detalle quedó registrado.', 'error');
@@ -1717,6 +1783,58 @@ class FacturacionController extends Controller
         }
 
         return $volver;
+    }
+
+    /**
+     * ¿Sirve ese RUC o esa cédula? La cédula es numérica; el RUC lleva su
+     * dígito verificador, que se comprueba con el mismo módulo 11 del SIFEN —
+     * el mismo que evita el rechazo 1309 de la DNIT.
+     */
+    private function documentoValido(string $doc): bool
+    {
+        $doc = str_replace(' ', '', $doc);
+
+        if (preg_match('/^(\d{3,8})-(\d)$/', $doc, $m)) {
+            return Sifen::dvRuc($m[1]) === (int) $m[2];
+        }
+
+        // Sin guion se acepta como cédula: no todo el mundo tiene RUC.
+        return (bool) preg_match('/^\d{3,10}$/', $doc);
+    }
+
+    /**
+     * Guarda el respaldo de un movimiento. Devuelve el nombre, o false si el
+     * archivo no sirve.
+     *
+     * **Fuera de `public/`**, igual que el comprobante de la seña: es
+     * documentación de plata y no tiene por qué quedar colgando de una URL.
+     * Se mira el contenido, no la extensión.
+     */
+    private function guardarRespaldo(mixed $archivo, string $prefijo): string|false
+    {
+        if (! $archivo || ! $archivo->isValid() || $archivo->getSize() > 3 * 1024 * 1024) {
+            return false;
+        }
+
+        $info = @getimagesize($archivo->getRealPath());
+        $tipos = [IMAGETYPE_PNG => 'png', IMAGETYPE_JPEG => 'jpg', IMAGETYPE_WEBP => 'webp'];
+        $esPdf = str_starts_with((string) @file_get_contents($archivo->getRealPath(), false, null, 0, 5), '%PDF-');
+
+        if (! $esPdf && (! $info || ! isset($tipos[$info[2]]))) {
+            return false;
+        }
+
+        $nombre = $prefijo . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(3)) . '.'
+            . ($esPdf ? 'pdf' : $tipos[$info[2]]);
+        try {
+            $archivo->move(storage_path('app/respaldos'), $nombre);
+        } catch (Throwable $e) {
+            Log::error('No se pudo guardar el respaldo: ' . $e->getMessage());
+
+            return false;
+        }
+
+        return $nombre;
     }
 
     public function abrirCaja(Request $request): RedirectResponse

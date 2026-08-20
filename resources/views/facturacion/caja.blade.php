@@ -57,16 +57,6 @@
              cobro ni de un pago. `fn_caja_saldo` resta esta tabla desde
              siempre y hasta la 7.29.0 no la escribía ninguna pantalla, así que
              el gasto real del mostrador quedaba afuera y el cierre no cuadraba. --}}
-        {{-- **El movimiento de efectivo se mudó, y hay que decirlo.** Vivía en
-             esta pantalla y ahora es su propia clave: quien lo usaba todos los
-             días lo busca acá y no lo encuentra. --}}
-        @if (\App\Servicios\Permisos::puede('facturacion.movimientos'))
-            <div class="alert alert-secondary" style="font-size:.85rem">
-                El gasto de caja chica, el retiro y la plata para el cambio ahora están en
-                <a class="link-oro" href="{{ route('facturacion.movimientos') }}">Movimiento de efectivo</a>.
-            </div>
-        @endif
-
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir caja</h2>
             <p class="text-muted-warm" style="font-size:.85rem">

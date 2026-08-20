@@ -3317,4 +3317,72 @@ class ReglasDeNegocioTest extends TestCase
         // La caja sigue siendo suya: se separó una cosa, no se le sacó la otra.
         $this->get(route('facturacion.caja'))->assertOk();
     }
+
+    /**
+     * La plata no entra ni sale del cajón de la nada.
+     *
+     * `movimiento_caja` pedía tipo, monto y un texto libre, así que quien tenía
+     * la clave sacaba cualquier monto escribiendo «varios». Fiscalmente eso no
+     * se sostiene: un gasto tiene comprobante, y el sistema tiene que exigirlo.
+     *
+     * **El retiro de la propietaria NO lleva comprobante**, y eso también se
+     * comprueba: no es un gasto sino retiro de utilidades, y pedirle un papel
+     * que no existe empujaría a disfrazarlo de otra cosa. Lo que lleva es
+     * motivo, y queda en auditoría.
+     */
+    #[Test]
+    public function un_gasto_de_caja_no_entra_sin_su_comprobante(): void
+    {
+        $gasto = DB::selectOne(
+            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE exige_documento = 1 AND activo = 1 LIMIT 1"
+        );
+        $retiro = DB::selectOne(
+            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE exige_documento = 0 AND signo = 'S' AND activo = 1 LIMIT 1"
+        );
+        if (! $gasto || ! $retiro) {
+            $this->markTestSkipped('Falta el catálogo de tipos de movimiento.');
+        }
+
+        $this->entrarComoAdministrador();
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
+            Bd::idDe('sp_abrir_caja', [1, 200000, $suc]);
+        }
+
+        $cuantos = fn () => (int) DB::scalar('SELECT COUNT(*) FROM movimiento_caja');
+
+        // 1) Un gasto sin comprobante no entra.
+        $antes = $cuantos();
+        $this->post(route('facturacion.caja.movimiento'), [
+            'id_tipo_mov_caja' => (int) $gasto->id_tipo_mov_caja,
+            'monto' => '15000', 'concepto' => 'delivery',
+        ]);
+        $this->assertSame($antes, $cuantos(),
+            'Un gasto sin número de comprobante no puede sacar plata del cajón.');
+
+        // 2) Con un RUC inventado tampoco: el dígito verificador se comprueba
+        //    con el mismo módulo 11 que evita el rechazo 1309 de la DNIT.
+        $this->post(route('facturacion.caja.movimiento'), [
+            'id_tipo_mov_caja' => (int) $gasto->id_tipo_mov_caja,
+            'monto' => '15000', 'concepto' => 'delivery',
+            'nro_comprobante' => '001-001-0001234', 'ruc_emisor' => '80012345-6',
+        ]);
+        $this->assertSame($antes, $cuantos(),
+            'Un RUC con el dígito verificador mal no respalda nada.');
+
+        // 3) El retiro sí entra sin comprobante: no es un gasto.
+        $this->post(route('facturacion.caja.movimiento'), [
+            'id_tipo_mov_caja' => (int) $retiro->id_tipo_mov_caja,
+            'monto' => '10000', 'concepto' => 'retiro de la dueña para el banco',
+        ]);
+        $this->assertSame($antes + 1, $cuantos(),
+            'El retiro no lleva comprobante: pedirle uno empujaría a disfrazarlo de gasto.');
+
+        // Y quedó con su clase y su autor, que es lo que lo hace auditable.
+        $m = DB::selectOne('SELECT id_tipo_mov_caja, id_usuario, concepto FROM movimiento_caja
+                             ORDER BY id_movimiento_caja DESC LIMIT 1');
+        $this->assertSame((int) $retiro->id_tipo_mov_caja, (int) $m->id_tipo_mov_caja,
+            'El movimiento tiene que decir de qué clase es, no sólo si entra o sale.');
+        $this->assertNotNull($m->id_usuario, 'Y quién lo cargó.');
+    }
 }

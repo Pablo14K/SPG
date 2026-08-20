@@ -985,3 +985,27 @@ window.SPGCarga = (function () {
   caja.addEventListener('change', aplicar);
   aplicar();
 })();
+
+//  El respaldo de un movimiento de caja se pide sólo cuando la clase elegida lo
+//  exige: un retiro de la propietaria no tiene comprobante que adjuntar, y
+//  pedírselo sería inventar un papel. Sin este script el bloque se ve siempre,
+//  que es el lado seguro — el servidor valida igual.
+(function () {
+  var sel = document.querySelector('[data-exige]');
+  if (!sel) { return; }
+  var caja = document.querySelector(sel.getAttribute('data-exige'));
+  if (!caja) { return; }
+
+  function ajustar() {
+    var op = sel.options[sel.selectedIndex];
+    var pide = !!(op && op.getAttribute('data-doc') === '1');
+    caja.hidden = !pide;
+    caja.querySelectorAll('input').forEach(function (i) {
+      if (i.type !== 'file') { i.required = pide; }
+      if (!pide) { i.value = ''; }
+    });
+  }
+
+  sel.addEventListener('change', ajustar);
+  ajustar();
+})();

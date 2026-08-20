@@ -28,15 +28,33 @@
             </p>
 
             <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
-                  class="row g-2 align-items-end">
+                  class="row g-2 align-items-end" enctype="multipart/form-data">
                 @csrf
-                <div class="col-md-2">
-                    <label class="form-label" for="mc_tipo">Tipo</label>
-                    <select class="form-select" id="mc_tipo" name="tipo" required>
-                        <option value="EGRESO" @selected(old('tipo') !== 'INGRESO')>Egreso (sale)</option>
-                        <option value="INGRESO" @selected(old('tipo') === 'INGRESO')>Ingreso (entra)</option>
+
+                {{-- **La clase decide el signo, y decide qué respaldo se pide.**
+                     Antes había un «ingreso/egreso» suelto y un texto libre, así
+                     que un gasto, un retiro de la dueña y la plata del cambio
+                     entraban todos igual — y ninguno dejaba rastro de por qué esa
+                     plata se movió. Fiscalmente no se sostiene: el dinero no
+                     entra ni sale de la nada.
+
+                     El signo sale del tipo y no de un selector aparte: un gasto no
+                     puede ser un ingreso, y dejarlo elegir invitaba a cargar una
+                     salida como entrada. --}}
+                <div class="col-md-4">
+                    <label class="form-label" for="mc_clase">¿Qué es?</label>
+                    <select class="form-select" id="mc_clase" name="id_tipo_mov_caja" required
+                            data-exige="#mc_doc">
+                        <option value="">— elegí —</option>
+                        @foreach ($tipos as $t)
+                            <option value="{{ $t->id_tipo_mov_caja }}"
+                                    data-doc="{{ (int) $t->exige_documento }}"
+                                    @selected((int) old('id_tipo_mov_caja') === (int) $t->id_tipo_mov_caja)>
+                                {{ $t->nombre }} ({{ $t->signo === 'E' ? 'entra' : 'sale' }})</option>
+                        @endforeach
                     </select>
                 </div>
+
                 <div class="col-md-3">
                     <label class="form-label" for="mc_monto">Monto</label>
                     <div class="input-group">
@@ -45,13 +63,49 @@
                                value="{{ old('monto') }}" data-min="1" required>
                     </div>
                 </div>
+
                 <div class="col-md-5">
                     <label class="form-label" for="mc_concepto">Concepto</label>
                     <input class="form-control" id="mc_concepto" name="concepto" maxlength="150"
                            value="{{ old('concepto') }}" required
                            placeholder="Ej.: delivery del almuerzo, retiro de la dueña…">
                 </div>
-                <div class="col-md-2">
+
+                {{-- El respaldo del gasto. Se muestra sólo cuando la clase elegida
+                     lo exige, porque un retiro no tiene comprobante que adjuntar y
+                     pedírselo sería inventar un papel. --}}
+                <div class="col-12 mt-2" id="mc_doc" hidden>
+                    <div class="spg-panel" style="background:var(--oro-tinte)">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12">
+                                <strong style="font-size:.85rem">Respaldo del gasto</strong>
+                                <div class="text-muted-warm" style="font-size:.78rem">
+                                    Sin comprobante la plata sale de la nada, y eso no se puede justificar
+                                    después. Van los tres: número, quién lo emitió y la foto del papel.
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="mc_nro">Nº de comprobante</label>
+                                <input class="form-control" id="mc_nro" name="nro_comprobante"
+                                       maxlength="30" value="{{ old('nro_comprobante') }}"
+                                       placeholder="001-001-0001234">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="mc_ruc">RUC o cédula</label>
+                                <input class="form-control" id="mc_ruc" name="ruc_emisor"
+                                       maxlength="20" value="{{ old('ruc_emisor') }}"
+                                       placeholder="80012345-0">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label" for="mc_arch">Foto del comprobante</label>
+                                <input class="form-control" id="mc_arch" type="file" name="archivo"
+                                       accept="image/*,application/pdf">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 mt-2">
                     <button class="btn btn-oro w-100"
                             data-confirmar="Este movimiento entra al arqueo de la caja abierta. ¿Confirmás?">
                         <i class="bi bi-plus-lg"></i> Registrar
