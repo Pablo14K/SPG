@@ -1331,26 +1331,15 @@ class FacturacionController extends Controller
             ['f1' => $id, 'f2' => $id]
         );
 
-        // **La caja hace falta sólo si sale efectivo.** Antes se exigía
-        // siempre, así que una devolución por transferencia —que no toca el
-        // cajón— quedaba bloqueada con la caja cerrada, y la clienta se iba sin
-        // su nota de crédito hasta el día siguiente. Es la misma regla que ya
-        // vale en el arqueo: lo que no es efectivo no mueve el cajón.
-        $caja = null;
-        if ($enEfectivo > 0) {
-            $caja = $this->exigeCaja('devolver en efectivo con una nota de crédito');
-            if ($caja instanceof RedirectResponse) {
-                return $caja;
-            }
-
-            $enCaja = Caja::saldo((int) $caja->id_caja);
-            if ($enEfectivo > $enCaja + 0.01) {
-                flash('Habría que devolverle ' . money($enEfectivo) . ' y en la caja hay '
-                    . money($enCaja) . '. Registrá primero el ingreso o devolvele por otro medio.', 'error');
-
-                return $volver;
-            }
-        }
+        // **Emitir la nota NO necesita caja abierta, porque no mueve el cajón.**
+        // Lo que lo mueve es la devolución del dinero, y esa se confirma después
+        // desde Movimiento de efectivo eligiendo esta nota. Son dos actos
+        // distintos —el comprobante se emite ahora, la plata se entrega cuando
+        // la clienta pasa— igual que la seña, donde registrar no es cobrar.
+        //
+        // Antes se escribía el egreso acá Y ADEMÁS se podía cargar otro a mano:
+        // dos salidas por la misma devolución, con montos distintos si quien la
+        // cargaba escribía otro número.
 
         try {
             $idNota = Facturacion::notaCredito($id, (int) session('uid'), $motivo);
@@ -1359,29 +1348,9 @@ class FacturacionController extends Controller
                 'Nota de crédito ' . $nroNota . ' sobre ' . $f->nro . ' — ' . $motivo);
 
             // **La devolución sale de la caja** (FA-02). El procedimiento crea
-            // el comprobante, copia el detalle y ahí termina: no genera un
-            // cobro negativo, no anula el original y no dejaba egreso, así que
-            // la plata se devolvía en el mostrador y el arqueo no se enteraba —
-            // un salón que devuelve todos los meses cierra con faltante sin
-            // saber por qué.
-            //
-            // Va como `movimiento_caja`, que es la tabla del movimiento manual
-            // de efectivo y que `fn_caja_saldo` ya resta. Hasta acá **nadie la
-            // escribía**: cero filas en los 90 días de la simulación.
-            if ($enEfectivo > 0) {
-                DB::insert(
-                    // La devolución tiene su clase propia: su respaldo es la
-                    // nota de crédito, que ya está emitida y numerada, así que
-                    // no se le pide comprobante aparte.
-                    'INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, tipo, monto, concepto,
-                                                  nro_comprobante, id_usuario)
-                     VALUES (?, (SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
-                                  WHERE nombre = ' . "'Devolución al cliente'" . ' LIMIT 1), ?,?,?,?,?)',
-                    [(int) $caja->id_caja, 'EGRESO', $enEfectivo,
-                     'Devolución por nota de crédito ' . $nroNota . ' sobre ' . $f->nro,
-                     $nroNota, (int) session('uid')]
-                );
-            }
+            // El egreso ya no se escribe acá: lo escribe la confirmación de la
+            // devolución, desde Movimiento de efectivo. Ver el comentario de
+            // arriba — emitir la nota y entregar la plata son dos actos.
 
             $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito');
 
@@ -1620,6 +1589,14 @@ class FacturacionController extends Controller
             'abierta' => $abierta,
             'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
                                      FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
+            // **Las notas de crédito que todavía no se devolvieron.** La
+            // devolución no se tipea: se elige la nota y el monto sale de ella,
+            // que es lo que evita que queden dos salidas por la misma
+            // devolución con números distintos.
+            //
+            // Son las de ESTE local: la sucursal de un comprobante sale de su
+            // timbrado, que es por sucursal desde siempre (7.37.0).
+            'notas' => $this->notasPorDevolver(),
             'movimientos' => $abierta ? DB::select(
                 'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
                    FROM movimiento_caja
@@ -1710,6 +1687,35 @@ class FacturacionController extends Controller
                FROM tipo_movimiento_caja WHERE id_tipo_mov_caja = ? AND activo = 1', [$idTipo]
         );
 
+        // **La devolución no se tipea: se elige la nota y el monto sale de ella.**
+        // Emitir la nota y devolver la plata son dos actos, y antes el primero
+        // escribía el egreso solo mientras el segundo dejaba cargar otro a mano:
+        // dos salidas por la misma devolución, con montos distintos si quien la
+        // cargaba escribía otro número. Acá el monto lo pone el documento.
+        $esDevolucion = $t && str_starts_with($t->nombre, 'Devolución');
+        $nota = null;
+        if ($esDevolucion) {
+            $idNota = (int) $request->input('id_factura', 0);
+            $nota = collect($this->notasPorDevolver())->firstWhere('id_factura', $idNota);
+
+            if (! $nota) {
+                flash('Elegí la nota de crédito que estás devolviendo. '
+                    . 'Si no está en la lista, es que ya se devolvió o es de otra sucursal.', 'error');
+
+                return $volver->withInput();
+            }
+            if ((float) $nota->en_efectivo <= 0) {
+                flash('Esa venta no se pagó en efectivo, así que no sale nada del cajón: '
+                    . 'la devolución va por el mismo medio con el que pagó.', 'error');
+
+                return $volver->withInput();
+            }
+
+            $monto = (float) $nota->en_efectivo;
+            $concepto = $concepto ?: ('Devolución por ' . $nota->nro . ' a ' . $nota->cliente);
+            $nroComp = $nota->nro;
+        }
+
         $error = null;
         if (! $t) {
             $error = 'Elegí qué clase de movimiento es.';
@@ -1766,9 +1772,12 @@ class FacturacionController extends Controller
         try {
             DB::insert(
                 'INSERT INTO movimiento_caja
-                    (id_caja, id_tipo_mov_caja, tipo, monto, concepto, nro_comprobante, ruc_emisor, archivo, id_usuario)
-                 VALUES (?,?,?,?,?,?,?,?,?)',
-                [(int) $caja->id_caja, (int) $t->id_tipo_mov_caja, $tipo, $monto, $concepto,
+                    (id_caja, id_tipo_mov_caja, id_factura, tipo, monto, concepto,
+                     nro_comprobante, ruc_emisor, archivo, id_usuario)
+                 VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [(int) $caja->id_caja, (int) $t->id_tipo_mov_caja,
+                 $nota ? (int) $nota->id_factura : null,
+                 $tipo, $monto, $concepto,
                  $nroComp ?: null, $ruc ?: null, $archivo, (int) session('uid')]
             );
 
@@ -1785,6 +1794,40 @@ class FacturacionController extends Controller
         }
 
         return $volver;
+    }
+
+    /**
+     * Notas de crédito emitidas y todavía sin devolver, de este local.
+     *
+     * El monto que se devuelve **en efectivo** es lo que la clienta había
+     * pagado en efectivo: lo que pagó con tarjeta o transferencia se le
+     * devuelve por el mismo camino y no toca el cajón, igual que al entrar.
+     */
+    private function notasPorDevolver(): array
+    {
+        return DB::select(
+            "SELECT nc.id_factura, fn_factura_nro(nc.id_factura) AS nro,
+                    fn_factura_total(nc.id_factura) AS total,
+                    CONCAT(pe.nombre,' ',pe.apellido) AS cliente,
+                    (SELECT COALESCE(SUM(co.monto),0)
+                       FROM cobro co
+                       JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                      WHERE co.id_estado_cobro = 1 AND mp.tipo = 'EFECTIVO'
+                        AND (co.id_factura = nc.id_factura_origen
+                             OR co.id_cita = (SELECT id_cita FROM factura
+                                               WHERE id_factura = nc.id_factura_origen))) AS en_efectivo
+               FROM factura nc
+               JOIN timbrado t   ON t.id_timbrado = nc.id_timbrado
+               JOIN cliente cl   ON cl.id_cliente = nc.id_cliente
+               JOIN persona pe   ON pe.id_persona = cl.id_persona
+              WHERE nc.id_tipo_comprobante = 5
+                AND nc.id_estado_factura = 1
+                AND (:s = 0 OR t.id_sucursal = :s2)
+                AND NOT EXISTS (SELECT 1 FROM movimiento_caja mc
+                                 WHERE mc.id_factura = nc.id_factura AND mc.activo = 1)
+              ORDER BY nc.fecha_emision DESC LIMIT 50",
+            ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
+        );
     }
 
     /**

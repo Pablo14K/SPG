@@ -1572,6 +1572,7 @@ CREATE TABLE `movimiento_caja` (
   `id_caja` int(10) unsigned NOT NULL,
   `tipo` varchar(10) NOT NULL,
   `id_tipo_mov_caja` int(10) unsigned DEFAULT NULL,
+  `id_factura` int(10) unsigned DEFAULT NULL,
   `monto` decimal(14,2) NOT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `concepto` varchar(150) DEFAULT NULL,
@@ -1582,10 +1583,12 @@ CREATE TABLE `movimiento_caja` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `anulado_motivo` varchar(150) DEFAULT NULL,
   PRIMARY KEY (`id_movimiento_caja`),
+  UNIQUE KEY `uq_movcaja_devolucion` (`id_factura`,`activo`),
   KEY `idx_mc_caja` (`id_caja`),
   KEY `fk_movcaja_tipo` (`id_tipo_mov_caja`),
   KEY `fk_movcaja_usuario` (`id_usuario`),
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_movcaja_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`),
   CONSTRAINT `fk_movcaja_tipo` FOREIGN KEY (`id_tipo_mov_caja`) REFERENCES `tipo_movimiento_caja` (`id_tipo_mov_caja`),
   CONSTRAINT `fk_movcaja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
@@ -5759,4 +5762,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-19 23:32:21
+-- Dump completed on 2026-08-19 23:52:13

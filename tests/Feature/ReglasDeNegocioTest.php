@@ -3405,4 +3405,70 @@ class ReglasDeNegocioTest extends TestCase
             'El movimiento tiene que decir de qué clase es, no sólo si entra o sale.');
         $this->assertNotNull($m->id_usuario, 'Y quién lo cargó.');
     }
+
+    /**
+     * Una nota de crédito no puede devolverse dos veces, ni por otro monto.
+     *
+     * Emitirla escribía el egreso **sola**, y además la clase «Devolución al
+     * cliente» dejaba cargar otro a mano: quedaban **dos salidas por la misma
+     * devolución**, y con montos distintos si quien la cargaba escribía otro
+     * número. El cajón terminaba faltando plata que nunca salió.
+     *
+     * Ahora emitir la nota **no toca el cajón** —son dos actos: el comprobante
+     * se emite y la plata se entrega cuando la clienta pasa— y la devolución se
+     * confirma eligiendo la nota, con el monto que sale de ella.
+     */
+    #[Test]
+    public function una_nota_de_credito_no_se_devuelve_dos_veces(): void
+    {
+        $devolucion = (int) DB::scalar(
+            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+              WHERE nombre LIKE 'Devoluci%' AND activo = 1 LIMIT 1"
+        );
+        $nc = DB::selectOne(
+            "SELECT nc.id_factura FROM factura nc
+              WHERE nc.id_tipo_comprobante = 5 AND nc.id_estado_factura = 1 LIMIT 1"
+        );
+        if (! $devolucion || ! $nc) {
+            $this->markTestSkipped('Hace falta una nota de crédito emitida en la base de prueba.');
+        }
+
+        $this->entrarComoAdministrador();
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
+            Bd::idDe('sp_abrir_caja', [1, 500000, $suc]);
+        }
+
+        // Una devolución vigente sobre esa nota: la segunda ya no puede entrar.
+        $caja = (int) DB::scalar(
+            'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$suc]
+        );
+        DB::insert(
+            "INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, id_factura, tipo, monto, concepto, id_usuario)
+             VALUES (?,?,?,'EGRESO',1000,'devolución de prueba',1)",
+            [$caja, $devolucion, (int) $nc->id_factura]
+        );
+
+        // **La base lo hace cumplir, no un `if`**: el índice único sobre
+        // (id_factura, activo) impide la segunda vigente.
+        $rebotó = false;
+        try {
+            DB::insert(
+                "INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, id_factura, tipo, monto, concepto, id_usuario)
+                 VALUES (?,?,?,'EGRESO',9999,'segunda devolución con otro monto',1)",
+                [$caja, $devolucion, (int) $nc->id_factura]
+            );
+        } catch (Throwable) {
+            $rebotó = true;
+        }
+
+        $this->assertTrue($rebotó,
+            'Dos devoluciones vigentes por la misma nota dejarían el cajón faltando plata que nunca salió.');
+
+        // Y esa nota deja de ofrecerse: lo que ya se devolvió no se elige otra vez.
+        $ofrecidas = $this->get(route('facturacion.movimientos'))->assertOk()->viewData('notas');
+        $this->assertNotContains((int) $nc->id_factura,
+            array_map(fn ($n) => (int) $n->id_factura, $ofrecidas),
+            'Una nota ya devuelta no puede seguir en la lista de pendientes.');
+    }
 }

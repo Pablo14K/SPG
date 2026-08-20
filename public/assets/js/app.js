@@ -1009,3 +1009,37 @@ window.SPGCarga = (function () {
   sel.addEventListener('change', ajustar);
   ajustar();
 })();
+
+//  Al elegir «Devolución al cliente» se elige la NOTA, y el monto sale de ella:
+//  el documento manda. Emitir la nota y devolver la plata son dos actos, y si el
+//  monto se pudiera tipear volverían a poder quedar dos números distintos para
+//  la misma devolución.
+(function () {
+  var sel = document.querySelector('[data-nota]');
+  if (!sel) { return; }
+  var caja = document.querySelector(sel.getAttribute('data-nota'));
+  var nc = caja && caja.querySelector('select');
+  var monto = document.querySelector('#mc_monto');
+  if (!caja || !nc || !monto) { return; }
+
+  function ajustar() {
+    var op = sel.options[sel.selectedIndex];
+    var esDev = !!(op && /Devoluci/.test(op.textContent));
+    caja.hidden = !esDev;
+    nc.required = esDev;
+    monto.readOnly = esDev;
+    if (!esDev) { nc.value = ''; }
+    ponerMonto();
+  }
+
+  function ponerMonto() {
+    if (caja.hidden) { return; }
+    var op = nc.options[nc.selectedIndex];
+    var v = op ? op.getAttribute('data-monto') : '';
+    monto.value = v ? Number(v).toLocaleString('es-PY', { maximumFractionDigits: 0 }) : '';
+  }
+
+  sel.addEventListener('change', ajustar);
+  nc.addEventListener('change', ponerMonto);
+  ajustar();
+})();

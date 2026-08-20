@@ -44,7 +44,7 @@
                 <div class="col-md-4">
                     <label class="form-label" for="mc_clase">¿Qué es?</label>
                     <select class="form-select" id="mc_clase" name="id_tipo_mov_caja" required
-                            data-exige="#mc_doc">
+                            data-exige="#mc_doc" data-nota="#mc_nota">
                         <option value="">— elegí —</option>
                         @foreach ($tipos as $t)
                             <option value="{{ $t->id_tipo_mov_caja }}"
@@ -53,6 +53,29 @@
                                 {{ $t->nombre }} · {{ $t->signo === 'E' ? 'entra al cajón' : 'sale del cajón' }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                {{-- **La devolución se estira de la nota, no se tipea.** El monto
+                     sale del documento: es lo que evita que queden dos salidas por
+                     la misma devolución con números distintos. --}}
+                <div class="col-12 mt-2" id="mc_nota" hidden>
+                    <label class="form-label" for="mc_nc">¿Qué nota de crédito estás devolviendo?</label>
+                    <select class="form-select" id="mc_nc" name="id_factura">
+                        <option value="">— elegí la nota —</option>
+                        @foreach ($notas as $n)
+                            <option value="{{ $n->id_factura }}" data-monto="{{ (float) $n->en_efectivo }}">
+                                {{ $n->nro }} · {{ $n->cliente }} · en efectivo {{ money($n->en_efectivo) }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">
+                        @if (count($notas))
+                            Sale el efectivo que la clienta había pagado en efectivo; lo que pagó con
+                            tarjeta o transferencia se le devuelve por el mismo camino y no toca el cajón.
+                        @else
+                            No hay ninguna nota de crédito pendiente de devolver en esta sucursal.
+                            Se emiten desde <strong>Facturas</strong>.
+                        @endif
+                    </div>
                 </div>
 
                 <div class="col-md-3">
