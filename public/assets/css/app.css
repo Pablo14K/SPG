@@ -298,10 +298,18 @@ body{
 .spg-card:hover .ic{color:var(--oro-oscuro);}
 .spg-card h3{font-size:1rem;font-weight:500;margin:.8rem 0 .35rem;}
 .spg-card p{font-size:.78rem;color:var(--gris-oscuro);margin:0;line-height:1.5;}
-.spg-card.dark{background:var(--carbon);border-color:var(--carbon);}
-.spg-card.dark .ic{background:var(--negro);color:var(--oro);}
-.spg-card.dark h3{color:var(--blanco-hueso);}
+/* La tarjeta oscura —Seguridad— es oscura en LOS DOS temas, por identidad, así
+   que va con las variables que NO se invierten. Estaba escrita con `--carbon`
+   y `--blanco-hueso`, que en el tema claro daban justo lo que hacía falta y se
+   dan vuelta al invertir la paleta: el fondo pasaba a ser claro y el título
+   también, y la tarjeta quedaba ilegible. Es el mismo error que dejó los
+   enlaces del pie en 1,5:1 hasta la 7.2.1. */
+.spg-card.dark{background:var(--sup-oscura-2);border-color:var(--sup-oscura-borde);}
+.spg-card.dark .ic{background:var(--sup-oscura);color:var(--oro);}
+.spg-card.dark h3{color:var(--sobre-oscura);}
 .spg-card.dark p{color:var(--sobre-oscura-tenue);}
+.spg-card.dark:hover{border-color:var(--oro);}
+.spg-card.dark:hover .ic{color:var(--oro-claro);}
 
 /* ---- Contenedores de contenido ---- */
 .spg-panel{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1.2rem;}
@@ -962,3 +970,10 @@ html,body{max-width:100%;overflow-x:hidden;}
   /* El pie en una sola columna: en dos, los enlaces quedan de una palabra. */
   .spg-footer-grid{grid-template-columns:1fr !important;}
 }
+
+/* Rótulo que separa grupos dentro de una lista de casillas: lo agendado y lo
+   que se agrega en el sillón. Neutro a propósito — es una división, no una
+   acción, así que no lleva oro. */
+.spg-grupo-rotulo{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--gris-oscuro);font-weight:600;padding:.2rem 0 .1rem;
+  border-bottom:1px solid var(--gris-calido);margin-bottom:.3rem;}

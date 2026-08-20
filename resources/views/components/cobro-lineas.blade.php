@@ -10,9 +10,11 @@
 
     · $uid     identificador único de este modal (id de factura o de cita)
     · $max     lo máximo que se puede cobrar acá
+    · $sugerido el monto que viene propuesto (por defecto, todo lo que falta)
     · $metodos los medios de pago activos
 --}}
-                            <div class="spg-cobro" data-saldo="{{ (float) $max }}">
+                            <div class="spg-cobro" data-saldo="{{ (float) $max }}"
+                                     data-sugerido="{{ (float) ($sugerido ?? $max) }}">
                                 <div class="spg-cobro-lineas"></div>
 
                                 {{-- El aire de arriba no es adorno: las líneas se van

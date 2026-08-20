@@ -34,7 +34,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="ciudad">Ciudad</label>
-                    <input class="form-control" id="ciudad" name="ciudad"
+                    <input class="form-control" id="ciudad" name="ciudad" list="ciudadesPy"
                            value="{{ old('ciudad', $s->ciudad ?? 'Luque') }}">
                 </div>
                 <div class="col-12">
@@ -51,3 +51,15 @@
         </form>
     </div>
 @endsection
+
+@once
+    {{-- **Ciudades sugeridas.** Va como `<datalist>` y no como `<select>` a
+         propósito: sugiere las de siempre y deja escribir cualquier otra. Un
+         selector cerrado obligaría a mantener el padrón entero del país para
+         que alguien pueda poner su localidad. --}}
+    <datalist id="ciudadesPy">
+        @foreach (config('spg.ciudades', []) as $ciudad)
+            <option value="{{ $ciudad }}"></option>
+        @endforeach
+    </datalist>
+@endonce

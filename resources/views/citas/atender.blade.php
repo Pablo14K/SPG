@@ -99,21 +99,31 @@
             <input class="form-control form-control-sm mb-2" data-filtra="#listaServiciosAt"
                    placeholder="Buscar un servicio…" autocomplete="off">
 
+            {{-- **Lo que la clienta pidio, separado de lo que se le suma en el
+                 sillon.** Estaban todos en una sola lista, asi que para saber que
+                 se habia agendado habia que leer los badges uno por uno. Son dos
+                 cosas distintas: lo agendado es lo que se acordo, lo demas es un
+                 agregado que se decide en el momento y que la clienta no esta
+                 esperando pagar. --}}
+            @php
+                $pedidos = collect($servicios)->filter(fn ($x) => $x->agendado || $x->ya);
+                $extras  = collect($servicios)->reject(fn ($x) => $x->agendado || $x->ya);
+            @endphp
+
             <div class="spg-check-lista" id="listaServiciosAt">
-                @foreach ($servicios as $s)
-                    <div class="form-check">
-                        <input class="form-check-input srvAt" type="checkbox" name="servicios[]"
-                               value="{{ $s->id_servicio }}" id="sa{{ $s->id_servicio }}"
-                               data-nombre="{{ $s->nombre }}"
-                               @checked($s->agendado || $s->ya) @disabled((bool) $factura)>
-                        <label class="form-check-label" for="sa{{ $s->id_servicio }}">
-                            {{ $s->nombre }}
-                            <span class="text-muted-warm">· {{ money($s->precio) }} · {{ $s->categoria }}</span>
-                            @if ($s->ya)<span class="badge-estado e-ok">ya registrado</span>
-                            @elseif ($s->agendado)<span class="badge-estado e-prog">agendado</span>@endif
-                        </label>
-                    </div>
-                @endforeach
+                @if ($pedidos->isNotEmpty())
+                    <div class="spg-grupo-rotulo">Lo que se agendo</div>
+                    @foreach ($pedidos as $s)
+                        @include('citas._servicio_check')
+                    @endforeach
+                @endif
+
+                @if ($extras->isNotEmpty())
+                    <div class="spg-grupo-rotulo mt-2">Se agrega durante la atencion</div>
+                    @foreach ($extras as $s)
+                        @include('citas._servicio_check')
+                    @endforeach
+                @endif
             </div>
         </div>
 

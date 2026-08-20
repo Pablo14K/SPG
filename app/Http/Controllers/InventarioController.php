@@ -965,8 +965,14 @@ class InventarioController extends Controller
 
                 return $volver->withInput();
             }
-            if ($prec < 0) {
-                flash('El precio de «' . $nom . '» no puede ser negativo.', 'error');
+            // **El precio no puede quedar vacío.** Antes sólo se rechazaba el
+            // negativo, así que una fila sin precio entraba en cero: la compra
+            // quedaba registrada, el stock subía y el costo del producto se
+            // perdía — y con él la cuenta con el proveedor y cualquier informe
+            // de márgenes. Un producto que entra al depósito costó algo.
+            if ($prec <= 0) {
+                flash('Poné el precio de «' . $nom . '»: sin él la compra entra en cero y '
+                    . 'el costo del producto se pierde.', 'error');
 
                 return $volver->withInput();
             }

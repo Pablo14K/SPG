@@ -12,7 +12,17 @@ return [
     // Versión del sistema, con versionado semántico X.Y.Z. Se muestra en el pie
     // de todas las pantallas. La migración a Laravel es un cambio estructural,
     // de los que rompen la compatibilidad: por eso 6.0.0.
-    'version' => '7.43.2',
+    // Ciudades que se sugieren en los campos de ciudad. **Es una sugerencia,
+    // no un catálogo**: el campo sigue aceptando cualquier texto, así que un
+    // salón de una localidad que no esté acá no queda encerrado. Se listan las
+    // del área metropolitana, que es de donde viene la clientela.
+    'ciudades' => [
+        'Luque', 'Asunción', 'San Lorenzo', 'Fernando de la Mora', 'Lambaré',
+        'Capiatá', 'Ñemby', 'Mariano Roque Alonso', 'Villa Elisa', 'Limpio',
+        'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
+    ],
+
+    'version' => '7.44.0',
     'version_fecha' => '2026-08-18',
 
     'moneda' => 'Gs.',

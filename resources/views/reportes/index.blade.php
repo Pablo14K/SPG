@@ -7,6 +7,24 @@
         :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'"
         :accion="['ruta' => 'reportes.imprimir', 't' => 'Ver para imprimir', 'ic' => 'printer']" />
 
+    {{-- **Qué informes se ven en pantalla.** Los seis apilados obligan a bajar
+         mucho para llegar al que interesa, y casi nunca se miran todos a la vez.
+         Se filtra en el navegador y no con una recarga: es sólo esconder lo que
+         ya está dibujado, y así el cambio es instantáneo. Si `app.js` no cargó,
+         se ven todos — que es lo que hacía antes. --}}
+    <div class="spg-panel mb-3" data-filtra-bloques>
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <strong style="font-size:.85rem">Ver en pantalla:</strong>
+            @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" checked
+                           value="{{ $clave }}" id="vb{{ $clave }}">
+                    <label class="form-check-label" for="vb{{ $clave }}">{{ $nombre }}</label>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
     <div class="spg-panel mb-3">
         <x-filtros :f="$f" />
         <div class="mt-2">
@@ -91,7 +109,7 @@
     </div>
 
     <div class="row g-3">
-        <div class="col-lg-7">
+        <div data-bloque="servicios" class="col-lg-7">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios más solicitados</h2>
                 <div class="table-responsive">
@@ -115,7 +133,7 @@
             </div>
         </div>
 
-        <div class="col-lg-5">
+        <div data-bloque="medios" class="col-lg-5">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cómo pagó la gente</h2>
                 <div class="table-responsive">
@@ -147,7 +165,7 @@
              juntas. Sólo aparece mirando todas: con una elegida, la tabla
              tendría una fila y repetiría el resumen de arriba. --}}
         @if (count($porSucursal) > 1)
-            <div class="col-12">
+            <div data-bloque="sucursales" class="col-12">
                 <div class="spg-panel">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Por sucursal</h2>
                     <div class="table-responsive">
@@ -176,7 +194,7 @@
             </div>
         @endif
 
-        <div class="col-lg-7">
+        <div data-bloque="equipo" class="col-lg-7">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>
                 <div class="table-responsive">
@@ -228,7 +246,7 @@
             </div>
         </div>
 
-        <div class="col-lg-5">
+        <div data-bloque="demanda" class="col-lg-5">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Demanda por hora</h2>
                 @forelse ($demanda as $h)
@@ -254,7 +272,7 @@
                 $dias = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
                          5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
             @endphp
-            <div class="spg-panel mt-3">
+            <div data-bloque="demanda" class="spg-panel mt-3">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-week"></i> Demanda por día</h2>
                 @forelse ($demandaDia as $x)
                     @php $ancho = $maxDemandaDia ? round((int) $x->citas * 100 / $maxDemandaDia) : 0; @endphp
@@ -273,7 +291,7 @@
         </div>
 
         @if ($prov)
-            <div class="col-12">
+            <div data-bloque="prov" class="col-12">
                 <div class="spg-panel">
                     <h2 class="spg-form-titulo mb-2">
                         <i class="bi bi-truck"></i> Deuda con proveedores

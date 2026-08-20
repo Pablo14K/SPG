@@ -149,7 +149,12 @@
 
      Usa la misma barra que el personal (`.spg-nav`), sin desplegable: las
      secciones de la clienta no tienen pantallas adentro. --}}
-@if ($spgPortal)
+{{-- **La barra no va en el panel principal del portal.** Ahí la clienta ya
+     tiene todo a la vista en tarjetas grandes, así que la barra repetía la
+     misma lista dos veces. La pregunta que contesta —«¿a qué otra pantalla
+     voy?»— aparece recién cuando ya está adentro de una. Es el mismo criterio
+     que sacó la barra de módulos del Panel en la 7.34.1. --}}
+@if ($spgPortal && $spgRuta !== 'portal.index')
     <nav class="spg-nav" aria-label="Secciones">
         <div class="spg-nav-in">
             @foreach ($spgPortal as $spgP)

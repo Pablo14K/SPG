@@ -1091,12 +1091,17 @@ class FacturacionController extends Controller
             $par['h'] = Listado::valor($f, 'hasta');
         }
 
+        // **La clienta también se busca por la CITA.** Se llegaba a ella sólo
+        // por la factura, así que todo cobro contra la cita —la seña, y desde
+        // la 7.19.0 también el cobro de la atención— salía sin nombre: una raya
+        // en la columna Cliente. El dato estaba a un JOIN de distancia.
         $desde = 'FROM cobro co
                   JOIN metodo_pago mp   ON mp.id_metodo_pago = co.id_metodo_pago
                   JOIN estado_cobro ec  ON ec.id_estado_cobro = co.id_estado_cobro
                   LEFT JOIN factura fa   ON fa.id_factura = co.id_factura
                   LEFT JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = fa.id_tipo_comprobante
-                  LEFT JOIN cliente cl   ON cl.id_cliente = fa.id_cliente
+                  LEFT JOIN cita ci      ON ci.id_cita = co.id_cita
+                  LEFT JOIN cliente cl   ON cl.id_cliente = COALESCE(fa.id_cliente, ci.id_cliente)
                   LEFT JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
                   WHERE ' . implode(' AND ', $w);
         // `id_factura` y el tipo salen acá para que la lista pueda ABRIR el
@@ -1104,7 +1109,8 @@ class FacturacionController extends Controller
         // bajo «Facturas» es lo que no se le ocurre a nadie. Desde Cobros, que
         // es donde se lo busca, se llega de un clic.
         $cols = "co.id_cobro, co.fecha, co.monto, co.referencia, mp.nombre AS metodo, ec.nombre AS estado,
-                 (co.id_factura IS NULL AND co.id_cita IS NOT NULL) AS es_sena,
+                 (co.id_factura IS NULL AND co.id_cita IS NOT NULL
+                  AND COALESCE(co.observaciones, '') NOT LIKE 'Cobro de la atencion%') AS es_sena,
                  co.id_factura, tc.nombre AS tipo_comprobante,
                  fn_factura_nro(co.id_factura) AS nro_comprobante,
                  CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente";

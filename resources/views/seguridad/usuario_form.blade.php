@@ -227,7 +227,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="sr_ciudad">Ciudad</label>
-                        <input class="form-control form-control-sm" id="sr_ciudad" name="ciudad" value="Luque">
+                        <input class="form-control form-control-sm" id="sr_ciudad" name="ciudad" value="Luque" list="ciudadesPy">
                     </div>
                     <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear sucursal</button>
                 </form>
@@ -235,3 +235,15 @@
         </div>
     </div>
 @endsection
+
+@once
+    {{-- **Ciudades sugeridas.** Va como `<datalist>` y no como `<select>` a
+         propósito: sugiere las de siempre y deja escribir cualquier otra. Un
+         selector cerrado obligaría a mantener el padrón entero del país para
+         que alguien pueda poner su localidad. --}}
+    <datalist id="ciudadesPy">
+        @foreach (config('spg.ciudades', []) as $ciudad)
+            <option value="{{ $ciudad }}"></option>
+        @endforeach
+    </datalist>
+@endonce

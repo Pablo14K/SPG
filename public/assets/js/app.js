@@ -273,6 +273,9 @@ window.SPGCarga = (function () {
   var campo   = document.querySelector('[name="fecha_hora"]');
   var btn     = selBtn ? document.querySelector(selBtn) : null;
   var diaElegido = null;
+  // Lo que ya venia elegido, para devolverlo marcado tras un rechazo. Se
+  // guarda antes de que nada lo pise.
+  var previo = campo && campo.value ? String(campo.value) : '';
 
   // Si app.js se cargó a medias, reservar tiene que seguir andando igual: la
   // señal de carga es un adorno, no parte del funcionamiento.
@@ -411,11 +414,22 @@ window.SPGCarga = (function () {
       var p = f.split('-');
       rotulo(horasEl, '2. Elegí la hora del ' + p[2] + '/' + p[1]);
       d.horas.forEach(function (h) {
-        horasEl.appendChild(chip(h.hora, function (b) {
+        var ch = chip(h.hora, function (b) {
           marcarUno(horasEl, b);
           if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
           if (btn) btn.disabled = false;
-        }, 'spg-chip-hora'));
+        }, 'spg-chip-hora');
+        horasEl.appendChild(ch);
+
+        // La hora que ya venia elegida vuelve marcada, igual que el dia: tras
+        // un rechazo el formulario conserva todo menos esto, y desde afuera se
+        // lee como que el sistema borro lo que se habia cargado.
+        if (previo && previo.slice(11, 16) === h.hora && previo.slice(0, 10) === diaElegido) {
+          marcarUno(horasEl, ch);
+          if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
+          if (btn) btn.disabled = false;
+          previo = '';
+        }
       });
     }).catch(function () { horasEl.textContent = 'No se pudo consultar la agenda.'; });
   }
@@ -718,6 +732,10 @@ window.SPGCarga = (function () {
     var agregar = caja.querySelector('.spg-cobro-add');
     var resumen = caja.querySelector('.spg-cobro-total');
     var saldo   = parseFloat(caja.getAttribute('data-saldo') || '0');
+    // Lo que viene propuesto en la primera linea. Casi siempre es todo lo
+    // que falta, pero confirmando una sena es el monto de LA SENA: proponer
+    // el total de la cita hacia cobrar de mas con un clic.
+    var sugerido = parseFloat(caja.getAttribute('data-sugerido') || '') || saldo;
     if (!molde || !cont) return;
 
     function aNumero(txt) {
@@ -846,7 +864,11 @@ window.SPGCarga = (function () {
     }
 
     // Arranca con una sola línea por el saldo completo: el caso más común
-    nuevaLinea(saldo);
+    nuevaLinea(sugerido);
+    // El vuelto depende del medio elegido, y el primero ya esta puesto: se
+    // ajusta aca, cuando `recibido` y `vueltoRes` ya existen. Llamado solo
+    // desde `ajustarExtras` quedaba corriendo antes de que se declararan.
+    ajustarVuelto();
     agregar.addEventListener('click', function () { nuevaLinea(0); });
   });
 })();
@@ -940,4 +962,26 @@ window.SPGCarga = (function () {
       if (srv.checked && !f.hidden) { chk.checked = true; }
     });
   });
+})();
+
+//  Qué informes se ven en la pantalla de Reportes. No recarga nada: los bloques
+//  ya están dibujados y esto sólo los esconde, así que el cambio es inmediato.
+//  Sin este script se ven todos, que es lo que hacía antes.
+(function () {
+  var caja = document.querySelector('[data-filtra-bloques]');
+  if (!caja) { return; }
+
+  function aplicar() {
+    var vistos = {};
+    caja.querySelectorAll('input[type="checkbox"]').forEach(function (c) {
+      vistos[c.value] = c.checked;
+    });
+    document.querySelectorAll('[data-bloque]').forEach(function (b) {
+      var k = b.getAttribute('data-bloque');
+      b.style.display = (k in vistos && !vistos[k]) ? 'none' : '';
+    });
+  }
+
+  caja.addEventListener('change', aplicar);
+  aplicar();
 })();

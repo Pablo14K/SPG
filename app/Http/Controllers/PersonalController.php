@@ -1027,12 +1027,20 @@ class PersonalController extends Controller
     /** Turnos activos con sus días y cuánta gente los trabaja. */
     private function turnosDisponibles(): array
     {
+        // **Los turnos son del local.** `turno_laboral.id_sucursal` existe desde
+        // que hay sucursales, y esta lista los mostraba todos: quien administra
+        // el segundo local veía —y podía asignar— los horarios de la casa
+        // central, que es justo lo que la 7.39.0 impidió en la agenda. Un
+        // empleado no arrastra su horario de otra sucursal, y la pantalla que
+        // los asigna tampoco debería ofrecerlo.
         $turnos = DB::select(
             'SELECT t.id_turno, t.nombre, t.hora_inicio, t.hora_fin, t.id_sucursal, s.nombre AS sucursal,
                     (SELECT COUNT(*) FROM usuario_turno ut WHERE ut.id_turno = t.id_turno) AS asignados
                FROM turno_laboral t
                JOIN sucursal s ON s.id_sucursal = t.id_sucursal
-              WHERE t.activo = 1 ORDER BY t.hora_inicio, t.nombre'
+              WHERE t.activo = 1 AND (:s = 0 OR t.id_sucursal = :s2)
+              ORDER BY t.hora_inicio, t.nombre',
+            ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
         );
 
         $dias = [];

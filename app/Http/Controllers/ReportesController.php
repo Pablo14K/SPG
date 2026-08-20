@@ -27,6 +27,11 @@ class ReportesController extends Controller
     {
         $f = $this->rango();
 
+        // **Que informes se ven se elige en la pantalla, no aca.** Los bloques
+        // van todos y `app.js` esconde los que no esten marcados: es solo
+        // ocultar lo ya dibujado, asi que el cambio es instantaneo y sin
+        // recarga. Cada bloque se marca con `data-bloque` en su contenedor, y
+        // sin JavaScript se ven todos — que es lo que hacia antes.
         return view('reportes.index', $this->datos($f));
     }
 

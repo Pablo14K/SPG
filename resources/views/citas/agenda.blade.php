@@ -70,7 +70,16 @@
                             </td>
                             <td class="text-end" style="white-space:nowrap">
                                 @if (! in_array($c->estado, ['Cancelada', 'Atendida'], true))
-                                    {{-- En proceso: la clienta ya está en el sillón --}}
+                                    {{-- **Con la cita ya en proceso, tres botones dejan de tener
+                                         sentido y molestan.** Marcarla en proceso otra vez no hace
+                                         nada; marcarla ausente contradice lo que se está viendo
+                                         —la clienta está en el sillón—; y reprogramar una atención
+                                         que ya empezó es mover a otro día algo que está pasando.
+                                         Lo que queda es lo que sí se hace desde ahí: registrar la
+                                         atención, y cancelar por si se cortó a mitad de camino. --}}
+                                    @php $enCurso = $c->estado === 'En proceso'; @endphp
+
+                                    @unless ($enCurso)
                                     <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -79,6 +88,7 @@
                                         <button class="btn btn-sm btn-outline-neutro" title="Marcar en proceso">
                                             <i class="bi bi-play-fill"></i></button>
                                     </form>
+                                    @endunless
 
                                     @if ($urlAtender = Navegacion::url('citas.atender'))
                                         <a class="btn btn-sm btn-outline-neutro" title="Registrar atención"
@@ -86,6 +96,7 @@
                                             <i class="bi bi-clipboard-check"></i></a>
                                     @endif
 
+                                    @unless ($enCurso)
                                     <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -95,6 +106,7 @@
                                                 data-confirmar="¿Marcar como ausente a {{ $c->cliente }}?">
                                             <i class="bi bi-person-x"></i></button>
                                     </form>
+                                    @endunless
 
                                     <form method="post" action="{{ route('citas.cancelar') }}" class="d-inline">
                                         @csrf
@@ -105,9 +117,11 @@
                                             <i class="bi bi-x-lg"></i></button>
                                     </form>
 
-                                    <button class="btn btn-sm btn-outline-neutro" title="Reprogramar"
-                                            data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
-                                        <i class="bi bi-calendar-event"></i></button>
+                                    @unless ($enCurso)
+                                        <button class="btn btn-sm btn-outline-neutro" title="Reprogramar"
+                                                data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
+                                            <i class="bi bi-calendar-event"></i></button>
+                                    @endunless
 
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
                                          la caja abierta. Con la caja cerrada el aviso de arriba
@@ -302,7 +316,14 @@
                                      aparecían nunca y no había vuelto. Es el mismo
                                      componente, así que las dos pantallas no se pueden
                                      desfasar. --}}
-                                <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos" />
+                                {{-- **Confirmando una seña se propone la seña, no el total.**
+                                 La clienta registró un monto desde el portal y lo que hay
+                                 que confirmar es ESE; proponer lo que falta de la cita
+                                 entera hacía cobrar de más con un clic. El tope sigue
+                                 siendo lo que falta: se puede corregir hacia arriba si de
+                                 verdad entregó más. --}}
+                            <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos"
+                                :sugerido="$c->id_solicitud ? (float) $c->sena_pedida : $falta" />
 
                                 {{-- **La caja es del local, no de quien la abrió.** Desde la
                                      7.36.3 la sucursal del cobro se deduce de la cita, así que
