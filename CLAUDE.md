@@ -342,7 +342,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **180 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **182 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -404,7 +404,10 @@ resources/views/
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 180 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 182 rutas, agrupadas por módulo con su middleware
+                           Personal y Configuración salieron de Seguridad en la 7.57.0
+                           pero NO se mudaron de URL: viven bajo /seguridad y sólo
+                           cambia el permiso que las abre
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
                            imprimir.css estiliza `.spg-imprimir`: el informe y los listados
@@ -1069,6 +1072,28 @@ solo ofrece el botón a quien tenga `facturacion.timbrados`.
 ruta del formulario de usuario), sin importar la matriz. Y ojo con `seguridad.roles`:
 quien lo tenga puede editar la matriz, incluida la suya.
 
+### Partir un módulo: la mitad que se olvida
+
+Es la operación inversa a juntarlos, y tiene la misma trampa. Cuando Seguridad se
+partió en Seguridad, Personal y Configuración (7.57.0), lo guardado en
+`rol_modulo` seguía diciendo `seguridad.turnos`: **sin traducirlo el rol no da
+error, pierde la pantalla en silencio** — al Asistente administrativo se le
+habrían ido turnos y asistencia sin que nadie lo notara.
+
+Son tres cosas, y hay que hacer las tres:
+
+1. **`equivalencias`**, para las bases que ya están andando
+   (`'seguridad.turnos' => ['personal.turnos']`).
+2. **El `.sql` que se entrega**, con las claves nuevas escritas.
+3. **Los guardias de las rutas** — y sólo esos: los *nombres* de ruta se dejan
+   como estaban. Moverlos obligaría a tocar decenas de `route()` en las vistas
+   para un cambio de menú, y una pantalla no cambia de lugar porque cambie el
+   módulo que la agrupa.
+
+> **La traducción es del lado de lo GUARDADO, no de lo que se pregunta.** Los
+> guardias piden la clave nueva; preguntar con la vieja no es algo que el
+> sistema haga.
+
 ### Renombrar o juntar módulos: lo que quedó guardado
 
 Los permisos de cada rol viven en `rol_modulo`, así que **cambiarle el nombre a un módulo deja
@@ -1208,6 +1233,29 @@ validación: alcanza con traducir el error. Si llegan datos de tarjeta en una l�
 El cierre de caja muestra el **arqueo por medio de pago**, separando lo que tiene que estar
 físicamente en el cajón (`tipo = EFECTIVO`) de lo que entró por tarjeta, banco o cheque.
 
+### Cuánta seña se pide lo fija el SALÓN
+
+`servicio.sena_porcentaje` dice qué porcentaje del precio se pide por adelantado
+para reservar; vacío es «no pide seña». `fn_cita_sena_requerida(id_cita)` suma lo
+que corresponde a esa cita.
+
+> **Hasta la 7.56.0 `servicio` no decía nada de seña**, así que el sistema no
+> podía contestar «¿este servicio la pide?» ni «¿de cuánto?»: la clienta
+> anunciaba el monto que quisiera y el salón se lo confirmaba de palabra. Eso no
+> es una seña, es un aviso de pago por un número arbitrario.
+
+- **Va como PORCENTAJE, no como monto fijo.** Un monto se separa del precio el
+  día que el servicio sube —queda una seña de 50.000 sobre un servicio de
+  400.000— y hay que acordarse de tocar los dos. Lo fija
+  `ReglasDeNegocioTest::la_sena_que_se_pide_sale_del_servicio_y_no_del_cliente`,
+  que duplica el precio y exige que la seña lo siga.
+- **Lo canjeado no pide seña**: ya está pagado con puntos, y cobrar una garantía
+  por algo que la clienta no va a pagar no tiene sentido.
+- **Los dos caminos siguen valiendo**: reservando desde el portal, la pantalla
+  dice cuánto pide el salón y lleva a registrar el comprobante de la
+  transferencia; en el mostrador, el profesional la registra a mano cuando la
+  clienta la deja en el local. En los dos casos queda atada a la cita.
+
 **La seña no se vincula a la factura.** Se cobra antes de atender, así que queda como un
 cobro con `id_cita` y `id_factura` NULL. `fn_factura_saldo` **ya descuenta los cobros de la
 cita** además de los de la factura: si además se la vinculara a la factura, se restaría dos
@@ -1332,6 +1380,21 @@ Cuando alguien elige un horario que la pantalla mostraba libre y al guardar ya n
 («Ese horario lo tomó otra persona mientras completabas la reserva»), si hay una ausencia
 cargada, o si el profesional no atiende a esa hora. Sin eso, el cliente solo veía «no
 disponible» y no sabía si cambiar de hora o de profesional.
+
+### Una cita puede ser para otra persona
+
+La clienta reserva para su hija o su madre: `cita.para_otra_persona` lo declara,
+`nombre_para` dice para quién y `personas` cuántas van.
+
+> **No es un adorno: es lo que hace posible validar el solape del cliente.** La
+> agenda cuidaba al profesional y nada impedía que la misma clienta reservara
+> dos servicios a la misma hora con gente distinta —el día de la cita tendría
+> que estar en dos sillones—. `Agenda::citaDelClienteSePisa()` lo rechaza, y las
+> citas marcadas para otra persona quedan fuera de esa comprobación porque **sí**
+> se superponen a propósito: son dos personas.
+
+No se crea una ficha de cliente para quien se atiende: sería inventar una
+persona que el salón no registró. El nombre va como texto en la cita.
 
 ### Una cita, varios profesionales
 
@@ -1693,7 +1756,7 @@ Dos cosas distintas que conviene no mezclar:
 - **Los puntos** los acumula la app al emitir el comprobante: `Facturacion::acumularPuntos()`
   llama a `sp_registrar_puntos` con 1 punto cada **`Config::puntosCadaGs()`** guaraníes.
   **Ese número lo decide el salón, no el código**: vive en `configuracion.puntos_cada_gs` y se
-  edita en **Servicios → Descuentos**, con el mismo permiso que las promociones —subirlo o
+  edita en **Servicios → Promociones**, con el mismo permiso que ellas —subirlo o
   bajarlo es fijar cuánto regala el salón—. `config/spg.php` conserva el valor como
   **respaldo**, para una base que todavía no se reimportó.
   > **`configuracion` es una tabla de UNA fila con columnas tipadas, no de clave/valor.**
@@ -1802,7 +1865,7 @@ factura. `sp_aplicar_descuento` ya sabía leer esa tabla, pero **no había panta
 cargarla**: se agregó en el formulario del descuento.
 
 > Antes de esto, `sp_emitir_factura` sólo consultaba `fn_cliente_descuento`, así que **las
-> promociones cargadas en Servicios → Descuentos no llegaban nunca a una factura**: la
+> promociones cargadas en Servicios → Promociones no llegaban nunca a una factura**: la
 > pantalla parecía andar y no hacía nada. `fn_descuento_monto` ya validaba vigencia y topeaba
 > el descuento al total, o sea que faltaba únicamente conectarla.
 
@@ -2206,7 +2269,11 @@ Diferencia     = monto_contado − Saldo esperado        (+ sobra · − falta)
 | Dinero contado | `caja.monto_contado` | **sí** — es un hecho observado, no se deduce de nada |
 | Quién hizo el arqueo | `caja.id_usuario_cierre` | **sí** — puede no ser quien abrió |
 | Fecha y hora | `caja.fecha_cierre` | sí, desde siempre |
+| Observación de apertura | `caja.observacion_apertura` | sí |
+| Observación de cierre | `caja.observacion_cierre` | sí |
+| Motivo de la diferencia | `caja.motivo_diferencia` | **sí** — es lo único que la explica |
 | **Diferencia** | `fn_caja_diferencia(id)` | **NO: se calcula** |
+| **Tipo de diferencia** | el signo de esa función | **NO: se deduce** |
 
 > **La diferencia no se guarda y eso no es un detalle.** Es `contado −
 > esperado`, o sea una columna derivada, y la regla número dos las prohíbe: el
@@ -2224,6 +2291,9 @@ Tres cosas al tocarlo:
   contra 0 exacto haría saltar un redondeo como faltante.
 - **Lo que no está en el cajón no se cuenta**, y la pantalla lo dice: lo cobrado
   por tarjeta o transferencia se registra igual pero va a la cuenta del salón.
+- **El motivo se exige SÓLO cuando no cuadra.** Pedirlo siempre haría escribir
+  «ok» todos los días, y con eso deja de significar algo. Una diferencia sin
+  motivo es un número: al día siguiente nadie se acuerda de qué pasó.
 
 > **Ojo con la clase «Faltante de caja» de `movimiento_caja`.** Sigue
 > existiendo y sirve para lo que aparece **durante** el día; un faltante
