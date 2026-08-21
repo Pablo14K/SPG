@@ -45,6 +45,39 @@
                     <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
                 </div>
             </div>
+
+            {{-- **Lo que sale impreso en el comprobante electrónico.**
+                 Vive acá porque es del salón entero, como el nombre y el logo:
+                 la dirección y el timbrado sí son de cada sucursal y se cargan
+                 en su fila y en Timbrados. Sin esto el KuDE salía con la
+                 actividad del archivo de ejemplo del Automatizador —«VENTA AL
+                 POR MENOR»— que no describe a una peluquería. --}}
+            <div class="row g-3 mt-1">
+                <div class="col-12">
+                    <hr class="my-1">
+                    <span class="text-muted-warm" style="font-size:.85rem">
+                        <i class="bi bi-receipt"></i> Lo que sale impreso en la factura electrónica
+                    </span>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="actividad_cod">Código de actividad</label>
+                    <input class="form-control" id="actividad_cod" name="actividad_cod" maxlength="10"
+                           value="{{ old('actividad_cod', $actividad['cod']) }}" placeholder="96021">
+                    <div class="form-text">El de la SET, el mismo del RUC.</div>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="actividad_desc">Actividad económica</label>
+                    <input class="form-control" id="actividad_desc" name="actividad_desc" maxlength="120"
+                           value="{{ old('actividad_desc', $actividad['desc']) }}"
+                           placeholder="PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="email_fiscal">Correo con el que facturás</label>
+                    <input class="form-control" id="email_fiscal" name="email_fiscal" type="email"
+                           maxlength="120" value="{{ old('email_fiscal', $emailFiscal) }}">
+                    <div class="form-text">Va impreso; no es a donde llegan los avisos del sistema.</div>
+                </div>
+            </div>
         </form>
 
         @if ($logo)

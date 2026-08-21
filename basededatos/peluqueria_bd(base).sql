@@ -1,6 +1,6 @@
 -- MariaDB dump 10.19  Distrib 10.4.34-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: peluqueria_entrega
+-- Host: localhost    Database: peluqueria_bd
 -- ------------------------------------------------------
 -- Server version	10.4.34-MariaDB-1:10.4.34+maria~ubu2004
 
@@ -880,6 +880,9 @@ CREATE TABLE `configuracion` (
   `id_configuracion` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `nombre_salon` varchar(60) NOT NULL DEFAULT 'Peluquería Luque',
   `logo` varchar(120) DEFAULT NULL,
+  `actividad_cod` varchar(10) DEFAULT NULL,
+  `actividad_desc` varchar(120) DEFAULT NULL,
+  `email` varchar(120) DEFAULT NULL,
   `puntos_cada_gs` int(10) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY (`id_configuracion`),
   CONSTRAINT `chk_config_unica` CHECK (`id_configuracion` = 1),
@@ -894,7 +897,7 @@ CREATE TABLE `configuracion` (
 
 LOCK TABLES `configuracion` WRITE;
 /*!40000 ALTER TABLE `configuracion` DISABLE KEYS */;
-INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,10000);
+INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,'96021','PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA',NULL,10000);
 /*!40000 ALTER TABLE `configuracion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2152,7 +2155,7 @@ CREATE TABLE `producto` (
 
 LOCK TABLES `producto` WRITE;
 /*!40000 ALTER TABLE `producto` DISABLE KEYS */;
-INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',42000.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',35000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',45000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',40000.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',42200.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',25000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',22000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',42000.00,85000.00,10,1,NULL,NULL);
+INSERT INTO `producto` VALUES (1,2,'Shampoo profesional 1L','Para lavado en el salón','unidad',85000.00,130000.00,10,1,1000.00,'ml'),(2,2,'Acondicionador 1L','Para lavado en el salón','unidad',2500.00,125000.00,10,1,1000.00,'ml'),(3,1,'Agua oxigenada 900ml','Revelador 20 volúmenes','unidad',15000.00,55000.00,10,1,900.00,'ml'),(4,1,'Tintura profesional','Tubo de 60 g, varios tonos','unidad',25000.00,70000.00,10,1,NULL,NULL),(5,2,'Ampolla de keratina','Sachet individual','unidad',18000.00,32000.00,10,1,NULL,NULL),(6,2,'Serum reparador 100ml','Puntas abiertas','unidad',4200.00,68000.00,10,1,NULL,NULL),(7,3,'Guantes de latex (caja)','Caja por 100 unidades','caja',52000.00,60000.00,10,1,NULL,NULL),(8,3,'Toallas descartables','Paquete por 50','paquete',15000.00,40000.00,10,1,NULL,NULL),(9,4,'Esmalte semipermanente','Frasco de 15 ml','unidad',51000.00,38000.00,10,1,NULL,NULL),(10,5,'Shampoo x 300ml (venta)','Para llevar','unidad',42000.00,85000.00,10,1,NULL,NULL);
 /*!40000 ALTER TABLE `producto` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2578,7 +2581,7 @@ CREATE TABLE `sucursal` (
 
 LOCK TABLES `sucursal` WRITE;
 /*!40000 ALTER TABLE `sucursal` DISABLE KEYS */;
-INSERT INTO `sucursal` VALUES (1,'Peluqueria (local unico)','80000000-0',NULL,NULL,'Luque',1);
+INSERT INTO `sucursal` VALUES (1,'Peluqueria (local unico)','80000000-5',NULL,NULL,'Luque',1);
 /*!40000 ALTER TABLE `sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2817,7 +2820,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2826,6 +2829,7 @@ CREATE TABLE `token_seguridad` (
 
 LOCK TABLES `token_seguridad` WRITE;
 /*!40000 ALTER TABLE `token_seguridad` DISABLE KEYS */;
+INSERT INTO `token_seguridad` VALUES (1,2,'RECUPERACION','960114','2026-08-21 09:13:20',1,'2026-08-21 08:43:20','EMAIL',NULL);
 /*!40000 ALTER TABLE `token_seguridad` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2874,7 +2878,7 @@ CREATE TABLE `turno_laboral` (
   KEY `idx_turno_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_turno_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON UPDATE CASCADE,
   CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2923,7 +2927,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'ef1abb51abd65d3486a1819ba7a5175c','2026-08-19 23:33:54'),(2,4,NULL,'cliente','$2y$10$pvpffhAjH9z6rqJfpekCSuwC.eFtu/j3iV883ICFOeZzeStA9P4DG',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'b3a03c30fe1f517bb1c13d7f15e24879','2026-08-21 09:39:21'),(2,4,NULL,'cliente','$2y$12$n09uK0KMVcfnmh.CZPd8dO7vEHibV04W.H.cOT7niBCffCLgKvaEu',NULL,1,'2026-07-14 19:42:29',2,'d8cc650f522cbcaf8c12663b9aa5eda4','2026-08-21 08:57:33'),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3008,7 +3012,7 @@ CREATE TABLE `usuario_turno` (
 
 LOCK TABLES `usuario_turno` WRITE;
 /*!40000 ALTER TABLE `usuario_turno` DISABLE KEYS */;
-INSERT INTO `usuario_turno` VALUES (1,3),(1,4),(10,3),(11,4),(12,3),(13,4);
+INSERT INTO `usuario_turno` VALUES (10,3),(11,4),(12,3),(13,4);
 /*!40000 ALTER TABLE `usuario_turno` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3375,11 +3379,11 @@ INSERT INTO `zona_servicio` VALUES (1,'Cabello',1),(2,'Manos',1),(3,'Pies',1),(4
 UNLOCK TABLES;
 
 --
--- Dumping events for database 'peluqueria_entrega'
+-- Dumping events for database 'peluqueria_bd'
 --
 
 --
--- Dumping routines for database 'peluqueria_entrega'
+-- Dumping routines for database 'peluqueria_bd'
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
@@ -5811,4 +5815,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-20 19:46:31
+-- Dump completed

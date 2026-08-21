@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Servicios;
 
+use App\Servicios\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -175,14 +176,47 @@ class Sifen
      * Se devuelve el texto para poder mirarlo antes de mandarlo: es la forma
      * de saber qué se envió cuando la DNIT rechaza algo.
      */
+    /**
+     * Parte un RUC «80012345-0» en el número y su dígito verificador.
+     *
+     * **Si viene sin guion se calcula el DV**, en vez de mandar uno en blanco:
+     * el SIFEN los pide separados y un DV vacío es rechazo seguro. Y si el
+     * guardado no coincide con el que corresponde, **manda el correcto**: el
+     * RUC del salón se tipea a mano en la ficha de la sucursal, y un dígito
+     * mal escrito ahí saldría impreso en cada comprobante.
+     */
+    private static function partirRuc(string $ruc): array
+    {
+        $ruc = trim($ruc);
+        if ($ruc === '') {
+            return ['', ''];
+        }
+
+        $base = preg_replace('/\D/', '', explode('-', $ruc)[0]) ?? '';
+        if ($base === '') {
+            return ['', ''];
+        }
+
+        return [$base, (string) self::dvRuc($base)];
+    }
+
     public static function armarTxt(int $idFactura, array $receptor = []): string
     {
         $f = DB::selectOne(
             "SELECT f.id_factura, f.fecha_emision, f.nro_correlativo, f.id_condicion_venta,
                     t.establecimiento, t.punto_expedicion,
+                    t.nro_timbrado, t.fecha_inicio AS timbrado_inicio, t.fecha_fin AS timbrado_fin,
+                    su.nombre AS suc_nombre, su.ruc AS suc_ruc,
+                    su.direccion AS suc_direccion, su.ciudad AS suc_ciudad, su.telefono AS suc_telefono,
                     pe.nombre, pe.apellido, pe.cedula, pe.ruc, pe.email, pe.telefono, pe.direccion
                FROM factura f
                JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+               -- **El emisor es el LOCAL que emitió, no el salón en abstracto.**
+               -- El establecimiento impreso dice de qué sede salió el
+               -- comprobante (7.37.0), así que la dirección y el timbrado
+               -- tienen que ser los de esa misma sede o el papel se
+               -- contradice a sí mismo.
+               LEFT JOIN sucursal su ON su.id_sucursal = COALESCE(f.id_sucursal, t.id_sucursal)
                JOIN cliente c  ON c.id_cliente = f.id_cliente
                JOIN persona pe ON pe.id_persona = c.id_persona
               WHERE f.id_factura = ?", [$idFactura]
@@ -229,7 +263,44 @@ class Sifen
             $nombre = 'Consumidor Final';
         }
 
+        // ------------------------------------------------------------------
+        //  EMI: quién emite.
+        //
+        //  **Antes no se mandaba y el KuDE lo sacaba del `.env` del
+        //  Automatizador**, que trae los datos del archivo de ejemplo: salía
+        //  «MI EMPRESA S.A.», RUC 80012345-6 —con el dígito verificador mal,
+        //  que es el rechazo 1309 de la DNIT— y actividad «VENTA AL POR
+        //  MENOR». Un comprobante con el emisor de otro no sirve para nada.
+        //
+        //  Y no se puede resolver dejándolo fijo del otro lado: **el emisor
+        //  cambia con la sucursal**. La dirección y el timbrado son los del
+        //  local que atendió, igual que el establecimiento del número.
+        //
+        //  Si el Automatizador recibe un TXT sin esta línea sigue usando su
+        //  `.env`, así que un envío viejo no se rompe.
+        // ------------------------------------------------------------------
+        $act = Config::actividad();
+        [$rucEmisor, $dvEmisor] = self::partirRuc((string) ($f->suc_ruc ?? ''));
+
         $lineas = [];
+        $lineas[] = implode('|', [
+            'EMI',
+            $limpiar(Config::nombreSalon()),
+            $limpiar($rucEmisor),
+            $limpiar($dvEmisor),
+            $limpiar($f->suc_direccion ?? ''),
+            $limpiar($f->suc_ciudad ?? ''),
+            $limpiar($f->suc_telefono ?? ''),
+            $limpiar(Config::email()),
+            $limpiar($act['cod']),
+            $limpiar($act['desc']),
+            $limpiar($f->nro_timbrado ?? ''),
+            date('Y-m-d', strtotime((string) ($f->timbrado_inicio ?? 'now'))),
+            date('Y-m-d', strtotime((string) ($f->timbrado_fin ?? 'now'))),
+            // El nombre del local: con varias sedes, saber de cuál salió el
+            // papel no se deduce del número para quien lo recibe.
+            $limpiar($f->suc_nombre ?? ''),
+        ]);
         $lineas[] = implode('|', [
             'FAC',
             str_pad((string) $f->establecimiento, 3, '0', STR_PAD_LEFT),
@@ -238,6 +309,13 @@ class Sifen
             date('Y-m-d', strtotime((string) $f->fecha_emision)),
             (int) $f->id_condicion_venta === 2 ? '2' : '1',   // 1 contado · 2 crédito
             'PYG',
+            // **Tipo de transacción (D011 `iTipTra`): 2, prestación de
+            // servicios.** El Automatizador lo traía fijo en 1, «venta de
+            // mercadería», que describe a un comercio y no a un salón — y va
+            // impreso en el KuDE **y** dentro del XML que ve la DNIT. El salón
+            // no vende productos (fuera de alcance desde la 7.23.1); el día
+            // que venda, esto pasa a 3, «mixto».
+            '2',
         ]);
         $lineas[] = implode('|', [
             'CLI', $tipoDoc, $limpiar($doc), $limpiar($nombre),

@@ -35,6 +35,8 @@ class ConfiguracionController extends Controller
             // usuario, y NO son de cada local: uno solo para todo el sistema.
             'nombreSalon' => Config::nombreSalon(),
             'logo' => Config::logo(),
+            'actividad' => Config::actividad(),
+            'emailFiscal' => Config::email(),
             'rows' => DB::select(
                 'SELECT s.*, (SELECT COUNT(*) FROM usuario u WHERE u.id_sucursal = s.id_sucursal) AS personal
                    FROM sucursal s ORDER BY s.nombre'
@@ -179,6 +181,24 @@ class ConfiguracionController extends Controller
             return $volver;
         }
 
+        // Los datos fiscales son opcionales: un salón que todavía no
+        // factura electrónicamente no tiene por qué cargarlos para poder
+        // cambiarle el nombre al local.
+        $actCod = trim((string) $request->input('actividad_cod', ''));
+        $actDesc = trim((string) $request->input('actividad_desc', ''));
+        $emailFiscal = trim((string) $request->input('email_fiscal', ''));
+
+        if ($actCod !== '' && ! preg_match('/^[0-9]{1,10}$/', $actCod)) {
+            flash('El código de actividad es numérico: son los dígitos que figuran en el RUC.', 'error');
+
+            return $volver;
+        }
+        if ($emailFiscal !== '' && ! filter_var($emailFiscal, FILTER_VALIDATE_EMAIL)) {
+            flash('Ese correo no tiene forma de correo.', 'error');
+
+            return $volver;
+        }
+
         $archivo = $request->file('logo');
         $guardar = null;
 
@@ -216,9 +236,12 @@ class ConfiguracionController extends Controller
 
         try {
             $guardar === null
-                ? DB::update('UPDATE configuracion SET nombre_salon = ? WHERE id_configuracion = 1', [$nombre])
-                : DB::update('UPDATE configuracion SET nombre_salon = ?, logo = ? WHERE id_configuracion = 1',
-                    [$nombre, $guardar]);
+                ? DB::update('UPDATE configuracion SET nombre_salon = ?, actividad_cod = ?,
+                                    actividad_desc = ?, email = ? WHERE id_configuracion = 1',
+                    [$nombre, $actCod ?: null, $actDesc ?: null, $emailFiscal ?: null])
+                : DB::update('UPDATE configuracion SET nombre_salon = ?, logo = ?, actividad_cod = ?,
+                                    actividad_desc = ?, email = ? WHERE id_configuracion = 1',
+                    [$nombre, $guardar, $actCod ?: null, $actDesc ?: null, $emailFiscal ?: null]);
         } catch (Throwable $e) {
             Log::error('No se pudo guardar la identidad del salón: ' . $e->getMessage());
             flash('No se pudo guardar. El detalle quedó registrado.', 'error');

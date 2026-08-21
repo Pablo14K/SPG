@@ -85,6 +85,31 @@ class Config
      * reimportó: sin la columna se sigue mostrando lo de siempre en vez de
      * reventar la pantalla de ingreso, que es la peor de todas para romper.
      */
+    /**
+     * La actividad económica del salón, como la pide el SIFEN.
+     *
+     * Va en el KuDE («Actividad: …») y es un dato del negocio, no del código:
+     * el Automatizador la traía fija en su `.env` como «VENTA AL POR MENOR»,
+     * que es del archivo de ejemplo y no describe a una peluquería.
+     *
+     * Devuelve `['cod' => …, 'desc' => …]`, los dos como texto.
+     */
+    public static function actividad(): array
+    {
+        $i = self::identidad();
+
+        return [
+            'cod' => trim((string) ($i->actividad_cod ?? '')),
+            'desc' => trim((string) ($i->actividad_desc ?? '')),
+        ];
+    }
+
+    /** El correo con el que el salón factura. Vacío si no se cargó. */
+    public static function email(): string
+    {
+        return trim((string) (self::identidad()->email ?? ''));
+    }
+
     public static function nombreSalon(): string
     {
         $n = trim((string) (self::identidad()->nombre_salon ?? ''));
@@ -115,12 +140,18 @@ class Config
         }
 
         try {
-            $f = DB::selectOne('SELECT nombre_salon, logo FROM configuracion WHERE id_configuracion = 1');
+            $f = DB::selectOne(
+                'SELECT nombre_salon, logo, actividad_cod, actividad_desc, email
+                   FROM configuracion WHERE id_configuracion = 1'
+            );
         } catch (Throwable) {
             $f = null;   // la tabla o las columnas no están: base sin actualizar
         }
 
-        return self::$identidad = $f ?: (object) ['nombre_salon' => '', 'logo' => null];
+        return self::$identidad = $f ?: (object) [
+            'nombre_salon' => '', 'logo' => null,
+            'actividad_cod' => null, 'actividad_desc' => null, 'email' => null,
+        ];
     }
 
     /** Para las pruebas, que cambian el valor dentro de una transacción. */

@@ -542,7 +542,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // Y la cabecera lleva los tres números del comprobante, con su relleno
         $fac = collect(explode("\n", Sifen::armarTxt($id)))->first(fn ($l) => str_starts_with($l, 'FAC|'));
-        $this->assertMatchesRegularExpression('/^FAC\|\d{3}\|\d{3}\|\d{7}\|\d{4}-\d{2}-\d{2}\|[12]\|PYG$/', $fac);
+        $this->assertMatchesRegularExpression('/^FAC\|\d{3}\|\d{3}\|\d{7}\|\d{4}-\d{2}-\d{2}\|[12]\|PYG\|\d{1,2}$/', $fac);
     }
 
     /**
@@ -748,9 +748,9 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_comprobante_se_arma_en_el_formato_del_automatizador(): void
     {
-        // El Automatizador espera líneas separadas por «|»: una FAC con la
-        // cabecera, una CLI con el cliente y una ITM por renglón. El total NO
-        // se escribe — lo calcula él desde los ítems.
+        // El Automatizador espera líneas separadas por «|»: una EMI con quien
+        // emite, una FAC con la cabecera, una CLI con el cliente y una ITM por
+        // renglón. El total NO se escribe — lo calcula él desde los ítems.
         $id = (int) DB::scalar('SELECT id_factura FROM factura WHERE id_tipo_comprobante = 1
                                   AND id_estado_factura = 1 ORDER BY id_factura LIMIT 1');
         if (! $id) {
@@ -760,21 +760,34 @@ class ReglasDeNegocioTest extends TestCase
         $txt = Sifen::armarTxt($id);
         $lineas = array_values(array_filter(explode("\n", $txt)));
 
-        $this->assertStringStartsWith('FAC|', $lineas[0], 'La primera línea es la cabecera.');
-        $this->assertStringStartsWith('CLI|', $lineas[1], 'La segunda es el cliente.');
-        $this->assertStringStartsWith('ITM|', $lineas[2], 'Después van los renglones.');
+        $this->assertStringStartsWith('EMI|', $lineas[0], 'La primera línea dice quién emite.');
+        $this->assertStringStartsWith('FAC|', $lineas[1], 'La segunda es la cabecera.');
+        $this->assertStringStartsWith('CLI|', $lineas[2], 'La tercera es el cliente.');
+        $this->assertStringStartsWith('ITM|', $lineas[3], 'Después van los renglones.');
 
-        // La cabecera lleva 7 campos y los números van con ceros a la izquierda.
-        $fac = explode('|', $lineas[0]);
-        $this->assertCount(7, $fac);
+        // El emisor lleva 14 campos: razón social, RUC y DV separados, la
+        // dirección y la ciudad del local, contacto, actividad, el timbrado
+        // con su vigencia, y el nombre de la sucursal.
+        $emi = explode('|', $lineas[0]);
+        $this->assertCount(14, $emi, 'El emisor tiene que ir completo o el KuDE lo rellena con su ejemplo.');
+        $this->assertNotSame('', trim($emi[1]), 'Sin razón social el comprobante no dice de quién es.');
+        $this->assertMatchesRegularExpression('/^\d*$/', $emi[2], 'El RUC va sin el DV.');
+        $this->assertMatchesRegularExpression('/^[0-9K]?$/', $emi[3], 'El DV va aparte, como lo pide el SIFEN.');
+
+        // La cabecera lleva 8 campos y los números van con ceros a la izquierda.
+        $fac = explode('|', $lineas[1]);
+        $this->assertCount(8, $fac);
         $this->assertMatchesRegularExpression('/^\d{3}$/', $fac[1], 'Establecimiento de 3 dígitos.');
         $this->assertMatchesRegularExpression('/^\d{3}$/', $fac[2], 'Punto de expedición de 3 dígitos.');
         $this->assertMatchesRegularExpression('/^\d{7}$/', $fac[3], 'Correlativo de 7 dígitos.');
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $fac[4]);
         $this->assertSame('PYG', $fac[6]);
+        // D011 iTipTra. El salón presta servicios: mandarlo vacío lo dejaba
+        // caer en «venta de mercadería», que sale impreso y va en el XML.
+        $this->assertSame('2', $fac[7], 'El tipo de transacción es prestación de servicios.');
 
         // Cada renglón: código, descripción, cantidad, precio y tasa de IVA.
-        foreach (array_slice($lineas, 2) as $l) {
+        foreach (array_slice($lineas, 3) as $l) {
             $itm = explode('|', $l);
             $this->assertCount(6, $itm, "Renglón mal armado: $l");
             $this->assertContains((int) $itm[5], [0, 5, 10], 'La tasa de IVA sólo puede ser 0, 5 o 10.');
@@ -3641,5 +3654,75 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertGreaterThan(0, (int) DB::scalar(
             'SELECT COUNT(*) FROM detalle_factura WHERE id_factura = ?', [$idNota]
         ), 'La nota tiene que copiar el detalle de la factura original.');
+    }
+    /**
+     * El comprobante electrónico se declara con los datos del salón, no con
+     * los del archivo de ejemplo del Automatizador.
+     *
+     * **Hasta la 7.52.0 el emisor no viajaba con la factura.** El KuDE lo
+     * sacaba del `.env` del otro proyecto, así que salía «MI EMPRESA S.A.»,
+     * RUC 80012345-6 —con el dígito verificador mal, que es el rechazo 1309
+     * de la DNIT— y actividad «VENTA AL POR MENOR».
+     *
+     * Y no alcanzaba con cargar ese archivo una vez: **el emisor cambia con
+     * la sucursal**. La dirección y el timbrado son los del local que
+     * atendió, igual que el establecimiento del número impreso.
+     */
+    #[Test]
+    public function el_txt_declara_al_salon_y_al_local_que_emitio(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, t.nro_timbrado, t.id_sucursal
+               FROM factura f JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+              WHERE f.id_estado_factura = 1
+                AND EXISTS (SELECT 1 FROM detalle_factura d WHERE d.id_factura = f.id_factura)
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('Hace falta una factura vigente con renglones.');
+        }
+
+        // Un RUC con el DV MAL escrito en la ficha, que es el caso real: se
+        // tipea a mano y de ahí sale impreso en cada comprobante.
+        $suc = (int) DB::scalar(
+            'SELECT COALESCE(id_sucursal, ?) FROM factura WHERE id_factura = ?',
+            [(int) $f->id_sucursal, (int) $f->id_factura]
+        );
+        DB::update('UPDATE sucursal SET ruc = ?, ciudad = ? WHERE id_sucursal = ?',
+            ['80012345-9', 'Luque', $suc]);
+        DB::update("UPDATE configuracion SET actividad_cod = '96021',
+                           actividad_desc = 'PELUQUERIA' WHERE id_configuracion = 1");
+        Config::olvidar();
+
+        $txt = Sifen::armarTxt((int) $f->id_factura);
+        $emi = null;
+        foreach (explode("\n", $txt) as $l) {
+            if (str_starts_with($l, 'EMI|')) {
+                $emi = explode('|', $l);
+            }
+        }
+
+        $this->assertNotNull($emi, 'El TXT tiene que declarar quién emite.');
+        $this->assertSame(Config::nombreSalon(), $emi[1], 'La razón social es la del salón.');
+
+        // **El DV se recalcula, no se copia.** Con el 9 mal escrito en la
+        // ficha, lo que sale tiene que ser el correcto: 80012345 → 0.
+        $this->assertSame('80012345', $emi[2]);
+        $this->assertSame('0', $emi[3],
+            'El dígito verificador se calcula: uno mal tipeado en la ficha es el rechazo 1309.');
+
+        $this->assertSame('Luque', $emi[5], 'La ciudad es la del local que emitió.');
+        $this->assertSame('96021', $emi[8]);
+        $this->assertSame((string) $f->nro_timbrado, $emi[10],
+            'El timbrado impreso es el que numeró este comprobante, no uno de configuración.');
+
+        // Y el tipo de transacción: un salón presta servicios, no vende
+        // mercadería. Va en el KuDE y dentro del XML que ve la DNIT.
+        foreach (explode("\n", $txt) as $l) {
+            if (str_starts_with($l, 'FAC|')) {
+                $this->assertSame('2', explode('|', $l)[7] ?? '',
+                    'D011 iTipTra tiene que decir prestación de servicios.');
+            }
+        }
     }
 }
