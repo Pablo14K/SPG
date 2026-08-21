@@ -185,12 +185,18 @@
                         </div>
                         <div class="col-md-4">
                             <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
-                                {{-- Sólo los servicios de ESTA cita: imputar el consumo a
-                                     uno que la clienta no pidió deja el costo colgado de algo
-                                     que no ocurrió. --}}
+                                {{-- **Los agendados y también los que se agregan acá.**
+                                     Antes salían sólo los de `cita_servicio`, así que un
+                                     servicio marcado en el sillón no aparecía en esta lista
+                                     hasta después de guardar: el producto que se le usó no
+                                     tenía dónde imputarse y quedaba colgado del primero.
+
+                                     Los que no están marcados los esconde `app.js`; sin él
+                                     se ven todos y se puede imputar igual. --}}
                                 <option value="0">— imputar al primer servicio —</option>
-                                @foreach ($servDeLaCita as $sc)
-                                    <option value="{{ $sc->id_servicio }}">en {{ $sc->nombre }}</option>
+                                @foreach ($servicios as $sc)
+                                    <option value="{{ $sc->id_servicio }}" data-srv="{{ $sc->id_servicio }}">
+                                        en {{ $sc->nombre }}</option>
                                 @endforeach
                             </select>
                         </div>

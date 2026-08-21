@@ -2387,6 +2387,7 @@ CREATE TABLE `servicio` (
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
   `precio` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `sena_porcentaje` tinyint(3) unsigned DEFAULT NULL,
   `duracion_min` int(11) NOT NULL DEFAULT 0,
   `tasa_iva` tinyint(3) unsigned NOT NULL DEFAULT 10,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
@@ -2399,7 +2400,8 @@ CREATE TABLE `servicio` (
   CONSTRAINT `fk_servicio_zona` FOREIGN KEY (`id_zona`) REFERENCES `zona_servicio` (`id_zona`),
   CONSTRAINT `chk_servicio_precio` CHECK (`precio` >= 0),
   CONSTRAINT `chk_servicio_duracion` CHECK (`duracion_min` >= 0),
-  CONSTRAINT `chk_servicio_iva` CHECK (`tasa_iva` in (0,5,10))
+  CONSTRAINT `chk_servicio_iva` CHECK (`tasa_iva` in (0,5,10)),
+  CONSTRAINT `chk_serv_sena` CHECK (`sena_porcentaje` is null or `sena_porcentaje` >= 1 and `sena_porcentaje` <= 100)
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2409,7 +2411,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (1,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,1,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,1,'Coloración completa','Color de raíz a puntas',280000.00,120,10,0,1),(7,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,1,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,4,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
+INSERT INTO `servicio` VALUES (1,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,NULL,45,10,1,0),(2,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,NULL,30,10,1,0),(3,1,1,'Corte de niño','Hasta 12 años',40000.00,NULL,30,10,1,0),(4,4,1,'Brushing','Secado y modelado',60000.00,NULL,40,10,1,0),(5,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,NULL,60,10,1,0),(6,2,1,'Coloración completa','Color de raíz a puntas',280000.00,50,120,10,0,1),(7,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,NULL,75,10,1,1),(8,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,50,180,10,1,0),(9,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,NULL,20,10,1,0),(10,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,NULL,50,10,1,1),(11,3,1,'Keratina','Alisado con keratina',400000.00,50,180,10,1,1),(12,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,NULL,40,10,1,0),(13,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,NULL,60,10,1,0),(14,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,NULL,50,10,1,0),(15,6,4,'Depilación de cejas','Diseño y depilación',30000.00,NULL,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3644,6 +3646,44 @@ BEGIN
   SELECT COALESCE(SUM(monto), 0) INTO v
   FROM cobro WHERE id_cita = p_id_cita AND id_estado_cobro = 1;
   RETURN v;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_sena_requerida` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_sena_requerida`(p_id_cita INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_monto DECIMAL(14,2) DEFAULT 0;
+
+  
+  
+  
+  
+  
+  
+  SELECT COALESCE(SUM(ROUND(s.precio * s.sena_porcentaje / 100)), 0)
+    INTO v_monto
+    FROM cita_servicio cs
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+   WHERE cs.id_cita = p_id_cita
+     AND s.sena_porcentaje IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM canje cj
+                      WHERE cj.id_cita = cs.id_cita AND cj.id_servicio = cs.id_servicio);
+
+  RETURN v_monto;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;

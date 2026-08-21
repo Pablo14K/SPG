@@ -255,8 +255,24 @@ class PortalController extends Controller
             // campo oculto se gastaría el canje de otra persona.
             $usados = Canje::aplicarACita((array) $request->input('canjes', []), $idCita, $idc);
 
+            // **Si los servicios piden seña, la reserva no termina acá.**
+            // La seña es lo que garantiza el horario, así que dejar a la
+            // clienta en «Mis citas» con un aviso suelto es pedirle que se
+            // acuerde sola. El monto lo fija el salón (`servicio.sena_porcentaje`)
+            // y lo calcula la base: hasta acá la clienta escribía el que
+            // quisiera y el salón se lo confirmaba de palabra.
+            $senaPide = (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$idCita]);
+
             flash('¡Tu cita fue reservada!'
-                . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : ''));
+                . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '')
+                . ($senaPide > 0
+                    ? ' Para dejarla confirmada hace falta una seña de ' . money($senaPide)
+                        . ': registrá acá el comprobante de la transferencia.'
+                    : ''));
+
+            if ($senaPide > 0) {
+                return redirect()->route('portal.citas', ['sena' => $idCita]);
+            }
         } catch (Throwable $ex) {
             // Llegó hasta acá y perdió: otra persona tomó el hueco justo cuando
             // esta reserva pasaba por el candado del procedimiento.
@@ -398,6 +414,11 @@ class PortalController extends Controller
             // y no un «tiene canje: no muestres nada».
             'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso,
                     fn_cita_sena(v.id_cita) AS sena,
+                    -- Cuánta seña pide el salón por esta cita. Sale de
+                    -- `servicio.sena_porcentaje`: hasta acá el sistema no
+                    -- podía contestarlo y la clienta anunciaba el monto
+                    -- que quisiera.
+                    fn_cita_sena_requerida(v.id_cita) AS sena_requerida,
                     (SELECT COALESCE(SUM(s.precio),0)
                        FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
                       WHERE cs.id_cita = v.id_cita) AS total_cita,

@@ -100,6 +100,25 @@
                     </div>
                 </div>
                 <div class="col-md-4">
+                    {{-- **La seña la fija el salón, no la clienta.** Sin esto el
+                         sistema no podía contestar «¿este servicio la pide?» ni
+                         «¿de cuánto?», así que la clienta anunciaba el monto que
+                         quisiera y el salón se lo confirmaba de palabra.
+
+                         Va como PORCENTAJE y no como monto fijo: un monto se
+                         separa del precio el día que el servicio sube —queda una
+                         seña de 50.000 sobre un servicio de 400.000— y hay que
+                         acordarse de tocar los dos. --}}
+                    <label class="form-label" for="sena_porcentaje">Seña que se pide</label>
+                    <div class="input-group">
+                        <input class="form-control" id="sena_porcentaje" name="sena_porcentaje"
+                               data-solo="numeros" inputmode="numeric" maxlength="3" placeholder="sin seña"
+                               value="{{ old('sena_porcentaje', $s->sena_porcentaje ?? '') }}">
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <div class="form-text">Vacío = no pide seña. Ej: 50 para media reserva.</div>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label" for="duracion_min">Duración (minutos)</label>
                     <input type="number" class="form-control" id="duracion_min" name="duracion_min"
                            min="5" max="600" step="5" value="{{ old('duracion_min', $s->duracion_min ?? 30) }}">

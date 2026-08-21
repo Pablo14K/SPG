@@ -174,6 +174,12 @@
 // Qué campos hacen falta según con qué se identifica. Consumidor final no
 // lleva documento ni nombre: la DNIT los quiere vacíos, no en blanco.
 (function () {
+    // Lo que la ficha tiene de cada tipo: cambiar de tipo trae SU número.
+    var DOCS = {
+        CI:  @json($cedulaFicha ?? ''),
+        RUC: @json($rucFicha ?? '')
+    };
+
     var tipo   = document.getElementById('tipo_doc'),
         bloqueD = document.getElementById('bloqueDoc'),
         bloqueN = document.getElementById('bloqueNombre'),
@@ -193,7 +199,21 @@
         ayuda.textContent = AYUDA[v] || '';
     }
 
-    tipo.addEventListener('change', ajustar);
+    // **Al cambiar de tipo, el número cambia con él.** Antes sólo se movían
+    // los bloques: quien elegía «cédula» se quedaba con el RUC escrito y
+    // emitía con el documento que no era. Sólo se pisa cuando el campo tiene
+    // el valor del OTRO tipo o está vacío: lo que la persona escribió a mano
+    // no se toca.
+    var previo = tipo.value;
+    tipo.addEventListener('change', function () {
+        var v = tipo.value;
+        if (v !== 'CF') {
+            var eraDelOtro = doc.value.trim() === '' || doc.value.trim() === (DOCS[previo] || '');
+            if (eraDelOtro) { doc.value = DOCS[v] || ''; }
+        }
+        previo = v;
+        ajustar();
+    });
     ajustar();
 })();
 </script>

@@ -803,6 +803,12 @@ class FacturacionController extends Controller
             'per' => $per,
             'tipoSugerido' => $tipo,
             'docSugerido' => $tipo === 'RUC' ? (string) $per->ruc : ($tipo === 'CI' ? (string) $per->cedula : ''),
+            // **Los dos, para que cambiar de tipo cambie el número.** Con uno
+            // solo, elegir «cédula» dejaba el RUC escrito en el campo: se
+            // emitía con el documento equivocado, o la validación rebotaba
+            // hablando de la cédula cuando lo que había era un RUC.
+            'rucFicha' => trim((string) ($per->ruc ?? '')),
+            'cedulaFicha' => trim((string) ($per->cedula ?? '')),
             'items' => DB::select(
                 'SELECT s.nombre, s.precio FROM cita_servicio cs
                    JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]

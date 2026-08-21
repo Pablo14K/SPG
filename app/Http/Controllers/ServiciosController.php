@@ -180,6 +180,10 @@ class ServiciosController extends Controller
             // modelo para sacar algo que no molesta es peor negocio.
             'requiere_exclusividad' => 0,
             'id_zona' => ((int) $request->input('id_zona', 0)) ?: null,
+            // **Cuánta seña pide este servicio, en porcentaje del precio.**
+            // Vacío = no pide. Va como porcentaje y no como monto para que no
+            // se separe del precio cuando el servicio sube.
+            'sena_porcentaje' => ($p = entero($request->input('sena_porcentaje'), 0)) > 0 ? $p : null,
         ];
         $volver = $id ? redirect()->route('servicios.form', $id) : redirect()->route('servicios.form');
 
@@ -197,6 +201,8 @@ class ServiciosController extends Controller
             $error = 'La duración debe estar entre 5 y 600 minutos.';
         } elseif (! in_array($d['tasa_iva'], [0, 5, 10], true)) {
             $error = 'La tasa de IVA debe ser 0, 5 o 10.';
+        } elseif ($d['sena_porcentaje'] !== null && ($d['sena_porcentaje'] < 1 || $d['sena_porcentaje'] > 100)) {
+            $error = 'La seña va entre 1 y 100 por ciento del precio. Dejalo vacío si no se pide seña.';
         }
         if ($error) {
             flash($error, 'error');
@@ -214,7 +220,8 @@ class ServiciosController extends Controller
                 DB::update(
                     'UPDATE servicio SET id_categoria_servicio=:id_categoria_servicio, nombre=:nombre,
                         descripcion=:descripcion, precio=:precio, duracion_min=:duracion_min,
-                        tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad, id_zona=:id_zona
+                        tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad, id_zona=:id_zona,
+                        sena_porcentaje=:sena_porcentaje
                       WHERE id_servicio=:id', $d + ['id' => $id]
                 );
                 $cambios = [];
@@ -229,8 +236,8 @@ class ServiciosController extends Controller
                 flash('Servicio actualizado.');
             } else {
                 DB::insert(
-                    'INSERT INTO servicio (id_categoria_servicio,id_zona,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad)
-                     VALUES (:id_categoria_servicio,:id_zona,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad)', $d
+                    'INSERT INTO servicio (id_categoria_servicio,id_zona,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad,sena_porcentaje)
+                     VALUES (:id_categoria_servicio,:id_zona,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad,:sena_porcentaje)', $d
                 );
                 $id = (int) DB::getPdo()->lastInsertId();
                 Auditoria::registrar('ALTA', 'Servicios', 'servicio', $id, $d['nombre']);

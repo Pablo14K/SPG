@@ -821,6 +821,10 @@ class CitasController extends Controller
 
         return view('citas.atender', [
             'cita' => $cita,
+            // Quién puede atender: un servicio agregado en el sillón lo puede
+            // hacer otra persona, y sin esto quedaba a nombre del profesional
+            // de la cita — la comisión se le atribuía a quien no lo hizo.
+            'profs' => Agenda::profesionales(Sucursales::activa() ?: null),
             // Para avisar ANTES de que cargue todo y le rebote al guardar.
             'fichaje' => $this->estadoFichaje($cita),
             // Todos los servicios activos: los agendados vienen marcados y el
@@ -830,11 +834,15 @@ class CitasController extends Controller
                         (SELECT COUNT(*) FROM cita_servicio x
                           WHERE x.id_cita = :c1 AND x.id_servicio = s.id_servicio) AS agendado,
                         (SELECT COUNT(*) FROM servicio_realizado sr
-                          WHERE sr.id_cita = :c2 AND sr.id_servicio = s.id_servicio) AS ya
+                          WHERE sr.id_cita = :c2 AND sr.id_servicio = s.id_servicio) AS ya,
+                        -- Quién lo tiene asignado hoy: el reparto de la cita
+                        -- manda sobre el profesional de la cabecera (AG-02).
+                        (SELECT x2.id_usuario FROM cita_servicio x2
+                          WHERE x2.id_cita = :c5 AND x2.id_servicio = s.id_servicio LIMIT 1) AS id_usuario
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre',
-                ['c1' => $id, 'c2' => $id]
+                ['c1' => $id, 'c2' => $id, 'c5' => $id]
             ),
             // **A qué servicio se le imputa el producto: sólo a los de ESTA
             // cita.** El selector ofrecía el catálogo entero, así que se podía
@@ -957,7 +965,11 @@ class CitasController extends Controller
         }
 
         try {
-            $resumen = DB::transaction(function () use ($idCita, $cita, $validos, $prodIds, $prodCant, $prodServ, $obs) {
+            // Quién hace cada servicio según la pantalla. Se lee acá y no
+            // adentro: el closure no captura `$request`.
+            $profRealiza = array_map('intval', (array) $request->input('prof_realiza', []));
+
+            $resumen = DB::transaction(function () use ($idCita, $cita, $validos, $prodIds, $prodCant, $prodServ, $obs, $profRealiza) {
                 $idsSR = [];
                 $srPorServicio = [];
                 $agregados = 0;
@@ -1009,6 +1021,18 @@ class CitasController extends Controller
                           WHERE id_cita = ? AND id_servicio = ? AND id_usuario IS NOT NULL LIMIT 1',
                         [$idCita, $sid]
                     );
+
+                    // **Y lo que se eligió en la pantalla le gana**, que es lo
+                    // que faltaba para el servicio agregado en el sillón: la
+                    // manicura que se suma sobre la marcha la puede hacer otra
+                    // persona, y sin esto quedaba a nombre del profesional de
+                    // la cita — la comisión otra vez a quien no trabajó.
+                    $elegido = (int) ($profRealiza[$sid] ?? 0);
+                    if ($elegido > 0 && DB::scalar(
+                        'SELECT COUNT(*) FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                          WHERE u.id_usuario = ? AND u.activo = 1 AND r.es_personal = 1', [$elegido])) {
+                        $deQuien = $elegido;
+                    }
 
                     DB::insert(
                         'INSERT INTO servicio_realizado (id_cita,id_servicio,id_usuario,observaciones) VALUES (?,?,?,?)',

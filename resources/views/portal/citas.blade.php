@@ -34,6 +34,9 @@
                                 @elseif ((float) $c->sena_pedida > 0)
                                     <span class="badge-estado e-warn" title="Falta confirmarla en el salón">
                                         seña {{ money($c->sena_pedida) }} a confirmar</span>
+                                @elseif ((float) ($c->sena_requerida ?? 0) > 0)
+                                    <span class="badge-estado e-warn">
+                                        falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
@@ -142,9 +145,22 @@
                                 Para tu cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
                             </p>
 
+                            {{-- **Cuánta seña pide el salón, y por qué.** Antes acá
+                                 no decía nada: la clienta escribía el monto que
+                                 quisiera y el salón se lo confirmaba de palabra. El
+                                 número sale de `servicio.sena_porcentaje` y lo
+                                 calcula la base — quien fija cuánto es el salón. --}}
+                            @if ((float) ($c->sena_requerida ?? 0) > 0)
+                                <div class="alert alert-warning py-2" style="font-size:.85rem">
+                                    Alguno de los servicios que elegiste se reserva con seña.
+                                    Para esta cita son <strong>{{ money($c->sena_requerida) }}</strong>.
+                                </div>
+                            @endif
+
                             <label class="form-label" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
                             <input class="form-control input-miles" id="ps{{ $c->id_cita }}"
-                                   name="monto" data-min="1" inputmode="numeric" required>
+                                   name="monto" data-min="1" inputmode="numeric" required
+                                   value="{{ (float) ($c->sena_requerida ?? 0) > 0 ? monto_input($c->sena_requerida) : '' }}">
 
                             {{-- **El comprobante de la transferencia.** La cita se
                                  reserva desde afuera del local, así que no hay nada

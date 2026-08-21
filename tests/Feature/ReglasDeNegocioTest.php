@@ -3942,4 +3942,55 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame($esperado, $ahora,
             'Lunes en un local y martes en otro es exactamente para lo que existe la tabla N:M.');
     }
+    /**
+     * Cuánta seña se pide lo fija el salón, no la clienta.
+     *
+     * **`servicio` no decía nada de seña**, así que el sistema no podía
+     * contestar «¿este servicio la pide?» ni «¿de cuánto?»: la clienta
+     * anunciaba el monto que quisiera y el salón se lo confirmaba de palabra.
+     *
+     * Se guarda un **porcentaje** y no un monto: un monto fijo se separa del
+     * precio el día que el servicio sube —queda una seña de 50.000 sobre un
+     * servicio de 400.000— y hay que acordarse de tocar los dos.
+     */
+    #[Test]
+    public function la_sena_que_se_pide_sale_del_servicio_y_no_del_cliente(): void
+    {
+        $cita = DB::selectOne(
+            'SELECT c.id_cita FROM cita c
+              WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('Hace falta una cita con servicios.');
+        }
+        $id = (int) $cita->id_cita;
+
+        $srv = DB::select(
+            'SELECT s.id_servicio, s.precio FROM cita_servicio cs
+               JOIN servicio s ON s.id_servicio = cs.id_servicio
+              WHERE cs.id_cita = ? ORDER BY s.precio DESC', [$id]
+        );
+        $ids = array_map(fn ($r) => (int) $r->id_servicio, $srv);
+
+        // Ninguno pide seña: no se pide nada.
+        DB::update('UPDATE servicio SET sena_porcentaje = NULL WHERE id_servicio IN ('
+            . implode(',', array_fill(0, count($ids), '?')) . ')', $ids);
+        $this->assertSame(0.0, (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$id]),
+            'Sin servicios que pidan seña no hay nada que adelantar.');
+
+        // El más caro pide el 50 %: se pide la mitad de ESE, no de la cita.
+        $caro = $srv[0];
+        DB::update('UPDATE servicio SET sena_porcentaje = 50 WHERE id_servicio = ?', [(int) $caro->id_servicio]);
+        $this->assertSame(round((float) $caro->precio * 0.5),
+            (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$id]),
+            'Cada servicio aporta su porcentaje sobre su propio precio.');
+
+        // **El precio sube y la seña lo sigue.** Es lo que un monto fijo no
+        // hace: quedaría en la mitad del precio viejo.
+        DB::update('UPDATE servicio SET precio = precio * 2 WHERE id_servicio = ?', [(int) $caro->id_servicio]);
+        $this->assertSame(round((float) $caro->precio),
+            (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$id]),
+            'Al duplicarse el precio, el 50 % pasa a ser el precio viejo entero.');
+    }
 }
