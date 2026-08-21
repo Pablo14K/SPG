@@ -157,6 +157,8 @@ class AccesoTest extends TestCase
             'seguridad.comisiones', 'seguridad.comision_form',
             'seguridad.sucursales', 'seguridad.sucursal_form',
             'seguridad.contacto', 'seguridad.auditoria',
+            // Los dos landings que salieron de Seguridad en la 7.57.0
+            'seguridad.personal.index', 'seguridad.configuracion.index',
         ];
 
         foreach ($pantallas as $p) {

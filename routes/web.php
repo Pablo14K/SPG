@@ -210,6 +210,14 @@ Route::middleware(['sesion', 'personal'])->group(function () {
     // (sucursales, roles, contacto, auditoría).
     Route::prefix('seguridad')->name('seguridad.')->group(function () {
         Route::get('/', [SeguridadController::class, 'index'])->name('index')->middleware('modulo:seguridad');
+        // Personal y Configuración salieron de Seguridad en la 7.57.0, pero
+        // las pantallas no se mudaron de URL: sólo cambia por dónde se llega y
+        // qué permiso las abre. Mover las rutas obligaría a tocar decenas de
+        // `route()` en las vistas para un cambio de menú.
+        Route::get('personal', [SeguridadController::class, 'personal'])
+            ->name('personal.index')->middleware('modulo:personal');
+        Route::get('configuracion', [SeguridadController::class, 'configuracion'])
+            ->name('configuracion.index');
 
         // Ver la lista pide el submódulo; crear y editar cuentas es exclusivo
         // del Administrador, sin importar lo que diga la matriz de roles.
@@ -224,25 +232,25 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('sucursal-rapida', [PersonalController::class, 'sucursalRapida'])->name('sucursal.rapida');
         });
 
-        Route::middleware('modulo:seguridad.turnos')->group(function () {
+        Route::middleware('modulo:personal.turnos')->group(function () {
             Route::get('turnos', [PersonalController::class, 'turnos'])->name('turnos');
             Route::post('turnos/guardar', [PersonalController::class, 'turnoGuardar'])->name('turno.guardar');
             Route::post('turnos/baja', [PersonalController::class, 'turnoBaja'])->name('turno.baja');
             Route::post('turnos/rapido', [PersonalController::class, 'turnoRapido'])->name('turno.rapido');
         });
 
-        Route::middleware('modulo:seguridad.comisiones')->group(function () {
+        Route::middleware('modulo:personal.comisiones')->group(function () {
             Route::get('comisiones', [PersonalController::class, 'comisiones'])->name('comisiones');
             Route::get('comisiones/nueva', [PersonalController::class, 'comisionForm'])->name('comision_form');
             Route::post('comisiones/guardar', [PersonalController::class, 'comisionGuardar'])->name('comision.guardar');
         });
 
-        Route::middleware('modulo:seguridad.asistencia')->group(function () {
+        Route::middleware('modulo:personal.asistencia')->group(function () {
             Route::get('asistencia', [PersonalController::class, 'asistencia'])->name('asistencia');
             Route::post('asistencia', [PersonalController::class, 'asistenciaMarcar'])->name('asistencia.marcar');
         });
 
-        Route::middleware('modulo:seguridad.sucursales')->group(function () {
+        Route::middleware('modulo:configuracion.sucursales')->group(function () {
             Route::get('sucursales', [ConfiguracionController::class, 'sucursales'])->name('sucursales');
             Route::get('sucursales/form/{id?}', [ConfiguracionController::class, 'sucursalForm'])
                 ->whereNumber('id')->name('sucursal_form');
@@ -255,7 +263,7 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('identidad/logo/quitar', [ConfiguracionController::class, 'identidadLogoQuitar'])->name('identidad.logo.quitar');
         });
 
-        Route::middleware('modulo:seguridad.contacto')->group(function () {
+        Route::middleware('modulo:configuracion.contacto')->group(function () {
             Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
             Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
         });
@@ -314,6 +322,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         Route::middleware('modulo:inventario.compras')->group(function () {
             Route::get('compras', [InventarioController::class, 'compras'])->name('compras');
             Route::get('compras/ver', [InventarioController::class, 'compraVer'])->name('compra_ver');
+            // El papel del proveedor no siempre llega con la mercadería.
+            Route::post('compras/factura', [InventarioController::class, 'compraFactura'])
+                ->name('compra.factura');
             Route::get('compras/nueva', [InventarioController::class, 'compraForm'])->name('compra_form');
             Route::post('compras/guardar', [InventarioController::class, 'compraGuardar'])->name('compra.guardar');
         });

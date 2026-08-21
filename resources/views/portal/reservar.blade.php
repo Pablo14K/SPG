@@ -49,6 +49,33 @@
 
             <div class="mb-3">
                 <label class="form-label">¿Qué te querés hacer? *</label>
+                {{-- **Quién hace qué, a la vista.** `usuario_servicio` decide
+                     desde la 7.42.0 con quién se puede reservar cada servicio,
+                     y sólo lo miraba la validación: la clienta elegía a ciegas
+                     y se enteraba al guardar. Sin nada cargado, esa persona
+                     hace todo — el criterio permisivo de siempre. --}}
+                @php
+                    $hace = collect($haceCada ?? [])->keyBy('id_usuario');
+                    $conLista = collect($profs)->filter(fn ($p) => trim((string) ($hace[$p->id_usuario]->servicios ?? '')) !== '');
+                @endphp
+                @if ($conLista->isNotEmpty())
+                    <details class="mb-2">
+                        <summary style="font-size:.85rem;cursor:pointer" class="text-muted-warm">
+                            ¿Quién hace cada cosa?
+                        </summary>
+                        <ul class="list-unstyled mt-2 mb-0" style="font-size:.83rem">
+                            @foreach ($profs as $p)
+                                <li class="py-1" style="border-top:1px solid var(--gris-calido)">
+                                    <strong>{{ $p->nombre }}</strong>
+                                    <span class="text-muted-warm">
+                                        · {{ trim((string) ($hace[$p->id_usuario]->servicios ?? '')) ?: 'hace todos los servicios' }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </details>
+                @endif
+
                 <div class="spg-check-lista" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
                         <div class="d-flex align-items-center gap-2 flex-wrap py-1">
@@ -136,6 +163,34 @@
                     <div data-agenda-horas class="spg-horas mt-2"></div>
                 </div>
                 <input type="hidden" name="fecha_hora" id="fecha_hora">
+            </div>
+
+            {{-- **La cita puede ser para otra persona.** Una clienta reserva
+                 para su hija o su madre, y esas citas SÍ se superponen con la
+                 suya a propósito: son dos personas. Sin declararlo, la
+                 validación de solape lo tomaba por un error.
+
+                 Arranca oculto el nombre y lo muestra el JS; sin `app.js` se
+                 ven los dos campos y se reserva igual. --}}
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
+                           id="paraOtro">
+                    <label class="form-check-label" for="paraOtro">
+                        La cita es para otra persona
+                    </label>
+                </div>
+                <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
+                    <label class="form-label" for="nombre_para">¿Para quién?</label>
+                    <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
+                           placeholder="Nombre de quien se atiende">
+                </div>
+            </div>
+
+            <div class="mb-3" style="max-width:180px">
+                <label class="form-label" for="personas">¿Cuántas personas van?</label>
+                <input class="form-control" id="personas" name="personas" value="1"
+                       data-solo="numeros" inputmode="numeric" maxlength="2">
             </div>
 
             <div class="mb-3">

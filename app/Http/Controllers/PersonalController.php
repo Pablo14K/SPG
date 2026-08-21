@@ -906,7 +906,7 @@ class PersonalController extends Controller
      */
     private function registraPorOtros(): bool
     {
-        return Permisos::esAdmin() || Permisos::puede('seguridad.turnos');
+        return Permisos::esAdmin() || Permisos::puede('personal.turnos');
     }
 
     /**

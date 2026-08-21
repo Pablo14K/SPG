@@ -110,6 +110,12 @@
                             <div class="modal-body">
                                 <p class="mb-3">
                                     Saldo de la compra: <strong class="txt-oro">{{ money($c->saldo) }}</strong>
+                                    {{-- **El pago parcial ya se podía y no se decía.** Viene
+                                         propuesto el saldo entero, pero el monto es
+                                         editable: escribiendo menos queda el resto
+                                         pendiente y la compra sigue apareciendo acá. --}}
+                                    <br><span style="font-size:.82rem">Podés pagar menos: lo que quede
+                                    sigue como saldo pendiente de esta compra.</span>
                                 </p>
                                 <div class="row g-2">
                                     <div class="col-6">

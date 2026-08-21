@@ -100,9 +100,34 @@
                                 Tené en cuenta que agregar un servicio <strong>aumenta el costo</strong> de tu
                                 atención. Quien te atiende te va a confirmar el precio y el tiempo.
                             </div>
-                            <label class="form-label" for="pedido">¿Qué te gustaría agregar?</label>
-                            <textarea class="form-control" id="pedido" name="pedido" rows="3" required
-                                      maxlength="300" placeholder="Ej. ¿me podés hacer las uñas también?"></textarea>
+                            {{-- **Lo que se puede pedir de verdad**, no un campo en
+                                 blanco: sólo lo que se ofrece en este local y que
+                                 alguna de las personas que te está atendiendo hace.
+                                 Pidiendo a mano, el «no» llegaba después y en el
+                                 sillón. --}}
+                            @if (($puedePedir ?? []) !== [])
+                                <label class="form-label">¿Qué te gustaría agregar?</label>
+                                <div class="mb-2" style="max-height:220px;overflow-y:auto">
+                                    @foreach ($puedePedir as $sv)
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="pedido"
+                                                   id="pd{{ $sv->id_servicio }}" required
+                                                   value="{{ $sv->nombre }} ({{ money($sv->precio) }})">
+                                            <label class="form-check-label" for="pd{{ $sv->id_servicio }}">
+                                                {{ $sv->nombre }}
+                                                <span class="text-muted-warm">
+                                                    · {{ money($sv->precio) }} · {{ (int) $sv->duracion_min }} min</span>
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                {{-- Sin nada que ofrecerle, el campo libre sigue siendo
+                                     la salida: no se le cierra la puerta a preguntar. --}}
+                                <label class="form-label" for="pedido">¿Qué te gustaría agregar?</label>
+                                <textarea class="form-control" id="pedido" name="pedido" rows="3" required
+                                          maxlength="300" placeholder="Ej. ¿me podés hacer las uñas también?"></textarea>
+                            @endif
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

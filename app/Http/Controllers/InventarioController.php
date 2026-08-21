@@ -991,9 +991,63 @@ class InventarioController extends Controller
             // arma `producto.id_sucursal` — columna que la 7.33.0 eliminó al
             // pasar el catálogo a único. La pantalla contestaba 500 siempre, así
             // que **no se podía registrar ninguna compra**.
-            'productos' => DB::select('SELECT id_producto, nombre FROM producto WHERE activo = 1 ORDER BY nombre'),
+            // Con el ÚLTIMO precio que se le pagó al proveedor: al elegir un
+            // producto que ya existe, la pantalla lo trae en vez de hacerlo
+            // tipear de memoria. Se puede cambiar — un proveedor sube los
+            // precios y lo que vale es lo que dice la factura de hoy.
+            'productos' => DB::select(
+                'SELECT p.id_producto, p.nombre,
+                        (SELECT dc.precio_unitario FROM detalle_compra dc
+                           JOIN compra c ON c.id_compra = dc.id_compra
+                          WHERE dc.id_producto = p.id_producto
+                          ORDER BY c.fecha DESC, dc.id_detalle_compra DESC LIMIT 1) AS ultimo_precio
+                   FROM producto p WHERE p.activo = 1 ORDER BY p.nombre'
+            ),
             'sel_proveedor' => (int) $request->query('proveedor', 0),
         ]);
+    }
+
+    /**
+     * Cargar o corregir el número de factura de una compra ya registrada.
+     *
+     * **El papel no siempre llega con la mercadería.** Se recibe el pedido, se
+     * paga, y la factura del proveedor aparece días después: con el número
+     * pedido sólo al registrar la compra, o se inventaba uno o quedaba en
+     * blanco para siempre.
+     *
+     * No toca ni el total ni el estado: es un dato del respaldo, no de la
+     * operación. Y queda en auditoría porque cambia lo que respalda un egreso.
+     */
+    public function compraFactura(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_compra', 0);
+        $nro = trim((string) $request->input('nro_factura_proveedor', ''));
+        $volver = redirect()->route('inventario.compra_ver', ['id' => $id]);
+
+        $compra = DB::selectOne(
+            'SELECT id_compra, nro_factura_proveedor FROM compra WHERE id_compra = ?', [$id]);
+        if (! $compra) {
+            flash('Esa compra no existe.', 'error');
+
+            return redirect()->route('inventario.compras');
+        }
+
+        if ($nro !== '' && ! preg_match('/^[0-9][0-9-]{2,29}$/', $nro)) {
+            flash('El número de factura va con números y guiones, así: 001-001-0001234.', 'error');
+
+            return $volver;
+        }
+
+        DB::update('UPDATE compra SET nro_factura_proveedor = ? WHERE id_compra = ?',
+            [$nro !== '' ? $nro : null, $id]);
+
+        Auditoria::registrar('MODIFICACION', 'Inventario', 'compra', $id,
+            'Factura del proveedor: ' . ($compra->nro_factura_proveedor ?: 'sin número')
+            . ' → ' . ($nro ?: 'sin número'));
+
+        flash($nro !== '' ? 'Factura ' . $nro . ' anotada en la compra.' : 'Se quitó el número de factura.');
+
+        return $volver;
     }
 
     public function compraGuardar(Request $request): RedirectResponse

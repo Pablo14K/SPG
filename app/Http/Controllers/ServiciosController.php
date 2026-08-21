@@ -304,14 +304,49 @@ class ServiciosController extends Controller
             return redirect()->route('servicios.lista');
         }
 
-        // Sin ninguna fila el servicio vale en todas, así que publicarlo acá
-        // sin más lo dejaría valiendo SÓLO acá — al revés de lo que se pidió.
-        // En ese caso se escriben todas las sucursales, que es el estado que
-        // ya tenía, y recién entonces la de este local sobra por estar incluida.
-        if (! DB::scalar('SELECT COUNT(*) FROM servicio_sucursal WHERE id_servicio = ?', [$id])) {
-            flash('«' . $s->nombre . '» ya se ofrece en todas las sucursales.', 'info');
+        // **Es un interruptor: publica y despublica.** Antes sólo agregaba,
+        // así que no había forma de sacar un servicio de la carta de un local
+        // sin darlo de baja en todo el salón — y es lo que hace falta para
+        // decidir qué ve la clienta en cada sucursal.
+        $sacar = (bool) $request->input('sacar', 0);
 
-            return redirect()->route('servicios.lista');
+        // **Sin ninguna fila el servicio vale en TODAS**, así que tocar una
+        // sola lo dejaría valiendo únicamente ahí —al revés de lo que se
+        // pidió—. En ese caso se materializa el estado que ya tenía: se
+        // escriben todas las sucursales activas, y recién entonces agregar o
+        // quitar una significa lo que dice.
+        if (! DB::scalar('SELECT COUNT(*) FROM servicio_sucursal WHERE id_servicio = ?', [$id])) {
+            if (! $sacar) {
+                flash('«' . $s->nombre . '» ya se ofrece en todas las sucursales.', 'info');
+
+                return redirect()->back();
+            }
+
+            DB::insert(
+                'INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal)
+                 SELECT ?, id_sucursal FROM sucursal WHERE activo = 1', [$id]
+            );
+        }
+
+        if ($sacar) {
+            // **No se deja sin ninguna.** Un servicio sin filas vuelve a valer
+            // en todas, que es justo lo contrario de sacarlo del último local.
+            $quedan = (int) DB::scalar(
+                'SELECT COUNT(*) FROM servicio_sucursal WHERE id_servicio = ? AND id_sucursal <> ?', [$id, $suc]);
+            if ($quedan === 0) {
+                flash('«' . $s->nombre . '» quedaría sin ninguna sucursal, y eso lo devolvería a todas. '
+                    . 'Si no se hace en ningún local, dalo de baja desde el catálogo.', 'warning');
+
+                return redirect()->back();
+            }
+
+            DB::delete('DELETE FROM servicio_sucursal WHERE id_servicio = ? AND id_sucursal = ?', [$id, $suc]);
+            Auditoria::registrar('PUBLICACION', 'servicios', 'servicio_sucursal', $id,
+                'Se dejó de ofrecer «' . $s->nombre . '» en ' . Sucursales::nombreActiva());
+            flash('«' . $s->nombre . '» ya no se ofrece en ' . Sucursales::nombreActiva()
+                . ': la clienta deja de verlo al reservar acá.');
+
+            return redirect()->back();
         }
 
         DB::insert('INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal) VALUES (?,?)', [$id, $suc]);

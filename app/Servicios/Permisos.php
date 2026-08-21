@@ -99,7 +99,9 @@ class Permisos
     {
         $out = [];
         foreach ($tarjetas as $t) {
-            if (self::puede((string) ($t['p'] ?? ''))) {
+            // **Sin clave, la tarjeta es de todos.** «Mi cuenta» no tiene
+            // permiso que pedir: es de cada persona y siempre está.
+            if (($t['p'] ?? null) === null || self::puede((string) $t['p'])) {
                 unset($t['p']);
                 $out[] = $t;
             }

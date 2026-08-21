@@ -651,11 +651,16 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rol, 'seguridad.asistencia']);
         Permisos::olvidar($rol);
 
-        $this->assertTrue(Permisos::rolPuede($rol, 'seguridad'),
+        // `seguridad.asistencia` es la clave VIEJA: desde la 7.57.0 la
+        // asistencia vive en Personal, así que lo guardado se traduce y el
+        // landing que abre es el de Personal, no el de Seguridad.
+        $this->assertTrue(Permisos::rolPuede($rol, 'personal'),
             'Con un submódulo tiene que poder abrir el landing del módulo.');
-        $this->assertTrue(Permisos::rolPuede($rol, 'seguridad.asistencia'));
-        $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.usuarios'),
+        $this->assertTrue(Permisos::rolPuede($rol, 'personal.asistencia'));
+        $this->assertFalse(Permisos::rolPuede($rol, 'personal.turnos'),
             'Pero no los otros submódulos del mismo módulo.');
+        $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.usuarios'),
+            'Ni nada de Seguridad, que ahora es otro módulo.');
     }
 
     #[Test]
@@ -672,12 +677,17 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO rol_modulo (id_rol, modulo) VALUES (?,?)', [$rol, 'personal']);
         Permisos::olvidar($rol);
 
-        foreach (['usuarios', 'turnos', 'comisiones', 'asistencia'] as $tenia) {
-            $this->assertTrue(Permisos::rolPuede($rol, 'seguridad.' . $tenia),
+        // Las cuatro que tenía siguen siendo suyas, aunque desde la 7.57.0
+        // vivan repartidas: los usuarios quedaron en Seguridad y el resto en
+        // Personal.
+        foreach (['seguridad.usuarios', 'personal.turnos',
+                  'personal.comisiones', 'personal.asistencia'] as $tenia) {
+            $this->assertTrue(Permisos::rolPuede($rol, $tenia),
                 "El módulo Personal incluía $tenia: no puede perderlo.");
         }
-        foreach (['roles', 'sucursales', 'contacto', 'auditoria'] as $noTenia) {
-            $this->assertFalse(Permisos::rolPuede($rol, 'seguridad.' . $noTenia),
+        foreach (['seguridad.roles', 'configuracion.sucursales',
+                  'configuracion.contacto', 'seguridad.auditoria'] as $noTenia) {
+            $this->assertFalse(Permisos::rolPuede($rol, $noTenia),
                 "$noTenia era de Configuración: no puede aparecer de la nada.");
         }
     }
@@ -3052,7 +3062,7 @@ class ReglasDeNegocioTest extends TestCase
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
             // Sin caja abierta no se mueve un guaraní, así que se abre: es el
             // camino real, no un atajo.
-            \App\Servicios\Bd::idDe('sp_abrir_caja', [1, 0, $suc]);
+            \App\Servicios\Bd::idDe('sp_abrir_caja', [1, 0, $suc, '']);
         }
 
         // Mitad y mitad, en dos medios distintos.
@@ -3140,7 +3150,7 @@ class ReglasDeNegocioTest extends TestCase
         $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
         if (! $caja) {
             $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
-            Bd::idDe('sp_abrir_caja', [1, 0, $suc]);
+            Bd::idDe('sp_abrir_caja', [1, 0, $suc, '']);
             $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
         }
         $id = (int) $caja->id_caja;
@@ -3368,7 +3378,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComoAdministrador();
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
-            Bd::idDe('sp_abrir_caja', [1, 200000, $suc]);
+            Bd::idDe('sp_abrir_caja', [1, 200000, $suc, '']);
         }
 
         $cuantos = fn () => (int) DB::scalar('SELECT COUNT(*) FROM movimiento_caja');
@@ -3449,7 +3459,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComoAdministrador();
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
-            Bd::idDe('sp_abrir_caja', [1, 500000, $suc]);
+            Bd::idDe('sp_abrir_caja', [1, 500000, $suc, '']);
         }
 
         // Una devolución vigente sobre esa nota: la segunda ya no puede entrar.
@@ -3541,7 +3551,7 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
         );
         if (! $caja) {
-            Bd::idDe('sp_abrir_caja', [1, 100000, $otra]);
+            Bd::idDe('sp_abrir_caja', [1, 100000, $otra, '']);
             $caja = (int) DB::scalar(
                 'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
             );
@@ -3813,7 +3823,7 @@ class ReglasDeNegocioTest extends TestCase
                      WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
 
         $abrir = function (float $inicial) use ($uid, $suc): int {
-            $id = Bd::idDe('sp_abrir_caja', [$uid, $inicial, $suc]);
+            $id = Bd::idDe('sp_abrir_caja', [$uid, $inicial, $suc, '']);
 
             return (int) $id;
         };
@@ -3992,5 +4002,55 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(round((float) $caro->precio),
             (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$id]),
             'Al duplicarse el precio, el 50 % pasa a ser el precio viejo entero.');
+    }
+    /**
+     * La clienta no se pisa a sí misma, salvo que reserve para otra persona.
+     *
+     * **La agenda cuidaba al profesional y no a la clienta.** Se comprobaba
+     * que quien atiende estuviera libre, pero nada impedía que la misma
+     * clienta reservara dos servicios a la misma hora con profesionales
+     * distintos: el día de la cita tendría que estar en dos sillones.
+     *
+     * La excepción no es un rodeo: una clienta reserva para su hija o su
+     * madre, y esas dos citas **sí** se superponen a propósito.
+     */
+    #[Test]
+    public function una_clienta_no_se_pisa_a_si_misma_salvo_que_sea_para_otra_persona(): void
+    {
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_cliente, c.fecha_hora FROM cita c
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE ec.bloquea_agenda = 1
+                AND EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('Hace falta una cita vigente con servicios.');
+        }
+
+        $cli = (int) $cita->id_cliente;
+        $dur = (int) DB::scalar('SELECT fn_cita_duracion(?)', [(int) $cita->id_cita]);
+        if ($dur <= 0) {
+            $this->markTestSkipped('Esa cita dura cero: no puede solaparse con nada.');
+        }
+
+        // Justo encima de la que ya tiene: se pisan.
+        $encima = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora) + 60);
+
+        $this->assertNotNull(Agenda::citaDelClienteSePisa($cli, $encima, $dur),
+            'Dos citas de la misma clienta a la misma hora la ponen en dos sillones.');
+
+        // La misma hora, pero declarada para otra persona: entra.
+        $this->assertNull(Agenda::citaDelClienteSePisa($cli, $encima, $dur, 0, true),
+            'Reservar para la hija o la madre son dos personas: pueden superponerse.');
+
+        // Y la propia cita no se pisa consigo misma al reprogramarla.
+        $this->assertNull(Agenda::citaDelClienteSePisa($cli, $encima, $dur, (int) $cita->id_cita),
+            'La cita que se está moviendo no puede chocar contra sí misma.');
+
+        // Lejos, no se pisa con nada.
+        $lejos = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora) + 86400 * 400);
+        $this->assertNull(Agenda::citaDelClienteSePisa($cli, $lejos, $dur),
+            'Un año después no hay solape posible.');
     }
 }

@@ -426,6 +426,54 @@ class Agenda
      * necesita saber si se lo ganó otro —y entonces cambia de hora— o si el
      * profesional directamente no atiende —y entonces cambia de profesional—.
      */
+    /**
+     * ¿La clienta ya tiene otra cita a esa hora?
+     *
+     * **La agenda cuidaba al profesional y no a la clienta.** Se comprobaba
+     * que la persona que atiende estuviera libre, pero nada impedía que la
+     * misma clienta reservara dos servicios a la misma hora con profesionales
+     * distintos: el día de la cita tiene que estar en dos sillones.
+     *
+     * `$paraOtro` es la excepción que pidió el usuario y no es un rodeo: una
+     * clienta puede reservar para su hija o su madre, y esas dos citas SÍ se
+     * superponen a propósito — son dos personas.
+     *
+     * Devuelve el mensaje a mostrar, o null si no hay choque.
+     */
+    public static function citaDelClienteSePisa(
+        int $idCliente, string $cuando, int $duracion, int $exceptoCita = 0, bool $paraOtro = false): ?string
+    {
+        if ($paraOtro || $idCliente <= 0 || $duracion <= 0) {
+            return null;
+        }
+
+        $otra = DB::selectOne(
+            "SELECT c.id_cita, c.fecha_hora, fn_cita_duracion(c.id_cita) AS dur
+               FROM cita c
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE c.id_cliente = :cli
+                AND ec.bloquea_agenda = 1
+                AND c.id_cita <> :ex
+                AND c.para_otra_persona = 0
+                AND c.fecha_hora < DATE_ADD(:hasta, INTERVAL 0 MINUTE)
+                AND DATE_ADD(c.fecha_hora, INTERVAL fn_cita_duracion(c.id_cita) MINUTE) > :desde
+              ORDER BY c.fecha_hora LIMIT 1",
+            [
+                'cli' => $idCliente,
+                'ex' => $exceptoCita,
+                'hasta' => date('Y-m-d H:i:s', strtotime($cuando) + $duracion * 60),
+                'desde' => $cuando,
+            ]
+        );
+
+        if (! $otra) {
+            return null;
+        }
+
+        return 'Ya tenés una cita el ' . fecha($otra->fecha_hora) . ' que se superpone con esta. '
+            . 'Elegí otro horario, o marcá que la reserva es para otra persona.';
+    }
+
     public static function motivoHuecoPerdido(int $idUsuario, string $fechaHora, int $duracion, ?int $excluirCita = null): string
     {
         $nombre = (string) DB::scalar(

@@ -141,8 +141,11 @@ CREATE TABLE `caja` (
   `fecha_apertura` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_cierre` datetime DEFAULT NULL,
   `monto_inicial` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `observacion_apertura` varchar(255) DEFAULT NULL,
   `monto_contado` decimal(14,2) DEFAULT NULL,
   `id_usuario_cierre` int(10) unsigned DEFAULT NULL,
+  `observacion_cierre` varchar(255) DEFAULT NULL,
+  `motivo_diferencia` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_caja`),
   KEY `idx_caja_usuario` (`id_usuario`),
   KEY `idx_caja_estado` (`id_estado_caja`),
@@ -342,6 +345,9 @@ DROP TABLE IF EXISTS `cita`;
 CREATE TABLE `cita` (
   `id_cita` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
+  `para_otra_persona` tinyint(1) NOT NULL DEFAULT 0,
+  `nombre_para` varchar(120) DEFAULT NULL,
+  `personas` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
   `id_estado_cita` int(10) unsigned NOT NULL,
@@ -357,7 +363,9 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_estado` FOREIGN KEY (`id_estado_cita`) REFERENCES `estado_cita` (`id_estado_cita`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
-  CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
+  CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
+  CONSTRAINT `chk_cita_personas` CHECK (`personas` >= 1 and `personas` <= 20),
+  CONSTRAINT `chk_cita_para` CHECK (`para_otra_persona` = 0 or `nombre_para` is not null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2331,7 +2339,7 @@ CREATE TABLE `rol_modulo` (
 
 LOCK TABLES `rol_modulo` WRITE;
 /*!40000 ALTER TABLE `rol_modulo` DISABLE KEYS */;
-INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'seguridad.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'reportes'),(3,'seguridad.asistencia'),(3,'seguridad.turnos'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
+INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'personal.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'personal.asistencia'),(3,'personal.turnos'),(3,'reportes'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
 /*!40000 ALTER TABLE `rol_modulo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -4591,23 +4599,26 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_abrir_caja` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_abrir_caja`(
-    IN  p_id_usuario    INT UNSIGNED,
-    IN  p_monto_inicial DECIMAL(14,2),
-    IN  p_id_sucursal   INT UNSIGNED,
-    OUT p_id_caja       INT UNSIGNED)
+  IN  p_id_usuario  INT UNSIGNED,
+  IN  p_monto       DECIMAL(14,2),
+  IN  p_id_sucursal INT UNSIGNED,
+  IN  p_observacion VARCHAR(255),
+  OUT p_id_caja     INT UNSIGNED
+)
 BEGIN
-  INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
-  VALUES (p_id_usuario, p_id_sucursal, 1, p_monto_inicial);
+  INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, fecha_apertura,
+                    monto_inicial, observacion_apertura)
+  VALUES (p_id_usuario, p_id_sucursal, 1, NOW(), p_monto, NULLIF(TRIM(COALESCE(p_observacion,'')), ''));
   SET p_id_caja = LAST_INSERT_ID();
 END ;;
 DELIMITER ;
@@ -4930,16 +4941,15 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cerrar_caja`(
-  IN p_id_caja        INT UNSIGNED,
-  IN p_monto_contado  DECIMAL(14,2),
-  IN p_id_usuario     INT UNSIGNED
+  IN p_id_caja       INT UNSIGNED,
+  IN p_monto_contado DECIMAL(14,2),
+  IN p_id_usuario    INT UNSIGNED,
+  IN p_observacion   VARCHAR(255),
+  IN p_motivo        VARCHAR(255)
 )
 BEGIN
   DECLARE v_estado INT UNSIGNED DEFAULT NULL;
 
-  
-  
-  
   SELECT id_estado_caja INTO v_estado FROM caja WHERE id_caja = p_id_caja FOR UPDATE;
 
   IF v_estado IS NULL THEN
@@ -4950,10 +4960,12 @@ BEGIN
   END IF;
 
   UPDATE caja
-     SET id_estado_caja    = 2,
-         fecha_cierre      = NOW(),
-         monto_contado     = p_monto_contado,
-         id_usuario_cierre = p_id_usuario
+     SET id_estado_caja      = 2,
+         fecha_cierre        = NOW(),
+         monto_contado       = p_monto_contado,
+         id_usuario_cierre   = p_id_usuario,
+         observacion_cierre  = NULLIF(TRIM(COALESCE(p_observacion,'')), ''),
+         motivo_diferencia   = NULLIF(TRIM(COALESCE(p_motivo,'')), '')
    WHERE id_caja = p_id_caja;
 END ;;
 DELIMITER ;

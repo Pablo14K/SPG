@@ -126,6 +126,20 @@ class PortalController extends Controller
             'sucursales' => $sucursales,
             'sucursal' => $elegida,
             'profs' => $elegida ? Agenda::profesionales($elegida) : [],
+            // **Qué hace cada profesional, a la vista.** `usuario_servicio`
+            // existe desde la 7.42.0 y sólo la miraba la validación: la
+            // clienta elegía a ciegas y se enteraba al guardar de que esa
+            // persona no hace ese servicio. Con el criterio permisivo de
+            // siempre: quien no tiene ninguno cargado los hace todos.
+            'haceCada' => $elegida ? DB::select(
+                "SELECT u.id_usuario,
+                        COALESCE(GROUP_CONCAT(s.nombre ORDER BY s.nombre SEPARATOR ' · '), '') AS servicios
+                   FROM usuario u
+                   LEFT JOIN usuario_servicio us ON us.id_usuario = u.id_usuario
+                   LEFT JOIN servicio s ON s.id_servicio = us.id_servicio AND s.activo = 1
+                  WHERE u.activo = 1
+                  GROUP BY u.id_usuario"
+            ) : [],
             // Sólo los servicios que ESE local publica. El catálogo es único
             // —«Corte de dama» es un servicio con un precio— y cada sucursal
             // marca cuáles ofrece, en `servicio_sucursal`.
@@ -246,6 +260,19 @@ class PortalController extends Controller
         }
         $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
 
+        // **La clienta tampoco puede pisarse a sí misma.** La agenda cuidaba
+        // al profesional y nada impedía reservar dos servicios a la misma hora
+        // con gente distinta: el día de la cita hay que estar en dos sillones.
+        //
+        // Reservar PARA OTRA PERSONA sí puede superponerse —son dos personas—
+        // y es lo que la casilla del formulario declara.
+        $paraOtro = (bool) $request->input('para_otra_persona', 0);
+        if ($choque = Agenda::citaDelClienteSePisa($idc, $fecha, $dur, 0, $paraOtro)) {
+            flash($choque, 'error');
+
+            return $volver;
+        }
+
         try {
             $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null);
 
@@ -253,6 +280,20 @@ class PortalController extends Controller
             // servicio va **a cero** en el comprobante. Se comprueban contra
             // SU id de cliente, no contra el formulario: si no, cambiando un
             // campo oculto se gastaría el canje de otra persona.
+            // Para quién es y cuántas van. `sp_agendar_cita` no los recibe:
+            // son datos del pedido, no de la disponibilidad — el sillón se
+            // ocupa lo mismo, y meterlos en el procedimiento obligaría a
+            // cambiar su firma para algo que no decide nada.
+            $personas = max(1, min(20, (int) $request->input('personas', 1)));
+            $nombrePara = trim((string) $request->input('nombre_para', ''));
+            if ($paraOtro && $nombrePara === '') {
+                $paraOtro = false;   // sin nombre no es «para otra persona»
+            }
+            DB::update(
+                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
+                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
+            );
+
             $usados = Canje::aplicarACita((array) $request->input('canjes', []), $idCita, $idc);
 
             // **Si los servicios piden seña, la reserva no termina acá.**
@@ -823,6 +864,31 @@ class PortalController extends Controller
                    JOIN producto p ON p.id_producto = pu.id_producto
                    JOIN servicio_realizado sr ON sr.id_servicio_realizado = pu.id_servicio_realizado
                   WHERE sr.id_cita = ? ORDER BY p.nombre', [$idCita]
+            ),
+            // **Lo que puede pedir: lo que SUS profesionales hacen en ESTE
+            // local.** El pedido era un texto libre, así que la clienta podía
+            // pedir algo que en esa sucursal no se ofrece o que ninguna de las
+            // personas que la está atendiendo hace — y el «no» llegaba después,
+            // en el sillón. Con la lista, lo que aparece es lo que se le puede
+            // dar.
+            //
+            // `usuario_servicio` vale con el criterio permisivo de siempre:
+            // quien no tiene ninguno cargado los hace todos.
+            'puedePedir' => DB::select(
+                'SELECT DISTINCT s.id_servicio, s.nombre, s.precio, s.duracion_min
+                   FROM servicio s
+                   JOIN servicio_sucursal ss ON ss.id_servicio = s.id_servicio
+                                            AND ss.id_sucursal = ?
+                  WHERE s.activo = 1
+                    AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
+                                     WHERE cs.id_cita = ? AND cs.id_servicio = s.id_servicio)
+                    AND EXISTS (
+                        SELECT 1 FROM cita_servicio cs2
+                         WHERE cs2.id_cita = ?
+                           AND fn_usuario_hace_servicio(COALESCE(cs2.id_usuario, ?), s.id_servicio) = 1
+                    )
+                  ORDER BY s.nombre',
+                [(int) $cita->id_sucursal, $idCita, $idCita, (int) $cita->id_usuario]
             ),
             'total' => $total,
             'sena' => $sena,

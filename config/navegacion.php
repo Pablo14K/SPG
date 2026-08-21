@@ -29,11 +29,13 @@ return [
         ['mod' => 'inventario',    'ruta' => 'inventario.index',    'ic' => 'box-seam',       'titulo' => 'Inventario',         'sub' => 'Productos · Categorías · Stock · Compras'],
         ['mod' => 'facturacion',   'ruta' => 'facturacion.index',   'ic' => 'cash-stack',     'titulo' => 'Tesorería', 'sub' => 'Cobros · Facturas · Caja · Timbrados'],
         ['mod' => 'reportes',      'ruta' => 'reportes.index',      'ic' => 'bar-chart',      'titulo' => 'Reportes',           'sub' => 'Servicios top · Demanda · Ingresos'],
-        // Seguridad es Personal + Configuración en una sola tarjeta: quién es
-        // quién, qué puede hacer cada uno y qué quedó registrado. Conserva el
-        // fondo oscuro que tenía Configuración, que la separa de la operación
-        // diaria del salón.
-        ['mod' => 'seguridad',     'ruta' => 'seguridad.index',     'ic' => 'shield-lock',    'titulo' => 'Seguridad',          'sub' => 'Usuarios · Roles · Turnos · Asistencia · Auditoría', 'dark' => true],
+        // **Seguridad se partió en tres**, por pedido del usuario. Cada una
+        // contesta una pregunta distinta y juntas obligaban a buscar los
+        // turnos en el mismo lugar que la auditoría. Las tres conservan el
+        // fondo oscuro, que las separa de la operación diaria del salón.
+        ['mod' => 'personal',      'ruta' => 'seguridad.personal.index',      'ic' => 'person-badge',   'titulo' => 'Personal',           'sub' => 'Turnos · Asistencia · Comisiones', 'dark' => true],
+        ['mod' => 'seguridad',     'ruta' => 'seguridad.index',     'ic' => 'shield-lock',    'titulo' => 'Seguridad',          'sub' => 'Usuarios · Roles · Auditoría', 'dark' => true],
+        ['mod' => 'configuracion', 'ruta' => 'seguridad.configuracion.index', 'ic' => 'sliders',        'titulo' => 'Configuración',      'sub' => 'Mi cuenta · Sucursales · Contacto', 'dark' => true],
     ],
 
     // -----------------------------------------------------------------
@@ -82,11 +84,11 @@ return [
         'seguridad.usuarios'        => ['Usuarios',              'person-badge',       'seguridad.usuarios'],
         'seguridad.usuario_form'    => ['Nuevo usuario',         'person-plus',        'seguridad.usuarios', false],
         'seguridad.roles'           => ['Roles',                 'shield-check',       'seguridad.roles'],
-        'seguridad.turnos'          => ['Turnos',                'clock',              'seguridad.turnos'],
-        'seguridad.asistencia'      => ['Asistencia',            'calendar-check',     'seguridad.asistencia'],
-        'seguridad.comisiones'      => ['Comisiones',            'percent',            'seguridad.comisiones'],
-        'seguridad.sucursales'      => ['Sucursales',            'shop',               'seguridad.sucursales'],
-        'seguridad.contacto'        => ['Contacto y soporte',    'headset',            'seguridad.contacto'],
+        'seguridad.turnos'          => ['Turnos',                'clock',              'personal.turnos'],
+        'seguridad.asistencia'      => ['Asistencia',            'calendar-check',     'personal.asistencia'],
+        'seguridad.comisiones'      => ['Comisiones',            'percent',            'personal.comisiones'],
+        'seguridad.sucursales'      => ['Sucursales',            'shop',               'configuracion.sucursales'],
+        'seguridad.contacto'        => ['Contacto',                'headset',            'configuracion.contacto'],
         'seguridad.auditoria'       => ['Auditoría',             'journal-text',       'seguridad.auditoria'],
     ],
 

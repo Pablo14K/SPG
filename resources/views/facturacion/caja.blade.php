@@ -105,6 +105,22 @@
                         </div>
 
                         <div class="mt-2" id="arqueoDif" style="font-size:.9rem"></div>
+
+                        {{-- **El motivo sólo hace falta cuando no cuadra.** Pedirlo
+                             siempre haría escribir «ok» todos los días, y con eso
+                             deja de significar algo. El servidor lo exige cuando hay
+                             diferencia; acá el bloque aparece con ella. --}}
+                        <div class="mt-3" id="bloqueMotivo" style="display:none">
+                            <label class="form-label" for="motivoDif">¿A qué se debe la diferencia? *</label>
+                            <input class="form-control" id="motivoDif" name="motivo_diferencia" maxlength="255"
+                                   placeholder="Ej: se pagó un delivery sin cargar el movimiento">
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="form-label" for="obsCierre">Observación <span class="text-muted-warm">(opcional)</span></label>
+                            <input class="form-control" id="obsCierre" name="observacion" maxlength="255"
+                                   placeholder="Cómo terminó el día">
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
@@ -119,7 +135,7 @@
 
         {{-- Arqueo por medio: sin esto no se puede cuadrar la plata física --}}
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Arqueo por medio de pago</h2>
+            <h2 class="spg-form-titulo mb-2" id="arqueo"><i class="bi bi-cash-stack"></i> Arqueo por medio de pago</h2>
             @if ($porMedio)
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-2">
@@ -170,6 +186,11 @@
                                value="0" data-min="0" required>
                     </div>
                 </div>
+                <div style="min-width:230px">
+                    <label class="form-label" for="obsApertura">Observación <span class="text-muted-warm">(opcional)</span></label>
+                    <input class="form-control" id="obsApertura" name="observacion" maxlength="255"
+                           placeholder="Con qué se abre, si hubo algo raro">
+                </div>
                 <button class="btn btn-oro" data-confirmar="¿Abrir la caja?">
                     <i class="bi bi-unlock"></i> Abrir caja</button>
             </form>
@@ -177,7 +198,7 @@
     @endif
 
     <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Cajas anteriores</h2>
+        <h2 class="spg-form-titulo mb-2" id="historial"><i class="bi bi-clock-history"></i> Cajas anteriores</h2>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>

@@ -38,20 +38,37 @@ class FacturacionController extends Controller
     {
         return view('facturacion.index', [
             'subs' => Permisos::tarjetasPermitidas([
+                // **Cuatro grupos, no siete tarjetas sueltas.** Facturar,
+                // cobrar, administrar el cajón y pagar son cuatro trabajos
+                // distintos, y en una fila corrida no se ve qué va con qué.
                 ['p' => 'facturacion.facturas', 'ruta' => 'facturacion.facturas', 'ic' => 'receipt',
-                 't' => 'Facturas', 'd' => 'Comprobantes emitidos'],
-                ['p' => 'facturacion.cobros', 'ruta' => 'facturacion.cobros', 'ic' => 'cash-coin',
-                 't' => 'Cobros', 'd' => 'Pagos recibidos de clientes'],
-                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'safe',
-                 't' => 'Caja', 'd' => 'Apertura, cierre y arqueo'],
-                ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
-                 't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale del cajon sin ser un cobro ni un pago'],
-                ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
-                 't' => 'Pagos al personal', 'd' => 'Comisiones y liquidaciones'],
-                ['p' => 'facturacion.proveedores', 'ruta' => 'facturacion.proveedores', 'ic' => 'truck',
-                 't' => 'Pagos a proveedores', 'd' => 'Cuentas por pagar de compras'],
+                 't' => 'Facturas', 'd' => 'Comprobantes emitidos', 'grupo' => 'Facturación'],
                 ['p' => 'facturacion.timbrados', 'ruta' => 'facturacion.timbrados', 'ic' => 'file-earmark-text',
-                 't' => 'Timbrados', 'd' => 'Numeración de los comprobantes'],
+                 't' => 'Timbrados', 'd' => 'Numeración de los comprobantes', 'grupo' => 'Facturación'],
+
+                ['p' => 'facturacion.cobros', 'ruta' => 'facturacion.cobros', 'ic' => 'cash-coin',
+                 't' => 'Cobros', 'd' => 'Pagos recibidos de clientes', 'grupo' => 'Cobros'],
+
+                // Las tres primeras son secciones de la MISMA pantalla, no
+                // pantallas distintas: el ancla lleva directo a su bloque.
+                // Inventarles una ruta propia sería prometer profundidad que
+                // no existe.
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'safe',
+                 't' => 'Apertura y cierre', 'd' => 'Abrir el cajón del día y cerrarlo', 'grupo' => 'Caja'],
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'calculator',
+                 't' => 'Arqueo', 'd' => 'Contar el efectivo y ver si cuadra', 'grupo' => 'Caja',
+                 'ancla' => '#arqueo'],
+                ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
+                 't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
+                 'grupo' => 'Caja'],
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'clock-history',
+                 't' => 'Historial de caja', 'd' => 'Las cajas anteriores y su arqueo', 'grupo' => 'Caja',
+                 'ancla' => '#historial'],
+
+                ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
+                 't' => 'Pagos al profesional', 'd' => 'Comisiones y liquidaciones', 'grupo' => 'Pagos'],
+                ['p' => 'facturacion.proveedores', 'ruta' => 'facturacion.proveedores', 'ic' => 'truck',
+                 't' => 'Pagos a proveedores', 'd' => 'Cuentas por pagar de compras', 'grupo' => 'Pagos'],
             ]),
         ]);
     }
@@ -1912,7 +1929,8 @@ class FacturacionController extends Controller
         }
 
         try {
-            $idCaja = Caja::abrir((int) session('uid'), $monto);
+            $idCaja = Caja::abrir((int) session('uid'), $monto, null,
+                trim((string) $request->input('observacion', '')));
             Auditoria::registrar('CAJA_APERTURA', 'Facturacion', 'caja', $idCaja, 'Apertura con ' . money($monto));
             flash('Caja abierta con ' . money($monto) . '.');
         } catch (QueryException $e) {
@@ -1974,8 +1992,24 @@ class FacturacionController extends Controller
             return $volver;
         }
 
+        $obsCierre = trim((string) $request->input('observacion', ''));
+        $motivo = trim((string) $request->input('motivo_diferencia', ''));
+
+        // **Una diferencia sin motivo es un número y nada más.** Es lo único
+        // que convierte un faltante en algo sobre lo que se puede hacer algo:
+        // al día siguiente nadie se acuerda de qué pasó. Se pide sólo cuando
+        // la hay — obligarlo siempre haría escribir «ok» todos los días, que
+        // es peor que no pedirlo.
+        $difPrevia = $contado - (float) $caja->saldo;
+        if (abs($difPrevia) >= 0.01 && $motivo === '') {
+            flash('La caja no cuadra por ' . money(abs($difPrevia))
+                . '. Escribí a qué se debe antes de cerrar: mañana nadie se va a acordar.', 'error');
+
+            return $volver;
+        }
+
         try {
-            Caja::cerrar($id, $contado, (int) session('uid'));
+            Caja::cerrar($id, $contado, (int) session('uid'), $obsCierre, $motivo);
 
             // La diferencia se lee DESPUÉS de cerrar, que es cuando el conteo
             // ya está guardado; y se calcula, no se guarda.

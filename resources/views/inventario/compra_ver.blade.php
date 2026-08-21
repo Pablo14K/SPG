@@ -13,6 +13,34 @@
         </div>
     </div>
 
+    {{-- **El número de factura se puede cargar después.** El papel no siempre
+         llega con la mercadería: se recibe el pedido, se paga, y la factura
+         aparece días más tarde. Pidiéndolo sólo al registrar la compra, o se
+         inventaba uno o quedaba en blanco para siempre. --}}
+    <div class="spg-panel mb-3">
+        <form method="post" action="{{ route('inventario.compra.factura') }}"
+              class="d-flex gap-2 align-items-end flex-wrap">
+            @csrf
+            <input type="hidden" name="id_compra" value="{{ $compra->id_compra }}">
+            <div>
+                <label class="form-label mb-1" for="nroFac">
+                    <i class="bi bi-receipt"></i> Factura del proveedor
+                </label>
+                <input class="form-control form-control-sm" id="nroFac" name="nro_factura_proveedor"
+                       data-solo="documento" inputmode="numeric" maxlength="30"
+                       placeholder="001-001-0001234" style="min-width:200px"
+                       value="{{ $compra->nro_factura_proveedor }}">
+            </div>
+            <button class="btn btn-sm btn-rapido"><i class="bi bi-check-lg"></i>
+                {{ $compra->nro_factura_proveedor ? 'Corregir' : 'Anotar' }}</button>
+            @unless ($compra->nro_factura_proveedor)
+                <span class="text-muted-warm" style="font-size:.82rem">
+                    Todavía sin factura: anotala cuando el proveedor la entregue.
+                </span>
+            @endunless
+        </form>
+    </div>
+
     <div class="spg-metrics mb-3">
         <div class="spg-metric">
             <div class="lbl">Total</div>

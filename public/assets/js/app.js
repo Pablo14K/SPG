@@ -1241,3 +1241,34 @@ window.SPGCarga = (function () {
     });
   });
 })();
+
+// El motivo de la diferencia aparece cuando hay diferencia: pedirlo siempre
+// haría escribir «ok» todos los días y con eso deja de significar algo.
+(function () {
+  var dif = document.getElementById('arqueoDif'),
+      bloque = document.getElementById('bloqueMotivo');
+  if (!dif || !bloque) return;
+
+  new MutationObserver(function () {
+    var hay = /Sobran|Faltan/.test(dif.textContent || '');
+    bloque.style.display = hay ? '' : 'none';
+    var campo = bloque.querySelector('input');
+    if (campo) { campo.required = hay; if (!hay) { campo.value = ''; } }
+  }).observe(dif, { childList: true, characterData: true, subtree: true });
+})();
+
+// «¿Para quién?» aparece con la casilla de «la cita es para otra persona»:
+// preguntarlo siempre sería pedir un dato que casi nunca hace falta.
+(function () {
+  var chk = document.getElementById('paraOtro'),
+      bloque = document.getElementById('bloqueParaQuien');
+  if (!chk || !bloque) return;
+
+  function reflejar() {
+    bloque.style.display = chk.checked ? '' : 'none';
+    var campo = bloque.querySelector('input');
+    if (campo) { campo.required = chk.checked; if (!chk.checked) { campo.value = ''; } }
+  }
+  chk.addEventListener('change', reflejar);
+  reflejar();
+})();

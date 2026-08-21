@@ -3,6 +3,9 @@
 @section('titulo', 'Reportes')
 
 @section('contenido')
+{{-- `spg-reporte` le da a las tablas del informe el aire que una lista de
+     operación no necesita: acá los números se comparan entre sí. --}}
+<div class="spg-reporte">
     <x-encabezado
         :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'"
         :accion="['ruta' => 'reportes.imprimir', 't' => 'Ver para imprimir', 'ic' => 'printer']" />
@@ -60,29 +63,60 @@
                  permisos (`data-marca-todo` en app.js): refleja lo que hay
                  marcado y prende o apaga todo de una. No lleva `name`, así que
                  no se envía. --}}
-            <div style="flex:1;min-width:260px">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label mb-0">Qué imprimir</label>
-                    <div class="form-check mb-0">
-                        <input class="form-check-input" type="checkbox" id="bloquesTodos"
-                               data-marca-todo="#listaBloques" checked>
-                        <label class="form-check-label" for="bloquesTodos" style="font-size:.82rem">Todo</label>
-                    </div>
-                </div>
-                <div id="listaBloques" class="d-flex flex-wrap gap-3 p-2 rounded"
-                     style="border:1px solid var(--gris-calido)">
-                    @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" type="checkbox" name="bloques[]"
-                                   value="{{ $clave }}" id="bl{{ $clave }}" checked>
-                            <label class="form-check-label" for="bl{{ $clave }}"
-                                   style="font-size:.85rem">{{ $nombre }}</label>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            <button class="btn btn-sm btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
+            {{-- **El botón abre el modal; la elección vive ahí.** Las diez
+                 casillas ocupaban media pantalla del filtro para algo que se
+                 usa al final, cuando ya se miró el informe. --}}
+            <button type="button" class="btn btn-sm btn-oro" data-bs-toggle="modal" data-bs-target="#modalImprimir">
+                <i class="bi bi-printer"></i> Imprimir
+            </button>
         </form>
+
+        {{-- El modal manda su propio formulario, y **arrastra el período y los
+             filtros que están puestos**: si no, el papel saldría de un rango
+             distinto al que se está mirando en pantalla. --}}
+        <div class="modal fade" id="modalImprimir" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form method="get" action="{{ route('reportes.imprimir') }}" class="modal-content" target="_blank">
+                    @foreach (request()->except(['bloques', 'page']) as $k => $v)
+                        @if (! is_array($v))
+                            <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                        @endif
+                    @endforeach
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="font-size:1rem">
+                            <i class="bi bi-printer"></i> ¿Qué querés imprimir?</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted-warm" style="font-size:.85rem">
+                            Sale con el período y los filtros que tenés puestos ahora.
+                            Si no marcás ninguno se imprime el informe entero.
+                        </p>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="bloquesTodos"
+                                   data-marca-todo="#listaBloques" checked>
+                            <label class="form-check-label fw-semibold" for="bloquesTodos">Todo</label>
+                        </div>
+
+                        <div id="listaBloques">
+                            @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="bloques[]"
+                                           value="{{ $clave }}" id="bl{{ $clave }}" checked>
+                                    <label class="form-check-label" for="bl{{ $clave }}">{{ $nombre }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="spg-metrics mb-3">
@@ -320,4 +354,5 @@
             </div>
         @endif
     </div>
+</div>
 @endsection

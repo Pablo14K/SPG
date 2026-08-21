@@ -1038,3 +1038,32 @@ html,body{max-width:100%;overflow-x:hidden;}
 @media (min-width: 480px) {
     .spg-suc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* --------------------------------------------------------------------
+   Reportes: que la información respire.
+
+   Las tablas del informe salían con el tamaño de una lista de operación
+   —donde importa ver muchas filas— y acá se leen de a poco: son números
+   que se comparan entre sí. Un poco más de aire y de cuerpo cambia
+   bastante cuánto cuesta leerlas.
+   -------------------------------------------------------------------- */
+.spg-reporte .table {
+    font-size: .92rem;
+}
+
+.spg-reporte .table th,
+.spg-reporte .table td {
+    padding: .55rem .7rem;
+    vertical-align: middle;
+}
+
+.spg-reporte h2 {
+    font-size: 1.02rem;
+    margin: 1.6rem 0 .6rem;
+}
+
+/* Los números en columna se comparan de un vistazo si comparten ancho. */
+.spg-reporte .table td.text-end,
+.spg-reporte .table th.text-end {
+    font-variant-numeric: tabular-nums;
+}

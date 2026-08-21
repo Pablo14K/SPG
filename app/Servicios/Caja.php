@@ -72,9 +72,11 @@ class Caja
      * cajón. La sucursal va como parámetro y no deducida de quien abre,
      * porque la misma persona puede estar asignada a varias.
      */
-    public static function abrir(int $idUsuario, float $montoInicial, ?int $idSucursal = null): int
+    public static function abrir(int $idUsuario, float $montoInicial, ?int $idSucursal = null,
+        string $observacion = ''): int
     {
-        $id = Bd::idDe('sp_abrir_caja', [$idUsuario, $montoInicial, $idSucursal ?? Sucursales::activa()]);
+        $id = Bd::idDe('sp_abrir_caja',
+            [$idUsuario, $montoInicial, $idSucursal ?? Sucursales::activa(), $observacion]);
         self::olvidar();
 
         return $id;
@@ -87,9 +89,10 @@ class Caja
      * sólo marcaba la caja como cerrada: el sistema sabía cuánto debería
      * haber y nunca preguntaba cuánto hay, así que no podía decir si cuadró.
      */
-    public static function cerrar(int $idCaja, float $contado, int $idUsuario): void
+    public static function cerrar(int $idCaja, float $contado, int $idUsuario,
+        string $observacion = '', string $motivo = ''): void
     {
-        Bd::procedimiento('sp_cerrar_caja', [$idCaja, $contado, $idUsuario]);
+        Bd::procedimiento('sp_cerrar_caja', [$idCaja, $contado, $idUsuario, $observacion, $motivo]);
         self::olvidar();
     }
 

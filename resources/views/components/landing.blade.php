@@ -20,15 +20,30 @@
     </div>
 </div>
 
-<div class="spg-cards">
-    @foreach ($subs as $s)
-        @php $url = Navegacion::url($s['ruta']); @endphp
-        @if ($url)
-            <a class="spg-card" href="{{ $url }}">
-                <div class="ic"><i class="bi bi-{{ $s['ic'] }}"></i></div>
-                <h3>{{ $s['t'] }}</h3>
-                <p>{{ $s['d'] }}</p>
-            </a>
-        @endif
-    @endforeach
-</div>
+@php
+    // **Las tarjetas se pueden agrupar.** Con siete sueltas —el caso de
+    // Tesorería— no se ve qué va con qué: facturar, cobrar, el cajón y pagar
+    // son cuatro trabajos distintos. Sin `grupo` se dibuja como siempre.
+    $porGrupo = [];
+    foreach ($subs as $s) {
+        $porGrupo[$s['grupo'] ?? ''][] = $s;
+    }
+@endphp
+
+@foreach ($porGrupo as $grupo => $tarjetas)
+    @if ($grupo !== '')
+        <h2 class="spg-form-titulo mt-3 mb-2">{{ $grupo }}</h2>
+    @endif
+    <div class="spg-cards">
+        @foreach ($tarjetas as $s)
+            @php $url = Navegacion::url($s['ruta']) . ($s['ancla'] ?? ''); @endphp
+            @if (Navegacion::url($s['ruta']))
+                <a class="spg-card" href="{{ $url }}">
+                    <div class="ic"><i class="bi bi-{{ $s['ic'] }}"></i></div>
+                    <h3>{{ $s['t'] }}</h3>
+                    <p>{{ $s['d'] }}</p>
+                </a>
+            @endif
+        @endforeach
+    </div>
+@endforeach

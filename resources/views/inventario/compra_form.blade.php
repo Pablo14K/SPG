@@ -132,7 +132,12 @@
                                            value="{{ $vCant[$i] ?? '' }}">
                                 </div>
                                 <div class="col-md-2">
-                                    <input class="form-control form-control-sm input-miles" name="precio[]"
+                                    {{-- **El precio viene del catálogo y se puede cambiar.**
+                                         Lo trae `app.js` al elegir un producto que ya
+                                         existe: es lo último que se le pagó al
+                                         proveedor, no un valor fijo. Un proveedor sube
+                                         los precios, así que el campo queda abierto. --}}
+                                    <input class="form-control form-control-sm input-miles precioProd" name="precio[]"
                                            data-min="0" placeholder="Precio" value="{{ $vPrecio[$i] ?? '' }}">
                                 </div>
                                 <div class="col-md-3">
@@ -147,9 +152,20 @@
                         @endfor
                     </div>
 
+                    {{-- **El total no estaba en ningún lado.** Se cargaban las
+                         filas y había que sumarlas de cabeza para saber si
+                         coincidía con la factura del proveedor: el error se
+                         descubría al pagar. --}}
+                    <div class="d-flex justify-content-end gap-3 mt-2"
+                         style="border-top:1px solid var(--gris-calido);padding-top:.6rem">
+                        <span class="text-muted-warm" id="compraLineas">0 renglones</span>
+                        <strong>Total: <span class="txt-oro" id="compraTotal">Gs. 0</span></strong>
+                    </div>
+
                     <datalist id="listaProductos">
                         @foreach ($productos as $p)
-                            <option value="{{ $p->nombre }}" data-id="{{ $p->id_producto }}"></option>
+                            <option value="{{ $p->nombre }}" data-id="{{ $p->id_producto }}"
+                                    data-precio="{{ $p->ultimo_precio !== null ? (int) $p->ultimo_precio : '' }}"></option>
                         @endforeach
                     </datalist>
 
@@ -286,20 +302,71 @@
 (function () {
     var lista = document.getElementById('listaProductos');
 
-    function idDe(nombre) {
-        var op = Array.prototype.find.call(lista.options, function (o) {
+    function opcionDe(nombre) {
+        return Array.prototype.find.call(lista.options, function (o) {
             return o.value.trim().toLowerCase() === nombre.trim().toLowerCase();
         });
+    }
+
+    function idDe(nombre) {
+        var op = opcionDe(nombre);
         return op ? op.dataset.id : 0;
     }
 
+    function miles(n) {
+        return (Math.round(n) || 0).toLocaleString('es-PY', { maximumFractionDigits: 0 });
+    }
+
+    function aNumero(v) {
+        return parseFloat((v || '0').replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    // **El total de la compra, mientras se carga.** Antes había que sumar las
+    // filas de cabeza para saber si coincidía con la factura del proveedor:
+    // el error se descubría recién al pagar.
+    function recalcular() {
+        var total = 0, renglones = 0;
+        document.querySelectorAll('.filaCompra').forEach(function (f) {
+            var c = aNumero(f.querySelector('[name="cantidad[]"]').value);
+            var pr = aNumero(f.querySelector('[name="precio[]"]').value);
+            if (c > 0 && pr > 0) { renglones++; }
+            total += c * pr;
+        });
+        var t = document.getElementById('compraTotal');
+        var l = document.getElementById('compraLineas');
+        if (t) { t.textContent = 'Gs. ' + miles(total); }
+        if (l) { l.textContent = renglones + (renglones === 1 ? ' renglón' : ' renglones'); }
+    }
+
     function enganchar(fila) {
-        var campo = fila.querySelector('.nombreProd'), oculto = fila.querySelector('.idProd');
-        campo.addEventListener('input', function () { oculto.value = idDe(campo.value); });
-        campo.addEventListener('change', function () { oculto.value = idDe(campo.value); });
+        var campo = fila.querySelector('.nombreProd'),
+            oculto = fila.querySelector('.idProd'),
+            precio = fila.querySelector('.precioProd');
+
+        function resolver() {
+            var op = opcionDe(campo.value);
+            oculto.value = op ? op.dataset.id : 0;
+
+            // **El precio del catálogo se trae, pero no se impone.** Es lo
+            // último que se le pagó a un proveedor, no un valor fijo: si el
+            // proveedor subió, lo que vale es la factura de hoy. Por eso sólo
+            // se completa cuando el campo está vacío — lo que ya se escribió
+            // no se pisa.
+            if (op && precio && precio.value.trim() === '' && op.dataset.precio) {
+                precio.value = miles(parseFloat(op.dataset.precio));
+            }
+            recalcular();
+        }
+
+        campo.addEventListener('input', resolver);
+        campo.addEventListener('change', resolver);
+        fila.querySelectorAll('[name="cantidad[]"], [name="precio[]"]').forEach(function (i) {
+            i.addEventListener('input', recalcular);
+        });
     }
 
     document.querySelectorAll('.filaCompra').forEach(enganchar);
+    recalcular();
 
     document.getElementById('masFilas').addEventListener('click', function () {
         var cont = document.getElementById('filasCompra');
@@ -307,6 +374,7 @@
         copia.querySelectorAll('input').forEach(function (i) { i.value = i.classList.contains('idProd') ? '0' : ''; });
         cont.appendChild(copia);
         enganchar(copia);
+        recalcular();
     });
 })();
 </script>

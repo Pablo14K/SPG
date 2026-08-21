@@ -53,6 +53,22 @@
                                             data-confirmar="¿{{ $s->activo ? 'Desactivar' : 'Activar' }} «{{ $s->nombre }}»?">
                                         <i class="bi bi-toggle-{{ $s->activo ? 'on' : 'off' }}"></i></button>
                                 </form>
+
+                                {{-- **Qué ve la clienta en ESTE local.** Sacarlo de
+                                     acá no lo da de baja en el salón: deja de
+                                     ofrecerse en esta sucursal y la clienta no lo
+                                     ve al reservar acá. Sólo tiene sentido con
+                                     más de un local. --}}
+                                @if ($varias)
+                                    <form method="post" action="{{ route('servicios.publicar') }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="id_servicio" value="{{ $s->id_servicio }}">
+                                        <input type="hidden" name="sacar" value="1">
+                                        <button class="btn btn-sm btn-outline-neutro" title="No ofrecerlo en esta sucursal"
+                                                data-confirmar="La clienta va a dejar de ver «{{ $s->nombre }}» al reservar en esta sucursal. En los otros locales sigue igual. ¿Seguimos?">
+                                            <i class="bi bi-shop-window"></i></button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

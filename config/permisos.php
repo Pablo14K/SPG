@@ -26,7 +26,14 @@ return [
         'inventario' => 'Inventario',
         'facturacion' => 'Tesorería',
         'reportes' => 'Reportes',
+        // Seguridad se partió en tres por pedido del usuario. Cada uno
+        // contesta una pregunta distinta: **quién entra y qué puede hacer**
+        // (Seguridad), **quién trabaja y cuándo** (Personal) y **cómo está
+        // armado el salón** (Configuración). Juntas obligaban a buscar los
+        // turnos en el mismo lugar que la auditoría.
         'seguridad' => 'Seguridad',
+        'personal' => 'Personal',
+        'configuracion' => 'Configuración',
     ],
 
     // Reportes no figura acá: es una sola pantalla y no se divide.
@@ -73,17 +80,24 @@ return [
             'facturacion.proveedores' => 'Pagos a proveedores',
             'facturacion.timbrados' => 'Timbrados',
         ],
-        // Seguridad junta lo que antes eran Personal y Configuración: quién es
-        // quién en el salón, qué puede hacer cada uno y qué quedó registrado.
+        // Quién entra y qué puede hacer. La creación de cuentas sigue siendo
+        // del Administrador por middleware, sin importar la matriz.
         'seguridad' => [
             'seguridad.usuarios' => 'Usuarios',
             'seguridad.roles' => 'Roles',
-            'seguridad.turnos' => 'Turnos',
-            'seguridad.asistencia' => 'Asistencia',
-            'seguridad.comisiones' => 'Comisiones',
-            'seguridad.sucursales' => 'Sucursales',
-            'seguridad.contacto' => 'Contacto y soporte',
             'seguridad.auditoria' => 'Auditoría',
+        ],
+        // Quién trabaja y cuándo. Es lo que el mostrador administra todos los
+        // días, y no tiene por qué venir junto con los roles ni la auditoría.
+        'personal' => [
+            'personal.turnos' => 'Turnos',
+            'personal.asistencia' => 'Asistencia',
+            'personal.comisiones' => 'Comisiones',
+        ],
+        // Cómo está armado el salón: los locales y por dónde lo contactan.
+        'configuracion' => [
+            'configuracion.sucursales' => 'Sucursales',
+            'configuracion.contacto' => 'Contacto',
         ],
     ],
 
@@ -102,19 +116,28 @@ return [
      * las sucursales, que nunca tuvo.
      */
     'equivalencias' => [
+        // --- De la 7.57.0: Seguridad se partió en tres ---------------------
+        //
+        // Lo guardado como `seguridad.turnos` tiene que seguir dando turnos.
+        // Sin esto el rol no da error: **pierde la pantalla en silencio**, que
+        // es la peor forma de romperlo — el Asistente administrativo se
+        // quedaba sin turnos ni asistencia al actualizar.
+        'seguridad.turnos' => ['personal.turnos'],
+        'seguridad.asistencia' => ['personal.asistencia'],
+        'seguridad.comisiones' => ['personal.comisiones'],
+        'seguridad.sucursales' => ['configuracion.sucursales'],
+        'seguridad.contacto' => ['configuracion.contacto'],
+
+        // --- De antes de la 6.2.0: Personal y Configuración eran módulos ---
+        //
+        // El módulo padre viejo se traduce a SUS submódulos, nunca al padre
+        // nuevo: traducir `personal` a `personal` a secas le regalaría hoy
+        // los roles y la auditoría a quien sólo administraba al personal.
         'personal' => [
-            'seguridad.usuarios', 'seguridad.turnos', 'seguridad.comisiones', 'seguridad.asistencia',
-        ],
-        'configuracion' => [
-            'seguridad.sucursales', 'seguridad.roles', 'seguridad.contacto', 'seguridad.auditoria',
+            'seguridad.usuarios', 'personal.turnos', 'personal.comisiones', 'personal.asistencia',
         ],
         'personal.usuarios' => ['seguridad.usuarios'],
-        'personal.turnos' => ['seguridad.turnos'],
-        'personal.comisiones' => ['seguridad.comisiones'],
-        'personal.asistencia' => ['seguridad.asistencia'],
-        'configuracion.sucursales' => ['seguridad.sucursales'],
         'configuracion.roles' => ['seguridad.roles'],
-        'configuracion.contacto' => ['seguridad.contacto'],
         'configuracion.auditoria' => ['seguridad.auditoria'],
     ],
 
