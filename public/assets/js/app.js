@@ -1095,3 +1095,39 @@ window.SPGCarga = (function () {
     if (vacio) vacio.style.display = n ? 'none' : '';
   });
 })();
+
+// ---------------------------------------------------------------------
+//  El combo del profesional aparece con su servicio.
+//
+//  Con quince servicios en pantalla había quince combos de «quien me
+//  atienda» colgando de servicios que la clienta no pidió. Es ruido que
+//  compite con lo único que hay que hacer ahí —marcar— y que además
+//  sugiere una decisión sobre algo que todavía no se eligió.
+//
+//  **Arranca visible en el HTML y lo esconde este archivo.** Si `app.js`
+//  no cargó se ven todos y la reserva sigue funcionando entera, elegir
+//  profesional incluido: misma regla que la salida de la huella y que el
+//  texto libre del combo de ciudad.
+// ---------------------------------------------------------------------
+(function () {
+  var combos = document.querySelectorAll('[data-prof-de]');
+  if (!combos.length) return;
+
+  combos.forEach(function (sel) {
+    var chk = document.querySelector(sel.getAttribute('data-prof-de'));
+    if (!chk) return;
+
+    function reflejar() {
+      // `display` y no el atributo `hidden`: Bootstrap le pone
+      // `display:block` a `.form-select` y le gana al estilo del navegador.
+      sel.style.display = chk.checked ? '' : 'none';
+    }
+
+    // **El canje marca su servicio solo y despacha `change`**, así que el
+    // combo también aparece cuando lo marcó el sistema y no la persona.
+    // El valor elegido se conserva al desmarcar: si vuelve a marcarlo,
+    // vuelve con su profesional puesto.
+    chk.addEventListener('change', reflejar);
+    reflejar();
+  });
+})();

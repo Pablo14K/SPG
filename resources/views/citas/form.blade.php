@@ -78,8 +78,10 @@
                                     </label>
                                 </div>
                                 @php $profSel = (int) (old('prof_servicio', [])[$s->id_servicio] ?? 0); @endphp
+                                {{-- El combo aparece con su servicio: ver `data-prof-de` en app.js --}}
                                 <select class="form-select form-select-sm" style="width:auto"
-                                        name="prof_servicio[{{ $s->id_servicio }}]">
+                                        name="prof_servicio[{{ $s->id_servicio }}]"
+                                        data-prof-de="#srv{{ $s->id_servicio }}">
                                     <option value="0">lo hace el principal</option>
                                     @foreach ($profs as $p)
                                         <option value="{{ $p->id_usuario }}"

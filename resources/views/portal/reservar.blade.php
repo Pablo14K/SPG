@@ -61,8 +61,12 @@
                                         · {{ money($s->precio) }} · {{ (int) $s->duracion_min }} min</span>
                                 </label>
                             </div>
+                            {{-- El combo aparece con su servicio: ver `data-prof-de` en app.js.
+                                 Arranca visible a propósito, así que sin JavaScript se ven todos
+                                 y se puede elegir profesional igual. --}}
                             <select class="form-select form-select-sm" style="width:auto"
-                                    name="prof_servicio[{{ $s->id_servicio }}]">
+                                    name="prof_servicio[{{ $s->id_servicio }}]"
+                                    data-prof-de="#srv{{ $s->id_servicio }}">
                                 <option value="0">quien me atienda</option>
                                 @foreach ($profs as $p)
                                     <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}</option>
