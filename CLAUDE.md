@@ -6,14 +6,14 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 > El sistema nació sin framework (PHP puro, front controller `index.php?r=…`) y se migró a
 > Laravel en la versión **6.0.0**, por pedido de la tutora. Aquella versión quedó archivada.
-> **La migración cambió la arquitectura, no las reglas**: las 55 rutinas de la base, los 17
+> **La migración cambió la arquitectura, no las reglas**: las 56 rutinas de la base, los 17
 > triggers y todo lo que este documento dice sobre facturación, caja, agenda, turnos y
 > permisos siguen valiendo igual, porque siguen viviendo donde siempre — en la base.
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **21 procedimientos, 34 funciones, 17 triggers y 17 vistas**,
-más **69 restricciones `CHECK`**.
+La base (`peluqueria_bd`) tiene **21 procedimientos, 35 funciones, 17 triggers y 17 vistas**,
+más **70 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.53.0 | 21/08/2026 | **Cerrar la caja era un botón; ahora es un arqueo.** El sistema sabía cuánto **debería** haber —`fn_caja_saldo` desde siempre— y **nunca preguntaba cuánto hay**, así que no podía decir si cuadraba: `sp_cerrar_caja` marcaba el estado y nada más. Un faltante se descubría al día siguiente, sin forma de saber de qué día venía ni a quién preguntarle. Entra el conteo: al cerrar se escribe **el efectivo que hay en el cajón**, y el sistema contesta **cuadra**, **sobran** o **faltan**. **Qué se guarda y qué no es la decisión de fondo**: `caja.monto_contado` **sí** —es un hecho observado, lo que alguien contó con la mano, y no se deduce de ninguna otra fila— y `caja.id_usuario_cierre` también, porque quien cuenta puede no ser quien abrió y un arqueo sin responsable no sirve para pedir explicaciones. **La diferencia NO se guarda**: es `contado − esperado`, una columna derivada, y la regla número dos las prohíbe — la calcula `fn_caja_diferencia`, así que sigue siendo cierta si mañana se anula un movimiento de esa caja. La prueba lo comprueba en las dos direcciones: congelada al cerrar, falla. **Las dos columnas admiten NULL a propósito** y la pantalla dice «sin conteo» en vez de «Gs. 0»: un cero ahí se lee como «cuadró», que es justo lo que no se sabe de las cajas cerradas antes de esto. **El modal muestra el desglose completo** —saldo inicial, cobros en efectivo, otros ingresos, egresos, pagos a proveedores y liquidaciones— y **dice qué NO se cuenta**: lo cobrado por tarjeta o transferencia se registra igual pero va a la cuenta, así que contarlo haría que el arqueo nunca cierre. La diferencia se ve **mientras se escribe**, para que quien cuenta la vea antes de confirmar; la que vale es la de la base. **`sp_cerrar_caja` gana su candado**: dos cierres a la vez leían los dos «abierta» y el segundo pisaba el conteo del primero — el mismo patrón de FA-01, IN-01 y AG-04. **120 pruebas** · 35 funciones · 70 `CHECK`. Los dos `.sql` regenerados |
 | 7.52.1 | 21/08/2026 | **Dos cosas que se ven y no se sostienen: una cita atendida anunciada como próxima, y la barra de módulos impresa encima del comprobante.** **El panel era el único lugar del sistema que listaba los estados a mano** —«todos menos Cancelada y Ausente»— y la lista se quedó corta: **Atendida entraba**. Atender temprano es lo normal, así que a la clienta de las 11:30 atendida a las 11 el panel la seguía anunciando como pendiente, y con eso se decide si da tiempo de tomar otra. La regla ya vivía en la base y la usan la agenda, el portal, los recordatorios y la reasignación: **`estado_cita.bloquea_agenda`** es exactamente «esta cita todavía ocupa el sillón». Escrita una sola vez no se puede volver a quedar corta al agregar un estado, que es lo que pasó cuando entró Atrasada en la 7.15.0. **Y el comprobante salía impreso con la navegación encima**: `@media print` escondía la barra superior y el pie desde siempre, pero **nunca `.spg-nav`**, así que en la hoja aparecían «Panel · Citas · Clientes · Tesorería» y los enlaces del desplegable — que en pantalla el hover mantiene ocultos y al imprimir se dibujan todos. Entran también las migas, que en papel no sirven. **De paso el comprobante toma la cabecera del KuDE**, para que los dos papeles del salón se lean como del mismo sistema: el nombre del **salón** arriba —decía el de la sucursal—, el local nombrado abajo y la actividad económica. **Lo que NO se copia son las leyendas de la DNIT** —el CDC, el QR, «representación gráfica de un documento electrónico»—: el Comprobante de pago no se declara, y ponérselas lo haría pasar por algo que no es. Y **el emisor sale del local de la factura**, no del timbrado: desde la 7.49.0 no se deduce de ahí, porque un local sin timbrado propio numera con el de otra sede. **119 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.52.0 | 21/08/2026 | **El comprobante electrónico salía a nombre de otra empresa.** El KuDE que la clienta recibe imprimía **«MI EMPRESA S.A.», RUC 80012345-6, actividad «VENTA AL POR MENOR»** y timbrado 12345678: los datos del archivo de ejemplo del Automatizador. El emisor **nunca viajaba con la factura** —el TXT llevaba la cabecera, el cliente y los renglones, nada más— así que el otro proyecto lo sacaba de su `.env`. Y ese RUC **tiene el dígito verificador mal**: para 80012345 el verificador es 0, o sea el rechazo 1309 de la DNIT, el mismo que el SPG valida desde la 7.5.0 en el formulario del receptor. **No se arregla cargando ese archivo una vez**, que era la salida fácil: el emisor cambia con la sucursal — la dirección y el timbrado son los del local que atendió, igual que el establecimiento del número impreso (7.37.0). Entra el registro **`EMI|`** en el TXT, con razón social, RUC y DV separados, dirección, ciudad, contacto, actividad, el timbrado con su vigencia y el nombre del local. **El DV se recalcula, no se copia**: el RUC se tipea a mano en la ficha de la sucursal y uno mal escrito ahí saldría impreso en cada comprobante. **Es opcional y esa es la gracia**: un TXT sin esa línea sigue usando el `.env`, así que nada viejo se rompe. **Y el tipo de transacción pasa a ser el que corresponde**: estaba fijo en `1`, «venta de mercadería», y un salón presta servicios — va impreso **y** dentro del XML que ve la DNIT, en `iTipTra` (D011). **El diseño del KuDE es libre y ahora es el del salón**: el capítulo 13 del Manual Técnico fija qué datos tienen que estar, no cómo se ven. La banda azul del título pasa al **oro sobre negro** —8,5:1, la misma combinación de los botones principales; blanco sobre ese oro daba 2,1:1 y no se lee— y los fondos grises y verdes pasan al blanco hueso. **El oro va sólo en dos lugares**, que es la regla de siempre. Sale el pie «Servicio provisto por PG and RJ»: un comprobante fiscal lo emite el salón. **Tres rótulos decían mal lo que mostraban**: «RUC / Documento» sobre una cédula —son cosas distintas, el RUC lleva verificador—, la moneda escrita a mano y el número de casa del `.env` pegado a una dirección ajena, que daba «Avda. Gral. Aquino 1250 N° 123». Y el KuDE **nombra la sucursal**, que con varias sedes no se deduce de tres dígitos. La actividad y el correo fiscal se cargan en **Seguridad → Sucursales**, con el nombre y el logo: sin pantalla serían un `UPDATE` a mano, que es lo mismo que no tenerlos. **118 pruebas**, una nueva comprobada en las dos direcciones —copiando el DV en vez de calcularlo, falla— y dos viejas actualizadas al contrato nuevo sin aflojar lo que miden. Los dos `.sql` regenerados |
 | 7.51.0 | 21/08/2026 | **El combo del profesional aparece con su servicio.** Con quince servicios en pantalla había quince combos de «quien me atienda» colgando de servicios que la clienta no pidió: ruido que compite con lo único que hay que hacer ahí —marcar— y que además propone una decisión sobre algo que todavía no se eligió. Va en las dos pantallas que reservan, el portal y Nueva cita. **El valor se conserva al desmarcar**: si vuelve a marcar el servicio, vuelve con su profesional puesto. **Y el canje sigue funcionando**, que era lo que podía romperse: marca su servicio solo y **despacha `change`**, así que el combo aparece también cuando lo marcó el sistema y no la persona. Como siempre, **arranca visible en el HTML y lo esconde el JS**: sin `app.js` se ven todos y se puede elegir profesional igual |
@@ -403,7 +404,7 @@ routes/
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 119 pruebas
+tests/Feature/             Las 120 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2160,6 +2161,49 @@ físico y el movimiento total: `cobros_efectivo` / `cobros_otros` / `cobros`,
 > por el mismo camino. `movimiento_caja` es además la tabla que **no escribía nadie**: cero
 > filas en toda la simulación, aunque `fn_caja_saldo` ya la restaba.
 
+### El arqueo: contar la plata y comparar
+
+**`fn_caja_saldo` dice cuánto DEBERÍA haber; el arqueo pregunta cuánto HAY.**
+Hasta la 7.53.0 sólo existía lo primero, así que cerrar la caja era marcar un
+estado: el sistema no podía decir si cuadraba, y un faltante se descubría al
+día siguiente sin saber de qué día venía.
+
+```
+Saldo esperado = monto_inicial + cobros EFECTIVO + otros_ingresos
+                 − egresos − pagos_proveedor EFECTIVO − pagos_personal EFECTIVO
+Diferencia     = monto_contado − Saldo esperado        (+ sobra · − falta)
+```
+
+| Qué | Dónde | ¿Se guarda? |
+|---|---|---|
+| Dinero contado | `caja.monto_contado` | **sí** — es un hecho observado, no se deduce de nada |
+| Quién hizo el arqueo | `caja.id_usuario_cierre` | **sí** — puede no ser quien abrió |
+| Fecha y hora | `caja.fecha_cierre` | sí, desde siempre |
+| **Diferencia** | `fn_caja_diferencia(id)` | **NO: se calcula** |
+
+> **La diferencia no se guarda y eso no es un detalle.** Es `contado −
+> esperado`, o sea una columna derivada, y la regla número dos las prohíbe: el
+> día que se anule un movimiento viejo de esa caja, el valor guardado y el real
+> se separarían **en silencio**. Lo fija
+> `ReglasDeNegocioTest::el_arqueo_compara_lo_contado_con_lo_esperado`, que
+> después de cerrar carga un egreso y exige que la diferencia lo siga.
+
+Tres cosas al tocarlo:
+
+- **NULL no es cero.** Las cajas cerradas antes de que esto existiera no tienen
+  conteo, y un 0 sería indistinguible de un arqueo que dio exacto. La pantalla
+  dice «sin conteo».
+- **Menos de un guaraní es cuadrar.** La columna tiene dos decimales; comparar
+  contra 0 exacto haría saltar un redondeo como faltante.
+- **Lo que no está en el cajón no se cuenta**, y la pantalla lo dice: lo cobrado
+  por tarjeta o transferencia se registra igual pero va a la cuenta del salón.
+
+> **Ojo con la clase «Faltante de caja» de `movimiento_caja`.** Sigue
+> existiendo y sirve para lo que aparece **durante** el día; un faltante
+> cargado así **ya bajó el saldo esperado**, así que al cerrar no vuelve a
+> aparecer como diferencia. Las dos formas conviven, pero no hay que cargar la
+> misma plata por los dos lados.
+
 **Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
 
@@ -2395,7 +2439,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 34 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 35 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -2568,10 +2612,10 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 119 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 120 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
-> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 55 rutinas y sus 17
+> **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 56 rutinas y sus 17
 > triggers. Las pruebas que escriben usan `DatabaseTransactions`, que revierte al terminar.
 > La única que no puede usarlo es `ConcurrenciaAgendaTest`, porque mide justamente qué ven
 > entre sí varias conexiones: esa limpia a mano en `tearDown()`.
@@ -2590,8 +2634,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 34 funciones,
-   17 triggers, 17 vistas y 69 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 35 funciones,
+   17 triggers, 17 vistas y 70 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -2628,7 +2672,7 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**119 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**120 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
@@ -2642,7 +2686,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 
 Seis cosas que hay que saber antes de tocarlas:
 
-- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 55 rutinas. Las que escriben usan
+- **Nunca `RefreshDatabase`.** Borraría el esquema con sus 56 rutinas. Las que escriben usan
   `DatabaseTransactions`.
 - **`ConcurrenciaAgendaTest` no puede correr dentro de una transacción**, porque mide qué ven
   entre sí conexiones distintas. Limpia a mano en `tearDown()`, con

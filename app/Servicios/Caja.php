@@ -80,10 +80,31 @@ class Caja
         return $id;
     }
 
-    public static function cerrar(int $idCaja): void
+    /**
+     * Cierra la caja con el arqueo: cuánto se contó y quién lo contó.
+     *
+     * **El conteo es lo que convierte el cierre en un arqueo.** Antes esto
+     * sólo marcaba la caja como cerrada: el sistema sabía cuánto debería
+     * haber y nunca preguntaba cuánto hay, así que no podía decir si cuadró.
+     */
+    public static function cerrar(int $idCaja, float $contado, int $idUsuario): void
     {
-        Bd::procedimiento('sp_cerrar_caja', [$idCaja]);
+        Bd::procedimiento('sp_cerrar_caja', [$idCaja, $contado, $idUsuario]);
         self::olvidar();
+    }
+
+    /**
+     * Sobrante (+) o faltante (−) de un arqueo. NULL si no se contó.
+     *
+     * **No se guarda: se calcula.** Es `contado − esperado`, o sea una
+     * columna derivada, y guardarla la dejaría separarse del valor real el
+     * día que se anule un movimiento viejo — la regla número dos.
+     */
+    public static function diferencia(int $idCaja): ?float
+    {
+        $d = Bd::funcion('fn_caja_diferencia(?)', [$idCaja]);
+
+        return $d === null ? null : (float) $d;
     }
 
     /** Cuánto efectivo hay ahora mismo en el cajón. */

@@ -3785,4 +3785,84 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertFalse($enElPanel(),
             'Ya atendida, aunque su hora no haya llegado, deja de ser una cita próxima.');
     }
+    /**
+     * El arqueo dice si la caja cuadra, sobra o falta.
+     *
+     * **Cerrar la caja era un botón, no un arqueo.** `sp_cerrar_caja` sólo
+     * marcaba el estado: el sistema sabía cuánto DEBERÍA haber —`fn_caja_saldo`—
+     * y nunca preguntaba cuánto HAY, así que no podía decir si cuadró. Un
+     * faltante se descubría al día siguiente y sin saber de qué día venía.
+     *
+     * La diferencia **no se guarda**: es `contado − esperado`, una columna
+     * derivada, y la regla número dos las prohíbe. La calcula
+     * `fn_caja_diferencia`, y por eso sigue siendo cierta si mañana se anula
+     * un movimiento de esa caja.
+     */
+    #[Test]
+    public function el_arqueo_compara_lo_contado_con_lo_esperado(): void
+    {
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 LIMIT 1'
+        );
+
+        // Se cierran las que haya para poder abrir una limpia: el disparador
+        // admite una sola abierta por local. `DatabaseTransactions` revierte.
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
+                     WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
+
+        $abrir = function (float $inicial) use ($uid, $suc): int {
+            $id = Bd::idDe('sp_abrir_caja', [$uid, $inicial, $suc]);
+
+            return (int) $id;
+        };
+
+        // --- 1. Cuadra: se cuenta exactamente lo esperado -----------------
+        $id = $abrir(200000.0);
+        $esperado = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$id]);
+        $this->assertSame(200000.0, $esperado, 'Recién abierta, lo esperado es el monto inicial.');
+
+        Caja::cerrar($id, $esperado, $uid);
+        $this->assertSame(0.0, (float) Caja::diferencia($id), 'Contar lo esperado tiene que dar cero.');
+        $this->assertSame($uid, (int) DB::scalar('SELECT id_usuario_cierre FROM caja WHERE id_caja = ?', [$id]),
+            'El arqueo guarda quién lo hizo: sin responsable no se le puede pedir explicaciones a nadie.');
+
+        // --- 2. Falta plata ----------------------------------------------
+        $id = $abrir(200000.0);
+        Caja::cerrar($id, 180000.0, $uid);
+        $this->assertSame(-20000.0, (float) Caja::diferencia($id), 'Contar de menos es un faltante, en negativo.');
+
+        // --- 3. Sobra plata ----------------------------------------------
+        $id = $abrir(200000.0);
+        Caja::cerrar($id, 215000.0, $uid);
+        $this->assertSame(15000.0, (float) Caja::diferencia($id), 'Contar de más es un sobrante, en positivo.');
+
+        // --- 4. Una caja sin conteo no dice que cuadró --------------------
+        //
+        // Es la trampa que hace falta evitar: un 0 por defecto sería
+        // indistinguible de un arqueo que dio exacto, y las cajas cerradas
+        // antes de que esto existiera no tienen conteo.
+        $id = $abrir(200000.0);
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_caja = ?', [$id]);
+        $this->assertNull(Caja::diferencia($id),
+            'Sin conteo la diferencia es NULL, no cero: cero significa que cuadró.');
+
+        // --- 5. La diferencia SE CALCULA, no se guarda --------------------
+        //
+        // Si estuviera guardada, mover la plata de esa caja después del cierre
+        // la dejaría diciendo lo de antes. Acá tiene que seguirla.
+        $id = $abrir(200000.0);
+        Caja::cerrar($id, 200000.0, $uid);
+        $this->assertSame(0.0, (float) Caja::diferencia($id));
+
+        $tipo = (int) DB::scalar(
+            "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE signo = 'S' AND activo = 1 LIMIT 1"
+        );
+        DB::insert('INSERT INTO movimiento_caja (id_caja, id_tipo_mov_caja, tipo, monto, concepto, id_usuario)
+                    VALUES (?, ?, ?, ?, ?, ?)', [$id, $tipo, 'EGRESO', 30000, 'gasto que aparecio despues', $uid]);
+
+        $this->assertSame(30000.0, (float) Caja::diferencia($id),
+            'Al bajar lo esperado en 30.000, lo contado pasa a sobrar por 30.000: la diferencia sigue al saldo.');
+    }
 }

@@ -1951,15 +1951,63 @@ class FacturacionController extends Controller
             return $volver;
         }
 
+        // **Sin conteo no hay arqueo.** El campo es obligatorio en la pantalla
+        // aunque la columna admita NULL: eso último es para las cajas que se
+        // cerraron antes de que esto existiera, donde un 0 sería mentir —no se
+        // distinguiría de un arqueo que cuadró exacto.
+        if (trim((string) $request->input('monto_contado', '')) === '') {
+            flash('Contá el efectivo del cajón y escribí cuánto hay: eso es el arqueo.', 'error');
+
+            return $volver;
+        }
+
+        $contado = num($request->input('monto_contado'));
+        if ($contado < 0) {
+            flash('El dinero contado no puede ser negativo.', 'error');
+
+            return $volver;
+        }
+
         try {
-            Caja::cerrar($id);
-            Auditoria::registrar('CAJA_CIERRE', 'Facturacion', 'caja', $id, 'Cierre con saldo ' . money($caja->saldo));
-            flash('Caja cerrada. Saldo final: ' . money($caja->saldo) . '.');
-        } catch (Throwable) {
-            flash('No se pudo cerrar la caja.', 'error');
+            Caja::cerrar($id, $contado, (int) session('uid'));
+
+            // La diferencia se lee DESPUÉS de cerrar, que es cuando el conteo
+            // ya está guardado; y se calcula, no se guarda.
+            $dif = Caja::diferencia($id);
+            $detalle = 'Esperado ' . money($caja->saldo) . ' · contado ' . money($contado)
+                . ' · ' . self::textoDiferencia($dif);
+            Auditoria::registrar('CAJA_CIERRE', 'Facturacion', 'caja', $id, $detalle);
+
+            // **El aviso dice si cuadró, que es lo único que se quiere saber.**
+            flash('Caja cerrada. ' . $detalle, ($dif !== null && abs($dif) >= 0.01) ? 'warning' : 'exito');
+        } catch (QueryException $e) {
+            flash(Bd::traducir($e, [
+                'ya estaba cerrada' => 'Otra persona la cerró recién.',
+            ], 'No se pudo cerrar la caja. El detalle quedó registrado.'), 'warning');
+            Log::error('No se pudo cerrar la caja', ['error' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            flash('No se pudo cerrar la caja. El detalle quedó registrado.', 'error');
+            Log::error('No se pudo cerrar la caja', ['error' => $e->getMessage()]);
         }
 
         return $volver;
+    }
+
+    /** Cómo se nombra un sobrante, un faltante o un arqueo que cuadró. */
+    private static function textoDiferencia(?float $dif): string
+    {
+        if ($dif === null) {
+            return 'sin conteo';
+        }
+        // Menos de un guaraní es cuadrar: la columna tiene dos decimales y
+        // comparar contra 0 exacto haría saltar un redondeo como faltante.
+        if (abs($dif) < 0.01) {
+            return 'la caja cuadra';
+        }
+
+        return $dif > 0
+            ? 'SOBRAN ' . money($dif)
+            : 'FALTAN ' . money(abs($dif));
     }
 
     // -----------------------------------------------------------------

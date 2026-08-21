@@ -141,14 +141,19 @@ CREATE TABLE `caja` (
   `fecha_apertura` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_cierre` datetime DEFAULT NULL,
   `monto_inicial` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `monto_contado` decimal(14,2) DEFAULT NULL,
+  `id_usuario_cierre` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id_caja`),
   KEY `idx_caja_usuario` (`id_usuario`),
   KEY `idx_caja_estado` (`id_estado_caja`),
   KEY `fk_caja_sucursal` (`id_sucursal`),
+  KEY `fk_caja_cierre` (`id_usuario_cierre`),
+  CONSTRAINT `fk_caja_cierre` FOREIGN KEY (`id_usuario_cierre`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `fk_caja_estado` FOREIGN KEY (`id_estado_caja`) REFERENCES `estado_caja` (`id_estado_caja`) ON UPDATE CASCADE,
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
-  CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0)
+  CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0),
+  CONSTRAINT `chk_caja_contado` CHECK (`monto_contado` is null or `monto_contado` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -535,7 +540,7 @@ CREATE TABLE `cliente` (
   KEY `fk_clie_persona` (`id_persona`),
   CONSTRAINT `fk_clie_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cliente_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -544,7 +549,7 @@ CREATE TABLE `cliente` (
 
 LOCK TABLES `cliente` WRITE;
 /*!40000 ALTER TABLE `cliente` DISABLE KEYS */;
-INSERT INTO `cliente` VALUES (1,2,'2026-07-14 19:42:29',NULL,1,2);
+INSERT INTO `cliente` VALUES (1,2,'2026-07-14 19:42:29',NULL,1,2),(2,14,'2026-08-21 09:58:09',NULL,1,17),(3,15,'2026-08-21 10:49:35',NULL,1,18);
 /*!40000 ALTER TABLE `cliente` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2025,7 +2030,7 @@ CREATE TABLE `persona` (
   UNIQUE KEY `uq_persona_ruc` (`ruc`),
   KEY `idx_persona_nombre` (`apellido`,`nombre`),
   KEY `idx_persona_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2034,7 +2039,7 @@ CREATE TABLE `persona` (
 
 LOCK TABLES `persona` WRITE;
 /*!40000 ALTER TABLE `persona` DISABLE KEYS */;
-INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cacerespablo13m@gmail.com','Toribio ocampos',NULL,'2026-08-06 15:48:43'),(10,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-14 10:44:45'),(11,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 10:44:45'),(12,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-14 10:44:45'),(13,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(14,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(15,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(16,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45');
+INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cacerespablo13m@gmail.com','Toribio ocampos',NULL,'2026-08-06 15:48:43'),(10,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-14 10:44:45'),(11,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-14 10:44:45'),(12,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-14 10:44:45'),(13,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(14,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(15,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(16,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-14 10:44:45'),(17,'Noelia Belen','Villalba Marin','056135465130','056135465130','+595127364934','belenmarin506@gmail.com','Avd Nanawa','2002-12-26','2026-08-21 09:58:09'),(18,'Ana Leticia','Aquino Arrúa',NULL,'8767868-3','+595994763909','leticia.aquino.arrua@gmail.com','Toribio 21 Ocampos, Sold',NULL,'2026-08-21 10:49:34');
 /*!40000 ALTER TABLE `persona` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2115,7 +2120,7 @@ CREATE TABLE `preferencia_usuario` (
 
 LOCK TABLES `preferencia_usuario` WRITE;
 /*!40000 ALTER TABLE `preferencia_usuario` DISABLE KEYS */;
-INSERT INTO `preferencia_usuario` VALUES (1,'oscuro',0,1),(2,'claro',0,1),(12,'claro',0,1);
+INSERT INTO `preferencia_usuario` VALUES (1,'oscuro',0,1),(2,'claro',0,1),(10,'claro',0,1),(12,'claro',0,1);
 /*!40000 ALTER TABLE `preferencia_usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2404,7 +2409,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (1,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,1,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,1,'Coloración completa','Color de raíz a puntas',280000.00,120,10,1,1),(7,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,1,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,4,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
+INSERT INTO `servicio` VALUES (1,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,45,10,1,0),(2,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,30,10,1,0),(3,1,1,'Corte de niño','Hasta 12 años',40000.00,30,10,1,0),(4,4,1,'Brushing','Secado y modelado',60000.00,40,10,1,0),(5,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,60,10,1,0),(6,2,1,'Coloración completa','Color de raíz a puntas',280000.00,120,10,0,1),(7,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,75,10,1,1),(8,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,180,10,1,0),(9,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,20,10,1,0),(10,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,50,10,1,1),(11,3,1,'Keratina','Alisado con keratina',400000.00,180,10,1,1),(12,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,40,10,1,0),(13,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,60,10,1,0),(14,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,50,10,1,0),(15,6,4,'Depilación de cejas','Diseño y depilación',30000.00,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2820,7 +2825,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2829,7 +2834,7 @@ CREATE TABLE `token_seguridad` (
 
 LOCK TABLES `token_seguridad` WRITE;
 /*!40000 ALTER TABLE `token_seguridad` DISABLE KEYS */;
-INSERT INTO `token_seguridad` VALUES (1,2,'RECUPERACION','960114','2026-08-21 09:13:20',1,'2026-08-21 08:43:20','EMAIL',NULL);
+INSERT INTO `token_seguridad` VALUES (1,2,'RECUPERACION','960114','2026-08-21 09:13:20',1,'2026-08-21 08:43:20','EMAIL',NULL),(2,14,'VERIFICACION','591708','2026-08-21 10:30:04',1,'2026-08-21 10:00:04','EMAIL',NULL),(3,15,'VERIFICACION','922133','2026-08-21 11:19:36',1,'2026-08-21 10:49:36','EMAIL',NULL);
 /*!40000 ALTER TABLE `token_seguridad` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2918,7 +2923,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2927,7 +2932,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'b3a03c30fe1f517bb1c13d7f15e24879','2026-08-21 09:39:21'),(2,4,NULL,'cliente','$2y$12$n09uK0KMVcfnmh.CZPd8dO7vEHibV04W.H.cOT7niBCffCLgKvaEu',NULL,1,'2026-07-14 19:42:29',2,'d8cc650f522cbcaf8c12663b9aa5eda4','2026-08-21 08:57:33'),(10,2,1,'marta','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',13,NULL,NULL),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$hsn.JGplUmObdcwOfXl3O.HX0X.0UIUPKqv8XSrqWfvtY89ohi4AO',NULL,1,'2026-08-14 10:44:45',15,'b63e6f67ae93b8fd36313f34fe982df3','2026-08-18 09:37:38'),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL);
+INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/JOM0/5frSbU5CuVp3qlQypgxgW','2026-07-14',1,'2026-07-14 19:42:29',1,'ecb6186932b3230ba0a140bdb4e2570e','2026-08-21 13:25:48'),(2,4,NULL,'cliente','$2y$12$n09uK0KMVcfnmh.CZPd8dO7vEHibV04W.H.cOT7niBCffCLgKvaEu',NULL,1,'2026-07-14 19:42:29',2,NULL,NULL),(10,2,1,'marta','$2y$12$DN0fwsVTzQMdnNO6rzlmT.Unl/Uc3HvlbCWVQ/.JKH4lgc9vKerXq',NULL,1,'2026-08-14 10:44:45',13,'1022d77c54ab15ea89f486642b4a54c5','2026-08-21 10:33:07'),(11,2,1,'rocio','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',14,NULL,NULL),(12,2,1,'lucia','$2y$12$YDTdc0Tv58eeU/25GT.75.83CuzWtKGlNqnFPB/3e2H0/OOSO093O',NULL,1,'2026-08-14 10:44:45',15,NULL,NULL),(13,2,1,'sofia','$2y$12$Tl6dYeN6n5TYvdP/RZH6v.oll4BX3dAjKYnrewjAQ0fz7pWwT2jY6',NULL,1,'2026-08-14 10:44:45',16,NULL,NULL),(14,4,NULL,'Belux506','$2y$12$FKDbYs9TC0UlsJu.MSZxaucCSf5GSoizj/ik2XkNpmRIODsw4XRvq',NULL,1,'2026-08-21 10:00:04',17,NULL,NULL),(15,4,NULL,'2950872','$2y$12$dxEB8PIerN42LBaE37BMWu98ziiB2pYkl85V.2ug6ba728kDTzl9e',NULL,1,'2026-08-21 10:49:35',18,'50138b1b4bfb2ce2bef2d5386512aafb','2026-08-21 10:49:56');
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2950,7 +2955,7 @@ CREATE TABLE `usuario_servicio` (
   CONSTRAINT `fk_us_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_us_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_us_duracion` CHECK (`duracion_min` is null or `duracion_min` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2959,6 +2964,7 @@ CREATE TABLE `usuario_servicio` (
 
 LOCK TABLES `usuario_servicio` WRITE;
 /*!40000 ALTER TABLE `usuario_servicio` DISABLE KEYS */;
+INSERT INTO `usuario_servicio` VALUES (13,10,15,NULL,1),(14,10,12,NULL,1),(15,10,13,NULL,1),(16,10,14,NULL,1),(22,12,2,NULL,1),(23,12,1,NULL,1),(24,12,9,NULL,1),(25,12,8,NULL,1),(26,12,5,NULL,1);
 /*!40000 ALTER TABLE `usuario_servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3012,7 +3018,7 @@ CREATE TABLE `usuario_turno` (
 
 LOCK TABLES `usuario_turno` WRITE;
 /*!40000 ALTER TABLE `usuario_turno` DISABLE KEYS */;
-INSERT INTO `usuario_turno` VALUES (10,3),(11,4),(12,3),(13,4);
+INSERT INTO `usuario_turno` VALUES (11,4),(12,3),(13,4);
 /*!40000 ALTER TABLE `usuario_turno` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3069,6 +3075,9 @@ SET character_set_client = utf8;
   1 AS `fecha_apertura`,
   1 AS `fecha_cierre`,
   1 AS `monto_inicial`,
+  1 AS `monto_contado`,
+  1 AS `diferencia`,
+  1 AS `arqueo_por`,
   1 AS `cobros_efectivo`,
   1 AS `cobros_otros`,
   1 AS `cobros`,
@@ -3385,6 +3394,37 @@ UNLOCK TABLES;
 --
 -- Dumping routines for database 'peluqueria_bd'
 --
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_caja_diferencia` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_caja_diferencia`(p_id_caja INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_contado DECIMAL(14,2) DEFAULT NULL;
+
+  SELECT monto_contado INTO v_contado FROM caja WHERE id_caja = p_id_caja;
+
+  
+  
+  IF v_contado IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN v_contado - fn_caja_saldo(p_id_caja);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_caja_saldo` */;
@@ -4840,21 +4880,41 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cerrar_caja` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cerrar_caja`(IN p_id_caja INT UNSIGNED)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cerrar_caja`(
+  IN p_id_caja        INT UNSIGNED,
+  IN p_monto_contado  DECIMAL(14,2),
+  IN p_id_usuario     INT UNSIGNED
+)
 BEGIN
+  DECLARE v_estado INT UNSIGNED DEFAULT NULL;
+
+  
+  
+  
+  SELECT id_estado_caja INTO v_estado FROM caja WHERE id_caja = p_id_caja FOR UPDATE;
+
+  IF v_estado IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa caja no existe.';
+  END IF;
+  IF v_estado <> 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa caja ya estaba cerrada.';
+  END IF;
+
   UPDATE caja
-     SET id_estado_caja = 2,
-         fecha_cierre   = NOW()
-   WHERE id_caja = p_id_caja AND id_estado_caja = 1;
+     SET id_estado_caja    = 2,
+         fecha_cierre      = NOW(),
+         monto_contado     = p_monto_contado,
+         id_usuario_cierre = p_id_usuario
+   WHERE id_caja = p_id_caja;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5544,12 +5604,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = cp850 */;
-/*!50001 SET character_set_results     = cp850 */;
-/*!50001 SET collation_connection      = cp850_general_ci */;
+/*!50001 SET character_set_client      = utf8 */;
+/*!50001 SET character_set_results     = utf8 */;
+/*!50001 SET collation_connection      = utf8_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_caja_resumen` AS select `ca`.`id_sucursal` AS `id_sucursal`,`ca`.`id_caja` AS `id_caja`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `responsable`,`ec`.`nombre` AS `estado`,`ca`.`fecha_apertura` AS `fecha_apertura`,`ca`.`fecha_cierre` AS `fecha_cierre`,`ca`.`monto_inicial` AS `monto_inicial`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `cobros_efectivo`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `cobros_otros`,(select coalesce(sum(`co`.`monto`),0) from `cobro` `co` where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1) AS `cobros`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'INGRESO') AS `otros_ingresos`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'EGRESO') AS `egresos`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_prov_efectivo`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_prov_otros`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from `pago_proveedor` `pp` where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1) AS `pagos_proveedor`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_pers_efectivo`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_pers_otros`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from `pago_personal` `pg` where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1) AS `pagos_personal`,`fn_caja_saldo`(`ca`.`id_caja`) AS `saldo` from (((`caja` `ca` join `usuario` `u` on(`u`.`id_usuario` = `ca`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_caja` `ec` on(`ec`.`id_estado_caja` = `ca`.`id_estado_caja`)) */;
+/*!50001 VIEW `vw_caja_resumen` AS select `ca`.`id_sucursal` AS `id_sucursal`,`ca`.`id_caja` AS `id_caja`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `responsable`,`ec`.`nombre` AS `estado`,`ca`.`fecha_apertura` AS `fecha_apertura`,`ca`.`fecha_cierre` AS `fecha_cierre`,`ca`.`monto_inicial` AS `monto_inicial`,`ca`.`monto_contado` AS `monto_contado`,`fn_caja_diferencia`(`ca`.`id_caja`) AS `diferencia`,(select concat(`pc`.`nombre`,' ',`pc`.`apellido`) from (`usuario` `uc` join `persona` `pc` on(`pc`.`id_persona` = `uc`.`id_persona`)) where `uc`.`id_usuario` = `ca`.`id_usuario_cierre`) AS `arqueo_por`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `cobros_efectivo`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `cobros_otros`,(select coalesce(sum(`co`.`monto`),0) from `cobro` `co` where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1) AS `cobros`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'INGRESO') AS `otros_ingresos`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'EGRESO') AS `egresos`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_prov_efectivo`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_prov_otros`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from `pago_proveedor` `pp` where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1) AS `pagos_proveedor`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_pers_efectivo`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_pers_otros`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from `pago_personal` `pg` where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1) AS `pagos_personal`,`fn_caja_saldo`(`ca`.`id_caja`) AS `saldo` from (((`caja` `ca` join `usuario` `u` on(`u`.`id_usuario` = `ca`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_caja` `ec` on(`ec`.`id_estado_caja` = `ca`.`id_estado_caja`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;

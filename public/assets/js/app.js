@@ -1131,3 +1131,52 @@ window.SPGCarga = (function () {
     reflejar();
   });
 })();
+
+// ---------------------------------------------------------------------
+//  El arqueo: la diferencia se ve mientras se cuenta.
+//
+//  Quien cuenta el cajón tiene que poder ver si cuadra ANTES de confirmar,
+//  no enterarse por el aviso de después. Es una cuenta de mostrador y no
+//  se guarda: **la diferencia que vale es la que calcula la base**
+//  (`fn_caja_diferencia`), con el saldo del momento del cierre.
+//
+//  Sin `app.js` el campo sigue andando: se escribe el monto y se cierra
+//  igual, sólo que sin el adelanto.
+// ---------------------------------------------------------------------
+(function () {
+  var campos = document.querySelectorAll('[data-arqueo]');
+  if (!campos.length) return;
+
+  campos.forEach(function (campo) {
+    var ref = document.querySelector(campo.getAttribute('data-arqueo'));
+    var out = document.querySelector(campo.getAttribute('data-arqueo-salida'));
+    if (!ref || !out) return;
+
+    var esperado = parseFloat(ref.getAttribute('data-valor') || '0');
+
+    function reflejar() {
+      // Los campos de dinero se muestran con separador de miles, así que se
+      // limpian igual que lo hace `num()` en el servidor.
+      var txt = campo.value.replace(/\./g, '').replace(',', '.').trim();
+      if (txt === '') { out.textContent = ''; out.className = ''; return; }
+
+      var dif = parseFloat(txt) - esperado;
+      if (isNaN(dif)) { out.textContent = ''; out.className = ''; return; }
+
+      var abs = Math.abs(dif).toLocaleString('es-PY', { maximumFractionDigits: 0 });
+      if (Math.abs(dif) < 0.01) {
+        out.textContent = '✓ La caja cuadra.';
+        out.className = 'txt-ok';
+      } else if (dif > 0) {
+        out.textContent = 'Sobran Gs. ' + abs + ' respecto de lo esperado.';
+        out.className = 'txt-oro';
+      } else {
+        out.textContent = 'Faltan Gs. ' + abs + ' respecto de lo esperado.';
+        out.className = 'txt-no';
+      }
+    }
+
+    campo.addEventListener('input', reflejar);
+    reflejar();
+  });
+})();
