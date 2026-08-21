@@ -2220,11 +2220,25 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // **El cajón del que sale la plata es el del LOCAL DE LA COMPRA**, no
+        // el de donde está parada la persona. `sp_pagar_compra` lo resuelve
+        // desde `compra.id_sucursal` (7.36.3) y acá se validaba contra el de la
+        // sucursal activa: pagando desde el local A una compra del local B, el
+        // control miraba el saldo de A y la plata salía del cajón de B. El
+        // efecto es el que se reportó — un pago mayor al disponible que entra
+        // sin quejarse— y es el mismo desajuste que la 7.36.3 corrigió del
+        // lado del procedimiento, que quedó a medias del lado de la pantalla.
+        $idCajaPago = (int) (DB::scalar(
+            'SELECT k.id_caja FROM compra c
+               JOIN caja k ON k.id_sucursal = c.id_sucursal AND k.id_estado_caja = 1
+              WHERE c.id_compra = ? ORDER BY k.id_caja DESC LIMIT 1', [$idCompra]
+        ) ?: $caja->id_caja);
+
         // En efectivo no se puede entregar plata que no está en el cajón. Los
         // pagos por banco o tarjeta no se frenan: no salen del cajón, salen de
         // la cuenta (por eso `fn_caja_saldo` tampoco los resta).
         if (Caja::esEfectivo($idMetodo)) {
-            $enCaja = Caja::saldo((int) $caja->id_caja);
+            $enCaja = Caja::saldo($idCajaPago);
             if ($monto > $enCaja + 0.01) {
                 flash('En la caja hay ' . money($enCaja) . ' en efectivo y estás por pagar ' . money($monto)
                     . '. Pagá con otro medio, registrá primero el ingreso o pagá hasta ' . money($enCaja) . '.', 'error');
@@ -2239,7 +2253,7 @@ class FacturacionController extends Controller
                 // Igual que en el cobro: el procedimiento busca la caja del
                 // propio usuario, y la del salón puede haberla abierto otra persona.
                 DB::update('UPDATE pago_proveedor SET id_caja = ? WHERE id_pago_proveedor = ? AND id_caja IS NULL',
-                    [(int) $caja->id_caja, $idPago]);
+                    [$idCajaPago, $idPago]);
             }
             Auditoria::registrar('PAGO_PROVEEDOR', 'Facturacion', 'compra', $idCompra, 'Pago ' . money($monto));
             flash('Pago al proveedor registrado por ' . money($monto) . '.');

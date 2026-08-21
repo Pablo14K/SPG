@@ -26,14 +26,21 @@
 
                                 <div class="spg-cobro-total mt-3"></div>
 
-                                {{-- El vuelto es una cuenta de mostrador y NO se guarda:
-                                     lo que se registra sigue siendo el monto de la línea.
-                                     Entra un billete de 100.000 por un cobro de 30.000 y
-                                     en el cajón quedan 30.000, no 100.000. --}}
-                                <div class="mt-3 spg-vuelto-bloque">
-                                    <label class="form-label" for="vuelto{{ $uid }}">
-                                        ¿Con cuánto paga? <span class="text-muted-warm">(para calcular el vuelto)</span>
+                                {{-- **El vuelto es del EFECTIVO, no del cobro entero.**
+                                     Se compara contra lo que se paga en billetes: en un
+                                     pago partido, la parte por transferencia no tiene
+                                     cambio que dar. Y no se guarda —lo que se registra
+                                     sigue siendo el monto de la línea—: entra un billete
+                                     de 100.000 por un cobro de 30.000 y en el cajón
+                                     quedan 30.000, no 100.000. --}}
+                                <div class="mt-3 spg-vuelto-bloque"
+                                     style="border-top:1px solid var(--gris-calido);padding-top:.7rem">
+                                    <label class="form-label mb-1" for="vuelto{{ $uid }}">
+                                        <i class="bi bi-cash"></i> Vuelto <span class="text-muted-warm">(sólo la parte en efectivo)</span>
                                     </label>
+                                    <div class="text-muted-warm mb-1" style="font-size:.8rem">
+                                        ¿Con cuánto billete paga?
+                                    </div>
                                     <div class="input-group input-group-sm" style="max-width:260px">
                                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                                         <input class="form-control input-miles spg-vuelto-recibido"

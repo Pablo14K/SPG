@@ -285,6 +285,8 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // Manejar acá un producto que ya existe en otro local, en vez de
             // cargarlo de nuevo con un nombre parecido. Ver `productoTraer()`.
             Route::post('productos/traer', [InventarioController::class, 'productoTraer'])->name('producto.traer');
+            Route::post('productos/traer-todos', [InventarioController::class, 'productosTraerTodos'])
+                ->name('productos.traer_todos');
             Route::post('productos/rapido', [InventarioController::class, 'productoRapido'])->name('producto.rapido');
 
             Route::get('categorias', [InventarioController::class, 'categorias'])->name('categorias');

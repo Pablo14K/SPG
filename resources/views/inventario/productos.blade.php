@@ -8,6 +8,39 @@
         :accion="['ruta' => 'inventario.producto_form', 't' => 'Nuevo producto', 'ic' => 'plus-lg']"
         :acciones="[['ruta' => 'inventario.ajuste', 't' => 'Cargar stock', 'ic' => 'plus-slash-minus']]" />
 
+    {{-- **Traer el catálogo entero de otra sede.** Un local que abre arranca
+         vacío, y traer los productos de a uno son treinta clics para dejarlo
+         igual que la casa central. No copia stock: sólo dice qué se maneja
+         acá, y cada sede lleva el suyo desde cero. --}}
+    @if (($otras ?? []) && collect($otras)->sum('faltan') > 0)
+        <div class="spg-panel mb-3">
+            <form method="post" action="{{ route('inventario.productos.traer_todos') }}"
+                  class="d-flex gap-2 align-items-end flex-wrap">
+                @csrf
+                <div>
+                    <label class="form-label mb-1" for="traerDe">
+                        <i class="bi bi-box-arrow-in-down"></i> Traer todo el catálogo de otra sucursal
+                    </label>
+                    <select class="form-select form-select-sm" id="traerDe" name="id_sucursal_origen"
+                            style="min-width:260px" required>
+                        <option value="">— Elegí de dónde —</option>
+                        @foreach ($otras as $o)
+                            @if ((int) $o->faltan > 0)
+                                <option value="{{ $o->id_sucursal }}">
+                                    {{ $o->nombre }} · {{ (int) $o->faltan }} que acá falta(n)
+                                </option>
+                            @endif
+                        @endforeach
+                    </select>
+                </div>
+                <button class="btn btn-sm btn-rapido"
+                        data-confirmar="Van a pasar a manejarse acá todos los productos de esa sucursal que todavía no estén. El stock arranca en cero. ¿Seguimos?">
+                    <i class="bi bi-check-lg"></i> Traer
+                </button>
+            </form>
+        </div>
+    @endif
+
     <div class="spg-panel">
         <x-filtros :f="$f" />
 

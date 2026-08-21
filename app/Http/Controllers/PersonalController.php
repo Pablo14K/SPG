@@ -194,6 +194,10 @@ class PersonalController extends Controller
             // entrar y la pantalla de elegir sucursal le sale vacía, sin decir
             // por qué. Una cuenta que no puede entrar a ningún lado no sirve.
             $error = 'Marcá al menos una sucursal en la que trabaje.';
+        } elseif ($choque = $this->turnosSePisan($turnos)) {
+            // Dos turnos que se pisan la dejan comprometida en dos lugares a la
+            // vez, y con turnos de locales distintos nadie lo miraba.
+            $error = $choque;
         } else {
             $error = Persona::error($d);
         }
@@ -971,6 +975,57 @@ class PersonalController extends Controller
     }
 
     /** Validación del turno, compartida por la pantalla y el alta rápida. */
+    /**
+     * ¿Estos turnos dejan a la persona en dos lugares a la vez?
+     *
+     * **El turno ya dice en qué sucursal se trabaja** (`turno_laboral.id_sucursal`),
+     * y una misma persona puede tener el lunes en un local y el martes en otro:
+     * eso es correcto y es para lo que existe la tabla N:M.
+     *
+     * Lo que no puede pasar es que dos de sus turnos **se pisen el mismo día a
+     * la misma hora**. **Se mira sin importar la sucursal**, que es justamente
+     * el caso peligroso: dos turnos del mismo local ya se rechazan al crearlos
+     * (`turnoValidar`), pero uno de cada local pasaba sin que nadie lo mirara —
+     * y ahí la persona queda comprometida en dos lugares al mismo tiempo.
+     */
+    private function turnosSePisan(array $turnos): ?string
+    {
+        $turnos = array_values(array_unique(array_filter(array_map('intval', $turnos))));
+        if (count($turnos) < 2) {
+            return null;
+        }
+
+        $in = implode(',', array_fill(0, count($turnos), '?'));
+        $choque = DB::selectOne(
+            "SELECT a.nombre AS uno, b.nombre AS otro, da.dia_semana,
+                    sa.nombre AS suc_uno, sb.nombre AS suc_otro
+               FROM turno_laboral a
+               JOIN turno_dia da ON da.id_turno = a.id_turno
+               JOIN turno_laboral b ON b.id_turno > a.id_turno AND b.id_turno IN ($in)
+               JOIN turno_dia db ON db.id_turno = b.id_turno AND db.dia_semana = da.dia_semana
+               LEFT JOIN sucursal sa ON sa.id_sucursal = a.id_sucursal
+               LEFT JOIN sucursal sb ON sb.id_sucursal = b.id_sucursal
+              WHERE a.id_turno IN ($in)
+                AND a.activo = 1 AND b.activo = 1
+                AND a.hora_inicio < b.hora_fin AND b.hora_inicio < a.hora_fin
+              ORDER BY da.dia_semana LIMIT 1",
+            array_merge($turnos, $turnos)
+        );
+
+        if (! $choque) {
+            return null;
+        }
+
+        $dia = mb_strtolower(self::DIAS[(int) $choque->dia_semana] ?? '');
+        $donde = ($choque->suc_uno && $choque->suc_otro && $choque->suc_uno !== $choque->suc_otro)
+            ? ' — y son de locales distintos (' . $choque->suc_uno . ' y ' . $choque->suc_otro
+                . '), así que quedaría en dos lugares a la vez'
+            : '';
+
+        return 'Los turnos «' . $choque->uno . '» y «' . $choque->otro . '» se pisan el ' . $dia . $donde
+            . '. Sacale uno de los dos.';
+    }
+
     private function turnoValidar(array $d, array $dias, int $id): ?string
     {
         if ($d['nombre'] === '' || $d['hora_inicio'] === '' || $d['hora_fin'] === '') {

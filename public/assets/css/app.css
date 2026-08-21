@@ -506,6 +506,40 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 
 /* ---------------------------------------------------------------------
+   Móvil: que la cabecera y la barra respiren.
+
+   Las dos son pegajosas y se apilan, así que en una pantalla de 5" se
+   comían un tercio del alto útil antes de mostrar nada. El encabezado
+   traía el padding del escritorio, la barra de módulos el suyo, y entre
+   la ficha de la sucursal y la del rol la fila se desbordaba.
+
+   Nada de esto esconde información: lo que se achica es el aire, y lo
+   único que se oculta —el subtítulo «SISTEMA DE GESTIÓN»— es decorativo
+   y está repetido en el pie.
+   --------------------------------------------------------------------- */
+@media (max-width:576px){
+  .spg-topbar{padding:.45rem .7rem;gap:.5rem;}
+  .spg-brand{gap:.45rem;}
+  .spg-brand-sub{display:none;}          /* decorativo: el pie lo repite */
+  .spg-brand-name{font-size:.9rem;}
+
+  /* La barra queda pegada a la cabecera achicada, no a los 52 px de antes:
+     con el valor viejo dejaba una franja muerta encima. */
+  .spg-nav{top:44px;}
+  .spg-nav-in{padding:0 .4rem;gap:0;}
+  .spg-nav-item{padding:.45rem .55rem;font-size:.78rem;gap:.28rem;}
+
+  /* La ficha del rol sale: la sucursal es lo que cambia entre sesiones y
+     por eso es la que se queda (7.31.1). El rol sigue en Mi cuenta. */
+  .spg-rol-chip{display:none;}
+
+  /* El scroll horizontal de la barra sin la barrita gris encima, que en
+     táctil no hace falta y roba 6 px de alto. */
+  .spg-nav-in::-webkit-scrollbar{display:none;}
+  .spg-nav-in{scrollbar-width:none;}
+}
+
+/* ---------------------------------------------------------------------
    Días de la semana de un turno
    Es una casilla marcada, no un atajo: por eso usa el oro de
    .form-check-input:checked y no los tres estados de .spg-chip.

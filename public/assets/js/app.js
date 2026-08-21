@@ -811,6 +811,7 @@ window.SPGCarga = (function () {
       });
       bloque.style.display = hayEfectivo ? '' : 'none';
       if (!hayEfectivo && recibido) { recibido.value = ''; if (vueltoRes) vueltoRes.textContent = ''; }
+      else if (typeof calcularVuelto === 'function') { calcularVuelto(); }
     }
 
     function nuevaLinea(monto) {
@@ -843,13 +844,27 @@ window.SPGCarga = (function () {
     function calcularVuelto() {
       if (!recibido || !vueltoRes) return;
       var dado = aNumero(recibido.value);
+
+      // **Sólo las líneas en EFECTIVO.** Antes se sumaba el total del cobro,
+      // así que un pago partido —100.000 por transferencia y 20.000 en
+      // efectivo— comparaba el billete de 50.000 contra los 120.000 y
+      // contestaba «falta 70.000», cuando en realidad sobran 30.000 de
+      // vuelto. La transferencia no se paga con billetes: no hay cambio que
+      // dar por esa parte.
       var aCobrar = 0;
-      cont.querySelectorAll('.spg-cobro-monto').forEach(function (i) { aCobrar += aNumero(i.value); });
+      cont.querySelectorAll('.spg-cobro-linea').forEach(function (l) {
+        var sel = l.querySelector('.spg-cobro-metodo');
+        var op = sel && sel.options[sel.selectedIndex];
+        if (op && op.getAttribute('data-tipo') === 'EFECTIVO') {
+          aCobrar += aNumero(l.querySelector('.spg-cobro-monto').value);
+        }
+      });
+
       if (dado <= 0 || aCobrar <= 0) { vueltoRes.textContent = ''; vueltoRes.className = 'spg-vuelto-res mt-2'; return; }
       var v = dado - aCobrar;
       if (v < -0.5) {
         vueltoRes.className = 'spg-vuelto-res mt-2 txt-no';
-        vueltoRes.textContent = 'Falta ' + miles(-v) + ' para cubrir los ' + miles(aCobrar) + ' que se van a cobrar.';
+        vueltoRes.textContent = 'Falta ' + miles(-v) + ' para cubrir los ' + miles(aCobrar) + ' en efectivo.';
       } else if (v < 0.5) {
         vueltoRes.className = 'spg-vuelto-res mt-2 txt-ok';
         vueltoRes.textContent = 'Justo: no hay vuelto.';

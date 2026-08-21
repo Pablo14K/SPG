@@ -4,6 +4,6 @@
 
 @section('contenido')
     <x-landing titulo="Servicios" icono="scissors"
-               desc="Catálogo de servicios, sus categorías y los descuentos."
+               desc="Catálogo de servicios, sus categorías y las promociones."
                :subs="$subs" />
 @endsection

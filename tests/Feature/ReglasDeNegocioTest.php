@@ -3865,4 +3865,81 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(30000.0, (float) Caja::diferencia($id),
             'Al bajar lo esperado en 30.000, lo contado pasa a sobrar por 30.000: la diferencia sigue al saldo.');
     }
+    /**
+     * Una persona no puede quedar en dos turnos que se pisan, ni de locales
+     * distintos.
+     *
+     * **El turno dice en qué sucursal se trabaja**, y que alguien tenga el
+     * lunes en un local y el martes en otro es correcto: para eso existe la
+     * tabla N:M. Lo que no puede pasar es que dos de sus turnos se pisen el
+     * mismo día a la misma hora — ahí queda comprometida en dos lugares al
+     * mismo tiempo y la agenda le ofrece los dos.
+     *
+     * Dos turnos del MISMO local ya se rechazaban al crearlos; uno de cada
+     * local pasaba sin que nadie lo mirara, que es justo el caso peligroso.
+     */
+    #[Test]
+    public function una_persona_no_queda_en_dos_turnos_que_se_pisan(): void
+    {
+        $sucs = DB::select('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 2');
+        $a = (int) $sucs[0]->id_sucursal;
+        $b = (int) ($sucs[1]->id_sucursal ?? $sucs[0]->id_sucursal);
+
+        $crear = function (int $suc, string $desde, string $hasta, int $dia) {
+            DB::insert('INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, activo)
+                        VALUES (?, ?, ?, ?, 1)', [$suc, 'T' . uniqid(), $desde, $hasta]);
+            $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+            DB::insert('INSERT INTO turno_dia (id_turno, dia_semana) VALUES (?, ?)', [$id, $dia]);
+
+            return $id;
+        };
+
+        // Lunes 08–12 en un local y lunes 11–15 en el otro: se pisan de 11 a 12.
+        $t1 = $crear($a, '08:00', '12:00', 1);
+        $t2 = $crear($b, '11:00', '15:00', 1);
+        // Martes 08–12: distinto día, no se pisa con nada.
+        $t3 = $crear($b, '08:00', '12:00', 2);
+
+        $usuario = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 LIMIT 1'
+        );
+        $this->entrarComo('admin', 'admin123');
+
+        $guardar = function (array $turnos) use ($usuario): void {
+            $u = DB::selectOne(
+                'SELECT u.username, u.id_rol, pe.nombre, pe.apellido, pe.email, pe.cedula
+                   FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+                  WHERE u.id_usuario = ?', [$usuario]
+            );
+            $this->post(route('seguridad.usuario.guardar'), [
+                'id_usuario' => $usuario, 'username' => $u->username, 'id_rol' => $u->id_rol,
+                'nombre' => $u->nombre, 'apellido' => $u->apellido, 'email' => $u->email,
+                'cedula' => $u->cedula,
+                'sucursales' => [(int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1')],
+                'turnos' => $turnos,
+            ]);
+        };
+
+        $tiene = fn (): array => array_map(
+            fn ($r) => (int) $r->id_turno,
+            DB::select('SELECT id_turno FROM usuario_turno WHERE id_usuario = ?', [$usuario])
+        );
+
+        // 1) Los dos que se pisan: se rechaza y no se le asigna ninguno.
+        $antes = $tiene();
+        $guardar([$t1, $t2]);
+        $this->assertNotContains($t2, $tiene(),
+            'Dos turnos que se pisan el mismo día dejan a la persona en dos lugares a la vez.');
+        $this->assertSame($antes, $tiene(), 'Un guardado rechazado no toca lo que ya estaba.');
+
+        // 2) Días distintos, aunque sean de locales distintos: entra.
+        $guardar([$t1, $t3]);
+        $ahora = $tiene();
+        sort($ahora);
+        $esperado = [$t1, $t3];
+        sort($esperado);
+        $this->assertSame($esperado, $ahora,
+            'Lunes en un local y martes en otro es exactamente para lo que existe la tabla N:M.');
+    }
 }

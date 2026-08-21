@@ -50,7 +50,7 @@ return [
         'servicios' => [
             'servicios.catalogo' => 'Catálogo',
             'servicios.categorias' => 'Categorías',
-            'servicios.descuentos' => 'Descuentos',
+            'servicios.descuentos' => 'Promociones',
         ],
         'inventario' => [
             'inventario.productos' => 'Productos',

@@ -157,6 +157,19 @@ class InventarioController extends Controller
             'f' => $f,
             'pag' => $pag,
             'varias' => $varias,
+            // Las otras sucursales, con cuántos productos manejan que acá
+            // falten: sin ese número el botón promete algo que puede ser cero.
+            'otras' => $varias ? DB::select(
+                'SELECT s.id_sucursal, s.nombre,
+                        (SELECT COUNT(*) FROM producto_sucursal o
+                          WHERE o.id_sucursal = s.id_sucursal
+                            AND NOT EXISTS (SELECT 1 FROM producto_sucursal d
+                                             WHERE d.id_producto = o.id_producto AND d.id_sucursal = ?)
+                        ) AS faltan
+                   FROM sucursal s
+                  WHERE s.activo = 1 AND s.id_sucursal <> ?
+                  ORDER BY s.nombre', [$aqui, $aqui]
+            ) : [],
         ]);
     }
 
@@ -369,6 +382,69 @@ class InventarioController extends Controller
             . '. Empieza en cero: cargale stock cuando lo tengas.');
 
         return redirect()->route('inventario.ajuste', ['producto' => $id]);
+    }
+
+    /**
+     * Trae de una vez todo lo que otra sucursal maneja y acá no.
+     *
+     * **Un local que abre arranca con el catálogo vacío**, y traer los
+     * productos de a uno son treinta clics para dejarlo igual que la casa
+     * central. Es el mismo argumento por el que existe «traer»: cargarlos de
+     * nuevo escribiría «Shampoo profesional 1L» de dos formas y ningún informe
+     * podría comparar el mismo frasco entre locales (7.33.0).
+     *
+     * **No pisa nada ni copia stock**: sólo dice qué productos se manejan acá.
+     * El stock es de cada sede y empieza en cero, como en el alta de uno solo.
+     */
+    public function productosTraerTodos(Request $request): RedirectResponse
+    {
+        $origen = (int) $request->input('id_sucursal_origen', 0);
+        $suc = Sucursales::activa();
+        $volver = redirect()->route('inventario.productos');
+
+        if (! $suc) {
+            flash('Elegí una sucursal antes de traer productos.', 'error');
+
+            return $volver;
+        }
+        if ($origen === $suc || ! DB::scalar(
+            'SELECT COUNT(*) FROM sucursal WHERE id_sucursal = ? AND activo = 1', [$origen])) {
+            flash('Elegí la sucursal desde la que querés traer el catálogo.', 'error');
+
+            return $volver;
+        }
+
+        // Sólo los que allá se manejan y acá todavía no: `INSERT IGNORE` ya
+        // evitaría el duplicado, pero contar de antemano es lo que permite
+        // decir cuántos entraron de verdad.
+        $traidos = (int) DB::scalar(
+            'SELECT COUNT(*) FROM producto_sucursal o
+              WHERE o.id_sucursal = ?
+                AND NOT EXISTS (SELECT 1 FROM producto_sucursal d
+                                 WHERE d.id_producto = o.id_producto AND d.id_sucursal = ?)',
+            [$origen, $suc]
+        );
+
+        if (! $traidos) {
+            flash('Esa sucursal no maneja ningún producto que acá falte.', 'warning');
+
+            return $volver;
+        }
+
+        DB::insert(
+            'INSERT IGNORE INTO producto_sucursal (id_producto, id_sucursal)
+             SELECT o.id_producto, ? FROM producto_sucursal o WHERE o.id_sucursal = ?',
+            [$suc, $origen]
+        );
+
+        $nombreOrigen = (string) DB::scalar('SELECT nombre FROM sucursal WHERE id_sucursal = ?', [$origen]);
+        Auditoria::registrar('ALTA', 'Inventario', 'producto_sucursal', $suc,
+            $traidos . ' producto(s) traídos de ' . $nombreOrigen . ' a ' . Sucursales::nombreActiva());
+
+        flash($traidos . ' producto(s) de ' . $nombreOrigen . ' ya se manejan en '
+            . Sucursales::nombreActiva() . '. **Todos empiezan en cero**: cargales stock cuando los tengas.');
+
+        return $volver;
     }
 
     // ---------- Categorías de producto ----------

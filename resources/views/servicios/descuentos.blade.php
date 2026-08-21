@@ -1,6 +1,6 @@
 @extends('layout.app')
 
-@section('titulo', 'Descuentos')
+@section('titulo', 'Promociones')
 
 @section('contenido')
     @php use App\Servicios\Permisos; @endphp
@@ -49,7 +49,7 @@
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Descuento</th><th class="text-end">Valor</th><th>Vigencia</th>
+                        <th>Promoción</th><th class="text-end">Valor</th><th>Vigencia</th>
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -106,7 +106,7 @@
                             <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-percent"></i>
-                                    <div class="t">Todavía no hay descuentos cargados.</div>
+                                    <div class="t">Todavía no hay promociones cargados.</div>
                                     <div class="d">Los de los niveles de fidelización se crean solos con el sistema.</div>
                                 </div>
                             </td>

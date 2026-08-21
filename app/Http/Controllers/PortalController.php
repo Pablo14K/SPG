@@ -51,7 +51,7 @@ class PortalController extends Controller
         $idc = $this->cliente();
 
         $proxima = DB::selectOne(
-            'SELECT v.*, (v.fecha_hora <= NOW()) AS en_curso
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
@@ -396,7 +396,7 @@ class PortalController extends Controller
             // por algo que ya pagó con sus puntos. Si además pidió otro
             // servicio sin canje, ese sí se puede señar — por eso es una resta
             // y no un «tiene canje: no muestres nada».
-            'SELECT v.*, (v.fecha_hora <= NOW()) AS en_curso,
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso,
                     fn_cita_sena(v.id_cita) AS sena,
                     (SELECT COALESCE(SUM(s.precio),0)
                        FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
