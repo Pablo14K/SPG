@@ -31,7 +31,7 @@
             </div>
             <div class="col-12">
                 <label class="form-label" for="telefono">Celular</label>
-                <input class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}"
+                <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel" value="{{ old('telefono') }}"
                        placeholder="0981123456">
                 <div class="form-text">Opcional. Nos sirve para avisarte de tus citas.</div>
             </div>

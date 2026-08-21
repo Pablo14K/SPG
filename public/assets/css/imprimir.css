@@ -1,87 +1,77 @@
 /* =====================================================================
-   SPG — Informe para papel
-   Se usa solo en reportes/imprimir. En pantalla simula la hoja; al
-   imprimir (o al «Guardar como PDF») desaparece todo lo que no es el
-   informe: la barra de acciones, los fondos y las sombras.
+   SPG — Las pantallas que se imprimen: el informe y los listados.
+
+   **Este archivo estaba entero muerto y no se notaba.** Sus 87 líneas
+   apuntaban a `.spg-imp-body`, `.spg-hoja`, `.spg-imp-tabla` y compañía —
+   una familia de clases que NINGUNA vista dibuja—, mientras que las tres
+   pantallas que lo enlazan usan `<body class="spg-imprimir">` con clases de
+   Bootstrap. Es el mismo caso del selector de disponibilidad de la 7.1.0 y
+   del bloque de cobro de la 7.4.0: código correcto apuntando a un marcado
+   que nunca existió, o que dejó de existir en la migración a Laravel.
+
+   Lo único que llegaba a hacer algo eran las dos reglas que no dependen de
+   una clase: `@page` y `thead{display:table-header-group}`.
+
+   Va con `media="print"`, así que en pantalla no cambia nada.
    ===================================================================== */
 
-.spg-imp-body{
-  background:var(--gris-calido);
-  color:#000;
-  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
-  margin:0;padding:0 0 3rem;
+@page { size: A4; margin: 1.4cm; }
+
+.spg-imprimir {
+    background: #fff;
+    color: #000;
 }
 
-/* Barra de acciones: solo en pantalla */
-.spg-imp-barra{
-  position:sticky;top:0;z-index:10;
-  background:var(--negro);padding:.6rem 1rem;
-  display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;
-}
-.spg-imp-barra a{color:var(--gris-calido);text-decoration:none;font-size:.85rem;}
-.spg-imp-barra a:hover{color:var(--oro-claro);}
-.spg-imp-barra button{
-  background:var(--oro);color:var(--negro);border:none;border-radius:8px;
-  padding:.4rem 1rem;font-size:.87rem;font-weight:500;cursor:pointer;
-}
-.spg-imp-barra button:hover{background:var(--oro-claro);}
-
-/* La hoja */
-.spg-hoja{
-  background:#fff;max-width:21cm;margin:1.2rem auto;padding:1.6cm 1.5cm;
-  box-shadow:0 2px 14px rgba(0,0,0,.14);font-size:10.5pt;line-height:1.45;
+/* La caja del contenido no necesita respirar en papel: el margen lo pone
+   `@page`, y sumarle el del contenedor come una línea por hoja. */
+.spg-imprimir .container {
+    max-width: none !important;
+    padding: 0 !important;
 }
 
-.spg-imp-head{
-  display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;
-  border-bottom:2px solid #000;padding-bottom:.5rem;margin-bottom:1rem;
-}
-.spg-imp-salon{font-size:14pt;font-weight:600;}
-.spg-imp-datos{font-size:8.5pt;color:#444;margin-top:.15rem;}
-.spg-imp-meta{font-size:8.5pt;color:#444;text-align:right;white-space:nowrap;}
+/* Lo que sirve para volver o para apretar un botón no va al papel. */
+.spg-imprimir .no-imprimir,
+.spg-imprimir .btn { display: none !important; }
 
-.spg-imp-titulo{font-size:16pt;font-weight:600;margin:0 0 .2rem;}
-.spg-imp-periodo{font-size:10pt;color:#333;margin-bottom:1.2rem;}
-
-.spg-imp-bloque{margin-bottom:1.3rem;break-inside:avoid;}
-.spg-imp-bloque h2{
-  font-size:11pt;font-weight:600;margin:0 0 .4rem;
-  border-bottom:1px solid #999;padding-bottom:.15rem;
-}
-.spg-imp-vacio{font-size:9.5pt;color:#666;font-style:italic;margin:.3rem 0;}
-.spg-imp-nota{font-size:8.5pt;color:#555;margin:.3rem 0 0;}
-
-/* Indicadores en dos filas de tres */
-.spg-imp-kpis{width:100%;border-collapse:collapse;}
-.spg-imp-kpis td{border:1px solid #bbb;padding:.4rem .6rem;width:33.33%;}
-.spg-imp-kpis span{display:block;font-size:8pt;color:#555;text-transform:uppercase;letter-spacing:.03em;}
-.spg-imp-kpis strong{font-size:12pt;font-weight:600;}
-
-.spg-imp-tabla{width:100%;border-collapse:collapse;font-size:9.5pt;}
-.spg-imp-tabla th,.spg-imp-tabla td{border:1px solid #bbb;padding:.25rem .45rem;text-align:left;}
-.spg-imp-tabla thead th{background:#eee;font-weight:600;}
-.spg-imp-tabla tfoot th{background:#f6f6f6;font-weight:600;}
-.spg-imp-tabla .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.spg-imp-barrita{display:block;height:8px;background:#666;min-width:1px;}
-
-.spg-imp-pie{
-  margin-top:1.5rem;border-top:1px solid #999;padding-top:.4rem;
-  font-size:8pt;color:#666;text-align:center;
+/* --- Tablas ---------------------------------------------------------- */
+.spg-imprimir .table {
+    font-size: 9.5pt;
+    border-collapse: collapse;
+    width: 100%;
 }
 
-/* ---- Al imprimir ---- */
-@media print{
-  @page{size:A4;margin:1.4cm;}
-  .spg-imp-body{background:#fff;padding:0;}
-  .spg-imp-barra{display:none;}
-  .spg-hoja{box-shadow:none;margin:0;padding:0;max-width:none;}
-  /* Los fondos de las cabeceras de tabla se imprimen igual: sin esto,
-     los navegadores los descartan y la tabla pierde la separación visual. */
-  .spg-imp-tabla thead th,.spg-imp-tabla tfoot th{
-    -webkit-print-color-adjust:exact;print-color-adjust:exact;
-  }
-  .spg-imp-barrita{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  /* Que una tabla no se corte dejando la cabecera sola al pie de la hoja */
-  .spg-imp-bloque{break-inside:avoid;page-break-inside:avoid;}
-  thead{display:table-header-group;}
+.spg-imprimir .table th,
+.spg-imprimir .table td {
+    border: 1px solid #bbb;
+    padding: .22rem .4rem;
 }
+
+.spg-imprimir .table thead th {
+    background: #eee;
+    font-weight: 600;
+    /* Sin esto el navegador descarta los fondos al imprimir y la cabecera
+       se pierde entre las filas. */
+    -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+}
+
+/* Que una tabla larga repita su cabecera en cada hoja en vez de dejarla
+   sola al pie de la anterior. */
+.spg-imprimir thead { display: table-header-group; }
+.spg-imprimir tr,
+.spg-imprimir h2 { break-inside: avoid; page-break-inside: avoid; }
+
+/* Un bloque del informe no arranca con su título al final de la hoja. */
+.spg-imprimir h2 { break-after: avoid; page-break-after: avoid; }
+
+/* --- Legibilidad en tinta -------------------------------------------- */
+/* Los neutros cálidos del sistema son para pantalla: sobre papel blanco un
+   gris claro se pierde, así que el texto secundario se oscurece. */
+.spg-imprimir .text-muted-warm { color: #555 !important; }
+
+/* El oro es identidad, no información: impreso en blanco y negro queda un
+   gris pálido que se lee peor que el texto normal. */
+.spg-imprimir .txt-oro { color: #000 !important; font-weight: 600; }
+
+/* La dirección de cada enlace no aporta nada en una hoja. */
+.spg-imprimir a[href]::after { content: none !important; }

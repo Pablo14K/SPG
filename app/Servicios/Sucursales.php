@@ -145,14 +145,6 @@ class Sucursales
         return (string) session('sucursal_nom', '');
     }
 
-    /**
-     * ¿Hace falta que elija? Con una sola sucursal se entra sola: preguntar
-     * algo que tiene una única respuesta es hacer perder un clic.
-     */
-    public static function debeElegir(): bool
-    {
-        return count(self::delUsuario()) > 1;
-    }
 
     /**
      * Al entrar: si tiene una sola, se la deja puesta y no se pregunta nada.

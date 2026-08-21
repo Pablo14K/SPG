@@ -190,13 +190,4 @@ class Canje
         return DB::update('UPDATE canje SET id_cita = NULL WHERE id_cita = ?', [$idCita]);
     }
 
-    /** Los canjes aplicados a una cita, para mostrarlos en la atención. */
-    public static function deCita(int $idCita): array
-    {
-        return DB::select(
-            'SELECT c.id_canje, c.id_servicio, c.puntos, s.nombre
-               FROM canje c JOIN servicio s ON s.id_servicio = c.id_servicio
-              WHERE c.id_cita = ? ORDER BY s.nombre', [$idCita]
-        );
-    }
 }

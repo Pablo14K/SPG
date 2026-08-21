@@ -193,11 +193,11 @@
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label" for="cr_cedula">Cédula</label>
-                                    <input class="form-control" id="cr_cedula" name="cedula">
+                                    <input class="form-control" id="cr_cedula" name="cedula" data-solo="documento" inputmode="numeric">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label" for="cr_telefono">Teléfono</label>
-                                    <input class="form-control" id="cr_telefono" name="telefono">
+                                    <input class="form-control" id="cr_telefono" name="telefono" data-solo="telefono" inputmode="tel">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label" for="cr_email">Email</label>

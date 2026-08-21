@@ -189,7 +189,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label" for="pv_ruc">RUC</label>
-                            <input class="form-control form-control-sm" id="pv_ruc" name="ruc">
+                            <input class="form-control form-control-sm" id="pv_ruc" name="ruc" data-solo="ruc" inputmode="text">
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6">
@@ -198,7 +198,7 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label" for="pv_telefono">Teléfono</label>
-                                <input class="form-control form-control-sm" id="pv_telefono" name="telefono">
+                                <input class="form-control form-control-sm" id="pv_telefono" name="telefono" data-solo="telefono" inputmode="tel">
                             </div>
                         </div>
                         <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear proveedor</button>

@@ -103,12 +103,12 @@
                                         </div>
                                         <div class="col-md-2">
                                             <label class="form-label">Últimos 4</label>
-                                            <input class="form-control form-control-sm" name="ultimos_4[]"
+                                            <input class="form-control form-control-sm" name="ultimos_4[]" data-solo="numeros" inputmode="numeric" maxlength="4"
                                                    inputmode="numeric" maxlength="4" placeholder="1234">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">Nº de boleta</label>
-                                            <input class="form-control form-control-sm" name="nro_boleta[]">
+                                            <input class="form-control form-control-sm" name="nro_boleta[]" data-solo="numeros" inputmode="numeric">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">Cód. de autorización</label>
@@ -128,7 +128,7 @@
                                         </div>
                                         <div class="col-md-3" data-solo="CHEQUE">
                                             <label class="form-label">Nº de cheque</label>
-                                            <input class="form-control form-control-sm" name="nro_cheque[]">
+                                            <input class="form-control form-control-sm" name="nro_cheque[]" data-solo="numeros" inputmode="numeric">
                                         </div>
                                         <div class="col-md-3" data-solo="BANCO">
                                             <label class="form-label">Nº de operación</label>

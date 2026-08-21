@@ -27,13 +27,13 @@
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="form-label" for="establecimiento">Establecimiento *</label>
-                            <input class="form-control" id="establecimiento" name="establecimiento" required
+                            <input class="form-control" id="establecimiento" name="establecimiento" data-solo="numeros" inputmode="numeric" required
                                    maxlength="3" placeholder="001"
                                    value="{{ old('establecimiento', $editar->establecimiento ?? '001') }}">
                         </div>
                         <div class="col-6">
                             <label class="form-label" for="punto_expedicion">Punto de expedición *</label>
-                            <input class="form-control" id="punto_expedicion" name="punto_expedicion" required
+                            <input class="form-control" id="punto_expedicion" name="punto_expedicion" data-solo="numeros" inputmode="numeric" required
                                    maxlength="3" placeholder="001"
                                    value="{{ old('punto_expedicion', $editar->punto_expedicion ?? '001') }}">
                         </div>

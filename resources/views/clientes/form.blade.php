@@ -28,16 +28,16 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="cedula">Cédula</label>
-                    <input class="form-control" id="cedula" name="cedula"
+                    <input class="form-control" id="cedula" name="cedula" data-solo="documento" inputmode="numeric"
                            value="{{ old('cedula', $c->cedula ?? '') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="ruc">RUC</label>
-                    <input class="form-control" id="ruc" name="ruc" value="{{ old('ruc', $c->ruc ?? '') }}">
+                    <input class="form-control" id="ruc" name="ruc" data-solo="ruc" inputmode="text" value="{{ old('ruc', $c->ruc ?? '') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="telefono">Teléfono</label>
-                    <input class="form-control" id="telefono" name="telefono"
+                    <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                            value="{{ old('telefono', $c->telefono ?? '') }}">
                 </div>
                 <div class="col-md-6">

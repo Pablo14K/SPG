@@ -125,12 +125,21 @@ class Facturacion
                 return;   // sin datos, no se fuerza
             }
             $tt = strtoupper((string) ($v('tipo_tarjeta') ?? ''));
+
+            // **Los últimos cuatro son cuatro dígitos, no un texto.** La
+            // pantalla ya no deja escribir otra cosa, pero eso es comodidad:
+            // el POST puede llegar armado a mano, y un «ABCD» guardado ahí no
+            // sirve para identificar la tarjeta el día que se reclama un
+            // cobro. Lo que no cumple se descarta en vez de romper el cobro
+            // entero: el resto del detalle sigue siendo válido.
+            $u4 = preg_replace('/\D/', '', (string) ($v('ultimos_4') ?? ''));
+            $u4 = ($u4 !== '' && strlen($u4) <= 4) ? str_pad($u4, 4, '0', STR_PAD_LEFT) : null;
             DB::insert(
                 'INSERT INTO cobro_tarjeta (id_cobro,marca,tipo_tarjeta,cuotas,ultimos_4,nro_boleta,cod_autorizacion)
                  VALUES (?,?,?,?,?,?,?)',
                 [$idCobro, $v('marca'), in_array($tt, ['DEBITO', 'CREDITO'], true) ? $tt : 'DEBITO',
                  max(1, entero($d['cuotas'] ?? 1, 1)),
-                 $v('ultimos_4'), $v('nro_boleta'), $v('cod_autorizacion')]
+                 $u4, $v('nro_boleta'), $v('cod_autorizacion')]
             );
         } elseif ($tipo === 'BANCO' || $tipo === 'CHEQUE') {
             if ($v('banco') === null && $v('nro_cheque') === null && $v('nro_operacion') === null) {

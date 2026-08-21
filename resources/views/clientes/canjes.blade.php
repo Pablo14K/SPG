@@ -30,13 +30,13 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label" for="puntos">Cuesta (en puntos)</label>
-                <input class="form-control" id="puntos" name="puntos" data-min="1"
+                <input class="form-control" id="puntos" name="puntos" data-solo="numeros" inputmode="numeric" data-min="1"
                        value="{{ old('puntos', 100) }}" required>
             </div>
             <div class="col-md-2">
                 <label class="form-label" for="dias_vigencia">Vigencia</label>
                 <div class="input-group">
-                    <input class="form-control" id="dias_vigencia" name="dias_vigencia"
+                    <input class="form-control" id="dias_vigencia" name="dias_vigencia" data-solo="numeros" inputmode="numeric"
                            data-min="1" data-max="365" value="{{ old('dias_vigencia', 30) }}" required>
                     <span class="input-group-text">días</span>
                 </div>
@@ -101,12 +101,12 @@
                                      FUERA de la tabla. Un `<form>` no puede cruzar celdas: el
                                      navegador lo saca del `<tbody>` y la fila se desarma. --}}
                                 <td class="text-end">
-                                    <input class="form-control form-control-sm text-end" name="puntos"
+                                    <input class="form-control form-control-sm text-end" name="puntos" data-solo="numeros" inputmode="numeric"
                                            form="fc{{ $r->id_servicio_canjeable }}"
                                            value="{{ (int) $r->puntos }}" data-min="1" aria-label="Puntos">
                                 </td>
                                 <td class="text-end">
-                                    <input class="form-control form-control-sm text-end" name="dias_vigencia"
+                                    <input class="form-control form-control-sm text-end" name="dias_vigencia" data-solo="numeros" inputmode="numeric"
                                            form="fc{{ $r->id_servicio_canjeable }}"
                                            value="{{ (int) $r->dias_vigencia }}" data-min="1" data-max="365"
                                            aria-label="Días de vigencia">

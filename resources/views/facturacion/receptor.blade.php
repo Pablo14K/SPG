@@ -97,7 +97,7 @@
                         </div>
                         <div class="col-md-5">
                             <label class="form-label" for="telefono">Teléfono</label>
-                            <input class="form-control" id="telefono" name="telefono"
+                            <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                                    value="{{ old('telefono', $per->telefono ?? '') }}">
                             <div class="form-text">Opcional.</div>
                         </div>

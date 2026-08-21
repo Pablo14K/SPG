@@ -1180,3 +1180,49 @@ window.SPGCarga = (function () {
     reflejar();
   });
 })();
+
+// ---------------------------------------------------------------------
+//  Campos que sólo admiten números: se filtra AL ESCRIBIR.
+//
+//  El servidor ya rechazaba una cédula con letras —`Persona::error()` lo
+//  hace desde la 6.4.0—, pero enterarse después de apretar Guardar, con
+//  el formulario entero cargado, es la peor forma de saberlo. Acá el
+//  carácter que no corresponde simplemente no entra.
+//
+//  **La pantalla NO puede ser más estricta que el servidor**, o la
+//  persona no podría escribir algo que el sistema sí acepta. Cada juego
+//  de caracteres es el de su regla en `Persona::error()`:
+//
+//    numeros    dígitos pelados      · puntos, cuotas, días, códigos
+//    documento  dígitos . espacio -  · cédula        /^[0-9][0-9\.\s-]{2,19}$/
+//    ruc        lo anterior + k K    · RUC           …-?[0-9kK]?$/
+//    telefono   dígitos + ( ) . - y espacio          /^[+()0-9\.\s-]+$/
+//
+//  Es una comodidad, no el control: `data-solo` se puede sacar con las
+//  herramientas del navegador y el POST igual pasa por el servidor.
+// ---------------------------------------------------------------------
+(function () {
+  var JUEGOS = {
+    numeros:   /[^0-9]/g,
+    documento: /[^0-9.\s-]/g,
+    ruc:       /[^0-9.\s\-kK]/g,
+    telefono:  /[^0-9+().\s-]/g
+  };
+
+  document.querySelectorAll('[data-solo]').forEach(function (campo) {
+    var malos = JUEGOS[campo.getAttribute('data-solo')];
+    if (!malos) return;
+
+    campo.addEventListener('input', function () {
+      var limpio = campo.value.replace(malos, '');
+      if (limpio === campo.value) return;
+
+      // Se conserva la posición del cursor: sin esto, corregir una letra en
+      // el medio de un número tirado el cursor al final en cada tecla.
+      var pos = campo.selectionStart;
+      var quitados = campo.value.slice(0, pos).replace(malos, '').length;
+      campo.value = limpio;
+      try { campo.setSelectionRange(quitados, quitados); } catch (e) { /* no todos lo admiten */ }
+    });
+  });
+})();

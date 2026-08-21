@@ -24,12 +24,12 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="ruc">RUC</label>
-                    <input class="form-control" id="ruc" name="ruc" value="{{ old('ruc', $s->ruc ?? '') }}">
+                    <input class="form-control" id="ruc" name="ruc" data-solo="ruc" inputmode="text" value="{{ old('ruc', $s->ruc ?? '') }}">
                     <div class="form-text">Se imprime en el comprobante.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="telefono">Teléfono</label>
-                    <input class="form-control" id="telefono" name="telefono"
+                    <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                            value="{{ old('telefono', $s->telefono ?? '') }}">
                 </div>
                 <div class="col-md-6">

@@ -117,13 +117,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="mc_nro">Nº de comprobante</label>
-                                <input class="form-control" id="mc_nro" name="nro_comprobante"
+                                <input class="form-control" id="mc_nro" name="nro_comprobante" data-solo="documento" inputmode="numeric"
                                        maxlength="30" value="{{ old('nro_comprobante') }}"
                                        placeholder="001-001-0001234">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label" for="mc_ruc">RUC o cédula</label>
-                                <input class="form-control" id="mc_ruc" name="ruc_emisor"
+                                <input class="form-control" id="mc_ruc" name="ruc_emisor" data-solo="ruc" inputmode="text"
                                        maxlength="20" value="{{ old('ruc_emisor') }}"
                                        placeholder="80012345-0">
                             </div>
