@@ -3,7 +3,7 @@
 @section('titulo', 'Caja')
 
 @section('contenido')
-    <x-encabezado sub="Se trabaja con <strong>una sola caja abierta por vez</strong> en todo el salón. El saldo es el <strong>efectivo que tiene que estar en el cajón</strong>: lo que entra por tarjeta o transferencia se registra igual, pero no lo toca." />
+    <x-encabezado sub="Se trabaja con <strong>una sola caja abierta por vez y por sucursal</strong>: cada local cuenta su propio cajón. El saldo es el <strong>efectivo que tiene que estar en el cajón</strong>: lo que entra por tarjeta o transferencia se registra igual, pero no lo toca." />
 
     @if ($abierta)
         <div class="spg-caja-barra mb-3">
@@ -53,10 +53,13 @@
             @endif
         </div>
 
-        {{-- Movimiento cargado a mano: lo único del arqueo que no sale de un
-             cobro ni de un pago. `fn_caja_saldo` resta esta tabla desde
-             siempre y hasta la 7.29.0 no la escribía ninguna pantalla, así que
-             el gasto real del mostrador quedaba afuera y el cierre no cuadraba. --}}
+    @else
+        {{-- **Este `@else` es lo único que hace alcanzable la apertura.** La
+             7.46.0 mudó el bloque de movimientos a su propia pantalla y se
+             lo llevó puesto, así que el formulario de abrir quedó dentro de
+             la rama «hay caja abierta»: se dibujaba cuando ya no hacía falta
+             y desaparecía justo cuando sí. Con la caja cerrada la pantalla
+             salía sin nada, y sin caja no se cobra ni se factura. --}}
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir caja</h2>
             <p class="text-muted-warm" style="font-size:.85rem">

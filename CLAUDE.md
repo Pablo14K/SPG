@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.50.0 | 20/08/2026 | **Cinco cosas del uso diario, y una impedía trabajar: no se podía abrir la caja.** La 7.46.0 mudó el bloque de movimientos a su propia pantalla y **se llevó puesto el `@else`**, así que el formulario de apertura quedó dentro de la rama «hay caja abierta»: se dibujaba cuando ya no hacía falta y desaparecía justo cuando sí. Con la caja cerrada la pantalla contestaba **200 y salía vacía**, y sin caja no se cobra, no se factura y no se paga — la sucursal se queda sin mostrador. **La prueba que abre las pantallas ya la abría y no vio nada**, porque medía el código de respuesta y no lo que se dibuja: una pantalla que contesta 200 sin su única acción es indistinguible de una que anda. Ahora se comprueba que ofrezca el formulario, en las dos direcciones. De paso, el encabezado seguía diciendo «una sola caja abierta en todo el salón», que dejó de ser cierto en la 7.36.2. **Los grupos de opciones múltiples ganan «Todos»**: marcar quince servicios o siete días de a uno es el trabajo que la pantalla tenía que ahorrar. Va en los cinco que faltaban —sucursales donde trabaja, servicios que hace, turnos, los días del turno y las sucursales de un canje— con la misma pieza que ya usaban Reportes y Descuentos. **NO entra en los servicios de una cita**: marcar el catálogo entero no es nada que alguien quiera. **La ciudad pasa a ser un combo.** Era un `datalist` desde la 7.44.0 —«sugiere sin encerrar»— y sugerir no alcanza: hay que escribir igual para que filtre, y acepta lo que se tipee. «Fernando de la Mora», «Fdo. de la Mora» y «fernando de la mora» son la misma ciudad escrita de tres formas, y desde ahí ningún informe las agrupa. **La opción «Otra» se conserva y no es un adorno**: la lista es del área metropolitana, y un salón que abra en Encarnación tiene que poder cargarla — encerrar el campo cambiaría un error de tipeo por uno peor, que es no poder guardar. El texto libre **arranca visible y lo esconde el JS**, así que sin `app.js` el formulario sigue siendo usable. **Y la ciudad de una sucursal nueva dejaba de venir con «Luque» escrito**: el campo parecía ya contestado y quien no lo mirara guardaba la ciudad de la casa central. **Elegir sucursal deja de ser una columna interminable**: eran botones de ancho completo apilados en un panel de 560 px, o sea que con quince locales había que scrollear para encontrar el propio. Pasa a grilla de dos, con scroll propio y un buscador a partir de seis — que **filtra lo ya dibujado**, así que sin JavaScript se siguen viendo todas. **117 pruebas** |
 | 7.49.0 | 20/08/2026 | **Los cinco hallazgos de la simulación de 30 días con tres locales, y uno más que apareció al taparle el hueco de cobertura.** Ese último es el peor: **emitir una nota de crédito estaba roto desde la 7.37.0**. Esa versión le agregó el tercer parámetro a `fn_timbrado_vigente` —la sucursal— y `sp_emitir_nota_credito` se quedó llamándola con dos, así que reventaba con el error 1318 y la pantalla lo traducía a «no hay timbrado vigente», mandando a mirar el lugar equivocado. **Once versiones rotas, y ninguna prueba lo vio porque ninguna emitía una**: sólo comprobaban que la nota fuera un tipo declarable. **El cobro deja de seguir al timbrado prestado**, que fue el crítico de la corrida: `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local no tiene el suyo —deliberado desde la 7.37.0, porque dejar de facturar sería peor— y el cobro deducía de ahí su cajón, así que **43 cobros entraron al arqueo del local equivocado**. Con esa caída puesta el local **no es derivable** del timbrado, así que `factura.id_sucursal` lo guarda: no rompe la 3FN porque no es copia de nada, es un dato que el timbrado no puede expresar. **Y la agenda separa dos preguntas que estaban fundidas en una**: «¿esta persona atiende?» es del **salón**, «¿atiende acá?» es del **local**. Resueltas juntas, una sucursal recién abierta —sin un turno cargado— le vendía horarios a cualquiera: la corrida midió **71 citas a la asistente administrativa**, 10 en domingo, y el 40 % terminó ausente contra el 33 % del local que sí tiene turnos. Es AG-01 otra vez, ahora por sucursal. **El criterio permisivo del primer día se conserva**, que es lo que hacía difícil el arreglo: quien sí atiende sigue entrando aunque su turno sea de otra sede. **El `.sql` que se entrega salía con una compra ajena adentro** — ver el aviso del guion de limpieza. **El aviso de sesión ocupada dice la consecuencia**: con varios locales, entrar igual le cierra la sesión a la otra sucursal y la deja sin poder cobrar, que es lo que explica los 9 días en que un local no abrió su caja. Y **el banco de pruebas aprende a subir archivos**, sin lo cual el movimiento de efectivo (7.47.0) y la devolución (7.48.0) quedaban con **cero cobertura** — las dos piezas más nuevas del módulo de dinero, ejercitadas exactamente nunca. **116 pruebas**, tres nuevas comprobadas en las dos direcciones |
 | 7.48.0 | 18/08/2026 | **La devolución de una nota de crédito podía cargarse dos veces, y con montos distintos.** Emitir la nota escribía el egreso **sola**, y además la clase «Devolución al cliente» dejaba cargar otro a mano: dos salidas por la misma devolución, y si quien la cargaba escribía otro número el cajón terminaba faltando plata que nunca salió. Se reordena en dos actos, que es lo que son: **desde Facturas se emite** la nota —y ya no toca el cajón, así que tampoco necesita caja abierta— y **desde Movimiento de efectivo se confirma la devolución**, eligiendo la nota de una lista. **El monto sale del documento, no se tipea**: es lo que impide que queden dos números para la misma devolución. La lista trae **sólo las de este local** —la sucursal de un comprobante sale de su timbrado (7.37.0)— con el nombre de la clienta y cuánto había pagado en efectivo, que es lo único que sale del cajón. **Y lo hace cumplir la base**, no un `if`: un índice único sobre `(id_factura, activo)` impide la segunda devolución vigente, y `activo` entra en la clave para que anular una deje volver a cargarla. Comprobado en las dos direcciones — sacando el índice, la prueba falla; y para sacarlo hay que soltar antes la clave foránea, que es la trampa que este documento ya anota. **113 pruebas** |
 | 7.47.2 | 18/08/2026 | **Salen tres clases de movimiento que el salón no usa**, por decisión del usuario: el fondo de cambio —que iba y volvía entre el cajón y la dueña— y el sobrante de arqueo. Quedan cuatro: gasto, retiro, faltante y devolución. **Se borran sólo si nadie las usó**; si alguna quedara referenciada se desactiva, porque una fila que un movimiento nombra es historia del arqueo y no se puede quitar sin romperlo. **Con esto ninguna clase suma al cajón**, y es coherente: lo único que entra son la apertura y los cobros. El `INGRESO`/`EGRESO` del controlador se deja como está —lo decide el signo del tipo— para que agregar mañana una clase que entre no pida tocar código. **112 pruebas** |
@@ -387,6 +388,7 @@ resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
                            <x-cobro-lineas>  las líneas del cobro, en Facturas y en la agenda
+                           <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
 routes/
   web.php                  Las 181 rutas, agrupadas por módulo con su middleware
@@ -531,6 +533,32 @@ nunca para decorar. Están declarados como variables; no escribir hex sueltos en
 Criterio de los badges de estado (`estado_badge()` + clases `.e-*`): lo que está **en curso**
 lleva el acento dorado, lo que está simplemente **agendado o cerrado** va en neutros cálidos,
 y el **resultado** en los semánticos. Así el badge dorado señala algo en vez de ser adorno.
+
+### «Todos» en un grupo de opciones múltiples
+
+Marcar quince servicios de a uno es el trabajo que la pantalla tendría que
+ahorrar, así que **todo grupo de casillas donde marcarlas todas signifique algo
+lleva su maestra**. La pieza es una sola, `data-marca-todo` en `app.js`, y ya la
+usaban Reportes y Descuentos:
+
+```blade
+<div class="form-check mb-1">
+    <input class="form-check-input" type="checkbox" id="gServiciosTodo" data-marca-todo="#gServicios">
+    <label class="form-check-label fw-semibold" for="gServiciosTodo">Todos</label>
+</div>
+<div class="d-flex gap-3 flex-wrap" id="gServicios"> … las casillas … </div>
+```
+
+Tres cosas al agregar una:
+
+- **La maestra va FUERA del contenedor del grupo.** `app.js` toma como hijos
+  todos los `input[type=checkbox]` que encuentra dentro del selector, así que
+  una maestra puesta adentro **se contaría a sí misma**: nunca llegaría a «están
+  todos» y el estado a medio marcar quedaría pegado.
+- **No lleva `name`**, así que no se envía: lo que se guarda son las casillas
+  del grupo.
+- **No en todos lados tiene sentido.** Los servicios de una cita y los canjes
+  no la llevan: marcar el catálogo entero no es nada que alguien quiera pedir.
 
 **Bootstrap trae su propio azul (`#0d6efd`) y grises fríos compilados.** En `app.css` están
 sobrescritas las variables `--bs-*` y, además, pisados a mano los componentes que traen el
@@ -2464,7 +2492,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 116 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 117 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 55 rutinas y sus 17
@@ -2524,13 +2552,13 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**116 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**117 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
 |---|---|
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
-| `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y quince—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500 |
+| `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y quince—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500. Y una tercera comprueba que **Caja ofrezca abrir la caja cuando está cerrada**: un 200 no alcanza para decir que una pantalla anda |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `ConcurrenciaCobroTest` | los otros candados, con procesos de verdad: **3 cobros** de la misma factura (que no quede saldo negativo), **3 aperturas de caja con cuentas distintas** (que quede una sola abierta), **3 salidas del mismo stock** (que no quede en negativo) y **cancelar contra reprogramar** la misma cita (que el resultado sea el que el sistema contestó). Son los hallazgos FA-01, CJ-01, IN-01 y AG-04 de la simulación de 90 días |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |

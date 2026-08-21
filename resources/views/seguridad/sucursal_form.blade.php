@@ -34,8 +34,11 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="ciudad">Ciudad</label>
-                    <input class="form-control" id="ciudad" name="ciudad" list="ciudadesPy"
-                           value="{{ old('ciudad', $s->ciudad ?? 'Luque') }}">
+                    {{-- **Sin valor por defecto.** Venía con «Luque» escrito, así que
+                         una sucursal nueva nacía con la ciudad de la casa central
+                         puesta: quien no la mirara la guardaba mal, y el campo
+                         parecía ya contestado. --}}
+                    <x-ciudad :valor="old('ciudad', $s->ciudad ?? '')" />
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="direccion">Dirección</label>
@@ -57,9 +60,4 @@
          propósito: sugiere las de siempre y deja escribir cualquier otra. Un
          selector cerrado obligaría a mantener el padrón entero del país para
          que alguien pueda poner su localidad. --}}
-    <datalist id="ciudadesPy">
-        @foreach (config('spg.ciudades', []) as $ciudad)
-            <option value="{{ $ciudad }}"></option>
-        @endforeach
-    </datalist>
 @endonce

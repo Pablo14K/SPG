@@ -304,3 +304,28 @@ if (! function_exists('estado_badge')) {
         return '<span class="badge-estado e-' . $k . '">' . e($estado) . '</span>';
     }
 }
+
+if (! function_exists('ciudad_elegida')) {
+    /**
+     * Qué ciudad quedó, leyendo el combo y su campo «Otra».
+     *
+     * El combo (`<x-ciudad>`) manda `ciudad`; cuando la ciudad no está en la
+     * lista del área metropolitana manda el centinela `__otra` y el texto va
+     * en `ciudad_otra`. Se resuelve en un solo lugar para que las dos
+     * pantallas que la piden no puedan interpretarlo distinto.
+     *
+     * Devuelve NULL cuando no se eligió nada: la columna es opcional, y un
+     * `''` guardado es peor que un NULL porque no se distingue de una ciudad
+     * cargada en blanco.
+     */
+    function ciudad_elegida(?string $combo, ?string $otra = null): ?string
+    {
+        $combo = trim((string) $combo);
+
+        if ($combo === '__otra') {
+            return trim((string) $otra) ?: null;
+        }
+
+        return $combo ?: null;
+    }
+}

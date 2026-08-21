@@ -51,7 +51,11 @@
             @if (count($sucursales) > 1)
                 <div class="col-12">
                     <label class="form-label">¿En qué sucursales se puede canjear?</label>
-                    <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check mb-1">
+                        <input class="form-check-input" type="checkbox" id="gCanjeSucTodo" data-marca-todo="#gCanjeSuc">
+                        <label class="form-check-label fw-semibold" for="gCanjeSucTodo">Todas</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3" id="gCanjeSuc">
                         @foreach ($sucursales as $s)
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="sucursales[]"

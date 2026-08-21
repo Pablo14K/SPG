@@ -264,6 +264,40 @@ class AccesoTest extends TestCase
         }
     }
 
+    /**
+     * Con la caja cerrada, Caja tiene que ofrecer cómo abrirla.
+     *
+     * **Un 200 no alcanza para decir que una pantalla anda.** La 7.46.0 mudó
+     * el bloque de movimientos a su propia pantalla y se llevó puesto el
+     * `@else`, así que el formulario de abrir quedó dentro de la rama «hay
+     * caja abierta»: con la caja cerrada la pantalla contestaba 200 y salía
+     * **sin nada**. La lista de pantallas ya la abría y no vio nada raro,
+     * porque medía el código de respuesta y no lo que se dibuja.
+     *
+     * Y sin caja no se cobra, no se factura y no se paga: la sucursal queda
+     * sin mostrador hasta que alguien toque la base a mano.
+     */
+    #[Test]
+    public function con_la_caja_cerrada_la_pantalla_ofrece_abrirla(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        // Se cierran las que haya: lo que se mide es el estado «cerrada», y
+        // `DatabaseTransactions` lo revierte al terminar.
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_estado_caja = 1');
+
+        $html = $this->get(route('facturacion.caja'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            route('facturacion.caja.abrir'), $html,
+            'Con la caja cerrada, la pantalla tiene que ofrecer el formulario para abrirla.'
+        );
+        $this->assertStringContainsString(
+            'monto_inicial', $html,
+            'El formulario de apertura pide el monto inicial: sin ese campo no hay nada que enviar.'
+        );
+    }
+
     /** Las doce listas que ofrecen el botón de bajar. */
     private const LISTAS = [
         'clientes.lista', 'clientes.fidelizacion', 'clientes.valoraciones',

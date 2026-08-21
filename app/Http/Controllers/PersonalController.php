@@ -534,7 +534,7 @@ class PersonalController extends Controller
         );
 
         $nombre = trim((string) $request->input('nombre', ''));
-        $ciudad = trim((string) $request->input('ciudad', '')) ?: null;
+        $ciudad = ciudad_elegida($request->input('ciudad'), $request->input('ciudad_otra'));
 
         if ($nombre === '') {
             flash('El nombre de la sucursal es obligatorio.', 'error');

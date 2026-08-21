@@ -1043,3 +1043,55 @@ window.SPGCarga = (function () {
   nc.addEventListener('change', ponerMonto);
   ajustar();
 })();
+
+// ---------------------------------------------------------------------
+//  El campo Ciudad: combo, con la salida de «Otra».
+//
+//  El texto libre se esconde salvo que el combo esté en «Otra ciudad…».
+//  **Arranca visible en el HTML a propósito**: si este archivo no cargó se
+//  ven los dos campos y el formulario sigue siendo usable, que es la regla
+//  de siempre — un adorno tiene que poder faltar.
+// ---------------------------------------------------------------------
+(function () {
+  document.querySelectorAll('select.spg-ciudad[data-otra]').forEach(function (sel) {
+    var otra = document.querySelector(sel.getAttribute('data-otra'));
+    if (!otra) return;
+
+    function reflejar() {
+      var libre = sel.value === '__otra';
+      otra.style.display = libre ? '' : 'none';
+      if (libre) { var i = otra.querySelector('input'); if (i) i.focus(); }
+    }
+    sel.addEventListener('change', reflejar);
+    // Sin `focus` en la primera pasada: robaría el cursor al abrir la pantalla.
+    otra.style.display = sel.value === '__otra' ? '' : 'none';
+  });
+})();
+
+// ---------------------------------------------------------------------
+//  Buscador de la pantalla de elegir sucursal.
+//
+//  Con dos locales sobra; con quince, recorrer la lista a ojo es el trabajo
+//  que la pantalla tendría que ahorrar. Filtra sobre el texto ya dibujado,
+//  así que **sin JavaScript se ven todas**, que es como estaba antes.
+// ---------------------------------------------------------------------
+(function () {
+  var caja = document.querySelector('[data-filtra-sucursales]');
+  if (!caja) return;
+  var lista = document.querySelector(caja.getAttribute('data-filtra-sucursales'));
+  if (!lista) return;
+
+  var items = Array.prototype.slice.call(lista.children);
+  var vacio = document.querySelector('[data-sin-sucursal]');
+
+  caja.addEventListener('input', function () {
+    var q = caja.value.trim().toLowerCase();
+    var n = 0;
+    items.forEach(function (it) {
+      var ok = q === '' || it.textContent.toLowerCase().indexOf(q) !== -1;
+      it.style.display = ok ? '' : 'none';
+      if (ok) n++;
+    });
+    if (vacio) vacio.style.display = n ? 'none' : '';
+  });
+})();

@@ -62,7 +62,7 @@ class ConfiguracionController extends Controller
             'ruc' => trim((string) $request->input('ruc', '')) ?: null,
             'telefono' => trim((string) $request->input('telefono', '')) ?: null,
             'direccion' => trim((string) $request->input('direccion', '')) ?: null,
-            'ciudad' => trim((string) $request->input('ciudad', '')) ?: null,
+            'ciudad' => ciudad_elegida($request->input('ciudad'), $request->input('ciudad_otra')),
         ];
         $volver = $id ? redirect()->route('seguridad.sucursal_form', $id) : redirect()->route('seguridad.sucursal_form');
 

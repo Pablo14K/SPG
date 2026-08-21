@@ -977,3 +977,24 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-grupo-rotulo{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
   color:var(--gris-oscuro);font-weight:600;padding:.2rem 0 .1rem;
   border-bottom:1px solid var(--gris-calido);margin-bottom:.3rem;}
+
+/* --------------------------------------------------------------------
+   Elegir sucursal: grilla, no columna.
+
+   Con dos locales una columna se ve bien; con quince es scroll puro y hay
+   que leer una por una. Dos por fila desde 480 px, y la lista con su
+   propio scroll para que el botón de cerrar sesión no se vaya de pantalla.
+   -------------------------------------------------------------------- */
+.spg-suc-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .5rem;
+    max-height: 52vh;
+    overflow-y: auto;
+    /* El scroll recorta el anillo de foco contra el borde: un respiro. */
+    padding: 2px;
+}
+
+@media (min-width: 480px) {
+    .spg-suc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

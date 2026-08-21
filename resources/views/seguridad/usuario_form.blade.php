@@ -88,7 +88,11 @@
                         está ese día, y desde ahí ve la agenda, la caja y el stock de ese local.
                     </p>
                     <div class="mb-3">
-                        <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="gSucursalesTodo" data-marca-todo="#gSucursales">
+                            <label class="form-check-label fw-semibold" for="gSucursalesTodo">Todas</label>
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap" id="gSucursales">
                             @foreach ($sucursales as $s)
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="sucursales[]"
@@ -111,7 +115,11 @@
                          todo. --}}
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios que hace</h2>
                     <div class="mb-3">
-                        <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="gServiciosTodo" data-marca-todo="#gServicios">
+                            <label class="form-check-label fw-semibold" for="gServiciosTodo">Todos</label>
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap" id="gServicios">
                             @foreach ($servicios as $sv)
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="servicios[]"
@@ -133,6 +141,13 @@
                         cuándo atiende. El mismo turno lo puede compartir todo el equipo.
                     </p>
                     <div class="mb-3">
+                        @if (count($turnos) > 1)
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="gTurnosTodo" data-marca-todo="#gTurnos">
+                                <label class="form-check-label fw-semibold" for="gTurnosTodo">Todos</label>
+                            </div>
+                        @endif
+                        <div id="gTurnos">
                         @forelse ($turnos as $t)
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="turnos[]"
@@ -152,6 +167,7 @@
                                 Todavía no hay turnos cargados. Creá uno acá al costado.
                             </p>
                         @endforelse
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -200,7 +216,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Días</label>
-                        <div class="d-flex gap-1 flex-wrap">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="gDiasRapidoTodo" data-marca-todo="#gDiasRapido">
+                            <label class="form-check-label fw-semibold" for="gDiasRapidoTodo" style="font-size:.8rem">Todos</label>
+                        </div>
+                        <div class="d-flex gap-1 flex-wrap" id="gDiasRapido">
                             @foreach ($dias as $n => $nombreDia)
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="dias[]" value="{{ $n }}"

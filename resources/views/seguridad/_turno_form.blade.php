@@ -46,7 +46,12 @@
                         <label class="form-label">Días que se trabaja *</label>
                         {{-- Un día por casilla, y en la base una fila por día:
                              nunca una lista tipo 'LMXJVS' dentro de una columna. --}}
-                        <div class="d-flex gap-2 flex-wrap">
+                        @php($gDias = 'gDias' . ($t->id_turno ?? 0))
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="{{ $gDias }}Todo" data-marca-todo="#{{ $gDias }}">
+                            <label class="form-check-label fw-semibold" for="{{ $gDias }}Todo">Todos</label>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap" id="{{ $gDias }}">
                             @foreach ($dias as $n => $nombreDia)
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="dias[]" value="{{ $n }}"
