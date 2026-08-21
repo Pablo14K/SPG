@@ -334,7 +334,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **181 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **180 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -350,9 +350,11 @@ de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo
 ```
 app/
   Ayudas/formato.php       Funciones globales, cargadas por composer («files»):
-                           money() cant() num() entero() fecha() fecha_larga()
-                           ahora_bd() recurso() flash() estado_badge()
-                           producto_fraccionado() consumo_a_stock() stock_a_consumo()
+                           money() monto_input() cant() num() entero()
+                           fecha() fecha_larga() ahora_bd() recurso() flash()
+                           estado_badge() ciudad_elegida()
+                           producto_fraccionado() unidad_es_envase()
+                           consumo_a_stock() stock_a_consumo() unidad_consumo()
   Servicios/               La capa propia. Todo estático, sin estado.
     Bd.php                 El puente a las rutinas: idDe() enTransaccion() traducir()
     Agenda.php             Huecos, reparto entre profesionales, agendar con candado
@@ -366,6 +368,9 @@ app/
     Notificaciones.php     Cola de avisos: ausencias, bajas, recordatorios y los internos
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
     Listado.php            Prototipo de listas: filtros(), paginacion(), exportar() CSV/PDF
+    Sucursales.php         La sucursal activa y el filtro por local: activa(), filtro()
+    Canje.php              El vale de puntos: canjear(), aplicarACita()
+    Config.php             Lo que decide el salón y no el código (`configuracion`)
     Borrador.php           No perder lo escrito al usar un alta rápida
     Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Navegacion.php         Migas, accesos rápidos y catálogo de pantallas
@@ -391,11 +396,12 @@ resources/views/
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 181 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 180 rutas, agrupadas por módulo con su middleware
   console.php              El scheduler: spg:notificaciones cada diez minutos
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 93 pruebas
+tests/Feature/             Las 117 pruebas
+_sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
 > **Las rutas son explícitas y eso resuelve un problema que el sistema viejo tenía.** Antes el
@@ -605,7 +611,7 @@ Tres reglas al tocarlo:
 ## Interfaz
 
 - Bootstrap 5.3 + Bootstrap Icons **por CDN**, con la paleta de arriba aplicada encima.
-- **Tres niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
+- **Cuatro niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
   alguno, la anterior vuelve a quedar sin respuesta:
   | Nivel | Dónde | Qué responde |
   |---|---|---|
@@ -668,9 +674,9 @@ ningún lado.
 
 **Es UNO para todo el salón, no uno por sucursal.** Se evaluó por sucursal y no cierra: el
 cliente entra por un único portal y no está atado a ningún local — `usuario.id_sucursal` es
-NULL para los clientes y `cita` tampoco guarda sucursal (se deduce del profesional, y a la
-misma persona la puede atender gente de locales distintos). El pie tendría que elegir una
-sucursal sin ningún criterio. El canal de soporte es del negocio, no del local.
+NULL para los clientes, y aunque la cita sí diga dónde ocurrió (`cita.id_sucursal`, desde la
+7.30.0), **la misma clienta se atiende en varios locales**: el pie tendría que elegir una
+sucursal sin ningún criterio, o cambiar de canal según la última cita. El canal de soporte es del negocio, no del local.
 
 `Contacto::url()` arma el enlace del chat y acepta las tres formas en que la gente tiene
 guardado su contacto: el enlace entero, un usuario o canal, o el número.
@@ -1563,8 +1569,8 @@ productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock 
 con cuánta plata hay que ir a comprar.
 
 > Acá decía que lo dibujaba un componente `<x-aviso-stock>`. **Ese componente no existe**:
-> los cinco que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`
-> y `<x-cobro-lineas>`.
+> los seis que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`,
+> `<x-cobro-lineas>` y `<x-ciudad>`.
 > Quedaba además su CSS (`.spg-aviso-stock`, `.spg-aviso-item`, `.spg-aviso-mas`) sin marcado
 > que lo usara, heredado del sistema anterior; se borró en la 7.1.0. Si algún día se unifica
 > el aviso en un componente, este párrafo vuelve a valer.
@@ -2036,9 +2042,16 @@ tiempo. Lo hace cumplir `trg_caja_bi`, acotado a `NEW.id_sucursal` desde la
 7.36.2 — antes miraba el salón entero y dejaba sin mostrador a todos los locales
 menos al primero que abriera.
 Sin caja abierta **no se mueve un guaraní**: quedaría fuera del arqueo y el cierre no cerraría.
-`sp_registrar_cobro` busca una caja abierta *del propio usuario*; como la caja del salón puede
-haberla abierto otra persona, el controlador reasigna `cobro.id_caja` a la caja abierta.
-Lo mismo con `sp_pagar_compra`. La cierra quien la abrió, o el Administrador.
+**El cajón lo decide el DOCUMENTO, no quien opera.** `sp_registrar_cobro` saca la sucursal de
+la factura (`COALESCE(factura.id_sucursal, timbrado.id_sucursal)`) y busca la caja abierta de
+ese local; `sp_registrar_sena` la saca de la cita y `sp_pagar_compra` de la compra. **La caja
+del usuario quedó de último recurso**, para cuando ese local no tenga ninguna abierta.
+
+> Hasta la 7.36.3 elegían con `id_usuario = p_id_usuario … ORDER BY id_caja DESC`, o sea la
+> última caja que esa persona hubiera abierto — que con varios locales puede ser la del otro.
+> La simulación midió un pago de **Gs. 1.150.000** validado contra un cajón y grabado en otro,
+> que quedó en −1.000.000. El `UPDATE cobro SET id_caja = ? … AND id_caja IS NULL` del
+> controlador sigue ahí, pero **sólo rellena lo que el procedimiento no pudo resolver**. La cierra quien la abrió, o el Administrador.
 
 **`exigeCaja($queIbaAHacer)` de `FacturacionController` es el guardián**, y está en
 las nueve acciones que tocan plata: cobrar, anular un cobro, emitir y anular factura, la
@@ -2558,7 +2571,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 | Archivo | Qué cuida |
 |---|---|
 | `ReglasDeNegocioTest` | que un horario tomado deje de ofrecerse; que la cita dure el bloque más largo y no la suma; que el saldo de caja cuente **sólo** el efectivo; que los correlativos vayan seguidos y sin repetir; que la seña se descuente una vez y no dos; que anular conserve el número; que el stock salga de los movimientos, que no se pueda sacar de más y que **descontar 15, 5 o 1 ml baje exactamente eso** —con las columnas en dos decimales, 15 descontaban 20 y 1 ml no entraba—; y las cinco reglas de permisos, incluido el 403 real de una ruta y que un rol guardado con las claves viejas no pierda ni gane nada |
-| `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y quince—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500. Y una tercera comprueba que **Caja ofrezca abrir la caja cuando está cerrada**: un 200 no alcanza para decir que una pantalla anda |
+| `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y veinticuatro—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500. Y una tercera comprueba que **Caja ofrezca abrir la caja cuando está cerrada**: un 200 no alcanza para decir que una pantalla anda |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `ConcurrenciaCobroTest` | los otros candados, con procesos de verdad: **3 cobros** de la misma factura (que no quede saldo negativo), **3 aperturas de caja con cuentas distintas** (que quede una sola abierta), **3 salidas del mismo stock** (que no quede en negativo) y **cancelar contra reprogramar** la misma cita (que el resultado sea el que el sistema contestó). Son los hallazgos FA-01, CJ-01, IN-01 y AG-04 de la simulación de 90 días |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
