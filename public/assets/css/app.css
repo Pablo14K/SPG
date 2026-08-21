@@ -465,7 +465,13 @@ body{
    Se imprime solo el comprobante: fuera la barra superior, los accesos rápidos,
    los botones y el listado de cobros (que es información interna). */
 @media print{
-  .spg-topbar,.spg-rapidos,.no-imprimir,.alert,footer,.spg-footer{display:none !important;}
+  /* **Todo lo que sirve para navegar sobra en el papel.** `.spg-nav` no
+     estaba en esta lista, así que la barra de módulos y su desplegable
+     salían impresos encima del comprobante: en la hoja aparecían «Panel ·
+     Citas · Clientes · Tesorería» y los enlaces del menú, que en pantalla
+     el hover mantiene ocultos pero al imprimir se dibujan todos. */
+  .spg-topbar,.spg-nav,.spg-nav-menu,.spg-migas,
+  .spg-rapidos,.no-imprimir,.alert,footer,.spg-footer{display:none !important;}
   body{background:var(--blanco);}
   main.container{padding:0 !important;max-width:100% !important;}
   .spg-comprobante{border:none;padding:0;}

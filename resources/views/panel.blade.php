@@ -111,7 +111,8 @@
                         <ul class="list-unstyled mb-0" style="font-size:.84rem">
                             @foreach ($atrasadas as $c)
                                 @php $min = (int) round((strtotime(ahora_bd()) - strtotime($c->fecha_hora)) / 60); @endphp
-                                <li class="d-flex justify-content-between gap-2 py-1"
+                                <li id="citaAtrasada{{ $c->id_cita }}"
+                                    class="d-flex justify-content-between gap-2 py-1"
                                     style="border-top:1px solid var(--gris-calido)">
                                     <span class="text-truncate">
                                         <strong>{{ $c->cliente }}</strong>
@@ -144,7 +145,10 @@
                         </div>
                         <ul class="list-unstyled mb-0" style="font-size:.84rem">
                             @foreach ($proximas as $c)
-                                <li class="d-flex justify-content-between gap-2 py-1"
+                                {{-- El id deja que la prueba mire ESTA cita y no el
+                                     nombre de la clienta, que puede repetirse. --}}
+                                <li id="citaProxima{{ $c->id_cita }}"
+                                    class="d-flex justify-content-between gap-2 py-1"
                                     style="border-top:1px solid var(--gris-calido)">
                                     <span class="text-truncate">
                                         <strong>{{ $c->cliente }}</strong>

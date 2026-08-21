@@ -43,13 +43,25 @@
             <div class="spg-sello-anulada">ANULADA</div>
         @endif
 
+        {{-- **La misma cabecera que el KuDE**, para que los dos papeles del
+             salón se lean como del mismo sistema: el nombre del salón arriba,
+             el local abajo, y a la derecha el documento con su timbrado.
+
+             Lo que NO se copia del KuDE son sus leyendas de la DNIT —el CDC,
+             el QR, «representación gráfica de un documento electrónico»—:
+             este comprobante **no se declara**, y ponérselas lo haría pasar
+             por algo que no es. --}}
         <div class="row">
             <div class="col-md-7">
-                <h2 style="font-size:1.05rem;margin-bottom:.2rem">{{ $emisor->nombre ?? config('app.name') }}</h2>
+                <h2 style="font-size:1.05rem;margin-bottom:.2rem">{{ $emisor->nombre_salon ?? config('app.name') }}</h2>
                 <div class="text-muted-warm" style="font-size:.82rem">
                     @if ($emisor?->ruc)RUC {{ $emisor->ruc }}<br>@endif
                     {{ $emisor->direccion ?? '' }} {{ $emisor->ciudad ? '· ' . $emisor->ciudad : '' }}<br>
-                    @if ($emisor?->telefono)Tel. {{ $emisor->telefono }}@endif
+                    @if ($emisor?->telefono)Tel. {{ $emisor->telefono }}<br>@endif
+                    {{-- Con varias sedes, de cuál salió el papel no se deduce de
+                         los tres dígitos del establecimiento. --}}
+                    @if ($emisor?->sucursal)Sucursal: {{ $emisor->sucursal }}<br>@endif
+                    @if ($emisor?->actividad_desc)Actividad: {{ $emisor->actividad_desc }}@endif
                 </div>
             </div>
             <div class="col-md-5 text-md-end">

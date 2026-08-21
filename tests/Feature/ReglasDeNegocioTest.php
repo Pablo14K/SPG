@@ -3725,4 +3725,64 @@ class ReglasDeNegocioTest extends TestCase
             }
         }
     }
+    /**
+     * Una cita ya atendida no se anuncia como próxima.
+     *
+     * **Atender temprano es lo normal**: la clienta de las 11:30 llega a las
+     * 11 y se la atiende. Con la hora todavía por delante, el panel la seguía
+     * listando en «Tus próximas citas» — y eso no es un detalle estético:
+     * quien mira el panel decide con eso si le da tiempo de tomar otra.
+     *
+     * La causa es que esta consulta era la única del sistema que listaba los
+     * estados a mano («todos menos Cancelada y Ausente») en vez de preguntar
+     * `estado_cita.bloquea_agenda`, que es la columna que significa
+     * exactamente «esta cita todavía ocupa el sillón».
+     */
+    #[Test]
+    public function el_panel_no_anuncia_como_proxima_una_cita_ya_atendida(): void
+    {
+        $cita = DB::selectOne(
+            'SELECT c.id_cita, c.id_usuario, c.id_sucursal FROM cita c
+              WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1'
+        );
+        if (! $cita) {
+            $this->markTestSkipped('Hace falta una cita con servicios.');
+        }
+
+        // Se entra como Administrador a propósito: ve la agenda entera, así
+        // que lo que se mide es el estado de la cita y no de quién es.
+
+        // El panel muestra CUATRO, así que la prueba se queda sin significado
+        // si esta cita no entra en las cuatro primeras: las demás pendientes
+        // de esa persona se cierran para que quede sola. `DatabaseTransactions`
+        // lo revierte al terminar.
+        DB::update(
+            'UPDATE cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                SET c.id_estado_cita = 4
+              WHERE ec.bloquea_agenda = 1 AND c.id_cita <> ?',
+            [(int) $cita->id_cita]
+        );
+
+        // Dentro de un rato y en el local de la cita, que es donde el panel
+        // mira: sin eso el filtro por sucursal la esconde por otro motivo.
+        DB::update('UPDATE cita SET fecha_hora = DATE_ADD(NOW(), INTERVAL 40 MINUTE),
+                           id_estado_cita = 1 WHERE id_cita = ?', [(int) $cita->id_cita]);
+
+        $this->entrarComo('admin', 'admin123');
+        $this->conSucursal((int) $cita->id_sucursal);
+
+        $enElPanel = fn (): bool => str_contains(
+            $this->get(route('panel'))->assertOk()->getContent(), 'id="citaProxima' . (int) $cita->id_cita . '"'
+        );
+
+        $this->assertTrue($enElPanel(),
+            'Programada y con la hora por delante: tiene que estar en las próximas.');
+
+        // Se la atiende antes de la hora, que es el caso que reportó el uso real.
+        DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [(int) $cita->id_cita]);
+
+        $this->assertFalse($enElPanel(),
+            'Ya atendida, aunque su hora no haya llegado, deja de ser una cita próxima.');
+    }
 }

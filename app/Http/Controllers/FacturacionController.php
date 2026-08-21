@@ -201,12 +201,18 @@ class FacturacionController extends Controller
                   ORDER BY s.nombre', [$id]
             ),
             'imp' => DB::selectOne('SELECT * FROM vw_factura_impuestos WHERE id_factura = ?', [$id]),
+            // **Quién emite, igual que en el KuDE.** El local sale de la
+            // factura y el timbrado queda de respaldo: desde la 7.49.0 la
+            // sucursal no se deduce del timbrado, porque un local sin el
+            // suyo numera con el de otra sede.
             'emisor' => DB::selectOne(
-                'SELECT s.nombre, s.ruc, s.telefono, s.direccion, s.ciudad,
-                        t.nro_timbrado, t.fecha_inicio AS timbrado_desde, t.fecha_fin AS timbrado_hasta
+                'SELECT s.nombre AS sucursal, s.ruc, s.telefono, s.direccion, s.ciudad,
+                        t.nro_timbrado, t.fecha_inicio AS timbrado_desde, t.fecha_fin AS timbrado_hasta,
+                        cf.nombre_salon, cf.actividad_desc
                    FROM factura fa
                    JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
-                   JOIN sucursal s ON s.id_sucursal = t.id_sucursal
+                   JOIN sucursal s ON s.id_sucursal = COALESCE(fa.id_sucursal, t.id_sucursal)
+                   LEFT JOIN configuracion cf ON cf.id_configuracion = 1
                   WHERE fa.id_factura = ?', [$id]
             ),
             'cli' => DB::selectOne(

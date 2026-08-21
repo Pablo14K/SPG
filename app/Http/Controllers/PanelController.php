@@ -94,10 +94,24 @@ class PanelController extends Controller
         // principal, y dos tablas largas apiladas encima las empujaban fuera de
         // la pantalla. Cuatro alcanzan para saber qué se viene; para el resto
         // está la agenda, que es la pantalla que existe justamente para eso.
+        // **Próxima es la que todavía hay que atender, no la que todavía no
+        // llegó a su hora.** Esta consulta era el único lugar del sistema que
+        // listaba los estados a mano —«todos menos Cancelada y Ausente»— y la
+        // lista se quedó corta: **Atendida entraba**. A una clienta atendida
+        // temprano, con su hora todavía por delante, el panel la seguía
+        // anunciando como pendiente; quien lo mira decide con eso si le da
+        // tiempo de tomar otra.
+        //
+        // La regla ya vivía en la base, en una columna hecha para eso, y la
+        // usan la agenda, el portal, los recordatorios y la reasignación:
+        // `estado_cita.bloquea_agenda` es exactamente «esta cita todavía
+        // ocupa el sillón». Escrita una sola vez no se puede quedar corta al
+        // agregar un estado, que es lo que pasó con Atrasada en la 7.15.0.
         $proximas = DB::select(
             "SELECT v.* FROM vw_agenda_citas v
-               JOIN cita c ON c.id_cita = v.id_cita
-              WHERE v.fecha_hora >= NOW() AND v.estado NOT IN ('Cancelada','Ausente') $soloMiasProx
+               JOIN cita c        ON c.id_cita = v.id_cita
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE v.fecha_hora >= NOW() AND ec.bloquea_agenda = 1 $soloMiasProx
               ORDER BY v.fecha_hora LIMIT 4", $parProx
         );
 
