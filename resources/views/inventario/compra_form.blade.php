@@ -116,6 +116,16 @@
                         $vCat = (array) old('categoria', []);
                         $cuantas = max(3, count($vNombre));
                     @endphp
+                    {{-- Los rótulos de las columnas: con cinco campos por fila
+                         y sólo placeholders, hay que adivinar cuál es cuál. --}}
+                    <div class="row g-2 mb-1 text-muted-warm d-none d-md-flex" style="font-size:.78rem">
+                        <div class="col-md-5">Producto</div>
+                        <div class="col-md-2">Cantidad</div>
+                        <div class="col-md-2">Precio unitario</div>
+                        <div class="col-md-2">Categoría</div>
+                        <div class="col-md-1 text-end">Subtotal</div>
+                    </div>
+
                     <div id="filasCompra">
                         @for ($i = 0; $i < $cuantas; $i++)
                             <div class="row g-2 mb-2 filaCompra">
@@ -140,13 +150,20 @@
                                     <input class="form-control form-control-sm input-miles precioProd" name="precio[]"
                                            data-min="0" placeholder="Precio" value="{{ $vPrecio[$i] ?? '' }}">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <select class="form-select form-select-sm" name="categoria[]">
                                         @foreach ($categorias as $c)
                                             <option value="{{ $c->id_categoria }}"
                                                 @selected((int) ($vCat[$i] ?? 0) === (int) $c->id_categoria)>{{ $c->nombre }}</option>
                                         @endforeach
                                     </select>
+                                </div>
+                                {{-- **El subtotal de la fila.** Sin él hay que
+                                     multiplicar de cabeza para saber si un
+                                     renglón está bien cargado, y el error
+                                     aparece recién en el total. --}}
+                                <div class="col-md-1 d-flex align-items-center justify-content-end">
+                                    <span class="subtotalFila text-muted-warm" style="font-size:.85rem">—</span>
                                 </div>
                             </div>
                         @endfor
@@ -331,6 +348,9 @@
             var pr = aNumero(f.querySelector('[name="precio[]"]').value);
             if (c > 0 && pr > 0) { renglones++; }
             total += c * pr;
+
+            var sub = f.querySelector('.subtotalFila');
+            if (sub) { sub.textContent = (c > 0 && pr > 0) ? miles(c * pr) : '—'; }
         });
         var t = document.getElementById('compraTotal');
         var l = document.getElementById('compraLineas');
@@ -360,6 +380,9 @@
 
         campo.addEventListener('input', resolver);
         campo.addEventListener('change', resolver);
+        // Al salir del campo también: elegir del datalist con el teclado no
+        // siempre dispara `change` antes de que el foco se vaya.
+        campo.addEventListener('blur', resolver);
         fila.querySelectorAll('[name="cantidad[]"], [name="precio[]"]').forEach(function (i) {
             i.addEventListener('input', recalcular);
         });

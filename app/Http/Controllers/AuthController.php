@@ -38,6 +38,14 @@ class AuthController extends Controller
             'password.required' => 'Ingresá tu contraseña.',
         ]);
 
+        // **La sesión muere al cerrar el navegador, salvo que se pida lo
+        // contrario.** Es lo que evita que una cuenta quede «ocupada» porque
+        // alguien cerró la pestaña: sin cookie no hay sesión que reclamar.
+        // Marcando la casilla, la cookie dura lo que diga `SESSION_LIFETIME`
+        // y se puede volver sin escribir la contraseña de nuevo — es para el
+        // equipo del mostrador, no para uno prestado.
+        config(['session.expire_on_close' => ! $request->boolean('recordar')]);
+
         $r = Sesion::intentarLogin($datos['usuario'], $datos['password'], $request->boolean('forzar'));
 
         // La cuenta ya está abierta en otro equipo. No se la desplaza: se le

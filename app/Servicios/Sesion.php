@@ -105,9 +105,30 @@ class Sesion
      */
     public static function tieneSesionAbierta(int $idUsuario): bool
     {
-        $marca = DB::scalar('SELECT sesion_activa FROM usuario WHERE id_usuario = ?', [$idUsuario]);
+        $u = DB::selectOne(
+            'SELECT sesion_activa, sesion_desde FROM usuario WHERE id_usuario = ?', [$idUsuario]);
+        if (! $u || $u->sesion_activa === null || $u->sesion_activa === '') {
+            return false;
+        }
+        if ($u->sesion_activa === session('sesion_marca')) {
+            return false;
+        }
 
-        return $marca !== null && $marca !== '' && $marca !== session('sesion_marca');
+        // **Una marca vieja no es una sesión abierta.** Quien cierra el
+        // navegador sin salir la dejaba puesta para siempre, y el próximo
+        // ingreso tenía que forzarse a mano — un candado del que sólo se sale
+        // pisando la sesión de otro. Pasado el tiempo de vida de la sesión,
+        // esa sesión ya no existe del lado del servidor: la marca es un
+        // resto, no alguien trabajando.
+        $vida = (int) config('session.lifetime', 120);
+        if ($u->sesion_desde && strtotime((string) $u->sesion_desde) < strtotime('-' . $vida . ' minutes')) {
+            DB::update('UPDATE usuario SET sesion_activa = NULL, sesion_desde = NULL
+                         WHERE id_usuario = ? AND sesion_activa = ?', [$idUsuario, $u->sesion_activa]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /** Arma la sesión a partir de un id de usuario. */

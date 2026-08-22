@@ -77,9 +77,18 @@
                                          que ya empezó es mover a otro día algo que está pasando.
                                          Lo que queda es lo que sí se hace desde ahí: registrar la
                                          atención, y cancelar por si se cortó a mitad de camino. --}}
-                                    @php $enCurso = $c->estado === 'En proceso'; @endphp
+                                    @php
+                                        $enCurso = $c->estado === 'En proceso';
+                                        // **Atender y marcar en proceso son del DÍA de la
+                                        // cita.** Mirando la agenda de mañana se podían
+                                        // apretar igual, y una cita queda «en proceso» un
+                                        // día en que nadie la está atendiendo. Cancelar y
+                                        // reprogramar sí se hacen antes: son justamente
+                                        // para lo que todavía no pasó.
+                                        $esHoy = fecha($c->fecha_hora, 'Y-m-d') === fecha(ahora_bd(), 'Y-m-d');
+                                    @endphp
 
-                                    @unless ($enCurso)
+                                    @unless ($enCurso || ! $esHoy)
                                     <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -90,13 +99,13 @@
                                     </form>
                                     @endunless
 
-                                    @if ($urlAtender = Navegacion::url('citas.atender'))
+                                    @if ($esHoy && $urlAtender = Navegacion::url('citas.atender'))
                                         <a class="btn btn-sm btn-outline-neutro" title="Registrar atención"
                                            href="{{ $urlAtender . '?id=' . $c->id_cita }}">
                                             <i class="bi bi-clipboard-check"></i></a>
                                     @endif
 
-                                    @unless ($enCurso)
+                                    @unless ($enCurso || ! $esHoy)
                                     <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -108,6 +117,10 @@
                                     </form>
                                     @endunless
 
+                                    {{-- **Cancelar una cita en curso no es cancelar.** La
+                                         clienta está en el sillón: lo que corresponde es
+                                         terminar de atenderla o registrar lo que se hizo. --}}
+                                    @unless ($enCurso)
                                     <form method="post" action="{{ route('citas.cancelar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -116,6 +129,7 @@
                                                 data-confirmar="¿Cancelar la cita de {{ $c->cliente }} de las {{ fecha($c->fecha_hora, 'H:i') }}?">
                                             <i class="bi bi-x-lg"></i></button>
                                     </form>
+                                    @endunless
 
                                     @unless ($enCurso)
                                         <button class="btn btn-sm btn-outline-neutro" title="Reprogramar"
@@ -125,8 +139,15 @@
 
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
                                          la caja abierta. Con la caja cerrada el aviso de arriba
-                                         explica por qué no está el botón. --}}
-                                    @if ($puedeCobrar && $caja && $c->estado !== 'Ausente')
+                                         explica por qué no está el botón.
+
+                                         **Y no va si ya se cobró ni con la cita en proceso.**
+                                         La seña garantiza una reserva: con la clienta ya en el
+                                         sillón no hay nada que garantizar, y una vez cobrada el
+                                         botón ofrece cobrarla de nuevo. Lo que falte se cobra al
+                                         terminar, desde «Cobrar». --}}
+                                    @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
+                                         && ! $enCurso && (float) $c->sena <= 0)
                                         <button class="btn btn-sm btn-outline-neutro" title="Cobrar una seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
@@ -276,6 +297,19 @@
                                 // rechazo. Se calcula acá con la misma cuenta.
                                 $totalCita = (float) ($c->total_cita ?? 0);
                                 $falta = max(0, $totalCita - (float) $c->sena);
+
+                                // **Lo que se propone es la SEÑA, no la cita entera.**
+                                // El modal venía con el total y con eso se cobraba de
+                                // más con un clic: una seña es un adelanto, y cuánto
+                                // pide el salón lo dice `servicio.sena_porcentaje`.
+                                //
+                                // Prioridad: lo que la clienta anunció desde el portal
+                                // —es lo que hay que confirmar—, si no lo que el salón
+                                // pide, y recién si no hay ninguno, lo que falte.
+                                $pide = (float) ($c->sena_requerida ?? 0);
+                                $sugerido = (float) ($c->sena_pedida ?? 0) > 0
+                                    ? (float) $c->sena_pedida
+                                    : ($pide > 0 ? min($pide, $falta) : $falta);
                             @endphp
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.85rem">
@@ -313,7 +347,11 @@
                                         @if ((float) $c->sena > 0)
                                             <span>· ya cobrado <strong>{{ money($c->sena) }}</strong></span>
                                         @endif
-                                        <strong class="spg-cobro-falta">A cobrar {{ money($falta) }}</strong>
+                                        @if ($pide > 0)
+                                            <strong class="spg-cobro-falta">Seña que pide el salón: {{ money($pide) }}</strong>
+                                        @else
+                                            <strong class="spg-cobro-falta">A cobrar {{ money($falta) }}</strong>
+                                        @endif
                                     </div>
                                 @else
                                     {{-- Sin servicios cargados no hay monto que cobrar, y la
@@ -337,7 +375,7 @@
                                  siendo lo que falta: se puede corregir hacia arriba si de
                                  verdad entregó más. --}}
                             <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos"
-                                :sugerido="$c->id_solicitud ? (float) $c->sena_pedida : $falta" />
+                                :sugerido="$sugerido" />
 
                                 {{-- **La caja es del local, no de quien la abrió.** Desde la
                                      7.36.3 la sucursal del cobro se deduce de la cita, así que

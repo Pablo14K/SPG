@@ -198,57 +198,84 @@
     @endif
 
     <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2" id="historial"><i class="bi bi-clock-history"></i> Cajas anteriores</h2>
+        <h2 class="spg-form-titulo mb-2" id="historial"><i class="bi bi-clock-history"></i> Historial de caja</h2>
+
+        {{-- **Apertura y cierre son dos registros distintos.** Estaban en una
+             sola fila, así que la apertura de una caja todavía abierta salía
+             con las columnas del arqueo en blanco y no se entendía si faltaba
+             contarla o si el conteo había dado cero. Cada uno tiene su fecha,
+             su responsable y sus datos: se listan como lo que son. --}}
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Apertura</th><th>Cierre</th><th>Responsable</th>
-                        <th class="text-end">Inicial</th><th class="text-end">Cobros en efectivo</th>
-                        <th class="text-end">Esperado</th><th class="text-end">Contado</th>
-                        <th class="text-end">Diferencia</th><th>Estado</th>
+                        <th>Cuándo</th><th>Qué</th><th>Responsable</th>
+                        <th class="text-end">Monto</th><th>Detalle</th><th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($rows as $c)
+                    @php
+                        // Un registro por apertura y otro por cierre, ordenados
+                        // por su propia fecha: así se lee la sucesión real del
+                        // mostrador y no una tabla con mitades vacías.
+                        $mov = [];
+                        foreach ($rows as $c) {
+                            $mov[] = ['t' => 'apertura', 'c' => $c, 'cuando' => $c->fecha_apertura];
+                            if ($c->fecha_cierre) {
+                                $mov[] = ['t' => 'cierre', 'c' => $c, 'cuando' => $c->fecha_cierre];
+                            }
+                        }
+                        usort($mov, fn ($a, $b) => strcmp((string) $b['cuando'], (string) $a['cuando']));
+                    @endphp
+
+                    @forelse ($mov as $m)
+                        @php $c = $m['c']; @endphp
                         <tr>
-                            <td>{{ fecha($c->fecha_apertura) }}</td>
-                            <td>{{ $c->fecha_cierre ? fecha($c->fecha_cierre) : '—' }}</td>
-                            <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
-                            <td class="text-end">{{ money($c->monto_inicial) }}</td>
-                            <td class="text-end">{{ money($c->cobros_efectivo ?? 0) }}</td>
-                            <td class="text-end"><strong>{{ money($c->saldo) }}</strong></td>
-                            {{-- **«—» y no «Gs. 0» cuando no se contó.** Un cero ahí
-                                 se lee como «cuadró», que es justo lo que no se
-                                 sabe: son las cajas cerradas antes del arqueo. --}}
-                            <td class="text-end">
-                                {{ $c->monto_contado === null ? '—' : money($c->monto_contado) }}
-                            </td>
-                            <td class="text-end">
-                                @if ($c->diferencia === null)
-                                    <span class="text-muted-warm">sin conteo</span>
-                                @elseif (abs((float) $c->diferencia) < 0.01)
-                                    <span class="badge-estado e-ok">cuadra</span>
-                                @elseif ((float) $c->diferencia > 0)
-                                    <span class="badge-estado e-warn">sobran {{ money($c->diferencia) }}</span>
-                                @else
-                                    <span class="badge-estado e-no">faltan {{ money(abs((float) $c->diferencia)) }}</span>
-                                @endif
-                            </td>
-                            <td>{!! estado_badge($c->estado) !!}</td>
+                            <td style="white-space:nowrap">{{ fecha($m['cuando']) }}</td>
+                            @if ($m['t'] === 'apertura')
+                                <td><span class="badge-estado e-prog"><i class="bi bi-unlock"></i> Apertura</span></td>
+                                <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
+                                <td class="text-end">{{ money($c->monto_inicial) }}</td>
+                                <td class="text-muted-warm" style="font-size:.84rem">
+                                    {{ $c->observacion_apertura ?: '—' }}
+                                </td>
+                                <td>{!! estado_badge($c->estado) !!}</td>
+                            @else
+                                <td><span class="badge-estado e-muted"><i class="bi bi-lock"></i> Cierre</span></td>
+                                <td class="text-muted-warm">{{ $c->arqueo_por ?: ($c->responsable ?? '—') }}</td>
+                                <td class="text-end">
+                                    {{-- **«—» y no «Gs. 0» cuando no se contó.** Un cero
+                                         ahí se lee como «cuadró», que es justo lo que no
+                                         se sabe: son las cajas cerradas antes del arqueo. --}}
+                                    {{ $c->monto_contado === null ? '—' : money($c->monto_contado) }}
+                                    <span class="text-muted-warm" style="font-size:.8rem">
+                                        · esperado {{ money($c->saldo) }}</span>
+                                </td>
+                                <td style="font-size:.84rem">
+                                    @if ($c->diferencia === null)
+                                        <span class="text-muted-warm">sin conteo</span>
+                                    @elseif (abs((float) $c->diferencia) < 0.01)
+                                        <span class="badge-estado e-ok">cuadra</span>
+                                    @elseif ((float) $c->diferencia > 0)
+                                        <span class="badge-estado e-warn">sobran {{ money($c->diferencia) }}</span>
+                                        <span class="text-muted-warm">· {{ $c->motivo_diferencia ?: 'sin motivo' }}</span>
+                                    @else
+                                        <span class="badge-estado e-no">faltan {{ money(abs((float) $c->diferencia)) }}</span>
+                                        <span class="text-muted-warm">· {{ $c->motivo_diferencia ?: 'sin motivo' }}</span>
+                                    @endif
+                                    @if ($c->observacion_cierre)
+                                        <div class="text-muted-warm">{{ $c->observacion_cierre }}</div>
+                                    @endif
+                                </td>
+                                <td>{!! estado_badge($c->estado) !!}</td>
+                            @endif
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="7">
-                                <div class="spg-vacio">
-                                    <i class="bi bi-safe"></i>
-                                    <div class="t">Todavía no se abrió ninguna caja.</div>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="6" class="text-muted-warm">Todavía no se abrió ninguna caja acá.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+    </div>
     </div>
 @endsection

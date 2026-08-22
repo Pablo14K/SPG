@@ -29,7 +29,18 @@
                 <input class="form-control form-control-sm" id="nroFac" name="nro_factura_proveedor"
                        data-solo="documento" inputmode="numeric" maxlength="30"
                        placeholder="001-001-0001234" style="min-width:200px"
+                       list="facturasProveedor"
                        value="{{ $compra->nro_factura_proveedor }}">
+                {{-- **Las que ya se anotaron al pagarle a este proveedor.** La
+                     referencia de un pago suele ser el número del papel, así
+                     que se ofrece como sugerencia — no se completa sola,
+                     porque una referencia puede ser también un nº de
+                     operación del banco. --}}
+                <datalist id="facturasProveedor">
+                    @foreach ($facturasSugeridas ?? [] as $ref)
+                        <option value="{{ $ref }}"></option>
+                    @endforeach
+                </datalist>
             </div>
             <button class="btn btn-sm btn-rapido"><i class="bi bi-check-lg"></i>
                 {{ $compra->nro_factura_proveedor ? 'Corregir' : 'Anotar' }}</button>

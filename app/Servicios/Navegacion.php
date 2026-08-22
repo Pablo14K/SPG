@@ -124,10 +124,20 @@ class Navegacion
     {
         $out = [];
         foreach (config('navegacion.pantallas', []) as $clave => $p) {
-            if (! str_starts_with((string) $clave, $modulo . '.')) {
+            [$titulo, $ic, $permiso] = $p;
+
+            // **El módulo sale del PERMISO, no del nombre de la ruta.** Al
+            // partir Seguridad en tres (7.57.0) las pantallas no se mudaron de
+            // URL —siguen llamándose `seguridad.turnos`— así que filtrar por el
+            // nombre dejaba a Personal y Configuración sin un solo renglón, y a
+            // Seguridad con los ocho de antes. El permiso sí se mudó, y es lo
+            // que de verdad dice a qué módulo pertenece la pantalla.
+            $suModulo = str_contains((string) $permiso, '.')
+                ? explode('.', (string) $permiso)[0]
+                : (string) $permiso;
+            if ($suModulo !== $modulo) {
                 continue;
             }
-            [$titulo, $ic, $permiso] = $p;
             // **El cuarto valor dice si es una entrada del módulo.** Sin marcar
             // es que sí, que es el caso normal. Se marca `false` la pantalla de
             // detalle, la que no significa nada sin un dato: «Ver comprobante»
@@ -141,7 +151,13 @@ class Navegacion
             if ($url === null) {
                 continue;   // pantalla catalogada sin ruta declarada
             }
-            $out[] = ['t' => (string) $titulo, 'ic' => (string) $ic, 'url' => $url, 'clave' => (string) $clave];
+            $out[] = [
+                't' => (string) $titulo, 'ic' => (string) $ic, 'url' => $url,
+                'clave' => (string) $clave,
+                // El quinto valor agrupa los renglones del desplegable. Con
+                // ocho pantallas sueltas —Tesorería— no se ve qué va con qué.
+                'grupo' => (string) ($p[4] ?? ''),
+            ];
         }
 
         return $out;

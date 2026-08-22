@@ -37,7 +37,7 @@ class Permisos
      */
     public static function veTodaLaAgenda(): bool
     {
-        return self::esAdmin() || self::puede('seguridad.turnos');
+        return self::esAdmin() || self::puede('personal.turnos');
     }
 
     public static function esAdmin(?int $rol = null): bool

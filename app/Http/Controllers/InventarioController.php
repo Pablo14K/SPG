@@ -954,6 +954,10 @@ class InventarioController extends Controller
 
         return view('inventario.compra_ver', [
             'compra' => $compra,
+            // Las referencias de los pagos ya hechos a ese proveedor: si al
+            // pagar se anotó el número del papel, no hay por qué tipearlo otra
+            // vez. Se ofrecen, no se imponen.
+            'facturasSugeridas' => $this->facturasDelProveedor((int) $compra->id_compra),
             'lineas' => DB::select(
                 'SELECT p.nombre, p.unidad_medida, cp.nombre AS categoria,
                         d.cantidad, d.precio_unitario,
@@ -1018,6 +1022,29 @@ class InventarioController extends Controller
      * No toca ni el total ni el estado: es un dato del respaldo, no de la
      * operación. Y queda en auditoría porque cambia lo que respalda un egreso.
      */
+    /**
+     * Los números de factura que ya se anotaron en pagos a ese proveedor.
+     *
+     * **Si al pagar se anotó la factura, no hay por qué volver a tipearla.**
+     * La referencia del pago suele ser justamente el número del papel, así
+     * que se ofrecen como sugerencia y quien carga elige — no se completa
+     * sola, porque una referencia puede ser también un número de operación.
+     */
+    private function facturasDelProveedor(int $idCompra): array
+    {
+        return array_values(array_filter(array_map(
+            fn ($r) => trim((string) $r->referencia),
+            DB::select(
+                'SELECT DISTINCT pp.referencia
+                   FROM compra c
+                   JOIN pago_proveedor pp ON pp.id_proveedor = c.id_proveedor
+                  WHERE c.id_compra = ? AND pp.id_estado_pago_proveedor = 1
+                    AND pp.referencia IS NOT NULL AND TRIM(pp.referencia) <> \'\'
+                  ORDER BY pp.referencia LIMIT 20', [$idCompra]
+            )
+        )));
+    }
+
     public function compraFactura(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_compra', 0);

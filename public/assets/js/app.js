@@ -1272,3 +1272,26 @@ window.SPGCarga = (function () {
   chk.addEventListener('change', reflejar);
   reflejar();
 })();
+
+// Cuánta seña pide lo que la clienta va marcando. Se avisa ANTES de reservar:
+// es plata que hay que adelantar, y enterarse al final cambia la decisión.
+(function () {
+  var aviso = document.getElementById('avisoSena');
+  if (!aviso) return;
+  var monto = document.getElementById('montoSena');
+
+  function reflejar() {
+    var t = 0;
+    document.querySelectorAll('.srv:checked').forEach(function (c) {
+      var b = c.closest('div').querySelector('.badge-estado.e-warn');
+      if (!b) return;
+      var n = parseFloat((b.textContent || '').replace(/[^0-9]/g, '')) || 0;
+      t += n;
+    });
+    aviso.style.display = t > 0 ? '' : 'none';
+    if (monto) { monto.textContent = 'Gs. ' + t.toLocaleString('es-PY', { maximumFractionDigits: 0 }); }
+  }
+
+  document.querySelectorAll('.srv').forEach(function (c) { c.addEventListener('change', reflejar); });
+  reflejar();
+})();

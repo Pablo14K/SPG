@@ -86,6 +86,14 @@
                                     {{ $s->nombre }}
                                     <span class="text-muted-warm">
                                         · {{ money($s->precio) }} · {{ (int) $s->duracion_min }} min</span>
+                                    {{-- **Que pide seña se avisa ANTES de reservar**, no
+                                         después: es plata que hay que adelantar para que
+                                         la cita quede confirmada, y enterarse al final
+                                         cambia la decisión de haberla tomado. --}}
+                                    @if ($s->sena_porcentaje)
+                                        <span class="badge-estado e-warn" title="Se reserva con seña">
+                                            seña {{ money(round($s->precio * $s->sena_porcentaje / 100)) }}</span>
+                                    @endif
                                 </label>
                             </div>
                             {{-- El combo aparece con su servicio: ver `data-prof-de` en app.js.
@@ -196,6 +204,16 @@
             <div class="mb-3">
                 <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label>
                 <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300"></textarea>
+            </div>
+
+            {{-- El total de seña de lo que va marcando, para que no tenga que
+                 sumarlo de cabeza. Lo calcula `app.js`; sin él, cada servicio ya
+                 muestra el suyo al lado. --}}
+            <div class="alert alert-warning py-2 mb-3" id="avisoSena" style="display:none;font-size:.86rem">
+                <i class="bi bi-cash-coin"></i>
+                Para confirmar esta cita hace falta una seña de
+                <strong id="montoSena">Gs. 0</strong>. Después de reservar te
+                mostramos dónde registrar el comprobante.
             </div>
 
             <button class="btn btn-oro" id="btnReservar" disabled>

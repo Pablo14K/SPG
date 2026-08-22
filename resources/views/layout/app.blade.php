@@ -213,7 +213,15 @@
 
                     @if ($spgPant)
                         <div class="spg-nav-menu" role="menu" aria-label="{{ $spgMod['titulo'] }}">
+                            @php $spgGrupo = null; @endphp
                             @foreach ($spgPant as $spgP)
+                                {{-- El rótulo del grupo se dibuja al cambiar, no
+                                     antes de cada renglón: es un separador, no
+                                     una entrada del menú. --}}
+                                @if (($spgP['grupo'] ?? '') !== '' && $spgP['grupo'] !== $spgGrupo)
+                                    <span class="spg-nav-grupo-lbl">{{ $spgP['grupo'] }}</span>
+                                @endif
+                                @php $spgGrupo = $spgP['grupo'] ?? ''; @endphp
                                 <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
                                    href="{{ $spgP['url'] }}">
                                     <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['t'] }}</span></a>

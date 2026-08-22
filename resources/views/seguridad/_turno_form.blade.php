@@ -22,12 +22,12 @@
                         <div class="col-6">
                             <label class="form-label" for="hora_inicio">Desde *</label>
                             <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" required
-                                   value="{{ old('hora_inicio', isset($editar) ? substr((string) $editar->hora_inicio, 0, 5) : '08:00') }}">
+                                   value="{{ old('hora_inicio', isset($t) && $t ? substr((string) $t->hora_inicio, 0, 5) : '08:00') }}">
                         </div>
                         <div class="col-6">
                             <label class="form-label" for="hora_fin">Hasta *</label>
                             <input type="time" class="form-control" id="hora_fin" name="hora_fin" required
-                                   value="{{ old('hora_fin', isset($editar) ? substr((string) $editar->hora_fin, 0, 5) : '12:00') }}">
+                                   value="{{ old('hora_fin', isset($t) && $t ? substr((string) $t->hora_fin, 0, 5) : '12:00') }}">
                         </div>
                     </div>
 

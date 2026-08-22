@@ -94,6 +94,17 @@
             </div>
         @endif
 
+        {{-- **Sin marcarla, la sesión se cierra al cerrar el navegador.** Es
+             lo que corresponde en una computadora compartida, y de paso evita
+             que la cuenta quede marcada como ocupada por una pestaña que ya no
+             existe. --}}
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="recordar" value="1" id="recordar">
+            <label class="form-check-label" for="recordar" style="font-size:.85rem">
+                Mantener la sesión activa en este dispositivo
+            </label>
+        </div>
+
         <button class="btn btn-oro w-100 py-2" type="submit">Ingresar</button>
 
         <p class="text-center mt-3 mb-1" style="font-size:.85rem;">

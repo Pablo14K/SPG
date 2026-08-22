@@ -139,6 +139,9 @@ class CitasController extends Controller
                     (SELECT COALESCE(SUM(s2.precio),0) FROM cita_servicio cs2
                        JOIN servicio s2 ON s2.id_servicio = cs2.id_servicio
                       WHERE cs2.id_cita = v.id_cita) AS total_cita,
+                    -- Cuánta seña pide el salón por esta cita: sale de
+                    -- `servicio.sena_porcentaje`, no de lo que se tipee.
+                    fn_cita_sena_requerida(v.id_cita) AS sena_requerida,
                     CASE WHEN f.id_factura IS NULL THEN NULL
                          ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
                     CASE WHEN f.id_factura IS NULL THEN NULL
@@ -374,7 +377,8 @@ class CitasController extends Controller
         $dia = (string) $request->input('dia', date('Y-m-d'));
         $volver = redirect()->route('citas.agenda', ['dia' => $dia]);
 
-        $cita = DB::selectOne('SELECT id_cita, id_usuario, id_estado_cita FROM cita WHERE id_cita = ?', [$id]);
+        $cita = DB::selectOne(
+            'SELECT id_cita, id_usuario, id_estado_cita, fecha_hora FROM cita WHERE id_cita = ?', [$id]);
         if (! $cita) {
             flash('Esa cita no existe.', 'error');
 
@@ -383,6 +387,19 @@ class CitasController extends Controller
         if ($this->citaAjena($cita)) {
             abort(403, 'Esa cita es de otro profesional.');
         }
+        // **En proceso y Ausente son del DÍA de la cita.** Desde la agenda de
+        // otro día se podían apretar igual, y una cita quedaba «en proceso» un
+        // día en que nadie la está atendiendo — o ausente antes de que le
+        // tocara venir. La pantalla ya no los dibuja; esto es lo que decide,
+        // porque un POST se puede armar a mano.
+        if (in_array($estado, [5, 6], true)
+            && fecha($cita->fecha_hora, 'Y-m-d') !== fecha(ahora_bd(), 'Y-m-d')) {
+            flash('Esa cita es del ' . fecha($cita->fecha_hora, 'd/m/Y')
+                . ': su estado se cambia ese día. Para moverla de día, reprogramala.', 'warning');
+
+            return redirect()->route('citas.agenda', ['dia' => $request->input('dia')]);
+        }
+
         if (in_array((int) $cita->id_estado_cita, self::CERRADAS, true)) {
             flash('Esa cita ya está cerrada: no se le puede cambiar el estado.', 'warning');
 

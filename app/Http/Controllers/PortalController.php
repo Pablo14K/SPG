@@ -150,7 +150,8 @@ class PortalController extends Controller
             // reservar. Es la convención del resto del sistema —los canjes y la
             // lista de servicios ya la usan— y acá estaba al revés.
             'servicios' => $elegida ? DB::select(
-                'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad
+                'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
+                        s.sena_porcentaje
                    FROM servicio s
                   WHERE s.activo = 1
                     AND (EXISTS (SELECT 1 FROM servicio_sucursal ss
