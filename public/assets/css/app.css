@@ -233,9 +233,6 @@ body{
 .spg-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
 
 /* ---- Accesos rápidos ---- */
-.spg-rapidos{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding:.7rem 0 .1rem;}
-.spg-rapidos-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--gris-oscuro);margin-right:.15rem;}
-.spg-rapidos-lbl i{color:var(--oro);}
 /* Atajos de navegación y altas rápidas. Son acción, así que van en oro, con
    tres estados bien distintos:
      reposo    oro suave + contorno oro   (se lee dorado de una)
@@ -471,11 +468,10 @@ body{
      Citas · Clientes · Tesorería» y los enlaces del menú, que en pantalla
      el hover mantiene ocultos pero al imprimir se dibujan todos. */
   .spg-topbar,.spg-nav,.spg-nav-menu,.spg-migas,
-  .spg-rapidos,.no-imprimir,.alert,footer,.spg-footer{display:none !important;}
+  .no-imprimir,.alert,footer,.spg-footer{display:none !important;}
   body{background:var(--blanco);}
   main.container{padding:0 !important;max-width:100% !important;}
   .spg-comprobante{border:none;padding:0;}
-  .comp-anulada{opacity:.45;}
   a[href]:after{content:none !important;}
   .table{font-size:.82rem;}
 }

@@ -1,0 +1,254 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Servicios\Permisos;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+/**
+ * Que las piezas sigan enganchadas entre sí.
+ *
+ * Estas pruebas no comprueban una regla del negocio: comprueban que **el
+ * andamiaje no se haya soltado**. Cada una nació de un error real de este
+ * proyecto, y todos son de la misma familia — algo se renombró o se movió, lo
+ * que apuntaba a eso quedó apuntando al vacío, y **nada dio error**:
+ *
+ *  · una clave de permiso renombrada dejó al Asistente sin la agenda completa;
+ *  · el desplegable de la barra salía del nombre de la ruta y no del permiso,
+ *    así que dos módulos quedaron sin un solo renglón;
+ *  · `imprimir.css` apuntaba entero a clases que ninguna vista dibuja;
+ *  · un formulario leía `$editar`, variable que había dejado de existir.
+ *
+ * Ninguno rompe nada al arrancar. Se descubren cuando alguien abre la pantalla
+ * —o peor, cuando no la abre y da por hecho que anda—. Por eso van acá.
+ */
+class AndamiajeTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    /**
+     * Toda clave de permiso que se pide existe en `config/permisos.php`.
+     *
+     * **Es el error de la 7.57.0.** Renombrar `seguridad.turnos` a
+     * `personal.turnos` dejó dos lugares preguntando por la clave vieja:
+     * `Permisos::puede()` contesta que no —no que la clave no existe— así que
+     * el rol pierde la pantalla **en silencio**.
+     */
+    #[Test]
+    public function toda_clave_de_permiso_que_se_pide_existe(): void
+    {
+        $validas = array_flip(Permisos::claves());
+        foreach (array_keys(config('permisos.modulos', [])) as $m) {
+            $validas[$m] = true;   // el módulo padre también se puede pedir
+        }
+
+        $malas = [];
+
+        // 1) Los guardias de las rutas: `->middleware('modulo:x.y')`
+        foreach (Route::getRoutes() as $r) {
+            foreach ($r->gatherMiddleware() as $mw) {
+                if (! is_string($mw) || ! str_starts_with($mw, 'modulo:')) {
+                    continue;
+                }
+                $clave = substr($mw, 7);
+                if (! isset($validas[$clave])) {
+                    $malas[] = 'ruta ' . ($r->getName() ?: $r->uri()) . ' pide «' . $clave . '»';
+                }
+            }
+        }
+
+        // 2) Lo que el código pregunta a mano: `puede('x.y')` y `rolPuede(…, 'x.y')`
+        foreach ($this->archivos(['app', 'resources/views']) as $f => $txt) {
+            // Sólo las escritas como literal: `puede($mod['mod'])` se resuelve
+            // en tiempo de ejecución y desde acá no se puede saber qué vale.
+            preg_match_all("/(?:puede|rolPuede)\\(\\s*'([a-z_]+(?:\\.[a-z_]+)?)'\\s*[,)]/", $txt, $m);
+            foreach ($m[1] as $clave) {
+                if (! isset($validas[$clave])) {
+                    $malas[] = basename($f) . ' pregunta por «' . $clave . '»';
+                }
+            }
+        }
+
+        // 3) Las claves del catálogo de pantallas
+        foreach (config('navegacion.pantallas', []) as $ruta => $p) {
+            if (! isset($validas[(string) $p[2]])) {
+                $malas[] = 'navegacion: «' . $ruta . '» declara el permiso «' . $p[2] . '»';
+            }
+        }
+
+        $this->assertSame([], $malas,
+            "Hay claves de permiso que no existen. Si una se renombró, hay que tocar "
+            . "los guardias, el catálogo y `equivalencias`:\n  " . implode("\n  ", $malas));
+    }
+
+    /**
+     * Lo guardado en `rol_modulo` se sigue entendiendo.
+     *
+     * Una clave vieja no da error: se traduce con `equivalencias` o **se
+     * pierde**. Esta prueba exige que toda clave guardada termine en una que
+     * exista, que es lo que impide que un rol se quede sin pantalla al
+     * actualizar el sistema.
+     */
+    #[Test]
+    public function toda_clave_guardada_en_rol_modulo_sigue_significando_algo(): void
+    {
+        $validas = array_flip(Permisos::claves());
+        foreach (array_keys(config('permisos.modulos', [])) as $m) {
+            $validas[$m] = true;
+        }
+
+        $huerfanas = [];
+        foreach (DB::select('SELECT DISTINCT modulo FROM rol_modulo') as $r) {
+            $clave = (string) $r->modulo;
+            foreach (Permisos::equivaler([$clave]) as $traducida) {
+                if (! isset($validas[$traducida])) {
+                    $huerfanas[] = $clave . ' → ' . $traducida;
+                }
+            }
+        }
+
+        $this->assertSame([], $huerfanas,
+            "Hay permisos guardados que ya no llevan a ninguna pantalla:\n  "
+            . implode("\n  ", $huerfanas));
+    }
+
+    /**
+     * Cada pantalla del catálogo de navegación tiene su ruta declarada.
+     *
+     * El catálogo alimenta las migas, la barra y el desplegable. Una entrada
+     * que nombra una ruta inexistente no revienta: **desaparece del menú**, y
+     * con ella el único camino a esa pantalla.
+     */
+    #[Test]
+    public function cada_pantalla_del_catalogo_tiene_su_ruta(): void
+    {
+        $sinRuta = [];
+        foreach (array_keys(config('navegacion.pantallas', [])) as $nombre) {
+            if (! Route::has((string) $nombre)) {
+                $sinRuta[] = (string) $nombre;
+            }
+        }
+
+        $this->assertSame([], $sinRuta,
+            'El catálogo nombra rutas que no existen: ' . implode(', ', $sinRuta));
+    }
+
+    /**
+     * Todo módulo con submódulos ofrece al menos una pantalla en su menú.
+     *
+     * **Es el error de la 7.58.0.** El desplegable agrupaba por el nombre de la
+     * ruta, y como las pantallas no se mudaron de URL al partir Seguridad,
+     * Personal y Configuración quedaron con el menú vacío. Nadie dio error:
+     * simplemente no había nada que mostrar.
+     */
+    #[Test]
+    public function ningun_modulo_se_queda_sin_pantallas_en_su_menu(): void
+    {
+        $vacios = [];
+        foreach (array_keys(config('permisos.submodulos', [])) as $modulo) {
+            $tiene = false;
+            foreach (config('navegacion.pantallas', []) as $p) {
+                $suyo = str_contains((string) $p[2], '.')
+                    ? explode('.', (string) $p[2])[0]
+                    : (string) $p[2];
+                if ($suyo === $modulo) {
+                    $tiene = true;
+                    break;
+                }
+            }
+            if (! $tiene) {
+                $vacios[] = $modulo;
+            }
+        }
+
+        $this->assertSame([], $vacios,
+            'Estos módulos no tienen ninguna pantalla en el catálogo: ' . implode(', ', $vacios));
+    }
+
+    /**
+     * Lo que el JavaScript busca existe en alguna vista.
+     *
+     * **Es el error de la 7.4.0 y de la 7.1.0**: código correcto, probado, y
+     * apuntando a un marcado que nunca se escribió o que se dejó de usar. Un
+     * `data-*` sin marcado no falla — la función simplemente no ocurre, y desde
+     * afuera se lee como que el sistema no la tiene.
+     */
+    #[Test]
+    public function lo_que_busca_el_javascript_existe_en_el_marcado(): void
+    {
+        $js = (string) file_get_contents(public_path('assets/js/app.js'));
+        $marcado = implode("\n", $this->archivos(['resources/views']));
+
+        preg_match_all("/\\[data-([a-z-]+)[\\]=]/", $js, $m);
+
+        $sinUso = [];
+        foreach (array_unique($m[1]) as $attr) {
+            if (! str_contains($marcado, 'data-' . $attr)) {
+                $sinUso[] = 'data-' . $attr;
+            }
+        }
+
+        $this->assertSame([], $sinUso,
+            "El JS busca atributos que ninguna vista dibuja:\n  " . implode("\n  ", $sinUso)
+            . "\nO falta el marcado, o sobra el JS.");
+    }
+
+    /**
+     * Las clases propias del CSS aparecen en alguna vista.
+     *
+     * **Es el error de la 7.54.0**: `imprimir.css` apuntaba entero a una
+     * familia de clases que ninguna vista dibuja, así que sus 87 líneas no
+     * aplicaban una sola regla. No se nota mirando el archivo: se nota
+     * imprimiendo.
+     */
+    #[Test]
+    public function las_clases_propias_del_css_se_usan_en_alguna_vista(): void
+    {
+        $marcado = implode("\n", $this->archivos(['resources/views', 'public/assets/js']));
+
+        $sinUso = [];
+        foreach (['app.css', 'imprimir.css'] as $hoja) {
+            $css = (string) file_get_contents(public_path('assets/css/' . $hoja));
+            // Sin comentarios: los de este proyecto NOMBRAN clases retiradas
+            // para explicar por qué se fueron, y mencionarlas no es usarlas.
+            $css = (string) preg_replace('#/\*.*?\*/#s', '', $css);
+
+            // Sólo las propias: las de Bootstrap se dan por buenas.
+            preg_match_all('/\.(spg-[a-z0-9-]+|comp-[a-z0-9-]+)\b/', $css, $m);
+            foreach (array_unique($m[1]) as $clase) {
+                if (! str_contains($marcado, $clase)) {
+                    $sinUso[] = $hoja . ' → .' . $clase;
+                }
+            }
+        }
+
+        $this->assertSame([], $sinUso,
+            "Hay CSS apuntando a clases que ningún marcado usa:\n  " . implode("\n  ", $sinUso));
+    }
+
+    /** Los archivos de esas carpetas, para buscar dentro. */
+    private function archivos(array $dirs): array
+    {
+        $out = [];
+        foreach ($dirs as $d) {
+            $base = base_path($d);
+            if (! is_dir($base)) {
+                continue;
+            }
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($base));
+            foreach ($it as $f) {
+                if ($f->isFile() && preg_match('/\.(php|js)$/', $f->getFilename())) {
+                    $out[$f->getPathname()] = (string) file_get_contents($f->getPathname());
+                }
+            }
+        }
+
+        return $out;
+    }
+}

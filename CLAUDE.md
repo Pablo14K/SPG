@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.59.0 | 21/08/2026 | **Los errores de este proyecto se repiten con la misma forma, así que ahora los busca una prueba.** Casi todo lo que se rompió en las últimas veinte versiones es **la misma falla**: algo se renombró o se movió, lo que apuntaba a eso quedó apuntando al vacío, y **nada dio error** — el rol pierde la pantalla en silencio, el menú sale vacío, el CSS no aplica, el JS no ocurre. No hay excepción, no hay 500, no hay nada en el log: se descubre cuando alguien abre la pantalla, o peor, cuando no la abre. Entra `AndamiajeTest` con **seis guardias**, cada uno nacido de un error real: **toda clave de permiso que se pide existe** —guardias de ruta, `puede()` escrito a mano y el catálogo de pantallas—, **lo guardado en `rol_modulo` sigue significando algo** tras pasar por `equivalencias`, **cada pantalla del catálogo tiene su ruta**, **ningún módulo se queda sin renglones en su menú**, **lo que busca el JS existe en el marcado** y **las clases propias del CSS se usan en alguna vista**. Los tres últimos son los que encontraron la basura de hoy: `data-limpiar` seguía en `app.js` desde que la 7.17.0 sacó el botón «Limpiar», y `.spg-rapidos`, `.spg-rapidos-lbl` y `.comp-anulada` desde que la 7.32.0 sacó los accesos rápidos. **Dos falsos positivos se afinaron en vez de silenciarse**: `puede($mod['mod'])` se resuelve en ejecución y no se puede comprobar desde una prueba, y los comentarios del CSS **nombran** las clases retiradas para explicar por qué se fueron — mencionarlas no es usarlas. **130 pruebas** |
 | 7.58.1 | 21/08/2026 | **Banco de pruebas adversarias: 90 combinaciones de carga inapropiada, y un agujero real.** **Una sucursal que no existe ofrecía cincuenta días de horarios.** El id viaja en la URL del endpoint del portal, así que se puede cambiar: con uno inventado —o negativo— el filtro no encontraba ningún turno, el salón parecía no usarlos y caía en la **jornada por defecto**. Los días que ofrecía el guardado después los rechaza, así que no entraba una cita mal; lo que hacía era prometer horarios que no existen. Es el control saltándose solo poniendo un número cualquiera — justo lo que la 7.39.0 quiso evitar del lado de la base, y que el espejo de PHP no cubría. **El cero sigue siendo «sin filtro»** a propósito: lo usa el cron, que corre sin sesión. Y **registrar la atención de una cita de otro local** se abría con cualquier `?id=`: el resto de la agenda filtra por sucursal y esa pantalla se quedó afuera, con lo que el consumo salía del depósito equivocado. **Lo que aguantó**: montos negativos, cero, enormes y con letras; conceptos vacíos; ids inventados en las diez acciones que los reciben; cobrar de más, cobrar una anulada, anular dos veces, atender una cancelada; `<script>` y comillas en los nombres —vuelven escapados—; `DROP TABLE` en un campo de texto —las 78 tablas siguen ahí—; fechas como `2026-02-30` y `mes 13`; y siete filtros basura en las seis listas. **Nueve comprobaciones de coherencia sobre la base entera** —saldos, stock, arqueo, correlativos, solapes, puntos, devoluciones— todas cerradas. **124 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.58.0 | 21/08/2026 | **Segunda pasada sobre la revisión: catorce cosas que quedaron a medias o mal.** **El desplegable de la barra salía del NOMBRE de la ruta y no del permiso**, así que al partir Seguridad en tres las pantallas —que no se mudaron de URL— dejaron a Personal y Configuración **sin un solo renglón** y a Seguridad con los ocho de antes. Ahora se agrupa por el permiso, que es lo que de verdad dice a qué módulo pertenece cada pantalla, y Tesorería muestra sus cuatro grupos también ahí. **`veTodaLaAgenda` preguntaba por `seguridad.turnos`**, clave que la 7.57.0 renombró: el Asistente administrativo perdió la agenda completa sin que nada lo dijera — es exactamente el silencio que la propia versión advertía. **En pantalla angosta la barra pasa a ser lateral**: dos barras pegajosas apiladas dejaban un panel de 5” sin alto útil. **La edición de un turno traía 08:00–12:00 siempre**: el formulario leía `$editar`, una variable que dejó de existir en la 7.45.0 — salía el ejemplo, no lo que dice la base. **El botón de seña no se va cuando ya se cobró ni con la cita en proceso**, y el monto que propone es **la seña**, no el total de la cita: venía con el total y con eso se cobraba de más con un clic. **Que un servicio pide seña se avisa ANTES de reservar**, con el monto sumado de lo que se va marcando. **En proceso y Ausente sólo el día de la cita** —desde la agenda de mañana se podían apretar igual— y **cancelar deja de ofrecerse con la clienta en el sillón**. **El historial de caja se parte en dos registros**, apertura y cierre, que es lo que son: en una sola fila la caja abierta salía con las columnas del arqueo vacías. **La compra muestra el subtotal de cada renglón** además del total, y el precio del catálogo se completa también al tipear el nombre. **El número de factura se sugiere** con las referencias de los pagos ya hechos a ese proveedor. **Y la sesión muere al cerrar el navegador**, con «mantener activo en este dispositivo» para el equipo del mostrador: además, una marca de sesión más vieja que `SESSION_LIFETIME` deja de bloquear — era un candado del que sólo se salía pisando la sesión de otro. **123 pruebas** |
 | 7.57.0 | 21/08/2026 | **Se cierra la revisión de 20 puntos: los nueve que quedaban.** **Seguridad se parte en tres** —Seguridad, Personal y Configuración—, porque cada una contesta una pregunta distinta y juntas obligaban a buscar los turnos en el mismo lugar que la auditoría. **Las rutas NO se mudan de URL**: sólo cambia por dónde se llega y qué permiso las abre — moverlas obligaría a tocar decenas de `route()` para un cambio de menú. **Y las claves viejas se traducen**: sin eso el rol no da error, **pierde la pantalla en silencio**, que es lo que le habría pasado al Asistente administrativo con turnos y asistencia. **Tesorería pasa a cuatro grupos** —Facturación, Cobros, Caja, Pagos— en vez de siete tarjetas corridas; las tres secciones de Caja son anclas de la misma pantalla, no rutas inventadas. **La clienta no se pisa a sí misma**: la agenda cuidaba al profesional y nada impedía reservar dos servicios a la misma hora con gente distinta. **Reservar para otra persona es la excepción y no un rodeo** —una clienta reserva para su hija, y esas citas sí se superponen—, así que `cita` guarda para quién es y **cuántas personas van**. **El pedido del portal sale de una lista**: era un campo en blanco, así que se podía pedir algo que ese local no ofrece o que ninguna de las personas que la atienden hace, y el «no» llegaba en el sillón. **Qué hace cada profesional se ve al reservar** — `usuario_servicio` decidía desde la 7.42.0 y sólo lo miraba la validación. **Publicar un servicio pasa a ser un interruptor**: sólo agregaba, así que no había forma de sacarlo de la carta de un local sin darlo de baja en todo el salón. **La compra trae el último precio pagado** —editable, que el proveedor sube— **muestra el total** y **acepta el número de factura después**, porque el papel no siempre llega con la mercadería. El **pago parcial ya funcionaba y no se decía**. **Imprimir un informe pasa a un modal** y las tablas dejan de verse apretadas. **Y la caja guarda observación de apertura, de cierre y el motivo de la diferencia**, que se exige **sólo cuando no cuadra**: pedirlo siempre haría escribir «ok» todos los días. El **tipo de diferencia no se guarda**: sale del signo. **123 pruebas** · 36 funciones · 73 `CHECK` |
@@ -414,7 +415,7 @@ routes/
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
                            imprimir.css estiliza `.spg-imprimir`: el informe y los listados
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
-tests/Feature/             Las 124 pruebas
+tests/Feature/             Las 130 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2711,7 +2712,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 124 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 130 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -2765,13 +2766,49 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 > alguna vez se lee código de aquella versión, ese archivo explica de dónde salieron esas
 > tablas.
 
+## Los cinco errores que este proyecto se hace a sí mismo
+
+**Casi todo lo que se rompió acá es la misma falla vista de cinco formas**: algo
+se renombró o se movió, lo que apuntaba a eso quedó apuntando al vacío, y
+**nada dio error**. No hay excepción, no hay 500, no hay una línea en el log —
+la función simplemente deja de ocurrir. Se descubre cuando alguien abre la
+pantalla, o peor, cuando no la abre y da por hecho que anda.
+
+Vale tenerlos nombrados, porque el próximo va a tener una de estas cinco formas:
+
+| Patrón | Cómo se ve | Qué lo detiene hoy |
+|---|---|---|
+| **Una clave de permiso renombrada** | el rol pierde la pantalla en silencio | `AndamiajeTest::toda_clave_de_permiso_que_se_pide_existe` y `…rol_modulo_sigue_significando_algo` |
+| **Código apuntando a un marcado que no existe** | el CSS no aplica, el JS no ocurre | `…lo_que_busca_el_javascript_existe_en_el_marcado` y `…las_clases_propias_del_css_se_usan` |
+| **Una vista leyendo una variable que dejó de existir** | sale el valor de ejemplo, no el de la base | *(sin guardia: Blade no avisa)* — ver abajo |
+| **Una pantalla que se llega por `?id=` y escapa al filtro de la lista** | se ve o se toca lo de otro local | el banco `_qa/` y `deOtroLocal()` |
+| **Una regla de la base replicada en PHP que se desincroniza** | la pantalla ofrece lo que el servidor rechaza | `CimientosTest::el_espejo_de_php_dice_lo_mismo_que_la_base` |
+
+Tres cosas que conviene hacer al tocar algo de esto:
+
+- **Al renombrar una clave de permiso**, correr `AndamiajeTest` antes de dar el
+  cambio por hecho. Es lo único que distingue «el rol no tiene permiso» de «la
+  clave que se pregunta ya no existe», que en pantalla se ven igual.
+- **Al mover o borrar un formulario**, buscar la variable que leía. Blade
+  devuelve vacío para una variable indefinida, así que `$editar->hora_inicio`
+  se convierte en el valor por defecto y nadie se entera. Es lo que dejó la
+  edición de turnos mostrando 08:00–12:00 durante trece versiones.
+- **Al agregar una pantalla que se abre con `?id=`**, filtrarla por sucursal a
+  mano. La lista ya lo hace, pero a esa pantalla no se llega por la lista — es
+  exactamente cómo «Registrar atención» se quedó afuera.
+
+> **Y una prueba que devuelve 200 no prueba que la pantalla ande.** Una pantalla
+> puede contestar 200 y salir vacía: le pasó a Caja cuando el `@else` se fue con
+> otro bloque. Cuando una pantalla tiene una acción sin la cual no sirve,
+> comprobá que esa acción esté, no el código de respuesta.
+
 ## Las pruebas
 
 ```bash
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**124 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**130 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
@@ -2780,6 +2817,7 @@ se sigan cumpliendo**, que es donde vive el negocio.
 | `AccesoTest` | abre **las pantallas de Seguridad y las de la operación diaria** —hoy son doce y veinticuatro—: una columna mal escrita revienta **al dibujar**, no al arrancar, así que sin esto las pruebas quedan en verde con una pantalla tirando 500. Y una tercera comprueba que **Caja ofrezca abrir la caja cuando está cerrada**: un 200 no alcanza para decir que una pantalla anda |
 | `ConcurrenciaAgendaTest` | lanza **5 procesos simultáneos** contra el mismo hueco y exige que quede **una sola** cita |
 | `ConcurrenciaCobroTest` | los otros candados, con procesos de verdad: **3 cobros** de la misma factura (que no quede saldo negativo), **3 aperturas de caja con cuentas distintas** (que quede una sola abierta), **3 salidas del mismo stock** (que no quede en negativo) y **cancelar contra reprogramar** la misma cita (que el resultado sea el que el sistema contestó). Son los hallazgos FA-01, CJ-01, IN-01 y AG-04 de la simulación de 90 días |
+| `AndamiajeTest` | que las piezas sigan enganchadas: claves de permiso que existan, pantallas con ruta, módulos con menú, y nada de CSS o JS apuntando a un marcado que ya no está. **Ninguna comprueba una regla del negocio**: comprueban que lo que apunta a algo siga apuntando a algo |
 | `HuellaTest` | que la pantalla de la huella se dibuje **con su JavaScript** y que «Ahora no» funcione **sin** él: es la única pantalla que se mete entre el ingreso y el panel, así que si algo falla ahí la persona no entra |
 | el resto | ingreso, permisos por rol, pantallas que responden |
 
