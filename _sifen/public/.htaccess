@@ -1,0 +1,20 @@
+Options -Indexes
+
+# Solo index.php y descargar.php son accesibles directamente
+<FilesMatch "^(?!index\.php|descargar\.php).*$">
+    Require all denied
+</FilesMatch>
+
+# Aumentar límite de subida para .txt grandes (varias facturas).
+# Va dentro de <IfModule> porque en LiteSpeed un php_value suelto puede tirar
+# error 500. Si necesitás subir el límite, hacelo en cPanel -> MultiPHP INI Editor.
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 120
+</IfModule>
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 120
+</IfModule>

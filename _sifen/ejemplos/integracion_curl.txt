@@ -1,0 +1,106 @@
+================================================================================
+ AUTOMATIZADOR SIFEN - Envio de facturas al endpoint HTTP con curl
+================================================================================
+ El endpoint acepta el contenido del .txt de tres maneras distintas y SIEMPRE
+ responde el mismo JSON. Elegi la que le resulte mas natural a tu sistema.
+
+ Direccion : la raiz del subdominio publicado (Document Root -> public/)
+ Metodo    : POST (cualquier otro metodo devuelve 405)
+ Token     : cabecera  X-API-Token: <valor de SIFEN_API_TOKEN en el .env>
+
+ Reemplaza en todos los ejemplos:
+   facturacion.tudominio.com  ->  tu subdominio real
+   TU_TOKEN                   ->  el valor de SIFEN_API_TOKEN
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ A) COMO ARCHIVO ADJUNTO (multipart/form-data, campo "archivo")
+--------------------------------------------------------------------------------
+ Es la forma mas parecida a subir un archivo desde un formulario.
+
+curl -X POST https://facturacion.tudominio.com/ \
+  -H "X-API-Token: TU_TOKEN" \
+  -F "archivo=@factura.txt"
+
+
+--------------------------------------------------------------------------------
+ B) COMO CAMPO DE FORMULARIO (campo "contenido")
+--------------------------------------------------------------------------------
+ Comodo cuando el sistema externo ya tiene la cadena armada en memoria y no
+ quiere escribir un archivo temporal en disco.
+
+curl -X POST https://facturacion.tudominio.com/ \
+  -H "X-API-Token: TU_TOKEN" \
+  --data-urlencode "contenido=FAC|001|001|0000123|2026-06-21|1|PYG
+CLI|RUC|80012345-6|Comercial Cliente S.A.|cliente@correo.com||
+ITM|P001|Teclado mecanico|2|150000|10
+ITM|P002|Mouse inalambrico|1|90000|10"
+
+
+--------------------------------------------------------------------------------
+ C) COMO CUERPO CRUDO (Content-Type: text/plain)  <-- RECOMENDADA
+--------------------------------------------------------------------------------
+ La mas directa: el cuerpo de la peticion ES el contenido del archivo.
+ Es la opcion recomendada para integraciones desde codigo.
+
+curl -X POST https://facturacion.tudominio.com/ \
+  -H "X-API-Token: TU_TOKEN" \
+  -H "Content-Type: text/plain" \
+  --data-binary @factura.txt
+
+
+================================================================================
+ RESPUESTA CUANDO TODO SALE BIEN  (HTTP 200)
+================================================================================
+{
+  "ok": true,
+  "facturas": [
+    {
+      "factura": 1,
+      "cdc": "01800123456001001000012320260621...",
+      "estado": "APROBADO",
+      "track_id": "1234567890",
+      "xml_url": "https://facturacion.tudominio.com/descargar.php?f=<CDC>.xml",
+      "kude_url": "https://facturacion.tudominio.com/descargar.php?f=<CDC>.pdf",
+      "mail_enviado": true
+    }
+  ]
+}
+
+ El campo "cdc" es el dato que conviene guardar en la base de datos del sistema
+ externo: identifica al documento ante la DNIT de forma permanente.
+
+
+================================================================================
+ RESPUESTA CUANDO ALGO FALLA
+================================================================================
+{ "ok": false, "error": "Factura #1: no tiene items (ITM)." }
+
+ Si el archivo traia varias facturas y una falla, NINGUNA se emite: el archivo
+ es la unidad de trabajo. Por eso conviene enviar una factura por peticion.
+
+ Codigos de estado:
+   200  procesado correctamente
+   400  no se recibio contenido (la peticion llego vacia)
+   401  token invalido o ausente
+   405  metodo no permitido (solo POST)
+   422  el contenido llego pero no pudo emitirse (datos invalidos o rechazo DNIT)
+
+
+================================================================================
+ DESCARGAR EL XML Y EL KuDE
+================================================================================
+ ATENCION: las URL que devuelve la API NO incluyen el token. Si hay token
+ configurado -como deberia-, hay que agregarlo a la peticion de descarga.
+
+# Token como parametro en la direccion
+https://facturacion.tudominio.com/descargar.php?f=<CDC>.pdf&token=TU_TOKEN
+
+# Token como cabecera
+curl -H "X-API-Token: TU_TOKEN" \
+     "https://facturacion.tudominio.com/descargar.php?f=<CDC>.pdf" -o factura.pdf
+
+ Si vas a mostrarle el comprobante a tus propios clientes, descargalo desde tu
+ servidor (agregando el token del lado del servidor) y servilo vos mismo, para
+ que el token nunca llegue al navegador del cliente.

@@ -1,0 +1,132 @@
+================================================================================
+ AUTOMATIZADOR SIFEN - Integracion desde PHP (ej. vieloy.com)
+================================================================================
+ Patron minimo de integracion:
+   1. armar la cadena .txt con los datos de la venta
+   2. enviarla al endpoint por HTTP
+   3. guardar el CDC devuelto junto a la venta
+
+ Este archivo es un EJEMPLO en texto plano. Copialo a tu proyecto y adaptalo.
+================================================================================
+
+
+<?php
+/**
+ * Emite una factura electronica a traves del Automatizador SIFEN.
+ *
+ * @param array $venta  ['numero'=>'0000123', 'fecha'=>'2026-06-21',
+ *                       'ruc'=>'80012345', 'dv'=>'6',
+ *                       'nombre'=>'Comercial Cliente S.A.',
+ *                       'email'=>'cliente@correo.com',
+ *                       'items'=>[['codigo'=>'P001','desc'=>'Teclado',
+ *                                  'cant'=>2,'precio'=>150000,'iva'=>10], ...]]
+ * @return array  ['ok'=>bool, 'cdc'=>string, 'pdf'=>string, 'error'=>string]
+ */
+function emitirFacturaSifen(array $venta): array
+{
+    $URL   = 'https://facturacion.tudominio.com/';
+    $TOKEN = 'TU_TOKEN';
+
+    // ── 1) Armar el .txt ─────────────────────────────────────────────────────
+    // Ojo: ningun dato puede contener el caracter "|".
+    $limpiar = fn($v) => str_replace('|', '/', trim((string) $v));
+
+    $txt  = "FAC|001|001|{$venta['numero']}|{$venta['fecha']}|1|PYG\n";
+    $txt .= 'CLI|RUC|' . $venta['ruc'] . '-' . $venta['dv'] . '|'
+          . $limpiar($venta['nombre']) . '|' . $venta['email'] . "||\n";
+
+    foreach ($venta['items'] as $it) {
+        // El precio se informa con el IVA INCLUIDO.
+        $txt .= 'ITM|' . $limpiar($it['codigo'])
+              . '|' . $limpiar($it['desc'])
+              . '|' . $it['cant']
+              . '|' . $it['precio']
+              . '|' . ($it['iva'] ?? 10) . "\n";
+    }
+    // No hace falta escribir el total ni el pago: los calcula el automatizador.
+
+    // ── 2) Enviar al endpoint ────────────────────────────────────────────────
+    $ch = curl_init($URL);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_HTTPHEADER     => [
+            'X-API-Token: ' . $TOKEN,
+            'Content-Type: text/plain; charset=utf-8',
+        ],
+        CURLOPT_POSTFIELDS     => $txt,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 60,   // firmar + esperar a la DNIT lleva tiempo
+    ]);
+    $cuerpo = curl_exec($ch);
+    $http   = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $errRed = curl_error($ch);
+    curl_close($ch);
+
+    if ($cuerpo === false) {
+        // Fallo de red: la factura PUEDE haberse emitido igual. No reintentar
+        // a ciegas; registrar y verificar antes de volver a enviar.
+        return ['ok' => false, 'error' => 'Error de red: ' . $errRed];
+    }
+
+    $resp = json_decode($cuerpo, true);
+
+    // ── 3) Procesar la respuesta ─────────────────────────────────────────────
+    if ($http === 200 && !empty($resp['ok'])) {
+        $f = $resp['facturas'][0];
+        return [
+            'ok'   => true,
+            'cdc'  => $f['cdc'],          // <-- GUARDAR junto a la venta
+            'pdf'  => $f['kude_url'],
+            'xml'  => $f['xml_url'],
+            'mail' => $f['mail_enviado'],
+        ];
+    }
+
+    return [
+        'ok'    => false,
+        'error' => $resp['error'] ?? ('HTTP ' . $http . ': ' . $cuerpo),
+    ];
+}
+
+
+// ── Uso ──────────────────────────────────────────────────────────────────────
+$r = emitirFacturaSifen([
+    'numero' => '0000123',
+    'fecha'  => '2026-06-21',
+    'ruc'    => '80012345',
+    'dv'     => '6',
+    'nombre' => 'Comercial Cliente S.A.',
+    'email'  => 'cliente@correo.com',
+    'items'  => [
+        ['codigo' => 'P001', 'desc' => 'Teclado mecanico',   'cant' => 2, 'precio' => 150000, 'iva' => 10],
+        ['codigo' => 'P002', 'desc' => 'Mouse inalambrico',  'cant' => 1, 'precio' => 90000,  'iva' => 10],
+        ['codigo' => 'L001', 'desc' => 'Manual (exento)',    'cant' => 1, 'precio' => 30000,  'iva' => 0],
+    ],
+]);
+
+if ($r['ok']) {
+    // UPDATE ventas SET cdc = :cdc WHERE id = :id
+    echo "CDC: {$r['cdc']}\n";
+    echo "KuDE: {$r['pdf']}\n";
+} else {
+    // Registrar el error y avisar al operador. Un rechazo por datos NO se
+    // arregla reintentando: se repite igual.
+    error_log('SIFEN: ' . $r['error']);
+}
+
+
+================================================================================
+ RECOMENDACIONES
+================================================================================
+ * Enviar UNA factura por peticion: aisla los errores y simplifica el reproceso.
+ * Guardar SIEMPRE el CDC en la base de datos: es el vinculo entre la venta y
+   el documento ante la DNIT.
+ * Tiempo de espera generoso (60 s): la emision implica firmar y esperar a la
+   DNIT.
+ * Registrar la respuesta completa cuando "ok" es falso: el campo "error" suele
+   traer el mensaje literal de la DNIT.
+ * No reintentar automaticamente un rechazo por datos. Reintentar solo tiene
+   sentido ante fallos de red o timeouts, y verificando antes si la factura ya
+   se emitio.
+ * La numeracion de las facturas es responsabilidad del sistema externo: el
+   automatizador no lleva contador propio ni detecta saltos o repeticiones.

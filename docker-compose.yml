@@ -118,7 +118,10 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - ${SPG_SIFEN_PATH:-../Sifen_version/sifen_final/sifen_automatizador}:/automatizador
+      # Desde la 7.60.0 la copia versionada vive dentro del proyecto, para que
+      # el respaldo del TCC la incluya. `SPG_SIFEN_PATH` sigue mandando: quien
+      # tenga la carpeta original afuera puede seguir apuntándole.
+      - ${SPG_SIFEN_PATH:-./_sifen}:/automatizador
     command:
       - sh
       - -c

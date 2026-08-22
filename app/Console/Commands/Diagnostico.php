@@ -214,6 +214,11 @@ class Diagnostico extends Command
         $this->newLine();
         if ($problemas === 0) {
             $this->info('  Todo en orden.');
+            // **Sano no es lo mismo que configurado.** Este comando contesta si
+            // el sistema está bien; qué le falta cargar al salón lo contesta
+            // otro, y sin nombrarlo acá nadie se entera de que existe.
+            $this->line('  <fg=gray>Qué le falta cargar al salón: php artisan spg:pendientes</>');
+
             return self::SUCCESS;
         }
         $this->warn('  ' . $problemas . ' cosa(s) para revisar antes de seguir.');

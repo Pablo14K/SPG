@@ -1,0 +1,15 @@
+# Lo que el Automatizador GENERA no se versiona: son 73 MB de corridas que
+# envejecen al día siguiente. Las carpetas sí, para que exista dónde escribir.
+logs/*
+salida/*
+procesados/*
+entrada/*
+errores/*
+!*/.gitkeep
+
+# El .env lleva la contraseña de aplicación de Gmail y el token de la API.
+.env
+
+# Los certificados de demostración quedan afuera: un .pem en un repositorio es
+# un .pem publicado, aunque sea de prueba.
+certs/

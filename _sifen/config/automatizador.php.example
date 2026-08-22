@@ -1,0 +1,10 @@
+<?php
+/*
+ * Este archivo ya NO es necesario para configurar el automatizador.
+ * Toda la configuración (emisor, correo, modo SIFEN, certificado) se
+ * hace en el archivo  .env  ubicado en la raíz de sifen_automatizador/.
+ *
+ * Pasos para configurar:
+ *   cp .env.example .env
+ *   # editar .env con los datos de tu empresa
+ */

@@ -1,0 +1,42 @@
+# ============================================================================
+# Archivo de ejemplo para el Automatizador SIFEN.
+#
+# Podés poner una o varias facturas. Separá cada factura con una línea:  ===
+# Las líneas que empiezan con # son comentarios y se ignoran.
+# El archivo debe estar guardado en UTF-8.
+# ============================================================================
+#
+#   FAC|establecimiento|punto|numero|fecha|condicion|moneda
+#   CLI|tipo|documento|nombre|email|direccion|telefono
+#   ITM|codigo|descripcion|cantidad|precio_unitario|iva      (una por ítem)
+#   PAG|tipo                                                 (opcional)
+#
+#   condicion : 1=contado (por defecto), 2=crédito
+#   moneda    : PYG (por defecto), USD, BRL, ARS, EUR
+#   iva       : 10, 5 o 0   (0 = operación exenta)
+#   cliente   : RUC -> documento con dígito verificador (80012345-6)
+#               CI  -> nº de cédula, o CF para consumidor final
+#   pago tipo : 1=efectivo 2=cheque 3=tarj.crédito 4=tarj.débito
+#               5=transferencia 6=giro 7=billetera 8=tarj.empresarial
+#               9=vale 10=retención
+#
+# NO se escribe el monto total ni el monto del pago: los calcula el sistema
+# a partir de los ítems. El precio unitario va con el IVA INCLUIDO.
+# Si no se indica ningún PAG y la venta es al contado, se asigna efectivo
+# por el total.
+# ============================================================================
+
+# ---- Factura 1: cliente con RUC, contado, con correo ----
+FAC|001|001|0000123|2026-06-21|1|PYG
+CLI|RUC|80012345-6|Comercial Cliente S.A.|cliente@correo.com|Avda. Siempre Viva 742|021555444
+ITM|P001|Teclado mecanico|2|150000|10
+ITM|P002|Mouse inalambrico|1|90000|10
+ITM|S001|Servicio de instalacion|1|50000|10
+
+===
+
+# ---- Factura 2: consumidor final, sin correo, con un ítem exento ----
+FAC|001|001|0000124|2026-06-21|1|PYG
+CLI|CI|CF|Consumidor Final|||
+ITM|L001|Libro de SIFEN|1|80000|10
+ITM|L002|Cuaderno (exento)|3|12000|0
