@@ -437,6 +437,13 @@ class CitasController extends Controller
         if ($this->citaAjena($cita)) {
             abort(403, 'Esa cita es de otro profesional.');
         }
+        // **El consumo sale del depósito del local donde se atendió.** Sin
+        // esto se podía descargar stock de otra sucursal armando el POST.
+        if ($this->deOtroLocal($cita)) {
+            flash('Esa cita es de otra sucursal: la atención se registra donde ocurrió.', 'warning');
+
+            return redirect()->route('citas.agenda');
+        }
         if ((int) $cita->id_estado_cita === 3) {
             flash('Esa cita ya estaba cancelada.', 'warning');
 
@@ -835,6 +842,12 @@ class CitasController extends Controller
         if ($this->citaAjena($cita)) {
             abort(403, 'Esa cita es de otro profesional.');
         }
+        if ($this->deOtroLocal($cita)) {
+            flash('Esa cita es de otra sucursal: la atención se registra donde ocurrió. '
+                . 'Cambiá de local desde Mi cuenta.', 'warning');
+
+            return redirect()->route('citas.agenda');
+        }
 
         return view('citas.atender', [
             'cita' => $cita,
@@ -920,7 +933,9 @@ class CitasController extends Controller
         $obs = trim((string) $request->input('observaciones', '')) ?: null;
         $volver = redirect()->route('citas.atender', ['id' => $idCita]);
 
-        $cita = DB::selectOne('SELECT id_cita, id_usuario, id_estado_cita, fecha_hora FROM cita WHERE id_cita = ?', [$idCita]);
+        $cita = DB::selectOne(
+            'SELECT id_cita, id_usuario, id_estado_cita, fecha_hora, id_sucursal
+               FROM cita WHERE id_cita = ?', [$idCita]);
         if (! $cita) {
             flash('Cita no encontrada.', 'error');
 
@@ -1375,6 +1390,22 @@ class CitasController extends Controller
      * una lista fija de id de rol.
      */
     /** La regla vive en Permisos: la comparten la agenda y el panel. */
+    /**
+     * ¿Esta cita es de otro local?
+     *
+     * **La atención se registra donde ocurrió.** La pantalla se abría con
+     * cualquier id: desde una sucursal se podía cargar el consumo y los
+     * servicios de una cita de otra, y con eso el stock salía del depósito
+     * equivocado. El resto de la agenda ya filtraba por sucursal; esta
+     * pantalla se llega por `?id=` y se quedó afuera.
+     */
+    private function deOtroLocal(object $cita): bool
+    {
+        $suc = Sucursales::activa();
+
+        return $suc > 0 && (int) ($cita->id_sucursal ?? 0) > 0 && (int) $cita->id_sucursal !== $suc;
+    }
+
     private function veTodaLaAgenda(): bool
     {
         return Permisos::veTodaLaAgenda();

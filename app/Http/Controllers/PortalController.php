@@ -84,7 +84,17 @@ class PortalController extends Controller
 
         // La sucursal que eligio: el turno es del local, asi que sin esto la
         // pantalla ofreceria los horarios de la sede equivocada.
-        $suc = ((int) $request->query('sucursal', 0)) ?: null;
+        // **La sucursal viene de la URL, así que se comprueba.** Un id que no
+        // existe —o negativo— dejaba al filtro sin ningún turno que mirar, el
+        // salón parecía no usarlos y se ofrecía la jornada por defecto: días
+        // que el guardado después rechaza. Sin sucursal válida no hay agenda
+        // que mostrar, porque el turno es del local.
+        $suc = (int) $request->query('sucursal', 0);
+        if ($suc !== 0 && ! DB::scalar(
+            'SELECT 1 FROM sucursal WHERE id_sucursal = ? AND activo = 1 LIMIT 1', [$suc])) {
+            return response()->json(['ok' => false, 'motivo' => 'Elegí primero el local.']);
+        }
+        $suc = $suc ?: null;
 
         $fecha = (string) $request->query('fecha', '');
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {

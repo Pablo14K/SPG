@@ -4053,4 +4053,42 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNull(Agenda::citaDelClienteSePisa($cli, $lejos, $dur),
             'Un año después no hay solape posible.');
     }
+    /**
+     * Una sucursal que no existe no habilita la jornada por defecto.
+     *
+     * **El id de la sucursal viaja en la URL del endpoint del portal**, así
+     * que se puede cambiar. Con uno inventado —o negativo— el filtro no
+     * encontraba ningún turno, el salón parecía no usarlos y se ofrecía la
+     * jornada por defecto: cincuenta días de horarios que el guardado después
+     * rechaza. Es el control saltándose solo poniendo un número cualquiera.
+     *
+     * El cero sigue siendo «sin filtro» a propósito: lo usa lo que corre sin
+     * sesión, como el cron de los recordatorios.
+     */
+    #[Test]
+    public function una_sucursal_que_no_existe_no_ofrece_horarios(): void
+    {
+        $prof = (int) DB::scalar('SELECT ut.id_usuario FROM usuario_turno ut LIMIT 1');
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        if (! $prof || ! $suc) {
+            $this->markTestSkipped('Hace falta alguien con turno y una sucursal activa.');
+        }
+
+        $dia = date('Y-m-d', strtotime('+3 days'));
+
+        // La sucursal de verdad sí ofrece huecos: si no, la prueba no mide nada.
+        $reales = Agenda::slotsProfesional($prof, $dia, 30, null, $suc);
+        if ($reales === []) {
+            $this->markTestSkipped('Ese día no hay huecos ni en la sucursal real.');
+        }
+
+        foreach ([999999, -1] as $inventada) {
+            $this->assertSame([], Agenda::slotsProfesional($prof, $dia, 30, null, $inventada),
+                'Una sucursal inventada (' . $inventada . ') no puede ofrecer horarios.');
+        }
+
+        // Y el cero sigue significando «sin filtro», que es lo que usa el cron.
+        $this->assertNotSame([], Agenda::slotsProfesional($prof, $dia, 30, null, 0),
+            'El cero es «sin filtro por sucursal» y tiene que seguir funcionando.');
+    }
 }

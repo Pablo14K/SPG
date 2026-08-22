@@ -145,6 +145,21 @@ class Agenda
         // allá, acá se lo ofrece de mañana y nada más.
         $suc = (int) ($idSucursal ?? Sucursales::activa());
 
+        // **Una sucursal que no existe no es «sin filtro», es un error.** El
+        // id viaja en la URL del endpoint de disponibilidad, así que se puede
+        // cambiar: con uno inventado el filtro no encontraba ningún turno, el
+        // salón parecía no usarlos y se ofrecía la jornada por defecto —
+        // cincuenta días de horarios que el guardado después rechaza. Es el
+        // control saltándose solo, que es justamente lo que la 7.39.0 quiso
+        // evitar del lado de la base.
+        // El cero es «sin filtro» y es legítimo: lo usa el cron, que corre sin
+        // sesión. Cualquier otro valor tiene que ser una sucursal de verdad —
+        // un negativo tampoco encuentra turnos y caía en el mismo agujero.
+        if ($suc !== 0 && ! DB::scalar(
+            'SELECT 1 FROM sucursal WHERE id_sucursal = ? AND activo = 1 LIMIT 1', [$suc])) {
+            return ['turnos' => [], 'ocupado' => [], 'usaTurnos' => true];
+        }
+
         $turnos = [];
         foreach (DB::select(
             'SELECT td.dia_semana AS dia, t.hora_inicio, t.hora_fin

@@ -34,3 +34,6 @@ Thumbs.db
 _sim/log/
 _sim60/log/
 _sim30/log/
+
+# El banco adversario se versiona; sus corridas no.
+_qa/log/
