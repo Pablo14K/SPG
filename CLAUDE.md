@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.61.1 | 22/08/2026 | **El `.sql` que instala el salón llevaba adentro dos clientas reales con su Gmail, y el catálogo demo estaba roto.** Lo destapó `spg:pendientes` corrido contra el archivo que se entrega, que es la pregunta que nadie había hecho: **qué ve el salón el día uno**. Lo peor primero: el volcado tenía **«Noelia Belen Villalba Marin» y «Ana Leticia Aquino Arrúa» con nombre completo y correo**, más el Gmail personal del desarrollador en la cuenta `cliente` — gente que no tiene nada que ver con el salón que instala el sistema, y a quien le llegaría una recuperación de contraseña. **Siguen intactas en la base de trabajo**: lo que se limpió es el archivo. Y el equipo demo estaba **incoherente**: Marta con cuatro servicios y **sin turno**, o sea invisible en la agenda; Rocío y Sofía con turno y **sin servicios**, o sea ofrecidas para todo; el Turno Mañana sin martes ni sábado; y **«Coloración completa» DADA DE BAJA**, un resto de la auditoría del 11/08/2026 que quedó congelado en el volcado — el servicio más caro del salón, ausente del catálogo. **La causa de fondo es que `datos_demo.sql` estaba MUERTO**: no lo corría nadie desde la 7.13.2 y no compilaba desde la **7.33.0**, porque pide `producto.stock_minimo`, columna que esa versión mudó a `producto_sucursal`. Con el guión muerto, el catálogo demo dejó de tener fuente y pasó a ser **una foto de la base de trabajo**, que es como se colaron las personas y la baja del servicio. Se reparó contra el esquema de hoy —zona, seña, `servicio_sucursal`, `producto_sucursal` y `usuario_servicio`, cinco cosas que la base ganó entre la 7.30.0 y la 7.56.0— y **se cumplió lo que su encabezado prometía desde siempre y era falso**: ahora es re-ejecutable de verdad, porque `producto` y `turno_laboral` **no tienen índice único por nombre** y con `INSERT IGNORE` la segunda corrida duplicaba — el defecto de los 20 productos de la 7.13.2, otra vez. **El reparto muestra para qué existe `usuario_servicio`**: Lucía peluquera, Marta manos y pies, Rocío color, Sofía generalista, **y ningún servicio sin alguien que lo haga**, que es lo que hay que cuidar al tocarlo. **`dejar_lista.sql` gana las dos secciones que faltaban** para que la regeneración sea reproducible en vez de artesanal, y el ciclo se comprobó entero sobre el mes simulado: 352 citas y 267 comprobantes adentro, limpiar, recargar, y sale idéntico al archivo que se entrega. **El día uno pasa de tres avisos a dos**, y los dos que quedan son preguntas legítimas, no defectos. **131 pruebas** |
 | 7.61.0 | 22/08/2026 | **Lo que le falta cargar al salón se ve en el panel, no en una terminal.** La 7.60.0 trajo `spg:pendientes` y lo dejó donde nadie lo iba a correr: **quien configura el salón es la dueña, en el navegador**. Un aviso que sólo vive en un comando es un aviso que nadie lee — la función apagada en silencio de siempre, que es justo lo que ese comando existía para evitar. Ahora el panel lo dice, abajo de las tarjetas: arriba las empujaría fuera de la pantalla, que es el error que la 7.35.0 ya corrigió con las dos tablas de citas. **Cada renglón es un enlace a la pantalla donde se arregla**, que es lo que separa un aviso de una tarea. **Y se filtra por permiso, no por rol** —la misma regla que decide a quién le llegan los avisos internos—: decirle a la recepcionista que faltan timbrados no sirve de nada, no puede cargarlos, y le tapa lo que sí es suyo. **Los checks se mudan a `App\Servicios\Pendientes` y el comando pasa a llamarlo**: escritos dos veces, uno de los dos se queda atrás y los dos contestan distinto. **El nivel se pinta con lo que cada color ya significa** —rojo semántico para lo que impide, `--oro-tinte` para lo que hace decidir distinto, que es para lo que la identidad lo reserva, y neutros cálidos para lo que sólo conviene—, así que el bloque se da vuelta solo en el tema oscuro: medido, **6,2:1 y 10:1**. **La prueba se comprobó en las dos direcciones y la primera versión no medía nada**: la segunda mitad ingresaba con una contraseña que no era, así que la aserción quedaba dentro de un `if` que nunca se cumplía y pasaba igual con el filtro por permiso sacado a propósito. Con la sesión armada a mano, falla. **Y las clases van escritas enteras y no armadas con el nivel**, porque `AndamiajeTest` comprueba que toda clase del CSS aparezca en algún marcado y una interpolada no aparece. **131 pruebas** |
 | 7.60.0 | 22/08/2026 | **El Automatizador entra al repositorio, y el sistema aprende a decir qué le falta cargar.** Una parte del sistema que funciona —la que genera el KuDE y manda el comprobante— vivía en una carpeta suelta **fuera de git**, y este repositorio es el respaldo del TCC: lo que se tocara ahí no quedaba en ningún historial. La 7.52.0 modificó cuatro de sus archivos. Ahora hay copia en `_sifen/` y el compose apunta ahí, con `SPG_SIFEN_PATH` mandando todavía para quien la tenga afuera. **Lo que NO entra**: el `.env` —lleva la contraseña de Gmail y el token—, `certs/` —un `.pem` en un repositorio es un `.pem` publicado, aunque sea de demostración— y las corridas, que son 73 MB que envejecen al día siguiente. Del proyecto entero se versionan 445 KB. **Y entra `spg:pendientes`**, que contesta una pregunta que nadie contestaba: `spg:diagnostico` dice si el sistema está **sano**, esto dice si está **configurado**. La diferencia importa porque **el sistema no se rompe cuando falta un dato: cae en el criterio permisivo** — un profesional sin servicios cargados los hace todos, un servicio sin zona no comparte con nadie, una sucursal sin timbrado numera con el de otra sede. Ninguna de las tres da error: el sistema decide distinto de lo que el salón espera, y se descubre el día de la cita. Cada renglón dice **dónde se arregla**, agrupado por si impide trabajar, si hace decidir distinto o si sólo conviene |
 | 7.59.0 | 21/08/2026 | **Los errores de este proyecto se repiten con la misma forma, así que ahora los busca una prueba.** Casi todo lo que se rompió en las últimas veinte versiones es **la misma falla**: algo se renombró o se movió, lo que apuntaba a eso quedó apuntando al vacío, y **nada dio error** — el rol pierde la pantalla en silencio, el menú sale vacío, el CSS no aplica, el JS no ocurre. No hay excepción, no hay 500, no hay nada en el log: se descubre cuando alguien abre la pantalla, o peor, cuando no la abre. Entra `AndamiajeTest` con **seis guardias**, cada uno nacido de un error real: **toda clave de permiso que se pide existe** —guardias de ruta, `puede()` escrito a mano y el catálogo de pantallas—, **lo guardado en `rol_modulo` sigue significando algo** tras pasar por `equivalencias`, **cada pantalla del catálogo tiene su ruta**, **ningún módulo se queda sin renglones en su menú**, **lo que busca el JS existe en el marcado** y **las clases propias del CSS se usan en alguna vista**. Los tres últimos son los que encontraron la basura de hoy: `data-limpiar` seguía en `app.js` desde que la 7.17.0 sacó el botón «Limpiar», y `.spg-rapidos`, `.spg-rapidos-lbl` y `.comp-anulada` desde que la 7.32.0 sacó los accesos rápidos. **Dos falsos positivos se afinaron en vez de silenciarse**: `puede($mod['mod'])` se resuelve en ejecución y no se puede comprobar desde una prueba, y los comentarios del CSS **nombran** las clases retiradas para explicar por qué se fueron — mencionarlas no es usarlas. **130 pruebas** |
@@ -2604,15 +2605,36 @@ Lo que **queda** y lo que **se borra**:
 | Queda | Se borra |
 |---|---|
 | Los catálogos del sistema: `rol`, `rol_modulo`, `estado_*`, `tipo_*`, `metodo_pago`, `condicion_venta`, `nivel`, los 3 `descuento` de nivel, `categoria_servicio`, `categoria_producto` | Toda la operación: citas, atención, consumo, facturas, cobros, caja, compras, movimientos, asistencia, puntos, notificaciones, calificaciones, auditoría |
-| — | El catálogo comercial: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
+| El catálogo demo, que **se rehace desde `datos_demo.sql`**: 15 servicios con su zona y su seña, 10 productos, 3 proveedores, 3 timbrados, el equipo de 4 con turno, servicios y comisión | El catálogo comercial que hubiera quedado de probar: `servicio`, `producto`, `proveedor`, `timbrado`, `comision`, `contacto_soporte` |
 | La sucursal 1, que el `admin` referencia (`usuario.id_sucursal = 1`) | Turnos, `turno_dia`, `usuario_turno` |
 | Las dos cuentas del instalador: `admin` y `cliente`, con sus dos filas de `persona` y la ficha de `cliente` | Cualquier otro usuario, persona o cliente · roles creados a mano · credenciales WebAuthn y tokens |
 
 **Los catálogos no son «datos»: sin ellos el sistema no arranca.** Borrar `estado_cita` o
 `metodo_pago` no deja una base limpia, deja una base rota.
 
-**El guion es `basededatos/dejar_lista.sql`**: trunca la operación entera, deja
-el catálogo demo, devuelve la marca de fábrica y baja a un solo local.
+**Son DOS guiones y hacen falta los dos**, en este orden:
+
+```bash
+mysql -u root peluqueria_bd < basededatos/dejar_lista.sql
+mysql -u root peluqueria_bd < basededatos/datos_demo.sql
+```
+
+`dejar_lista.sql` trunca la operación entera, devuelve la marca de fábrica, baja
+a un solo local, **vacía el catálogo demo** y **saca a toda persona que no sea
+`admin` ni `cliente`**. `datos_demo.sql` vuelve a poner el catálogo con el que
+el salón puede probar el sistema.
+
+> **El segundo paso no es opcional, y saltearlo es lo que rompió el archivo que
+> se entregaba.** Sin `datos_demo.sql`, el catálogo demo del volcado deja de
+> tener fuente y pasa a ser **una foto de la base de trabajo**: así se colaron
+> dos clientas reales con su Gmail, un equipo a medio configurar y «Coloración
+> completa» dada de baja desde la auditoría de agosto. Ver la 7.61.1.
+>
+> **Y `datos_demo.sql` estuvo MUERTO entre la 7.33.0 y la 7.61.1**: no lo corría
+> nadie —el importador de Docker dejó de hacerlo en la 7.13.2— y ni siquiera
+> compilaba, porque pedía `producto.stock_minimo`, la columna que la 7.33.0 mudó
+> a `producto_sucursal`. Un guion que nadie ejecuta se pudre en silencio, que es
+> el error de siempre de este proyecto con otra ropa. **Si lo tocás, corrélo.**
 
 > **Reemplaza a `limpiar_base.sql`, que se retiró, y las dos razones importan.**
 > Aquél era anterior a la 7.13.0 y borraba el **catálogo comercial** —servicios,
@@ -2633,6 +2655,9 @@ de trabajo**, y se comprueba antes de commitear:
 
 ```bash
 grep -c "INSERT INTO \`cita\`" "basededatos/peluqueria_bd(base).sql"   # tiene que dar 0
+# Y sobre todo: NINGUNA persona real adentro. Dos clientas con su Gmail viajaron
+# en el archivo hasta la 7.61.1, y eso lo instala un salón que no las conoce.
+grep -oE "[a-z0-9._%-]+@(gmail|hotmail|outlook|yahoo)\.[a-z.]+" "basededatos/peluqueria_bd(base).sql" 
 grep -o "INSERT INTO \`configuracion\` VALUES ([^;]*)" "basededatos/peluqueria_bd(base).sql"
 ```
 

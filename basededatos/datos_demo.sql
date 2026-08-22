@@ -29,22 +29,41 @@
 -- ---- Servicios ------------------------------------------------------------
 -- Los precios son de referencia de una peluquería de Luque. La duración es lo
 -- que la agenda usa para calcular los huecos, así que conviene que sea real.
-INSERT IGNORE INTO servicio (id_categoria_servicio, nombre, descripcion, precio, duracion_min, tasa_iva, activo, requiere_exclusividad) VALUES
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'),                'Corte de dama',            'Corte con lavado y peinado',            75000,  45, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'),                'Corte de caballero',       'Corte clásico o con máquina',           50000,  30, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'),                'Corte de niño',            'Hasta 12 años',                         40000,  30, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Peinado y brushing'),   'Brushing',                 'Secado y modelado',                     60000,  40, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Peinado y brushing'),   'Peinado de fiesta',        'Recogido o semirecogido',              120000,  60, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'),           'Coloración completa',      'Color de raíz a puntas',               280000, 120, 10, 1, 1),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'),           'Retoque de raíz',          'Sólo el crecimiento',                  150000,  75, 10, 1, 1),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'),           'Mechas / balayage',        'Aclarado por mechones',                350000, 180, 10, 1, 1),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'),  'Lavado y acondicionado',   'Lavado con masaje',                     25000,  20, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'),  'Tratamiento capilar',      'Hidratación profunda',                  90000,  50, 10, 1, 1),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'),  'Keratina',                 'Alisado con keratina',                 400000, 180, 10, 1, 1),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'),  'Manicura',                 'Manos, esmaltado tradicional',          45000,  40, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'),  'Manicura semipermanente',  'Esmaltado semipermanente',              75000,  60, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'),  'Pedicura',                 'Pies, esmaltado tradicional',           55000,  50, 10, 1, 0),
-  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Otros'),                'Depilación de cejas',      'Diseño y depilación',                   30000,  20, 10, 1, 0);
+-- **La ZONA es lo que decide qué se puede hacer a la vez** (7.43.0): dos
+-- servicios de la misma zona se turnan y sus tiempos se suman; de zonas
+-- distintas conviven. Sin zona cargada un servicio no comparte con nadie, así
+-- que el salón lo dejaría en paralelo con cualquier cosa sin quererlo.
+--
+-- La SEÑA va como porcentaje del precio, no como monto: un monto fijo se
+-- separa del precio el día que el servicio sube. Se le pone a los tres caros,
+-- que son los que dejan el sillón ocupado tres horas si la clienta no viene.
+--
+-- `requiere_exclusividad` sigue en la tabla y NO la usa nadie desde la 7.43.0:
+-- se deja por el mismo motivo que las piezas de la venta de productos.
+INSERT IGNORE INTO servicio (id_categoria_servicio, id_zona, nombre, descripcion, precio, sena_porcentaje, duracion_min, tasa_iva, activo, requiere_exclusividad) VALUES
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Corte de dama', 'Corte con lavado y peinado', 75000, NULL,  45, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Corte de caballero', 'Corte clásico o con máquina', 50000, NULL,  30, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Corte'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Corte de niño', 'Hasta 12 años', 40000, NULL,  30, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Peinado y brushing'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Brushing', 'Secado y modelado', 60000, NULL,  40, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Peinado y brushing'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Peinado de fiesta', 'Recogido o semirecogido', 120000, NULL,  60, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Coloración completa', 'Color de raíz a puntas', 280000, 50, 120, 10, 1, 1),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Retoque de raíz', 'Sólo el crecimiento', 150000, NULL,  75, 10, 1, 1),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Coloracion'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Mechas / balayage', 'Aclarado por mechones', 350000, 50, 180, 10, 1, 1),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Lavado y acondicionado', 'Lavado con masaje', 25000, NULL,  20, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Tratamiento capilar', 'Hidratación profunda', 90000, NULL,  50, 10, 1, 1),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Tratamiento capilar'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Cabello'), 'Keratina', 'Alisado con keratina', 400000, 50, 180, 10, 1, 1),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Manos'), 'Manicura', 'Manos, esmaltado tradicional', 45000, NULL,  40, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Manos'), 'Manicura semipermanente', 'Esmaltado semipermanente', 75000, NULL,  60, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Manicura y pedicura'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Pies'), 'Pedicura', 'Pies, esmaltado tradicional', 55000, NULL,  50, 10, 1, 0),
+  ((SELECT id_categoria_servicio FROM categoria_servicio WHERE nombre = 'Otros'), (SELECT id_zona FROM zona_servicio WHERE nombre = 'Rostro'), 'Depilación de cejas', 'Diseño y depilación', 30000, NULL,  20, 10, 1, 0);
+
+-- **Qué servicios publica cada local** (7.30.0). La convención es «sin filas
+-- vale en todas», pero en cuanto UNO tiene una fila deja de valer en todas: por
+-- eso se publica el catálogo entero en la sucursal 1, que es la única que trae
+-- la base que se entrega. Sin esto, un local recién abierto nace sin nada que
+-- reservar y la clienta que lo elige en el portal ve la carta vacía.
+INSERT IGNORE INTO servicio_sucursal (id_servicio, id_sucursal)
+SELECT s.id_servicio, 1 FROM servicio s;
 
 -- ---- Proveedores ----------------------------------------------------------
 -- Los datos de las personas van SÓLO en `persona`: `proveedor` la referencia.
@@ -64,17 +83,44 @@ WHERE NOT EXISTS (SELECT 1 FROM proveedor pr WHERE pr.id_persona = p.id_persona)
 -- ---- Productos ------------------------------------------------------------
 -- Los tres primeros son FRACCIONADOS: se compran por frasco y se gastan de a
 -- mililitros. `contenido` + `unidad_consumo` son lo que activa esa conversión.
-INSERT IGNORE INTO producto (id_categoria, nombre, descripcion, unidad_medida, stock_minimo, precio_costo, precio_venta, tasa_iva, activo, contenido, unidad_consumo) VALUES
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),        'Shampoo profesional 1L',   'Para lavado en el salón',        'unidad', 3,  85000, 130000, 10, 1, 1000, 'ml'),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),        'Acondicionador 1L',        'Para lavado en el salón',        'unidad', 3,  80000, 125000, 10, 1, 1000, 'ml'),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Tinturas y coloracion'),  'Agua oxigenada 900ml',     'Revelador 20 volúmenes',         'unidad', 4,  35000,  55000, 10, 1,  900, 'ml'),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Tinturas y coloracion'),  'Tintura profesional',      'Tubo de 60 g, varios tonos',     'unidad', 6,  45000,  70000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),        'Ampolla de keratina',      'Sachet individual',              'unidad', 10, 18000,  32000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),        'Serum reparador 100ml',    'Puntas abiertas',                'unidad', 5,  40000,  68000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Insumos descartables'),   'Guantes de latex (caja)',  'Caja por 100 unidades',          'caja',   2,  38000,  60000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Insumos descartables'),   'Toallas descartables',     'Paquete por 50',                 'paquete',3,  25000,  40000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Herramientas y accesorios'),'Esmalte semipermanente', 'Frasco de 15 ml',                'unidad', 8,  22000,  38000, 10, 1, NULL, NULL),
-  ((SELECT id_categoria FROM categoria_producto WHERE nombre = 'Productos de reventa'),    'Shampoo x 300ml (venta)','Para llevar',                    'unidad', 5,  45000,  85000, 10, 1, NULL, NULL);
+-- **`stock_minimo` NO va acá**: la 7.33.0 pasó el catálogo a ser único y el
+-- mínimo es de cada local, así que vive en `producto_sucursal` — se carga
+-- unas líneas más abajo, junto con qué local maneja cada producto.
+-- **Va con NOT EXISTS y no con INSERT IGNORE**: `producto` no tiene índice único
+-- por nombre, así que IGNORE no frena nada y una segunda corrida deja el
+-- catálogo duplicado — es el defecto de los 20 productos de la 7.13.2.
+INSERT INTO producto (id_categoria, nombre, descripcion, unidad_medida, precio_costo, precio_venta, tasa_iva, activo, contenido, unidad_consumo)
+SELECT v.* FROM (
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar') AS id_categoria, 'Shampoo profesional 1L' AS nombre, 'Para lavado en el salón' AS descripcion, 'unidad' AS unidad_medida, 85000 AS precio_costo, 130000 AS precio_venta, 10 AS tasa_iva, 1 AS activo, 1000 AS contenido, 'ml' AS unidad_consumo UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),         'Acondicionador 1L', 'Para lavado en el salón', 'unidad',   80000, 125000, 10, 1, 1000, 'ml' UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Tinturas y coloracion'),   'Agua oxigenada 900ml', 'Revelador 20 volúmenes', 'unidad',   35000,  55000, 10, 1,  900, 'ml' UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Tinturas y coloracion'),   'Tintura profesional', 'Tubo de 60 g, varios tonos', 'unidad',   45000,  70000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),         'Ampolla de keratina', 'Sachet individual', 'unidad',  18000,  32000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Cuidado capilar'),         'Serum reparador 100ml', 'Puntas abiertas', 'unidad',   40000,  68000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Insumos descartables'),    'Guantes de latex (caja)', 'Caja por 100 unidades', 'caja',     38000,  60000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Insumos descartables'),    'Toallas descartables', 'Paquete por 50', 'paquete',  25000,  40000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Herramientas y accesorios'), 'Esmalte semipermanente', 'Frasco de 15 ml', 'unidad',   22000,  38000, 10, 1, NULL, NULL UNION ALL
+      SELECT (SELECT id_categoria FROM categoria_producto WHERE nombre = 'Productos de reventa'),     'Shampoo x 300ml (venta)', 'Para llevar', 'unidad',   45000,  85000, 10, 1, NULL, NULL
+) v
+WHERE NOT EXISTS (SELECT 1 FROM producto x WHERE x.nombre = v.nombre);
+
+-- **Qué productos maneja cada local, y con qué mínimo** (7.33.0). El catálogo
+-- es único y el stock es de cada sede, así que el mínimo también: un salón
+-- grande guarda más. Sin fila acá el producto existe y **ese local no lo
+-- maneja**, así que «Registrar atención» no lo ofrece.
+INSERT IGNORE INTO producto_sucursal (id_producto, id_sucursal, stock_minimo, activo)
+SELECT p.id_producto, 1, m.minimo, 1
+FROM (SELECT 'Shampoo profesional 1L' n,  3 minimo UNION ALL
+      SELECT 'Acondicionador 1L',        3 UNION ALL
+      SELECT 'Agua oxigenada 900ml',     4 UNION ALL
+      SELECT 'Tintura profesional',      6 UNION ALL
+      SELECT 'Ampolla de keratina',     10 UNION ALL
+      SELECT 'Serum reparador 100ml',    5 UNION ALL
+      SELECT 'Guantes de latex (caja)',  2 UNION ALL
+      SELECT 'Toallas descartables',     3 UNION ALL
+      SELECT 'Esmalte semipermanente',   8 UNION ALL
+      SELECT 'Shampoo x 300ml (venta)',  5) m
+JOIN producto p ON p.nombre = m.n;
 
 -- ---- Profesionales --------------------------------------------------------
 -- Otra vez: la persona va en `persona`, y `usuario` la referencia.
@@ -98,9 +144,14 @@ WHERE NOT EXISTS (SELECT 1 FROM usuario us WHERE us.id_persona = p.id_persona);
 -- ---- Turnos ---------------------------------------------------------------
 -- Sin turno asignado la agenda no ofrece ni un horario: `fn_verificar_dispo-
 -- nibilidad` exige que la cita entre en uno.
-INSERT IGNORE INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, activo) VALUES
-  (1, 'Turno Mañana', '08:00:00', '13:00:00', 1),
-  (1, 'Turno Tarde',  '13:00:00', '19:00:00', 1);
+-- Igual que `producto`: sin índice único por nombre, IGNORE no frena la
+-- segunda corrida y quedarían cuatro turnos donde hay dos.
+INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, activo)
+SELECT v.* FROM (
+      SELECT 1 AS id_sucursal, 'Turno Mañana' AS nombre, '08:00:00' AS hora_inicio, '13:00:00' AS hora_fin, 1 AS activo UNION ALL
+      SELECT 1, 'Turno Tarde',  '13:00:00', '19:00:00', 1
+) v
+WHERE NOT EXISTS (SELECT 1 FROM turno_laboral x WHERE x.nombre = v.nombre);
 
 -- Los días van 1 = lunes … 6 = sábado, una fila por día (1FN).
 INSERT IGNORE INTO turno_dia (id_turno, dia_semana)
@@ -117,6 +168,50 @@ FROM usuario u
 JOIN persona p ON p.id_persona = u.id_persona
 JOIN turno_laboral t ON t.nombre = IF(u.username IN ('marta', 'lucia'), 'Turno Mañana', 'Turno Tarde')
 WHERE u.username IN ('marta', 'rocio', 'lucia', 'sofia');
+
+-- ---- Qué hace cada una ----------------------------------------------------
+-- `usuario_servicio` decide a quién le ofrece la agenda cada servicio, y su
+-- criterio es permisivo: **quien no tiene ninguno cargado los hace todos**.
+-- Con la tabla vacía, entonces, la agenda le ofrece una coloración a la
+-- manicurista y el «no» llega el día de la cita.
+--
+-- El reparto de acá muestra justamente para qué existe la tabla: Lucía es la
+-- peluquera, Marta hace manos, pies y cejas, Rocío es la del color y Sofía la
+-- generalista. **Cada servicio del catálogo lo hace al menos una**, que es lo
+-- que hay que cuidar al tocarlo: uno que no haga nadie no se puede reservar
+-- con nadie.
+--
+-- Se apuntan por NOMBRE y no por id, como los canjes: si el catálogo se
+-- regenera con otros ids, esto sigue señalando al servicio correcto.
+--
+-- **Ana Propietaria queda afuera a propósito.** Administra y no atiende, así
+-- que no lleva ni turno ni servicios — es el caso que AG-01 vino a arreglar,
+-- cuando la propietaria y la recepcionista se llevaron 302 de 557 citas que el
+-- salón nunca iba a poder dar.
+INSERT IGNORE INTO usuario_servicio (id_usuario, id_servicio)
+SELECT u.id_usuario, s.id_servicio
+FROM (SELECT 'lucia' username, 'Corte de dama' serv           UNION ALL
+      SELECT 'lucia', 'Corte de caballero'                    UNION ALL
+      SELECT 'lucia', 'Lavado y acondicionado'                UNION ALL
+      SELECT 'lucia', 'Mechas / balayage'                     UNION ALL
+      SELECT 'lucia', 'Peinado de fiesta'                     UNION ALL
+      SELECT 'marta', 'Manicura'                              UNION ALL
+      SELECT 'marta', 'Manicura semipermanente'               UNION ALL
+      SELECT 'marta', 'Pedicura'                              UNION ALL
+      SELECT 'marta', 'Depilación de cejas'                   UNION ALL
+      SELECT 'rocio', 'Coloración completa'                   UNION ALL
+      SELECT 'rocio', 'Keratina'                              UNION ALL
+      SELECT 'rocio', 'Retoque de raíz'                       UNION ALL
+      SELECT 'rocio', 'Tratamiento capilar'                   UNION ALL
+      SELECT 'rocio', 'Mechas / balayage'                     UNION ALL
+      SELECT 'rocio', 'Brushing'                              UNION ALL
+      SELECT 'sofia', 'Corte de niño'                         UNION ALL
+      SELECT 'sofia', 'Corte de dama'                         UNION ALL
+      SELECT 'sofia', 'Lavado y acondicionado'                UNION ALL
+      SELECT 'sofia', 'Brushing'                              UNION ALL
+      SELECT 'sofia', 'Peinado de fiesta') r
+JOIN usuario u  ON u.username = r.username
+JOIN servicio s ON s.nombre  = r.serv;
 
 -- ---- Comisiones -----------------------------------------------------------
 -- Sin comisión cargada, la liquidación al personal da cero y el informe del
