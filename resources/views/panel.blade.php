@@ -166,4 +166,57 @@
             @endif
         </div>
     @endif
+
+    {{-- **Lo que le falta cargar al salón.**
+
+         Va ABAJO y no arriba a propósito: el panel existe para contestar «¿a
+         dónde voy?», y las tarjetas de módulo son eso. Un bloque de avisos
+         arriba las empuja fuera de la pantalla, que es el error que la 7.35.0
+         ya corrigió con las dos tablas de citas.
+
+         Sólo se dibuja si hay algo, y sólo trae lo que ESTA persona puede
+         resolver: el filtro por permiso está en `Pendientes::mios()`. --}}
+    @if ($pendientes)
+        <div class="spg-panel mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h2 style="font-size:.95rem;font-weight:500;margin:0;">
+                    <i class="bi bi-sliders me-1"></i>Falta cargar
+                    <span class="text-muted-warm">({{ count($pendientes) }})</span>
+                </h2>
+                <span class="text-muted-warm" style="font-size:.8rem">
+                    El sistema funciona igual, pero decide con lo que hay cargado
+                </span>
+            </div>
+
+            <ul class="list-unstyled mb-0">
+                @foreach ($pendientes as $p)
+                    @php
+                        $url = $p['ruta'] ? Navegacion::url($p['ruta']) : null;
+                        // Las clases van escritas enteras y no armadas con el
+                        // nivel: `AndamiajeTest` comprueba que toda clase del
+                        // CSS aparezca en algún marcado, y una interpolada no
+                        // aparece — quedarían las tres como CSS sin uso.
+                        [$cls, $rot] = match ($p['nivel']) {
+                            'IMPIDE'   => ['spg-falta-impide', 'Impide'],
+                            'CONFUNDE' => ['spg-falta-confunde', 'Confunde'],
+                            default    => ['spg-falta-conviene', 'Conviene'],
+                        };
+                    @endphp
+                    <li class="spg-falta">
+                        <span class="spg-falta-nivel {{ $cls }}">{{ $rot }}</span>
+                        <span class="spg-falta-txt">
+                            {{ $p['que'] }}
+                            <span class="d-block text-muted-warm spg-falta-donde">
+                                @if ($url)
+                                    <a href="{{ $url }}">{{ $p['donde'] }}</a>
+                                @else
+                                    {{ $p['donde'] }}
+                                @endif
+                            </span>
+                        </span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 @endsection

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Caja;
+use App\Servicios\Pendientes;
 use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use Illuminate\Support\Facades\DB;
@@ -147,6 +148,18 @@ class PanelController extends Controller
         // caja le seguía apareciendo la barra con el saldo del salón.
         $verCaja = Permisos::puede('facturacion.caja');
 
+        // **Lo que falta CARGAR se ve acá, no en una terminal.**
+        // `spg:pendientes` contesta la misma pregunta, pero quien configura el
+        // salón es la dueña en el navegador: un comando que nunca va a correr
+        // es lo mismo que no tenerlo — la función apagada en silencio de
+        // siempre.
+        //
+        // **Sale del mismo servicio que el comando**, así que los dos no se
+        // pueden desfasar, y **se filtra por permiso**: mostrarle a la
+        // recepcionista que faltan timbrados no sirve de nada y le tapa lo que
+        // sí es suyo.
+        $pendientes = Pendientes::mios();
+
         return view('panel', [
             'm' => $metricas,
             'proximas' => $proximas,
@@ -155,6 +168,7 @@ class PanelController extends Controller
             'verTodo' => $todaLaAgenda,
             'caja' => $verCaja ? Caja::abierta() : null,
             'verCaja' => $verCaja,
+            'pendientes' => $pendientes,
         ]);
     }
 

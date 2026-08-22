@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Servicios\Navegacion;
+use App\Servicios\Pendientes;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -436,5 +437,64 @@ class AccesoTest extends TestCase
                     . 'acción, marcala con `false` en config/navegacion.php.');
             }
         }
+    }
+
+    /**
+     * El panel dice qué falta cargar, y sólo a quien puede cargarlo.
+     *
+     * **Es el motivo de existir del bloque**: la misma pregunta la contesta
+     * `spg:pendientes`, pero quien configura el salón no abre una terminal, así
+     * que un aviso que sólo vive ahí es un aviso que nadie lee — la función
+     * apagada en silencio de siempre.
+     *
+     * Se comprueba en las dos direcciones, que es lo que le da valor: el
+     * Administrador ve los renglones **y** el Profesional no ve ninguno,
+     * porque no tiene ninguno de los permisos con que se arreglan. Sin la
+     * segunda mitad, un bloque que se dibujara siempre pasaría igual.
+     */
+    #[Test]
+    public function el_panel_dice_que_falta_cargar_y_solo_a_quien_puede_hacerlo(): void
+    {
+        // Se fabrica algo pendiente para no depender de cómo esté la base: un
+        // profesional con turno y sin comisión vigente. `DatabaseTransactions`
+        // lo revierte al terminar.
+        $prof = DB::selectOne(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND EXISTS (SELECT 1 FROM usuario_turno t WHERE t.id_usuario = u.id_usuario)
+              LIMIT 1'
+        );
+        $this->assertNotNull($prof, 'Hace falta alguien con turno para esta prueba.');
+        DB::update('UPDATE comision SET activo = 0 WHERE id_usuario = ?', [$prof->id_usuario]);
+
+        $this->assertNotSame([], Pendientes::todo(),
+            'Con una comisión de menos tiene que faltar algo.');
+
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+        $panel = $this->get(route('panel'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Falta cargar', $panel,
+            'El panel del Administrador no muestra lo que falta cargar.');
+        $this->assertStringContainsString('spg-falta-nivel', $panel);
+
+        // Y la otra mitad, que es la que le da valor: quien no puede resolver
+        // nada, no ve nada. **La sesión se arma a mano y no se ingresa con
+        // contraseña**: probé con una y el ingreso fallaba en silencio, así que
+        // la aserción quedaba dentro de un `if` que nunca se cumplía — la
+        // prueba pasaba igual con el filtro por permiso sacado a propósito, o
+        // sea que no medía nada.
+        $rolProf = (int) DB::scalar("SELECT id_rol FROM rol WHERE nombre = 'Profesional' LIMIT 1");
+        $uidProf = (int) DB::scalar(
+            'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rolProf]);
+        $this->assertGreaterThan(0, $uidProf, 'Hace falta un Profesional para la otra mitad.');
+
+        session(['uid' => $uidProf, 'rol' => $rolProf, 'es_personal' => true,
+            'es_cliente' => false, 'id_sucursal' => 1]);
+        $this->conMarcaDeSesion();
+
+        $suyo = (string) $this->get(route('panel'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('spg-falta-nivel', $suyo,
+            'El Profesional ve pendientes que no tiene permiso para resolver.');
     }
 }

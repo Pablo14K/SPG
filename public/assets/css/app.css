@@ -363,6 +363,25 @@ body{
 .spg-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
 .spg-metric .val.oro{color:var(--oro-oscuro);}
 
+/* ---- Falta cargar (panel) ----
+   El nivel se pinta con lo que cada color ya significa en esta paleta, no con
+   uno nuevo: el rojo semántico para lo que impide, `--oro-tinte` —que la
+   identidad reserva justamente para los AVISOS— para lo que hace decidir
+   distinto, y neutros cálidos para lo que sólo conviene. Así el renglón que
+   hay que mirar primero se lee sin tener que aprender un código de colores. */
+.spg-falta{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem 0;
+    border-top:1px solid var(--gris-calido);}
+.spg-falta:first-child{border-top:0;}
+.spg-falta-txt{flex:1 1 auto;font-size:.85rem;line-height:1.35;}
+.spg-falta-donde{font-size:.78rem;}
+.spg-falta-nivel{flex:0 0 auto;min-width:5.2rem;text-align:center;
+    font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;
+    padding:.15rem .45rem;border-radius:999px;border:1px solid transparent;
+    margin-top:.1rem;}
+.spg-falta-impide{background:var(--rojo-tinte);color:var(--rojo);border-color:var(--rojo);}
+.spg-falta-confunde{background:var(--oro-tinte);color:var(--oro-texto);border-color:var(--oro);}
+.spg-falta-conviene{background:transparent;color:var(--gris-oscuro);border-color:var(--gris-calido);}
+
 /* ---- Login ---- */
 /* `column` no es un detalle: los avisos de `auth/marco` se dibujan como
    hermanos de la tarjeta, así que en fila quedaban PEGADOS A SU IZQUIERDA,
