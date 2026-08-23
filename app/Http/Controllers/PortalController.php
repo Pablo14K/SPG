@@ -136,20 +136,25 @@ class PortalController extends Controller
             'sucursales' => $sucursales,
             'sucursal' => $elegida,
             'profs' => $elegida ? Agenda::profesionales($elegida) : [],
-            // **Qué hace cada profesional, a la vista.** `usuario_servicio`
-            // existe desde la 7.42.0 y sólo la miraba la validación: la
-            // clienta elegía a ciegas y se enteraba al guardar de que esa
-            // persona no hace ese servicio. Con el criterio permisivo de
-            // siempre: quien no tiene ninguno cargado los hace todos.
-            'haceCada' => $elegida ? DB::select(
-                "SELECT u.id_usuario,
-                        COALESCE(GROUP_CONCAT(s.nombre ORDER BY s.nombre SEPARATOR ' · '), '') AS servicios
-                   FROM usuario u
-                   LEFT JOIN usuario_servicio us ON us.id_usuario = u.id_usuario
-                   LEFT JOIN servicio s ON s.id_servicio = us.id_servicio AND s.activo = 1
-                  WHERE u.activo = 1
-                  GROUP BY u.id_usuario"
-            ) : [],
+            // **Quién hace CADA servicio, para que el combo no ofrezca a quien
+            // no lo hace.** El selector listaba al equipo entero para
+            // cualquier servicio: la clienta podía pedir una coloración con
+            // quien sólo hace uñas, y el «no» llegaba el día de la cita.
+            //
+            // Vale el criterio permisivo de siempre: quien no tiene ninguno
+            // cargado los hace todos, así que un salón que no administre esto
+            // sigue viendo a todo el equipo en todos los servicios.
+            'haceServicio' => $elegida ? (function () {
+                $out = [];
+                foreach (DB::select(
+                    'SELECT us.id_servicio, us.id_usuario FROM usuario_servicio us
+                       JOIN usuario u ON u.id_usuario = us.id_usuario AND u.activo = 1'
+                ) as $r) {
+                    $out[(int) $r->id_servicio][] = (int) $r->id_usuario;
+                }
+
+                return $out;
+            })() : [],
             // Sólo los servicios que ESE local publica. El catálogo es único
             // —«Corte de dama» es un servicio con un precio— y cada sucursal
             // marca cuáles ofrece, en `servicio_sucursal`.
@@ -247,6 +252,22 @@ class PortalController extends Controller
         }
 
         if (! $idUsuario) {
+            // **Si la clienta eligió a alguien, la cita es de esa persona.**
+            //
+            // Este bloque asignaba «cualquiera que esté libre» sin mirar el
+            // reparto, así que eligiendo profesional para su único servicio la
+            // cita quedaba a nombre de OTRA: `cita_servicio.id_usuario` tenía
+            // al elegido y `cita.id_usuario` a un tercero — y la agenda muestra
+            // el de la cita. Desde afuera, el sistema le cambiaba el
+            // profesional sin decir nada.
+            //
+            // `principalDelReparto()` devuelve quien más minutos pone, que es
+            // el criterio con el que la cita tiene dueño desde la 5.3.0.
+            $idUsuario = Agenda::principalDelReparto($asignacion);
+        }
+
+        if (! $idUsuario) {
+            // Nadie elegido en ningún servicio: recién ahí decide el sistema.
             $delPrincipal = Agenda::duracion(array_keys(array_filter($asignacion, fn ($p) => $p === 0)));
             $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal ?: $dur, $idSucursal) ?? 0;
             if (! $idUsuario) {
@@ -539,6 +560,118 @@ class PortalController extends Controller
             flash('Tu cita fue cancelada.');
         } catch (Throwable) {
             flash('No se pudo cancelar la cita.', 'error');
+        }
+
+        return $volver;
+    }
+
+    /**
+     * El equipo del salón: quién atiende y qué hace cada una.
+     *
+     * **Vive aparte de la pantalla de reservar**, que ya pide elegir
+     * servicios, profesional, día y hora: el equipo entero desplegado ahí
+     * compite con lo único que se viene a hacer. Esto se mira antes, una vez.
+     */
+    public function profesionales(Request $request): View
+    {
+        $sucursales = DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre');
+        $elegida = (int) $request->query('sucursal', 0)
+            ?: (int) ($sucursales[0]->id_sucursal ?? 0);
+
+        // El equipo que atiende EN ESE LOCAL, con la misma regla que la agenda:
+        // quien no tiene turno acá no atiende acá.
+        $equipo = DB::select(
+            "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre,
+                    COALESCE((SELECT GROUP_CONCAT(s.nombre ORDER BY s.nombre SEPARATOR '|')
+                                FROM usuario_servicio us
+                                JOIN servicio s ON s.id_servicio = us.id_servicio AND s.activo = 1
+                               WHERE us.id_usuario = u.id_usuario), '') AS servicios,
+                    (SELECT ROUND(AVG(cal.puntaje),1) FROM calificacion cal
+                       JOIN cita c ON c.id_cita = cal.id_cita
+                      WHERE c.id_usuario = u.id_usuario) AS puntaje
+               FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+               JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND EXISTS (SELECT 1 FROM usuario_turno ut
+                             JOIN turno_laboral tl ON tl.id_turno = ut.id_turno
+                            WHERE ut.id_usuario = u.id_usuario AND tl.activo = 1
+                              AND (? = 0 OR tl.id_sucursal = ?))
+              ORDER BY pe.nombre", [$elegida, $elegida]
+        );
+
+        return view('portal.profesionales', [
+            'sucursales' => $sucursales,
+            'sucursal' => $elegida,
+            'equipo' => $equipo,
+        ]);
+    }
+
+    /**
+     * La clienta pide otro horario para su cita.
+     *
+     * **Desde el portal sólo se podía cancelar**, y son dos cosas distintas:
+     * quien no puede el martes no quiere dejar de venir, quiere venir el
+     * jueves. Obligarla a cancelar y volver a reservar le hace perder el lugar
+     * —y la seña que ya dejó—, así que muchas terminaban llamando al salón.
+     *
+     * La reprogramación ya existía **por el enlace del correo**
+     * (`CitaTokenController`); acá se ofrece a la clienta que sí tiene cuenta,
+     * que hasta ahora era la única que no la tenía.
+     *
+     * Pasa por `Agenda::reprogramar()`, o sea con el mismo candado y la misma
+     * comprobación de disponibilidad que el mostrador: la cita conserva su
+     * profesional y su seña, y sólo cambia de hora.
+     */
+    public function reprogramar(Request $request): RedirectResponse
+    {
+        $idc = $this->cliente();
+        $id = (int) $request->input('id_cita', 0);
+        $volver = redirect()->route('portal.citas');
+
+        $cita = DB::selectOne(
+            'SELECT id_cita, fecha_hora, id_estado_cita, id_usuario FROM cita
+              WHERE id_cita = ? AND id_cliente = ?', [$id, $idc]);
+        if (! $cita) {
+            flash('No podés reprogramar esa cita.', 'error');
+
+            return $volver;
+        }
+
+        $nueva = str_replace('T', ' ', trim((string) $request->input('fecha_hora', '')));
+        if (strlen($nueva) === 16) {
+            $nueva .= ':00';
+        }
+
+        $servicios = array_map(fn ($r) => (int) $r->id_servicio,
+            DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$id]));
+        $dur = Agenda::duracion($servicios) ?: 60;
+        $idProf = (int) $cita->id_usuario;
+
+        $error = match (true) {
+            in_array((int) $cita->id_estado_cita, [3, 4, 5], true)
+                => 'Esa cita ya está cerrada o en curso: hablá con el salón.',
+            $nueva === '' || ! strtotime($nueva) => 'Elegí la nueva fecha y hora.',
+            strtotime($nueva) < time() => 'No se puede reprogramar a una fecha que ya pasó.',
+            // **El motivo se explica**, que es lo que separa «no se puede» de
+            // «probá con otro día»: la misma función que usa el mostrador.
+            ! Agenda::huecoLibre($idProf, $nueva, $dur, $id)
+                => Agenda::motivoHuecoPerdido($idProf, $nueva, $dur, $id),
+            default => null,
+        };
+        if ($error) {
+            flash($error, 'error');
+
+            return $volver;
+        }
+
+        try {
+            Agenda::reprogramar($id, $nueva);
+            Auditoria::registrarComo((int) session('uid'), 'REPROGRAMACION', 'Portal', 'cita', $id,
+                'La clienta reprogramó desde el portal para ' . $nueva);
+            flash('¡Listo! Tu cita quedó para el ' . fecha($nueva) . '.');
+        } catch (Throwable) {
+            flash('Ese horario se ocupó recién. Elegí otro, por favor.', 'error');
         }
 
         return $volver;

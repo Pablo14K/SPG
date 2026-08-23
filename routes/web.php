@@ -109,7 +109,12 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::post('reservar', [PortalController::class, 'guardarReserva'])->name('guardar_reserva');
     Route::get('disponibilidad', [PortalController::class, 'disponibilidad'])->name('disponibilidad');
     Route::get('citas', [PortalController::class, 'citas'])->name('citas');
+    // Quién atiende y qué hace cada una: se mira antes de reservar, así que
+    // no va dentro de la pantalla de reservar.
+    Route::get('profesionales', [PortalController::class, 'profesionales'])->name('profesionales');
     Route::post('cancelar', [PortalController::class, 'cancelar'])->name('cancelar');
+    // Quien no puede el martes no quiere dejar de venir: quiere venir el jueves.
+    Route::post('reprogramar', [PortalController::class, 'reprogramar'])->name('reprogramar');
     // Registrar una seña NO es pagarla: no hay pasarela de pago. Queda
     // anotada y la confirma un profesional cuando recibe el dinero.
     Route::post('sena', [PortalController::class, 'senaRegistrar'])->name('sena');

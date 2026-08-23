@@ -328,7 +328,16 @@ window.SPGCarga = (function () {
     boton.classList.add('activo');
   }
 
+  // **Cada consulta lleva su número de orden.** Marcar dos servicios seguidos
+  // dispara dos búsquedas, y las respuestas no vuelven necesariamente en el
+  // mismo orden: la vieja llegaba después del `limpiar()` de la nueva y
+  // dibujaba SU rótulo, así que quedaban dos «1. Elegí el día» y dos listas de
+  // días — una de ellas con los días de la consulta anterior, que es peor que
+  // el renglón repetido.
+  var consulta = 0;
+
   function cargarDias() {
+    var mia = ++consulta;
     limpiar();
     if (!elegidos().length) {
       aviso.textContent = 'Elegí primero los servicios para ver los horarios disponibles.';
@@ -339,6 +348,10 @@ window.SPGCarga = (function () {
     cargando(aviso, 'Buscando días con lugar…');
 
     pedir(null, diasEl).then(function (d) {
+      if (mia !== consulta) { return; }   // llegó tarde: ya hay otra en curso
+      // Se limpia otra vez ANTES de dibujar: `pedir()` deja su spinner adentro
+      // del bloque, y el rótulo se agregaba encima en vez de reemplazarlo.
+      diasEl.innerHTML = '';
       if (!d.ok) {
         aviso.textContent = d.motivo || 'No se pudo consultar la agenda.';
         return;
@@ -370,7 +383,9 @@ window.SPGCarga = (function () {
     if (campo) campo.value = '';
     if (btn) btn.disabled = true;
 
+    var mia = consulta;
     pedir({ fecha: f }, horasEl).then(function (d) {
+      if (mia !== consulta) { return; }   // cambiaron los servicios mientras tanto
       horasEl.innerHTML = '';
       if (!d.ok || !d.horas || !d.horas.length) {
         horasEl.textContent = 'Ese día ya no tiene horarios libres.';
@@ -582,6 +597,63 @@ window.SPGCarga = (function () {
   // ---------------------------------------------------------------
   //  Confirmación y bloqueo de doble envío
   // ---------------------------------------------------------------
+
+  //  **El cartel de confirmación es del sistema, no del navegador.**
+  //
+  //  `window.confirm()` dibuja un cuadro que dice «localhost:8000 dice», con
+  //  los botones del sistema operativo y sin una palabra de la identidad del
+  //  salón. Para una acción que anula un comprobante o borra un registro, ese
+  //  cartel se lee como un error del navegador y no como una pregunta del
+  //  sistema — que es justo lo contrario de lo que tiene que transmitir.
+  //
+  //  Se dibuja con Bootstrap, que ya está cargado, y **cae de vuelta en
+  //  `window.confirm()` si no lo estuviera**: una confirmación que no se puede
+  //  mostrar no puede convertirse en «seguí adelante sin preguntar».
+  function confirmar(texto, alAceptar) {
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+      if (window.confirm(texto)) { alAceptar(); }
+      return;
+    }
+
+    var caja = document.getElementById('spgConfirmar');
+    if (!caja) {
+      caja = document.createElement('div');
+      caja.id = 'spgConfirmar';
+      caja.className = 'modal fade';
+      caja.tabIndex = -1;
+      caja.setAttribute('aria-hidden', 'true');
+      caja.innerHTML =
+        '<div class="modal-dialog modal-dialog-centered modal-sm">'
+        + '<div class="modal-content">'
+        + '<div class="modal-header"><h5 class="modal-title" style="font-size:1rem">'
+        + '<i class="bi bi-question-circle"></i> Confirmá</h5>'
+        + '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>'
+        + '<div class="modal-body" id="spgConfirmarTxt" style="font-size:.9rem"></div>'
+        + '<div class="modal-footer">'
+        + '<button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>'
+        + '<button type="button" class="btn btn-oro" id="spgConfirmarSi">Sí, seguir</button>'
+        + '</div></div></div>';
+      document.body.appendChild(caja);
+    }
+
+    // **Con id y no con `data-*`.** El modal lo dibuja este script, así que un
+    // `data-algo` no aparece en ninguna vista y `AndamiajeTest` lo marca como
+    // JS apuntando a un marcado que no existe — que es justo lo que esa prueba
+    // tiene que detectar, y no conviene enseñarle a mirar para otro lado.
+    caja.querySelector('#spgConfirmarTxt').textContent = texto;
+    var modal = window.bootstrap.Modal.getOrCreateInstance(caja);
+
+    // El botón se reemplaza para no acumular escuchas de confirmaciones
+    // anteriores: si no, el segundo «sí» dispararía también la primera acción.
+    var si = caja.querySelector('#spgConfirmarSi');
+    var nuevo = si.cloneNode(true);
+    si.parentNode.replaceChild(nuevo, si);
+    nuevo.addEventListener('click', function () { modal.hide(); alAceptar(); });
+
+    modal.show();
+  }
+  window.SPGConfirmar = confirmar;
+
   document.addEventListener('submit', function (ev) {
     var form = ev.target;
     if (!(form instanceof HTMLFormElement)) return;
@@ -590,7 +662,29 @@ window.SPGCarga = (function () {
 
     var enviado = ev.submitter;
     var pregunta = (enviado && enviado.getAttribute('data-confirmar')) || form.getAttribute('data-confirmar');
-    if (pregunta && !window.confirm(pregunta)) { ev.preventDefault(); return; }
+    if (pregunta && form.dataset.confirmado !== '1') {
+      ev.preventDefault();
+      confirmar(pregunta, function () {
+        // Se marca antes de reenviar para no volver a preguntar, y se
+        // desmarca después: si el servidor rechaza y la persona vuelve a
+        // apretar, la pregunta tiene que aparecer de nuevo.
+        form.dataset.confirmado = '1';
+        if (enviado && enviado.name) {
+          // El `submitter` desaparece al enviar por código, y con él el valor
+          // del botón que se apretó — que en varias pantallas es el que dice
+          // QUÉ se está haciendo.
+          var oculto = document.createElement('input');
+          oculto.type = 'hidden';
+          oculto.name = enviado.name;
+          oculto.value = enviado.value;
+          form.appendChild(oculto);
+        }
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+        setTimeout(function () { form.dataset.confirmado = ''; }, 100);
+      });
+
+      return;
+    }
 
     // Bloquea el botón para que no se registre dos veces la misma operación
     if (form.dataset.enviando === '1') { ev.preventDefault(); return; }
@@ -615,7 +709,13 @@ window.SPGCarga = (function () {
   // Enlaces que piden confirmación
   document.addEventListener('click', function (ev) {
     var a = ev.target.closest ? ev.target.closest('a[data-confirmar]') : null;
-    if (a && !window.confirm(a.getAttribute('data-confirmar'))) ev.preventDefault();
+    if (!a || a.dataset.confirmado === '1') { return; }
+    ev.preventDefault();
+    confirmar(a.getAttribute('data-confirmar'), function () {
+      a.dataset.confirmado = '1';
+      a.click();
+      setTimeout(function () { a.dataset.confirmado = ''; }, 100);
+    });
   });
 
   function iniciar() { prepararCampos(); prepararFiltros(); }

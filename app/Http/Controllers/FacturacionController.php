@@ -377,14 +377,8 @@ class FacturacionController extends Controller
         $nota = trim((string) $request->input('nota', ''));
         $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
 
-        // `vw_factura_resumen` trae el NOMBRE del tipo, no su id, y el id es lo
-        // que decide si se le adjuntan el KuDE y el XML.
-        $f = DB::selectOne(
-            'SELECT v.*, fa.id_tipo_comprobante
-               FROM vw_factura_resumen v JOIN factura fa ON fa.id_factura = v.id_factura
-              WHERE v.id_factura = ?', [$id]
-        );
-        if (! $f) {
+        $nro = DB::scalar('SELECT fn_factura_nro(?)', [$id]);
+        if (! $nro) {
             flash('Ese comprobante no existe.', 'error');
 
             return redirect()->route('facturacion.facturas');
@@ -393,6 +387,36 @@ class FacturacionController extends Controller
             flash('Poné una dirección de correo válida.', 'error');
 
             return $volver;
+        }
+
+        if (! $this->mandarComprobante($id, $email, $nota)) {
+            flash('No se pudo mandar el correo. El detalle quedó en el registro del sistema.', 'error');
+
+            return $volver;
+        }
+
+        flash('Le mandamos el comprobante ' . $nro . ' a ' . $email . '.');
+
+        return $volver;
+    }
+
+    /**
+     * Manda el comprobante por correo. Devuelve si salió.
+     *
+     * Vive aparte porque lo usan **dos caminos**: el botón «Enviar por correo»
+     * y el envío automático al emitir. Escrito dos veces, uno de los dos se
+     * queda atrás y le llega a la clienta un correo distinto según por dónde
+     * se haya emitido.
+     */
+    private function mandarComprobante(int $id, string $email, string $nota = ''): bool
+    {
+        $f = DB::selectOne(
+            'SELECT v.*, fa.id_tipo_comprobante
+               FROM vw_factura_resumen v JOIN factura fa ON fa.id_factura = v.id_factura
+              WHERE v.id_factura = ?', [$id]
+        );
+        if (! $f) {
+            return false;
         }
 
         try {
@@ -412,16 +436,14 @@ class FacturacionController extends Controller
             ));
         } catch (Throwable $ex) {
             Log::error('Comprobante ' . $id . ' por correo a ' . $email . ': ' . $ex->getMessage());
-            flash('No se pudo mandar el correo. El detalle quedó en el registro del sistema.', 'error');
 
-            return $volver;
+            return false;
         }
 
         Auditoria::registrar('ENVIO', 'Facturacion', 'factura', $id,
             'Comprobante ' . $f->nro_comprobante . ' enviado a ' . $email);
-        flash('Le mandamos el comprobante ' . $f->nro_comprobante . ' a ' . $email . '.');
 
-        return $volver;
+        return true;
     }
 
     /** Citas atendidas que todavía no tienen factura. */
@@ -783,11 +805,30 @@ class FacturacionController extends Controller
         // ---- 2. Declarar. Si esto falla, la factura sigue emitida. ----
         $r = Sifen::enviar($idf, $rec);
 
+        // ---- 3. Y se le manda a la clienta, sin apretar nada más. ----
+        //
+        // **Emitir y que le llegue son un solo acto para quien atiende.** El
+        // botón «Enviar por correo» seguía estando, pero había que acordarse
+        // de apretarlo: la clienta se iba del salón creyendo que ya lo tenía y
+        // el comprobante quedaba en el sistema.
+        //
+        // Va DESPUÉS de emitir y no atado a eso, la regla de siempre: si el
+        // correo falla, la factura sigue siendo válida y se reintenta desde el
+        // comprobante. Por eso el aviso dice si salió y a dónde.
+        $correo = trim((string) ($rec['email'] ?? ''));
+        $mandado = $correo !== '' && filter_var($correo, FILTER_VALIDATE_EMAIL)
+            && $this->mandarComprobante($idf, $correo);
+
         flash('Factura ' . $nro . ' emitida.'
             . ($puntos ? ' El cliente sumó ' . $puntos . ' punto(s).' : '')
             . ' ' . $r['mensaje']
-            . ($r['ok'] ? '' : ' La factura es válida igual: podés reintentar el envío desde el comprobante.'),
-            $r['ok'] ? 'success' : 'warning');
+            . ($r['ok'] ? '' : ' La factura es válida igual: podés reintentar el envío desde el comprobante.')
+            . ($mandado
+                ? ' Se lo mandamos a ' . $correo . '.'
+                : ($correo === ''
+                    ? ' No tiene correo cargado, así que no se le pudo mandar: está el botón «Enviar por correo».'
+                    : ' No se pudo mandar el correo a ' . $correo . ': reintentalo desde el comprobante.')),
+            $r['ok'] && $mandado ? 'success' : 'warning');
 
         return redirect()->route('facturacion.factura_ver', ['id' => $idf]);
     }

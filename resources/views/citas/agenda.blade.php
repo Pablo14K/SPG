@@ -397,10 +397,18 @@
                                 // Prioridad: lo que la clienta anunció desde el portal
                                 // —es lo que hay que confirmar—, si no lo que el salón
                                 // pide, y recién si no hay ninguno, lo que falte.
+                                //
+                                // **Y una vez que la seña está cobrada, lo que se
+                                // cobra es LO QUE FALTA.** `sena_requerida` es lo que
+                                // el salón pide de adelanto y no cambia al cobrarse,
+                                // así que seguía proponíendose el mismo número: se
+                                // cobraba la seña dos veces y el comprobante quedaba
+                                // con saldo pendiente por la diferencia.
                                 $pide = (float) ($c->sena_requerida ?? 0);
+                                $yaSeno = (float) $c->sena > 0;
                                 $sugerido = (float) ($c->sena_pedida ?? 0) > 0
                                     ? (float) $c->sena_pedida
-                                    : ($pide > 0 ? min($pide, $falta) : $falta);
+                                    : (! $yaSeno && $pide > 0 ? min($pide, $falta) : $falta);
                             @endphp
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.85rem">

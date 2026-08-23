@@ -49,32 +49,17 @@
 
             <div class="mb-3">
                 <label class="form-label">¿Qué te querés hacer? *</label>
-                {{-- **Quién hace qué, a la vista.** `usuario_servicio` decide
-                     desde la 7.42.0 con quién se puede reservar cada servicio,
-                     y sólo lo miraba la validación: la clienta elegía a ciegas
-                     y se enteraba al guardar. Sin nada cargado, esa persona
-                     hace todo — el criterio permisivo de siempre. --}}
-                @php
-                    $hace = collect($haceCada ?? [])->keyBy('id_usuario');
-                    $conLista = collect($profs)->filter(fn ($p) => trim((string) ($hace[$p->id_usuario]->servicios ?? '')) !== '');
-                @endphp
-                @if ($conLista->isNotEmpty())
-                    <details class="mb-2">
-                        <summary style="font-size:.85rem;cursor:pointer" class="text-muted-warm">
-                            ¿Quién hace cada cosa?
-                        </summary>
-                        <ul class="list-unstyled mt-2 mb-0" style="font-size:.83rem">
-                            @foreach ($profs as $p)
-                                <li class="py-1" style="border-top:1px solid var(--gris-calido)">
-                                    <strong>{{ $p->nombre }}</strong>
-                                    <span class="text-muted-warm">
-                                        · {{ trim((string) ($hace[$p->id_usuario]->servicios ?? '')) ?: 'hace todos los servicios' }}
-                                    </span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </details>
-                @endif
+                {{-- **El catálogo completo vive en su propia pantalla.** Acá
+                     estaba desplegable, pero esta página ya pide elegir
+                     servicios, profesional, día y hora: un bloque más con el
+                     equipo entero compite con lo único que hay que hacer.
+                     Quien quiere saber quién hace qué lo mira antes.
+
+                     Va siempre y no sólo cuando hay servicios cargados: aunque
+                     todas hagan de todo, sigue sirviendo para saber quiénes
+                     son y cómo las calificaron. --}}
+                <a class="btn btn-sm btn-outline-neutro mb-2" href="{{ route('portal.profesionales', ['sucursal' => $sucursal]) }}">
+                    <i class="bi bi-people"></i> ¿Quién hace cada cosa?</a>
 
                 <div class="spg-check-lista" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
@@ -103,7 +88,20 @@
                                     name="prof_servicio[{{ $s->id_servicio }}]"
                                     data-prof-de="#srv{{ $s->id_servicio }}">
                                 <option value="0">quien me atienda</option>
-                                @foreach ($profs as $p)
+                                @php
+                                    // **Sólo quienes hacen ESTE servicio.** El combo
+                                    // listaba al equipo entero, así que se podía pedir
+                                    // una coloración con quien sólo hace uñas y el «no»
+                                    // llegaba el día de la cita.
+                                    //
+                                    // Sin nadie cargado para ese servicio vale el
+                                    // criterio permisivo: lo hacen todos.
+                                    $suyos = $haceServicio[$s->id_servicio] ?? [];
+                                    $ofrecer = $suyos
+                                        ? collect($profs)->filter(fn ($p) => in_array((int) $p->id_usuario, $suyos, true))
+                                        : collect($profs);
+                                @endphp
+                                @foreach ($ofrecer as $p)
                                     <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}</option>
                                 @endforeach
                             </select>

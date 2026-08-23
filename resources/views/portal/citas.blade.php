@@ -79,6 +79,14 @@
                                             <i class="bi bi-cash-coin"></i> Seña</button>
                                     @endif
 
+                                    {{-- **Cambiar de día no es lo mismo que no venir.**
+                                         Antes sólo se podía cancelar, así que quien no
+                                         podía el martes tenía que cancelar y volver a
+                                         reservar — perdiendo el lugar y la seña. --}}
+                                    <button type="button" class="btn btn-sm btn-outline-neutro"
+                                            data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
+                                        <i class="bi bi-calendar-event"></i> Cambiar de día</button>
+
                                     <form method="post" action="{{ route('portal.cancelar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
@@ -86,6 +94,41 @@
                                                 data-confirmar="¿Cancelar tu cita del {{ fecha($c->fecha_hora) }}?">
                                             Cancelar</button>
                                     </form>
+
+                                    <div class="modal fade" id="modalRepro{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <form method="post" action="{{ route('portal.reprogramar') }}" class="modal-content">
+                                                @csrf
+                                                <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" style="font-size:1rem">
+                                                        <i class="bi bi-calendar-event"></i> Cambiar el día de tu cita</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                            aria-label="Cerrar"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-muted-warm" style="font-size:.86rem">
+                                                        Ahora la tenés para el <strong>{{ fecha($c->fecha_hora) }}</strong>
+                                                        con <strong>{{ $c->profesional }}</strong>.
+                                                        Seguís con la misma profesional y con lo que ya señaste.
+                                                    </p>
+                                                    <label class="form-label" for="rp{{ $c->id_cita }}">Nueva fecha y hora</label>
+                                                    <input type="datetime-local" class="form-control"
+                                                           id="rp{{ $c->id_cita }}" name="fecha_hora" required
+                                                           min="{{ date('Y-m-d\TH:i') }}">
+                                                    <div class="form-text">
+                                                        Si ese horario no está libre te lo decimos y elegís otro.
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-outline-neutro"
+                                                            data-bs-dismiss="modal">Dejarlo como está</button>
+                                                    <button class="btn btn-oro">
+                                                        <i class="bi bi-check2"></i> Cambiar</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 @endif
                             </td>
                         </tr>
