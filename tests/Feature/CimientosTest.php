@@ -91,10 +91,44 @@ class CimientosTest extends TestCase
     {
         // Si no coinciden, el fichaje de asistencia queda corrido y deja de
         // servir como prueba de quién estuvo en el salón.
-        $desfase = abs(strtotime(ahora_bd()) - strtotime(date('Y-m-d H:i:s')));
+        //
+        // **Se le pregunta a la base DIRECTAMENTE, no por `ahora_bd()`.** Esa
+        // función cachea el valor en un `static` —una vez por petición, que es
+        // lo correcto en la web— pero una corrida de pruebas es UN solo
+        // proceso: el `static` guarda la hora del primer llamado y sigue
+        // devolviéndola cuatro minutos después.
+        //
+        // Con eso, lo que la prueba medía era **cuánto tarda la suite**, no la
+        // zona horaria: en el host tardaba 108 s y daba 99 —pasaba raspando— y
+        // en el contenedor tardaba 256 s y daba 92, o sea que fallaba con los
+        // dos relojes perfectamente sincronizados. Es el defecto del entorno en
+        // vez de la regla, otra vez.
+        $desfase = abs(
+            strtotime((string) DB::scalar('SELECT NOW()')) - strtotime(date('Y-m-d H:i:s'))
+        );
 
         $this->assertLessThan(90, $desfase,
             'PHP y la base no están en la misma hora. Revisá la zona horaria del servidor.');
+    }
+
+    #[Test]
+    public function ahora_bd_saca_la_hora_de_la_base_y_no_de_php(): void
+    {
+        // La otra mitad, que la de arriba dejó de cubrir al preguntar directo:
+        // que `ahora_bd()` de verdad venga de la base y no de `date()`.
+        //
+        // **El margen es de diez minutos y no de noventa segundos, a
+        // propósito.** La caché sólo puede dejar a `ahora_bd()` ATRÁS, y como
+        // mucho lo que lleve corriendo la suite; con un margen ajustado la
+        // prueba volvería a medir la duración de la corrida en vez de la
+        // regla. Y sigue detectando lo que importa: un error de zona horaria
+        // son 3.600 segundos como mínimo — el que este proyecto ya tuvo era
+        // de 10.800.
+        $this->assertLessThan(
+            600,
+            abs(strtotime(ahora_bd()) - strtotime((string) DB::scalar('SELECT NOW()'))),
+            'ahora_bd() se separó de la base: no está saliendo de la conexión.'
+        );
     }
 
     // -----------------------------------------------------------------

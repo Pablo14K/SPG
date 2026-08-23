@@ -87,10 +87,26 @@
                                     {{-- **Cambiar de día no es lo mismo que no venir.**
                                          Antes sólo se podía cancelar, así que quien no
                                          podía el martes tenía que cancelar y volver a
-                                         reservar — perdiendo el lugar y la seña. --}}
-                                    <button type="button" class="btn btn-sm btn-outline-neutro"
-                                            data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
-                                        <i class="bi bi-calendar-event"></i> Cambiar de día</button>
+                                         reservar — perdiendo el lugar y la seña.
+
+                                         **Pero una sola vez.** El estado «Reprogramada»
+                                         (2) es la marca: lo pone `sp_reprogramar_cita`
+                                         desde siempre. Sin el tope, la reserva se empuja
+                                         hacia adelante indefinidamente y el hueco queda
+                                         tomado sin que nadie lo use.
+
+                                         Se dice por qué en vez de esconder el botón sin
+                                         más: un botón que desaparece se lee como un
+                                         error del sistema. --}}
+                                    @if ((int) $c->id_estado_cita === 2)
+                                        <span class="badge-estado e-warn"
+                                              title="Ya usaste tu cambio de día. Si necesitás otro, escribinos.">
+                                            <i class="bi bi-calendar-check"></i> Ya cambiada</span>
+                                    @else
+                                        <button type="button" class="btn btn-sm btn-outline-neutro"
+                                                data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
+                                            <i class="bi bi-calendar-event"></i> Cambiar de día</button>
+                                    @endif
 
                                     <form method="post" action="{{ route('portal.cancelar') }}" class="d-inline">
                                         @csrf
@@ -100,6 +116,7 @@
                                             Cancelar</button>
                                     </form>
 
+                                    @if ((int) $c->id_estado_cita !== 2)
                                     <div class="modal fade" id="modalRepro{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
                                         <div class="modal-dialog modal-dialog-centered">
                                             <form method="post" action="{{ route('portal.reprogramar') }}" class="modal-content">
@@ -117,13 +134,29 @@
                                                         con <strong>{{ $c->profesional }}</strong>.
                                                         Seguís con la misma profesional y con lo que ya señaste.
                                                     </p>
+
+                                                    <div class="alert alert-warning py-2 px-3" style="font-size:.84rem">
+                                                        <i class="bi bi-exclamation-triangle"></i>
+                                                        <strong>Es el único cambio que podés hacer desde acá.</strong>
+                                                        Después de esto, si necesitás moverla otra vez tenés que
+                                                        escribirnos.
+                                                    </div>
+
                                                     <label class="form-label" for="rp{{ $c->id_cita }}">Nueva fecha y hora</label>
                                                     <input type="datetime-local" class="form-control"
                                                            id="rp{{ $c->id_cita }}" name="fecha_hora" required
                                                            min="{{ date('Y-m-d\TH:i') }}">
-                                                    <div class="form-text">
+                                                    <div class="form-text mb-2">
                                                         Si ese horario no está libre te lo decimos y elegís otro.
                                                     </div>
+
+                                                    {{-- El motivo no es burocracia: es lo que le deja al
+                                                         salón ver POR QUÉ se mueven las citas. Si siempre
+                                                         es el mismo horario, el problema es el horario. --}}
+                                                    <label class="form-label" for="mo{{ $c->id_cita }}">¿Por qué lo cambiás?</label>
+                                                    <input type="text" class="form-control" id="mo{{ $c->id_cita }}"
+                                                           name="motivo" required maxlength="200"
+                                                           placeholder="Me salió un viaje, no llego a esa hora…">
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-outline-neutro"
@@ -134,6 +167,7 @@
                                             </form>
                                         </div>
                                     </div>
+                                    @endif
                                 @endif
                             </td>
                         </tr>

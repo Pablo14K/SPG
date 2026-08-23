@@ -212,6 +212,13 @@ body{
   font-size:.72rem;font-weight:500;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
 }
 
+/* La base con la que corre el sistema, sólo en desarrollo. Va en neutro y no
+   en oro: **no es jerarquía ni acción**, es un dato de contexto para quien
+   programa — el oro se reserva para lo que hay que mirar o tocar. */
+.spg-base-chip{font-size:.72rem;padding:.1rem .5rem;border-radius:20px;
+  border:1px dashed var(--sobre-oscura-tenue);color:var(--sobre-oscura-tenue);
+  margin-left:.35rem;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+
 /* La sucursal en la que se está trabajando, al lado del nombre.
    Va RELLENA y el rol en contorno, y la diferencia no es capricho: el rol de
    una persona no cambia nunca, la sucursal cambia entre una sesión y la

@@ -347,15 +347,27 @@ class PortalController extends Controller
             // después y le avisa, así que no desaparece en silencio.
             $horas = (int) config('spg.agenda.sena_horas', 24);
 
+            $canje = $usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '';
+
+            // **Las tres condiciones se dicen ACÁ, que es cuando se decide.**
+            // Enterarse después de que el cambio de día era uno solo, o de que
+            // la seña no vuelve si no viene, es enterarse cuando ya no se puede
+            // hacer nada distinto. Van juntas y en el mismo aviso porque son
+            // las tres caras del mismo trato: le guardamos el lugar y por eso
+            // pedimos algo a cambio.
+            $reglas = ' Podés cambiar el día **una sola vez** desde «Mis citas». '
+                . 'Y si no venís, la seña no se devuelve: es lo que cubre el horario '
+                . 'que nadie más pudo usar.';
+
             flash($senaPide > 0
                 ? 'Te guardamos el horario, pero **tu cita todavía no está confirmada**: '
                     . 'para eso hace falta la seña de ' . money($senaPide) . '. '
                     . 'Registrá acá el comprobante de la transferencia'
                     . ($horas > 0 ? ' dentro de las ' . $horas . ' horas' : '')
                     . '; si no llegamos a confirmarla, soltamos el lugar y te avisamos.'
-                    . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '')
-                : '¡Tu cita fue reservada!'
-                    . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : ''),
+                    . $reglas . $canje
+                : '¡Tu cita fue reservada! Podés cambiar el día **una sola vez** '
+                    . 'desde «Mis citas».' . $canje,
                 $senaPide > 0 ? 'warning' : 'success');
 
             if ($senaPide > 0) {
@@ -500,7 +512,7 @@ class PortalController extends Controller
             // por algo que ya pagó con sus puntos. Si además pidió otro
             // servicio sin canje, ese sí se puede señar — por eso es una resta
             // y no un «tiene canje: no muestres nada».
-            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso,
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita,
                     fn_cita_sena(v.id_cita) AS sena,
                     -- Cuánta seña pide el salón por esta cita. Sale de
                     -- `servicio.sena_porcentaje`: hasta acá el sistema no
@@ -657,6 +669,7 @@ class PortalController extends Controller
         if (strlen($nueva) === 16) {
             $nueva .= ':00';
         }
+        $motivo = trim((string) $request->input('motivo', ''));
 
         $servicios = array_map(fn ($r) => (int) $r->id_servicio,
             DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$id]));
@@ -666,6 +679,23 @@ class PortalController extends Controller
         $error = match (true) {
             in_array((int) $cita->id_estado_cita, [3, 4, 5], true)
                 => 'Esa cita ya está cerrada o en curso: hablá con el salón.',
+
+            // **Una sola vez, y el sistema ya lo sabía.** `sp_reprogramar_cita`
+            // deja la cita en «Reprogramada» (estado 2) desde siempre, así que
+            // ese estado ES la marca de que la clienta ya usó su cambio.
+            //
+            // El límite existe porque sin él una reserva se puede empujar hacia
+            // adelante indefinidamente: el hueco queda tomado y nadie más lo
+            // puede usar, que es exactamente lo que la seña vino a evitar.
+            (int) $cita->id_estado_cita === 2
+                => 'Ya cambiaste el día de esta cita una vez, y es el único cambio que '
+                   . 'podemos hacer por el portal. Si necesitás otro, escribinos y lo vemos.',
+
+            // El motivo no es burocracia: es lo que le deja al salón entender
+            // por qué se mueven las citas — si es siempre el mismo horario, el
+            // problema es el horario.
+            $motivo === '' => 'Contanos por qué necesitás cambiarlo.',
+
             $nueva === '' || ! strtotime($nueva) => 'Elegí la nueva fecha y hora.',
             strtotime($nueva) < time() => 'No se puede reprogramar a una fecha que ya pasó.',
             // **El motivo se explica**, que es lo que separa «no se puede» de
@@ -682,9 +712,20 @@ class PortalController extends Controller
 
         try {
             Agenda::reprogramar($id, $nueva);
+
+            // El motivo queda en la cita y en la auditoría: en la cita lo ve
+            // quien atiende ese día, en la auditoría queda el rastro de quién
+            // lo pidió y cuándo.
+            DB::update(
+                "UPDATE cita SET observaciones = TRIM(CONCAT(COALESCE(observaciones,''), ' ', ?))
+                  WHERE id_cita = ?",
+                ['[Cambio de día pedido por la clienta: ' . mb_substr($motivo, 0, 200) . ']', $id]
+            );
             Auditoria::registrarComo((int) session('uid'), 'REPROGRAMACION', 'Portal', 'cita', $id,
-                'La clienta reprogramó desde el portal para ' . $nueva);
-            flash('¡Listo! Tu cita quedó para el ' . fecha($nueva) . '.');
+                'La clienta reprogramó desde el portal para ' . $nueva . '. Motivo: ' . $motivo);
+
+            flash('¡Listo! Tu cita quedó para el ' . fecha($nueva) . '. '
+                . 'Tené en cuenta que este era el único cambio que se puede hacer desde acá.');
         } catch (Throwable) {
             flash('Ese horario se ocupó recién. Elegí otro, por favor.', 'error');
         }

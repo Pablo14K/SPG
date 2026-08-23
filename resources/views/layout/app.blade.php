@@ -158,6 +158,27 @@
                     <i class="bi bi-shop"></i> {{ $spgSucursal }}</span>
             @endif
             <span class="spg-rol-chip d-none d-md-inline">{{ $spgSesion['rol_nom'] }}</span>
+
+            {{-- **Contra qué base está corriendo, mientras se desarrolla.**
+
+                 El sistema se levanta contra dos bases —`peluqueria_bd`, la que
+                 se entrega, y `peluqueria_test`, el mes simulado— y la línea que
+                 lo decide se movió tres veces (6.1.2, 6.3.1, 7.1.1). Cada vez
+                 costó lo mismo: se trabaja un rato contra la que no era y no hay
+                 nada en pantalla que lo diga.
+
+                 También explica lo de las dos computadoras: el mismo código se
+                 comporta distinto según los datos que tenga la base, y sin ver
+                 cuál es se busca el problema en el código.
+
+                 **Sólo con `APP_DEBUG`**, o sea nunca en el salón: ahí hay una
+                 sola base y decir su nombre sería ruido — además de informar de
+                 más a quien mire la pantalla. --}}
+            @if (config('app.debug') && ($spgBase = config('database.connections.' . config('database.default') . '.database')))
+                <span class="spg-base-chip d-none d-lg-inline"
+                      title="Base de datos con la que está corriendo el sistema. Sólo se ve en desarrollo.">
+                    <i class="bi bi-database"></i> {{ $spgBase }}</span>
+            @endif
         </div>
     @endif
 </header>

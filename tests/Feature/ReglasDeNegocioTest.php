@@ -4300,4 +4300,53 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNotSame(3, $estado($aviso),
             'Si la clienta ya registró la seña, la cita espera al salón: no se cancela sola.');
     }
+
+    /**
+     * Una cita atrasada más de un día se cierra sola como ausente.
+     *
+     * **Atrasada es un estado de paso y estaba quedando permanente.** Bloquea
+     * la agenda a propósito, pero eso vale mientras la cita todavía pueda
+     * ocurrir: se midieron citas con más de 800 horas ahí adentro, contando
+     * como vivas en el panel y torciendo el porcentaje de asistencia.
+     *
+     * Se comprueban las DOS mitades, que es lo que hace que la prueba mida
+     * algo: **la de hace dos horas NO se toca** —todavía puede atenderse— y
+     * **la de hace dos días sí**. Con una sola, un comando que cerrara todo
+     * pasaría igual.
+     */
+    #[Test]
+    public function la_cita_atrasada_mas_de_un_dia_se_cierra_como_ausente(): void
+    {
+        $srv = DB::selectOne('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
+        $cli = DB::selectOne('SELECT id_cliente FROM cliente LIMIT 1');
+        $usr = DB::selectOne('SELECT id_usuario FROM usuario WHERE activo = 1 LIMIT 1');
+        $suc = DB::selectOne('SELECT id_sucursal FROM sucursal WHERE activo = 1 LIMIT 1');
+
+        // Dos citas atrasadas: una de recién, otra de anteayer.
+        $crear = function (string $cuando) use ($cli, $usr, $suc, $srv): int {
+            DB::insert(
+                'INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                 VALUES (?, ?, ?, ?, 7)',
+                [$cli->id_cliente, $usr->id_usuario, $suc->id_sucursal, $cuando]
+            );
+            $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+            DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)',
+                [$id, $srv->id_servicio]);
+
+            return $id;
+        };
+
+        $reciente = $crear(date('Y-m-d H:i:s', strtotime('-2 hours')));
+        $vieja = $crear(date('Y-m-d H:i:s', strtotime('-2 days')));
+
+        $this->artisan('spg:notificaciones', ['--max' => 0]);
+
+        $estado = fn (int $id) => (int) DB::scalar(
+            'SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$id]);
+
+        $this->assertSame(7, $estado($reciente),
+            'La atrasada de hace dos horas todavía se puede atender: el sistema no decide por nadie.');
+        $this->assertSame(6, $estado($vieja),
+            'La atrasada de hace dos días tiene que cerrarse sola: si no, bloquea la agenda para siempre.');
+    }
 }
