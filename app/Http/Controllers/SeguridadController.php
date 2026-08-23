@@ -47,7 +47,12 @@ class SeguridadController extends Controller
     {
         return view('seguridad.personal', [
             'subs' => Permisos::tarjetasPermitidas([
-                ['p' => 'seguridad.usuarios', 'ruta' => 'seguridad.usuarios', 'ic' => 'people',
+                // **Va con `?desde=personal`**: es la misma ficha que Usuarios,
+                // pero abierta en los datos de la persona y no en la cuenta.
+                // Son dos trabajos distintos sobre el mismo registro, y una
+                // sola ficha porque dos se desfasan.
+                ['p' => 'seguridad.usuarios', 'ruta' => 'seguridad.usuarios',
+                 'ancla' => '?desde=personal', 'ic' => 'people',
                  't' => 'Profesionales', 'd' => 'El equipo del salón'],
                 ['p' => 'personal.turnos', 'ruta' => 'seguridad.turnos', 'ic' => 'clock',
                  't' => 'Turnos', 'd' => 'Horarios y días de trabajo'],

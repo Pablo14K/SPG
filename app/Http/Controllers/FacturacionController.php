@@ -1634,15 +1634,21 @@ class FacturacionController extends Controller
         ]);
     }
 
+    /**
+     * Abrir y cerrar el cajón. **El historial se fue a su propia pantalla.**
+     *
+     * Acá se hace una cosa —abrir o cerrar— y el arqueo es otra: mirar cómo
+     * cerraron las cajas de los días pasados. Mezclados, la pantalla del
+     * mostrador venía con sesenta filas debajo del único botón que hay que
+     * apretar, y el arqueo quedaba escondido abajo de todo.
+     */
     public function caja(): View
     {
-        $pa = []; $pl = [];
+        $pa = [];
         $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta'"
             . Sucursales::filtro('vw_caja_resumen', $pa) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pa);
 
         return view('facturacion.caja', [
-            'rows' => DB::select('SELECT * FROM vw_caja_resumen WHERE 1=1'
-                . Sucursales::filtro('vw_caja_resumen', $pl, 'sucl') . ' ORDER BY fecha_apertura DESC LIMIT 60', $pl),
             'abierta' => $abierta,
             // Arqueo por medio de pago: sin esto no se puede cuadrar la plata
             // física contra lo cargado (el efectivo tiene que estar en el cajón;
@@ -1662,6 +1668,53 @@ class FacturacionController extends Controller
                    FROM movimiento_caja
                   WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
             ) : [],
+        ]);
+    }
+
+    /**
+     * El arqueo: cómo cerró cada caja.
+     *
+     * **Es su propia pantalla y no el pie de «Apertura y cierre».** Son dos
+     * preguntas distintas: una es «¿abro o cierro?», que se hace dos veces por
+     * día, y la otra «¿cuadraron las cajas de esta semana?», que se hace cuando
+     * falta plata. Con el historial colgado abajo del formulario, la segunda
+     * quedaba escondida y la primera venía con sesenta filas de ruido.
+     */
+    public function arqueo(): View
+    {
+        $pl = [];
+        $rows = DB::select('SELECT * FROM vw_caja_resumen WHERE 1=1'
+            . Sucursales::filtro('vw_caja_resumen', $pl, 'sucl')
+            . ' ORDER BY fecha_apertura DESC LIMIT 60', $pl);
+
+        // El resumen de arriba: cuántas cuadraron y cuánto falta en total. Sale
+        // de las mismas filas que la tabla, así que no puede contradecirla.
+        $cerradas = $sinConteo = $cuadran = 0;
+        $difTotal = 0.0;
+        foreach ($rows as $c) {
+            if ($c->fecha_cierre === null) {
+                continue;
+            }
+            $cerradas++;
+            if ($c->monto_contado === null) {
+                $sinConteo++;
+                continue;
+            }
+            // Menos de un guaraní es cuadrar: la columna tiene dos decimales y
+            // comparar contra 0 exacto haría saltar un redondeo como faltante.
+            if (abs((float) $c->diferencia) < 0.01) {
+                $cuadran++;
+            } else {
+                $difTotal += (float) $c->diferencia;
+            }
+        }
+
+        return view('facturacion.arqueo', [
+            'rows' => $rows,
+            'cerradas' => $cerradas,
+            'sinConteo' => $sinConteo,
+            'cuadran' => $cuadran,
+            'difTotal' => $difTotal,
         ]);
     }
 

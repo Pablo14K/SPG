@@ -65,7 +65,15 @@
                 @endif
             @endforeach
 
+            {{-- `q` son los parámetros que el botón arrastra: la ficha del
+                 equipo los usa para saber si se entró por Usuarios o por
+                 Personal, que abren la misma pantalla en pestañas distintas. --}}
             @if ($accion && ($url = Navegacion::url($accion['ruta'])))
+                @php
+                    if (! empty($accion['q'])) {
+                        $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($accion['q']);
+                    }
+                @endphp
                 <a class="btn btn-oro" href="{{ $url }}">
                     @if (! empty($accion['ic']))<i class="bi bi-{{ $accion['ic'] }}"></i>@endif {{ $accion['t'] }}</a>
             @endif

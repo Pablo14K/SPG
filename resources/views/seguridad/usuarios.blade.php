@@ -13,7 +13,12 @@
         :sub="Permisos::esAdmin()
             ? 'Las cuentas del personal, con su rol, sus turnos y su estado.'
             : 'Las cuentas del personal. <strong>Crear y editar cuentas es exclusivo del Administrador</strong>, sin importar lo que diga la matriz de roles: quien puede editar la matriz podría darse permisos a sí mismo.'"
-        :accion="Permisos::esAdmin() ? ['ruta' => 'seguridad.usuario_form', 't' => 'Nuevo usuario', 'ic' => 'person-plus'] : null" />
+        :accion="Permisos::esAdmin()
+            ? ['ruta' => 'seguridad.usuario_form',
+               't' => request()->query('desde') === 'personal' ? 'Nueva profesional' : 'Nuevo usuario',
+               'ic' => 'person-plus',
+               'q' => request()->query('desde') === 'personal' ? ['desde' => 'personal'] : []]
+            : null" />
 
     <div class="spg-panel">
         <x-filtros :f="$f" />
@@ -53,7 +58,12 @@
                             <td class="text-end" style="white-space:nowrap">
                                 @if (Permisos::esAdmin())
                                     <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                       href="{{ route('seguridad.usuario_form', $u->id_usuario) }}">
+                                       {{-- El «desde» viaja para que la ficha abra en la
+                                            pestaña que corresponde: entrando por Personal
+                                            se administran los datos de la persona, y por
+                                            Usuarios, la cuenta. --}}
+                                       href="{{ route('seguridad.usuario_form', ['id' => $u->id_usuario]
+                                                + (request()->query('desde') ? ['desde' => request()->query('desde')] : [])) }}">
                                         <i class="bi bi-pencil"></i></a>
                                     <form method="post" action="{{ route('seguridad.usuario.baja') }}" class="d-inline">
                                         @csrf

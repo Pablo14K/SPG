@@ -19,12 +19,16 @@
                 <div class="col-md-6">
                     <label class="form-label" for="nombre">Nombre *</label>
                     <input class="form-control" id="nombre" name="nombre" required
-                           value="{{ old('nombre', $c->nombre ?? '') }}">
+                           {{-- Se puede llegar con el nombre puesto desde la agenda:
+                                la cita reservada para otra persona ofrece abrirle su
+                                ficha, y retipear el nombre que ya está a la vista es
+                                justo lo que ese atajo viene a evitar. --}}
+                           value="{{ old('nombre', $c->nombre ?? request()->query('nombre', '')) }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="apellido">Apellido *</label>
                     <input class="form-control" id="apellido" name="apellido" required
-                           value="{{ old('apellido', $c->apellido ?? '') }}">
+                           value="{{ old('apellido', $c->apellido ?? request()->query('apellido', '')) }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="cedula">Cédula</label>

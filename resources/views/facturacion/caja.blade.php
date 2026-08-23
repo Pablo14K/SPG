@@ -198,105 +198,14 @@
     @endif
 
     <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2" id="historial"><i class="bi bi-clock-history"></i> Historial de caja</h2>
-
-        {{-- **Apertura y cierre son dos registros distintos.** Estaban en una
-             sola fila, así que la apertura de una caja todavía abierta salía
-             con las columnas del arqueo en blanco y no se entendía si faltaba
-             contarla o si el conteo había dado cero. Cada uno tiene su fecha,
-             su responsable y sus datos: se listan como lo que son. --}}
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Cuándo</th><th>Qué</th><th>Responsable</th>
-                        {{-- Una sola columna para los dos, porque la apertura tiene
-                             UN monto y el cierre tiene el que debería haber: son el
-                             mismo lugar de la fila y no conviven nunca. --}}
-                        <th class="text-end">Inicial / esperado</th>
-                        <th class="text-end">Contado</th>
-                        <th class="text-end">Diferencia</th>
-                        <th>Observación</th><th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @php
-                        // Un registro por apertura y otro por cierre, ordenados
-                        // por su propia fecha: así se lee la sucesión real del
-                        // mostrador y no una tabla con mitades vacías.
-                        $mov = [];
-                        foreach ($rows as $c) {
-                            $mov[] = ['t' => 'apertura', 'c' => $c, 'cuando' => $c->fecha_apertura];
-                            if ($c->fecha_cierre) {
-                                $mov[] = ['t' => 'cierre', 'c' => $c, 'cuando' => $c->fecha_cierre];
-                            }
-                        }
-                        usort($mov, fn ($a, $b) => strcmp((string) $b['cuando'], (string) $a['cuando']));
-                    @endphp
-
-                    @forelse ($mov as $m)
-                        @php $c = $m['c']; @endphp
-                        <tr>
-                            <td style="white-space:nowrap">{{ fecha($m['cuando']) }}</td>
-                            @if ($m['t'] === 'apertura')
-                                <td><span class="badge-estado e-prog"><i class="bi bi-unlock"></i> Apertura</span></td>
-                                <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
-                                {{-- En la apertura lo único que hay es el monto con
-                                     el que se abrió: el arqueo es del cierre. --}}
-                                <td class="text-end">{{ money($c->monto_inicial) }}</td>
-                                <td class="text-end text-muted-warm">—</td>
-                                <td class="text-end text-muted-warm">—</td>
-                                <td class="text-muted-warm" style="font-size:.84rem">
-                                    {{ $c->observacion_apertura ?: '—' }}
-                                </td>
-                                <td>{!! estado_badge($c->estado) !!}</td>
-                            @else
-                                <td><span class="badge-estado e-muted"><i class="bi bi-lock"></i> Cierre</span></td>
-                                <td class="text-muted-warm">{{ $c->arqueo_por ?: ($c->responsable ?? '—') }}</td>
-
-                                {{-- **Las tres cifras del arqueo, cada una en su
-                                     columna.** Estaban amontonadas en una sola
-                                     —«Gs. X · esperado Gs. Y»— y la diferencia
-                                     vivía dentro del texto de «Detalle», así que
-                                     para saber si una caja cuadró había que leer
-                                     el renglón entero. Son tres números distintos
-                                     y se comparan de arriba abajo. --}}
-                                <td class="text-end">{{ money($c->saldo) }}</td>
-                                <td class="text-end">
-                                    {{-- **«—» y no «Gs. 0» cuando no se contó.** Un cero
-                                         ahí se lee como «cuadró», que es justo lo que no
-                                         se sabe: son las cajas cerradas antes del arqueo. --}}
-                                    {{ $c->monto_contado === null ? '—' : money($c->monto_contado) }}
-                                </td>
-                                <td class="text-end" style="white-space:nowrap">
-                                    @if ($c->diferencia === null)
-                                        <span class="text-muted-warm">sin conteo</span>
-                                    @elseif (abs((float) $c->diferencia) < 0.01)
-                                        <span class="badge-estado e-ok">cuadra</span>
-                                    @elseif ((float) $c->diferencia > 0)
-                                        <span class="badge-estado e-warn">+ {{ money($c->diferencia) }}</span>
-                                    @else
-                                        <span class="badge-estado e-no">− {{ money(abs((float) $c->diferencia)) }}</span>
-                                    @endif
-                                </td>
-                                <td class="text-muted-warm" style="font-size:.84rem">
-                                    {{-- El motivo sólo se exige cuando NO cuadra, así que
-                                         nombrarlo con la caja cuadrada sería pedir algo
-                                         que el sistema no pidió. --}}
-                                    @if ($c->diferencia !== null && abs((float) $c->diferencia) >= 0.01)
-                                        <div>{{ $c->motivo_diferencia ?: 'sin motivo' }}</div>
-                                    @endif
-                                    {{ $c->observacion_cierre ?: ($c->diferencia === null || abs((float) $c->diferencia) < 0.01 ? '—' : '') }}
-                                </td>
-                                <td>{!! estado_badge($c->estado) !!}</td>
-                            @endif
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="text-muted-warm">Todavía no se abrió ninguna caja acá.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clipboard-check"></i> El arqueo se mira aparte</h2>
+        <p class="text-muted-warm mb-2" style="font-size:.86rem">
+            Cómo cerró cada caja —lo esperado, lo contado y la diferencia— vive en su
+            propia pantalla. Acá se abre y se cierra, que es lo que se hace dos veces
+            por día; el arqueo se mira cuando falta plata.
+        </p>
+        <a class="btn btn-sm btn-outline-neutro" href="{{ route('facturacion.arqueo') }}">
+            <i class="bi bi-clipboard-check"></i> Ver el arqueo</a>
     </div>
     </div>
 @endsection

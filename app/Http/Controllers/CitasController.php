@@ -120,6 +120,12 @@ class CitasController extends Controller
         // NO es una columna de `factura`: lo arma `fn_factura_nro()`.
         $rows = DB::select(
             "SELECT v.*, fn_cita_sena(v.id_cita) AS sena,
+                    -- **Lo que la clienta dejó dicho al reservar.** `observaciones`,
+                    -- para quién es y cuántas van se guardaban desde el portal y
+                    -- **no se mostraban en ninguna pantalla**: quien atiende no
+                    -- tenía forma de saber que la cita era para la hija de la
+                    -- clienta, ni cuánta gente esperar.
+                    c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
                     (SELECT ss.id_solicitud FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,

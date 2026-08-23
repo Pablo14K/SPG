@@ -695,6 +695,15 @@ class PersonalController extends Controller
             $filas = array_values(array_filter($filas, fn ($f) => (int) $f->id_usuario === (int) session('uid')));
         }
 
+        // **Cada fila dice si su turno todavía admite fichaje.** La regla vive
+        // en `fueraDeFranja()` y la hace cumplir el servidor desde la 5.4.1,
+        // pero la pantalla no la miraba: el botón se ofrecía igual y el
+        // rechazo llegaba después de apretarlo. Un botón que no va a poder
+        // hacer nada es peor que uno ausente — promete algo y no lo cumple.
+        foreach ($filas as $f) {
+            $f->fuera = $fecha === ahora_bd('Y-m-d') ? $this->fueraDeFranja($f) : null;
+        }
+
         return view('seguridad.asistencia', [
             'filas' => $filas,
             'rows' => DB::select(
@@ -945,7 +954,10 @@ class PersonalController extends Controller
         $reloj = fn (int $min): string => sprintf('%02d:%02d',
             intdiv(($min + 1440) % 1440, 60), (($min + 1440) % 1440) % 60);
 
-        return 'El turno ' . $turno->nombre . ' va de '
+        // El nombre viene como `nombre` desde la consulta del fichaje y como
+        // `turno` desde la lista de la pantalla: se acepta cualquiera de los
+        // dos para que la misma función sirva a las dos.
+        return 'El turno ' . ($turno->nombre ?? $turno->turno ?? '') . ' va de '
             . substr((string) $turno->hora_inicio, 0, 5) . ' a ' . substr((string) $turno->hora_fin, 0, 5)
             . ', y son las ' . $reloj($ahoraM) . '. El fichaje se habilita desde las '
             . $reloj($desde) . ' hasta las ' . $reloj($hasta) . '.';

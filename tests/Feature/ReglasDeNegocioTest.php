@@ -4134,4 +4134,96 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNotSame([], Agenda::slotsProfesional($prof, $dia, 30, null, 0),
             'El cero es «sin filtro por sucursal» y tiene que seguir funcionando.');
     }
+
+    /**
+     * Los informes no mezclan sucursales, ni ofrecen las que no son de uno.
+     *
+     * **Eran dos agujeros distintos y los dos daban números plausibles.**
+     *
+     * El primero: el filtro de sucursal se aplicaba a las citas y **no a los
+     * cobros**, así que pidiendo el informe de un local salían sus citas con
+     * los ingresos de TODOS. Dos números de la misma pantalla midiendo cosas
+     * distintas, y nada que lo delatara.
+     *
+     * El segundo: el combo listaba **todas** las sucursales de la base, no las
+     * de esta persona, así que quien tiene un local asignado podía pedir el
+     * informe de otro cambiando el desplegable.
+     *
+     * Se comprueba con dos locales de verdad: la suma de las partes tiene que
+     * dar el total, que es lo único que prueba que el filtro llegó a todos
+     * lados.
+     */
+    #[Test]
+    public function el_informe_no_mezcla_sucursales_ni_ofrece_las_ajenas(): void
+    {
+        $this->entrarComoAdministrador();
+
+        $primera = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal informe ' . uniqid(), 'Calle 9']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // Se mueve la mitad de las citas de un rango al local nuevo, para tener
+        // dos lados que sumar.
+        $rango = DB::selectOne(
+            'SELECT DATE(MIN(fecha_hora)) d, DATE(MAX(fecha_hora)) h FROM cita');
+        if (! $rango || ! $rango->d) {
+            $this->markTestSkipped('La base de prueba no tiene citas.');
+        }
+        DB::update('UPDATE cita SET id_sucursal = ? WHERE id_cita % 2 = 0', [$otra]);
+
+        $q = ['desde' => $rango->d, 'hasta' => $rango->h];
+        $leer = function (array $extra) use ($q) {
+            $v = $this->get(route('reportes.index', $q + $extra))->assertOk();
+
+            return [
+                'citas' => (int) $v->viewData('citas')->total,
+                'ingresos' => (float) $v->viewData('ingresos'),
+                'servicios' => array_sum(array_map(
+                    fn ($s) => (int) $s->veces_realizado, $v->viewData('servicios'))),
+            ];
+        };
+
+        $todo = $leer([]);
+        $a = $leer(['suc' => $primera]);
+        $b = $leer(['suc' => $otra]);
+
+        $this->assertSame($todo['citas'], $a['citas'] + $b['citas'],
+            'Las citas de los dos locales tienen que sumar el total del salón.');
+        $this->assertSame($todo['servicios'], $a['servicios'] + $b['servicios'],
+            'Los servicios también: si no, el filtro llegó a una consulta y no a la otra.');
+
+        // **Lo que estaba roto.** Sin el filtro en los cobros, cada local
+        // devolvía el ingreso del salón entero y la suma daba el doble.
+        $this->assertEqualsWithDelta($todo['ingresos'], $a['ingresos'] + $b['ingresos'], 0.01,
+            'Los ingresos de los dos locales tienen que sumar el total: si cada uno '
+            . 'devuelve el total del salón, el filtro de sucursal no llegó a los cobros.');
+
+        // Y la otra mitad: el combo ofrece SÓLO las sucursales de esta persona.
+        $rolProf = (int) DB::scalar("SELECT id_rol FROM rol WHERE nombre = 'Profesional' LIMIT 1");
+        $uid = (int) DB::scalar(
+            'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 LIMIT 1', [$rolProf]);
+        DB::delete('DELETE FROM usuario_sucursal WHERE id_usuario = ?', [$uid]);
+        DB::insert('INSERT INTO usuario_sucursal (id_usuario, id_sucursal) VALUES (?,?)', [$uid, $otra]);
+        DB::insert('INSERT IGNORE INTO rol_modulo (id_rol, modulo) VALUES (?, ?)', [$rolProf, 'reportes']);
+        Permisos::olvidar();
+
+        session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true,
+                 'es_cliente' => false, 'id_sucursal' => $otra]);
+        $this->conMarcaDeSesion();
+
+        $suyo = $this->get(route('reportes.index', $q))->assertOk();
+
+        // Con una sola sucursal asignada el combo ni se ofrece, y el filtro se
+        // pone solo: lo que ve es su local, no el consolidado.
+        $this->assertSame((int) $b['citas'], (int) $suyo->viewData('citas')->total,
+            'Quien tiene un solo local asignado tiene que ver ese local, no el salón entero.');
+
+        // Y forzando la otra sucursal por la URL tampoco la ve.
+        $forzado = $this->get(route('reportes.index', $q + ['suc' => $primera]))->assertOk();
+        $this->assertSame((int) $b['citas'], (int) $forzado->viewData('citas')->total,
+            'Poner otra sucursal en la URL no puede mostrarle datos de un local ajeno.');
+
+        Permisos::olvidar();
+    }
 }

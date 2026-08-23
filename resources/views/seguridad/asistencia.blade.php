@@ -66,9 +66,21 @@
                                     // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
                                     // la hora la pone quien corrige. La del reloj es de otro día.
                                     $corrige = $fecha < $hoy;
+                                    // **Pasada la franja, el botón no se ofrece.** La regla
+                                    // ya la hacía cumplir el servidor, pero la pantalla lo
+                                    // mostraba igual y el rechazo llegaba después de
+                                    // apretarlo: un botón que no puede hacer nada promete
+                                    // algo que no cumple. Con un día anterior se sigue
+                                    // pudiendo corregir la planilla, que es otra cosa.
+                                    $cerrado = ! $corrige && ! empty($f->fuera);
                                 @endphp
+                                @if ($cerrado)
+                                    <span class="text-muted-warm" style="font-size:.78rem"
+                                          title="{{ $f->fuera }}">
+                                        <i class="bi bi-clock-history"></i> fuera de horario</span>
+                                @endif
                                 @if ($porOtros || $mio)
-                                    @if (! $f->hora_entrada && $f->justificada === null)
+                                    @if (! $cerrado && ! $f->hora_entrada && $f->justificada === null)
                                         <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="accion" value="entrada">
@@ -85,7 +97,7 @@
                                             @endif
                                             <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
                                         </form>
-                                    @elseif ($f->hora_entrada && ! $f->hora_salida)
+                                    @elseif (! $cerrado && $f->hora_entrada && ! $f->hora_salida)
                                         <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="accion" value="salida">

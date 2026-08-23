@@ -944,27 +944,10 @@ window.SPGCarga = (function () {
   });
 })();
 
-//  Qué informes se ven en la pantalla de Reportes. No recarga nada: los bloques
-//  ya están dibujados y esto sólo los esconde, así que el cambio es inmediato.
-//  Sin este script se ven todos, que es lo que hacía antes.
-(function () {
-  var caja = document.querySelector('[data-filtra-bloques]');
-  if (!caja) { return; }
-
-  function aplicar() {
-    var vistos = {};
-    caja.querySelectorAll('input[type="checkbox"]').forEach(function (c) {
-      vistos[c.value] = c.checked;
-    });
-    document.querySelectorAll('[data-bloque]').forEach(function (b) {
-      var k = b.getAttribute('data-bloque');
-      b.style.display = (k in vistos && !vistos[k]) ? 'none' : '';
-    });
-  }
-
-  caja.addEventListener('change', aplicar);
-  aplicar();
-})();
+//  El filtro de bloques de Reportes salió con las pestañas: ahora cada informe
+//  es su propia pantalla, así que no hay nada que esconder. Lo detectó
+//  `AndamiajeTest`, que es exactamente para esto — un `data-*` que ninguna
+//  vista dibuja es JS que no ocurre y nadie se entera.
 
 //  El respaldo de un movimiento de caja se pide sólo cuando la clase elegida lo
 //  exige: un retiro de la propietaria no tiene comprobante que adjuntar, y

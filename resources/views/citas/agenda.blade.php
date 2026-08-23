@@ -3,7 +3,7 @@
 @section('titulo', 'Agenda')
 
 @section('contenido')
-    @php use App\Servicios\Navegacion; @endphp
+    @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 
     <x-encabezado
         :sub="$verTodo ? 'Citas del día para todo el equipo.' : 'Tus citas del día.'"
@@ -51,7 +51,26 @@
                     @forelse ($rows as $c)
                         <tr>
                             <td style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
-                            <td>{{ $c->cliente }}</td>
+                            <td>
+                                {{ $c->cliente }}
+                                {{-- **La cita puede ser para otra persona**, y hasta ahora
+                                     no se veía en ningún lado: quien atiende esperaba a la
+                                     clienta y venía la hija. Igual con cuánta gente va. --}}
+                                @if ($c->para_otra_persona)
+                                    <span class="badge-estado e-warn"
+                                          title="La reservó {{ $c->cliente }} para otra persona">
+                                        para {{ $c->nombre_para ?: 'otra persona' }}</span>
+                                @endif
+                                @if ((int) $c->personas > 1)
+                                    <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
+                                @endif
+                                @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
+                                    <button type="button" class="btn btn-sm btn-outline-neutro spg-btn-mini"
+                                            data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}"
+                                            title="Ver lo que dejó dicho">
+                                        <i class="bi bi-info-circle"></i></button>
+                                @endif
+                            </td>
                             @if ($verTodo)<td class="text-muted-warm">{{ $c->profesional }}</td>@endif
                             <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
                             <td class="text-end">{{ (int) $c->duracion_min }} min</td>
@@ -199,6 +218,78 @@
                                 @endif
                             </td>
                         </tr>
+
+                        {{-- **Lo que la clienta dejó dicho al reservar.** Se guardaba
+                             desde el portal y no se mostraba en ninguna pantalla: quien
+                             atiende no sabía que la cita era para la hija, ni cuánta
+                             gente esperar, ni lo que la clienta pidió por escrito.
+
+                             Va en un modal y no en la fila porque es lo que se mira
+                             una vez, al preparar el turno; la fila tiene que seguir
+                             leyéndose de un vistazo. --}}
+                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
+                            <tr class="d-none"><td colspan="{{ $verTodo ? 7 : 6 }}">
+                            <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" style="font-size:1rem">
+                                                <i class="bi bi-info-circle"></i>
+                                                {{ fecha($c->fecha_hora, 'H:i') }} · {{ $c->cliente }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Cerrar"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <dl class="spg-ficha">
+                                                @if ($c->para_otra_persona)
+                                                    <dt>Es para</dt>
+                                                    <dd>
+                                                        <strong>{{ $c->nombre_para ?: 'otra persona' }}</strong>
+                                                        <div class="text-muted-warm" style="font-size:.8rem">
+                                                            La reservó {{ $c->cliente }}.
+                                                        </div>
+                                                    </dd>
+                                                @endif
+                                                @if ((int) $c->personas > 1)
+                                                    <dt>Van</dt>
+                                                    <dd>{{ (int) $c->personas }} personas</dd>
+                                                @endif
+                                                @if ($c->observaciones)
+                                                    <dt>Dejó dicho</dt>
+                                                    <dd>{{ $c->observaciones }}</dd>
+                                                @endif
+                                                <dt>Servicios</dt>
+                                                <dd>{{ $c->servicios ?: '—' }}</dd>
+                                            </dl>
+
+                                            {{-- **Si es para otra persona, se le puede abrir su
+                                                 ficha.** Quien vino no es la que reservó, y sin
+                                                 ficha propia no hay dónde anotarle las
+                                                 preferencias ni queda su historial. El nombre va
+                                                 precargado; el resto lo completa quien atiende. --}}
+                                            @if ($c->para_otra_persona && $c->nombre_para && Permisos::puede('clientes.registro'))
+                                                @php
+                                                    $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2);
+                                                @endphp
+                                                <a class="btn btn-sm btn-rapido"
+                                                   href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
+                                                                                    'apellido' => $partes[1] ?? '']) }}">
+                                                    <i class="bi bi-person-plus"></i>
+                                                    Crear la ficha de {{ $c->nombre_para }}</a>
+                                                <div class="text-muted-warm mt-2" style="font-size:.8rem">
+                                                    Para guardarle sus preferencias y que tenga su propio historial.
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-neutro"
+                                                    data-bs-dismiss="modal">Cerrar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </td></tr>
+                        @endif
                     @empty
                         <tr>
                             <td colspan="{{ $verTodo ? 7 : 6 }}">

@@ -3,11 +3,39 @@
 @section('titulo', $u ? 'Editar usuario' : 'Nuevo usuario')
 
 @section('contenido')
-    @php $id = $u->id_usuario ?? 0; @endphp
+    @php
+        $id = $u->id_usuario ?? 0;
+        // **La misma ficha, con el foco donde corresponde.**
+        //
+        // «Usuarios» y «Profesionales» abren esta pantalla y son dos trabajos
+        // distintos: uno administra la CUENTA —quién entra, con qué clave y
+        // con qué rol— y el otro los DATOS DE LA PERSONA y lo que hace en el
+        // salón. Duplicar el formulario los desfasa: se cambia un campo en uno
+        // y el otro queda viejo, que es el error que este proyecto ya se hizo
+        // varias veces.
+        //
+        // Por eso es una sola ficha con pestañas, y lo que cambia es cuál abre
+        // y cómo se titula.
+        $desdePersonal = request()->query('desde') === 'personal';
+        $vuelve = $desdePersonal
+            ? ['ruta' => route('seguridad.personal.index'), 't' => 'Personal']
+            : ['ruta' => route('seguridad.usuarios'), 't' => 'Usuarios'];
+    @endphp
 
     <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('seguridad.usuarios') }}"><i class="bi bi-arrow-left"></i> Usuarios</a>
-        <h1 class="mt-1">{{ $id ? 'Editar usuario' : 'Nuevo usuario' }}</h1>
+        <a class="spg-back" href="{{ $vuelve['ruta'] }}"><i class="bi bi-arrow-left"></i> {{ $vuelve['t'] }}</a>
+        <h1 class="mt-1">
+            @if ($desdePersonal)
+                {{ $id ? 'Ficha de ' . ($u->nombre ?? 'la profesional') : 'Nueva profesional' }}
+            @else
+                {{ $id ? 'Editar usuario' : 'Nuevo usuario' }}
+            @endif
+        </h1>
+        <div class="sub">
+            {{ $desdePersonal
+                ? 'Los datos de la persona, qué servicios hace y en qué turnos trabaja.'
+                : 'La cuenta con la que entra al sistema: usuario, contraseña y rol.' }}
+        </div>
     </div>
 
     <div class="row g-3">
@@ -16,7 +44,28 @@
                 <form method="post" action="{{ route('seguridad.usuario.guardar') }}" id="formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
+                    <input type="hidden" name="desde" value="{{ request()->query('desde', '') }}">
 
+                    {{-- Los tres bloques siguen estando y se guardan juntos: las
+                         pestañas sólo deciden cuál se ve primero. Todos los
+                         campos viajan en el mismo POST, así que nada se pierde
+                         por estar en una pestaña cerrada. --}}
+                    <ul class="nav nav-pills spg-subtabs mb-3" role="tablist">
+                        <li class="nav-item"><button type="button"
+                            class="nav-link {{ $desdePersonal ? 'active' : '' }}"
+                            data-bs-toggle="pill" data-bs-target="#fmPersona">
+                            <i class="bi bi-person"></i> Datos personales</button></li>
+                        <li class="nav-item"><button type="button"
+                            class="nav-link {{ $desdePersonal ? '' : 'active' }}"
+                            data-bs-toggle="pill" data-bs-target="#fmCuenta">
+                            <i class="bi bi-key"></i> Cuenta y acceso</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link"
+                            data-bs-toggle="pill" data-bs-target="#fmTrabajo">
+                            <i class="bi bi-scissors"></i> Trabajo</button></li>
+                    </ul>
+
+                    <div class="tab-content">
+                    <div class="tab-pane fade {{ $desdePersonal ? 'show active' : '' }}" id="fmPersona">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Datos de la persona</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -47,6 +96,9 @@
                         </div>
                     </div>
 
+                    </div>{{-- /fmPersona --}}
+
+                    <div class="tab-pane fade {{ $desdePersonal ? '' : 'show active' }}" id="fmCuenta">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -76,6 +128,9 @@
                         </div>
                     </div>
 
+                    </div>{{-- /fmCuenta --}}
+
+                    <div class="tab-pane fade" id="fmTrabajo">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursales donde trabaja</h2>
                     {{-- **Una sola pregunta, no dos.** Acá había además un selector de
                          «Sucursal principal» que repetía lo mismo con otras palabras: en
@@ -170,9 +225,12 @@
                         </div>
                     </div>
 
+                    </div>{{-- /fmTrabajo --}}
+                    </div>{{-- /tab-content --}}
+
                     <div class="d-flex gap-2">
                         <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
-                        <a class="btn btn-outline-neutro" href="{{ route('seguridad.usuarios') }}">Cancelar</a>
+                        <a class="btn btn-outline-neutro" href="{{ $vuelve['ruta'] }}">Cancelar</a>
                     </div>
                 </form>
             </div>

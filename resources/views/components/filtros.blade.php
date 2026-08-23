@@ -9,12 +9,18 @@
     pregunte si reenvía el formulario. Por lo mismo, al filtrar se vuelve
     siempre a la página 1 (no se arrastra `p`).
 --}}
-@props(['f' => null])
+{{-- `ocultos` son los parámetros que el formulario tiene que ARRASTRAR sin
+     mostrarlos. Reportes lo usa para la pestaña: cambiar un filtro no tiene por
+     qué devolverte al Resumen si estabas mirando Ingresos. --}}
+@props(['f' => null, 'ocultos' => []])
 
 @if ($f)
     @php $hayFiltros = $f['activos'] > 0; @endphp
 
     <form class="spg-filtros" method="get" action="{{ url()->current() }}">
+        @foreach ($ocultos as $ok => $ov)
+            <input type="hidden" name="{{ $ok }}" value="{{ $ov }}">
+        @endforeach
         @foreach ($f['campos'] as $clave => $def)
             @php
                 $tipo = $def['tipo'] ?? 'texto';
@@ -49,7 +55,8 @@
             <button class="btn btn-sm btn-oro" type="submit"><i class="bi bi-funnel"></i> Filtrar</button>
 
             @if ($hayFiltros)
-                <a class="btn btn-sm btn-outline-neutro" href="{{ url()->current() }}"
+                <a class="btn btn-sm btn-outline-neutro"
+                   href="{{ url()->current() . ($ocultos ? '?' . http_build_query($ocultos) : '') }}"
                    title="Quitar todos los filtros"><i class="bi bi-x-lg"></i> Limpiar</a>
             @endif
 

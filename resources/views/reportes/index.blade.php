@@ -1,363 +1,166 @@
 @extends('layout.app')
 
-@section('titulo', 'Reportes')
+@section('titulo', 'Reportes · ' . ($secciones[$seccion][0] ?? ''))
 
 @section('contenido')
 {{-- `spg-reporte` le da a las tablas del informe el aire que una lista de
      operación no necesita: acá los números se comparan entre sí. --}}
 <div class="spg-reporte">
     <x-encabezado
-        :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'"
-        :accion="['ruta' => 'reportes.imprimir', 't' => 'Ver para imprimir', 'ic' => 'printer']" />
+        :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'" />
 
-    {{-- **Qué informes se ven en pantalla.** Los seis apilados obligan a bajar
-         mucho para llegar al que interesa, y casi nunca se miran todos a la vez.
-         Se filtra en el navegador y no con una recarga: es sólo esconder lo que
-         ya está dibujado, y así el cambio es instantáneo. Si `app.js` no cargó,
-         se ven todos — que es lo que hacía antes. --}}
-    <div class="spg-panel mb-3" data-filtra-bloques>
-        <div class="d-flex flex-wrap gap-3 align-items-center">
-            <strong style="font-size:.85rem">Ver en pantalla:</strong>
-            @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" checked
-                           value="{{ $clave }}" id="vb{{ $clave }}">
-                    <label class="form-check-label" for="vb{{ $clave }}">{{ $nombre }}</label>
-                </div>
-            @endforeach
-        </div>
-    </div>
+    {{-- ---------------------------------------------------------------
+         Filtros: un solo bloque compacto, con los atajos de período.
 
-    <div class="spg-panel mb-3">
-        <x-filtros :f="$f" />
-        <div class="mt-2">
-            <a class="btn btn-sm btn-outline-neutro"
-               href="{{ route('reportes.index', ['desde' => $inicio, 'hasta' => date('Y-m-d')]) }}">
-                <i class="bi bi-clock-history"></i> Histórico (todo lo que haya)</a>
-            <a class="btn btn-sm btn-outline-neutro"
-               href="{{ route('reportes.index', ['desde' => date('Y-m-01'), 'hasta' => date('Y-m-t')]) }}">
-                Este mes</a>
-            <a class="btn btn-sm btn-outline-neutro"
-               href="{{ route('reportes.index', ['desde' => date('Y-m-01', strtotime('-1 month')), 'hasta' => date('Y-m-t', strtotime('-1 month'))]) }}">
-                Mes pasado</a>
-        </div>
+         El «Histórico» era un botón grande al lado de los otros dos, y hace
+         exactamente lo mismo que ellos —poner un rango— así que va como un
+         atajo más. --}}
+    <div class="spg-panel spg-filtros-rep mb-3">
+        {{-- La sección viaja escondida: cambiar un filtro no tiene por qué
+             devolverte al Resumen si estabas mirando Ingresos. --}}
+        <x-filtros :f="$f" :ocultos="['r' => $seccion]" />
 
-        {{-- Qué se lleva al papel. Antes el informe salía SIEMPRE entero, así
-             que quien quería sólo las citas imprimía seis hojas para usar una.
-             Va como formulario GET y arrastra el período y los filtros que ya
-             estaban puestos: si no, el papel saldría de otro rango que el que
-             se está mirando. --}}
-        <form method="get" action="{{ route('reportes.imprimir') }}"
-              class="d-flex align-items-end gap-2 flex-wrap mt-3 pt-3 border-top">
-            @foreach (['desde', 'hasta', 'prof', 'suc'] as $campo)
-                @if (request()->query($campo))
-                    <input type="hidden" name="{{ $campo }}" value="{{ request()->query($campo) }}">
-                @endif
-            @endforeach
-            {{-- Casillas y no un `<select>`: con el select había que elegir UN
-                 bloque, y lo que se pide de verdad es armar la combinación —el
-                 resumen y el equipo, por ejemplo—. Vienen todas marcadas, así
-                 que quien no toca nada imprime el informe entero, como antes.
-
-                 La casilla maestra es la misma pieza que usa la matriz de
-                 permisos (`data-marca-todo` en app.js): refleja lo que hay
-                 marcado y prende o apaga todo de una. No lleva `name`, así que
-                 no se envía. --}}
-            {{-- **El botón abre el modal; la elección vive ahí.** Las diez
-                 casillas ocupaban media pantalla del filtro para algo que se
-                 usa al final, cuando ya se miró el informe. --}}
-            <button type="button" class="btn btn-sm btn-oro" data-bs-toggle="modal" data-bs-target="#modalImprimir">
-                <i class="bi bi-printer"></i> Imprimir
-            </button>
-        </form>
-
-        {{-- El modal manda su propio formulario, y **arrastra el período y los
-             filtros que están puestos**: si no, el papel saldría de un rango
-             distinto al que se está mirando en pantalla. --}}
-        <div class="modal fade" id="modalImprimir" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form method="get" action="{{ route('reportes.imprimir') }}" class="modal-content" target="_blank">
-                    @foreach (request()->except(['bloques', 'page']) as $k => $v)
-                        @if (! is_array($v))
-                            <input type="hidden" name="{{ $k }}" value="{{ $v }}">
-                        @endif
-                    @endforeach
-
-                    <div class="modal-header">
-                        <h5 class="modal-title" style="font-size:1rem">
-                            <i class="bi bi-printer"></i> ¿Qué querés imprimir?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="text-muted-warm" style="font-size:.85rem">
-                            Sale con el período y los filtros que tenés puestos ahora.
-                            Si no marcás ninguno se imprime el informe entero.
-                        </p>
-
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="bloquesTodos"
-                                   data-marca-todo="#listaBloques" checked>
-                            <label class="form-check-label fw-semibold" for="bloquesTodos">Todo</label>
-                        </div>
-
-                        <div id="listaBloques">
-                            @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="bloques[]"
-                                           value="{{ $clave }}" id="bl{{ $clave }}" checked>
-                                    <label class="form-check-label" for="bl{{ $clave }}">{{ $nombre }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                        <button class="btn btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- **Compactas**: son siete números y cada tarjeta medía 148 px de alto,
-         porque los rótulos largos —«Canceladas / no vinieron», «Devuelto (notas
-         de crédito)»— se partían en tres líneas y **todas toman el alto de la más
-         alta**. Un informe se lee de arriba abajo: media pantalla para el
-         resumen empuja las tablas fuera de la vista. --}}
-    <div class="spg-metrics spg-metrics-compacto mb-3">
-        <div class="spg-metric"><div class="lbl">Citas del período</div><div class="val">{{ (int) $citas->total }}</div></div>
-        <div class="spg-metric"><div class="lbl">Atendidas</div><div class="val">{{ (int) $citas->atendidas }}</div></div>
-        <div class="spg-metric">
-            <div class="lbl">Canceladas / no vinieron</div>
-            <div class="val">{{ (int) $citas->canceladas }} / {{ (int) $citas->ausencias }}</div>
-        </div>
-        <div class="spg-metric"><div class="lbl">Ingresos cobrados</div><div class="val oro">{{ money($ingresos) }}</div></div>
-        {{-- Lo devuelto sólo se muestra si hubo devoluciones: un «Gs. 0» fijo
-             sería ruido en la pantalla de un salón que no devuelve nunca. --}}
-        @if ($devoluciones > 0)
-            <div class="spg-metric">
-                <div class="lbl">Devuelto (notas de crédito)</div>
-                <div class="val txt-no">− {{ money($devoluciones) }}</div>
-            </div>
-            <div class="spg-metric">
-                <div class="lbl">Ingreso neto</div>
-                <div class="val oro">{{ money($ingresos - $devoluciones) }}</div>
-            </div>
-        @endif
-        <div class="spg-metric"><div class="lbl">Ticket promedio</div><div class="val">{{ money($ticket) }}</div></div>
-    </div>
-
-    <div class="row g-3">
-        <div data-bloque="servicios" class="col-lg-7">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios más solicitados</h2>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Servicio</th><th>Categoría</th><th class="text-end">Veces</th>
-                            <th class="text-end">Ingreso</th></tr></thead>
-                        <tbody>
-                            @forelse ($servicios as $s)
-                                <tr>
-                                    <td>{{ $s->servicio }}</td>
-                                    <td class="text-muted-warm">{{ $s->categoria }}</td>
-                                    <td class="text-end">{{ (int) $s->veces_realizado }}</td>
-                                    <td class="text-end">{{ money($s->ingreso_generado) }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="4" class="text-center text-muted-warm py-3">Sin servicios en el período.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div data-bloque="medios" class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cómo pagó la gente</h2>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Medio</th><th class="text-end">Cobros</th><th class="text-end">Total</th></tr></thead>
-                        <tbody>
-                            @forelse ($medios as $m)
-                                <tr>
-                                    <td>
-                                        {{ $m->medio }}
-                                        @if ($m->tipo === 'EFECTIVO')
-                                            <span class="badge-estado e-ok">efectivo</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-end">{{ (int) $m->cantidad }}</td>
-                                    <td class="text-end">{{ money($m->total) }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="3" class="text-center text-muted-warm py-3">Sin cobros en el período.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        {{-- **Cada local, en una sola tabla.** El selector ya dejaba mirar una
-             sucursal por vez, pero para decidir dónde reforzar hace falta verlas
-             juntas. Sólo aparece mirando todas: con una elegida, la tabla
-             tendría una fila y repetiría el resumen de arriba. --}}
-        @if (count($porSucursal) > 1)
-            <div data-bloque="sucursales" class="col-12">
-                <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Por sucursal</h2>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead><tr><th>Sucursal</th><th class="text-end">Citas</th>
-                                <th class="text-end">Atendidas</th><th class="text-end">No vino</th>
-                                <th class="text-end">Clientas</th><th class="text-end">Cobrado</th></tr></thead>
-                            <tbody>
-                                @foreach ($porSucursal as $s)
-                                    @php
-                                        $ing = collect($ingresoSucursal)->firstWhere('sucursal', $s->sucursal);
-                                    @endphp
-                                    <tr>
-                                        <td><strong>{{ $s->sucursal }}</strong></td>
-                                        <td class="text-end">{{ entero($s->citas) }}</td>
-                                        <td class="text-end">{{ entero($s->atendidas) }}</td>
-                                        <td class="text-end">{{ entero($s->ausentes) }}</td>
-                                        <td class="text-end">{{ entero($s->clientes) }}</td>
-                                        <td class="text-end"><strong>{{ money($ing->total ?? 0) }}</strong></td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        <div data-bloque="equipo" class="col-lg-7">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-people"></i> El equipo</h2>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        {{-- **Dos ausencias distintas, y antes eran una sola
-                             columna llamada «Ausencias».** En una tabla de
-                             profesionales eso se lee como faltas del profesional,
-                             y contaba lo contrario: las citas en las que no vino
-                             LA CLIENTA. Las dos importan y dicen cosas
-                             distintas —una habla del recordatorio y del horario,
-                             la otra del equipo—, así que cada una lleva su
-                             nombre y se ve de quién es. --}}
-                        <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
-                            <th class="text-end" title="Citas en las que la clienta no se presentó">No vino la clienta</th>
-                            <th class="text-end">Canceladas</th>
-                            <th class="text-end" title="Días que el profesional no vino a trabajar, según el fichaje">Faltó</th>
-                            <th class="text-end">Servicios</th>
-                            <th class="text-end">Generado</th><th class="text-end">Comisión</th>
-                            <th class="text-end">Puntaje</th></tr></thead>
-                        <tbody>
-                            @forelse ($equipo as $e)
-                                <tr>
-                                    <td>{{ $e->profesional }}</td>
-                                    <td class="text-end">{{ (int) $e->citas }}</td>
-                                    <td class="text-end">{{ (int) $e->atendidas }}</td>
-                                    <td class="text-end {{ (int) $e->clienta_no_vino ? 'txt-no' : '' }}">
-                                        {{ (int) $e->clienta_no_vino ?: '—' }}</td>
-                                    <td class="text-end">{{ (int) $e->canceladas ?: '—' }}</td>
-                                    <td class="text-end {{ (int) $e->falto_sin_aviso ? 'txt-no' : '' }}"
-                                        title="{{ (int) $e->falto_sin_aviso }} sin aviso, {{ (int) $e->falto - (int) $e->falto_sin_aviso }} con aviso">
-                                        {{ (int) $e->falto ?: '—' }}</td>
-                                    <td class="text-end">{{ (int) $e->servicios }}</td>
-                                    <td class="text-end">{{ money($e->generado) }}</td>
-                                    <td class="text-end @if ($e->tiene_comision) txt-oro @else text-muted-warm @endif">
-                                        @if ($e->tiene_comision)
-                                            {{ money($e->comision) }}
-                                        @else
-                                            <span title="Todavía no se le cargó una comisión en Seguridad → Comisiones">sin cargar</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-end txt-oro">{{ $e->puntaje ? cant($e->puntaje) . ' ★' : '—' }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="10" class="text-center text-muted-warm py-3">Sin actividad en el período.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div data-bloque="demanda" class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Demanda por hora</h2>
-                @forelse ($demanda as $h)
-                    @php $ancho = $maxDemanda ? round((int) $h->citas * 100 / $maxDemanda) : 0; @endphp
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <span style="width:48px;font-size:.8rem" class="text-muted-warm">
-                            {{ sprintf('%02d:00', (int) $h->hora) }}</span>
-                        <div style="flex:1;background:var(--gris-calido);border-radius:4px;height:14px;overflow:hidden">
-                            <div style="width:{{ $ancho }}%;background:var(--oro);height:100%"></div>
-                        </div>
-                        <span style="width:28px;text-align:right;font-size:.8rem">{{ (int) $h->citas }}</span>
-                    </div>
-                @empty
-                    <p class="text-muted-warm mb-0" style="font-size:.85rem">Sin citas en el período.</p>
-                @endforelse
-            </div>
-
-            {{-- Por hora se ve a qué hora reforzar; por día, qué días conviene
-                 tener más gente. Son dos preguntas distintas, por eso van las
-                 dos. `dia` viene 1=lunes … 7=domingo, que es la convención del
-                 proyecto (`turno_dia.dia_semana`). --}}
+        <div class="spg-atajos-per">
             @php
-                $dias = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
-                         5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
+                $atajos = [
+                    'Este mes' => [date('Y-m-01'), date('Y-m-t')],
+                    'Mes pasado' => [date('Y-m-01', strtotime('-1 month')), date('Y-m-t', strtotime('-1 month'))],
+                    'Últimos 3 meses' => [date('Y-m-01', strtotime('-2 months')), date('Y-m-t')],
+                    'Todo' => [$inicio, date('Y-m-d')],
+                ];
             @endphp
-            <div data-bloque="demanda" class="spg-panel mt-3">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-week"></i> Demanda por día</h2>
-                @forelse ($demandaDia as $x)
-                    @php $ancho = $maxDemandaDia ? round((int) $x->citas * 100 / $maxDemandaDia) : 0; @endphp
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <span style="width:70px;font-size:.8rem" class="text-muted-warm">
-                            {{ $dias[(int) $x->dia] ?? $x->dia }}</span>
-                        <div style="flex:1;background:var(--gris-calido);border-radius:4px;height:14px;overflow:hidden">
-                            <div style="width:{{ $ancho }}%;background:var(--oro);height:100%"></div>
-                        </div>
-                        <span style="width:28px;text-align:right;font-size:.8rem">{{ (int) $x->citas }}</span>
-                    </div>
-                @empty
-                    <p class="text-muted-warm mb-0" style="font-size:.85rem">Sin citas en el período.</p>
-                @endforelse
+            @foreach ($atajos as $texto => [$dd, $hh])
+                <a class="btn btn-sm {{ $desde === $dd && $hasta === $hh ? 'btn-oro' : 'btn-outline-neutro' }}"
+                   href="{{ route('reportes.index', array_merge(request()->except(['desde', 'hasta', 'page']), ['desde' => $dd, 'hasta' => $hh])) }}">
+                    {{ $texto }}</a>
+            @endforeach
+
+            <span class="spg-atajos-sep"></span>
+
+            {{-- **Bajar lo que se está mirando.** Los tres salen del mismo
+                 rango y los mismos filtros que la pantalla: el `.xls` lleva
+                 además las barras, para que el número venga con su gráfico. --}}
+            <a class="btn btn-sm btn-outline-neutro"
+               href="{{ route('reportes.index', request()->except('export') + ['export' => 'xls']) }}"
+               title="Planilla con los números y los gráficos">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Excel</a>
+            <a class="btn btn-sm btn-outline-neutro"
+               href="{{ route('reportes.index', request()->except('export') + ['export' => 'csv']) }}"
+               title="Sólo los datos, para trabajarlos en una planilla">
+                <i class="bi bi-filetype-csv"></i> CSV</a>
+            <button type="button" class="btn btn-sm btn-outline-neutro"
+                    data-bs-toggle="modal" data-bs-target="#modalImprimir">
+                <i class="bi bi-printer"></i> Imprimir</button>
+        </div>
+    </div>
+
+    {{-- ---------------------------------------------------------------
+         Las pestañas. Cada una es una pantalla propia: el informe entero en
+         una sola medía 2.600 px y para mirar una cosa había que pasar por
+         las otras seis.
+
+         Son enlaces de verdad (`<a href>`), no pestañas de JavaScript: así
+         cada informe tiene su URL y se puede compartir o recargar, y anda con
+         `app.js` caído. --}}
+    <nav class="spg-tabs" aria-label="Informes">
+        @foreach ($secciones as $clave => [$titulo, $ic, $ayuda])
+            <a class="spg-tab {{ $seccion === $clave ? 'activo' : '' }}" title="{{ $ayuda }}"
+               href="{{ route('reportes.index', array_merge(request()->except(['r', 'page', 'export']), ['r' => $clave])) }}">
+                <i class="bi bi-{{ $ic }}"></i><span>{{ $titulo }}</span></a>
+        @endforeach
+    </nav>
+
+    {{-- ---------------------------------------------------------------
+         Las tarjetas, sólo donde dicen algo.
+
+         En Compras el resumen es otro —lo comprado y lo que se debe— y lo pone
+         su propia sección; repetir acá las citas sería ruido. --}}
+    @if (! in_array($seccion, ['compras'], true))
+        <div class="spg-metrics spg-metrics-compacto mb-3">
+            <div class="spg-metric"><div class="lbl">Citas del período</div>
+                <div class="val">{{ (int) $citas->total }}</div></div>
+            <div class="spg-metric"><div class="lbl">Atendidas</div>
+                <div class="val">{{ (int) $citas->atendidas }}</div>
+                @if ($pctAsistencia !== null)
+                    <div class="spg-metric-pie">{{ round($pctAsistencia, 1) }} % del total</div>
+                @endif
+            </div>
+            <div class="spg-metric"><div class="lbl">Canceladas</div>
+                <div class="val">{{ (int) $citas->canceladas }}</div>
+                @if ($pctCancelacion !== null)
+                    <div class="spg-metric-pie">{{ round($pctCancelacion, 1) }} % del total</div>
+                @endif
+            </div>
+            <div class="spg-metric"><div class="lbl">No vino la clienta</div>
+                <div class="val">{{ (int) $citas->ausencias }}</div>
+                @if ($pctAusencia !== null)
+                    <div class="spg-metric-pie">{{ round($pctAusencia, 1) }} % del total</div>
+                @endif
+            </div>
+            <div class="spg-metric"><div class="lbl">Ingresos cobrados</div>
+                <div class="val oro">{{ money($ingresos) }}</div></div>
+            {{-- Lo devuelto sólo se muestra si hubo devoluciones: un «Gs. 0»
+                 fijo sería ruido en un salón que no devuelve nunca. --}}
+            @if ($devoluciones > 0)
+                <div class="spg-metric"><div class="lbl">Ingreso neto</div>
+                    <div class="val oro">{{ money($ingresos - $devoluciones) }}</div>
+                    <div class="spg-metric-pie txt-no">− {{ money($devoluciones) }} devuelto</div>
+                </div>
+            @endif
+            <div class="spg-metric"><div class="lbl">Ticket promedio</div>
+                <div class="val">{{ money($ticket) }}</div>
+                <div class="spg-metric-pie">por cita atendida</div>
             </div>
         </div>
+    @endif
 
-        @if ($prov)
-            <div data-bloque="prov" class="col-12">
-                <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2">
-                        <i class="bi bi-truck"></i> Deuda con proveedores
-                        <span class="text-muted-warm" style="font-weight:400;font-size:.8rem">
-                            — no depende del período: es deuda viva</span>
-                    </h2>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead><tr><th>Proveedor</th><th>Vencimiento</th><th class="text-end">Saldo</th></tr></thead>
-                            <tbody>
-                                @foreach ($prov as $p)
-                                    <tr>
-                                        <td>{{ $p->proveedor }}</td>
-                                        <td>
-                                            @if ($p->vencida)<span class="badge-estado e-no">vencida</span>@endif
-                                            <span class="text-muted-warm">
-                                                {{ $p->vencimiento ? fecha($p->vencimiento, 'd/m/Y') : '—' }}</span>
-                                        </td>
-                                        <td class="text-end">{{ money($p->saldo) }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+    @include('reportes._' . $seccion)
+
+    {{-- El modal manda su propio formulario y **arrastra el período y los
+         filtros que están puestos**: si no, el papel saldría de un rango
+         distinto al que se está mirando en pantalla. --}}
+    <div class="modal fade" id="modalImprimir" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="get" action="{{ route('reportes.imprimir') }}" class="modal-content" target="_blank">
+                @foreach (request()->except(['bloques', 'page', 'export', 'r']) as $k => $v)
+                    @if (! is_array($v))
+                        <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                    @endif
+                @endforeach
+
+                <div class="modal-header">
+                    <h5 class="modal-title" style="font-size:1rem">
+                        <i class="bi bi-printer"></i> ¿Qué querés imprimir?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted-warm" style="font-size:.85rem">
+                        Sale con el período y los filtros que tenés puestos ahora.
+                        Si no marcás ninguno se imprime el informe entero.
+                    </p>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="bloquesTodos"
+                               data-marca-todo="#listaBloques" checked>
+                        <label class="form-check-label fw-semibold" for="bloquesTodos">Todo</label>
+                    </div>
+
+                    <div id="listaBloques">
+                        @foreach (\App\Http\Controllers\ReportesController::BLOQUES as $clave => $nombre)
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="bloques[]"
+                                       value="{{ $clave }}" id="bl{{ $clave }}" checked>
+                                <label class="form-check-label" for="bl{{ $clave }}">{{ $nombre }}</label>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
-            </div>
-        @endif
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 @endsection

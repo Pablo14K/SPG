@@ -375,6 +375,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('caja', [FacturacionController::class, 'caja'])->name('caja');
             Route::post('caja/abrir', [FacturacionController::class, 'abrirCaja'])->name('caja.abrir');
             Route::post('caja/cerrar', [FacturacionController::class, 'cerrarCaja'])->name('caja.cerrar');
+            // El arqueo es su propia pantalla: abrir y cerrar se hace dos veces
+            // por día, y mirar cómo cerraron las cajas de la semana es otra cosa.
+            Route::get('caja/arqueo', [FacturacionController::class, 'arqueo'])->name('arqueo');
         });
 
         // El movimiento de efectivo a mano: su propia clave, porque mueve plata

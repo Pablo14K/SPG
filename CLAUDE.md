@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.63.0 | 23/08/2026 | **Reportes se parte en siete pantallas, y en el camino aparecieron dos defectos que daban números plausibles.** El peor: **el filtro de sucursal se aplicaba a las citas y no a los cobros**, así que pidiendo el informe de un local salían sus citas con **los ingresos de TODOS** — dos números de la misma pantalla midiendo cosas distintas, sin nada que lo delatara. Y el combo de sucursal listaba **todas las de la base**, no las de esa persona: quien tiene un local asignado pedía el informe de otro cambiando el desplegable. Ahora sale de `Sucursales::delUsuario()`, la misma regla con la que se decide a dónde puede entrar, y **con un solo local el filtro se pone solo** en vez de ofrecer el consolidado. Lo mismo el combo de profesionales, que ofrecía a gente de otras sedes. **Los subconsultas del equipo tampoco filtraban**: «Citas» salía del local elegido y «Servicios», «Generado» y «Comisión» del salón entero. **La estructura**: un **Resumen** con cuatro números y tres gráficos —de 2.659 px a 1.368— y seis informes especializados —Citas, Servicios, Profesionales, Ingresos, Compras, Por sucursal— con su propia URL, porque son enlaces y no pestañas de JavaScript. **Los gráficos son dos divs y un `width` en por ciento**: no entra ninguna librería, la misma decisión que ya está tomada con el PDF. **Sin datos se dice, no se dibuja un gráfico vacío**, que se lee como un dato. **Y se baja en Excel con los gráficos adentro**: el `.xls` es HTML con el tipo de Excel —que respeta el color de fondo— así que las barras viajan con los números, dibujadas con celdas. **El arqueo sale de «Apertura y cierre» y es su propia pantalla**: abrir el cajón se hace dos veces por día y mirar si cuadraron las cajas de la semana es otra cosa; además **«inicial» y «esperado» dejan de compartir columna**, que juntas bajo un rótulo doble no se entendía cuál era cuál. **Los botones de asistencia desaparecen pasada la franja** —la regla existía en el servidor desde la 5.4.1 y la pantalla los ofrecía igual, con el rechazo llegando después del clic—. **Y la cita muestra lo que la clienta dejó dicho**: observaciones, cuántas personas van y para quién es se guardaban desde el portal y **no se veían en ninguna pantalla**; si es para otra persona, se le puede abrir su ficha con el nombre ya puesto. **La ficha del equipo pasa a tener pestañas** —Datos personales, Cuenta, Trabajo— y abre en la que corresponde según se entre por Personal o por Seguridad: **una sola ficha porque dos se desfasan**. **132 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.62.2 | 22/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno, y esta vez **todos coincidían**: 182 rutas, 30 permisos, 9 módulos, 6 componentes Blade, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 131 pruebas y las 44 claves de los tres `.env`. Lo que sí había quedado atrás son las secciones que la 7.62.0 y la 7.62.1 cambiaron y no se escribieron: **la navegación decía «cuatro niveles» y son cinco** desde que Tesorería abre al costado; **el aislamiento por sucursal** no nombraba la columna «Disponible acá»; **el arqueo** no decía que el historial son dos registros con las tres cifras en columnas propias; y **«Registrar atención»** no tenía escrito por qué muestra tres renglones y no sólo el total — que es la parte que importa, porque con seña la cuenta es otra. **Y entra un sexto patrón a la lista de los errores que este proyecto se hace a sí mismo**: *un botón que cambia justo el dato por el que la lista filtra*, que hace desaparecer la fila al tocarla y no se puede deshacer — es lo de la 7.62.1, y el criterio queda anotado: **que el filtro sea una columna**. De paso, la tarjeta de Servicios seguía diciendo «Descuentos y promos»: la 7.55.0 renombró la pantalla a **Promociones** y la landing se quedó con el nombre viejo, así que la tarjeta del Panel y la del módulo nombraban distinto la misma pantalla. **131 pruebas** |
 | 7.62.1 | 22/08/2026 | **«No ofrecerlo en esta sucursal» hacía desaparecer el servicio, y no había forma de traerlo de vuelta.** La lista mostraba sólo lo del local activo, así que al borrar la fila de `servicio_sucursal` el servicio **dejaba de cumplir el filtro y se iba de la pantalla** — desde ahí la única forma de volver a ofrecerlo era ir al alta y usar «traer uno existente», que nadie va a adivinar. Visto desde afuera, el botón **borraba el servicio**. Entra la columna **«Disponible acá»** con sí/no y el botón pasa a ser un interruptor de verdad: se saca, **el renglón sigue ahí diciendo «no»**, y se vuelve a poner desde el mismo lugar. **Lo de la 7.40.0 no se pierde**: sigue estando «ver sólo lo de este local», ahora como filtro —que es lo que corresponde, porque esconder algo por el que se pregunta es distinto de esconderlo siempre—. La columna y el filtro **sólo aparecen con más de una sucursal**: con un local, todo lo que existe se ofrece acá y la pregunta no significa nada. **La prueba se reescribió y quedó más exigente**: medía que la lista de un local nuevo saliera vacía —la regla vieja— y ahora recorre el ciclo entero, sacar y volver a poner, comprobado en las dos direcciones. **131 pruebas**. De paso, el `.env` del host se completó con las seis claves que le faltaban contra la plantilla —las cinco de SIFEN y `SESSION_SECURE_COOKIE`—, y se comprobó que el correo sigue configurado en los cuatro entornos y que `env.docker` sigue marcado con `skip-worktree`, o sea con la contraseña fuera de los commits |
 | 7.62.0 | 22/08/2026 | **Catorce puntos de la revisión de pantalla, y uno era un 500.** **La atención en curso del portal estaba rota desde la 7.57.0**: esa versión agregó la lista de «qué puedo pedir» leyendo `$cita->id_sucursal` e `id_usuario` y **no los sumó al SELECT**, así que era `ErrorException` en cada carga — la clienta no podía ver su propia atención desde el celular. Es el patrón de siempre: algo lee un campo que no existe y nada avisa hasta que alguien abre la pantalla. **«Registrar atención» no sumaba nada**: listaba el precio de cada servicio y agregar una manicura en el sillón no movía ningún número. Ahora hay total, seña ya cobrada y **cuánto queda por cobrar** — y los tres juntos y no sólo el total, porque **con seña la cuenta es otra** y ahí es donde se confunde: la seña no cambia, así que el servicio agregado sube el total y sube lo que falta cobrar en la misma medida. **La tarjeta de Seguridad seguía anunciando ocho pantallas**: `Navegacion::subDe()` filtraba por el NOMBRE de la ruta, o sea el mismo defecto que la 7.58.0 corrigió en el desplegable **y no acá** — pasa a salir de `pantallasDe()`, que es una sola fuente. **Tesorería abre al costado**: eran doce renglones con rótulos intercalados para elegir uno, y son cuatro —Facturación, Cobros, Caja, Pagos— cada uno con su división; **el grupo de una sola pantalla no abre nada**, que sería pasar por dos lugares para llegar al mismo sitio. **En el celular la barra pasa a ser un cajón** que se desliza por encima: era un riel fijo de 54 px con el ícono grande y el rótulo a .58rem, y el contenido se corría con un `margin-left` **que seguía aplicándose en el Panel, donde la barra ni se dibuja** — de ahí el hueco al costado. Se abre con CSS, así que anda con `app.js` caído, y **no toca la barra del portal**: convertirla dejaría a la clienta sin navegación, porque el botón sólo lo ve el personal. **El resumen de Reportes medía 256 px** para siete números, y la causa estaba escrita: dos reglas `.spg-reporte .spg-metric` repetían el tamaño base con más especificidad, así que cualquier variante compacta no llegaba a aplicarse nunca. Ahora **82 px**. **El arqueo se lee en columnas**: esperado, contado y diferencia estaban amontonados en una celda y la diferencia vivía dentro del texto de «Detalle». **La factura del proveedor se carga desde la lista**, con un modal que dice proveedor, fecha y total — el número solo no identifica nada, justamente porque todavía no está; antes había que abrir las compras una por una, y la columna decía «Ver» sin nombrar lo que hay adentro. **Mi cuenta sale de Configuración**, que ya vive en el desplegable del nombre. **Y Personal anunciaba tres de sus cuatro tarjetas**: «Profesionales» abre `seguridad.usuarios`, así que por permiso es de Seguridad — entra `navegacion.tambien`, que declara la pantalla prestada con el título de acá. **Se emitió y cobró una factura de punta a punta**: 001-001-0000062, descuento del nivel aplicado por la base, saldada, y la caja subió de 300.000 a 340.000. **131 pruebas**, dos actualizadas sin aflojar lo que miden |
@@ -415,7 +416,7 @@ resources/views/
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
 routes/
-  web.php                  Las 182 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 183 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -425,7 +426,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 131 pruebas
+tests/Feature/             Las 132 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1730,6 +1731,71 @@ usando, el total y la seña ya descontada.
 
 ## Informes
 
+**El módulo son SIETE pantallas, no una.** Antes era una sola con las siete
+tablas apiladas —2.659 px de alto— y para mirar una cosa había que pasar por
+las otras seis. Un informe que muestra todo junto no se lee: se hojea.
+
+| Pestaña | Qué contesta |
+|---|---|
+| **Resumen** | lo que se mira todos los días: cuatro números y tres gráficos |
+| **Citas** | los estados, y a qué hora y qué día se llena el salón |
+| **Servicios** | qué se hace más, con el porcentaje sobre el total |
+| **Profesionales** | qué hizo cada una —en dos vistas, Atención y Producción— |
+| **Ingresos** | por medio de pago, por día, por servicio y por profesional |
+| **Compras** | proveedores y la deuda viva, **que no depende del período** |
+| **Por sucursal** | los locales uno al lado del otro — sólo con más de uno |
+
+Las pestañas son **enlaces de verdad** (`<a href>` con `?r=`), no pestañas de
+JavaScript: así cada informe tiene su URL, se puede compartir y anda con
+`app.js` caído. La sección viaja escondida en el formulario de filtros, para
+que cambiar el período no te devuelva al Resumen.
+
+> **Los filtros tienen que llegar a TODAS las consultas, y ahí estaba el
+> defecto.** El de sucursal se aplicaba a las citas y **no a los cobros**, así
+> que el informe de un local salía con sus citas y los ingresos del salón
+> entero. Dos números de la misma pantalla midiendo cosas distintas, y nada que
+> lo delatara. Lo fija
+> `ReglasDeNegocioTest::el_informe_no_mezcla_sucursales_ni_ofrece_las_ajenas`,
+> que **suma las partes y exige que den el total**: es lo único que prueba que
+> el filtro llegó a todos lados.
+
+> **Y el selector sólo ofrece las sucursales de esa persona**
+> (`Sucursales::delUsuario()`), que es la misma regla con la que se decide a
+> dónde puede entrar. Antes listaba todas las de la base: quien tenía un local
+> asignado pedía el informe de otro cambiando el desplegable, y los números
+> salían. **Con un solo local el filtro se pone solo y no se ofrece** — si no,
+> vería el consolidado del salón, que es justo lo que el aislamiento impide.
+
+### Los gráficos, sin librería
+
+Un gráfico de barras es un `width` en por ciento sobre dos divs
+(`.spg-graf-pista` y `.spg-graf-barra`), y traer Chart.js para eso agregaría una
+dependencia de CDN que hay que mantener al día. Es la misma decisión que ya está
+tomada con el PDF.
+
+**Sin datos se dice, no se dibuja un gráfico vacío**: uno vacío se lee como un
+dato, y el salón decide con eso. Lo pone `reportes._sindatos`.
+
+### Bajar el informe: CSV, Excel y papel
+
+| Formato | Para qué |
+|---|---|
+| **Excel** (`.xls`) | los números **con los gráficos**: las barras van dibujadas con celdas de color |
+| **CSV** | sólo los datos, para seguir trabajándolos en una planilla |
+| **Imprimir** | el papel de siempre, con las casillas de qué bloques salen |
+
+**El `.xls` es HTML con `Content-Type` de Excel**, no una librería. Excel lo abre,
+lo pasa a celdas y **respeta el color de fondo**, que es lo que hace posible que
+la barra viaje con el número. Cada celda numérica va como número crudo —sin
+`Gs.` ni puntos— para que se pueda sumar del otro lado.
+
+> El CSV **no lleva barras** a propósito: no tiene formato, y las celdas de más
+> ensuciarían las fórmulas de quien lo abre para trabajarlo.
+
+> **Los tres salen de `datos()`**, la misma función que dibuja la pantalla. Si
+> cada salida armara su consulta, el papel podría no coincidir con lo que se vio
+> — que es justamente lo que un informe no puede hacer.
+
 **Reportes → Informes** arma informes parametrizados (rango de fechas, con el atajo
 *Histórico* para «todo lo que haya») y los imprime. En `ReportesController`, los métodos
 privados `rango()` y `datos()` resuelven el período y traen los datos; `index()` los muestra
@@ -2342,8 +2408,17 @@ Diferencia     = monto_contado − Saldo esperado        (+ sobra · − falta)
 > `ReglasDeNegocioTest::el_arqueo_compara_lo_contado_con_lo_esperado`, que
 > después de cerrar carga un egreso y exige que la diferencia lo siga.
 
-**El historial son DOS registros por caja —apertura y cierre— y cada cifra del
-arqueo tiene su columna**: `Inicial / esperado`, `Contado` y `Diferencia`.
+**El arqueo es su propia pantalla** (`facturacion.arqueo`), no el pie de
+«Apertura y cierre». Son dos preguntas distintas: «¿abro o cierro?» se hace dos
+veces por día, y «¿cuadraron las cajas de esta semana?» se hace cuando falta
+plata. Con el historial colgado abajo del formulario, la segunda quedaba
+escondida y la primera venía con sesenta filas de ruido.
+
+**El historial son DOS registros por caja —apertura y cierre— y cada cifra tiene
+su columna**: `Monto inicial`, `Esperado`, `Contado` y `Diferencia`. Son cuatro
+y no tres porque **el inicial y el esperado no se comparan entre sí**: juntos
+bajo un rótulo doble no se entendía cuál era cuál, y cada uno aplica a un
+registro distinto — la apertura tiene inicial, el cierre tiene esperado.
 Estaban amontonadas en una celda —«Gs. X · esperado Gs. Y»— y la diferencia
 vivía dentro del texto de «Detalle», así que para saber si una caja cuadró había
 que leer el renglón entero. Una sola columna para el inicial y el esperado
@@ -2801,7 +2876,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 131 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 132 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -2905,7 +2980,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**131 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**132 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

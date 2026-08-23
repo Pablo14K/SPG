@@ -76,6 +76,7 @@ return [
         'facturacion.receptor'      => ['Datos para la factura', 'person-vcard',       'facturacion.facturas', false],
         'facturacion.cobros'        => ['Cobros',                'cash-coin',          'facturacion.cobros', true, 'Cobros'],
         'facturacion.caja'          => ['Apertura y cierre',     'safe',               'facturacion.caja', true, 'Caja'],
+        'facturacion.arqueo'        => ['Arqueo',                'clipboard-check',    'facturacion.caja', true, 'Caja'],
         'facturacion.movimientos'   => ['Movimiento de efectivo', 'cash-coin',      'facturacion.movimientos', true, 'Caja'],
         'facturacion.pagos'         => ['Pagos al profesional',  'wallet2',            'facturacion.pagos', true, 'Pagos'],
         'facturacion.proveedores'   => ['Pagos a proveedores',   'truck',              'facturacion.proveedores', true, 'Pagos'],
