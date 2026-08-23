@@ -93,6 +93,25 @@ return [
     ],
 
     // -----------------------------------------------------------------
+    //  Pantallas PRESTADAS a otro módulo
+    // -----------------------------------------------------------------
+    //  Una pantalla pertenece al módulo de su permiso, y con eso alcanza
+    //  para casi todas. La excepción es la ficha del equipo: la abre
+    //  `seguridad.usuarios` —son cuentas, y quién entra al sistema es de
+    //  Seguridad— pero **es también la pantalla donde se carga qué hace
+    //  cada profesional**, o sea trabajo de Personal.
+    //
+    //  Sin declararlo, Personal ofrecía cuatro tarjetas y su vista previa
+    //  anunciaba tres: «Profesionales» no figuraba en ningún lado porque
+    //  su permiso dice `seguridad`.
+    //
+    //  El valor es el título con el que se la nombra en ese otro módulo:
+    //  ahí se llama «Profesionales», que es lo que se va a buscar.
+    'tambien' => [
+        'personal' => ['seguridad.usuarios' => 'Profesionales'],
+    ],
+
+    // -----------------------------------------------------------------
     //  Pantallas relacionadas: lo que uno suele necesitar después de esto.
     //  La idea es no tener que volver al panel para seguir trabajando.
     // -----------------------------------------------------------------

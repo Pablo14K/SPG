@@ -5,6 +5,9 @@
     <input class="form-check-input srvAt" type="checkbox" name="servicios[]"
            value="{{ $s->id_servicio }}" id="sa{{ $s->id_servicio }}"
            data-nombre="{{ $s->nombre }}"
+           {{-- El precio viaja en el marcado para que el resumen de abajo
+                pueda sumarlo sin volver a preguntarle al servidor. --}}
+           data-precio="{{ (float) $s->precio }}"
            @checked($s->agendado || $s->ya) @disabled((bool) $factura)>
     <label class="form-check-label" for="sa{{ $s->id_servicio }}">
         {{ $s->nombre }}

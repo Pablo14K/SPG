@@ -1761,17 +1761,24 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1', [$rolProf]
         ) ?: 999999;
 
-        // Se le da el módulo pero se le niega Roles, que es el caso reportado.
-        // Se le deja SÓLO Asistencia dentro de Seguridad, que es lo que el rol
-        // Profesional tiene de fábrica.
-        DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo LIKE 'seguridad%'
+        // Se le deja SÓLO Asistencia, que es lo que el rol Profesional tiene de
+        // fábrica. **El módulo es Personal y no Seguridad**: la 7.57.0 partió
+        // Seguridad en tres y la asistencia se fue con Personal — la clave vieja
+        // se sigue guardando y `equivalencias` la traduce, así que el escenario
+        // vale igual, pero la tarjeta que hay que mirar es la de Personal.
+        DB::delete("DELETE FROM rol_modulo WHERE id_rol = ?
+                     AND (modulo LIKE 'seguridad%' OR modulo LIKE 'personal%'
+                          OR modulo LIKE 'configuracion%')
                      AND modulo <> 'seguridad.asistencia'", [$rolProf]);
         DB::insert('INSERT IGNORE INTO rol_modulo (id_rol, modulo) VALUES (?, ?)',
             [$rolProf, 'seguridad.asistencia']);
 
         session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
 
-        $this->assertSame('Asistencia', Navegacion::subDe('seguridad', 'NO DEBERÍA CAER ACÁ'),
+        // Sólo Asistencia, y en particular **sin «Profesionales»**: esa es la
+        // ficha del equipo, que Personal ofrece prestada de Seguridad y este
+        // rol no tiene.
+        $this->assertSame('Asistencia', Navegacion::subDe('personal', 'NO DEBERÍA CAER ACÁ'),
             'La tarjeta tiene que listar sólo lo que este rol puede abrir.');
 
         $this->get(route('panel'))->assertOk()->assertDontSee('Usuarios · Roles');
@@ -1779,9 +1786,13 @@ class ReglasDeNegocioTest extends TestCase
         // Y el Administrador las sigue viendo todas, que es el otro lado.
         session(['uid' => 1, 'rol' => (int) config('permisos.rol_admin', 1),
                  'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
-        $sub = Navegacion::subDe('seguridad', '');
-        foreach (['Usuarios', 'Roles', 'Turnos', 'Auditoría'] as $pantalla) {
-            $this->assertStringContainsString($pantalla, $sub);
+        foreach (['seguridad' => ['Usuarios', 'Roles', 'Auditoría'],
+                  'personal' => ['Profesionales', 'Turnos', 'Asistencia', 'Comisiones']] as $mod => $pantallas) {
+            $sub = Navegacion::subDe($mod, '');
+            foreach ($pantallas as $pantalla) {
+                $this->assertStringContainsString($pantalla, $sub,
+                    'La tarjeta de ' . $mod . ' tendría que anunciar «' . $pantalla . '».');
+            }
         }
     }
 

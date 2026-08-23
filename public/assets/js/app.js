@@ -1260,3 +1260,43 @@ window.SPGCarga = (function () {
   document.querySelectorAll('.srv').forEach(function (c) { c.addEventListener('change', reflejar); });
   reflejar();
 })();
+
+/* ------------------------------------------------------------------
+   Registrar atención: cuánto va sumando
+
+   La pantalla mostraba el precio de cada servicio y no sumaba ninguno,
+   así que al agregar uno en el sillón no había un número que lo
+   reflejara. Con seña la cuenta es otra —lo que se cobra al final es el
+   total menos lo que la clienta ya dejó— y por eso se muestran las dos
+   cosas: si sólo se mostrara el total, agregar un servicio parecería
+   cobrar de más.
+
+   Los precios vienen en `data-precio` de cada casilla, así que no hace
+   falta volver a preguntarle al servidor. Si `app.js` no cargó, el
+   bloque igual muestra lo que el servidor calculó al dibujar.
+   ------------------------------------------------------------------ */
+(function () {
+  var caja = document.getElementById('sumaAtencion');
+  if (!caja) return;
+
+  var sena = parseFloat(caja.getAttribute('data-sena')) || 0;
+  var elTotal = caja.querySelector('[data-suma="total"]');
+  var elCobrar = caja.querySelector('[data-suma="cobrar"]');
+  var casillas = document.querySelectorAll('.srvAt');
+
+  function gs(n) {
+    return 'Gs. ' + Math.round(n).toLocaleString('es-PY', { maximumFractionDigits: 0 });
+  }
+
+  function sumar() {
+    var t = 0;
+    casillas.forEach(function (c) {
+      if (c.checked) { t += parseFloat(c.getAttribute('data-precio')) || 0; }
+    });
+    if (elTotal) { elTotal.textContent = gs(t); }
+    if (elCobrar) { elCobrar.textContent = gs(Math.max(0, t - sena)); }
+  }
+
+  casillas.forEach(function (c) { c.addEventListener('change', sumar); });
+  sumar();
+})();

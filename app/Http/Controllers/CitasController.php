@@ -918,6 +918,20 @@ class CitasController extends Controller
                 'SELECT id_pedido, observaciones, fecha_registro, atendido
                    FROM cita_pedido WHERE id_cita = ? ORDER BY atendido, fecha_registro DESC', [$id]
             ),
+
+            // **Cuánto va sumando y cuánto queda por cobrar.**
+            //
+            // La pantalla listaba el precio de cada servicio y no sumaba
+            // ninguno: se agregaba una manicura en el sillón y no había un
+            // solo número que lo reflejara, así que quien atiende no sabía
+            // cuánto cobrar hasta llegar al comprobante.
+            //
+            // **Con seña la cuenta es otra, y ahí es donde se confunde**: lo
+            // que se cobra al final es el total MENOS lo que la clienta ya
+            // dejó, así que agregar un servicio de Gs. 50.000 sobre una cita
+            // señada sube el total y sube lo que falta cobrar en la misma
+            // medida — la seña no cambia, ya está cobrada.
+            'senaCobrada' => (float) DB::scalar('SELECT fn_cita_sena(?)', [$id]),
         ]);
     }
 

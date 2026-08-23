@@ -53,7 +53,28 @@
 </head>
 <body>
 
+{{-- **El cajón lateral se abre con CSS, no con JavaScript.**
+
+     En pantalla angosta la barra de módulos era un riel fijo de 54 px con el
+     ícono grande y el rótulo diminuto, y el contenido se corría con un
+     `margin-left` — que **seguía aplicándose en el Panel, donde la barra ni se
+     dibuja**: de ahí el hueco al costado que se veía en el celular.
+
+     Ahora es un cajón que se desliza por encima y no le roba ancho a nada. Va
+     con la casilla escondida y su etiqueta, como el resto de la navegación del
+     sistema, para que siga funcionando con `app.js` caído. --}}
+@if ($spgSesion)
+    <input type="checkbox" id="spgCajon" class="spg-cajon-int" aria-hidden="true">
+    <label for="spgCajon" class="spg-cajon-fondo" aria-hidden="true"></label>
+@endif
+
 <header class="spg-topbar">
+    @if ($spgSesion && $spgMenu && $spgRuta !== 'panel')
+        <label for="spgCajon" class="spg-cajon-btn" role="button" tabindex="0"
+               aria-label="Abrir el menú de módulos">
+            <i class="bi bi-list"></i>
+        </label>
+    @endif
     <a class="spg-brand" href="{{ Navegacion::url($spgCliente ? 'portal.index' : 'panel') ?? url('/') }}">
         {{-- El logo del salón si lo cargó; si no, la tijera de siempre. --}}
         <span class="spg-logo">
@@ -177,7 +198,7 @@
 @if ($spgMenu && $spgRuta !== 'panel')
     {{-- Los módulos siempre a la vista, con el actual marcado en oro. Antes
          había que abrir un desplegable para saber dónde se estaba parado. --}}
-    <nav class="spg-nav" aria-label="Módulos del sistema">
+    <nav class="spg-nav spg-nav-mod" aria-label="Módulos del sistema">
         <div class="spg-nav-in">
             <a class="spg-nav-item {{ $spgRuta === 'panel' ? 'activo' : '' }}" href="{{ Navegacion::url('panel') }}">
                 <i class="bi bi-house-door"></i><span>Panel</span></a>
@@ -212,19 +233,54 @@
                         @if ($spgPant)<i class="bi bi-chevron-down spg-nav-flecha"></i>@endif</a>
 
                     @if ($spgPant)
+                        @php
+                            // **Los renglones se juntan por grupo.** Con las
+                            // ocho pantallas de Tesorería sueltas no se ve qué
+                            // va con qué, y con los rótulos intercalados el
+                            // menú se hace largo: son doce renglones para
+                            // elegir uno.
+                            //
+                            // Agrupado son cuatro —Facturación, Cobros, Caja,
+                            // Pagos— y cada uno abre al costado. **El grupo de
+                            // una sola pantalla NO abre nada**: se dibuja como
+                            // enlace directo, porque un submenú de un renglón
+                            // hace pasar el mouse por dos lugares para llegar
+                            // al mismo sitio.
+                            $spgGrupos = [];
+                            foreach ($spgPant as $spgP) {
+                                $spgGrupos[$spgP['grupo'] ?? ''][] = $spgP;
+                            }
+                        @endphp
                         <div class="spg-nav-menu" role="menu" aria-label="{{ $spgMod['titulo'] }}">
-                            @php $spgGrupo = null; @endphp
-                            @foreach ($spgPant as $spgP)
-                                {{-- El rótulo del grupo se dibuja al cambiar, no
-                                     antes de cada renglón: es un separador, no
-                                     una entrada del menú. --}}
-                                @if (($spgP['grupo'] ?? '') !== '' && $spgP['grupo'] !== $spgGrupo)
-                                    <span class="spg-nav-grupo-lbl">{{ $spgP['grupo'] }}</span>
+                            @foreach ($spgGrupos as $spgNom => $spgDelGrupo)
+                                @if ($spgNom === '' || count($spgDelGrupo) === 1)
+                                    @foreach ($spgDelGrupo as $spgP)
+                                        <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
+                                           href="{{ $spgP['url'] }}">
+                                            <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['t'] }}</span></a>
+                                    @endforeach
+                                @else
+                                    @php
+                                        $spgActivo = collect($spgDelGrupo)->contains(fn ($x) => $spgRuta === $x['clave']);
+                                    @endphp
+                                    <div class="spg-nav-sub-wrap">
+                                        {{-- El grupo lleva al primero de los
+                                             suyos, así que también sirve con
+                                             el hover roto o en táctil. --}}
+                                        <a role="menuitem" href="{{ $spgDelGrupo[0]['url'] }}"
+                                           class="spg-nav-sub-tit {{ $spgActivo ? 'activo' : '' }}">
+                                            <i class="bi bi-{{ $spgDelGrupo[0]['ic'] }}"></i>
+                                            <span>{{ $spgNom }}</span>
+                                            <i class="bi bi-chevron-right spg-nav-sub-flecha"></i></a>
+                                        <div class="spg-nav-sub" role="menu" aria-label="{{ $spgNom }}">
+                                            @foreach ($spgDelGrupo as $spgP)
+                                                <a role="menuitem" href="{{ $spgP['url'] }}"
+                                                   class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}">
+                                                    <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['t'] }}</span></a>
+                                            @endforeach
+                                        </div>
+                                    </div>
                                 @endif
-                                @php $spgGrupo = $spgP['grupo'] ?? ''; @endphp
-                                <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
-                                   href="{{ $spgP['url'] }}">
-                                    <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['t'] }}</span></a>
                             @endforeach
                         </div>
                     @endif

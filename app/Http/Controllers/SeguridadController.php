@@ -69,10 +69,10 @@ class SeguridadController extends Controller
     public function configuracion(): View
     {
         return view('seguridad.configuracion', [
+            // **Mi cuenta NO va acá.** Ya vive en el desplegable del nombre,
+            // arriba a la derecha, que es donde la busca cualquiera: repetirla
+            // acá agrega un renglón que no lleva a ningún lado nuevo.
             'subs' => Permisos::tarjetasPermitidas([
-                // Mi cuenta no lleva permiso: es de cada persona, siempre.
-                ['p' => null, 'ruta' => 'cuenta.index', 'ic' => 'person-gear',
-                 't' => 'Mi cuenta', 'd' => 'Contraseña, apariencia y sucursal'],
                 ['p' => 'configuracion.sucursales', 'ruta' => 'seguridad.sucursales', 'ic' => 'shop',
                  't' => 'Sucursales', 'd' => 'Locales del salón, nombre y logo'],
                 ['p' => 'configuracion.contacto', 'ruta' => 'seguridad.contacto', 'ic' => 'headset',

@@ -833,7 +833,13 @@ class PortalController extends Controller
     private function detalleAtencion(int $idCliente, int $idCita): ?array
     {
         $cita = DB::selectOne(
-            "SELECT c.id_cita, c.fecha_hora, c.id_estado_cita, ec.nombre AS estado,
+            // **`id_sucursal` e `id_usuario` hacen falta abajo**, en la lista de
+            // lo que la clienta puede pedir. La 7.57.0 la agregó leyendo los dos
+            // campos y no los sumó acá: `$cita->id_sucursal` sobre una propiedad
+            // que no existe es `ErrorException`, o sea **500 en cada carga de
+            // esta pantalla** — la clienta no podía ver su atención en curso.
+            "SELECT c.id_cita, c.fecha_hora, c.id_estado_cita, c.id_sucursal, c.id_usuario,
+                    ec.nombre AS estado,
                     CONCAT(pe.nombre,' ',pe.apellido) AS profesional
                FROM cita c
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita

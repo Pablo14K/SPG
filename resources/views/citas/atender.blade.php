@@ -125,6 +125,44 @@
                     @endforeach
                 @endif
             </div>
+
+            {{-- **Cuánto va sumando.**
+
+                 La pantalla mostraba el precio de cada servicio y no sumaba
+                 ninguno: se agregaba una manicura en el sillón y no había un
+                 número que lo dijera. Ahora se recalcula al marcar, con los
+                 precios que ya viajan en el marcado (`data-precio`).
+
+                 **Con seña la cuenta es otra**, y es donde se confunde: la
+                 seña ya está cobrada y no cambia, así que agregar un servicio
+                 sube el total Y sube lo que falta cobrar en la misma medida.
+                 Por eso los tres renglones van juntos y no sólo el total.
+
+                 Arranca con el número del servidor, así que sin `app.js` se
+                 ve igual lo que hay marcado ahora. --}}
+            @php
+                $spgTotalIni = collect($servicios)
+                    ->filter(fn ($x) => $x->agendado || $x->ya)
+                    ->sum(fn ($x) => (float) $x->precio);
+                $spgSena = (float) ($senaCobrada ?? 0);
+            @endphp
+            <div class="spg-suma-at" id="sumaAtencion"
+                 data-sena="{{ $spgSena }}">
+                <div class="spg-suma-fila">
+                    <span>Servicios marcados</span>
+                    <strong data-suma="total">{{ money($spgTotalIni) }}</strong>
+                </div>
+                @if ($spgSena > 0)
+                    <div class="spg-suma-fila">
+                        <span>Ya pagó de seña</span>
+                        <strong class="txt-ok">− {{ money($spgSena) }}</strong>
+                    </div>
+                @endif
+                <div class="spg-suma-fila spg-suma-total">
+                    <span>{{ $spgSena > 0 ? 'Queda por cobrar' : 'A cobrar' }}</span>
+                    <strong class="val oro" data-suma="cobrar">{{ money(max(0, $spgTotalIni - $spgSena)) }}</strong>
+                </div>
+            </div>
         </div>
 
         {{-- 2. Productos usados --}}

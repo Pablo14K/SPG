@@ -363,6 +363,23 @@ body{
 .spg-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
 .spg-metric .val.oro{color:var(--oro-oscuro);}
 
+/* Variante compacta: para un informe con siete números seguidos, la tarjeta
+   normal ocupa demasiado alto. El rótulo deja de ir en mayúsculas —que obliga
+   a partirlo— y el número baja de 1.6 a 1.25rem, que sigue lejísimos del
+   texto de al lado. */
+.spg-metrics-compacto{grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.55rem;}
+.spg-metrics-compacto .spg-metric{padding:.55rem .7rem;}
+.spg-metrics-compacto .lbl{text-transform:none;letter-spacing:0;font-size:.76rem;line-height:1.25;}
+.spg-metrics-compacto .val{font-size:1.25rem;margin-top:.1rem;}
+
+/* ---- Cuánto va sumando (Registrar atención) ---- */
+.spg-suma-at{margin-top:.7rem;padding:.6rem .8rem;border:1px solid var(--gris-calido);
+    border-radius:var(--radius);background:var(--blanco);}
+.spg-suma-fila{display:flex;justify-content:space-between;align-items:baseline;
+    gap:1rem;font-size:.85rem;padding:.15rem 0;}
+.spg-suma-total{border-top:1px solid var(--gris-calido);margin-top:.3rem;
+    padding-top:.4rem;font-size:.95rem;}
+
 /* ---- Falta cargar (panel) ----
    El nivel se pinta con lo que cada color ya significa en esta paleta, no con
    uno nuevo: el rojo semántico para lo que impide, `--oro-tinte` —que la
@@ -766,10 +783,34 @@ html,body{max-width:100%;overflow-x:hidden;}
   /* El último módulo queda pegado al borde derecho: su menú se alinea al
      revés para no salirse de la pantalla. */
   .spg-nav-grupo:last-child .spg-nav-menu{left:auto;right:0;}
+
+  /* ---- El submenú que abre AL COSTADO ----
+     Tesorería tiene ocho pantallas y con los rótulos intercalados el menú
+     medía doce renglones para elegir uno. Agrupado son cuatro —Facturación,
+     Cobros, Caja, Pagos— y cada uno abre su división a un costado, que es lo
+     que pidió el usuario. El grupo de una sola pantalla no abre nada: se
+     dibuja como enlace directo (lo decide el marcado, no el CSS). */
+  .spg-nav-sub-wrap{position:relative;}
+  .spg-nav-sub-flecha{margin-left:auto;font-size:.65rem !important;opacity:.45 !important;}
+  .spg-nav-sub-wrap:hover .spg-nav-sub-flecha,
+  .spg-nav-sub-wrap:focus-within .spg-nav-sub-flecha{opacity:.9 !important;}
+  .spg-nav-sub{
+    position:absolute;left:100%;top:-.3rem;min-width:13rem;
+    background:var(--sup-oscura);border:1px solid var(--sup-oscura-borde);
+    border-radius:var(--radius);padding:.3rem 0;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    opacity:0;visibility:hidden;transform:translateX(-4px);
+    transition:opacity .12s ease,transform .12s ease;z-index:1;}
+  .spg-nav-sub-wrap:hover>.spg-nav-sub,
+  .spg-nav-sub-wrap:focus-within>.spg-nav-sub{opacity:1;visibility:visible;transform:none;}
+  /* Si el módulo cae a la derecha de la pantalla, su submenú también se da
+     vuelta: si no, se sale por el borde y no se puede leer. */
+  .spg-nav-grupo:last-child .spg-nav-sub{left:auto;right:100%;transform:translateX(4px);}
+  .spg-nav-grupo:last-child .spg-nav-sub-wrap:hover>.spg-nav-sub{transform:none;}
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .spg-nav-menu,.spg-nav-flecha{transition:none;}
+  .spg-nav-menu,.spg-nav-flecha,.spg-nav-sub{transition:none;}
 }
 
 /* ---- Pie ---- */
@@ -1095,9 +1136,12 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* Las filas alternadas ayudan a seguir el renglón en una tabla ancha. */
 .spg-reporte .table tbody tr:nth-child(even) { background: var(--blanco-hueso); }
 
-/* Los números destacados del resumen, con más cuerpo. */
-.spg-reporte .spg-metric .val { font-size: 1.55rem; }
-.spg-reporte .spg-metric { padding: 1rem 1.1rem; }
+/* **El resumen del informe va compacto**, y esto pisaba la variante.
+   Estas dos reglas repetían el tamaño base —1.55rem y el mismo padding— pero
+   con un selector más específico, así que `.spg-metrics-compacto` no llegaba a
+   aplicarse nunca: son siete números seguidos y cada tarjeta medía 148 px de
+   alto. Acá sólo queda lo que la variante NO decide. */
+.spg-reporte .spg-metric .val { font-variant-numeric: tabular-nums; }
 
 /* Los números en columna se comparan de un vistazo si comparten ancho. */
 .spg-reporte .table td.text-end,
@@ -1105,20 +1149,10 @@ html,body{max-width:100%;overflow-x:hidden;}
     font-variant-numeric: tabular-nums;
 }
 
-/* Rótulo de grupo dentro del desplegable de un módulo. Es un separador, no
-   una entrada: no se puede clickear y no se ilumina al pasar el mouse. */
-.spg-nav-grupo-lbl {
-    display: block;
-    padding: .5rem .8rem .2rem;
-    font-size: .68rem;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--oro);
-    opacity: .75;
-    pointer-events: none;
-}
-
-.spg-nav-grupo-lbl:first-child { padding-top: .3rem; }
+/* El rótulo de grupo intercalado en el desplegable salió con los submenús
+   laterales: los grupos ya no son separadores de texto sino renglones que
+   abren al costado, así que la clase quedó sin marcado. La borra
+   `AndamiajeTest`, que es justamente para esto. */
 
 /* --------------------------------------------------------------------
    Pantalla angosta: la barra de módulos pasa a ser lateral.
@@ -1131,48 +1165,96 @@ html,body{max-width:100%;overflow-x:hidden;}
    Se activa por debajo de 992 px, que es donde la barra horizontal empieza
    a necesitar scroll para mostrar los nueve.
    -------------------------------------------------------------------- */
+/* El interruptor no se ve nunca: lo único que hace es guardar el estado. */
+.spg-cajon-int { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.spg-cajon-btn { display: none; }
+.spg-cajon-fondo {
+    position: fixed; inset: 44px 0 0 0; background: rgba(0,0,0,.45);
+    opacity: 0; visibility: hidden; transition: opacity .18s ease;
+    z-index: 1030; cursor: pointer;
+}
+
 @media (max-width: 991px) {
-    .spg-nav {
+    /* El cajón se desliza POR ENCIMA del contenido y no le roba ancho.
+       Antes era un riel fijo de 54 px y el contenido se corría con
+       `margin-left`, que **seguía aplicándose en el Panel —donde la barra ni
+       se dibuja—**: de ahí el hueco al costado en el celular. */
+    .spg-nav-mod {
         position: fixed;
         top: 44px;
         bottom: 0;
         left: 0;
-        width: 54px;
+        width: min(78vw, 250px);
         border-right: 1px solid var(--sup-oscura-borde);
         border-bottom: none;
         overflow-y: auto;
-        z-index: 1019;
+        z-index: 1031;
+        transform: translateX(-100%);
+        transition: transform .18s ease;
     }
 
-    .spg-nav-in {
+    .spg-nav-mod .spg-nav-in {
         flex-direction: column;
+        align-items: stretch;
         gap: .1rem;
-        padding: .4rem .2rem;
+        padding: .5rem .4rem;
         overflow-x: visible;
     }
 
-    .spg-nav-item {
-        flex-direction: column;
-        gap: .12rem;
-        padding: .5rem .2rem;
-        font-size: .58rem;
-        text-align: center;
+    /* Rótulo al lado del ícono y de tamaño normal: apilados y a .58rem no se
+       leían, que es lo que se reportó. Acá sobra el ancho. */
+    .spg-nav-mod .spg-nav-item {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: .6rem;
+        padding: .6rem .7rem;
+        font-size: .9rem;
+        text-align: left;
         border-bottom: none;
-        border-left: 2px solid transparent;
-        line-height: 1.1;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius);
+        line-height: 1.2;
     }
 
-    .spg-nav-item i { font-size: 1.05rem; }
-    .spg-nav-item.activo {
+    .spg-nav-mod .spg-nav-item i { font-size: 1rem; width: 1.2rem; text-align: center; }
+    .spg-nav-mod .spg-nav-item.activo {
         border-bottom-color: transparent;
         border-left-color: var(--oro);
-        background: rgba(201, 168, 76, .08);
+        background: rgba(201, 168, 76, .1);
     }
 
-    /* El contenido se corre para no quedar debajo de la barra. */
-    main.container, .spg-migas, footer, .spg-footer { margin-left: 54px; }
+    /* **El contenido NO se corre.** El cajón tapa, no empuja. */
+    main.container, .spg-migas, footer, .spg-footer { margin-left: 0; }
 
-    /* El desplegable no cabe al costado en una pantalla chica, y en táctil
-       el hover no existe: se entra al módulo y ahí están las tarjetas. */
+    /* El desplegable de escritorio no cabe acá y en táctil el hover no
+       existe: se entra al módulo y ahí están las tarjetas. */
     .spg-nav-menu { display: none !important; }
+
+    /* El botón del cajón sólo existe acá. */
+    .spg-cajon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 34px; height: 34px; margin-right: .1rem; flex: 0 0 auto;
+        border-radius: var(--radius); cursor: pointer;
+        color: var(--sobre-oscura); font-size: 1.25rem; line-height: 1;
+    }
+    .spg-cajon-btn:hover, .spg-cajon-int:focus-visible + .spg-topbar .spg-cajon-btn {
+        background: var(--sup-oscura-2); color: var(--oro-claro);
+    }
+
+    .spg-cajon-int:checked ~ .spg-nav-mod { transform: none; }
+
+    /* El fondo que cierra el cajón al tocar afuera. Es el propio `<label>`
+       repetido por CSS, así que no hace falta JavaScript. */
+    .spg-cajon-int:checked ~ .spg-cajon-fondo {
+        opacity: 1; visibility: visible;
+    }
+}
+
+@media (min-width: 992px) {
+    /* En escritorio la barra es horizontal y el cajón no existe. */
+    .spg-cajon-fondo { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spg-nav-mod, .spg-cajon-fondo { transition: none; }
 }

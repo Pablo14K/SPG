@@ -210,7 +210,13 @@
                 <thead>
                     <tr>
                         <th>Cuándo</th><th>Qué</th><th>Responsable</th>
-                        <th class="text-end">Monto</th><th>Detalle</th><th>Estado</th>
+                        {{-- Una sola columna para los dos, porque la apertura tiene
+                             UN monto y el cierre tiene el que debería haber: son el
+                             mismo lugar de la fila y no conviven nunca. --}}
+                        <th class="text-end">Inicial / esperado</th>
+                        <th class="text-end">Contado</th>
+                        <th class="text-end">Diferencia</th>
+                        <th>Observación</th><th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -235,7 +241,11 @@
                             @if ($m['t'] === 'apertura')
                                 <td><span class="badge-estado e-prog"><i class="bi bi-unlock"></i> Apertura</span></td>
                                 <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
+                                {{-- En la apertura lo único que hay es el monto con
+                                     el que se abrió: el arqueo es del cierre. --}}
                                 <td class="text-end">{{ money($c->monto_inicial) }}</td>
+                                <td class="text-end text-muted-warm">—</td>
+                                <td class="text-end text-muted-warm">—</td>
                                 <td class="text-muted-warm" style="font-size:.84rem">
                                     {{ $c->observacion_apertura ?: '—' }}
                                 </td>
@@ -243,35 +253,46 @@
                             @else
                                 <td><span class="badge-estado e-muted"><i class="bi bi-lock"></i> Cierre</span></td>
                                 <td class="text-muted-warm">{{ $c->arqueo_por ?: ($c->responsable ?? '—') }}</td>
+
+                                {{-- **Las tres cifras del arqueo, cada una en su
+                                     columna.** Estaban amontonadas en una sola
+                                     —«Gs. X · esperado Gs. Y»— y la diferencia
+                                     vivía dentro del texto de «Detalle», así que
+                                     para saber si una caja cuadró había que leer
+                                     el renglón entero. Son tres números distintos
+                                     y se comparan de arriba abajo. --}}
+                                <td class="text-end">{{ money($c->saldo) }}</td>
                                 <td class="text-end">
                                     {{-- **«—» y no «Gs. 0» cuando no se contó.** Un cero
                                          ahí se lee como «cuadró», que es justo lo que no
                                          se sabe: son las cajas cerradas antes del arqueo. --}}
                                     {{ $c->monto_contado === null ? '—' : money($c->monto_contado) }}
-                                    <span class="text-muted-warm" style="font-size:.8rem">
-                                        · esperado {{ money($c->saldo) }}</span>
                                 </td>
-                                <td style="font-size:.84rem">
+                                <td class="text-end" style="white-space:nowrap">
                                     @if ($c->diferencia === null)
                                         <span class="text-muted-warm">sin conteo</span>
                                     @elseif (abs((float) $c->diferencia) < 0.01)
                                         <span class="badge-estado e-ok">cuadra</span>
                                     @elseif ((float) $c->diferencia > 0)
-                                        <span class="badge-estado e-warn">sobran {{ money($c->diferencia) }}</span>
-                                        <span class="text-muted-warm">· {{ $c->motivo_diferencia ?: 'sin motivo' }}</span>
+                                        <span class="badge-estado e-warn">+ {{ money($c->diferencia) }}</span>
                                     @else
-                                        <span class="badge-estado e-no">faltan {{ money(abs((float) $c->diferencia)) }}</span>
-                                        <span class="text-muted-warm">· {{ $c->motivo_diferencia ?: 'sin motivo' }}</span>
+                                        <span class="badge-estado e-no">− {{ money(abs((float) $c->diferencia)) }}</span>
                                     @endif
-                                    @if ($c->observacion_cierre)
-                                        <div class="text-muted-warm">{{ $c->observacion_cierre }}</div>
+                                </td>
+                                <td class="text-muted-warm" style="font-size:.84rem">
+                                    {{-- El motivo sólo se exige cuando NO cuadra, así que
+                                         nombrarlo con la caja cuadrada sería pedir algo
+                                         que el sistema no pidió. --}}
+                                    @if ($c->diferencia !== null && abs((float) $c->diferencia) >= 0.01)
+                                        <div>{{ $c->motivo_diferencia ?: 'sin motivo' }}</div>
                                     @endif
+                                    {{ $c->observacion_cierre ?: ($c->diferencia === null || abs((float) $c->diferencia) < 0.01 ? '—' : '') }}
                                 </td>
                                 <td>{!! estado_badge($c->estado) !!}</td>
                             @endif
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="text-muted-warm">Todavía no se abrió ninguna caja acá.</td></tr>
+                        <tr><td colspan="8" class="text-muted-warm">Todavía no se abrió ninguna caja acá.</td></tr>
                     @endforelse
                 </tbody>
             </table>

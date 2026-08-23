@@ -89,18 +89,18 @@ class Navegacion
      */
     public static function subDe(string $modulo, string $porDefecto): string
     {
+        // **Sale de `pantallasDe()`, que es la misma lista que dibuja el
+        // desplegable.** Escrito aparte se desfasa, y se desfasó: esto filtraba
+        // por el NOMBRE de la ruta, así que al partir Seguridad en tres
+        // (7.57.0) la tarjeta del Panel seguía anunciando los ocho renglones de
+        // antes —turnos, asistencia, comisiones, sucursales y contacto— aunque
+        // esas pantallas ya son de Personal y de Configuración. Es exactamente
+        // el defecto que la 7.58.0 corrigió en el desplegable **y no acá**.
         $titulos = [];
-        foreach (config('navegacion.pantallas', []) as $clave => $p) {
-            if (! str_starts_with((string) $clave, $modulo . '.')) {
-                continue;
-            }
-            [$titulo, , $permiso] = $p;
-            if (! Permisos::puede((string) $permiso)) {
-                continue;
-            }
+        foreach (self::pantallasDe($modulo) as $p) {
             // Sin repetir: varias pantallas comparten permiso y nombre corto
             // («Usuarios» y «Nuevo usuario» son las dos de `seguridad.usuarios`).
-            $titulos[(string) $permiso] ??= (string) $titulo;
+            $titulos[$p['permiso']] ??= $p['t'];
         }
 
         return $titulos ? implode(' · ', $titulos) : $porDefecto;
@@ -154,10 +154,37 @@ class Navegacion
             $out[] = [
                 't' => (string) $titulo, 'ic' => (string) $ic, 'url' => $url,
                 'clave' => (string) $clave,
+                'permiso' => (string) $permiso,
                 // El quinto valor agrupa los renglones del desplegable. Con
                 // ocho pantallas sueltas —Tesorería— no se ve qué va con qué.
                 'grupo' => (string) ($p[4] ?? ''),
             ];
+        }
+
+        // **Las prestadas de otro módulo**, con el título de acá. La ficha del
+        // equipo la abre `seguridad.usuarios` pero es donde Personal carga qué
+        // hace cada profesional: sin esto, Personal ofrecía cuatro tarjetas y
+        // anunciaba tres.
+        // **El catálogo se lee entero y se indexa a mano**: las claves llevan
+        // un punto adentro (`seguridad.usuarios`), y la notación de puntos de
+        // `config()` lo interpreta como otro nivel — o sea que devuelve null
+        // sin quejarse, y la pantalla no aparece.
+        $catalogo = (array) config('navegacion.pantallas', []);
+        foreach ((array) config('navegacion.tambien.' . $modulo, []) as $clave => $titulo) {
+            $p = $catalogo[$clave] ?? null;
+            if (! $p || ! Permisos::puede((string) $p[2])) {
+                continue;
+            }
+            $url = self::url((string) $clave);
+            if ($url === null) {
+                continue;
+            }
+            // Van ADELANTE, que es donde la tarjeta del módulo las dibuja:
+            // «Profesionales» es la primera de Personal, no la última.
+            array_unshift($out, [
+                't' => (string) $titulo, 'ic' => (string) $p[1], 'url' => $url,
+                'clave' => (string) $clave, 'permiso' => (string) $p[2], 'grupo' => '',
+            ]);
         }
 
         return $out;

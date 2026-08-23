@@ -119,7 +119,12 @@
         </div>
     </div>
 
-    <div class="spg-metrics mb-3">
+    {{-- **Compactas**: son siete números y cada tarjeta medía 148 px de alto,
+         porque los rótulos largos —«Canceladas / no vinieron», «Devuelto (notas
+         de crédito)»— se partían en tres líneas y **todas toman el alto de la más
+         alta**. Un informe se lee de arriba abajo: media pantalla para el
+         resumen empuja las tablas fuera de la vista. --}}
+    <div class="spg-metrics spg-metrics-compacto mb-3">
         <div class="spg-metric"><div class="lbl">Citas del período</div><div class="val">{{ (int) $citas->total }}</div></div>
         <div class="spg-metric"><div class="lbl">Atendidas</div><div class="val">{{ (int) $citas->atendidas }}</div></div>
         <div class="spg-metric">
