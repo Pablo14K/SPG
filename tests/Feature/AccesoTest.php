@@ -497,4 +497,81 @@ class AccesoTest extends TestCase
         $this->assertStringNotContainsString('spg-falta-nivel', $suyo,
             'El Profesional ve pendientes que no tiene permiso para resolver.');
     }
+
+    /**
+     * Las pantallas se dibujan con UNA sucursal y con VARIAS.
+     *
+     * **Es el defecto que este proyecto ya se hizo dos veces**, y que además
+     * apareció compartiendo el proyecto entre dos computadoras: el mismo
+     * código, la misma versión y la misma cuenta, pero una base con un local y
+     * la otra con once — y la pantalla no se comporta igual.
+     *
+     * Eso está bien cuando es deliberado (`$varias` esconde la columna de
+     * sucursal cuando hay una sola: preguntar algo de una única respuesta hace
+     * perder un clic). Lo que NO puede pasar es que una pantalla reviente en
+     * uno de los dos casos, porque quien desarrolla con once sucursales no lo
+     * ve nunca — y el salón instala con una.
+     *
+     * La 7.31.3 lo tuvo con las pruebas: 86 en verde con una sucursal y 19
+     * rojas con dos. La 7.35.0 lo tuvo con el catálogo: el segundo local nacía
+     * sin servicios y la clienta no veía qué reservar.
+     */
+    #[Test]
+    public function las_pantallas_andan_con_una_sucursal_y_con_varias(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        // Las de la operación diaria más las que dependen de la sucursal: son
+        // las que cambian de forma según cuántos locales haya.
+        $pantallas = [
+            'panel', 'citas.agenda', 'citas.form', 'clientes.lista', 'clientes.fidelizacion',
+            'servicios.lista', 'servicios.form', 'inventario.productos', 'inventario.stock',
+            'inventario.compras', 'inventario.compra_form', 'facturacion.facturas',
+            'facturacion.emitir', 'facturacion.cobros', 'facturacion.caja', 'facturacion.arqueo',
+            'facturacion.movimientos', 'facturacion.timbrados', 'reportes.index',
+            'seguridad.usuarios', 'seguridad.usuario_form', 'seguridad.turnos',
+            'seguridad.sucursales',
+        ];
+
+        $abrirTodas = function (string $cuando) use ($pantallas) {
+            foreach ($pantallas as $r) {
+                if (! \Illuminate\Support\Facades\Route::has($r)) {
+                    continue;
+                }
+                $this->get(route($r))->assertOk(
+                    'La pantalla «' . $r . '» no se dibuja ' . $cuando . '.');
+            }
+        };
+
+        // --- Con UNA sucursal: lo que tiene el salón el día uno -------------
+        $primera = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        DB::update('UPDATE sucursal SET activo = 0 WHERE id_sucursal <> ?', [$primera]);
+        $this->conSucursal($primera);
+        $abrirTodas('con una sola sucursal');
+
+        // Y las secciones del informe, que es donde más cambia la forma.
+        foreach (array_keys(\App\Http\Controllers\ReportesController::SECCIONES) as $sec) {
+            $this->get(route('reportes.index', ['r' => $sec]))->assertOk(
+                'El informe «' . $sec . '» no se dibuja con una sola sucursal.');
+        }
+
+        // --- Con DOS: lo que tiene quien ya abrió el segundo local ----------
+        DB::insert('INSERT INTO sucursal (nombre, direccion, activo) VALUES (?, ?, 1)',
+                   ['Sucursal de la prueba ' . uniqid(), 'Calle 11']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT IGNORE INTO usuario_sucursal (id_usuario, id_sucursal) VALUES (?,?)',
+                   [(int) session('uid'), $otra]);
+
+        $this->conSucursal($primera);
+        $abrirTodas('con dos sucursales');
+        foreach (array_keys(\App\Http\Controllers\ReportesController::SECCIONES) as $sec) {
+            $this->get(route('reportes.index', ['r' => $sec]))->assertOk(
+                'El informe «' . $sec . '» no se dibuja con dos sucursales.');
+        }
+
+        // Y paradas en el local nuevo, que no tiene ni una cita: es el caso
+        // que más veces rompió algo —una lista vacía, una división por cero—.
+        $this->conSucursal($otra);
+        $abrirTodas('parado en un local recién abierto');
+    }
 }

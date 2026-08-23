@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.63.3 | 23/08/2026 | **El mismo código se ve distinto en dos computadoras, y no es un error: es la base.** Se reportó que la columna «Disponible acá» y el botón de la casita aparecían en una máquina y no en la otra, con la misma versión y la misma cuenta. **El zip que viajó es idéntico** —comprobado archivo por archivo contra el `.rar` que se mandó—: lo que cambia es que **la base no viaja en el zip**, vive en el volumen de Docker de cada una. Una tenía 11 sucursales de probar y la otra la única que trae el `.sql` que se entrega, y esa columna **sólo aparece con más de un local** desde la 7.62.1 — con uno solo, todo lo que existe se ofrece acá y la pregunta no significa nada. **Pero la preocupación de fondo era legítima y no tenía guardia**: si la pantalla cambia de forma según cuántas sucursales haya, hay caminos que quien desarrolla con once no ejercita nunca — y el salón instala con una. Es el defecto de la 7.31.3 (86 pruebas en verde con una sucursal y 19 rojas con dos) y el de la 7.35.0 (el segundo local nacía sin servicios). Entra `las_pantallas_andan_con_una_sucursal_y_con_varias`, que abre 23 pantallas y las 8 secciones del informe **en los tres escenarios**: con un local, con dos, y parada en el recién abierto —que es el que más veces rompió algo, porque no tiene ni una cita—. **85 aserciones**, comprobada en las dos direcciones. De paso se barrieron a mano las 55 pantallas del personal contra una base de una sola sucursal: **cero errores**. **133 pruebas** |
 | 7.63.2 | 23/08/2026 | **Repaso del documento contra el código, y el contenedor al día.** Los números se volvieron a contar: 30 permisos, 9 módulos, 6 componentes, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 132 pruebas y las 44 claves de los tres `.env` — todos coincidían salvo **las rutas, que decían 182 y son 183** desde que el arqueo tiene la suya. Lo que faltaba escribir son las cuatro cosas que la 7.63.0 y la 7.63.1 cambiaron: **la pestaña «Todos»** y por qué sigue teniendo lugar después de partir el módulo; **que el CSV se fue de Reportes pero sigue en los listados**, que es donde sí tiene sentido —ahí se baja para trabajar los datos, no para leerlos—; **que el botón de fichar no se ofrece pasada la franja**, con la distinción de que un día anterior sí se sigue pudiendo porque eso es corregir la planilla; y **que la agenda muestra lo que la clienta dejó dicho**, con la ficha que se le puede abrir a la persona para quien es la cita. Entra además la sección **«Una ficha, dos trabajos»** —por qué Usuarios y Profesionales son la misma pantalla con pestañas y no dos formularios— y **«Cruzar dos bases»**, que anota el procedimiento entero del cruce de la 7.63.1: el mapa viejo→nuevo, el desplazamiento de correlativos, la caja que entra cerrada, las claves propias que no se copian, y que los disparadores se apagan y **se recrean incluso si la carga falla**. **132 pruebas en el host y en el contenedor** |
 | 7.63.1 | 23/08/2026 | **Reportes gana la pestaña «Todos» y pierde el CSV**, por pedido del usuario. La vista de «Todos» arma los informes uno abajo del otro, que es como estaba antes de partir el módulo y sigue sirviendo para leerlo de un tirón o llevárselo en una sola planilla — lo que cambió es que ya no es la **única** forma de mirarlo. **Cada bloque es el mismo partial que dibuja su pestaña**, así que no se pueden desfasar, y cada uno ofrece «ver aparte», que es lo que se hace después de encontrar algo mirando el conjunto. **El CSV se va**: bajaba los mismos números sin los gráficos y sin formato, o sea la versión pobre de lo mismo, y dos botones para una sola necesidad hacen elegir sin motivo. Queda **Excel**, que abre igual en cualquier planilla y trae las barras al lado de cada número, y el otro pasa a decir **«PDF / Imprimir»**, que es lo que de verdad hace. **Y se cruzaron los datos del mes simulado con la base de trabajo**: entraron 172 citas, 62 comprobantes, 70 cobros y 33 clientas **sin pisar nada de lo que ya estaba** — las 11 sucursales, las clientas cargadas y los servicios siguen igual. Las dos bases usan los MISMOS ids para cosas distintas, así que nada se copió tal cual: cada tabla entró con id nuevo y un mapa viejo→nuevo, y lo que no se duplica se resolvió por su nombre natural —servicio y producto por nombre, usuario por username, persona por cédula, RUC o correo—. **Los correlativos se desplazaron** después del último usado de cada timbrado, porque los dos lados empezaban en 1 sobre el mismo timbrado: quedaron 1–65 seguidos y sin repetir. **La caja simulada entra cerrada**, que si no habría dos abiertas en el mismo local y el mostrador dejaría de poder cobrar. Comprobado después: cero huérfanos, correlativos sin huecos, una caja abierta por sucursal y ningún stock en negativo. **132 pruebas** |
 | 7.63.0 | 23/08/2026 | **Reportes se parte en siete pantallas, y en el camino aparecieron dos defectos que daban números plausibles.** El peor: **el filtro de sucursal se aplicaba a las citas y no a los cobros**, así que pidiendo el informe de un local salían sus citas con **los ingresos de TODOS** — dos números de la misma pantalla midiendo cosas distintas, sin nada que lo delatara. Y el combo de sucursal listaba **todas las de la base**, no las de esa persona: quien tiene un local asignado pedía el informe de otro cambiando el desplegable. Ahora sale de `Sucursales::delUsuario()`, la misma regla con la que se decide a dónde puede entrar, y **con un solo local el filtro se pone solo** en vez de ofrecer el consolidado. Lo mismo el combo de profesionales, que ofrecía a gente de otras sedes. **Los subconsultas del equipo tampoco filtraban**: «Citas» salía del local elegido y «Servicios», «Generado» y «Comisión» del salón entero. **La estructura**: un **Resumen** con cuatro números y tres gráficos —de 2.659 px a 1.368— y seis informes especializados —Citas, Servicios, Profesionales, Ingresos, Compras, Por sucursal— con su propia URL, porque son enlaces y no pestañas de JavaScript. **Los gráficos son dos divs y un `width` en por ciento**: no entra ninguna librería, la misma decisión que ya está tomada con el PDF. **Sin datos se dice, no se dibuja un gráfico vacío**, que se lee como un dato. **Y se baja en Excel con los gráficos adentro**: el `.xls` es HTML con el tipo de Excel —que respeta el color de fondo— así que las barras viajan con los números, dibujadas con celdas. **El arqueo sale de «Apertura y cierre» y es su propia pantalla**: abrir el cajón se hace dos veces por día y mirar si cuadraron las cajas de la semana es otra cosa; además **«inicial» y «esperado» dejan de compartir columna**, que juntas bajo un rótulo doble no se entendía cuál era cuál. **Los botones de asistencia desaparecen pasada la franja** —la regla existía en el servidor desde la 5.4.1 y la pantalla los ofrecía igual, con el rechazo llegando después del clic—. **Y la cita muestra lo que la clienta dejó dicho**: observaciones, cuántas personas van y para quién es se guardaban desde el portal y **no se veían en ninguna pantalla**; si es para otra persona, se le puede abrir su ficha con el nombre ya puesto. **La ficha del equipo pasa a tener pestañas** —Datos personales, Cuenta, Trabajo— y abre en la que corresponde según se entre por Personal o por Seguridad: **una sola ficha porque dos se desfasan**. **132 pruebas**, una nueva comprobada en las dos direcciones |
@@ -431,7 +432,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 132 pruebas
+tests/Feature/             Las 133 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2984,7 +2985,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 132 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 133 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3077,6 +3078,16 @@ Tres cosas que conviene hacer al tocar algo de esto:
   es que el filtro sea una columna**: se ve el estado, el botón lo alterna, y
   quien quiera acotar tiene el filtro aparte.
 
+> **El mismo código se ve distinto según los datos que tenga la base, y eso
+> hay que probarlo.** Media docena de pantallas cambian de forma con
+> `$varias` —la columna de sucursal, el filtro, la pestaña «Por sucursal»— y
+> eso es deliberado: preguntar algo de una única respuesta hace perder un clic.
+> Lo que no puede pasar es que una de las dos formas reviente, porque **quien
+> desarrolla con once sucursales no ve nunca la de una, y el salón instala con
+> una**. Lo fija `AccesoTest::las_pantallas_andan_con_una_sucursal_y_con_varias`,
+> que abre todo en los tres escenarios: un local, dos, y parada en el recién
+> abierto.
+
 > **Y una prueba que devuelve 200 no prueba que la pantalla ande.** Una pantalla
 > puede contestar 200 y salir vacía: le pasó a Caja cuando el `@else` se fue con
 > otro bloque. Cuando una pantalla tiene una acción sin la cual no sirve,
@@ -3088,7 +3099,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**132 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**133 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |
