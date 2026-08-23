@@ -43,6 +43,11 @@ class ReportesController extends Controller
         'ingresos' => ['Ingresos', 'cash-coin', 'De dónde viene la plata'],
         'compras' => ['Compras', 'truck', 'Proveedores y lo que se les debe'],
         'sucursales' => ['Por sucursal', 'shop', 'Los locales, uno al lado del otro'],
+        // **Todo junto, para quien lo quiere de un tirón.** Es lo que había
+        // antes de partir el módulo, y sigue teniendo su lugar: se usa para
+        // leerlo entero de arriba abajo o para llevárselo en una sola planilla.
+        // Lo que cambió es que ya no es la ÚNICA forma de mirarlo.
+        'todos' => ['Todos', 'list-ul', 'Todos los informes, uno abajo del otro'],
     ];
 
     /**
@@ -76,8 +81,12 @@ class ReportesController extends Controller
         // garantiza que el Excel diga lo mismo que se estaba mirando: si se
         // rearmara la consulta, un filtro olvidado bastaría para que no
         // coincidieran y nadie se daría cuenta hasta comparar a mano.
-        if (in_array((string) $request->query('export', ''), ['xls', 'csv'], true)) {
-            return $this->exportar($seccion, $datos, (string) $request->query('export'));
+        // **Sólo Excel.** El CSV bajaba los mismos números sin los gráficos y
+        // sin formato, así que era la versión pobre de lo mismo: dos botones
+        // para una sola necesidad. El `.xls` se abre igual en cualquier
+        // planilla y trae las barras al lado de cada número.
+        if ((string) $request->query('export', '') === 'xls') {
+            return $this->exportar($seccion, $datos, 'xls');
         }
 
         // **Con un solo local, «Por sucursal» no se ofrece.** No hay nada que
@@ -620,19 +629,8 @@ class ReportesController extends Controller
      */
     private function exportar(string $seccion, array $datos, string $formato): StreamedResponse
     {
-        $hojas = $this->hojasDe($seccion, $datos);
-        $nombre = 'reporte_' . $seccion . '_' . date('Ymd');
-
-        if ($formato === 'csv') {
-            // El CSV baja la primera tabla de la sección, que es la principal.
-            $primera = $hojas[0] ?? ['titulo' => 'Sin datos', 'cols' => [], 'filas' => []];
-
-            return Listado::csv($nombre, $primera['cols'], array_map(
-                fn ($r) => array_map(fn ($c) => is_array($c) ? $c[0] : $c, $r), $primera['filas']
-            ));
-        }
-
-        return $this->xls($nombre, $seccion, $hojas, $datos);
+        return $this->xls('reporte_' . $seccion . '_' . date('Ymd'), $seccion,
+            $this->hojasDe($seccion, $datos), $datos);
     }
 
     /**
@@ -763,6 +761,15 @@ class ReportesController extends Controller
                 ['titulo' => 'Cobrado por sucursal', 'cols' => ['Sucursal', 'Total'],
                  'filas' => array_map(fn ($s) => [$s->sucursal, (float) $s->total], $datos['ingresoSucursal'])],
             ],
+            'todos' => array_merge(
+                [$resumen],
+                $this->hojasDe('citas', $datos),
+                [$tServ],
+                $this->hojasDe('equipo', $datos),
+                $this->hojasDe('ingresos', $datos),
+                $this->hojasDe('compras', $datos),
+                $this->hojasDe('sucursales', $datos),
+            ),
             default => [$resumen, $tServ, $tMedios, $tDia],
         };
     }

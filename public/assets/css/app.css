@@ -1183,6 +1183,15 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-graf-mas{display:inline-block;margin-top:.5rem;font-size:.82rem;}
 .spg-sin-datos{color:var(--gris-oscuro);font-size:.85rem;margin:0;}
 
+/* El separador entre bloques de la vista «Todos»: dice de qué informe es lo
+   que sigue y ofrece abrirlo aparte, que es lo que se hace después de
+   encontrar algo mirando el conjunto. */
+.spg-todos-sep{display:flex;justify-content:space-between;align-items:baseline;
+    gap:1rem;flex-wrap:wrap;margin:1.8rem 0 .7rem;padding-bottom:.35rem;
+    border-bottom:2px solid var(--gris-calido);}
+.spg-todos-sep h2{font-size:1.05rem;font-weight:500;margin:0;color:var(--oro-oscuro);}
+.spg-todos-sep a{font-size:.8rem;}
+
 /* Los atajos de período y los botones de bajada, en un solo renglón. */
 .spg-atajos-per{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;
     margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--gris-calido);}

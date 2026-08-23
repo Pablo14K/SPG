@@ -37,20 +37,20 @@
 
             <span class="spg-atajos-sep"></span>
 
-            {{-- **Bajar lo que se está mirando.** Los tres salen del mismo
-                 rango y los mismos filtros que la pantalla: el `.xls` lleva
-                 además las barras, para que el número venga con su gráfico. --}}
+            {{-- **Bajar lo que se está mirando.** Los dos salen del mismo rango
+                 y los mismos filtros que la pantalla.
+
+                 **El CSV se fue**: bajaba los mismos números sin los gráficos y
+                 sin formato, o sea la versión pobre de lo mismo. Dos botones
+                 para una sola necesidad hacen elegir sin motivo. --}}
             <a class="btn btn-sm btn-outline-neutro"
                href="{{ route('reportes.index', request()->except('export') + ['export' => 'xls']) }}"
-               title="Planilla con los números y los gráficos">
+               title="Planilla de Excel con los números y los gráficos">
                 <i class="bi bi-file-earmark-spreadsheet"></i> Excel</a>
-            <a class="btn btn-sm btn-outline-neutro"
-               href="{{ route('reportes.index', request()->except('export') + ['export' => 'csv']) }}"
-               title="Sólo los datos, para trabajarlos en una planilla">
-                <i class="bi bi-filetype-csv"></i> CSV</a>
             <button type="button" class="btn btn-sm btn-outline-neutro"
-                    data-bs-toggle="modal" data-bs-target="#modalImprimir">
-                <i class="bi bi-printer"></i> Imprimir</button>
+                    data-bs-toggle="modal" data-bs-target="#modalImprimir"
+                    title="Hoja lista para imprimir o guardar como PDF">
+                <i class="bi bi-file-earmark-pdf"></i> PDF / Imprimir</button>
         </div>
     </div>
 
