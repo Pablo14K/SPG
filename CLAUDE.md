@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.63.2 | 23/08/2026 | **Repaso del documento contra el código, y el contenedor al día.** Los números se volvieron a contar: 30 permisos, 9 módulos, 6 componentes, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 132 pruebas y las 44 claves de los tres `.env` — todos coincidían salvo **las rutas, que decían 182 y son 183** desde que el arqueo tiene la suya. Lo que faltaba escribir son las cuatro cosas que la 7.63.0 y la 7.63.1 cambiaron: **la pestaña «Todos»** y por qué sigue teniendo lugar después de partir el módulo; **que el CSV se fue de Reportes pero sigue en los listados**, que es donde sí tiene sentido —ahí se baja para trabajar los datos, no para leerlos—; **que el botón de fichar no se ofrece pasada la franja**, con la distinción de que un día anterior sí se sigue pudiendo porque eso es corregir la planilla; y **que la agenda muestra lo que la clienta dejó dicho**, con la ficha que se le puede abrir a la persona para quien es la cita. Entra además la sección **«Una ficha, dos trabajos»** —por qué Usuarios y Profesionales son la misma pantalla con pestañas y no dos formularios— y **«Cruzar dos bases»**, que anota el procedimiento entero del cruce de la 7.63.1: el mapa viejo→nuevo, el desplazamiento de correlativos, la caja que entra cerrada, las claves propias que no se copian, y que los disparadores se apagan y **se recrean incluso si la carga falla**. **132 pruebas en el host y en el contenedor** |
 | 7.63.1 | 23/08/2026 | **Reportes gana la pestaña «Todos» y pierde el CSV**, por pedido del usuario. La vista de «Todos» arma los informes uno abajo del otro, que es como estaba antes de partir el módulo y sigue sirviendo para leerlo de un tirón o llevárselo en una sola planilla — lo que cambió es que ya no es la **única** forma de mirarlo. **Cada bloque es el mismo partial que dibuja su pestaña**, así que no se pueden desfasar, y cada uno ofrece «ver aparte», que es lo que se hace después de encontrar algo mirando el conjunto. **El CSV se va**: bajaba los mismos números sin los gráficos y sin formato, o sea la versión pobre de lo mismo, y dos botones para una sola necesidad hacen elegir sin motivo. Queda **Excel**, que abre igual en cualquier planilla y trae las barras al lado de cada número, y el otro pasa a decir **«PDF / Imprimir»**, que es lo que de verdad hace. **Y se cruzaron los datos del mes simulado con la base de trabajo**: entraron 172 citas, 62 comprobantes, 70 cobros y 33 clientas **sin pisar nada de lo que ya estaba** — las 11 sucursales, las clientas cargadas y los servicios siguen igual. Las dos bases usan los MISMOS ids para cosas distintas, así que nada se copió tal cual: cada tabla entró con id nuevo y un mapa viejo→nuevo, y lo que no se duplica se resolvió por su nombre natural —servicio y producto por nombre, usuario por username, persona por cédula, RUC o correo—. **Los correlativos se desplazaron** después del último usado de cada timbrado, porque los dos lados empezaban en 1 sobre el mismo timbrado: quedaron 1–65 seguidos y sin repetir. **La caja simulada entra cerrada**, que si no habría dos abiertas en el mismo local y el mostrador dejaría de poder cobrar. Comprobado después: cero huérfanos, correlativos sin huecos, una caja abierta por sucursal y ningún stock en negativo. **132 pruebas** |
 | 7.63.0 | 23/08/2026 | **Reportes se parte en siete pantallas, y en el camino aparecieron dos defectos que daban números plausibles.** El peor: **el filtro de sucursal se aplicaba a las citas y no a los cobros**, así que pidiendo el informe de un local salían sus citas con **los ingresos de TODOS** — dos números de la misma pantalla midiendo cosas distintas, sin nada que lo delatara. Y el combo de sucursal listaba **todas las de la base**, no las de esa persona: quien tiene un local asignado pedía el informe de otro cambiando el desplegable. Ahora sale de `Sucursales::delUsuario()`, la misma regla con la que se decide a dónde puede entrar, y **con un solo local el filtro se pone solo** en vez de ofrecer el consolidado. Lo mismo el combo de profesionales, que ofrecía a gente de otras sedes. **Los subconsultas del equipo tampoco filtraban**: «Citas» salía del local elegido y «Servicios», «Generado» y «Comisión» del salón entero. **La estructura**: un **Resumen** con cuatro números y tres gráficos —de 2.659 px a 1.368— y seis informes especializados —Citas, Servicios, Profesionales, Ingresos, Compras, Por sucursal— con su propia URL, porque son enlaces y no pestañas de JavaScript. **Los gráficos son dos divs y un `width` en por ciento**: no entra ninguna librería, la misma decisión que ya está tomada con el PDF. **Sin datos se dice, no se dibuja un gráfico vacío**, que se lee como un dato. **Y se baja en Excel con los gráficos adentro**: el `.xls` es HTML con el tipo de Excel —que respeta el color de fondo— así que las barras viajan con los números, dibujadas con celdas. **El arqueo sale de «Apertura y cierre» y es su propia pantalla**: abrir el cajón se hace dos veces por día y mirar si cuadraron las cajas de la semana es otra cosa; además **«inicial» y «esperado» dejan de compartir columna**, que juntas bajo un rótulo doble no se entendía cuál era cuál. **Los botones de asistencia desaparecen pasada la franja** —la regla existía en el servidor desde la 5.4.1 y la pantalla los ofrecía igual, con el rechazo llegando después del clic—. **Y la cita muestra lo que la clienta dejó dicho**: observaciones, cuántas personas van y para quién es se guardaban desde el portal y **no se veían en ninguna pantalla**; si es para otra persona, se le puede abrir su ficha con el nombre ya puesto. **La ficha del equipo pasa a tener pestañas** —Datos personales, Cuenta, Trabajo— y abre en la que corresponde según se entre por Personal o por Seguridad: **una sola ficha porque dos se desfasan**. **132 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.62.2 | 22/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno, y esta vez **todos coincidían**: 182 rutas, 30 permisos, 9 módulos, 6 componentes Blade, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 131 pruebas y las 44 claves de los tres `.env`. Lo que sí había quedado atrás son las secciones que la 7.62.0 y la 7.62.1 cambiaron y no se escribieron: **la navegación decía «cuatro niveles» y son cinco** desde que Tesorería abre al costado; **el aislamiento por sucursal** no nombraba la columna «Disponible acá»; **el arqueo** no decía que el historial son dos registros con las tres cifras en columnas propias; y **«Registrar atención»** no tenía escrito por qué muestra tres renglones y no sólo el total — que es la parte que importa, porque con seña la cuenta es otra. **Y entra un sexto patrón a la lista de los errores que este proyecto se hace a sí mismo**: *un botón que cambia justo el dato por el que la lista filtra*, que hace desaparecer la fila al tocarla y no se puede deshacer — es lo de la 7.62.1, y el criterio queda anotado: **que el filtro sea una columna**. De paso, la tarjeta de Servicios seguía diciendo «Descuentos y promos»: la 7.55.0 renombró la pantalla a **Promociones** y la landing se quedó con el nombre viejo, así que la tarjeta del Panel y la del módulo nombraban distinto la misma pantalla. **131 pruebas** |
@@ -353,7 +354,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **182 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **183 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -416,6 +417,9 @@ resources/views/
                            <x-cobro-lineas>  las líneas del cobro, en Facturas y en la agenda
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
+  reportes/                index + un partial por informe (`_resumen`, `_citas`…):
+                           así el bloque que se ve en su pestaña y el que se ve
+                           en «Todos» son el mismo y no se pueden desfasar
 routes/
   web.php                  Las 183 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
@@ -1030,7 +1034,7 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | `clientes` | `.registro` · `.fidelizacion` · `.canjes` · `.valoraciones` |
 | `servicios` | `.catalogo` · `.categorias` —que administra también **las zonas del cuerpo**— · `.descuentos` |
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
-| `facturacion` | `.facturas` · `.cobros` · `.caja` · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
+| `facturacion` | `.facturas` · `.cobros` · `.caja` —que abre **Apertura y cierre** y **Arqueo**— · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
 | `reportes` | no se divide: es una sola pantalla |
 | `seguridad` | `.usuarios` · `.roles` · `.auditoria` |
 | `personal` | `.turnos` · `.asistencia` · `.comisiones` |
@@ -1107,6 +1111,27 @@ solo ofrece el botón a quien tenga `facturacion.timbrados`.
 > **Al mudar una pantalla de módulo, revisá contra qué rol queda.** Timbrados vivía en
 > Configuración, que ningún rol salvo el Administrador tiene; al pasarla a Facturación quedó
 > al alcance de cualquiera con ese módulo. Por eso es su propio submódulo.
+
+### Una ficha, dos trabajos: Usuarios y Profesionales
+
+**Seguridad → Usuarios** y **Personal → Profesionales** abren la misma pantalla,
+y son dos trabajos distintos: uno administra **la cuenta** —quién entra, con qué
+clave y con qué rol— y el otro **los datos de la persona** y lo que hace en el
+salón.
+
+**Es una sola ficha con pestañas, no dos formularios.** Duplicarla los desfasa:
+se agrega un campo en uno y el otro queda viejo, que es un error que este
+proyecto ya se hizo varias veces. Lo que cambia es cuál pestaña abre y cómo se
+titula, y eso lo decide `?desde=personal` en la URL.
+
+| Pestaña | Qué lleva |
+|---|---|
+| **Datos personales** | nombre, cédula, teléfono, correo, dirección |
+| **Cuenta y acceso** | usuario, contraseña, rol |
+| **Trabajo** | sucursales donde trabaja, servicios que hace, turnos |
+
+> **Los tres bloques se guardan juntos**: todos los campos viajan en el mismo
+> POST, así que nada se pierde por estar en una pestaña cerrada.
 
 **La creación de cuentas sigue siendo del Administrador y punto** (middleware `admin` en la
 ruta del formulario de usuario), sin importar la matriz. Y ojo con `seguridad.roles`:
@@ -1333,6 +1358,14 @@ los dos, la agenda se corre un día.
 `asistencia` cuelga de (persona, turno, fecha) — `uq_asistencia_dia` — y guarda `justificada`:
 NULL presente · 1 falta con permiso · 0 falta sin permiso.
 
+> **Pasada la franja, el botón de fichar no se ofrece.** La regla la hace
+> cumplir `PersonalController::fueraDeFranja()` desde la 5.4.1, pero la pantalla
+> lo mostraba igual y el rechazo llegaba **después** de apretarlo: un botón que
+> no puede hacer nada promete algo que no cumple. En su lugar se dice «fuera de
+> horario» y el `title` explica desde cuándo se habilita. **Con un día anterior
+> sí se sigue pudiendo**, que es corregir la planilla y es otra cosa — ahí la
+> hora la pone quien corrige.
+
 **Seguridad → Asistencia es el listado de quiénes trabajan ese día**, sacado de los turnos
 asignados. **No se escriben horarios a mano**: se ficha con un botón y queda la hora del clic
 (`ahora_bd()`, ver la sección *La hora*). El botón de Entrada se habilita solo dentro de la
@@ -1435,6 +1468,18 @@ La clienta reserva para su hija o su madre: `cita.para_otra_persona` lo declara,
 
 No se crea una ficha de cliente para quien se atiende: sería inventar una
 persona que el salón no registró. El nombre va como texto en la cita.
+
+**Y todo eso se VE en la agenda**, que es lo que faltaba: `observaciones`, para
+quién es y cuántas van se guardaban desde el portal y **no se mostraban en
+ninguna pantalla**, así que quien atiende esperaba a la clienta y venía la hija.
+Ahora la fila lo dice con un badge y el detalle se abre en un modal — que es lo
+que se mira una vez, al preparar el turno; la fila tiene que seguir leyéndose de
+un vistazo.
+
+> **Si es para otra persona, se le puede abrir su ficha desde ahí**, con el
+> nombre ya puesto. No se crea sola —seguiría siendo inventar una persona— pero
+> quien atiende decide en el momento: sin ficha propia no hay dónde anotarle las
+> preferencias ni le queda historial.
 
 ### Una cita, varios profesionales
 
@@ -1745,6 +1790,16 @@ las otras seis. Un informe que muestra todo junto no se lee: se hojea.
 | **Ingresos** | por medio de pago, por día, por servicio y por profesional |
 | **Compras** | proveedores y la deuda viva, **que no depende del período** |
 | **Por sucursal** | los locales uno al lado del otro — sólo con más de uno |
+| **Todos** | los informes uno abajo del otro, para leerlo de un tirón |
+
+> **«Todos» es lo que había antes de partir el módulo, y sigue teniendo su
+> lugar**: se usa para recorrer el informe entero o llevárselo en una sola
+> planilla. Lo que cambió es que ya no es la ÚNICA forma de mirarlo — para una
+> pregunta puntual está su pestaña, que carga sólo eso.
+>
+> **Cada bloque es el mismo partial que dibuja su pestaña**, así que no se
+> pueden desfasar, y cada uno ofrece «ver aparte»: es lo que se hace después de
+> encontrar algo mirando el conjunto.
 
 Las pestañas son **enlaces de verdad** (`<a href>` con `?r=`), no pestañas de
 JavaScript: así cada informe tiene su URL, se puede compartir y anda con
@@ -1777,21 +1832,23 @@ tomada con el PDF.
 **Sin datos se dice, no se dibuja un gráfico vacío**: uno vacío se lee como un
 dato, y el salón decide con eso. Lo pone `reportes._sindatos`.
 
-### Bajar el informe: CSV, Excel y papel
+### Bajar el informe: Excel y papel
 
 | Formato | Para qué |
 |---|---|
 | **Excel** (`.xls`) | los números **con los gráficos**: las barras van dibujadas con celdas de color |
-| **CSV** | sólo los datos, para seguir trabajándolos en una planilla |
-| **Imprimir** | el papel de siempre, con las casillas de qué bloques salen |
+| **PDF / Imprimir** | el papel de siempre, con las casillas de qué bloques salen |
+
+> **El CSV se fue en la 7.63.1**, por pedido del usuario y con razón: bajaba los
+> mismos números que el Excel pero sin los gráficos y sin formato, o sea la
+> versión pobre de lo mismo. Dos botones para una sola necesidad hacen elegir
+> sin motivo. **En los LISTADOS sigue estando**, y ahí sí tiene sentido: se
+> baja para trabajar los datos en una planilla, no para leerlos.
 
 **El `.xls` es HTML con `Content-Type` de Excel**, no una librería. Excel lo abre,
 lo pasa a celdas y **respeta el color de fondo**, que es lo que hace posible que
 la barra viaje con el número. Cada celda numérica va como número crudo —sin
 `Gs.` ni puntos— para que se pueda sumar del otro lado.
-
-> El CSV **no lleva barras** a propósito: no tiene formato, y las celdas de más
-> ensuciarían las fórmulas de quien lo abre para trabajarlo.
 
 > **Los tres salen de `datos()`**, la misma función que dibuja la pantalla. Si
 > cada salida armara su consulta, el papel podría no coincidir con lo que se vio
@@ -2845,6 +2902,56 @@ contraseña de la base queda descargable. `spg:diagnostico --produccion` lo comp
 
 > **No importar el .sql con `--skip-grant-tables`**: las vistas y procedimientos quedan con
 > DEFINER vacío y todo revienta con el error 1449.
+
+### Cruzar dos bases: agregar sin pisar
+
+Cargar el mes simulado **encima** de una base que ya tiene datos no es correr el
+`.sql`: eso la reemplaza. Se hizo en la 7.63.1 y el procedimiento queda anotado
+porque va a volver a hacer falta.
+
+**El problema de fondo: las dos bases usan los MISMOS ids para cosas
+distintas.** El `id_cliente = 1` de una no es el de la otra, así que nada se
+puede copiar tal cual. Cada tabla entra con id nuevo y se guarda un mapa
+viejo→nuevo para que lo que la referencia apunte a donde corresponde.
+
+| Qué | Cómo se resuelve |
+|---|---|
+| `servicio`, `producto`, `turno_laboral` | por **nombre**: si ya existe, se mapea |
+| `usuario` | por **username** |
+| `persona` | por **cédula**, RUC o correo |
+| `cliente` | por su persona **o por su cuenta** — tiene único sobre las dos |
+| `sucursal` | todo el mes simulado ocurrió en un local: va a la 1 |
+| Estados, tipos, métodos de pago | son idénticos: se usan tal cual |
+| Todo lo operativo | id nuevo + mapa |
+
+Tres cosas que hay que resolver antes de insertar, y ninguna es obvia:
+
+- **Los correlativos se desplazan.** Los dos lados empiezan en 1 sobre el mismo
+  timbrado, así que las primeras chocan. Se corren después del último usado de
+  cada timbrado — la numeración de la SET no se repite ni deja huecos.
+- **La caja entra CERRADA.** Si entrara abierta habría dos abiertas en el mismo
+  local y el mostrador dejaría de poder cobrar: `trg_caja_bi` sólo admite una,
+  y la de hoy es la que vale.
+- **Las claves propias no se copian.** `id_cita_servicio`, `id_cobro_banco` y
+  compañía las pone la base; copiarlas da «Duplicate entry for PRIMARY».
+
+> **Los disparadores se apagan durante la carga y se recrean al terminar**, con
+> el conteo comprobado. Son correctos para la operación de todos los días y
+> **no** para una carga histórica: `trg_movinv_bi` bloquea salidas sin stock,
+> `trg_factura_bi` valida el timbrado y `trg_citaserv_bi` impide repetir
+> servicio el mismo día. Los movimientos vienen de una base donde ya estaban
+> validados, y reinsertarlos en otro orden los haría saltar.
+
+> **Todo va en una transacción y con respaldo previo.** En la 7.63.1 hubo dos
+> intentos fallidos antes del bueno, y las dos veces la base quedó intacta
+> porque el `rollBack()` estaba puesto — y los disparadores se recrearon igual,
+> que es lo que no puede faltar: una base sin sus defensas es peor que una carga
+> a medias.
+
+**Y después se comprueba, que es la mitad que se olvida**: cero huérfanos en las
+relaciones que importan, correlativos sin huecos ni repetidos, una sola caja
+abierta por sucursal, ningún stock en negativo y los 17 disparadores en su
+lugar.
 
 ### Probar cambios sin tocar la base real
 
