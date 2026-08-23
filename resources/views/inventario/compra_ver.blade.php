@@ -102,4 +102,66 @@
             </table>
         </div>
     </div>
+
+    {{-- **Lo que ya se pagó de esta compra.**
+
+         El pago queda ligado en `detalle_pago_proveedor` desde siempre y no se
+         veía por ningún lado: la compra decía cuánto debe y no de dónde salía
+         ese saldo, así que para saber si un pago entró había que ir a Tesorería
+         y buscarlo entre todos los del proveedor.
+
+         **El monto que se muestra es `monto_aplicado`, no el del pago**: un
+         pago puede cubrir varias compras, y poner el total acá diría que a
+         esta se le aplicó más de lo que se le aplicó. --}}
+    <div class="spg-panel mt-3">
+        <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Pagos de esta compra</h2>
+
+        @if ($pagos)
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fecha</th><th>Medio</th><th>Referencia</th>
+                        <th class="text-end">Aplicado</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        @foreach ($pagos as $p)
+                            <tr class="{{ $p->estado === 'Anulado' ? 'text-muted-warm' : '' }}">
+                                <td>{{ fecha($p->fecha) }}</td>
+                                <td>{{ $p->metodo }}</td>
+                                <td class="text-muted-warm">{{ $p->referencia ?: '—' }}</td>
+                                <td class="text-end">{{ money($p->monto) }}</td>
+                                <td>{!! estado_badge($p->estado) !!}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="3" class="text-end">Pagado</th>
+                            <th class="text-end">
+                                @php
+                                    $pagado = 0;
+                                    foreach ($pagos as $p) {
+                                        if ($p->estado !== 'Anulado') { $pagado += (float) $p->monto; }
+                                    }
+                                @endphp
+                                {{ money($pagado) }}
+                            </th>
+                            <th></th>
+                        </tr>
+                        <tr>
+                            <th colspan="3" class="text-end">Saldo</th>
+                            <th class="text-end {{ (float) $compra->saldo > 0 ? 'txt-no' : 'txt-ok' }}">
+                                {{ (float) $compra->saldo > 0 ? money($compra->saldo) : 'pagada' }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @else
+            <p class="text-muted-warm mb-0" style="font-size:.86rem">
+                Todavía no se pagó nada de esta compra.
+                @if ((float) $compra->saldo > 0)
+                    Se paga desde <a href="{{ route('facturacion.proveedores') }}">Tesorería → Pagos a proveedores</a>.
+                @endif
+            </p>
+        @endif
+    </div>
 @endsection

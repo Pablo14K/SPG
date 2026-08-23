@@ -11,7 +11,9 @@
          por qué le falta el botón. --}}
     <x-encabezado
         :sub="Permisos::esAdmin()
-            ? 'Las cuentas del personal, con su rol, sus turnos y su estado.'
+            ? (request()->query('desde') === 'personal'
+                ? 'El equipo del salón: qué servicios hace cada una y en qué turnos trabaja.'
+                : 'Las cuentas que entran al sistema, con su rol y los locales a los que acceden.')
             : 'Las cuentas del personal. <strong>Crear y editar cuentas es exclusivo del Administrador</strong>, sin importar lo que diga la matriz de roles: quien puede editar la matriz podría darse permisos a sí mismo.'"
         :accion="Permisos::esAdmin()
             ? ['ruta' => 'seguridad.usuario_form',
@@ -25,29 +27,62 @@
 
         <div class="table-responsive">
             <table class="table align-middle">
+                {{-- **Dos listas, no una con todo mezclado.**
+
+                     «Usuarios» contesta *¿quién entra al sistema y con qué rol?*
+                     y «Profesionales» *¿quién trabaja y qué hace?*. Son las mismas
+                     personas pero dos preguntas distintas, y con las columnas de
+                     las dos juntas ninguna se contesta de un vistazo.
+
+                     La ficha sigue siendo UNA sola —duplicarla las desfasa— y lo
+                     que cambia acá es qué se lista y en qué orden. --}}
+                @php $comoPersonal = request()->query('desde') === 'personal'; @endphp
                 <thead>
                     <tr>
-                        <th>Nombre</th><th>Usuario</th><th>Rol</th><th>Turnos</th>
-                        <th>Contacto</th><th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Nombre</th>
+                        @if ($comoPersonal)
+                            <th>Contacto</th><th>Servicios que hace</th><th>Turnos</th>
+                        @else
+                            <th>Usuario</th><th>Rol</th><th>Sucursales</th>
+                        @endif
+                        <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $u)
                         <tr>
                             <td>{{ $u->nombre }} {{ $u->apellido }}</td>
-                            <td class="text-muted-warm">{{ $u->username }}</td>
-                            <td><span class="badge-estado e-prog">{{ $u->rol }}</span></td>
-                            <td class="text-muted-warm" style="font-size:.82rem">
-                                @if ($u->turnos)
-                                    {{ $u->turnos }}
-                                @else
-                                    <span class="txt-no">sin turno</span>
-                                @endif
-                            </td>
-                            <td class="text-muted-warm" style="font-size:.82rem">
-                                {{ $u->email }}
-                                @if ($u->telefono)<div>{{ $u->telefono }}</div>@endif
-                            </td>
+
+                            @if ($comoPersonal)
+                                <td class="text-muted-warm" style="font-size:.82rem">
+                                    {{ $u->email }}
+                                    @if ($u->telefono)<div>{{ $u->telefono }}</div>@endif
+                                </td>
+                                <td class="text-muted-warm" style="font-size:.82rem">
+                                    {{-- **Sin servicios cargados los hace todos**, que es el
+                                         criterio permisivo de siempre. Decir «ninguno» sería
+                                         mentir: lo que pasa es que nadie lo administró, y por
+                                         eso la agenda se lo ofrece para cualquier cosa. --}}
+                                    @if ($u->servicios)
+                                        {{ $u->servicios }}
+                                    @else
+                                        <span class="txt-no">sin cargar · se le ofrece para todo</span>
+                                    @endif
+                                </td>
+                                <td class="text-muted-warm" style="font-size:.82rem">
+                                    @if ($u->turnos)
+                                        {{ $u->turnos }}
+                                    @else
+                                        <span class="txt-no">sin turno · no aparece en la agenda</span>
+                                    @endif
+                                </td>
+                            @else
+                                <td class="text-muted-warm">{{ $u->username }}</td>
+                                <td><span class="badge-estado e-prog">{{ $u->rol }}</span></td>
+                                <td class="text-muted-warm" style="font-size:.82rem">
+                                    {{ $u->sucursales ?: 'todas' }}
+                                </td>
+                            @endif
                             <td>
                                 @if ($u->activo)
                                     <span class="badge-estado e-ok">Activo</span>
@@ -80,7 +115,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="6">
                                 <div class="spg-vacio">
                                     <i class="bi bi-person-badge"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún usuario coincide con esos filtros.' : 'Todavía no hay personal cargado.' }}</div>

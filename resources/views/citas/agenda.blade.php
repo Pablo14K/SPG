@@ -85,6 +85,15 @@
                                 @if ((float) ($c->sena_pedida ?? 0) > 0)
                                     <span class="badge-estado e-warn" title="La clienta la registró desde el portal">
                                         seña {{ money($c->sena_pedida) }} a confirmar</span>
+                                @elseif ((float) $c->sena <= 0 && (float) ($c->sena_requerida ?? 0) > 0)
+                                    {{-- **La reserva no está confirmada**, y quien atiende
+                                         tiene que verlo: el sistema le guarda el horario a
+                                         la clienta por un plazo y después lo suelta solo.
+                                         Sin esto, el salón la trata como cualquier otra
+                                         cita y se entera el día que no aparece. --}}
+                                    <span class="badge-estado e-no"
+                                          title="Se le guarda el horario, pero se suelta si no confirma la seña">
+                                        sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">

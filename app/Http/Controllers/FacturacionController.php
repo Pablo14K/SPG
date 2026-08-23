@@ -2312,9 +2312,27 @@ class FacturacionController extends Controller
             'cuentas' => DB::select('SELECT * FROM vw_cuenta_proveedor WHERE saldo > 0 ORDER BY vencida DESC, vencimiento'),
             // El monto no se guarda: lo calcula la función de la base
             'pagos' => DB::select(
-                'SELECT pp.id_pago_proveedor, pp.fecha, pp.referencia,
+                "SELECT pp.id_pago_proveedor, pp.fecha, pp.referencia,
                         fn_pago_proveedor_monto(pp.id_pago_proveedor) AS monto,
-                        pe_pr.nombre AS proveedor, mp.nombre AS metodo, ep.nombre AS estado
+                        pe_pr.nombre AS proveedor, mp.nombre AS metodo, ep.nombre AS estado,
+                        -- **A qué compra se aplicó.** El pago SÍ queda ligado
+                        -- —`sp_pagar_compra` escribe `detalle_pago_proveedor`—
+                        -- pero la lista no lo mostraba: se veía «pagué
+                        -- Gs. 1.150.000 a Distribuidora» sin decir por cuál de
+                        -- las cuatro compras, y con el proveedor repetido no
+                        -- había forma de saberlo sin entrar a la base.
+                        --
+                        -- Un pago puede cubrir varias compras, así que se
+                        -- concatenan: es una relación N:M y aplastarla a una
+                        -- sola diría algo falso.
+                        (SELECT GROUP_CONCAT(
+                                    CONCAT(COALESCE(NULLIF(c2.nro_factura_proveedor, ''),
+                                                    CONCAT('compra #', c2.id_compra)),
+                                           ' (', DATE_FORMAT(c2.fecha, '%d/%m/%Y'), ')')
+                                    ORDER BY c2.fecha SEPARATOR ' · ')
+                           FROM detalle_pago_proveedor d2
+                           JOIN compra c2 ON c2.id_compra = d2.id_compra
+                          WHERE d2.id_pago_proveedor = pp.id_pago_proveedor) AS compras
                    FROM pago_proveedor pp
                    JOIN proveedor pr ON pr.id_proveedor = pp.id_proveedor
                    JOIN persona pe_pr ON pe_pr.id_persona = pr.id_persona
@@ -2322,7 +2340,7 @@ class FacturacionController extends Controller
                    JOIN estado_pago_proveedor ep ON ep.id_estado_pago_proveedor = pp.id_estado_pago_proveedor
                   LEFT JOIN caja cj ON cj.id_caja = pp.id_caja
                   WHERE (:s = 0 OR cj.id_sucursal IS NULL OR cj.id_sucursal = :s2)
-                  ORDER BY pp.fecha DESC LIMIT 100',
+                  ORDER BY pp.fecha DESC LIMIT 100",
                 ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
             'metodos' => DB::select('SELECT id_metodo_pago, nombre, tipo FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago'),

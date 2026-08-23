@@ -4226,4 +4226,78 @@ class ReglasDeNegocioTest extends TestCase
 
         Permisos::olvidar();
     }
+
+    /**
+     * La reserva que pide seña se guarda por un plazo, y después se suelta.
+     *
+     * **Son las dos mitades y hacen falta las dos.** Si la cita no se creara
+     * hasta cobrar, la clienta perdería el horario mientras hace la
+     * transferencia — que es justo lo que la pantalla le promete. Y si el
+     * horario quedara reservado para siempre, un sillón se bloquea por alguien
+     * que nunca pagó.
+     *
+     * Se comprueba que **dentro del plazo no se toca** y que **pasado el plazo
+     * se cancela**: una sola de las dos mitades pasaría con la función
+     * devolviendo siempre cero, o cancelando todo.
+     */
+    #[Test]
+    public function la_reserva_sin_sena_se_guarda_un_plazo_y_despues_se_suelta(): void
+    {
+        $srv = DB::selectOne(
+            'SELECT id_servicio FROM servicio WHERE activo = 1 AND sena_porcentaje IS NOT NULL LIMIT 1');
+        if (! $srv) {
+            $this->markTestSkipped('La base de prueba no tiene servicios que pidan seña.');
+        }
+
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 LIMIT 1');
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        // **Cada cita va en un día distinto.** `trg_citaserv_bi` impide que la
+        // misma clienta repita el mismo servicio el mismo día, así que las tres
+        // citas de esta prueba se pisarían entre sí.
+        $dia = 0;
+        $crear = function (string $registrada) use ($cliente, $prof, $suc, $srv, &$dia): int {
+            $dia += 3;
+            DB::insert(
+                'INSERT INTO cita (id_cliente, id_usuario, id_sucursal, id_estado_cita, fecha_hora, fecha_registro)
+                 VALUES (?, ?, ?, 1, DATE_ADD(NOW(), INTERVAL ? DAY), ?)',
+                [$cliente, $prof, $suc, $dia, $registrada]
+            );
+            $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+            DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)',
+                       [$id, (int) $srv->id_servicio]);
+
+            return $id;
+        };
+
+        // Una recién reservada y otra de hace tres días, las dos sin seña.
+        $reciente = $crear(date('Y-m-d H:i:s'));
+        $vieja = $crear(date('Y-m-d H:i:s', strtotime('-3 days')));
+
+        $this->assertGreaterThan(0, (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$vieja]),
+            'El servicio elegido tiene que pedir seña para que esta prueba mida algo.');
+
+        Notificaciones::cancelarSenasVencidas();
+
+        $estado = fn (int $id) => (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$id]);
+
+        $this->assertNotSame(3, $estado($reciente),
+            'A la reserva de recién hay que guardarle el horario: todavía está dentro del plazo.');
+        $this->assertSame(3, $estado($vieja),
+            'Pasado el plazo sin confirmar la seña, el lugar se suelta.');
+
+        // **Y una con solicitud pendiente NO se toca**: la clienta ya avisó que
+        // pagó, así que lo que falta es que el salón lo confirme — cancelársela
+        // sería castigarla por la demora del mostrador.
+        $aviso = $crear(date('Y-m-d H:i:s', strtotime('-3 days')));
+        DB::insert('INSERT INTO sena_solicitud (id_cita, monto, fecha_solicitud) VALUES (?,?,NOW())',
+                   [$aviso, 1000]);
+
+        Notificaciones::cancelarSenasVencidas();
+        $this->assertNotSame(3, $estado($aviso),
+            'Si la clienta ya registró la seña, la cita espera al salón: no se cancela sola.');
+    }
 }

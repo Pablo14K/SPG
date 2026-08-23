@@ -7,6 +7,7 @@ namespace App\Servicios;
 use App\Mail\AvisoCita;
 use App\Mail\AvisoInterno;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
@@ -399,6 +400,64 @@ class Notificaciones
      * reposición se dibuja en vivo—, lo que hace falta es cerrarlos cuando el
      * producto se repuso.
      */
+    /**
+     * Las reservas que pedían seña y nadie confirmó a tiempo.
+     *
+     * **El horario se reserva desde el principio y eso es deliberado**: si la
+     * cita no se creara hasta cobrar, la clienta perdería el lugar mientras
+     * hace la transferencia — que es justo lo que la pantalla le promete.
+     *
+     * Pero un sillón bloqueado por alguien que nunca pagó tampoco puede quedar
+     * así para siempre. Pasado `spg.agenda.sena_horas` sin confirmar, la cita
+     * se cancela y se le avisa, con el motivo escrito: no desaparece en
+     * silencio, que es lo que haría que la clienta se presentara igual.
+     *
+     * **No toca las citas de hoy ni las que ya pasaron.** Cancelar algo que es
+     * dentro de dos horas no le da tiempo a nadie a reaccionar, y ahí el salón
+     * decide por teléfono.
+     */
+    public static function cancelarSenasVencidas(): int
+    {
+        $horas = (int) config('spg.agenda.sena_horas', 24);
+        if ($horas <= 0) {
+            return 0;   // el salón apagó el plazo
+        }
+
+        $vencidas = DB::select(
+            'SELECT c.id_cita, c.id_cliente, c.fecha_hora
+               FROM cita c
+              WHERE c.id_estado_cita IN (1, 2)
+                AND DATE(c.fecha_hora) > CURDATE()
+                AND fn_cita_sena_requerida(c.id_cita) > 0
+                AND fn_cita_sena(c.id_cita) <= 0
+                AND c.fecha_registro < DATE_SUB(NOW(), INTERVAL ? HOUR)
+                -- Una solicitud pendiente es que la clienta YA avisó que pagó:
+                -- ahí el salón tiene que confirmarla, no el sistema cancelarla.
+                AND NOT EXISTS (SELECT 1 FROM sena_solicitud ss
+                                 WHERE ss.id_cita = c.id_cita
+                                   AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL)',
+            [$horas]
+        );
+
+        $n = 0;
+        foreach ($vencidas as $c) {
+            try {
+                Agenda::cancelar((int) $c->id_cita);
+                self::crear(self::CANCELACION, (int) $c->id_cliente, (int) $c->id_cita,
+                    'Soltamos tu reserva del ' . fecha($c->fecha_hora) . ' porque no llegamos a '
+                    . 'confirmar la seña dentro de las ' . $horas . ' horas. '
+                    . 'Podés volver a reservar cuando quieras.');
+                Auditoria::registrarComo(1, 'CANCELACION', 'Sistema', 'cita', (int) $c->id_cita,
+                    'Cancelada sola: pedía seña y no se confirmó en ' . $horas . ' horas');
+                $n++;
+            } catch (Throwable $e) {
+                Log::error('No se pudo soltar la cita ' . $c->id_cita . ': ' . $e->getMessage());
+            }
+        }
+
+        return $n;
+    }
+
     public static function cerrarInternas(): int
     {
         try {

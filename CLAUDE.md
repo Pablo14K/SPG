@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.65.0 | 23/08/2026 | **La rerserva con seña queda pendiente, el pago al proveedor dice qué compra pagó, y Usuarios y Profesionales dejan de listar lo mismo.** **La seña es lo más delicado y son dos mitades**: si la cita no se creara hasta cobrar, la clienta perdería el horario mientras hace la transferencia — y si el horario quedara tomado para siempre, un sillón se bloquea por alguien que nunca pagó. Ahora **se le guarda por un plazo** (`spg.agenda.sena_horas`, 24 por defecto), la cita se muestra **«sin confirmar»** en el portal y en la agenda, y pasado el plazo `spg:notificaciones` la suelta **y le avisa** — no desaparece en silencio, que es lo que la haría presentarse igual. **Una solicitud pendiente NO se cancela**: la clienta ya avisó que pagó, así que lo que falta es que el salón lo confirme, y cancelársela sería castigarla por la demora del mostrador. **El pago al proveedor SÍ quedaba ligado a su compra** —`sp_pagar_compra` escribe `detalle_pago_proveedor` desde siempre— pero no se veía por ningún lado: con el mismo proveedor repetido no había forma de saber cuál de las cuatro compras se pagó. Ahora la lista lo dice y **la compra muestra sus pagos**, con el saldo al pie; el monto que sale es `monto_aplicado` y no el del pago, porque un pago puede cubrir varias compras. **Y Usuarios y Profesionales listan cosas distintas**: uno contesta «¿quién entra al sistema y con qué rol?» —usuario, rol, sucursales— y el otro «¿quién trabaja y qué hace?» —contacto, servicios, turnos—. **La ficha sigue siendo una sola**: duplicarla las desfasa, que es un error que este proyecto ya se hizo varias veces. **134 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.64.0 | 23/08/2026 | **Siete cosas del portal y del cobro, y tres eran defectos de verdad.** **La cita quedaba a nombre de otra profesional**: al reservar eligiendo a alguien para el único servicio, `cita.id_usuario` seguía en cero y el sistema asignaba «cualquiera que esté libre» — `cita_servicio` tenía a la elegida y la cita a un tercero, y la agenda muestra la de la cita. Ahora sale de `principalDelReparto()`, que es el criterio con el que la cita tiene dueño desde la 5.3.0. **El selector de horarios dibujaba dos veces «1. Elegí el día»**: marcar dos servicios seguidos lanza dos búsquedas y las respuestas no vuelven en orden, así que la vieja llegaba después del `limpiar()` de la nueva y dibujaba su lista — con los días de la consulta anterior, que es peor que el renglón repetido. Cada consulta lleva ahora su número de orden. **Y el cobro proponía la seña ya cobrada**: `sena_requerida` es lo que el salón pide de adelanto y no cambia al cobrarse, así que con la seña puesta se ofrecía el mismo número otra vez y el comprobante quedaba con saldo pendiente por la diferencia. **La factura se manda sola al emitir**, que era lo que faltaba para que emitir y que le llegue sean un solo acto: va después de emitir y no atada a eso —si el correo falla la factura sigue siendo válida— y el aviso dice si salió y a dónde. **La clienta puede cambiar de día desde el portal**: sólo podía cancelar, y son dos cosas distintas —quien no puede el martes quiere venir el jueves, no dejar de venir—; conserva su profesional y su seña. **El combo de profesional ofrece sólo a quien hace ESE servicio**, con el criterio permisivo de siempre, y **el catálogo del equipo pasa a su propia pantalla**: la de reservar ya pide servicios, profesional, día y hora, y el equipo entero desplegado ahí compite con lo único que hay que hacer. **Y los carteles de confirmación son del sistema**: `window.confirm()` dibuja «localhost:8000 dice» con los botones del sistema operativo, y para algo que anula un comprobante eso se lee como un error del navegador. Cae de vuelta al del navegador si Bootstrap no cargó — una confirmación que no se puede mostrar no puede volverse «seguí sin preguntar». **133 pruebas** |
 | 7.63.3 | 23/08/2026 | **El mismo código se ve distinto en dos computadoras, y no es un error: es la base.** Se reportó que la columna «Disponible acá» y el botón de la casita aparecían en una máquina y no en la otra, con la misma versión y la misma cuenta. **El zip que viajó es idéntico** —comprobado archivo por archivo contra el `.rar` que se mandó—: lo que cambia es que **la base no viaja en el zip**, vive en el volumen de Docker de cada una. Una tenía 11 sucursales de probar y la otra la única que trae el `.sql` que se entrega, y esa columna **sólo aparece con más de un local** desde la 7.62.1 — con uno solo, todo lo que existe se ofrece acá y la pregunta no significa nada. **Pero la preocupación de fondo era legítima y no tenía guardia**: si la pantalla cambia de forma según cuántas sucursales haya, hay caminos que quien desarrolla con once no ejercita nunca — y el salón instala con una. Es el defecto de la 7.31.3 (86 pruebas en verde con una sucursal y 19 rojas con dos) y el de la 7.35.0 (el segundo local nacía sin servicios). Entra `las_pantallas_andan_con_una_sucursal_y_con_varias`, que abre 23 pantallas y las 8 secciones del informe **en los tres escenarios**: con un local, con dos, y parada en el recién abierto —que es el que más veces rompió algo, porque no tiene ni una cita—. **85 aserciones**, comprobada en las dos direcciones. De paso se barrieron a mano las 55 pantallas del personal contra una base de una sola sucursal: **cero errores**. **133 pruebas** |
 | 7.63.2 | 23/08/2026 | **Repaso del documento contra el código, y el contenedor al día.** Los números se volvieron a contar: 30 permisos, 9 módulos, 6 componentes, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 132 pruebas y las 44 claves de los tres `.env` — todos coincidían salvo **las rutas, que decían 182 y son 183** desde que el arqueo tiene la suya. Lo que faltaba escribir son las cuatro cosas que la 7.63.0 y la 7.63.1 cambiaron: **la pestaña «Todos»** y por qué sigue teniendo lugar después de partir el módulo; **que el CSV se fue de Reportes pero sigue en los listados**, que es donde sí tiene sentido —ahí se baja para trabajar los datos, no para leerlos—; **que el botón de fichar no se ofrece pasada la franja**, con la distinción de que un día anterior sí se sigue pudiendo porque eso es corregir la planilla; y **que la agenda muestra lo que la clienta dejó dicho**, con la ficha que se le puede abrir a la persona para quien es la cita. Entra además la sección **«Una ficha, dos trabajos»** —por qué Usuarios y Profesionales son la misma pantalla con pestañas y no dos formularios— y **«Cruzar dos bases»**, que anota el procedimiento entero del cruce de la 7.63.1: el mapa viejo→nuevo, el desplazamiento de correlativos, la caja que entra cerrada, las claves propias que no se copian, y que los disparadores se apagan y **se recrean incluso si la carga falla**. **132 pruebas en el host y en el contenedor** |
@@ -433,7 +434,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 133 pruebas
+tests/Feature/             Las 134 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1322,6 +1323,30 @@ que corresponde a esa cita.
   dice cuánto pide el salón y lleva a registrar el comprobante de la
   transferencia; en el mostrador, el profesional la registra a mano cuando la
   clienta la deja en el local. En los dos casos queda atada a la cita.
+
+### La reserva con seña queda pendiente, y el lugar se guarda un plazo
+
+**Son dos mitades y hacen falta las dos.** Si la cita no se creara hasta cobrar
+la seña, la clienta perdería el horario mientras hace la transferencia — que es
+justo lo que la pantalla le promete. Y si el horario quedara tomado para
+siempre, un sillón se bloquea por alguien que nunca pagó.
+
+| | |
+|---|---|
+| Se reserva el horario | desde el momento en que agenda |
+| La cita dice **«sin confirmar»** | en el portal y en la agenda, mientras falte la seña |
+| Pasado `spg.agenda.sena_horas` | `Notificaciones::cancelarSenasVencidas()` la suelta **y le avisa** |
+
+> **No desaparece en silencio**, y eso importa: una cita que se cancela sola sin
+> avisar hace que la clienta se presente igual.
+
+> **Una solicitud pendiente NO se cancela.** Si la clienta ya registró la seña
+> desde el portal, lo que falta es que el salón la confirme: cancelársela sería
+> castigarla por la demora del mostrador.
+
+> **Ni las de hoy ni las que ya pasaron.** Soltar algo que es dentro de dos
+> horas no le da tiempo a nadie a reaccionar, y ahí el salón decide por
+> teléfono.
 
 **La seña no se vincula a la factura.** Se cobra antes de atender, así que queda como un
 cobro con `id_cita` y `id_factura` NULL. `fn_factura_saldo` **ya descuenta los cobros de la
@@ -2986,7 +3011,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 133 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 134 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3108,7 +3133,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**133 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**134 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

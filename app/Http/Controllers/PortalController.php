@@ -336,12 +336,27 @@ class PortalController extends Controller
             // quisiera y el salón se lo confirmaba de palabra.
             $senaPide = (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$idCita]);
 
-            flash('¡Tu cita fue reservada!'
-                . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '')
-                . ($senaPide > 0
-                    ? ' Para dejarla confirmada hace falta una seña de ' . money($senaPide)
-                        . ': registrá acá el comprobante de la transferencia.'
-                    : ''));
+            // **La reserva no queda confirmada hasta que la seña esté cobrada,
+            // y el horario se guarda mientras tanto.**
+            //
+            // Las dos mitades importan. Si la cita no se creara hasta cobrar, la
+            // clienta perdería el lugar mientras hace la transferencia; si el
+            // lugar quedara reservado para siempre, un sillón se bloquea por
+            // alguien que nunca pagó. Se le guarda por un plazo y se le dice
+            // cuál es — `Notificaciones::cancelarSenasVencidas()` la suelta
+            // después y le avisa, así que no desaparece en silencio.
+            $horas = (int) config('spg.agenda.sena_horas', 24);
+
+            flash($senaPide > 0
+                ? 'Te guardamos el horario, pero **tu cita todavía no está confirmada**: '
+                    . 'para eso hace falta la seña de ' . money($senaPide) . '. '
+                    . 'Registrá acá el comprobante de la transferencia'
+                    . ($horas > 0 ? ' dentro de las ' . $horas . ' horas' : '')
+                    . '; si no llegamos a confirmarla, soltamos el lugar y te avisamos.'
+                    . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '')
+                : '¡Tu cita fue reservada!'
+                    . ($usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : ''),
+                $senaPide > 0 ? 'warning' : 'success');
 
             if ($senaPide > 0) {
                 return redirect()->route('portal.citas', ['sena' => $idCita]);

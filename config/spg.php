@@ -22,7 +22,7 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.64.0',
+    'version' => '7.65.0',
     'version_fecha' => '2026-08-22',
 
     'moneda' => 'Gs.',
@@ -52,6 +52,18 @@ return [
         // cuanto se cargan turnos, mandan los turnos y esto deja de usarse.
         'abre' => '08:00:00',
         'cierra' => '20:00:00',
+
+        // **Cuántas horas se le guarda el lugar a quien todavía no señó.**
+        //
+        // La reserva de un servicio que pide seña no queda confirmada hasta que
+        // el salón recibe el dinero, pero el horario **sí se reserva**: si no,
+        // la clienta lo pierde mientras hace la transferencia y termina
+        // llamando al salón, que es lo que esto viene a evitar.
+        //
+        // Pasado el plazo sin confirmar, `spg:notificaciones` la cancela y le
+        // avisa. Sin plazo, un sillón queda bloqueado para siempre por alguien
+        // que nunca pagó.
+        'sena_horas' => 24,
     ],
 
     // --- Listados ---------------------------------------------------------

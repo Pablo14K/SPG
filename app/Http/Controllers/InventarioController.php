@@ -958,6 +958,21 @@ class InventarioController extends Controller
             // pagar se anotó el número del papel, no hay por qué tipearlo otra
             // vez. Se ofrecen, no se imponen.
             'facturasSugeridas' => $this->facturasDelProveedor((int) $compra->id_compra),
+
+            // **Lo que ya se le pagó a esta compra.** El pago queda ligado en
+            // `detalle_pago_proveedor` desde siempre y no se veía por ningún
+            // lado: la compra decía cuánto debe y no de dónde salía ese saldo,
+            // así que para saber si un pago entró había que ir a Tesorería y
+            // buscarlo entre todos los del proveedor.
+            'pagos' => DB::select(
+                "SELECT pp.fecha, d.monto_aplicado AS monto, pp.referencia,
+                        mp.nombre AS metodo, ep.nombre AS estado
+                   FROM detalle_pago_proveedor d
+                   JOIN pago_proveedor pp ON pp.id_pago_proveedor = d.id_pago_proveedor
+                   JOIN metodo_pago mp ON mp.id_metodo_pago = pp.id_metodo_pago
+                   JOIN estado_pago_proveedor ep ON ep.id_estado_pago_proveedor = pp.id_estado_pago_proveedor
+                  WHERE d.id_compra = ? ORDER BY pp.fecha", [(int) $compra->id_compra]
+            ),
             'lineas' => DB::select(
                 'SELECT p.nombre, p.unidad_medida, cp.nombre AS categoria,
                         d.cantidad, d.precio_unitario,

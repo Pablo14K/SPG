@@ -39,11 +39,15 @@ class DespacharNotificaciones extends Command
         $atrasadas = $this->marcarAtrasadas();
         $nuevos = Notificaciones::generarRecordatorios();
         $cerrados = Notificaciones::cerrarInternas();
+        // Las reservas que pedían seña y nadie confirmó a tiempo: el horario se
+        // les guardó, pero no para siempre.
+        $sinSena = Notificaciones::cancelarSenasVencidas();
         $r = Notificaciones::despachar((int) $this->option('max'));
 
         $this->line("  citas marcadas atrasadas: $atrasadas");
         $this->line("  recordatorios nuevos: $nuevos");
         $this->line("  avisos internos cerrados: $cerrados");
+        $this->line("  reservas soltadas por seña sin confirmar: $sinSena");
         $this->line("  enviados: {$r['enviadas']} · fallidos: {$r['fallidas']} · sin correo: {$r['sin_correo']}");
         if ($r['sin_destinatario'] > 0) {
             // Los que este despachador no iba a tomar nunca y quedaban en

@@ -35,8 +35,13 @@
                                     <span class="badge-estado e-warn" title="Falta confirmarla en el salón">
                                         seña {{ money($c->sena_pedida) }} a confirmar</span>
                                 @elseif ((float) ($c->sena_requerida ?? 0) > 0)
-                                    <span class="badge-estado e-warn">
-                                        falta seña {{ money($c->sena_requerida) }}</span>
+                                    {{-- **Sin la seña la cita no está confirmada**, y el
+                                         badge lo dice con esas palabras: «falta seña» a
+                                         secas se lee como un detalle administrativo, no
+                                         como que el lugar se puede perder. --}}
+                                    <span class="badge-estado e-no"
+                                          title="Te guardamos el horario, pero se suelta si no confirmamos la seña">
+                                        sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">

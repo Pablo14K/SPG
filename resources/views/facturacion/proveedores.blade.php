@@ -64,7 +64,7 @@
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Fecha</th><th>Proveedor</th><th>Medio</th><th>Referencia</th>
+                    <tr><th>Fecha</th><th>Proveedor</th><th>Compra que pagó</th><th>Medio</th><th>Referencia</th>
                         <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Anular</th></tr>
                 </thead>
                 <tbody>
@@ -72,6 +72,13 @@
                         <tr>
                             <td>{{ fecha($p->fecha) }}</td>
                             <td>{{ $p->proveedor }}</td>
+                            {{-- **Qué compra pagó.** El pago SÍ queda ligado a la
+                                 compra —`sp_pagar_compra` escribe el detalle— pero acá
+                                 no se veía: con el mismo proveedor repetido no había
+                                 forma de saber cuál de las cuatro compras se pagó.
+                                 Un pago puede cubrir varias, y por eso salen todas. --}}
+                            <td class="text-muted-warm" style="font-size:.83rem">
+                                {{ $p->compras ?: '—' }}</td>
                             <td>{{ $p->metodo }}</td>
                             <td class="text-muted-warm">{{ $p->referencia ?: '—' }}</td>
                             <td class="text-end">{{ money($p->monto) }}</td>
@@ -86,7 +93,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center text-muted-warm py-3">Todavía no hay pagos registrados.</td></tr>
+                        <tr><td colspan="8" class="text-center text-muted-warm py-3">Todavía no hay pagos registrados.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -89,7 +89,18 @@ class PersonalController extends Controller
                  r.nombre AS rol,
                  (SELECT GROUP_CONCAT(t.nombre ORDER BY t.hora_inicio SEPARATOR ' · ')
                     FROM usuario_turno ut JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
-                   WHERE ut.id_usuario = u.id_usuario) AS turnos";
+                   WHERE ut.id_usuario = u.id_usuario) AS turnos,
+                 -- **Lo que cada lista necesita, y no lo mismo para las dos.**
+                 -- Usuarios pregunta «¿quién entra al sistema y con qué rol?»;
+                 -- Profesionales, «¿quién trabaja y qué hace?». Con una sola
+                 -- tabla de columnas mezcladas, ninguna de las dos preguntas se
+                 -- contesta de un vistazo.
+                 (SELECT GROUP_CONCAT(sv.nombre ORDER BY sv.nombre SEPARATOR ' · ')
+                    FROM usuario_servicio us JOIN servicio sv ON sv.id_servicio = us.id_servicio AND sv.activo = 1
+                   WHERE us.id_usuario = u.id_usuario) AS servicios,
+                 (SELECT GROUP_CONCAT(su.nombre ORDER BY su.nombre SEPARATOR ' · ')
+                    FROM usuario_sucursal usu JOIN sucursal su ON su.id_sucursal = usu.id_sucursal AND su.activo = 1
+                   WHERE usu.id_usuario = u.id_usuario) AS sucursales";
         $orden = 'ORDER BY pe_u.nombre, pe_u.apellido';
 
         if (Listado::pideExport()) {
