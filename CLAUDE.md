@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.62.2 | 22/08/2026 | **Repaso de este documento contra el código, que es lo que pide la regla de la 6.6.0.** Cada número se volvió a contar en vez de darlo por bueno, y esta vez **todos coincidían**: 182 rutas, 30 permisos, 9 módulos, 6 componentes Blade, 21 servicios en `app/Servicios`, 78 tablas, 21 procedimientos, 36 funciones, 17 disparadores, 17 vistas, 73 `CHECK`, 131 pruebas y las 44 claves de los tres `.env`. Lo que sí había quedado atrás son las secciones que la 7.62.0 y la 7.62.1 cambiaron y no se escribieron: **la navegación decía «cuatro niveles» y son cinco** desde que Tesorería abre al costado; **el aislamiento por sucursal** no nombraba la columna «Disponible acá»; **el arqueo** no decía que el historial son dos registros con las tres cifras en columnas propias; y **«Registrar atención»** no tenía escrito por qué muestra tres renglones y no sólo el total — que es la parte que importa, porque con seña la cuenta es otra. **Y entra un sexto patrón a la lista de los errores que este proyecto se hace a sí mismo**: *un botón que cambia justo el dato por el que la lista filtra*, que hace desaparecer la fila al tocarla y no se puede deshacer — es lo de la 7.62.1, y el criterio queda anotado: **que el filtro sea una columna**. De paso, la tarjeta de Servicios seguía diciendo «Descuentos y promos»: la 7.55.0 renombró la pantalla a **Promociones** y la landing se quedó con el nombre viejo, así que la tarjeta del Panel y la del módulo nombraban distinto la misma pantalla. **131 pruebas** |
 | 7.62.1 | 22/08/2026 | **«No ofrecerlo en esta sucursal» hacía desaparecer el servicio, y no había forma de traerlo de vuelta.** La lista mostraba sólo lo del local activo, así que al borrar la fila de `servicio_sucursal` el servicio **dejaba de cumplir el filtro y se iba de la pantalla** — desde ahí la única forma de volver a ofrecerlo era ir al alta y usar «traer uno existente», que nadie va a adivinar. Visto desde afuera, el botón **borraba el servicio**. Entra la columna **«Disponible acá»** con sí/no y el botón pasa a ser un interruptor de verdad: se saca, **el renglón sigue ahí diciendo «no»**, y se vuelve a poner desde el mismo lugar. **Lo de la 7.40.0 no se pierde**: sigue estando «ver sólo lo de este local», ahora como filtro —que es lo que corresponde, porque esconder algo por el que se pregunta es distinto de esconderlo siempre—. La columna y el filtro **sólo aparecen con más de una sucursal**: con un local, todo lo que existe se ofrece acá y la pregunta no significa nada. **La prueba se reescribió y quedó más exigente**: medía que la lista de un local nuevo saliera vacía —la regla vieja— y ahora recorre el ciclo entero, sacar y volver a poner, comprobado en las dos direcciones. **131 pruebas**. De paso, el `.env` del host se completó con las seis claves que le faltaban contra la plantilla —las cinco de SIFEN y `SESSION_SECURE_COOKIE`—, y se comprobó que el correo sigue configurado en los cuatro entornos y que `env.docker` sigue marcado con `skip-worktree`, o sea con la contraseña fuera de los commits |
 | 7.62.0 | 22/08/2026 | **Catorce puntos de la revisión de pantalla, y uno era un 500.** **La atención en curso del portal estaba rota desde la 7.57.0**: esa versión agregó la lista de «qué puedo pedir» leyendo `$cita->id_sucursal` e `id_usuario` y **no los sumó al SELECT**, así que era `ErrorException` en cada carga — la clienta no podía ver su propia atención desde el celular. Es el patrón de siempre: algo lee un campo que no existe y nada avisa hasta que alguien abre la pantalla. **«Registrar atención» no sumaba nada**: listaba el precio de cada servicio y agregar una manicura en el sillón no movía ningún número. Ahora hay total, seña ya cobrada y **cuánto queda por cobrar** — y los tres juntos y no sólo el total, porque **con seña la cuenta es otra** y ahí es donde se confunde: la seña no cambia, así que el servicio agregado sube el total y sube lo que falta cobrar en la misma medida. **La tarjeta de Seguridad seguía anunciando ocho pantallas**: `Navegacion::subDe()` filtraba por el NOMBRE de la ruta, o sea el mismo defecto que la 7.58.0 corrigió en el desplegable **y no acá** — pasa a salir de `pantallasDe()`, que es una sola fuente. **Tesorería abre al costado**: eran doce renglones con rótulos intercalados para elegir uno, y son cuatro —Facturación, Cobros, Caja, Pagos— cada uno con su división; **el grupo de una sola pantalla no abre nada**, que sería pasar por dos lugares para llegar al mismo sitio. **En el celular la barra pasa a ser un cajón** que se desliza por encima: era un riel fijo de 54 px con el ícono grande y el rótulo a .58rem, y el contenido se corría con un `margin-left` **que seguía aplicándose en el Panel, donde la barra ni se dibuja** — de ahí el hueco al costado. Se abre con CSS, así que anda con `app.js` caído, y **no toca la barra del portal**: convertirla dejaría a la clienta sin navegación, porque el botón sólo lo ve el personal. **El resumen de Reportes medía 256 px** para siete números, y la causa estaba escrita: dos reglas `.spg-reporte .spg-metric` repetían el tamaño base con más especificidad, así que cualquier variante compacta no llegaba a aplicarse nunca. Ahora **82 px**. **El arqueo se lee en columnas**: esperado, contado y diferencia estaban amontonados en una celda y la diferencia vivía dentro del texto de «Detalle». **La factura del proveedor se carga desde la lista**, con un modal que dice proveedor, fecha y total — el número solo no identifica nada, justamente porque todavía no está; antes había que abrir las compras una por una, y la columna decía «Ver» sin nombrar lo que hay adentro. **Mi cuenta sale de Configuración**, que ya vive en el desplegable del nombre. **Y Personal anunciaba tres de sus cuatro tarjetas**: «Profesionales» abre `seguridad.usuarios`, así que por permiso es de Seguridad — entra `navegacion.tambien`, que declara la pantalla prestada con el título de acá. **Se emitió y cobró una factura de punta a punta**: 001-001-0000062, descuento del nivel aplicado por la base, saldada, y la caja subió de 300.000 a 340.000. **131 pruebas**, dos actualizadas sin aflojar lo que miden |
 | 7.61.1 | 22/08/2026 | **El `.sql` que instala el salón llevaba adentro dos clientas reales con su Gmail, y el catálogo demo estaba roto.** Lo destapó `spg:pendientes` corrido contra el archivo que se entrega, que es la pregunta que nadie había hecho: **qué ve el salón el día uno**. Lo peor primero: el volcado tenía **«Noelia Belen Villalba Marin» y «Ana Leticia Aquino Arrúa» con nombre completo y correo**, más el Gmail personal del desarrollador en la cuenta `cliente` — gente que no tiene nada que ver con el salón que instala el sistema, y a quien le llegaría una recuperación de contraseña. **Siguen intactas en la base de trabajo**: lo que se limpió es el archivo. Y el equipo demo estaba **incoherente**: Marta con cuatro servicios y **sin turno**, o sea invisible en la agenda; Rocío y Sofía con turno y **sin servicios**, o sea ofrecidas para todo; el Turno Mañana sin martes ni sábado; y **«Coloración completa» DADA DE BAJA**, un resto de la auditoría del 11/08/2026 que quedó congelado en el volcado — el servicio más caro del salón, ausente del catálogo. **La causa de fondo es que `datos_demo.sql` estaba MUERTO**: no lo corría nadie desde la 7.13.2 y no compilaba desde la **7.33.0**, porque pide `producto.stock_minimo`, columna que esa versión mudó a `producto_sucursal`. Con el guión muerto, el catálogo demo dejó de tener fuente y pasó a ser **una foto de la base de trabajo**, que es como se colaron las personas y la baja del servicio. Se reparó contra el esquema de hoy —zona, seña, `servicio_sucursal`, `producto_sucursal` y `usuario_servicio`, cinco cosas que la base ganó entre la 7.30.0 y la 7.56.0— y **se cumplió lo que su encabezado prometía desde siempre y era falso**: ahora es re-ejecutable de verdad, porque `producto` y `turno_laboral` **no tienen índice único por nombre** y con `INSERT IGNORE` la segunda corrida duplicaba — el defecto de los 20 productos de la 7.13.2, otra vez. **El reparto muestra para qué existe `usuario_servicio`**: Lucía peluquera, Marta manos y pies, Rocío color, Sofía generalista, **y ningún servicio sin alguien que lo haga**, que es lo que hay que cuidar al tocarlo. **`dejar_lista.sql` gana las dos secciones que faltaban** para que la regeneración sea reproducible en vez de artesanal, y el ciclo se comprobó entero sobre el mes simulado: 352 citas y 267 comprobantes adentro, limpiar, recargar, y sale idéntico al archivo que se entrega. **El día uno pasa de tres avisos a dos**, y los dos que quedan son preguntas legítimas, no defectos. **131 pruebas** |
@@ -405,7 +406,7 @@ app/
                            spg:notificaciones
 config/
   spg.php                  Versión, puntos, agenda, timbrado
-  navegacion.php           Los cuatro niveles de navegación, en un solo lugar
+  navegacion.php           Los cinco niveles de navegación, en un solo lugar
   permisos.php             Los 30 submódulos
 resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
@@ -635,7 +636,7 @@ Tres reglas al tocarlo:
 ## Interfaz
 
 - Bootstrap 5.3 + Bootstrap Icons **por CDN**, con la paleta de arriba aplicada encima.
-- **Cuatro niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
+- **Cinco niveles de navegación, y cada uno responde una pregunta distinta.** Si se saca
   alguno, la anterior vuelve a quedar sin respuesta:
   | Nivel | Dónde | Qué responde |
   |---|---|---|
@@ -644,7 +645,7 @@ Tres reglas al tocarlo:
   | Submenú lateral (`.spg-nav-sub`) | al pasar el mouse por un grupo | *¿cuál de las de ese grupo?* — sólo donde hay grupos, hoy Tesorería |
   | Migas (`.spg-migas`) | arriba del título | *¿dónde estoy y cómo vuelvo?* |
   | Tarjetas | panel → módulo → submódulos | *¿qué hay dentro de este módulo?* |
-  Los dos primeros salen solos del encabezado, del catálogo de
+  Los tres primeros salen solos del encabezado, del catálogo de
   `config/navegacion.php` y no de cada vista.
 
   > **La clienta tiene su propia barra**, con las mismas clases y el mismo
@@ -974,7 +975,7 @@ arrastra nada a otra sede** — un empleado no lleva su horario de un local al o
 |---|---|---|---|
 | **Citas** | todo | — | `cita.id_sucursal`; el turno y la ausencia se filtran por local |
 | **Clientes** | valoraciones · catálogo de canjes | clientes · fidelización | la valoración se deduce de la cita; el canje, de `canjeable_sucursal` |
-| **Servicios** | qué publica cada local | precios · descuentos · puntos por Gs. | catálogo único + `servicio_sucursal`; **se trae, no se recarga** |
+| **Servicios** | qué publica cada local | precios · descuentos · puntos por Gs. | catálogo único + `servicio_sucursal`; **se trae, no se recarga**, y la lista lo dice en la columna «Disponible acá» |
 | **Inventario** | stock · compras · qué maneja cada local | proveedores | ídem con `producto_sucursal`; `movimiento_inventario.id_sucursal` |
 | **Tesorería** | todo | — | facturas por el timbrado, cobros y pagos por la caja |
 | **Reportes** | se puede acotar | el consolidado | selector con «Todas» + bloque «Por sucursal» |
@@ -1981,6 +1982,25 @@ La columna Acciones de la agenda contesta las tres situaciones, cada una con su 
 URL no hace daño. Emitir sigue pidiendo `facturacion.facturas`, que es un permiso distinto de
 `facturacion.cobros` — quien sólo cobra ve el estado pero no el botón.
 
+**Y «Registrar atención» dice cuánto va sumando**, que es el paso de antes. Listaba el
+precio de cada servicio y **no sumaba ninguno**: se agregaba una manicura en el sillón y
+no había un número que lo reflejara, así que quien atiende no sabía cuánto cobrar hasta
+llegar al comprobante.
+
+Son **tres renglones y no sólo el total**, porque con seña la cuenta es otra y ahí es
+donde se confunde:
+
+| | |
+|---|---|
+| Servicios marcados | la suma de lo que se va a cobrar |
+| Ya pagó de seña | `fn_cita_sena` — **no cambia** al agregar un servicio |
+| Queda por cobrar | la resta, que es lo que hay que pedirle a la clienta |
+
+Con sólo el total, agregar un servicio de Gs. 50.000 sobre una cita señada parecería
+cobrar de más. Los precios viajan en `data-precio` de cada casilla y el bloque **arranca
+con el número que calculó el servidor**, así que sin `app.js` se ve igual lo que hay
+marcado — es un adorno que puede faltar, como la barra de carga.
+
 > **Si el tipo por defecto no tiene timbrado vigente, la pantalla lo dice**, y lo dice en el
 > idioma del salón: «Ahora mismo todo se emite como Factura. El *X* no tiene timbrado
 > cargado, así que no se puede elegir». Antes decía «el comprobante por defecto no tiene
@@ -2322,7 +2342,15 @@ Diferencia     = monto_contado − Saldo esperado        (+ sobra · − falta)
 > `ReglasDeNegocioTest::el_arqueo_compara_lo_contado_con_lo_esperado`, que
 > después de cerrar carga un egreso y exige que la diferencia lo siga.
 
-Tres cosas al tocarlo:
+**El historial son DOS registros por caja —apertura y cierre— y cada cifra del
+arqueo tiene su columna**: `Inicial / esperado`, `Contado` y `Diferencia`.
+Estaban amontonadas en una celda —«Gs. X · esperado Gs. Y»— y la diferencia
+vivía dentro del texto de «Detalle», así que para saber si una caja cuadró había
+que leer el renglón entero. Una sola columna para el inicial y el esperado
+porque **no conviven nunca**: la apertura tiene un monto y el cierre tiene el
+que debería haber.
+
+Cuatro cosas al tocarlo:
 
 - **NULL no es cero.** Las cajas cerradas antes de que esto existiera no tienen
   conteo, y un 0 sería indistinguible de un arqueo que dio exacto. La pantalla
@@ -2843,6 +2871,7 @@ Vale tenerlos nombrados, porque el próximo va a tener una de estas cinco formas
 | **Código apuntando a un marcado que no existe** | el CSS no aplica, el JS no ocurre | `…lo_que_busca_el_javascript_existe_en_el_marcado` y `…las_clases_propias_del_css_se_usan` |
 | **Una vista leyendo una variable que dejó de existir** | sale el valor de ejemplo, no el de la base | *(sin guardia: Blade no avisa)* — ver abajo |
 | **Una pantalla que se llega por `?id=` y escapa al filtro de la lista** | se ve o se toca lo de otro local | el banco `_qa/` y `deOtroLocal()` |
+| **Un botón que cambia el dato por el que la lista filtra** | la fila desaparece al tocarla y no se puede deshacer | *(sin guardia general)* — ver abajo |
 | **Una regla de la base replicada en PHP que se desincroniza** | la pantalla ofrece lo que el servidor rechaza | `CimientosTest::el_espejo_de_php_dice_lo_mismo_que_la_base` |
 
 Tres cosas que conviene hacer al tocar algo de esto:
@@ -2857,6 +2886,13 @@ Tres cosas que conviene hacer al tocar algo de esto:
 - **Al agregar una pantalla que se abre con `?id=`**, filtrarla por sucursal a
   mano. La lista ya lo hace, pero a esa pantalla no se llega por la lista — es
   exactamente cómo «Registrar atención» se quedó afuera.
+- **Si un botón de la fila cambia justo el dato por el que la lista filtra, la
+  fila se va y no vuelve.** Le pasó a «No ofrecerlo en esta sucursal»: la lista
+  mostraba sólo lo del local, el botón borraba esa fila de `servicio_sucursal`
+  y el servicio **desaparecía de la pantalla** — desde ahí no había forma de
+  volver a ofrecerlo, así que parecía que el botón lo borraba. **El criterio
+  es que el filtro sea una columna**: se ve el estado, el botón lo alterna, y
+  quien quiera acotar tiene el filtro aparte.
 
 > **Y una prueba que devuelve 200 no prueba que la pantalla ande.** Una pantalla
 > puede contestar 200 y salir vacía: le pasó a Caja cuando el `@else` se fue con
