@@ -16,7 +16,9 @@
                     <tr>
                         <th>Servicio</th><th>Categoría</th><th class="text-end">Precio</th>
                         <th class="text-end">Duración</th><th class="text-end">IVA</th>
-                        <th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Estado</th>
+                        @if ($varias)<th>Disponible acá</th>@endif
+                        <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,6 +44,22 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
+
+                            {{-- **Se ve si este local lo ofrece.** Antes no se
+                                 veía en ningún lado: la lista mostraba sólo lo de
+                                 acá, así que sacar un servicio lo hacía
+                                 **desaparecer de la pantalla** y no había forma
+                                 de volver a ofrecerlo — parecía que el botón lo
+                                 borraba. --}}
+                            @if ($varias)
+                                <td>
+                                    @if ($s->aqui)
+                                        <span class="badge-estado e-ok">Sí</span>
+                                    @else
+                                        <span class="badge-estado e-muted">No</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td class="text-end" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.form', $s->id_servicio) }}"><i class="bi bi-pencil"></i></a>
@@ -63,17 +81,20 @@
                                     <form method="post" action="{{ route('servicios.publicar') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_servicio" value="{{ $s->id_servicio }}">
-                                        <input type="hidden" name="sacar" value="1">
-                                        <button class="btn btn-sm btn-outline-neutro" title="No ofrecerlo en esta sucursal"
-                                                data-confirmar="La clienta va a dejar de ver «{{ $s->nombre }}» al reservar en esta sucursal. En los otros locales sigue igual. ¿Seguimos?">
-                                            <i class="bi bi-shop-window"></i></button>
+                                        <input type="hidden" name="sacar" value="{{ $s->aqui ? 1 : 0 }}">
+                                        <button class="btn btn-sm btn-outline-neutro"
+                                                title="{{ $s->aqui ? 'Dejar de ofrecerlo en esta sucursal' : 'Ofrecerlo en esta sucursal' }}"
+                                                @if ($s->aqui)
+                                                    data-confirmar="La clienta va a dejar de ver «{{ $s->nombre }}» al reservar en esta sucursal. En los otros locales sigue igual, y acá lo vas a poder volver a ofrecer desde la misma columna. ¿Seguimos?"
+                                                @endif>
+                                            <i class="bi bi-shop{{ $s->aqui ? '-window' : '' }}"></i></button>
                                     </form>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="{{ $varias ? 8 : 7 }}">
                                 <div class="spg-vacio">
                                     <i class="bi bi-scissors"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún servicio coincide con esos filtros.' : 'Todavía no hay servicios cargados.' }}</div>

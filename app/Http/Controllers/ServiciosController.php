@@ -52,6 +52,13 @@ class ServiciosController extends Controller
                          'opciones' => ['' => 'Todos', '1' => 'Activos', '0' => 'Inactivos']],
         ];
 
+        // Con un solo local la pregunta no significa nada: todo lo que existe
+        // se ofrece acá.
+        if ($varias) {
+            $campos['aqui'] = ['tipo' => 'select', 'etiqueta' => 'Disponible acá',
+                               'opciones' => ['' => 'Todos', '1' => 'Sí', '0' => 'No']];
+        }
+
         $f = Listado::filtros($campos);
         $f['csv'] = true;
 
@@ -83,13 +90,35 @@ class ServiciosController extends Controller
         // Sigue valiendo que **sin filas en `servicio_sucursal` el servicio vale
         // en TODAS**: es la red para el catálogo que ya estaba cargado antes de
         // que las sucursales importaran, y no se le apaga solo a nadie.
-        if ($aqui) {
-            $w[] = '(EXISTS (SELECT 1 FROM servicio_sucursal ss
-                              WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc)
-                     OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
-                                     WHERE ss2.id_servicio = s.id_servicio))';
+        // **La disponibilidad es una COLUMNA, no un filtro escondido.**
+        //
+        // Hasta la 7.62.1 la lista mostraba sólo lo de este local, y el botón
+        // «No ofrecerlo en esta sucursal» borraba la fila de
+        // `servicio_sucursal` — con lo cual el servicio **dejaba de cumplir el
+        // filtro y desaparecía de la pantalla**. Desde ahí no había forma de
+        // volver a ofrecerlo: había que ir al alta y usar «traer uno
+        // existente», que nadie va a adivinar. Parecía que el botón borraba el
+        // servicio.
+        //
+        // Ahora se ve el catálogo del salón con **Disponible acá: sí/no**, y
+        // el botón alterna. Quien quiera ver sólo lo suyo tiene el filtro.
+        if ($aqui && Listado::hay($f, 'aqui')) {
+            $cond = '(EXISTS (SELECT 1 FROM servicio_sucursal ss
+                               WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = :loc)
+                      OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
+                                      WHERE ss2.id_servicio = s.id_servicio))';
+            $w[] = Listado::valor($f, 'aqui') === '1' ? $cond : 'NOT ' . $cond;
             $par['loc'] = $aqui;
         }
+
+        // **Se ofrece acá** = tiene su fila, o no tiene ninguna (que vale en
+        // todas). Es la misma condición del filtro, expuesta como columna.
+        $ofrece = $aqui
+            ? '(EXISTS (SELECT 1 FROM servicio_sucursal sx
+                         WHERE sx.id_servicio = s.id_servicio AND sx.id_sucursal = ' . (int) $aqui . ')
+                OR NOT EXISTS (SELECT 1 FROM servicio_sucursal sy
+                                WHERE sy.id_servicio = s.id_servicio)) AS aqui'
+            : '1 AS aqui';
 
         $desde = 'FROM servicio s JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE ' . implode(' AND ', $w);
@@ -97,10 +126,11 @@ class ServiciosController extends Controller
 
         if (Listado::pideExport()) {
             return Listado::exportar('servicios',
-                ['Servicio', 'Categoría', 'Precio', 'Duración (min)', 'IVA %', 'Estado'],
+                ['Servicio', 'Categoría', 'Precio', 'Duración (min)', 'IVA %', 'Estado', 'Disponible acá'],
                 array_map(fn ($r) => [$r->nombre, $r->categoria, $r->precio, $r->duracion_min,
-                    $r->tasa_iva, $r->activo ? 'Activo' : 'Inactivo'],
-                    DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden", $par)),
+                    $r->tasa_iva, $r->activo ? 'Activo' : 'Inactivo',
+                    $r->aqui ? 'Sí' : 'No'],
+                    DB::select("SELECT s.*, cs.nombre AS categoria, $ofrece $desde $orden", $par)),
                 $f, 'Servicios'
             );
         }
@@ -108,7 +138,7 @@ class ServiciosController extends Controller
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
         return view('servicios.lista', [
-            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => DB::select("SELECT s.*, cs.nombre AS categoria, $ofrece $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
             'varias' => $varias,

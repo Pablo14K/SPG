@@ -2863,14 +2863,19 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
-     * Cada local ve su catálogo, y lo de otra sede se trae en vez de recargarlo.
+     * Cada local decide qué ofrece, y sacarlo NO lo hace desaparecer.
      *
-     * Había un filtro «Dónde se ofrece» y una tabla con todo el catálogo
-     * diciendo si estaba activo acá. El usuario pidió lo contrario, y tiene
-     * razón: quien administra un local no tiene por qué ver una lista de
-     * servicios que no da, con una columna para adivinar cuáles sí. Lo que
-     * existe en otro lado aparece al dar de alta, con «traer uno existente» —
-     * que es lo que evita que «Corte de dama» termine escrito de dos formas.
+     * Durante un tiempo la lista mostró sólo lo de este local, y ahí estaba el
+     * defecto: el botón «No ofrecerlo en esta sucursal» borraba la fila de
+     * `servicio_sucursal`, con lo cual el servicio **dejaba de cumplir el
+     * filtro y se iba de la pantalla**. Desde ahí no había forma de volver a
+     * ofrecerlo —había que ir al alta y usar «traer uno existente», que nadie
+     * va a adivinar—, así que parecía que el botón borraba el servicio.
+     *
+     * Lo que fija esta prueba es el ciclo entero: se ve la columna, se saca,
+     * **sigue en la lista con «no»**, y se vuelve a poner. Y que traerlo no
+     * duplique el catálogo, que es lo que evita que «Corte de dama» termine
+     * escrito de dos formas.
      */
     #[Test]
     public function cada_local_ve_su_catalogo_y_trae_lo_que_ya_existe(): void
@@ -2888,10 +2893,14 @@ class ReglasDeNegocioTest extends TestCase
         $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
         $this->conSucursal($otra);
 
-        // 1) Su lista está vacía: no hereda el catálogo de la casa central.
+        // 1) Un local nuevo no publica nada, y **eso se ve en la columna**: los
+        //    servicios siguen listados, con «Disponible acá» en no.
         $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
-        $this->assertCount(0, $rows,
-            'Un local nuevo no publica ningún servicio todavía, así que su lista va vacía.');
+        $this->assertNotEmpty($rows, 'El catálogo del salón se sigue viendo.');
+        foreach ($rows as $r) {
+            $this->assertEmpty((int) $r->aqui,
+                'Un local nuevo no publica ningún servicio todavía.');
+        }
 
         // 2) El alta le ofrece traer lo que ya existe.
         $ajenos = $this->get(route('servicios.form'))->assertOk()->viewData('ajenos');
@@ -2910,8 +2919,31 @@ class ReglasDeNegocioTest extends TestCase
         ), 'Tiene que quedar publicado en este local.');
 
         $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
-        $this->assertSame([$srv], array_map(fn ($r) => (int) $r->id_servicio, $rows),
-            'Y ahora su lista tiene exactamente ese servicio, no el catálogo entero.');
+        $suyo = collect($rows)->firstWhere('id_servicio', $srv);
+        $this->assertNotNull($suyo, 'El servicio traído tiene que estar en la lista.');
+        $this->assertNotEmpty((int) $suyo->aqui, 'Y con «Disponible acá» en sí.');
+
+        // 4) Y el filtro sigue dejando ver sólo lo de este local, que es lo que
+        //    la lista hacía sola antes.
+        $soloAca = $this->get(route('servicios.lista', ['aqui' => '1']))->assertOk()->viewData('rows');
+        $this->assertSame([$srv], array_map(fn ($r) => (int) $r->id_servicio, $soloAca),
+            'Con el filtro puesto, la lista es exactamente la de este local.');
+
+        // 5) **Lo que estaba roto**: sacarlo no lo saca de la pantalla. Sigue
+        //    listado, con «no», y se puede volver a ofrecer desde ahí mismo.
+        $this->post(route('servicios.publicar'), ['id_servicio' => $srv, 'sacar' => 1]);
+
+        $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
+        $suyo = collect($rows)->firstWhere('id_servicio', $srv);
+        $this->assertNotNull($suyo,
+            'Sacar un servicio del local no puede hacerlo desaparecer de la lista: '
+            . 'desde ahí no habría forma de volver a ofrecerlo.');
+        $this->assertEmpty((int) $suyo->aqui, 'Y la columna tiene que decir que acá no se ofrece.');
+
+        $this->post(route('servicios.publicar'), ['id_servicio' => $srv]);
+        $rows = $this->get(route('servicios.lista'))->assertOk()->viewData('rows');
+        $this->assertNotEmpty((int) collect($rows)->firstWhere('id_servicio', $srv)->aqui,
+            'Y se tiene que poder volver a ofrecer desde la misma columna.');
     }
 
     /**
