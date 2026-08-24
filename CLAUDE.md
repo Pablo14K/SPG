@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **21 procedimientos, 36 funciones, 17 triggers y 17 vistas**,
-más **75 restricciones `CHECK`**.
+más **76 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.69.0 | 24/08/2026 | **El cajón físico entra al modelo, y el módulo de Caja se rehace en tres pantallas.** **`caja` era una SESIÓN, no un cajón**: cada fila es una apertura con su cierre, y el cajón no existía en ninguna parte — así que «una caja abierta por sucursal» era en realidad «un cajón por local» sin decirlo. Un salón con dos puestos de cobro no lo podía representar: el segundo no abría. Entra **`caja_fisica`** —tiene nombre y vive en un local— y `caja` sigue siendo la sesión sobre él. Cada sucursal que ya existía estrenó su «Caja 1», así que nada cambió de significado para quien venía usando el sistema. **`trg_caja_bi` se acota al cajón**, que es el mismo defecto que la 7.36.2 corrigió a nivel de sucursal, un nivel más adentro. **Y los tres procedimientos que mueven plata tuvieron que aprender a elegir**: con un solo cajón la pregunta no existía; con varios abiertos, elegir mal deja el arqueo de otra persona descuadrado sin que nada lo diga. El orden es **el cajón de esta persona en el local del documento** → cualquiera de ese local → cualquiera suyo, en una sola consulta. La sucursal la sigue mandando el DOCUMENTO, que es lo de la 7.36.3 y no cambia. **Las tres pantallas tienen la misma forma —filtros, tabla, paginación— y no cambia con el tamaño del salón**: con 3 cajones o con 300 lo único que crece son las filas. **Cajas** dice lo mínimo para elegir —caja, estado, responsable, hora— y nada más; el monto y los movimientos se consultan entrando, porque una tabla que lo muestra todo no se lee. **La caja individual** es a propósito casi vacía: efectivo esperado, el desglose por medio, y los dos botones. **Arqueos** pasa de una tabla de sesenta filas fijas a una con filtros por sucursal, caja, fecha y resultado — y **las cuatro cifras de arriba salen de lo filtrado**, que si midieran otra cosa que la tabla serían peor que no tenerlas. **Movimientos** listaba sólo los de la caja abierta, o sea que resolvía el caso de hoy y dejaba sin ver los de ayer. **Crear cajones es del Administrador y el formulario va abajo**: la pantalla se piensa primero para operar los que existen. **Un cajón se da de baja, no se borra**, y no con la sesión abierta — quedaría plata adentro de algo que el sistema dejó de ofrecer. **143 pruebas**, una nueva comprobada en las dos direcciones: mide que dos cajones del mismo local abran a la vez **y** que el mismo no abra dos veces — con una sola mitad, un disparador borrado pasaría igual. De paso, **un filtro en `null` salía como campo de texto**: `Listado::filtros()` lo toma como uno sin tipo, así que el de sucursal aparecía como un buscador titulado «sucursal» — se saca del arreglo, no se pone en null. · 80 tablas · 76 `CHECK` |
 | 7.68.1 | 24/08/2026 | **Cargar una cuenta de pago devolvía 500, y la tarjeta de tres módulos no anunciaba todo.** El 500 era una llamada mal escrita —`Persona::error('documento', $doc)`, dos strings a un método que recibe un arreglo— y **la prueba de la 7.67.0 no lo vio porque insertó directo en la tabla**: medía el aislamiento por sucursal, no el camino real. La nueva pasa por el POST, con RUC y con cédula —el titular puede tener cualquiera de los dos, y validar contra uno solo rechazaría la mitad de los casos legítimos— y comprueba que un documento con letras se rechace. **Entra el alias**, que es lo que varios bancos paraguayos usan para transferir: más corto y más difícil de tipear mal, así que en el portal va **arriba** del número. **Y «Datos de pago» salía en el desplegable pero no en las tarjetas de Configuración**, que es el séptimo patrón de los errores que este proyecto se hace a sí mismo: la tarjeta se escribe a mano y el menú sale del catálogo, así que al sumar una pantalla es fácil hacer sólo una de las dos. La prueba que entra a cerrarlo **destapó dos casos más que nadie había reportado**: «Zonas del cuerpo» tampoco tenía tarjeta desde la 7.43.1, y Tesorería ofrecía **dos enlaces rotos** —«Arqueo» apuntando a `#arqueo` de una pantalla que dejó de tener ese bloque cuando el arqueo se volvió su propia ruta (7.63.0), e «Historial de caja» a `#historial`, que se fue en la 7.68.0. Los dos llevaban a una pantalla que los ignoraba, sin dar error. **Se mira sólo el bloque de tarjetas y no el HTML entero**: la barra del layout ya dibuja todas las pantallas en su desplegable, así que buscar la URL en toda la página la encuentra siempre — la primera versión de la prueba pasaba sin medir nada. **142 pruebas**, tres nuevas comprobadas en las dos direcciones |
 | 7.68.0 | 24/08/2026 | **Profesionales deja de ser la ficha de usuario, y qué sabe hacer alguien pasa a ser de la PERSONA.** «Profesionales» abría la ficha de Usuarios con `?desde=personal`, así que para cargar a alguien que atiende **había que inventarle una cuenta de sistema** — y hay gente que trabaja en el salón y no entra a la computadora nunca. Ahora son dos pantallas: **Profesionales** carga los datos de `persona` y los servicios que hace, y **Usuarios** administra la cuenta —usuario, contraseña, rol— más lo que de verdad cuelga de ella: sucursales y turnos. La persona en la ficha de usuario **se elige de una lista**, no se tipea: pedir el nombre otra vez era pedir dos veces el mismo dato y arriesgarse a que quedaran distintos, que es justo lo que la regla número dos prohíbe. **`usuario_servicio` se muda a `persona_servicio`**, y no es un renombre: saber peinar no depende de tener cuenta de sistema. Para la agenda no cambia nada —`fn_usuario_hace_servicio` resuelve la persona desde el usuario y las citas se siguen asignando a usuarios— pero una manicurista sin cuenta ya tiene sus servicios cargados para cuando se la creen. **El grep de PHP no alcanzó**: la tabla la leían además una vista y **cuatro funciones de la base** —`fn_puede_realizar`, `fn_cita_duracion`, `fn_cita_duracion_de` y `fn_cita_inicio_de`— que reventaron la batería entera con el error 1356. Las cinco se reescribieron; el criterio permisivo del primer día se conserva. **Entra `persona.es_personal`**, que es lo único que distingue a un profesional recién cargado —sin cuenta, sin ficha de cliente y sin proveedor— de una fila suelta cualquiera. No rompe la 3FN: no es copia de nada ni se deduce de otra tabla. **Y la barra marcaba el módulo equivocado**: estando en Personal se encendía **Seguridad**. Es el defecto del nombre de ruta **por tercera vez** —Personal y Configuración viven bajo `/seguridad` desde la 7.57.0, que no las mudó de URL— y ya había mordido en el desplegable (7.58.0) y en la tarjeta del módulo (7.62.0); acá quedaba el marcado del activo. Entra `Navegacion::moduloDe()`, que lo saca del **permiso**, y la prueba recorre el catálogo entero en vez de fijar tres casos: así una pantalla nueva mal declarada también salta. **El historial sale de la pantalla de Arqueo**, por pedido del usuario: lo reemplaza la pantalla de Arqueos del módulo de Caja rediseñado, que lo lista con filtros y paginación — una tabla de sesenta filas sin filtros no escala, que es el motivo del rediseño. **142 pruebas**, una nueva comprobada en las dos direcciones · 79 tablas · 32 permisos. Los dos `.sql` regenerados desde una copia limpia |
 | 7.67.0 | 24/08/2026 | **A dónde transferir la seña lo dice el sistema, y cada sucursal tiene sus cuentas.** **No hay pasarela de pagos y no la va a haber**, así que lo único que el sistema puede hacer es DECIRLE a la clienta a qué cuenta transferir — hasta ahora eso dependía de que alguien contestara el WhatsApp, o sea que la seña se podía trabar por un mensaje sin responder. Entra `dato_pago_sucursal` y su pantalla en **Configuración → Datos de pago**, con **su propio permiso** (`configuracion.pagos`, van 31): el número de cuenta del salón se le puede dar a alguien distinto de quien administra los locales. **Es de cada sucursal a propósito** —dos locales pueden cobrar en cuentas distintas, y la cita ya sabe en cuál ocurre— y la clienta ve **sólo las del local donde reservó**. Qué medios admiten datos sale de `metodo_pago`, no de una lista escrita a mano, así que esta pantalla y la del cobro hablan del mismo vocabulario; el efectivo y las tarjetas quedan afuera porque no hay cuenta que darle a nadie. **Una cuenta se desactiva, no se borra**: la que se dejó de usar sigue siendo la que aparece en los comprobantes de las señas viejas. **Sin ninguna cargada se dice**, en vez de no dibujar nada — un bloque que desaparece deja a la clienta sin saber si tenía que transferir a algún lado. **Y «Volver al inicio» podía ser la misma pantalla que rebotó.** Le pasa a la cuenta de cliente sin ficha vinculada: su inicio es el portal, y el portal es el que le contesta 403 — el botón la devolvía ahí mismo, así que desde afuera «no hacía nada». Ahora, cuando el destino es esta misma URL, se ofrece **cerrar sesión**, que es la única salida real. **Tres cosas de pantalla, las tres por pedido del usuario**: en el arqueo, «Qué» y «Estado» eran dos columnas para una sola pregunta —en la fila de cierre «Cerrada» era tautológico— así que quedó una que dice **Abierta** con la caja viva y **Apertura / Cierre** cuando ya se cerró; **el desglose por medio de pago se muda a Arqueo**, que es la pantalla que contesta «¿cuadró?» — en «Apertura y cierre» era un bloque más donde nadie lo iba a buscar; y **el combo suelto de «Profesional» sale de Nueva cita**, porque preguntaba lo mismo que el de cada servicio y desde dos lados — para entender «lo hace el principal» había que saber primero quién era el principal. La cita **sigue teniendo dueño**: sale de `principalDelReparto()`, y sin nadie elegido decide el sistema, que es exactamente lo que hacía «sin preferencia». De paso, `spg:diagnostico` venía atrasado en **dos** contadores más —esperaba 20 procedimientos y 30 funciones cuando son 21 y 36— y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que ese número debería detectar. **Y crear un usuario NO FUNCIONABA.** Los tres bloques de la ficha estaban en pestañas, y un campo obligatorio dentro de una pestaña cerrada está en `display:none`: el navegador se niega a enviar un formulario con un `required` que no puede enfocar **y no dice nada** — se apretaba Guardar y no pasaba absolutamente nada, con el único rastro en la consola. Es el patrón de siempre: algo se apaga en silencio y se descubre cuando alguien intenta usarlo. Las tres secciones pasan a verse juntas, con **un solo botón al pie** — siempre se guardaron juntas, lo único que hacían las pestañas era esconder los campos. De paso la contraseña dice lo que hace: **vacío es «no la cambies»**, no «dejala en null» — el campo nunca trae la que hay cargada, porque eso sería mandarla al navegador en cada carga de la pantalla. **Y el ícono de la pestaña es el logo del salón**, el mismo que se ve en la barra: quien tiene varias pestañas abiertas reconoce la del sistema por ahí. Sin logo cargado va la tijera de la identidad, **dibujada como SVG embebido y no como archivo**: no hay paso de compilación en este proyecto y un `.ico` suelto es una cosa más que mantener al día con la paleta. Va en un partial porque son **siete pantallas con cabecera propia** y copiado se desfasan. **142 pruebas**, cuatro nuevas comprobadas en las dos direcciones · 79 tablas · 75 `CHECK`. Los dos `.sql` regenerados |
@@ -438,7 +439,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 142 pruebas
+tests/Feature/             Las 143 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2531,16 +2532,55 @@ tocó `src/TxtParser.php`, `src/InvoiceFactory.php`,
 
 ## Caja
 
-Se trabaja con **una sola caja abierta por vez y por sucursal**: cada local
-cuenta su propio cajón, así que dos sedes pueden tener la suya abierta al mismo
-tiempo. Lo hace cumplir `trg_caja_bi`, acotado a `NEW.id_sucursal` desde la
-7.36.2 — antes miraba el salón entero y dejaba sin mostrador a todos los locales
-menos al primero que abriera.
+**`caja` es una SESIÓN de trabajo, no el cajón.** El cajón es `caja_fisica`
+—tiene nombre y vive en un local— y cada apertura abre una sesión sobre él.
+
+> Hasta la 7.69.0 el cajón no existía en el modelo, así que «una caja abierta
+> por sucursal» era en realidad «un cajón por local» sin decirlo: un salón con
+> dos puestos de cobro no lo podía representar — el segundo no abría, o le
+> entraba la plata al arqueo del primero.
+
+Se trabaja con **una sesión abierta por cajón**, y lo hace cumplir
+`trg_caja_bi`, acotado a `NEW.id_caja_fisica`. Es el mismo defecto que la 7.36.2
+corrigió a nivel de sucursal, un nivel más adentro.
+
+**El módulo son tres pantallas, todas con la misma forma**: filtros arriba,
+tabla, paginación. No cambia con el tamaño del salón — con 3 cajones o con 300
+lo único que crece son las filas.
+
+| Pantalla | Qué contesta |
+|---|---|
+| **Cajas** | ¿cuál está abierta y quién la tiene? |
+| **Movimientos** | ¿qué entró o salió sin ser un cobro ni un pago? |
+| **Arqueos** | ¿cuadraron las cajas? |
+
+- **La lista dice lo mínimo para elegir** —caja, estado, responsable, hora— y
+  nada más. El monto, los movimientos y el arqueo se consultan **entrando**:
+  una tabla que lo muestra todo no se lee, se hojea.
+- **La caja individual es a propósito casi vacía**: efectivo esperado, el
+  desglose por medio de pago, y los dos botones. Ahí no se listan las otras
+  cajas — la lista sirve para elegir, esta pantalla para operar.
+- **Crear cajones es del Administrador y el formulario va abajo.** La pantalla
+  se piensa primero para operar los que existen: un salón carga los suyos una
+  vez.
+- **Un cajón se da de baja, no se borra**, y no con la sesión abierta: quedaría
+  plata adentro de algo que el sistema dejó de ofrecer y nadie podría cerrarlo.
 Sin caja abierta **no se mueve un guaraní**: quedaría fuera del arqueo y el cierre no cerraría.
-**El cajón lo decide el DOCUMENTO, no quien opera.** `sp_registrar_cobro` saca la sucursal de
-la factura (`COALESCE(factura.id_sucursal, timbrado.id_sucursal)`) y busca la caja abierta de
-ese local; `sp_registrar_sena` la saca de la cita y `sp_pagar_compra` de la compra. **La caja
-del usuario quedó de último recurso**, para cuando ese local no tenga ninguna abierta.
+**La SUCURSAL la decide el documento; el CAJÓN, quién opera.** Son dos preguntas
+y se contestan distinto:
+
+| | |
+|---|---|
+| ¿A qué local entra la plata? | lo dice el **documento** — la factura, la cita, la compra |
+| ¿A qué cajón de ese local? | el que **esta persona** tiene abierto ahí |
+
+Con un solo cajón por local la segunda no existía; con varios abiertos, elegir
+mal deja el arqueo de otra persona descuadrado **sin que nada lo diga**. El
+orden de preferencia va en una sola consulta dentro de los tres procedimientos:
+
+1. el cajón que esta persona tiene abierto en el local del documento;
+2. cualquiera abierto en ese local — alguien puede cobrar en el puesto de otro;
+3. cualquiera de esta persona, de último recurso: ese local no abrió.
 
 > Hasta la 7.36.3 elegían con `id_usuario = p_id_usuario … ORDER BY id_caja DESC`, o sea la
 > última caja que esa persona hubiera abierto — que con varios locales puede ser la del otro.
@@ -3151,7 +3191,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 142 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 143 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3174,7 +3214,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 36 funciones,
-   17 triggers, 17 vistas y 75 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 76 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -3292,7 +3332,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**142 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**143 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

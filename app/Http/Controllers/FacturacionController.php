@@ -55,10 +55,10 @@ class FacturacionController extends Controller
                 // caja» a `#historial`, un bloque que ya no existe. Las dos
                 // llevaban a una pantalla que las ignoraba, y nada lo decía:
                 // es el patrón de siempre — algo apunta al vacío y no da error.
-                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'safe',
-                 't' => 'Apertura y cierre', 'd' => 'Abrir el cajón del día y cerrarlo', 'grupo' => 'Caja'],
-                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'calculator',
-                 't' => 'Arqueo', 'd' => 'Contar el efectivo y ver si cuadra', 'grupo' => 'Caja'],
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.cajas', 'ic' => 'safe',
+                 't' => 'Cajas', 'd' => 'Los cajones del salón: abrir, ver y cerrar', 'grupo' => 'Caja'],
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'clipboard-check',
+                 't' => 'Arqueos', 'd' => 'Cómo cerró cada caja y si cuadró', 'grupo' => 'Caja'],
                 ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
                  't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
                  'grupo' => 'Caja'],
@@ -94,7 +94,7 @@ class FacturacionController extends Controller
             : 'No hay ninguna caja abierta, así que todavía no se puede ' . $queIbaAHacer . '. '
               . 'Pedile a quien maneja la caja que la abra.', 'error');
 
-        return redirect()->route($puedeCaja ? 'facturacion.caja' : 'facturacion.index');
+        return redirect()->route($puedeCaja ? 'facturacion.cajas' : 'facturacion.index');
     }
 
     // -----------------------------------------------------------------
@@ -1034,7 +1034,7 @@ class FacturacionController extends Controller
     {
         $id = (int) $request->input('id_movimiento_caja', 0);
         $motivo = trim((string) $request->input('motivo', ''));
-        $volver = redirect()->route('facturacion.caja');
+        $volver = redirect()->route('facturacion.cajas');
 
         $m = DB::selectOne(
             'SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.activo, c.id_estado_caja
@@ -1647,11 +1647,73 @@ class FacturacionController extends Controller
      * escrito—, así que es la parte que un salón puede querer dar por
      * separado. Mismo criterio que separó Timbrados en la 5.2.0.
      */
+    /**
+     * Movimientos de efectivo: filtros, tabla y paginación.
+     *
+     * **Es la pantalla que más registros acumula del módulo**, así que no se
+     * muestran todos de golpe. Antes listaba sólo los de la caja abierta, que
+     * resolvía el caso de hoy y dejaba sin ver los de ayer.
+     */
     public function movimientos(): View
     {
-        $pa = [];
-        $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta'"
-            . Sucursales::filtro('vw_caja_resumen', $pa) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pa);
+        $mias = Sucursales::delUsuario();
+        $abierta = Caja::abierta();
+
+        $opCaja = ['' => 'Todas'];
+        foreach (Caja::cajones(count($mias) === 1 ? (int) $mias[0]->id_sucursal : null) as $cf) {
+            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre
+                . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
+        }
+
+        $opTipo = ['' => 'Todos'];
+        foreach (DB::select('SELECT id_tipo_mov_caja, nombre FROM tipo_movimiento_caja ORDER BY id_tipo_mov_caja') as $t) {
+            $opTipo[(string) $t->id_tipo_mov_caja] = $t->nombre;
+        }
+
+        $f = Listado::filtros([
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Concepto o comprobante', 'ancho' => '230px'],
+            'caja' => ['tipo' => 'select', 'etiqueta' => 'Caja', 'opciones' => $opCaja, 'ancho' => '180px'],
+            'tipo' => ['tipo' => 'select', 'etiqueta' => 'Movimiento', 'opciones' => $opTipo, 'ancho' => '190px'],
+            'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
+            'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
+        ]);
+
+        // El aislamiento por sucursal sale de la caja del movimiento, que es de
+        // dónde salió esa plata — no hace falta columna propia.
+        $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
+        $w = ['c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')'];
+        $par = [];
+
+        if (Listado::hay($f, 'q')) {
+            $w[] = Listado::likeVarias(['mc.concepto', 'mc.nro_comprobante'],
+                Listado::valor($f, 'q'), 'q', $par);
+        }
+        if (Listado::hay($f, 'caja')) {
+            $w[] = 'c.id_caja_fisica = :cf';
+            $par['cf'] = (int) Listado::valor($f, 'caja');
+        }
+        if (Listado::hay($f, 'tipo')) {
+            $w[] = 'mc.id_tipo_mov_caja = :t';
+            $par['t'] = (int) Listado::valor($f, 'tipo');
+        }
+        if (Listado::hay($f, 'desde')) {
+            $w[] = 'DATE(mc.fecha) >= :d';
+            $par['d'] = Listado::valor($f, 'desde');
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $w[] = 'DATE(mc.fecha) <= :h';
+            $par['h'] = Listado::valor($f, 'hasta');
+        }
+
+        $desde = 'FROM movimiento_caja mc
+                  JOIN caja c ON c.id_caja = mc.id_caja
+                  JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                  LEFT JOIN tipo_movimiento_caja tmc ON tmc.id_tipo_mov_caja = mc.id_tipo_mov_caja
+                  LEFT JOIN usuario u ON u.id_usuario = mc.id_usuario
+                  LEFT JOIN persona pe ON pe.id_persona = u.id_persona
+                  WHERE ' . implode(' AND ', $w);
+
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
@@ -1665,92 +1727,108 @@ class FacturacionController extends Controller
             // Son las de ESTE local: la sucursal de un comprobante sale de su
             // timbrado, que es por sucursal desde siempre (7.37.0).
             'notas' => $this->notasPorDevolver(),
-            'movimientos' => $abierta ? DB::select(
-                'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
-                   FROM movimiento_caja
-                  WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
-            ) : [],
+            'f' => $f,
+            'pag' => $pag,
+            'movimientos' => DB::select(
+                "SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.fecha,
+                        mc.activo, mc.anulado_motivo, mc.id_caja,
+                        cf.nombre AS caja_nombre, tmc.nombre AS clase,
+                        TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS quien
+                 $desde ORDER BY mc.fecha DESC, mc.id_movimiento_caja DESC
+                 LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
+            ),
         ]);
     }
 
     /**
-     * Abrir y cerrar el cajón. **El historial se fue a su propia pantalla.**
+     * Las cajas del salón: una fila por cajón.
      *
-     * Acá se hace una cosa —abrir o cerrar— y el arqueo es otra: mirar cómo
-     * cerraron las cajas de los días pasados. Mezclados, la pantalla del
-     * mostrador venía con sesenta filas debajo del único botón que hay que
-     * apretar, y el arqueo quedaba escondido abajo de todo.
-     */
-    public function caja(): View
-    {
-        $pa = [];
-        $abierta = DB::selectOne("SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta'"
-            . Sucursales::filtro('vw_caja_resumen', $pa) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pa);
-
-        return view('facturacion.caja', [
-            'abierta' => $abierta,
-            // Los movimientos cargados a mano sobre la caja abierta: un gasto
-            // de caja chica, un retiro, una devolución. Se listan acá porque
-            // son lo único del arqueo que no sale de un cobro o de un pago.
-            'movimientos' => $abierta ? DB::select(
-                'SELECT id_movimiento_caja, tipo, monto, concepto, fecha, activo, anulado_motivo
-                   FROM movimiento_caja
-                  WHERE id_caja = ? ORDER BY id_movimiento_caja DESC', [(int) $abierta->id_caja]
-            ) : [],
-        ]);
-    }
-
-    /**
-     * El arqueo: cómo cerró cada caja.
+     * **Filtros arriba, tabla, paginación.** Es la misma forma que Movimientos
+     * y Arqueos, y no cambia con el tamaño del salón: con 3 cajones o con 300
+     * lo único que crece son las filas.
      *
-     * **Es su propia pantalla y no el pie de «Apertura y cierre».** Son dos
-     * preguntas distintas: una es «¿abro o cierro?», que se hace dos veces por
-     * día, y la otra «¿cuadraron las cajas de esta semana?», que se hace cuando
-     * falta plata. Con el historial colgado abajo del formulario, la segunda
-     * quedaba escondida y la primera venía con sesenta filas de ruido.
+     * Cada fila dice lo mínimo para elegir —cajón, estado, responsable, hora
+     * de apertura— y nada más: el monto, los movimientos y el arqueo se
+     * consultan entrando. Una tabla que lo muestra todo no se lee.
      */
-    public function arqueo(): View
+    public function cajas(): View
     {
-        $pl = [];
-        $rows = DB::select('SELECT * FROM vw_caja_resumen WHERE 1=1'
-            . Sucursales::filtro('vw_caja_resumen', $pl, 'sucl')
-            . ' ORDER BY fecha_apertura DESC LIMIT 60', $pl);
-
-        // El resumen de arriba: cuántas cuadraron y cuánto falta en total. Sale
-        // de las mismas filas que la tabla, así que no puede contradecirla.
-        $cerradas = $sinConteo = $cuadran = 0;
-        $difTotal = 0.0;
-        foreach ($rows as $c) {
-            if ($c->fecha_cierre === null) {
-                continue;
-            }
-            $cerradas++;
-            if ($c->monto_contado === null) {
-                $sinConteo++;
-                continue;
-            }
-            // Menos de un guaraní es cuadrar: la columna tiene dos decimales y
-            // comparar contra 0 exacto haría saltar un redondeo como faltante.
-            if (abs((float) $c->diferencia) < 0.01) {
-                $cuadran++;
-            } else {
-                $difTotal += (float) $c->diferencia;
-            }
+        $mias = Sucursales::delUsuario();
+        $opciones = ['' => 'Todas'];
+        foreach ($mias as $su) {
+            $opciones[(string) $su->id_sucursal] = $su->nombre;
         }
 
-        // **El desglose por medio vive acá, no en «Apertura y cierre».** Es lo
-        // que separa la plata que tiene que estar en el cajón de la que fue a
-        // la cuenta, o sea la mitad de la pregunta que contesta esta pantalla;
-        // en la de abrir y cerrar era un bloque más que nadie iba a buscar ahí.
-        $pm = [];
-        $abierta = DB::selectOne("SELECT id_caja FROM vw_caja_resumen WHERE estado = 'Abierta'"
-            . Sucursales::filtro('vw_caja_resumen', $pm) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pm);
+        // **Un filtro que no aplica se SACA del arreglo, no se pone en null**:
+        // `Listado::filtros()` lo tomaría como uno de texto sin tipo y saldría
+        // un campo de búsqueda titulado «sucursal».
+        $campos = [
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nombre de la caja', 'ancho' => '220px'],
+        ];
+        // Con un solo local el filtro no significa nada: todo lo que hay es de acá.
+        if (count($mias) > 1) {
+            $campos['sucursal'] = ['tipo' => 'select', 'etiqueta' => 'Sucursal',
+                                   'opciones' => $opciones, 'ancho' => '190px'];
+        }
+        $campos['estado'] = ['tipo' => 'select', 'etiqueta' => 'Estado', 'ancho' => '160px',
+                             'opciones' => ['' => 'Todas', '1' => 'Abiertas', '0' => 'Cerradas']];
 
-        return view('facturacion.arqueo', [
-            // `rows` NO viaja: la tabla del historial salió de esta pantalla y
-            // la reemplaza la de Arqueos del módulo de Caja. Las filas se
-            // siguen leyendo acá porque de ellas salen las cuatro métricas.
+        $f = Listado::filtros($campos);
+
+        $suc = Listado::hay($f, 'sucursal')
+            ? (int) Listado::valor($f, 'sucursal')
+            : (count($mias) === 1 ? (int) $mias[0]->id_sucursal : 0);
+
+        $todas = Caja::cajones($suc ?: null, [
+            'q' => (string) Listado::valor($f, 'q'),
+            'estado' => (string) Listado::valor($f, 'estado'),
+        ]);
+
+        // Se pagina en memoria: son cajones, no movimientos — un salón con
+        // cien ya sería raro, y la consulta trae una fila por cada uno.
+        $pag = Listado::paginacion(count($todas));
+
+        return view('facturacion.cajas', [
+            'rows' => array_slice($todas, $pag['offset'], $pag['porPagina']),
+            'f' => $f,
+            'pag' => $pag,
+            'sucursales' => $mias,
+            'puedeCrear' => Permisos::esAdmin(),
+        ]);
+    }
+
+    /**
+     * Una caja: lo que hace falta para trabajar con ella, y nada más.
+     *
+     * **Acá no se listan las otras cajas.** La lista sirve para elegir; esta
+     * pantalla, para operar la elegida.
+     */
+    public function cajaVer(int $id): View|RedirectResponse
+    {
+        $cajon = DB::selectOne(
+            'SELECT cf.*, su.nombre AS sucursal FROM caja_fisica cf
+               JOIN sucursal su ON su.id_sucursal = cf.id_sucursal
+              WHERE cf.id_caja_fisica = ?', [$id]
+        );
+
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+        if (! $cajon || ! in_array((int) $cajon->id_sucursal, $suyas, true)) {
+            flash('Esa caja no existe o no es de un local al que entres.', 'error');
+
+            return redirect()->route('facturacion.cajas');
+        }
+
+        $abierta = DB::selectOne(
+            "SELECT * FROM vw_caja_resumen WHERE id_caja_fisica = ? AND estado = 'Abierta'
+              ORDER BY fecha_apertura DESC LIMIT 1", [$id]
+        );
+
+        return view('facturacion.caja_ver', [
+            'cajon' => $cajon,
             'abierta' => $abierta,
+            'saldo' => $abierta ? Caja::saldo((int) $abierta->id_caja) : null,
+            // El desglose por medio: separa lo que TIENE que estar en el cajón
+            // de lo que fue a la cuenta. Es la mitad de la pregunta del arqueo.
             'porMedio' => $abierta ? DB::select(
                 'SELECT mp.nombre AS medio, mp.tipo, COUNT(*) AS cantidad, SUM(co.monto) AS total
                    FROM cobro co JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
@@ -1758,10 +1836,176 @@ class FacturacionController extends Controller
                   GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo
                   ORDER BY total DESC', [(int) $abierta->id_caja]
             ) : [],
-            'cerradas' => $cerradas,
-            'sinConteo' => $sinConteo,
-            'cuadran' => $cuadran,
-            'difTotal' => $difTotal,
+        ]);
+    }
+
+    /** Alta y baja de cajones. Es del Administrador: define cómo cobra el salón. */
+    public function cajaFisicaGuardar(Request $request): RedirectResponse
+    {
+        $nombre = trim((string) $request->input('nombre', ''));
+        $suc = (int) $request->input('id_sucursal', 0);
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        $error = match (true) {
+            mb_strlen($nombre) < 2 => 'Escribí un nombre para la caja.',
+            ! in_array($suc, $suyas, true) => 'Elegí una sucursal a la que tengas acceso.',
+            default => null,
+        };
+
+        if ($error) {
+            flash($error, 'error');
+
+            return back();
+        }
+
+        try {
+            DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre]);
+        } catch (QueryException $e) {
+            flash(Bd::traducir($e, [
+                'uq_caja_fisica' => 'Ya hay una caja con ese nombre en esa sucursal.',
+            ], 'No se pudo crear la caja.'), 'error');
+
+            return back();
+        }
+
+        $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        Auditoria::registrar('ALTA', 'Facturacion', 'caja_fisica', $id, $nombre);
+        flash('Caja «' . $nombre . '» creada.');
+
+        return redirect()->route('facturacion.cajas');
+    }
+
+    public function cajaFisicaBaja(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_caja_fisica');
+        $cf = DB::selectOne('SELECT * FROM caja_fisica WHERE id_caja_fisica = ?', [$id]);
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        if (! $cf || ! in_array((int) $cf->id_sucursal, $suyas, true)) {
+            flash('Esa caja no existe.', 'error');
+
+            return back();
+        }
+
+        // **No se da de baja con la sesión abierta**: quedaría plata adentro de
+        // un cajón que el sistema dejó de ofrecer, y nadie podría cerrarlo.
+        if ($cf->activo && DB::scalar('SELECT COUNT(*) FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$id])) {
+            flash('Esa caja está abierta. Cerrala antes de darla de baja.', 'warning');
+
+            return back();
+        }
+
+        DB::update('UPDATE caja_fisica SET activo = 1 - activo WHERE id_caja_fisica = ?', [$id]);
+        Auditoria::registrar($cf->activo ? 'BAJA' : 'ALTA', 'Facturacion', 'caja_fisica', $id, $cf->nombre);
+        flash($cf->activo ? 'Caja dada de baja. Su historial queda.' : 'Caja habilitada de nuevo.');
+
+        return redirect()->route('facturacion.cajas');
+    }
+
+    /**
+     * Arqueos: cómo cerró cada caja, con filtros y paginación.
+     *
+     * **Es una tabla, no tarjetas.** Un salón acumula un arqueo por cajón y
+     * por día, así que a los seis meses son cientos: lo que hace falta es
+     * poder filtrar y paginar, no que cada uno ocupe más lugar.
+     *
+     * Las cuatro cifras de arriba salen de **lo filtrado**, no del total: si
+     * se pide un local y un mes, «cuántas cuadraron» tiene que hablar de ese
+     * local y ese mes — un resumen que mide otra cosa que la tabla es peor que
+     * no tenerlo.
+     */
+    public function arqueo(): View
+    {
+        $mias = Sucursales::delUsuario();
+        $opSuc = ['' => 'Todas'];
+        foreach ($mias as $su) {
+            $opSuc[(string) $su->id_sucursal] = $su->nombre;
+        }
+
+        $opCaja = ['' => 'Todas'];
+        foreach (Caja::cajones(count($mias) === 1 ? (int) $mias[0]->id_sucursal : null) as $cf) {
+            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre
+                . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
+        }
+
+        $campos = [];
+        if (count($mias) > 1) {
+            $campos['sucursal'] = ['tipo' => 'select', 'etiqueta' => 'Sucursal',
+                                   'opciones' => $opSuc, 'ancho' => '180px'];
+        }
+        $f = Listado::filtros($campos + [
+            'caja' => ['tipo' => 'select', 'etiqueta' => 'Caja', 'opciones' => $opCaja, 'ancho' => '180px'],
+            'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
+            'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
+            'estado' => ['tipo' => 'select', 'etiqueta' => 'Resultado', 'ancho' => '170px',
+                         'opciones' => ['' => 'Todos', 'ok' => 'Cuadraron',
+                                        'no' => 'No cuadraron', 'sin' => 'Sin conteo']],
+        ]);
+
+        $w = ['fecha_cierre IS NOT NULL'];
+        $par = [];
+
+        // Quien tiene un solo local no elige: se filtra solo, igual que en
+        // Reportes. Con el consolidado vería lo que el aislamiento impide.
+        if (Listado::hay($f, 'sucursal')) {
+            $w[] = 'id_sucursal = :suc';
+            $par['suc'] = (int) Listado::valor($f, 'sucursal');
+        } elseif (count($mias) === 1) {
+            $w[] = 'id_sucursal = :suc';
+            $par['suc'] = (int) $mias[0]->id_sucursal;
+        } else {
+            $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
+            $w[] = 'id_sucursal IN (' . implode(',', $ids ?: [0]) . ')';
+        }
+
+        if (Listado::hay($f, 'caja')) {
+            $w[] = 'id_caja_fisica = :cf';
+            $par['cf'] = (int) Listado::valor($f, 'caja');
+        }
+        if (Listado::hay($f, 'desde')) {
+            $w[] = 'DATE(fecha_cierre) >= :d';
+            $par['d'] = Listado::valor($f, 'desde');
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $w[] = 'DATE(fecha_cierre) <= :h';
+            $par['h'] = Listado::valor($f, 'hasta');
+        }
+
+        // Menos de un guaraní es cuadrar: la columna tiene dos decimales y
+        // comparar contra 0 exacto haría saltar un redondeo como faltante.
+        $est = (string) Listado::valor($f, 'estado');
+        if ($est === 'ok') {
+            $w[] = 'monto_contado IS NOT NULL AND ABS(diferencia) < 0.01';
+        } elseif ($est === 'no') {
+            $w[] = 'monto_contado IS NOT NULL AND ABS(diferencia) >= 0.01';
+        } elseif ($est === 'sin') {
+            $w[] = 'monto_contado IS NULL';
+        }
+
+        $desde = 'FROM vw_caja_resumen WHERE ' . implode(' AND ', $w);
+
+        // El resumen sale de LO FILTRADO, con una consulta aparte: contarlo
+        // sobre la página daría los números de veinte filas.
+        $r = DB::selectOne(
+            "SELECT COUNT(*) AS cerradas,
+                    SUM(monto_contado IS NULL) AS sin_conteo,
+                    SUM(monto_contado IS NOT NULL AND ABS(diferencia) < 0.01) AS cuadran,
+                    COALESCE(SUM(CASE WHEN monto_contado IS NOT NULL AND ABS(diferencia) >= 0.01
+                                      THEN diferencia ELSE 0 END), 0) AS dif_total
+               $desde", $par
+        );
+
+        $pag = Listado::paginacion((int) $r->cerradas);
+
+        return view('facturacion.arqueo', [
+            'rows' => DB::select("SELECT * $desde ORDER BY fecha_cierre DESC
+                                  LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'f' => $f,
+            'pag' => $pag,
+            'cerradas' => (int) $r->cerradas,
+            'sinConteo' => (int) $r->sin_conteo,
+            'cuadran' => (int) $r->cuadran,
+            'difTotal' => (float) $r->dif_total,
         ]);
     }
 
@@ -2013,12 +2257,21 @@ class FacturacionController extends Controller
 
     public function abrirCaja(Request $request): RedirectResponse
     {
-        $volver = redirect()->route('facturacion.caja');
+        $idCajon = (int) $request->input('id_caja_fisica', 0);
+        $volver = $idCajon
+            ? redirect()->route('facturacion.caja_ver', $idCajon)
+            : redirect()->route('facturacion.cajas');
 
-        if (Caja::abierta()) {
-            flash('Ya hay una caja abierta. Cerrala antes de abrir otra.', 'warning');
+        // **Ya no se pregunta «¿hay alguna caja abierta?»**: con varios cajones
+        // eso no impide nada — lo que importa es si ESTE está abierto, y de eso
+        // se encarga `trg_caja_bi`, que es donde no hay carrera posible.
+        $cajon = DB::selectOne('SELECT * FROM caja_fisica WHERE id_caja_fisica = ? AND activo = 1', [$idCajon]);
+        $suyas = array_map(fn ($su) => (int) $su->id_sucursal, Sucursales::delUsuario());
 
-            return $volver;
+        if (! $cajon || ! in_array((int) $cajon->id_sucursal, $suyas, true)) {
+            flash('Elegí una caja de un local al que entres.', 'error');
+
+            return redirect()->route('facturacion.cajas');
         }
 
         $monto = num($request->input('monto_inicial'));
@@ -2029,7 +2282,7 @@ class FacturacionController extends Controller
         }
 
         try {
-            $idCaja = Caja::abrir((int) session('uid'), $monto, null,
+            $idCaja = Caja::abrir((int) session('uid'), $monto, $idCajon,
                 trim((string) $request->input('observacion', '')));
             Auditoria::registrar('CAJA_APERTURA', 'Facturacion', 'caja', $idCaja, 'Apertura con ' . money($monto));
             flash('Caja abierta con ' . money($monto) . '.');
@@ -2054,7 +2307,7 @@ class FacturacionController extends Controller
     public function cerrarCaja(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_caja', 0);
-        $volver = redirect()->route('facturacion.caja');
+        $volver = redirect()->route('facturacion.cajas');
 
         $caja = DB::selectOne('SELECT id_caja, id_usuario, id_estado_caja, fn_caja_saldo(id_caja) AS saldo
                                  FROM caja WHERE id_caja = ?', [$id]);

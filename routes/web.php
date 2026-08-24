@@ -398,13 +398,24 @@ Route::middleware(['sesion', 'personal'])->group(function () {
                 ->name('sena.comprobante');
         });
 
+        // **Tres pantallas y siempre la misma forma**: filtros arriba, tabla,
+        // paginación. No cambia con el tamaño del salón — con 3 cajones o con
+        // 300 lo único que crece son las filas.
         Route::middleware('modulo:facturacion.caja')->group(function () {
-            Route::get('caja', [FacturacionController::class, 'caja'])->name('caja');
+            Route::get('caja', [FacturacionController::class, 'cajas'])->name('cajas');
+            Route::get('caja/{id}', [FacturacionController::class, 'cajaVer'])
+                ->name('caja_ver')->whereNumber('id');
             Route::post('caja/abrir', [FacturacionController::class, 'abrirCaja'])->name('caja.abrir');
             Route::post('caja/cerrar', [FacturacionController::class, 'cerrarCaja'])->name('caja.cerrar');
+            // Los cajones los administra el Administrador: define cómo cobra el
+            // salón, no es una acción del mostrador.
+            Route::post('cajas/nueva', [FacturacionController::class, 'cajaFisicaGuardar'])
+                ->middleware('admin')->name('caja_fisica.guardar');
+            Route::post('cajas/baja', [FacturacionController::class, 'cajaFisicaBaja'])
+                ->middleware('admin')->name('caja_fisica.baja');
             // El arqueo es su propia pantalla: abrir y cerrar se hace dos veces
             // por día, y mirar cómo cerraron las cajas de la semana es otra cosa.
-            Route::get('caja/arqueo', [FacturacionController::class, 'arqueo'])->name('arqueo');
+            Route::get('arqueos', [FacturacionController::class, 'arqueo'])->name('arqueo');
         });
 
         // El movimiento de efectivo a mano: su propia clave, porque mueve plata

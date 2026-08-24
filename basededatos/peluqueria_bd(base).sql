@@ -137,6 +137,7 @@ CREATE TABLE `caja` (
   `id_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
+  `id_caja_fisica` int(10) unsigned NOT NULL,
   `id_estado_caja` int(10) unsigned NOT NULL,
   `fecha_apertura` datetime NOT NULL DEFAULT current_timestamp(),
   `fecha_cierre` datetime DEFAULT NULL,
@@ -151,8 +152,10 @@ CREATE TABLE `caja` (
   KEY `idx_caja_estado` (`id_estado_caja`),
   KEY `fk_caja_sucursal` (`id_sucursal`),
   KEY `fk_caja_cierre` (`id_usuario_cierre`),
+  KEY `fk_caja_fisica` (`id_caja_fisica`),
   CONSTRAINT `fk_caja_cierre` FOREIGN KEY (`id_usuario_cierre`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `fk_caja_estado` FOREIGN KEY (`id_estado_caja`) REFERENCES `estado_caja` (`id_estado_caja`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_caja_fisica` FOREIGN KEY (`id_caja_fisica`) REFERENCES `caja_fisica` (`id_caja_fisica`),
   CONSTRAINT `fk_caja_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0),
@@ -171,21 +174,24 @@ UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_caja_bi BEFORE INSERT ON caja
 FOR EACH ROW
 BEGIN
+  DECLARE v_nombre VARCHAR(60);
+
   IF NEW.id_estado_caja = 1
      AND EXISTS (SELECT 1 FROM caja
                   WHERE id_estado_caja = 1
-                    AND id_sucursal = NEW.id_sucursal) THEN
+                    AND id_caja_fisica = NEW.id_caja_fisica) THEN
+    SELECT nombre INTO v_nombre FROM caja_fisica WHERE id_caja_fisica = NEW.id_caja_fisica;
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Ya hay una caja abierta en esta sucursal. Cerrala antes de abrir otra.';
+      SET MESSAGE_TEXT = 'Esa caja ya está abierta. Cerrala antes de volver a abrirla.';
   END IF;
 END */;;
 DELIMITER ;
@@ -193,6 +199,36 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `caja_fisica`
+--
+
+DROP TABLE IF EXISTS `caja_fisica`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `caja_fisica` (
+  `id_caja_fisica` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  `nombre` varchar(60) NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_caja_fisica`),
+  UNIQUE KEY `uq_caja_fisica` (`id_sucursal`,`nombre`),
+  KEY `idx_cf_sucursal` (`id_sucursal`,`activo`),
+  CONSTRAINT `fk_cf_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
+  CONSTRAINT `chk_cf_nombre` CHECK (char_length(trim(`nombre`)) >= 2)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `caja_fisica`
+--
+
+LOCK TABLES `caja_fisica` WRITE;
+/*!40000 ALTER TABLE `caja_fisica` DISABLE KEYS */;
+INSERT INTO `caja_fisica` VALUES (1,1,'Caja 1',1);
+/*!40000 ALTER TABLE `caja_fisica` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `calificacion`
@@ -3120,6 +3156,9 @@ SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_caja_resumen` AS SELECT
  1 AS `id_sucursal`,
   1 AS `id_caja`,
+  1 AS `id_caja_fisica`,
+  1 AS `caja_nombre`,
+  1 AS `sucursal_nombre`,
   1 AS `responsable`,
   1 AS `estado`,
   1 AS `fecha_apertura`,
@@ -4677,16 +4716,27 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_abrir_caja`(
-  IN  p_id_usuario  INT UNSIGNED,
-  IN  p_monto       DECIMAL(14,2),
-  IN  p_id_sucursal INT UNSIGNED,
-  IN  p_observacion VARCHAR(255),
-  OUT p_id_caja     INT UNSIGNED
+  IN  p_id_usuario     INT UNSIGNED,
+  IN  p_monto          DECIMAL(14,2),
+  IN  p_id_caja_fisica INT UNSIGNED,
+  IN  p_observacion    VARCHAR(255),
+  OUT p_id_caja        INT UNSIGNED
 )
 BEGIN
-  INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, fecha_apertura,
-                    monto_inicial, observacion_apertura)
-  VALUES (p_id_usuario, p_id_sucursal, 1, NOW(), p_monto, NULLIF(TRIM(COALESCE(p_observacion,'')), ''));
+  DECLARE v_sucursal INT UNSIGNED;
+
+  SELECT id_sucursal INTO v_sucursal
+    FROM caja_fisica WHERE id_caja_fisica = p_id_caja_fisica AND activo = 1;
+
+  IF v_sucursal IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa caja no existe o está dada de baja.';
+  END IF;
+
+  INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja,
+                    fecha_apertura, monto_inicial, observacion_apertura)
+  VALUES (p_id_usuario, v_sucursal, p_id_caja_fisica, 1, NOW(), p_monto,
+          NULLIF(TRIM(COALESCE(p_observacion,'')), ''));
+
   SET p_id_caja = LAST_INSERT_ID();
 END ;;
 DELIMITER ;
@@ -5280,14 +5330,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_pagar_compra` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
   IN  p_id_compra    INT UNSIGNED,
@@ -5327,15 +5377,24 @@ BEGIN
   END IF;
 
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
-   ORDER BY id_caja DESC LIMIT 1;
-
-  IF v_caja IS NULL THEN
-    SELECT id_caja INTO v_caja FROM caja
-     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
-     ORDER BY id_caja DESC LIMIT 1;
-  END IF;
+   WHERE id_estado_caja = 1
+     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+            (id_sucursal = v_sucursal) DESC,
+            id_caja DESC
+   LIMIT 1;
 
   INSERT INTO pago_proveedor (id_proveedor, id_usuario, id_metodo_pago, id_estado_pago_proveedor, id_caja, referencia)
   VALUES (v_proveedor, p_id_usuario, p_id_metodo, 1, v_caja, p_referencia);
@@ -5355,9 +5414,9 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
   IN  p_id_factura  INT UNSIGNED,
@@ -5414,15 +5473,24 @@ BEGIN
 
   
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
-   ORDER BY id_caja DESC LIMIT 1;
-
-  IF v_caja IS NULL THEN
-    SELECT id_caja INTO v_caja FROM caja
-     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
-     ORDER BY id_caja DESC LIMIT 1;
-  END IF;
+   WHERE id_estado_caja = 1
+     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+            (id_sucursal = v_sucursal) DESC,
+            id_caja DESC
+   LIMIT 1;
 
   INSERT INTO cobro (id_factura, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia)
   VALUES (p_id_factura, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia);
@@ -5525,14 +5593,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_sena` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
   IN  p_id_cita     INT UNSIGNED,
@@ -5581,15 +5649,24 @@ BEGIN
   END IF;
 
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   SELECT id_caja INTO v_caja FROM caja
-   WHERE id_sucursal = v_sucursal AND id_estado_caja = 1
-   ORDER BY id_caja DESC LIMIT 1;
-
-  IF v_caja IS NULL THEN
-    SELECT id_caja INTO v_caja FROM caja
-     WHERE id_usuario = p_id_usuario AND id_estado_caja = 1
-     ORDER BY id_caja DESC LIMIT 1;
-  END IF;
+   WHERE id_estado_caja = 1
+     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+            (id_sucursal = v_sucursal) DESC,
+            id_caja DESC
+   LIMIT 1;
 
   INSERT INTO cobro (id_factura, id_cita, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia, observaciones)
   VALUES (NULL, p_id_cita, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia, 'Sena de reserva');
@@ -5729,7 +5806,7 @@ DELIMITER ;
 /*!50001 SET collation_connection      = utf8_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_caja_resumen` AS select `ca`.`id_sucursal` AS `id_sucursal`,`ca`.`id_caja` AS `id_caja`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `responsable`,`ec`.`nombre` AS `estado`,`ca`.`fecha_apertura` AS `fecha_apertura`,`ca`.`fecha_cierre` AS `fecha_cierre`,`ca`.`monto_inicial` AS `monto_inicial`,`ca`.`monto_contado` AS `monto_contado`,`ca`.`observacion_apertura` AS `observacion_apertura`,`ca`.`observacion_cierre` AS `observacion_cierre`,`ca`.`motivo_diferencia` AS `motivo_diferencia`,`fn_caja_diferencia`(`ca`.`id_caja`) AS `diferencia`,(select concat(`pc`.`nombre`,' ',`pc`.`apellido`) from (`usuario` `uc` join `persona` `pc` on(`pc`.`id_persona` = `uc`.`id_persona`)) where `uc`.`id_usuario` = `ca`.`id_usuario_cierre`) AS `arqueo_por`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `cobros_efectivo`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `cobros_otros`,(select coalesce(sum(`co`.`monto`),0) from `cobro` `co` where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1) AS `cobros`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'INGRESO') AS `otros_ingresos`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'EGRESO') AS `egresos`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_prov_efectivo`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_prov_otros`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from `pago_proveedor` `pp` where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1) AS `pagos_proveedor`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_pers_efectivo`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_pers_otros`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from `pago_personal` `pg` where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1) AS `pagos_personal`,`fn_caja_saldo`(`ca`.`id_caja`) AS `saldo` from (((`caja` `ca` join `usuario` `u` on(`u`.`id_usuario` = `ca`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_caja` `ec` on(`ec`.`id_estado_caja` = `ca`.`id_estado_caja`)) */;
+/*!50001 VIEW `vw_caja_resumen` AS select `ca`.`id_sucursal` AS `id_sucursal`,`ca`.`id_caja` AS `id_caja`,`ca`.`id_caja_fisica` AS `id_caja_fisica`,`cf`.`nombre` AS `caja_nombre`,`su`.`nombre` AS `sucursal_nombre`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `responsable`,`ec`.`nombre` AS `estado`,`ca`.`fecha_apertura` AS `fecha_apertura`,`ca`.`fecha_cierre` AS `fecha_cierre`,`ca`.`monto_inicial` AS `monto_inicial`,`ca`.`monto_contado` AS `monto_contado`,`ca`.`observacion_apertura` AS `observacion_apertura`,`ca`.`observacion_cierre` AS `observacion_cierre`,`ca`.`motivo_diferencia` AS `motivo_diferencia`,`fn_caja_diferencia`(`ca`.`id_caja`) AS `diferencia`,(select concat(`pc`.`nombre`,' ',`pc`.`apellido`) from (`usuario` `uc` join `persona` `pc` on(`pc`.`id_persona` = `uc`.`id_persona`)) where `uc`.`id_usuario` = `ca`.`id_usuario_cierre`) AS `arqueo_por`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `cobros_efectivo`,(select coalesce(sum(`co`.`monto`),0) from (`cobro` `co` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `co`.`id_metodo_pago`)) where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `cobros_otros`,(select coalesce(sum(`co`.`monto`),0) from `cobro` `co` where `co`.`id_caja` = `ca`.`id_caja` and `co`.`id_estado_cobro` = 1) AS `cobros`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'INGRESO') AS `otros_ingresos`,(select coalesce(sum(`mc`.`monto`),0) from `movimiento_caja` `mc` where `mc`.`id_caja` = `ca`.`id_caja` and `mc`.`tipo` = 'EGRESO') AS `egresos`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_prov_efectivo`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from (`pago_proveedor` `pp` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pp`.`id_metodo_pago`)) where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_prov_otros`,(select coalesce(sum(`fn_pago_proveedor_monto`(`pp`.`id_pago_proveedor`)),0) from `pago_proveedor` `pp` where `pp`.`id_caja` = `ca`.`id_caja` and `pp`.`id_estado_pago_proveedor` = 1) AS `pagos_proveedor`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` = 'EFECTIVO') AS `pagos_pers_efectivo`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from (`pago_personal` `pg` join `metodo_pago` `mp` on(`mp`.`id_metodo_pago` = `pg`.`id_metodo_pago`)) where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1 and `mp`.`tipo` <> 'EFECTIVO') AS `pagos_pers_otros`,(select coalesce(sum(`fn_pago_personal_monto`(`pg`.`id_pago_personal`)),0) from `pago_personal` `pg` where `pg`.`id_caja` = `ca`.`id_caja` and `pg`.`id_estado_pago` = 1) AS `pagos_personal`,`fn_caja_saldo`(`ca`.`id_caja`) AS `saldo` from (((((`caja` `ca` join `caja_fisica` `cf` on(`cf`.`id_caja_fisica` = `ca`.`id_caja_fisica`)) join `sucursal` `su` on(`su`.`id_sucursal` = `ca`.`id_sucursal`)) join `usuario` `u` on(`u`.`id_usuario` = `ca`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_caja` `ec` on(`ec`.`id_estado_caja` = `ca`.`id_estado_caja`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5995,4 +6072,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24  9:08:08
+-- Dump completed on 2026-08-24  9:48:12

@@ -109,4 +109,25 @@ abstract class TestCase extends BaseTestCase
               ORDER BY c.id_cliente LIMIT 1'
         );
     }
+
+    /**
+     * El cajón de una sucursal, creándolo si no lo tiene.
+     *
+     * **`caja` es una SESIÓN sobre un cajón desde la 7.69.0**, así que una
+     * prueba que abra caja a mano necesita decir sobre cuál. Se crea al vuelo
+     * en vez de darlo por hecho: `peluqueria_test` puede no tenerlo para una
+     * sucursal recién insertada por la propia prueba.
+     */
+    protected function cajonDe(int $idSucursal): int
+    {
+        $id = DB::scalar('SELECT id_caja_fisica FROM caja_fisica WHERE id_sucursal = ? LIMIT 1',
+            [$idSucursal]);
+        if ($id) {
+            return (int) $id;
+        }
+
+        DB::insert("INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, 'Caja 1')", [$idSucursal]);
+
+        return (int) DB::scalar('SELECT LAST_INSERT_ID()');
+    }
 }

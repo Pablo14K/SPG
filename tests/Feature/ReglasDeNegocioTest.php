@@ -945,8 +945,8 @@ class ReglasDeNegocioTest extends TestCase
 
         // Una caja y un cobro en cada local, el mismo día.
         foreach ([$suc1 => 111000.0, $suc2 => 222000.0] as $s => $monto) {
-            DB::insert('INSERT INTO caja (id_usuario,id_sucursal,id_estado_caja,monto_inicial) VALUES (?,?,1,0)',
-                [$uid, $s]);
+            DB::insert('INSERT INTO caja (id_usuario,id_sucursal,id_caja_fisica,id_estado_caja,monto_inicial)
+                        VALUES (?,?,?,1,0)', [$uid, $s, $this->cajonDe($s)]);
             $idCaja = (int) DB::getPdo()->lastInsertId();
 
             DB::insert('INSERT INTO cobro (id_factura,id_metodo_pago,id_estado_cobro,id_usuario,id_caja,monto,fecha)
@@ -1076,12 +1076,12 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Caja Local']);
         $otra = (int) DB::getPdo()->lastInsertId();
 
-        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
-                    VALUES (?,?,1,100000)', [$uid, (int) $cita->id_sucursal]);
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                    VALUES (?, ?, ?, 1, 100000)', [$uid, (int) $cita->id_sucursal, $this->cajonDe((int) $cita->id_sucursal)]);
         $cajaDelLocal = (int) DB::getPdo()->lastInsertId();
 
-        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
-                    VALUES (?,?,1,900000)', [$uid, $otra]);
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                    VALUES (?, ?, ?, 1, 900000)', [$uid, $otra, $this->cajonDe($otra)]);
         $cajaAjena = (int) DB::getPdo()->lastInsertId();
 
         $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
@@ -1116,8 +1116,8 @@ class ReglasDeNegocioTest extends TestCase
 
         // 1) Cada local abre la suya, sin estorbarse.
         foreach ($sucursales as $s) {
-            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
-                        VALUES (?,?,1,100000)', [$uid, $s]);
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (?, ?, ?, 1, 100000)', [$uid, $s, $this->cajonDe($s)]);
         }
         $this->assertSame(count($sucursales), (int) DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1'),
             'Cada sucursal tiene que poder abrir su propio cajón: si una bloquea a las demás, '
@@ -1126,8 +1126,8 @@ class ReglasDeNegocioTest extends TestCase
         // 2) Y dentro de un mismo local sigue habiendo una sola.
         foreach ($sucursales as $s) {
             try {
-                DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_estado_caja, monto_inicial)
-                            VALUES (?,?,1,50000)', [$uid, $s]);
+                DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                            VALUES (?, ?, ?, 1, 50000)', [$uid, $s, $this->cajonDe($s)]);
                 $this->fail("La sucursal $s dejó abrir una segunda caja: el arqueo de ese local no cerraría.");
             } catch (\Illuminate\Database\QueryException $e) {
                 $this->assertStringContainsString('sucursal', $e->getMessage(),
@@ -1549,7 +1549,7 @@ class ReglasDeNegocioTest extends TestCase
         // Se le saca todo lo que no es suyo, que es lo que el salón haría en
         // Seguridad → Roles. La transacción de la prueba lo devuelve.
         DB::delete("DELETE FROM rol_modulo WHERE id_rol = ? AND modulo IN
-                    ('facturacion','facturacion.cobros','facturacion.caja','inventario','inventario.stock')", [$rolProf]);
+                    ('facturacion','facturacion.cobros','facturacion.cajas','inventario','inventario.stock')", [$rolProf]);
 
         session(['uid' => $uid, 'rol' => $rolProf, 'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
         $panel = $this->get(route('panel'))->assertOk();
@@ -1952,7 +1952,7 @@ class ReglasDeNegocioTest extends TestCase
         $claves = array_map(fn ($r) => $r->modulo,
             DB::select('SELECT modulo FROM rol_modulo WHERE id_rol = 2'));
 
-        $this->assertNotContains('facturacion.caja', $claves,
+        $this->assertNotContains('facturacion.cajas', $claves,
             'El Profesional NO administra la caja del salón.');
         $this->assertContains('facturacion.cobros', $claves,
             'Pero sí cobra: sin esto no puede trabajar en el mostrador.');
@@ -1965,7 +1965,7 @@ class ReglasDeNegocioTest extends TestCase
         Permisos::olvidar();
         session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 2 AND activo = 1 LIMIT 1') ?: 1), 'rol' => 2, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
 
-        $this->get(route('facturacion.caja'))->assertForbidden();
+        $this->get(route('facturacion.cajas'))->assertForbidden();
 
         // Lo que sí necesita para trabajar sigue abierto.
         $this->get(route('facturacion.cobros'))->assertOk();
@@ -2044,7 +2044,8 @@ class ReglasDeNegocioTest extends TestCase
         $propia = false;
         if (! $abierta) {
             $idAdmin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 1 LIMIT 1');
-            $idCaja = Caja::abrir($idAdmin, 200000);
+            $idCaja = Caja::abrir($idAdmin, 200000,
+                $this->cajonDe((int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1')));
             $abierta = (object) ['id_caja' => $idCaja];
             $propia = true;
         }
@@ -3386,7 +3387,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->get(route('facturacion.movimientos'))->assertStatus(403);
 
         // La caja sigue siendo suya: se separó una cosa, no se le sacó la otra.
-        $this->get(route('facturacion.caja'))->assertOk();
+        $this->get(route('facturacion.cajas'))->assertOk();
     }
 
     /**
@@ -3599,7 +3600,7 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
         );
         if (! $caja) {
-            Bd::idDe('sp_abrir_caja', [1, 100000, $otra, '']);
+            Bd::idDe('sp_abrir_caja', [1, 100000, $this->cajonDe($otra), '']);
             $caja = (int) DB::scalar(
                 'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? LIMIT 1', [$otra]
             );
@@ -4403,5 +4404,59 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(1, (int) DB::scalar(
             "SELECT COUNT(*) FROM dato_pago_sucursal WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]),
             'Desactivar una cuenta no la borra: el respaldo de las señas viejas se perdería.');
+    }
+
+    /**
+     * Varios cajones del mismo local abren a la vez, y cada uno una sola sesión.
+     *
+     * **`caja` es una SESIÓN, no el cajón** (7.69.0). Antes el cajón no existía
+     * en el modelo, así que «una caja abierta por sucursal» era en realidad «un
+     * cajón por local» sin decirlo: un salón con dos puestos de cobro no lo
+     * podía representar — el segundo no abría.
+     *
+     * Se comprueban las DOS mitades, que es lo que hace que la prueba mida
+     * algo: **dos cajones distintos del mismo local abren los dos**, y **el
+     * mismo cajón no se abre dos veces**. Con una sola mitad, un disparador
+     * borrado pasaría igual.
+     */
+    #[Test]
+    public function cada_cajon_abre_su_propia_caja_y_una_sola(): void
+    {
+        $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE activo = 1 LIMIT 1');
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        // Dos cajones en el MISMO local: es el caso que antes no se podía.
+        $nombre = 'Prueba ' . uniqid();
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre . ' A']);
+        $a = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre . ' B']);
+        $b = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // 1) Los dos abren, aunque sean del mismo local.
+        Caja::abrir($uid, 0.0, $a);
+        Caja::abrir($uid, 0.0, $b);
+
+        $this->assertSame(2, (int) DB::scalar(
+            'SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_caja_fisica IN (?, ?)', [$a, $b]),
+            'Dos cajones del mismo local tienen que poder estar abiertos a la vez: es para lo que existe el cajón.');
+
+        // 2) Pero el mismo cajón no se abre dos veces: su arqueo no cerraría.
+        $rechazado = false;
+        try {
+            Caja::abrir($uid, 0.0, $a);
+        } catch (\Throwable) {
+            $rechazado = true;
+        }
+
+        $this->assertTrue($rechazado,
+            'El mismo cajón no puede tener dos sesiones abiertas: al cerrar habría dos conteos de la misma plata.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_caja_fisica = ?', [$a]));
+
+        // 3) La sucursal sale del cajón, no se manda aparte: guardarla como
+        //    parámetro dejaría poder contradecirse.
+        $this->assertSame($suc, (int) DB::scalar(
+            'SELECT id_sucursal FROM caja WHERE id_caja_fisica = ? ORDER BY id_caja DESC LIMIT 1', [$a]),
+            'La sucursal de la sesión tiene que ser la del cajón.');
     }
 }

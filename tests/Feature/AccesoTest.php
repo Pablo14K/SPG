@@ -230,7 +230,8 @@ class AccesoTest extends TestCase
             ['facturacion.emitir', ['cita' => $idCita]],
             // Los datos del receptor, el paso previo a emitir un electrónico
             ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
-            ['facturacion.caja', []],
+            ['facturacion.cajas', []],
+            ['facturacion.arqueo', []],
             ['inventario.productos', []],
             ['inventario.stock', []],
             ['inventario.ajuste', []],
@@ -289,15 +290,28 @@ class AccesoTest extends TestCase
         // `DatabaseTransactions` lo revierte al terminar.
         DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW() WHERE id_estado_caja = 1');
 
-        $html = $this->get(route('facturacion.caja'))->assertOk()->getContent();
+        $cajon = (int) DB::scalar('SELECT MIN(id_caja_fisica) FROM caja_fisica WHERE activo = 1');
+        $this->assertNotSame(0, $cajon, 'Sin ningún cajón cargado no se puede cobrar: el salón necesita al menos uno.');
+
+        // 1) La lista ofrece entrar a esa caja.
+        $lista = (string) $this->get(route('facturacion.cajas'))->assertOk()->getContent();
+        $this->assertStringContainsString(route('facturacion.caja_ver', $cajon), $lista,
+            'La lista de cajas tiene que llevar a la caja para poder abrirla.');
+
+        // 2) Y ahí está el formulario de apertura, con el cajón puesto.
+        $html = (string) $this->get(route('facturacion.caja_ver', $cajon))->assertOk()->getContent();
 
         $this->assertStringContainsString(
             route('facturacion.caja.abrir'), $html,
-            'Con la caja cerrada, la pantalla tiene que ofrecer el formulario para abrirla.'
+            'Con la caja cerrada, su pantalla tiene que ofrecer el formulario para abrirla.'
         );
         $this->assertStringContainsString(
             'monto_inicial', $html,
             'El formulario de apertura pide el monto inicial: sin ese campo no hay nada que enviar.'
+        );
+        $this->assertStringContainsString(
+            'name="id_caja_fisica"', $html,
+            'El formulario tiene que decir QUÉ caja abre: con varios cajones, sin eso no se sabe cuál.'
         );
     }
 
@@ -527,7 +541,7 @@ class AccesoTest extends TestCase
             'panel', 'citas.agenda', 'citas.form', 'clientes.lista', 'clientes.fidelizacion',
             'servicios.lista', 'servicios.form', 'inventario.productos', 'inventario.stock',
             'inventario.compras', 'inventario.compra_form', 'facturacion.facturas',
-            'facturacion.emitir', 'facturacion.cobros', 'facturacion.caja', 'facturacion.arqueo',
+            'facturacion.emitir', 'facturacion.cobros', 'facturacion.cajas', 'facturacion.arqueo',
             'facturacion.movimientos', 'facturacion.timbrados', 'reportes.index',
             'seguridad.usuarios', 'seguridad.usuario_form', 'seguridad.turnos',
             'seguridad.sucursales',

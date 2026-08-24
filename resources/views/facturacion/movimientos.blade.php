@@ -13,7 +13,7 @@
             <strong>No hay ninguna caja abierta en esta sucursal.</strong>
             Un movimiento sin caja quedaría fuera del arqueo.
             @if (\App\Servicios\Permisos::puede('facturacion.caja'))
-                <a class="link-oro" href="{{ route('facturacion.caja') }}">Abrí la caja</a> y volvé.
+                <a class="link-oro" href="{{ route('facturacion.cajas') }}">Abrí la caja</a> y volvé.
             @else
                 Pedile a quien administra la caja que la abra.
             @endif
@@ -144,88 +144,116 @@
                 </div>
             </form>
 
-            @if (count($movimientos))
-                <div class="table-responsive mt-3">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Cuándo</th><th>Tipo</th><th>Concepto</th>
-                            <th class="text-end">Monto</th><th class="text-end"></th></tr></thead>
-                        <tbody>
-                            @foreach ($movimientos as $m)
-                                <tr>
-                                    <td>{{ fecha($m->fecha, 'd/m H:i') }}</td>
-                                    <td>
-                                        @if ($m->tipo === 'INGRESO')
-                                            <span class="badge-estado e-ok">Ingreso</span>
-                                        @else
-                                            <span class="badge-estado e-no">Egreso</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        {{ $m->concepto }}
-                                        @unless ($m->activo)
-                                            <span class="badge-estado e-no">anulado</span>
-                                            <div class="text-muted-warm" style="font-size:.75rem">
-                                                {{ $m->anulado_motivo }}</div>
-                                        @endunless
-                                    </td>
-                                    <td class="text-end {{ $m->activo ? '' : 'text-muted-warm' }}"
-                                        style="{{ $m->activo ? '' : 'text-decoration:line-through' }}">
-                                        {{ money($m->monto) }}</td>
-                                    {{-- **Se anula, no se borra**: el arqueo tiene que poder
-                                         explicar qué pasó. Y sólo mientras la caja siga
-                                         abierta — después del cierre el número ya se contó. --}}
-                                    <td class="text-end">
-                                        @if ($m->activo)
-                                            <button type="button" class="btn btn-sm btn-outline-neutro"
-                                                    data-bs-toggle="modal" data-bs-target="#anularMov{{ $m->id_movimiento_caja }}">
-                                                <i class="bi bi-x-lg"></i> Anular</button>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Un modal por movimiento: el motivo es obligatorio, porque es
-                     lo único que explica esa anulación al cerrar la caja. --}}
-                @foreach ($movimientos as $m)
-                    @if ($m->activo)
-                        <div class="modal fade" id="anularMov{{ $m->id_movimiento_caja }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <form method="post" action="{{ route('facturacion.caja.movimiento.anular') }}">
-                                        @csrf
-                                        <input type="hidden" name="id_movimiento_caja"
-                                               value="{{ $m->id_movimiento_caja }}">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" style="font-size:1rem">Anular el movimiento</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p class="text-muted-warm" style="font-size:.85rem">
-                                                {{ $m->tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }} de
-                                                <strong>{{ money($m->monto) }}</strong> — {{ $m->concepto }}.
-                                                El movimiento no se borra: queda anulado y con su motivo,
-                                                y el saldo del cajón deja de contarlo.
-                                            </p>
-                                            <label class="form-label" for="mot{{ $m->id_movimiento_caja }}">¿Por qué?</label>
-                                            <input class="form-control" id="mot{{ $m->id_movimiento_caja }}"
-                                                   name="motivo" maxlength="150" required
-                                                   placeholder="Se cargó dos veces, monto equivocado…">
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-outline-neutro"
-                                                    data-bs-dismiss="modal">Cancelar</button>
-                                            <button class="btn btn-oro">Anular</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-                @endforeach
-            @endif
         </div>
     @endif
+
+            {{-- **Filtros arriba, tabla, paginación**: es la pantalla que más
+         registros acumula del módulo. Antes listaba sólo los de la caja
+         abierta, que resolvía el caso de hoy y dejaba sin ver los de
+         ayer. --}}
+    <div class="mt-3">
+        <x-filtros :f="$f" />
+    </div>
+
+    @if (count($movimientos))
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Cuándo</th><th>Caja</th><th>Movimiento</th>
+            <th>Concepto</th><th>Quién</th>
+            <th class="text-end">Monto</th><th class="text-end"></th></tr></thead>
+        <tbody>
+            @foreach ($movimientos as $m)
+                <tr>
+            <td style="white-space:nowrap">{{ fecha($m->fecha, 'd/m H:i') }}</td>
+            <td class="text-muted-warm">{{ $m->caja_nombre }}</td>
+            <td>
+                {{-- La CLASE dice qué es —un gasto, un retiro,
+                     una devolución—; el signo lo dice el color.
+                     Con sólo «Ingreso/Egreso» dos movimientos muy
+                     distintos se ven igual. --}}
+                <span class="badge-estado {{ $m->tipo === 'INGRESO' ? 'e-ok' : 'e-no' }}">
+                    {{ $m->clase ?: ($m->tipo === 'INGRESO' ? 'Ingreso' : 'Egreso') }}</span>
+            </td>
+            <td>
+                {{ $m->concepto }}
+                @unless ($m->activo)
+                    <span class="badge-estado e-no">anulado</span>
+                    <div class="text-muted-warm" style="font-size:.75rem">
+                {{ $m->anulado_motivo }}</div>
+                @endunless
+            </td>
+            <td class="text-muted-warm" style="font-size:.84rem">{{ $m->quien ?: '—' }}</td>
+            <td class="text-end {{ $m->activo ? '' : 'text-muted-warm' }}"
+                style="{{ $m->activo ? '' : 'text-decoration:line-through' }}">
+                {{ money($m->monto) }}</td>
+            {{-- **Se anula, no se borra**: el arqueo tiene que poder
+                 explicar qué pasó. Y sólo mientras la caja siga
+                 abierta — después del cierre el número ya se contó. --}}
+            <td class="text-end">
+                {{-- Sólo mientras SU caja siga abierta: después
+                     del cierre el arqueo ya se contó, y cambiarlo
+                     por atrás dejaría el cierre diciendo un número
+                     y la base otro. --}}
+                @if ($m->activo && $abierta && (int) $m->id_caja === (int) $abierta->id_caja)
+                    <button type="button" class="btn btn-sm btn-outline-neutro"
+                    data-bs-toggle="modal" data-bs-target="#anularMov{{ $m->id_movimiento_caja }}">
+                <i class="bi bi-x-lg"></i> Anular</button>
+                @endif
+            </td>
+                </tr>
+            @endforeach
+        </tbody>
+            </table>
+        </div>
+
+        {{-- Un modal por movimiento: el motivo es obligatorio, porque es
+             lo único que explica esa anulación al cerrar la caja. --}}
+        @foreach ($movimientos as $m)
+            @if ($m->activo && $abierta && (int) $m->id_caja === (int) $abierta->id_caja)
+        <div class="modal fade" id="anularMov{{ $m->id_movimiento_caja }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+            <form method="post" action="{{ route('facturacion.caja.movimiento.anular') }}">
+                @csrf
+                <input type="hidden" name="id_movimiento_caja"
+                       value="{{ $m->id_movimiento_caja }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" style="font-size:1rem">Anular el movimiento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted-warm" style="font-size:.85rem">
+                {{ $m->tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }} de
+                <strong>{{ money($m->monto) }}</strong> — {{ $m->concepto }}.
+                El movimiento no se borra: queda anulado y con su motivo,
+                y el saldo del cajón deja de contarlo.
+                    </p>
+                    <label class="form-label" for="mot{{ $m->id_movimiento_caja }}">¿Por qué?</label>
+                    <input class="form-control" id="mot{{ $m->id_movimiento_caja }}"
+                   name="motivo" maxlength="150" required
+                   placeholder="Se cargó dos veces, monto equivocado…">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-neutro"
+                    data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-oro">Anular</button>
+                </div>
+            </form>
+                </div>
+            </div>
+        </div>
+            @endif
+        @endforeach
+
+    @else
+        <div class="spg-panel">
+            <div class="spg-vacio">
+                <i class="bi bi-cash-coin"></i>
+                <div class="t">No hay movimientos con esos filtros</div>
+                <div class="d">Probá con otro rango de fechas o con otra caja.</div>
+            </div>
+        </div>
+    @endif
+
+    <x-paginacion :pag="$pag" :f="$f" />
 @endsection
