@@ -166,7 +166,7 @@ class PortalController extends Controller
             // lista de servicios ya la usan— y acá estaba al revés.
             'servicios' => $elegida ? DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
-                        s.sena_porcentaje
+                        s.descripcion, s.imagen, s.sena_porcentaje
                    FROM servicio s
                   WHERE s.activo = 1
                     AND (EXISTS (SELECT 1 FROM servicio_sucursal ss

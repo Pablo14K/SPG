@@ -208,7 +208,7 @@ class CitasController extends Controller
             'profs' => Agenda::profesionales(),
             'servicios' => DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
-                        cs.nombre AS categoria
+                        s.descripcion, s.imagen, cs.nombre AS categoria
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'

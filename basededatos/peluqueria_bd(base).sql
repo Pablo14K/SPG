@@ -2504,6 +2504,7 @@ CREATE TABLE `servicio` (
   `id_zona` int(10) unsigned DEFAULT NULL,
   `nombre` varchar(100) NOT NULL,
   `descripcion` varchar(255) DEFAULT NULL,
+  `imagen` varchar(120) DEFAULT NULL,
   `precio` decimal(12,2) NOT NULL DEFAULT 0.00,
   `sena_porcentaje` tinyint(3) unsigned DEFAULT NULL,
   `duracion_min` int(11) NOT NULL DEFAULT 0,
@@ -2529,7 +2530,7 @@ CREATE TABLE `servicio` (
 
 LOCK TABLES `servicio` WRITE;
 /*!40000 ALTER TABLE `servicio` DISABLE KEYS */;
-INSERT INTO `servicio` VALUES (16,1,1,'Corte de dama','Corte con lavado y peinado',75000.00,NULL,45,10,1,0),(17,1,1,'Corte de caballero','Corte clásico o con máquina',50000.00,NULL,30,10,1,0),(18,1,1,'Corte de niño','Hasta 12 años',40000.00,NULL,30,10,1,0),(19,4,1,'Brushing','Secado y modelado',60000.00,NULL,40,10,1,0),(20,4,1,'Peinado de fiesta','Recogido o semirecogido',120000.00,NULL,60,10,1,0),(21,2,1,'Coloración completa','Color de raíz a puntas',280000.00,50,120,10,1,1),(22,2,1,'Retoque de raíz','Sólo el crecimiento',150000.00,NULL,75,10,1,1),(23,2,1,'Mechas / balayage','Aclarado por mechones',350000.00,50,180,10,1,1),(24,3,1,'Lavado y acondicionado','Lavado con masaje',25000.00,NULL,20,10,1,0),(25,3,1,'Tratamiento capilar','Hidratación profunda',90000.00,NULL,50,10,1,1),(26,3,1,'Keratina','Alisado con keratina',400000.00,50,180,10,1,1),(27,5,2,'Manicura','Manos, esmaltado tradicional',45000.00,NULL,40,10,1,0),(28,5,2,'Manicura semipermanente','Esmaltado semipermanente',75000.00,NULL,60,10,1,0),(29,5,3,'Pedicura','Pies, esmaltado tradicional',55000.00,NULL,50,10,1,0),(30,6,4,'Depilación de cejas','Diseño y depilación',30000.00,NULL,20,10,1,0);
+INSERT INTO `servicio` VALUES (16,1,1,'Corte de dama','Corte con lavado y peinado',NULL,75000.00,NULL,45,10,1,0),(17,1,1,'Corte de caballero','Corte clásico o con máquina',NULL,50000.00,NULL,30,10,1,0),(18,1,1,'Corte de niño','Hasta 12 años',NULL,40000.00,NULL,30,10,1,0),(19,4,1,'Brushing','Secado y modelado',NULL,60000.00,NULL,40,10,1,0),(20,4,1,'Peinado de fiesta','Recogido o semirecogido',NULL,120000.00,NULL,60,10,1,0),(21,2,1,'Coloración completa','Color de raíz a puntas',NULL,280000.00,50,120,10,1,1),(22,2,1,'Retoque de raíz','Sólo el crecimiento',NULL,150000.00,NULL,75,10,1,1),(23,2,1,'Mechas / balayage','Aclarado por mechones',NULL,350000.00,50,180,10,1,1),(24,3,1,'Lavado y acondicionado','Lavado con masaje',NULL,25000.00,NULL,20,10,1,0),(25,3,1,'Tratamiento capilar','Hidratación profunda',NULL,90000.00,NULL,50,10,1,1),(26,3,1,'Keratina','Alisado con keratina',NULL,400000.00,50,180,10,1,1),(27,5,2,'Manicura','Manos, esmaltado tradicional',NULL,45000.00,NULL,40,10,1,0),(28,5,2,'Manicura semipermanente','Esmaltado semipermanente',NULL,75000.00,NULL,60,10,1,0),(29,5,3,'Pedicura','Pies, esmaltado tradicional',NULL,55000.00,NULL,50,10,1,0),(30,6,4,'Depilación de cejas','Diseño y depilación',NULL,30000.00,NULL,20,10,1,0);
 /*!40000 ALTER TABLE `servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -6074,4 +6075,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24 10:13:19
+-- Dump completed on 2026-08-24 13:02:53

@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.70.0 | 24/08/2026 | **El servicio tiene imagen de referencia, y al reservar se elige mirando el resultado.** «Mechas» es una palabra; la foto es lo que la clienta va a recibir. La lista de servicios pasa de renglones con checkbox a **tarjetas con imagen**, en las dos pantallas que reservan —el portal y Nueva cita— con **un solo componente**, porque copiado se desfasan. **El funcionamiento no se tocó**, que era la condición: es el mismo checkbox, con el mismo `name` y los mismos `data-`, así que la agenda, el reparto entre profesionales y los canjes siguen exactamente igual. **La tarjeta entera es un `<label>`**, así que marca sin JavaScript — con `app.js` caído se sigue pudiendo reservar. El `select` de profesional queda adentro y no se dispara al elegirlo: por especificación, un clic sobre contenido interactivo dentro de un `label` no activa el control asociado. **Sin imagen se dice, no se pone una genérica**: una foto de archivo que no es de este salón promete un resultado que no se puede sostener, así que la tarjeta muestra «Sin imagen de referencia». **Se guarda el nombre del archivo, no el archivo**, que es el criterio del logo desde la 7.35.0 — un BLOB hincha la base y complica el volcado que se entrega. La subida se extrae a `App\Servicios\Imagen`, con las tres defensas de siempre: se comprueba que sea una imagen **de verdad** con `getimagesize` y no por la extensión, se limita el tamaño, y **el archivo se escribe antes de tocar la base** — si falla, no queda una fila apuntando a un archivo que no está. SVG no entra: se sirve como marcado. El oro va **sólo en la tarjeta elegida**, borde y anillo: en las quince, la elegida dejaría de distinguirse. **144 pruebas**, una nueva comprobada en las dos direcciones — mide que sin imagen salga el aviso, que con imagen salga la foto, y que el checkbox que manda los servicios siga ahí |
 | 7.69.1 | 24/08/2026 | **El formulario de datos de pago se rehace alrededor del ALIAS, que en Paraguay es lo que de verdad se usa.** Investigado contra el BCP: en el SIPAP **el alias es el único dato necesario para transferir** —reemplaza al número de cuenta, a la entidad y al nombre del destinatario— y **no es texto libre**: es uno de cuatro, cédula, RUC, celular o correo. Así que se guarda con su tipo (`alias_tipo`), y eso hace dos cosas: **valida** —un alias de tipo correo mal escrito no lo encuentra nadie— y sobre todo **le dice a la clienta por dónde buscarlo**, que es como funciona la pantalla de su banco: el portal muestra «buscalo por celular» en vez de un número sin contexto. El campo cambia de ejemplo y de caracteres admitidos según el tipo, y **es opcional**: no todos los bancos lo usan. El formulario pasa a **tres pasos numerados** —dónde está la cuenta, el alias, los datos de siempre— en vez de doce campos corridos. **El tipo de cuenta pasa a combo**: escrito a mano, «Caja de ahorro», «caja de ahorros» y «C. de ahorro» son la misma cosa tres veces, y la clienta ve lo que se haya tipeado. **Y el campo «orden» se va**: hacía elegir un número para ordenar dos o tres filas — se reordena con flechas en la lista, donde se ve el efecto al instante. **El desglose por medio de pago se muda a Movimientos**, por pedido del usuario: ahí es donde se mira qué pasó con la plata de una caja. Respeta los mismos filtros —un resumen que mide otra cosa que la tabla es peor que no tenerlo— y **se agrupa también por cajón**, que si no los cobros de dos cajones se suman en una fila y el número no le sirve a ninguno de los dos arqueos. **143 pruebas**, una reescrita más exigente: mide el alias con su tipo y rechaza tres formas de cargarlo mal · 77 `CHECK` |
 | 7.69.0 | 24/08/2026 | **El cajón físico entra al modelo, y el módulo de Caja se rehace en tres pantallas.** **`caja` era una SESIÓN, no un cajón**: cada fila es una apertura con su cierre, y el cajón no existía en ninguna parte — así que «una caja abierta por sucursal» era en realidad «un cajón por local» sin decirlo. Un salón con dos puestos de cobro no lo podía representar: el segundo no abría. Entra **`caja_fisica`** —tiene nombre y vive en un local— y `caja` sigue siendo la sesión sobre él. Cada sucursal que ya existía estrenó su «Caja 1», así que nada cambió de significado para quien venía usando el sistema. **`trg_caja_bi` se acota al cajón**, que es el mismo defecto que la 7.36.2 corrigió a nivel de sucursal, un nivel más adentro. **Y los tres procedimientos que mueven plata tuvieron que aprender a elegir**: con un solo cajón la pregunta no existía; con varios abiertos, elegir mal deja el arqueo de otra persona descuadrado sin que nada lo diga. El orden es **el cajón de esta persona en el local del documento** → cualquiera de ese local → cualquiera suyo, en una sola consulta. La sucursal la sigue mandando el DOCUMENTO, que es lo de la 7.36.3 y no cambia. **Las tres pantallas tienen la misma forma —filtros, tabla, paginación— y no cambia con el tamaño del salón**: con 3 cajones o con 300 lo único que crece son las filas. **Cajas** dice lo mínimo para elegir —caja, estado, responsable, hora— y nada más; el monto y los movimientos se consultan entrando, porque una tabla que lo muestra todo no se lee. **La caja individual** es a propósito casi vacía: efectivo esperado, el desglose por medio, y los dos botones. **Arqueos** pasa de una tabla de sesenta filas fijas a una con filtros por sucursal, caja, fecha y resultado — y **las cuatro cifras de arriba salen de lo filtrado**, que si midieran otra cosa que la tabla serían peor que no tenerlas. **Movimientos** listaba sólo los de la caja abierta, o sea que resolvía el caso de hoy y dejaba sin ver los de ayer. **Crear cajones es del Administrador y el formulario va abajo**: la pantalla se piensa primero para operar los que existen. **Un cajón se da de baja, no se borra**, y no con la sesión abierta — quedaría plata adentro de algo que el sistema dejó de ofrecer. **143 pruebas**, una nueva comprobada en las dos direcciones: mide que dos cajones del mismo local abran a la vez **y** que el mismo no abra dos veces — con una sola mitad, un disparador borrado pasaría igual. De paso, **un filtro en `null` salía como campo de texto**: `Listado::filtros()` lo toma como uno sin tipo, así que el de sucursal aparecía como un buscador titulado «sucursal» — se saca del arreglo, no se pone en null. · 80 tablas · 76 `CHECK` |
 | 7.68.1 | 24/08/2026 | **Cargar una cuenta de pago devolvía 500, y la tarjeta de tres módulos no anunciaba todo.** El 500 era una llamada mal escrita —`Persona::error('documento', $doc)`, dos strings a un método que recibe un arreglo— y **la prueba de la 7.67.0 no lo vio porque insertó directo en la tabla**: medía el aislamiento por sucursal, no el camino real. La nueva pasa por el POST, con RUC y con cédula —el titular puede tener cualquiera de los dos, y validar contra uno solo rechazaría la mitad de los casos legítimos— y comprueba que un documento con letras se rechace. **Entra el alias**, que es lo que varios bancos paraguayos usan para transferir: más corto y más difícil de tipear mal, así que en el portal va **arriba** del número. **Y «Datos de pago» salía en el desplegable pero no en las tarjetas de Configuración**, que es el séptimo patrón de los errores que este proyecto se hace a sí mismo: la tarjeta se escribe a mano y el menú sale del catálogo, así que al sumar una pantalla es fácil hacer sólo una de las dos. La prueba que entra a cerrarlo **destapó dos casos más que nadie había reportado**: «Zonas del cuerpo» tampoco tenía tarjeta desde la 7.43.1, y Tesorería ofrecía **dos enlaces rotos** —«Arqueo» apuntando a `#arqueo` de una pantalla que dejó de tener ese bloque cuando el arqueo se volvió su propia ruta (7.63.0), e «Historial de caja» a `#historial`, que se fue en la 7.68.0. Los dos llevaban a una pantalla que los ignoraba, sin dar error. **Se mira sólo el bloque de tarjetas y no el HTML entero**: la barra del layout ya dibuja todas las pantallas en su desplegable, así que buscar la URL en toda la página la encuentra siempre — la primera versión de la prueba pasaba sin medir nada. **142 pruebas**, tres nuevas comprobadas en las dos direcciones |
@@ -400,6 +401,7 @@ app/
     Sucursales.php         La sucursal activa y el filtro por local: activa(), filtro()
     Canje.php              El vale de puntos: canjear(), aplicarACita()
     Config.php             Lo que decide el salón y no el código (`configuracion`)
+    Imagen.php             Subir el logo o la foto de un servicio: guardar() url() borrar()
     Borrador.php           No perder lo escrito al usar un alta rápida
     Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Pendientes.php         Qué le falta CARGAR al salón: el panel y spg:pendientes
@@ -424,6 +426,7 @@ resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
                            <x-cobro-lineas>  las líneas del cobro, en Facturas y en la agenda
+                           <x-servicio-tarjeta> el servicio al reservar, con su imagen
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
   reportes/                index + un partial por informe (`_resumen`, `_citas`…):
@@ -440,7 +443,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 143 pruebas
+tests/Feature/             Las 144 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -579,6 +582,38 @@ nunca para decorar. Están declarados como variables; no escribir hex sueltos en
 Criterio de los badges de estado (`estado_badge()` + clases `.e-*`): lo que está **en curso**
 lleva el acento dorado, lo que está simplemente **agendado o cerrado** va en neutros cálidos,
 y el **resultado** en los semánticos. Así el badge dorado señala algo en vez de ser adorno.
+
+### La imagen de referencia del servicio
+
+**«Mechas» es una palabra; la foto es lo que la clienta va a recibir.** Al
+reservar, los servicios se eligen como tarjetas con su imagen, en las dos
+pantallas: el portal y Nueva cita.
+
+| | |
+|---|---|
+| Dónde se carga | Servicios → la ficha del servicio |
+| Dónde se guarda | `servicio.imagen` — **el nombre del archivo**, no el archivo |
+| Dónde viven | `public/assets/servicios/` (ignorado por git: son del salón) |
+| Quién la sube | `App\Servicios\Imagen`, el mismo que el logo |
+
+- **Es UN componente para las dos pantallas** (`<x-servicio-tarjeta>`). Copiado
+  se desfasan, que es un error que este proyecto ya se hizo varias veces.
+- **El funcionamiento no cambió**: es el mismo checkbox, con el mismo `name` y
+  los mismos `data-duracion` / `data-precio`, así que la agenda, el reparto y
+  los canjes siguen igual. Lo que cambió es cómo se ve.
+- **La tarjeta entera es un `<label>`**, así que marca sin JavaScript. El
+  `select` de profesional queda adentro y no la dispara: por especificación, un
+  clic sobre contenido interactivo dentro de un `label` no activa el control
+  asociado.
+- **Sin imagen se dice**, no se pone una genérica: una foto de archivo que no
+  es de este salón promete un resultado que no se puede sostener.
+- **El oro va sólo en la elegida** —borde y anillo—. En las quince tarjetas, la
+  elegida dejaría de distinguirse.
+
+> **Se guarda el nombre y no el archivo.** Un BLOB hincha la base, complica el
+> volcado que se entrega y obliga a servir la imagen por PHP en cada carga.
+> `Imagen::url()` devuelve null si el archivo ya no está, y la pantalla dibuja
+> el placeholder en vez del ícono roto.
 
 ### «Todos» en un grupo de opciones múltiples
 
@@ -3199,7 +3234,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 143 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 144 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3340,7 +3375,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**143 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**144 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

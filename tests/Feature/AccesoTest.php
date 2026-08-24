@@ -772,4 +772,59 @@ class AccesoTest extends TestCase
                   WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]), $porque);
         }
     }
+
+    /**
+     * Al reservar se ve la imagen de referencia, y sin imagen se dice.
+     *
+     * **Lo visual cambió, el funcionamiento no**: la tarjeta lleva el mismo
+     * checkbox, con el mismo `name` y los mismos `data-`, así que la agenda, el
+     * reparto y los canjes siguen igual. Eso es lo que se comprueba primero —
+     * una tarjeta linda que rompe el POST no sirve de nada.
+     *
+     * Y se mide en las dos direcciones: **con imagen sale la foto**, y **sin
+     * imagen sale el aviso**, que es honesto — una foto de archivo que no es de
+     * este salón promete un resultado que no se puede sostener.
+     */
+    #[Test]
+    public function al_reservar_se_ve_la_imagen_de_referencia_del_servicio(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        $srv = (int) DB::scalar('SELECT MIN(id_servicio) FROM servicio WHERE activo = 1');
+
+        // 1) Sin imagen cargada: la tarjeta lo dice.
+        DB::update('UPDATE servicio SET imagen = NULL WHERE id_servicio = ?', [$srv]);
+        $html = (string) $this->get(route('citas.form'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Sin imagen de referencia', $html,
+            'Sin imagen cargada la tarjeta tiene que decirlo, no dejar un hueco.');
+
+        // Y el checkbox sigue siendo el mismo: es lo que hace que el POST ande.
+        $this->assertStringContainsString('name="servicios[]"', $html,
+            'La tarjeta cambió el marcado y se llevó puesto el campo que manda los servicios.');
+        $this->assertStringContainsString('data-duracion=', $html,
+            'El selector de agenda lee `data-duracion` de cada servicio.');
+
+        // 2) Con imagen: sale la foto y no el aviso.
+        //    Se escribe un PNG mínimo de verdad, porque `Imagen::url()`
+        //    comprueba que el archivo exista antes de devolver la URL.
+        $dir = public_path('assets/servicios');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $nombre = 'prueba-' . uniqid() . '.png';
+        file_put_contents($dir . '/' . $nombre, base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='));
+
+        try {
+            DB::update('UPDATE servicio SET imagen = ? WHERE id_servicio = ?', [$nombre, $srv]);
+            $html = (string) $this->get(route('citas.form'))->assertOk()->getContent();
+
+            $this->assertStringContainsString($nombre, $html,
+                'Con imagen cargada la tarjeta tiene que mostrarla.');
+        } finally {
+            // El archivo no lo revierte `DatabaseTransactions`: se borra a mano.
+            @unlink($dir . '/' . $nombre);
+        }
+    }
 }

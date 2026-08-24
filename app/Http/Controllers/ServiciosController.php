@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Imagen;
 use App\Servicios\Config;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use RuntimeException;
 use Throwable;
 
 class ServiciosController extends Controller
@@ -181,6 +183,9 @@ class ServiciosController extends Controller
         return view('servicios.form', [
             'ajenos' => $ajenos,
             's' => $s,
+            // Null si el archivo ya no está: la pantalla dibuja el placeholder
+            // en vez del ícono roto.
+            'imagenUrl' => Imagen::url($s->imagen ?? null, 'servicios'),
             'cats' => DB::select('SELECT * FROM categoria_servicio ORDER BY nombre'),
             'zonas' => DB::select('SELECT id_zona, nombre FROM zona_servicio WHERE activo = 1 ORDER BY nombre'),
             // Dónde más se ofrece, sólo para decirlo al editar: el catálogo es
@@ -248,7 +253,32 @@ class ServiciosController extends Controller
         // El precio anterior se lee ANTES de escribir: es lo único que no se
         // puede reconstruir después, y es el dato que se va a querer mirar si
         // una factura sale por un importe que no cuadra.
-        $previo = $id ? DB::selectOne('SELECT precio, duracion_min FROM servicio WHERE id_servicio = ?', [$id]) : null;
+        $previo = $id
+            ? DB::selectOne('SELECT precio, duracion_min, imagen FROM servicio WHERE id_servicio = ?', [$id])
+            : null;
+
+        // **La imagen de referencia.** Es lo que la clienta mira para saber qué
+        // está pidiendo: «mechas» es una palabra, la foto es el resultado.
+        //
+        // Se escribe ANTES de tocar la base, así que si falla no queda una fila
+        // apuntando a un archivo que no está.
+        $imagen = $previo->imagen ?? null;
+        $sacar = $request->boolean('sacar_imagen');
+
+        if (($archivo = $request->file('imagen')) !== null) {
+            try {
+                $imagen = Imagen::guardar($archivo, 'servicios', 'srv');
+                Imagen::borrar($previo->imagen ?? null, 'servicios');
+            } catch (RuntimeException $e) {
+                flash($e->getMessage(), 'error');
+
+                return $volver->withInput();
+            }
+        } elseif ($sacar) {
+            Imagen::borrar($imagen, 'servicios');
+            $imagen = null;
+        }
+        $d['imagen'] = $imagen;
 
         try {
             if ($id) {
@@ -256,7 +286,7 @@ class ServiciosController extends Controller
                     'UPDATE servicio SET id_categoria_servicio=:id_categoria_servicio, nombre=:nombre,
                         descripcion=:descripcion, precio=:precio, duracion_min=:duracion_min,
                         tasa_iva=:tasa_iva, requiere_exclusividad=:requiere_exclusividad, id_zona=:id_zona,
-                        sena_porcentaje=:sena_porcentaje
+                        sena_porcentaje=:sena_porcentaje, imagen=:imagen
                       WHERE id_servicio=:id', $d + ['id' => $id]
                 );
                 $cambios = [];
@@ -271,8 +301,8 @@ class ServiciosController extends Controller
                 flash('Servicio actualizado.');
             } else {
                 DB::insert(
-                    'INSERT INTO servicio (id_categoria_servicio,id_zona,nombre,descripcion,precio,duracion_min,tasa_iva,requiere_exclusividad,sena_porcentaje)
-                     VALUES (:id_categoria_servicio,:id_zona,:nombre,:descripcion,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad,:sena_porcentaje)', $d
+                    'INSERT INTO servicio (id_categoria_servicio,id_zona,nombre,descripcion,imagen,precio,duracion_min,tasa_iva,requiere_exclusividad,sena_porcentaje)
+                     VALUES (:id_categoria_servicio,:id_zona,:nombre,:descripcion,:imagen,:precio,:duracion_min,:tasa_iva,:requiere_exclusividad,:sena_porcentaje)', $d
                 );
                 $id = (int) DB::getPdo()->lastInsertId();
                 Auditoria::registrar('ALTA', 'Servicios', 'servicio', $id, $d['nombre']);

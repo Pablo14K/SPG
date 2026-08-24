@@ -59,27 +59,21 @@
                         pueden hacer en paralelo con otro exclusivo.
                     </p>
 
-                    <div class="spg-check-lista" id="listaServicios" data-canjes="#bloqueCanjes">
+                    {{-- **Tarjetas con la imagen de referencia.** El
+                         funcionamiento no cambió: es el mismo checkbox, con el
+                         mismo `name` y los mismos `data-`, así que la agenda,
+                         el reparto y los canjes siguen igual. Lo que cambió es
+                         que quien atiende ve la foto de lo que le están
+                         pidiendo — «mechas» es una palabra, la foto es el
+                         resultado. --}}
+                    <div class="spg-srv-grid" id="listaServicios" data-canjes="#bloqueCanjes">
                         @foreach ($servicios as $s)
-                            <div class="d-flex align-items-center gap-2 flex-wrap py-1">
-                                <div class="form-check mb-0 flex-grow-1">
-                                    <input class="form-check-input srv" type="checkbox" name="servicios[]"
-                                           value="{{ $s->id_servicio }}" id="srv{{ $s->id_servicio }}"
-                                           data-duracion="{{ $s->duracion_min }}"
-                                           @checked(in_array($s->id_servicio, old('servicios', []), false))>
-                                    <label class="form-check-label" for="srv{{ $s->id_servicio }}">
-                                        {{ $s->nombre }}
-                                        <span class="text-muted-warm">
-                                            · {{ money($s->precio) }} · {{ (int) $s->duracion_min }} min
-                                        </span>
-                                        @if ($s->requiere_exclusividad)
-                                            <span class="badge-estado e-warn">exclusivo</span>
-                                        @endif
-                                    </label>
-                                </div>
+                            <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
+                                :marcado="in_array($s->id_servicio, old('servicios', []), false)">
+
                                 @php $profSel = (int) (old('prof_servicio', [])[$s->id_servicio] ?? 0); @endphp
                                 {{-- El combo aparece con su servicio: ver `data-prof-de` en app.js --}}
-                                <select class="form-select form-select-sm" style="width:auto"
+                                <select class="form-select form-select-sm mt-1"
                                         name="prof_servicio[{{ $s->id_servicio }}]"
                                         data-prof-de="#srv{{ $s->id_servicio }}">
                                     <option value="0">quien esté libre</option>
@@ -88,7 +82,7 @@
                                             @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}</option>
                                     @endforeach
                                 </select>
-                            </div>
+                            </x-servicio-tarjeta>
                         @endforeach
                     </div>
                 </div>

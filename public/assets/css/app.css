@@ -680,6 +680,52 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
 
 /* ---- Fila vacía de una tabla ---- */
+/* ---------------------------------------------------------------
+   Tarjetas de servicio al reservar, con su imagen de referencia.
+
+   **La tarjeta entera es un `<label>`**, así que marca el checkbox sin
+   JavaScript: con `app.js` caído se sigue pudiendo reservar.
+
+   El oro va SÓLO en la elegida —borde y marca— que es donde hay jerarquía;
+   el resto queda en neutros cálidos. Si el oro estuviera en las quince
+   tarjetas, la elegida dejaría de distinguirse.
+   --------------------------------------------------------------- */
+.spg-srv-grid{display:grid;gap:.75rem;
+  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
+
+.spg-srv-card{display:flex;flex-direction:column;cursor:pointer;
+  border:1px solid var(--gris-calido);border-radius:10px;overflow:hidden;
+  background:var(--blanco);transition:border-color .15s,box-shadow .15s;}
+.spg-srv-card:hover{border-color:var(--oro-claro);}
+.spg-srv-card.elegida{border-color:var(--oro);box-shadow:0 0 0 2px var(--oro-suave);}
+
+/* `aspect-ratio` y no una altura fija: así la grilla no se desalinea cuando
+   una foto viene más alta que otra. */
+.spg-srv-img{position:relative;aspect-ratio:4/3;background:var(--blanco-hueso);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.spg-srv-img img{width:100%;height:100%;object-fit:cover;display:block;}
+
+.spg-srv-sinimg{display:flex;flex-direction:column;align-items:center;gap:.2rem;
+  color:var(--gris-oscuro);text-align:center;padding:.5rem;}
+.spg-srv-sinimg i{font-size:1.5rem;opacity:.5;}
+.spg-srv-sinimg span{font-size:.68rem;line-height:1.2;}
+
+/* El check va sobre la imagen, no debajo del texto: es lo que se toca y tiene
+   que verse sin buscarlo. */
+.spg-srv-check{position:absolute;top:.4rem;left:.4rem;width:1.15rem;height:1.15rem;
+  box-shadow:0 0 0 2px var(--blanco);}
+
+.spg-srv-cuerpo{padding:.5rem .6rem .6rem;display:flex;flex-direction:column;gap:.15rem;}
+.spg-srv-nombre{font-size:.87rem;font-weight:500;line-height:1.25;}
+.spg-srv-desc{font-size:.74rem;color:var(--gris-oscuro);line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.spg-srv-precio{font-size:1rem;font-weight:600;color:var(--oro-texto);}
+.spg-srv-dur{font-size:.73rem;color:var(--gris-oscuro);}
+
+/* La miniatura de la ficha del servicio, donde se sube la imagen. */
+.spg-srv-mini{width:120px;height:90px;object-fit:cover;border-radius:8px;
+  border:1px solid var(--gris-calido);}
+
 /* Los pasos numerados de un formulario largo. El número va en oro suave y no
    en oro macizo: es jerarquía, no acción — el oro lleno se reserva para lo que
    hay que apretar. */

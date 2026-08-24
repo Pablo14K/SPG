@@ -68,7 +68,9 @@
     </div>
 
     <div class="spg-panel" style="max-width:720px">
-        <form method="post" action="{{ route('servicios.guardar') }}">
+        {{-- `enctype`: sin esto el archivo de la imagen no viaja y el campo
+             llega vacío, sin dar ningún error. --}}
+        <form method="post" action="{{ route('servicios.guardar') }}" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="id_servicio" value="{{ $id }}">
 
@@ -137,6 +139,39 @@
                     <label class="form-label" for="descripcion">Descripción</label>
                     <textarea class="form-control" id="descripcion" name="descripcion"
                               rows="2">{{ old('descripcion', $s->descripcion ?? '') }}</textarea>
+                </div>
+
+                {{-- **La imagen de referencia.** Es lo que la clienta mira para
+                     saber qué está pidiendo: «mechas» es una palabra, la foto es
+                     el resultado. Se ve al reservar, en el portal y en el
+                     mostrador.
+
+                     Es opcional: sin imagen la tarjeta dice «Sin imagen de
+                     referencia», que es honesto — mejor que una foto genérica
+                     que no es de este salón. --}}
+                <div class="col-12">
+                    <label class="form-label" for="imagen">Imagen de referencia</label>
+                    <div class="d-flex gap-3 align-items-start flex-wrap">
+                        @if ($imagenUrl ?? null)
+                            <img src="{{ $imagenUrl }}" alt="" class="spg-srv-mini">
+                        @endif
+                        <div class="flex-grow-1" style="min-width:240px">
+                            <input class="form-control" type="file" id="imagen" name="imagen"
+                                   accept="image/png,image/jpeg,image/webp">
+                            <div class="form-text">
+                                PNG, JPG o WEBP, hasta 512 KB. Se ve al reservar, así que
+                                conviene una foto del resultado y no del producto.
+                            </div>
+                            @if ($imagenUrl ?? null)
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="sacar_imagen" name="sacar_imagen" value="1">
+                                    <label class="form-check-label" for="sacar_imagen"
+                                           style="font-size:.86rem">Sacar la imagen que tiene</label>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-12">

@@ -61,30 +61,28 @@
                 <a class="btn btn-sm btn-outline-neutro mb-2" href="{{ route('portal.profesionales', ['sucursal' => $sucursal]) }}">
                     <i class="bi bi-people"></i> ¿Quién hace cada cosa?</a>
 
-                <div class="spg-check-lista" data-canjes="#bloqueCanjes">
+                {{-- **Tarjetas con la imagen de referencia.** La clienta
+                     elige mirando el resultado y no una lista de nombres:
+                     «mechas» es una palabra, la foto es lo que va a recibir.
+
+                     El funcionamiento no cambió — mismo checkbox, mismo `name`,
+                     mismos `data-` — así que la agenda, los canjes y el reparto
+                     siguen exactamente igual. --}}
+                <div class="spg-srv-grid" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
-                        <div class="d-flex align-items-center gap-2 flex-wrap py-1">
-                            <div class="form-check mb-0 flex-grow-1">
-                                <input class="form-check-input srv" type="checkbox" name="servicios[]"
-                                       value="{{ $s->id_servicio }}" id="srv{{ $s->id_servicio }}">
-                                <label class="form-check-label" for="srv{{ $s->id_servicio }}">
-                                    {{ $s->nombre }}
-                                    <span class="text-muted-warm">
-                                        · {{ money($s->precio) }} · {{ (int) $s->duracion_min }} min</span>
-                                    {{-- **Que pide seña se avisa ANTES de reservar**, no
-                                         después: es plata que hay que adelantar para que
-                                         la cita quede confirmada, y enterarse al final
-                                         cambia la decisión de haberla tomado. --}}
-                                    @if ($s->sena_porcentaje)
-                                        <span class="badge-estado e-warn" title="Se reserva con seña">
-                                            seña {{ money(round($s->precio * $s->sena_porcentaje / 100)) }}</span>
-                                    @endif
-                                </label>
-                            </div>
+                        <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
+                            {{-- **Que pide seña se avisa ANTES de reservar**, no
+                                 después: es plata que hay que adelantar para que
+                                 la cita quede confirmada, y enterarse al final
+                                 cambia la decisión de haberla tomado. --}}
+                            :badge="$s->sena_porcentaje
+                                ? 'seña ' . money(round($s->precio * $s->sena_porcentaje / 100))
+                                : null">
+
                             {{-- El combo aparece con su servicio: ver `data-prof-de` en app.js.
                                  Arranca visible a propósito, así que sin JavaScript se ven todos
                                  y se puede elegir profesional igual. --}}
-                            <select class="form-select form-select-sm" style="width:auto"
+                            <select class="form-select form-select-sm mt-1"
                                     name="prof_servicio[{{ $s->id_servicio }}]"
                                     data-prof-de="#srv{{ $s->id_servicio }}">
                                 <option value="0">quien me atienda</option>
@@ -105,7 +103,7 @@
                                     <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}</option>
                                 @endforeach
                             </select>
-                        </div>
+                        </x-servicio-tarjeta>
                     @endforeach
                 </div>
             </div>
