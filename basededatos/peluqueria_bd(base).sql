@@ -1,6 +1,6 @@
 -- MariaDB dump 10.19  Distrib 10.4.34-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: spg_limpia
+-- Host: localhost    Database: spg_l
 -- ------------------------------------------------------
 -- Server version	10.4.34-MariaDB-1:10.4.34+maria~ubu2004
 
@@ -987,6 +987,7 @@ CREATE TABLE `dato_pago_sucursal` (
   `documento` varchar(20) DEFAULT NULL,
   `tipo_cuenta` varchar(30) DEFAULT NULL,
   `numero_cuenta` varchar(40) DEFAULT NULL,
+  `alias` varchar(60) DEFAULT NULL,
   `observacion` varchar(200) DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
@@ -3440,11 +3441,11 @@ INSERT INTO `zona_servicio` VALUES (1,'Cabello',1),(2,'Manos',1),(3,'Pies',1),(4
 UNLOCK TABLES;
 
 --
--- Dumping events for database 'spg_limpia'
+-- Dumping events for database 'spg_l'
 --
 
 --
--- Dumping routines for database 'spg_limpia'
+-- Dumping routines for database 'spg_l'
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
@@ -5994,4 +5995,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24  8:44:25
+-- Dump completed on 2026-08-24  9:08:08

@@ -81,6 +81,8 @@ class SeguridadController extends Controller
                  't' => 'Sucursales', 'd' => 'Locales del salón, nombre y logo'],
                 ['p' => 'configuracion.contacto', 'ruta' => 'seguridad.contacto', 'ic' => 'headset',
                  't' => 'Contacto', 'd' => 'Los medios que salen en el pie'],
+                ['p' => 'configuracion.pagos', 'ruta' => 'seguridad.pagos', 'ic' => 'bank',
+                 't' => 'Datos de pago', 'd' => 'A qué cuenta transfiere la clienta la seña'],
             ]),
         ]);
     }

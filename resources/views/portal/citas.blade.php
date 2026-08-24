@@ -258,7 +258,13 @@
                                                 <strong>{{ $ct->entidad }}</strong>
                                                 <span class="text-muted-warm">· {{ $ct->medio }}</span>
                                             </div>
-                                            <div class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</div>
+                                            @if ($ct->alias)
+                                                <div class="spg-cuenta-nro">{{ $ct->alias }}</div>
+                                                <div class="spg-cuenta-pie">
+                                                    o por número: {{ $ct->numero_cuenta }}</div>
+                                            @else
+                                                <div class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</div>
+                                            @endif
                                             <div class="spg-cuenta-pie">
                                                 {{ $ct->titular }}@if ($ct->documento) · {{ $ct->documento }}@endif
                                                 @if ($ct->tipo_cuenta) · {{ $ct->tipo_cuenta }}@endif

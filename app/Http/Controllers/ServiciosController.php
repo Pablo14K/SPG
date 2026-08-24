@@ -26,6 +26,8 @@ class ServiciosController extends Controller
                  't' => 'Catálogo de servicios', 'd' => 'Nombre, precio y duración'],
                 ['p' => 'servicios.categorias', 'ruta' => 'servicios.categorias', 'ic' => 'tags',
                  't' => 'Categorías', 'd' => 'Tipos de servicio'],
+                ['p' => 'servicios.categorias', 'ruta' => 'servicios.zonas', 'ic' => 'diagram-3',
+                 't' => 'Zonas del cuerpo', 'd' => 'Qué se puede hacer a la vez'],
                 ['p' => 'servicios.descuentos', 'ruta' => 'servicios.descuentos', 'ic' => 'percent',
                  // La 7.55.0 la renombró a Promociones, que es lo que administra;
                  // acá había quedado el nombre viejo, así que la tarjeta del Panel

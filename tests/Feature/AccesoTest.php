@@ -683,4 +683,63 @@ class AccesoTest extends TestCase
             'SELECT username FROM usuario WHERE id_usuario = ?', [$id]),
             'La edición no se guardó.');
     }
+
+    /**
+     * Cargar una cuenta de pago funciona de punta a punta.
+     *
+     * **La prueba anterior insertaba directo en la tabla**, así que medía el
+     * aislamiento por sucursal y no el camino real: el controlador llamaba a
+     * `Persona::error('documento', $doc)` —dos strings a un método que recibe
+     * un arreglo— y la pantalla devolvía un TypeError 500 al guardar. Una
+     * prueba que no pasa por el POST no ve eso.
+     *
+     * Se comprueba el alta con RUC y con cédula, porque el titular puede tener
+     * cualquiera de los dos y validar contra uno solo rechazaría la mitad de
+     * los casos legítimos.
+     */
+    #[Test]
+    public function cargar_una_cuenta_de_pago_funciona_de_punta_a_punta(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $medio = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' LIMIT 1");
+
+        $cargar = function (string $doc, string $nro) use ($suc, $medio) {
+            return $this->post(route('seguridad.pagos.guardar'), [
+                'id_dato_pago' => 0,
+                'id_sucursal' => $suc,
+                'id_metodo_pago' => $medio,
+                'entidad' => 'Banco de prueba',
+                'titular' => 'Salón de prueba',
+                'documento' => $doc,
+                'numero_cuenta' => $nro,
+                'alias' => 'alias.' . $nro,
+                'tipo_cuenta' => 'Caja de ahorro',
+            ]);
+        };
+
+        // Con RUC (lleva verificador) y con cédula (no lo lleva).
+        $cargar('80012345-0', 'CTA-RUC-' . random_int(1000, 9999));
+        $cargar('4200000', 'CTA-CI-' . random_int(1000, 9999));
+
+        $this->assertSame(2, (int) DB::scalar(
+            "SELECT COUNT(*) FROM dato_pago_sucursal
+              WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]),
+            'El alta de cuentas de pago no llegó a guardar: revisá el POST, no la tabla.');
+
+        // El alias se guarda: es lo que varios bancos usan para transferir, y
+        // es más corto que el número.
+        $this->assertNotNull(DB::scalar(
+            "SELECT alias FROM dato_pago_sucursal
+              WHERE id_sucursal = ? AND titular = 'Salón de prueba' LIMIT 1", [$suc]),
+            'El alias no se guardó.');
+
+        // Y un documento que no es ni cédula ni RUC se rechaza.
+        $cargar('abc!!!', 'CTA-MALA-' . random_int(1000, 9999));
+        $this->assertSame(2, (int) DB::scalar(
+            "SELECT COUNT(*) FROM dato_pago_sucursal
+              WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]),
+            'Un documento con letras y símbolos no puede entrar.');
+    }
 }

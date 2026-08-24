@@ -49,21 +49,19 @@ class FacturacionController extends Controller
                 ['p' => 'facturacion.cobros', 'ruta' => 'facturacion.cobros', 'ic' => 'cash-coin',
                  't' => 'Cobros', 'd' => 'Pagos recibidos de clientes', 'grupo' => 'Cobros'],
 
-                // Las tres primeras son secciones de la MISMA pantalla, no
-                // pantallas distintas: el ancla lleva directo a su bloque.
-                // Inventarles una ruta propia sería prometer profundidad que
-                // no existe.
+                // **Las anclas se fueron y con ellas dos tarjetas rotas.**
+                // «Arqueo» apuntaba a `#arqueo` de esta misma pantalla desde
+                // antes de que fuera su propia ruta (7.63.0), e «Historial de
+                // caja» a `#historial`, un bloque que ya no existe. Las dos
+                // llevaban a una pantalla que las ignoraba, y nada lo decía:
+                // es el patrón de siempre — algo apunta al vacío y no da error.
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'safe',
                  't' => 'Apertura y cierre', 'd' => 'Abrir el cajón del día y cerrarlo', 'grupo' => 'Caja'],
-                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'calculator',
-                 't' => 'Arqueo', 'd' => 'Contar el efectivo y ver si cuadra', 'grupo' => 'Caja',
-                 'ancla' => '#arqueo'],
+                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'calculator',
+                 't' => 'Arqueo', 'd' => 'Contar el efectivo y ver si cuadra', 'grupo' => 'Caja'],
                 ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
                  't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
                  'grupo' => 'Caja'],
-                ['p' => 'facturacion.caja', 'ruta' => 'facturacion.caja', 'ic' => 'clock-history',
-                 't' => 'Historial de caja', 'd' => 'Las cajas anteriores y su arqueo', 'grupo' => 'Caja',
-                 'ancla' => '#historial'],
 
                 ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
                  't' => 'Pagos al profesional', 'd' => 'Comisiones y liquidaciones', 'grupo' => 'Pagos'],

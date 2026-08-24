@@ -199,6 +199,7 @@ class ConfiguracionController extends Controller
         $titular = trim((string) $request->input('titular', ''));
         $doc = trim((string) $request->input('documento', ''));
         $tipoCta = trim((string) $request->input('tipo_cuenta', ''));
+        $alias = trim((string) $request->input('alias', ''));
         $nro = trim((string) $request->input('numero_cuenta', ''));
         $obs = trim((string) $request->input('observacion', ''));
         $orden = (int) $request->input('orden', 0);
@@ -215,7 +216,16 @@ class ConfiguracionController extends Controller
             // sirve para nada. Se pide siempre, aunque la columna admita NULL
             // para las filas que vengan de otro lado.
             $nro === '' => 'Escribí el número de cuenta (o el celular, si es billetera).',
-            $doc !== '' && Persona::error('documento', $doc) => Persona::error('documento', $doc),
+
+            // **El documento del titular puede ser cédula O RUC**, y no sabemos
+            // cuál escribió: se acepta si pasa por cualquiera de las dos. El
+            // RUC lleva verificador y la cédula no, así que validar contra una
+            // sola rechazaría la mitad de los casos legítimos.
+            $doc !== ''
+                && Persona::error(['cedula' => $doc]) !== null
+                && Persona::error(['ruc' => $doc]) !== null
+                    => 'El documento del titular no tiene un formato válido (cédula o RUC).',
+
             default => null,
         };
 
@@ -224,14 +234,15 @@ class ConfiguracionController extends Controller
         }
 
         $campos = [$suc, $medio, $entidad, $titular, $doc ?: null,
-            $tipoCta ?: null, $nro, $obs ?: null, max(0, min(255, $orden))];
+            $tipoCta ?: null, $nro, $alias ?: null, $obs ?: null, max(0, min(255, $orden))];
 
         try {
             if ($id) {
                 DB::update(
                     'UPDATE dato_pago_sucursal
                         SET id_sucursal = ?, id_metodo_pago = ?, entidad = ?, titular = ?,
-                            documento = ?, tipo_cuenta = ?, numero_cuenta = ?, observacion = ?, orden = ?
+                            documento = ?, tipo_cuenta = ?, numero_cuenta = ?, alias = ?,
+                            observacion = ?, orden = ?
                       WHERE id_dato_pago = ?',
                     array_merge($campos, [$id])
                 );
@@ -239,8 +250,8 @@ class ConfiguracionController extends Controller
                 DB::insert(
                     'INSERT INTO dato_pago_sucursal
                         (id_sucursal, id_metodo_pago, entidad, titular, documento,
-                         tipo_cuenta, numero_cuenta, observacion, orden)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         tipo_cuenta, numero_cuenta, alias, observacion, orden)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     $campos
                 );
                 $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');

@@ -106,6 +106,18 @@
                            placeholder="O el celular, si es billetera">
                 </div>
 
+                {{-- **El alias es lo que de verdad se copia hoy.** Varios bancos
+                     paraguayos transfieren por alias en vez de por número de
+                     cuenta, y es más corto y más difícil de tipear mal. Va como
+                     campo propio y no dentro de la aclaración: la clienta lo
+                     tiene que poder copiar de un toque. --}}
+                <div class="mb-2">
+                    <label class="form-label" for="alias">Alias</label>
+                    <input class="form-control" id="alias" name="alias" maxlength="60"
+                           value="{{ old('alias', $editar->alias ?? '') }}"
+                           placeholder="Si el banco lo usa, es lo más fácil de copiar">
+                </div>
+
                 <div class="mb-2">
                     <label class="form-label" for="observacion">Aclaración para la clienta</label>
                     <input class="form-control" id="observacion" name="observacion" maxlength="200"
@@ -160,6 +172,10 @@
                                     </td>
                                     <td>
                                         <div class="spg-cuenta-nro">{{ $d->numero_cuenta ?: '—' }}</div>
+                                        @if ($d->alias)
+                                            <div class="text-muted-warm" style="font-size:.8rem">
+                                                alias: {{ $d->alias }}</div>
+                                        @endif
                                         @if ($d->tipo_cuenta)
                                             <div class="text-muted-warm" style="font-size:.8rem">{{ $d->tipo_cuenta }}</div>
                                         @endif

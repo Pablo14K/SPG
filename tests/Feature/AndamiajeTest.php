@@ -293,4 +293,55 @@ class AndamiajeTest extends TestCase
         $this->assertSame('configuracion', Navegacion::moduloDe('seguridad.configuracion.index'));
         $this->assertSame('personal', Navegacion::moduloDe('seguridad.turnos'));
     }
+
+    /**
+     * El landing de cada módulo ofrece TODAS sus pantallas.
+     *
+     * **Séptimo patrón de los errores que este proyecto se hace a sí mismo**: la
+     * tarjeta del landing se escribe a mano y el desplegable sale del catálogo,
+     * así que al sumar una pantalla es fácil hacer sólo una de las dos. El
+     * síntoma es exactamente el que se reportó: «Datos de pago» aparecía en el
+     * menú de la barra y **no** en las tarjetas de Configuración.
+     *
+     * Ya había pasado con la tarjeta de Seguridad (7.62.0) y con la de Personal
+     * (7.62.0), las dos veces al revés — anunciando de más o de menos.
+     *
+     * Se abre cada landing como Administrador y se comprueba que nombre todas
+     * las pantallas que el catálogo declara para ese módulo.
+     */
+    #[Test]
+    public function el_landing_de_cada_modulo_ofrece_todas_sus_pantallas(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        foreach (config('navegacion.modulos', []) as $m) {
+            $url = Navegacion::url((string) $m['ruta']);
+            if ($url === null) {
+                continue;
+            }
+
+            $html = (string) $this->get($url)->assertOk()->getContent();
+
+            // **Se mira SÓLO el bloque de tarjetas.** La barra del layout ya
+            // dibuja todas las pantallas en su desplegable, así que buscar la
+            // URL en el HTML entero la encuentra siempre y la prueba no mide
+            // nada — pasó al escribirla.
+            $desde = strpos($html, '<div class="spg-cards">');
+            $hasta = strrpos($html, '</main>');
+            $tarjetas = $desde === false
+                ? ''
+                : substr($html, $desde, ($hasta !== false ? $hasta : strlen($html)) - $desde);
+
+            foreach (Navegacion::pantallasDe((string) $m['mod']) as $pant) {
+                // La entrada del módulo no se anuncia a sí misma.
+                if ((string) $pant['url'] === $url) {
+                    continue;
+                }
+
+                $this->assertStringContainsString((string) $pant['url'], $tarjetas,
+                    'El landing de ' . $m['mod'] . ' no ofrece «' . $pant['t']
+                    . '», que el catálogo sí declara. La barra la muestra y la tarjeta no.');
+            }
+        }
+    }
 }
