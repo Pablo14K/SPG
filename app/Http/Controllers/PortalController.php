@@ -147,8 +147,8 @@ class PortalController extends Controller
             'haceServicio' => $elegida ? (function () {
                 $out = [];
                 foreach (DB::select(
-                    'SELECT us.id_servicio, us.id_usuario FROM usuario_servicio us
-                       JOIN usuario u ON u.id_usuario = us.id_usuario AND u.activo = 1'
+                    'SELECT ps.id_servicio, u.id_usuario FROM persona_servicio ps
+                       JOIN usuario u ON u.id_persona = ps.id_persona AND u.activo = 1'
                 ) as $r) {
                     $out[(int) $r->id_servicio][] = (int) $r->id_usuario;
                 }
@@ -653,9 +653,9 @@ class PortalController extends Controller
         $equipo = DB::select(
             "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre,
                     COALESCE((SELECT GROUP_CONCAT(s.nombre ORDER BY s.nombre SEPARATOR '|')
-                                FROM usuario_servicio us
-                                JOIN servicio s ON s.id_servicio = us.id_servicio AND s.activo = 1
-                               WHERE us.id_usuario = u.id_usuario), '') AS servicios,
+                                FROM persona_servicio ps
+                                JOIN servicio s ON s.id_servicio = ps.id_servicio AND s.activo = 1
+                               WHERE ps.id_persona = u.id_persona), '') AS servicios,
                     (SELECT ROUND(AVG(cal.puntaje),1) FROM calificacion cal
                        JOIN cita c ON c.id_cita = cal.id_cita
                       WHERE c.id_usuario = u.id_usuario) AS puntaje

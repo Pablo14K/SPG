@@ -90,6 +90,7 @@ return [
         // Quién trabaja y cuándo. Es lo que el mostrador administra todos los
         // días, y no tiene por qué venir junto con los roles ni la auditoría.
         'personal' => [
+            'personal.profesionales' => 'Profesionales',
             'personal.turnos' => 'Turnos',
             'personal.asistencia' => 'Asistencia',
             'personal.comisiones' => 'Comisiones',

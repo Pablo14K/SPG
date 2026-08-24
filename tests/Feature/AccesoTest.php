@@ -631,12 +631,17 @@ class AccesoTest extends TestCase
     {
         $this->entrarComo('admin', 'admin123');
 
+        // La persona tiene que existir antes: la cuenta se le crea a alguien
+        // ya cargado en Personal → Profesionales.
+        DB::insert("INSERT INTO persona (nombre, apellido, es_personal) VALUES ('Alta', 'De Prueba', 1)");
+        $persona = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
         $ficha = $this->get(route('seguridad.usuario_form'));
         $ficha->assertOk();
         $ficha->assertDontSee('data-bs-toggle="pill"', false);
 
         // Los tres bloques tienen que estar en la misma pantalla.
-        foreach (['name="nombre"', 'name="username"', 'name="sucursales[]"'] as $campo) {
+        foreach (['name="id_persona"', 'name="username"', 'name="sucursales[]"'] as $campo) {
             $ficha->assertSee($campo, false);
         }
 
@@ -646,12 +651,10 @@ class AccesoTest extends TestCase
 
         $this->post(route('seguridad.usuario.guardar'), [
             'id_usuario' => 0,
+            'id_persona' => $persona,
             'username' => $u,
             'password' => 'clave123',
             'id_rol' => $rol,
-            'nombre' => 'Alta',
-            'apellido' => 'De Prueba',
-            'email' => $u . '@ejemplo.test',
             'sucursales' => [$suc],
         ]);
 
@@ -666,21 +669,18 @@ class AccesoTest extends TestCase
 
         $this->post(route('seguridad.usuario.guardar'), [
             'id_usuario' => $id,
-            'username' => $u,
+            'id_persona' => $persona,
+            'username' => $u . 'b',
             'password' => '',
             'id_rol' => $rol,
-            'nombre' => 'Alta',
-            'apellido' => 'Editada',
-            'email' => $u . '@ejemplo.test',
             'sucursales' => [$suc],
         ]);
 
         $this->assertSame($antes, (string) DB::scalar(
             'SELECT password_hash FROM usuario WHERE id_usuario = ?', [$id]),
             'Guardar con la contraseña vacía se la borró: vacío es «no la toques».');
-        $this->assertSame('Editada', DB::scalar(
-            'SELECT pe.apellido FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
-              WHERE u.id_usuario = ?', [$id]),
+        $this->assertSame($u . 'b', DB::scalar(
+            'SELECT username FROM usuario WHERE id_usuario = ?', [$id]),
             'La edición no se guardó.');
     }
 }

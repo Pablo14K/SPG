@@ -2749,9 +2749,14 @@ class ReglasDeNegocioTest extends TestCase
         $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
         $u = 'prueba.' . substr(uniqid(), -8);
 
+        // **La persona se elige, no se tipea** (7.68.0): sus datos viven en
+        // `persona` y se cargan en Personal → Profesionales.
+        DB::insert("INSERT INTO persona (nombre, apellido, es_personal) VALUES ('Rocío', 'Prueba', 1)");
+        $persona = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
         $ficha = [
-            'nombre' => 'Rocío', 'apellido' => 'Prueba', 'username' => $u,
-            'email' => $u . '@ejemplo.com', 'password' => 'secreto123', 'id_rol' => $rol,
+            'id_persona' => $persona, 'username' => $u,
+            'password' => 'secreto123', 'id_rol' => $rol,
         ];
 
         // 1) Sin ninguna marcada no entra: quedaría sin ningún local al que entrar.
@@ -3165,7 +3170,7 @@ class ReglasDeNegocioTest extends TestCase
             'Sin servicios cargados, la agenda no puede rechazarlo por el servicio.');
 
         // 2) En cuanto se le carga UNO, sólo hace ése.
-        DB::insert('INSERT INTO usuario_servicio (id_usuario, id_servicio) VALUES (?, ?)', [$prof, $hace]);
+        DB::insert("INSERT INTO persona_servicio (id_persona, id_servicio) VALUES ((SELECT id_persona FROM usuario WHERE id_usuario = ?), ?)", [$prof, $hace]);
 
         $this->assertSame(1, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$prof, $hace]),
             'El que se le cargó, lo hace.');
@@ -3961,14 +3966,11 @@ class ReglasDeNegocioTest extends TestCase
 
         $guardar = function (array $turnos) use ($usuario): void {
             $u = DB::selectOne(
-                'SELECT u.username, u.id_rol, pe.nombre, pe.apellido, pe.email, pe.cedula
-                   FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
-                  WHERE u.id_usuario = ?', [$usuario]
+                'SELECT username, id_rol, id_persona FROM usuario WHERE id_usuario = ?', [$usuario]
             );
             $this->post(route('seguridad.usuario.guardar'), [
                 'id_usuario' => $usuario, 'username' => $u->username, 'id_rol' => $u->id_rol,
-                'nombre' => $u->nombre, 'apellido' => $u->apellido, 'email' => $u->email,
-                'cedula' => $u->cedula,
+                'id_persona' => $u->id_persona,
                 'sucursales' => [(int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1')],
                 'turnos' => $turnos,
             ]);

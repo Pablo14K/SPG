@@ -65,7 +65,8 @@ class ConcurrenciaAgendaTest extends TestCase
         // con nada — la prueba pasaría siempre, midiendo nada.
         $servicio = (int) DB::scalar(
             'SELECT s.id_servicio FROM servicio s
-               JOIN usuario_servicio us ON us.id_servicio = s.id_servicio AND us.id_usuario = ?
+               JOIN usuario u ON u.id_usuario = ?
+               JOIN persona_servicio ps ON ps.id_servicio = s.id_servicio AND ps.id_persona = u.id_persona
               WHERE s.activo = 1 ORDER BY s.duracion_min LIMIT 1', [$profesional]
         ) ?: (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY duracion_min LIMIT 1');
 

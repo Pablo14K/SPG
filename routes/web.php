@@ -226,6 +226,19 @@ Route::middleware(['sesion', 'personal'])->group(function () {
 
         // Ver la lista pide el submódulo; crear y editar cuentas es exclusivo
         // del Administrador, sin importar lo que diga la matriz de roles.
+        // **Profesionales es la PERSONA; Usuarios es la CUENTA.** Antes eran
+        // la misma pantalla, así que para cargar a alguien que atiende había
+        // que inventarle una cuenta de sistema. Van con permisos distintos
+        // porque contestan preguntas distintas: quién trabaja acá, y quién
+        // entra al sistema.
+        Route::middleware('modulo:personal.profesionales')->group(function () {
+            Route::get('profesionales', [PersonalController::class, 'profesionales'])->name('profesionales');
+            Route::get('profesionales/form/{id?}', [PersonalController::class, 'profesionalForm'])
+                ->name('profesional_form')->whereNumber('id');
+            Route::post('profesionales/guardar', [PersonalController::class, 'profesionalGuardar'])
+                ->name('profesional.guardar');
+        });
+
         Route::get('usuarios', [PersonalController::class, 'usuarios'])
             ->name('usuarios')->middleware('modulo:seguridad.usuarios');
 

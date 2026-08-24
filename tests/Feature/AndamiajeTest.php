@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Servicios\Navegacion;
 use App\Servicios\Permisos;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -250,5 +251,46 @@ class AndamiajeTest extends TestCase
         }
 
         return $out;
+    }
+
+    /**
+     * La barra marca el módulo al que de verdad pertenece la pantalla.
+     *
+     * **Es el defecto del nombre de ruta, por tercera vez.** Al partir Seguridad
+     * en tres (7.57.0) las pantallas no se mudaron de URL —Personal y
+     * Configuración siguen viviendo bajo `/seguridad`— así que deducir el módulo
+     * del prefijo del nombre encendía **Seguridad** estando en Personal.
+     *
+     * Ya había pasado en el desplegable (7.58.0) y en la tarjeta del módulo
+     * (7.62.0). Acá quedaba el marcado del activo.
+     *
+     * Recorre el catálogo entero en vez de fijar tres casos: así una pantalla
+     * nueva mal declarada también salta.
+     */
+    #[Test]
+    public function la_barra_marca_el_modulo_del_permiso_y_no_el_del_nombre_de_ruta(): void
+    {
+        $modulos = array_map(fn ($m) => (string) $m['mod'], config('navegacion.modulos', []));
+
+        // 1) La entrada de cada módulo se marca a sí misma.
+        foreach (config('navegacion.modulos', []) as $m) {
+            $this->assertSame((string) $m['mod'], Navegacion::moduloDe((string) $m['ruta']),
+                'La entrada de ' . $m['mod'] . ' marcaría otro módulo en la barra.');
+        }
+
+        // 2) Cada pantalla del catálogo cae en el módulo de SU permiso.
+        foreach (config('navegacion.pantallas', []) as $clave => $p) {
+            $permiso = (string) $p[2];
+            $suyo = str_contains($permiso, '.') ? explode('.', $permiso)[0] : $permiso;
+
+            $this->assertSame($suyo, Navegacion::moduloDe((string) $clave),
+                "La pantalla $clave marcaría un módulo que no es el suyo ($permiso).");
+        }
+
+        // 3) Y el caso concreto que lo destapó, escrito aparte: sin el arreglo,
+        //    estas tres devuelven «seguridad» y la prueba falla.
+        $this->assertSame('personal', Navegacion::moduloDe('seguridad.personal.index'));
+        $this->assertSame('configuracion', Navegacion::moduloDe('seguridad.configuracion.index'));
+        $this->assertSame('personal', Navegacion::moduloDe('seguridad.turnos'));
     }
 }

@@ -83,6 +83,8 @@ return [
         'reportes.index'            => ['Reportes',              'bar-chart',          'reportes'],
         'reportes.imprimir'         => ['Informe para imprimir', 'printer',            'reportes', false],
         'seguridad.usuarios'        => ['Usuarios',              'person-badge',       'seguridad.usuarios'],
+        'seguridad.profesionales'   => ['Profesionales',         'people',             'personal.profesionales'],
+        'seguridad.profesional_form' => ['Nuevo profesional',    'person-plus',        'personal.profesionales', false],
         'seguridad.usuario_form'    => ['Nuevo usuario',         'person-plus',        'seguridad.usuarios', false],
         'seguridad.roles'           => ['Roles',                 'shield-check',       'seguridad.roles'],
         'seguridad.turnos'          => ['Turnos',                'clock',              'personal.turnos'],
@@ -98,20 +100,17 @@ return [
     //  Pantallas PRESTADAS a otro módulo
     // -----------------------------------------------------------------
     //  Una pantalla pertenece al módulo de su permiso, y con eso alcanza
-    //  para casi todas. La excepción es la ficha del equipo: la abre
-    //  `seguridad.usuarios` —son cuentas, y quién entra al sistema es de
-    //  Seguridad— pero **es también la pantalla donde se carga qué hace
-    //  cada profesional**, o sea trabajo de Personal.
+    //  para casi todas. El mecanismo existe para la excepción: cuando una
+    //  pantalla se necesita desde dos módulos, se declara acá con el título
+    //  con el que se la nombra en el otro.
     //
-    //  Sin declararlo, Personal ofrecía cuatro tarjetas y su vista previa
-    //  anunciaba tres: «Profesionales» no figuraba en ningún lado porque
-    //  su permiso dice `seguridad`.
-    //
-    //  El valor es el título con el que se la nombra en ese otro módulo:
-    //  ahí se llama «Profesionales», que es lo que se va a buscar.
-    'tambien' => [
-        'personal' => ['seguridad.usuarios' => 'Profesionales'],
-    ],
+    //  **Hoy no lo usa nadie.** Lo usaba la ficha del equipo, que abría
+    //  `seguridad.usuarios` y era además donde Personal cargaba a la gente;
+    //  desde la 7.68.0 Profesionales tiene su propia pantalla y su propio
+    //  permiso, así que no hay nada que prestar. El arreglo queda vacío en
+    //  vez de borrarse: el mecanismo sigue siendo correcto y la próxima
+    //  pantalla compartida lo va a necesitar.
+    'tambien' => [],
 
     // -----------------------------------------------------------------
     //  Pantallas relacionadas: lo que uno suele necesitar después de esto.

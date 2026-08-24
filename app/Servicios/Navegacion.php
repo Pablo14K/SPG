@@ -226,6 +226,42 @@ class Navegacion
     // <x-encabezado> con el catálogo de abajo. Acá vivía una segunda versión
     // que nadie llamaba: dos implementaciones de lo mismo y una sola en uso.
 
+    /**
+     * A qué módulo pertenece la pantalla que se está mirando.
+     *
+     * **Sale del PERMISO, no del nombre de la ruta**, y es la tercera vez que
+     * este proyecto tropieza con lo mismo. Al partir Seguridad en tres (7.57.0)
+     * las pantallas no se mudaron de URL —Personal y Configuración siguen
+     * viviendo bajo `/seguridad` y llamándose `seguridad.*`— así que deducir el
+     * módulo del nombre marcaba **Seguridad** en la barra estando en Personal.
+     *
+     * Lo mismo le había pasado al desplegable (7.58.0) y a la tarjeta del
+     * módulo (7.62.0); acá quedaba el marcado del activo.
+     *
+     * Cae al prefijo del nombre de ruta cuando la pantalla no está en el
+     * catálogo: es lo que hacía antes, y sirve para las que no son de ningún
+     * módulo (el panel, mi cuenta, el portal).
+     */
+    public static function moduloDe(string $rutaActual): string
+    {
+        // La entrada del módulo: `seguridad.personal.index` es de Personal, no
+        // de Seguridad. Va primero porque es la que más se equivocaba.
+        foreach (config('navegacion.modulos', []) as $m) {
+            if (($m['ruta'] ?? '') === $rutaActual) {
+                return (string) $m['mod'];
+            }
+        }
+
+        $p = self::pantalla($rutaActual);
+        if ($p) {
+            $permiso = (string) $p['permiso'];
+
+            return str_contains($permiso, '.') ? explode('.', $permiso)[0] : $permiso;
+        }
+
+        return (string) strtok($rutaActual, '.');
+    }
+
     /** Etiqueta, ícono y permiso de una pantalla del catálogo. */
     public static function pantalla(string $clave): ?array
     {

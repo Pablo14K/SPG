@@ -64,36 +64,57 @@
                          enfocar el campo que falta y el rechazo se ve.
 
                          Se guardan juntas, como antes: un solo POST y un solo
-                         botón al pie. --}}
+                         botón al pie.
+
+                         **Los datos de la persona salieron de acá** en la
+                         7.68.0: viven en `persona` y se cargan en Personal →
+                         Profesionales. Esta pantalla administra la CUENTA —
+                         usuario, contraseña, rol— y lo que cuelga de ella:
+                         sucursales, servicios y turnos. --}}
                     <div>
                     <div id="fmPersona">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Datos de la persona</h2>
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> ¿A quién?</h2>
+
+                    {{-- **La persona se ELIGE, no se tipea.**
+
+                         Sus datos —nombre, cédula, teléfono, correo, dirección—
+                         viven en `persona` y se cargan en **Personal →
+                         Profesionales**. Pedirlos otra vez acá era pedir dos
+                         veces el mismo dato y arriesgarse a que quedaran
+                         distintos, que es exactamente lo que la regla número
+                         dos prohíbe.
+
+                         Se ofrecen las personas del personal que todavía NO
+                         tienen cuenta: una persona, una cuenta. --}}
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="nombre">Nombre *</label>
-                            <input class="form-control" id="nombre" name="nombre" required
-                                   value="{{ old('nombre', $u->nombre ?? '') }}">
+                        <div class="col-md-8">
+                            <label class="form-label" for="id_persona">Persona *</label>
+                            @if ($personas)
+                                <input class="form-control mb-1" data-filtra="#id_persona"
+                                       placeholder="Buscar por nombre o cédula...">
+                                <select class="form-select" id="id_persona" name="id_persona" required>
+                                    <option value="">— Elegí a quién —</option>
+                                    @foreach ($personas as $pp)
+                                        <option value="{{ $pp->id_persona }}"
+                                            @selected((int) old('id_persona', $u->id_persona ?? $personaSug) === (int) $pp->id_persona)>
+                                            {{ $pp->nombre }}@if ($pp->cedula) · {{ $pp->cedula }}@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @else
+                                {{-- **Sin nadie a quien darle la cuenta se dice, y se
+                                     nombra el camino.** Un combo vacío no explica nada:
+                                     es el criterio de IN-06. --}}
+                                <div class="alert alert-warning py-2 mb-0" style="font-size:.86rem">
+                                    Todas las personas cargadas ya tienen cuenta.
+                                    <a href="{{ route('seguridad.profesional_form') }}">Cargá al profesional primero</a>
+                                    y después volvé acá.
+                                </div>
+                            @endif
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="apellido">Apellido *</label>
-                            <input class="form-control" id="apellido" name="apellido" required
-                                   value="{{ old('apellido', $u->apellido ?? '') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="cedula">Cédula</label>
-                            <input class="form-control" id="cedula" name="cedula" data-solo="documento" inputmode="numeric"
-                                   value="{{ old('cedula', $u->cedula ?? '') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="telefono">Teléfono</label>
-                            <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
-                                   value="{{ old('telefono', $u->telefono ?? '') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="email">Email *</label>
-                            <input type="email" class="form-control" id="email" name="email" required
-                                   value="{{ old('email', $u->email ?? '') }}">
-                            <div class="form-text">Es el canal del código de seguridad.</div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <a class="btn btn-rapido w-100" href="{{ route('seguridad.profesional_form') }}">
+                                <i class="bi bi-person-plus"></i> Cargar una persona</a>
                         </div>
                     </div>
 
@@ -172,36 +193,13 @@
                         </div>
                     </div>
 
-                    {{-- **Qué servicios hace.** Sin esto la agenda ofrecía a
-                         cualquiera para cualquier servicio: la manicurista para una
-                         coloración, la clienta reservaba y el día de la cita el salón
-                         no lo podía dar. Es el mismo problema que AG-01, con el
-                         servicio en lugar del turno.
+                    {{-- **Los servicios que hace salieron de acá** (7.68.0): son
+                         de la PERSONA y no de su cuenta, así que se cargan en su
+                         ficha de profesional. Una manicurista que no entra a la
+                         computadora hace manicura igual.
 
-                         Sin marcar ninguno hace todos, que es la convención del
-                         proyecto y lo que espera un salón chico donde todas hacen de
-                         todo. --}}
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios que hace</h2>
-                    <div class="mb-3">
-                        <div class="form-check mb-1">
-                            <input class="form-check-input" type="checkbox" id="gServiciosTodo" data-marca-todo="#gServicios">
-                            <label class="form-check-label fw-semibold" for="gServiciosTodo">Todos</label>
-                        </div>
-                        <div class="d-flex gap-3 flex-wrap" id="gServicios">
-                            @foreach ($servicios as $sv)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="servicios[]"
-                                           value="{{ $sv->id_servicio }}" id="sv{{ $sv->id_servicio }}"
-                                           @checked(in_array((int) $sv->id_servicio, old('servicios', $misServicios), false))>
-                                    <label class="form-check-label" for="sv{{ $sv->id_servicio }}">{{ $sv->nombre }}</label>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="form-text">
-                            Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique
-                            a lo suyo: la agenda deja de ofrecerlo para el resto.
-                        </div>
-                    </div>
+                         Lo que queda acá es lo que de verdad cuelga de la cuenta:
+                         sucursales a las que entra y turnos que trabaja. --}}
 
                     <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja</h2>
                     <p class="text-muted-warm mb-2" style="font-size:.8rem">

@@ -21,7 +21,10 @@
     $spgLogo = Config::logo();
 
     $spgRuta     = Route::currentRouteName() ?? '';
-    $spgModulo   = strtok($spgRuta, '.');
+    // **Cuál módulo se marca en la barra sale del PERMISO de la pantalla.**
+    // Con el prefijo del nombre de ruta, estando en Personal se encendía
+    // Seguridad: sus pantallas viven bajo `/seguridad` desde la 7.57.0.
+    $spgModulo   = Navegacion::moduloDe($spgRuta);
     $spgSesion   = session('uid') ? ['nombre' => session('nombre'), 'rol_nom' => session('rol_nom')] : null;
     $spgCliente  = (bool) session('es_cliente', false);
     // En qué local está trabajando. Se muestra SIEMPRE que haya una elegida,

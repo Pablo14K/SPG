@@ -2071,6 +2071,7 @@ CREATE TABLE `persona` (
   `direccion` varchar(255) DEFAULT NULL,
   `fecha_nacimiento` date DEFAULT NULL,
   `fecha_alta` datetime NOT NULL DEFAULT current_timestamp(),
+  `es_personal` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_persona`),
   UNIQUE KEY `uq_persona_cedula` (`cedula`),
   UNIQUE KEY `uq_persona_ruc` (`ruc`),
@@ -2085,8 +2086,40 @@ CREATE TABLE `persona` (
 
 LOCK TABLES `persona` WRITE;
 /*!40000 ALTER TABLE `persona` DISABLE KEYS */;
-INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43'),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cliente.demo@peluqueria.local','Toribio ocampos',NULL,'2026-08-06 15:48:43'),(19,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-22 20:32:58'),(20,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-22 20:32:58'),(21,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-22 20:32:58'),(22,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58'),(23,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58'),(24,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58'),(25,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58');
+INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43',1),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cliente.demo@peluqueria.local','Toribio ocampos',NULL,'2026-08-06 15:48:43',0),(19,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-22 20:32:58',0),(20,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-22 20:32:58',0),(21,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-22 20:32:58',0),(22,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(23,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(24,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(25,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1);
 /*!40000 ALTER TABLE `persona` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `persona_servicio`
+--
+
+DROP TABLE IF EXISTS `persona_servicio`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `persona_servicio` (
+  `id_persona_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_persona` int(10) unsigned NOT NULL,
+  `id_servicio` int(10) unsigned NOT NULL,
+  `duracion_min` int(11) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_persona_servicio`),
+  UNIQUE KEY `uq_persona_servicio` (`id_persona`,`id_servicio`),
+  KEY `idx_ps_servicio` (`id_servicio`),
+  CONSTRAINT `fk_ps_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ps_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_ps_duracion` CHECK (`duracion_min` is null or `duracion_min` > 0)
+) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `persona_servicio`
+--
+
+LOCK TABLES `persona_servicio` WRITE;
+/*!40000 ALTER TABLE `persona_servicio` DISABLE KEYS */;
+INSERT INTO `persona_servicio` VALUES (1,24,16,NULL,1),(2,24,17,NULL,1),(3,24,24,NULL,1),(4,24,23,NULL,1),(5,24,20,NULL,1),(6,22,27,NULL,1),(7,22,28,NULL,1),(8,22,29,NULL,1),(9,22,30,NULL,1),(10,23,21,NULL,1),(11,23,26,NULL,1),(12,23,22,NULL,1),(13,23,25,NULL,1),(14,23,23,NULL,1),(15,23,19,NULL,1),(16,25,18,NULL,1),(17,25,16,NULL,1),(18,25,24,NULL,1),(19,25,19,NULL,1),(20,25,20,NULL,1);
+/*!40000 ALTER TABLE `persona_servicio` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -2377,7 +2410,7 @@ CREATE TABLE `rol_modulo` (
 
 LOCK TABLES `rol_modulo` WRITE;
 /*!40000 ALTER TABLE `rol_modulo` DISABLE KEYS */;
-INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'personal.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'personal.asistencia'),(3,'personal.turnos'),(3,'reportes'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
+INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'personal.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'personal.asistencia'),(3,'personal.profesionales'),(3,'personal.turnos'),(3,'reportes'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
 /*!40000 ALTER TABLE `rol_modulo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2985,38 +3018,6 @@ INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/J
 UNLOCK TABLES;
 
 --
--- Table structure for table `usuario_servicio`
---
-
-DROP TABLE IF EXISTS `usuario_servicio`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `usuario_servicio` (
-  `id_usuario_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `id_usuario` int(10) unsigned NOT NULL,
-  `id_servicio` int(10) unsigned NOT NULL,
-  `duracion_min` int(11) DEFAULT NULL,
-  `activo` tinyint(1) NOT NULL DEFAULT 1,
-  PRIMARY KEY (`id_usuario_servicio`),
-  UNIQUE KEY `uq_usuario_servicio` (`id_usuario`,`id_servicio`),
-  KEY `idx_us_servicio` (`id_servicio`),
-  CONSTRAINT `fk_us_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_us_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `chk_us_duracion` CHECK (`duracion_min` is null or `duracion_min` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `usuario_servicio`
---
-
-LOCK TABLES `usuario_servicio` WRITE;
-/*!40000 ALTER TABLE `usuario_servicio` DISABLE KEYS */;
-INSERT INTO `usuario_servicio` VALUES (27,18,16,NULL,1),(28,18,17,NULL,1),(29,18,24,NULL,1),(30,18,23,NULL,1),(31,18,20,NULL,1),(32,16,27,NULL,1),(33,16,28,NULL,1),(34,16,29,NULL,1),(35,16,30,NULL,1),(36,17,21,NULL,1),(37,17,26,NULL,1),(38,17,22,NULL,1),(39,17,25,NULL,1),(40,17,23,NULL,1),(41,17,19,NULL,1),(42,19,18,NULL,1),(43,19,16,NULL,1),(44,19,24,NULL,1),(45,19,19,NULL,1),(46,19,20,NULL,1);
-/*!40000 ALTER TABLE `usuario_servicio` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `usuario_sucursal`
 --
 
@@ -3563,17 +3564,18 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_duracion` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion`(p_id_cita INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
+    DETERMINISTIC
 BEGIN
   DECLARE v_dur INT DEFAULT 0;
 
@@ -3581,13 +3583,15 @@ BEGIN
     SELECT MAX(b.bloque) AS paso FROM (
       SELECT cs.orden AS orden,
              COALESCE(cs.id_usuario, c.id_usuario) AS prof,
-             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+             SUM(COALESCE(ps.duracion_min, s.duracion_min)) AS bloque
         FROM cita_servicio cs
         JOIN cita c     ON c.id_cita = cs.id_cita
         JOIN servicio s ON s.id_servicio = cs.id_servicio
-        LEFT JOIN usuario_servicio us
-               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
-              AND us.id_servicio = s.id_servicio AND us.activo = 1
+        LEFT JOIN usuario u
+               ON u.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+        LEFT JOIN persona_servicio ps
+               ON ps.id_persona = u.id_persona
+              AND ps.id_servicio = s.id_servicio AND ps.activo = 1
        WHERE cs.id_cita = p_id_cita
        GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
     ) b GROUP BY b.orden
@@ -3601,47 +3605,52 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_duracion_de` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
     DETERMINISTIC
 BEGIN
-              DECLARE v_dur INT DEFAULT 0;
-              SELECT COALESCE(SUM(COALESCE(us.duracion_min, s.duracion_min)), 0) INTO v_dur
-                FROM cita_servicio cs
-                JOIN cita c     ON c.id_cita = cs.id_cita
-                JOIN servicio s ON s.id_servicio = cs.id_servicio
-                LEFT JOIN usuario_servicio us
-                       ON us.id_usuario = p_id_usuario AND us.id_servicio = s.id_servicio AND us.activo = 1
-               WHERE cs.id_cita = p_id_cita
-                 AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
-              RETURN v_dur;
-            END ;;
+  DECLARE v_dur INT DEFAULT 0;
+
+  SELECT COALESCE(SUM(COALESCE(ps.duracion_min, s.duracion_min)), 0) INTO v_dur
+    FROM cita_servicio cs
+    JOIN cita c     ON c.id_cita = cs.id_cita
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+    LEFT JOIN usuario u ON u.id_usuario = p_id_usuario
+    LEFT JOIN persona_servicio ps
+           ON ps.id_persona = u.id_persona
+          AND ps.id_servicio = s.id_servicio AND ps.activo = 1
+   WHERE cs.id_cita = p_id_cita
+     AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
+
+  RETURN v_dur;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_inicio_de` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_inicio_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
+    DETERMINISTIC
 BEGIN
   DECLARE v_orden TINYINT UNSIGNED DEFAULT 0;
   DECLARE v_ini   INT DEFAULT 0;
@@ -3659,13 +3668,15 @@ BEGIN
   SELECT COALESCE(SUM(paso), 0) INTO v_ini FROM (
     SELECT MAX(b.bloque) AS paso FROM (
       SELECT cs.orden AS orden,
-             SUM(COALESCE(us.duracion_min, s.duracion_min)) AS bloque
+             SUM(COALESCE(ps.duracion_min, s.duracion_min)) AS bloque
         FROM cita_servicio cs
         JOIN cita c     ON c.id_cita = cs.id_cita
         JOIN servicio s ON s.id_servicio = cs.id_servicio
-        LEFT JOIN usuario_servicio us
-               ON us.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
-              AND us.id_servicio = s.id_servicio AND us.activo = 1
+        LEFT JOIN usuario u
+               ON u.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+        LEFT JOIN persona_servicio ps
+               ON ps.id_persona = u.id_persona
+              AND ps.id_servicio = s.id_servicio AND ps.activo = 1
        WHERE cs.id_cita = p_id_cita AND cs.orden < v_orden
        GROUP BY cs.orden, COALESCE(cs.id_usuario, c.id_usuario)
     ) b GROUP BY b.orden
@@ -4380,27 +4391,33 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_puede_realizar` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_puede_realizar`(p_id_usuario INT UNSIGNED, p_id_servicio INT UNSIGNED) RETURNS tinyint(1)
     READS SQL DATA
+    DETERMINISTIC
 BEGIN
+  DECLARE v_persona  INT UNSIGNED;
   DECLARE v_cargadas INT DEFAULT 0;
   DECLARE v_hab      INT DEFAULT 0;
 
-  SELECT COUNT(*) INTO v_cargadas FROM usuario_servicio
-   WHERE id_usuario = p_id_usuario AND activo = 1;
+  SELECT id_persona INTO v_persona FROM usuario WHERE id_usuario = p_id_usuario;
+  IF v_persona IS NULL THEN RETURN 1; END IF;
+
+  
+  SELECT COUNT(*) INTO v_cargadas FROM persona_servicio
+   WHERE id_persona = v_persona AND activo = 1;
   IF v_cargadas = 0 THEN RETURN 1; END IF;
 
-  SELECT COUNT(*) INTO v_hab FROM usuario_servicio
-   WHERE id_usuario = p_id_usuario AND id_servicio = p_id_servicio AND activo = 1;
+  SELECT COUNT(*) INTO v_hab FROM persona_servicio
+   WHERE id_persona = v_persona AND id_servicio = p_id_servicio AND activo = 1;
   RETURN IF(v_hab > 0, 1, 0);
 END ;;
 DELIMITER ;
@@ -4507,13 +4524,22 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_usuario_hace_servicio`(p_id_usuario INT UNSIGNED, p_id_servicio INT UNSIGNED) RETURNS tinyint(1)
     READS SQL DATA
+    DETERMINISTIC
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM usuario_servicio WHERE id_usuario = p_id_usuario) THEN
+  DECLARE v_persona INT UNSIGNED;
+
+  SELECT id_persona INTO v_persona FROM usuario WHERE id_usuario = p_id_usuario;
+
+  
+  
+  
+  IF v_persona IS NULL
+     OR NOT EXISTS (SELECT 1 FROM persona_servicio WHERE id_persona = v_persona) THEN
     RETURN 1;
   END IF;
 
-  RETURN IF(EXISTS (SELECT 1 FROM usuario_servicio
-                     WHERE id_usuario = p_id_usuario AND id_servicio = p_id_servicio), 1, 0);
+  RETURN IF(EXISTS (SELECT 1 FROM persona_servicio
+                     WHERE id_persona = v_persona AND id_servicio = p_id_servicio), 1, 0);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5841,12 +5867,12 @@ DELIMITER ;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_general_ci */;
+/*!50001 SET character_set_client      = utf8 */;
+/*!50001 SET character_set_results     = utf8 */;
+/*!50001 SET collation_connection      = utf8_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_habilitacion_profesional` AS select trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `profesional`,`s`.`nombre` AS `servicio`,`cs`.`nombre` AS `categoria`,coalesce(`us`.`duracion_min`,`s`.`duracion_min`) AS `duracion_min`,`s`.`precio` AS `precio`,(select concat(`c`.`tipo`,' ',`c`.`valor`) from `comision` `c` where `c`.`id_usuario` = `u`.`id_usuario` and (`c`.`id_servicio` = `s`.`id_servicio` or `c`.`id_servicio` is null) and `c`.`activo` = 1 and `c`.`vigente_desde` <= curdate() order by `c`.`id_servicio` is null,`c`.`vigente_desde` desc limit 1) AS `comision_vigente` from ((((`usuario_servicio` `us` join `usuario` `u` on(`u`.`id_usuario` = `us`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `servicio` `s` on(`s`.`id_servicio` = `us`.`id_servicio`)) join `categoria_servicio` `cs` on(`cs`.`id_categoria_servicio` = `s`.`id_categoria_servicio`)) where `us`.`activo` = 1 */;
+/*!50001 VIEW `vw_habilitacion_profesional` AS select trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `profesional`,`s`.`nombre` AS `servicio`,`cs`.`nombre` AS `categoria`,coalesce(`ps`.`duracion_min`,`s`.`duracion_min`) AS `duracion_min`,`s`.`precio` AS `precio`,(select concat(`c`.`tipo`,' ',`c`.`valor`) from `comision` `c` where `c`.`id_usuario` = `u`.`id_usuario` and (`c`.`id_servicio` = `s`.`id_servicio` or `c`.`id_servicio` is null) and `c`.`activo` = 1 and `c`.`vigente_desde` <= curdate() order by `c`.`id_servicio` is null,`c`.`vigente_desde` desc limit 1) AS `comision_vigente` from ((((`persona_servicio` `ps` join `persona` `pu` on(`pu`.`id_persona` = `ps`.`id_persona`)) join `usuario` `u` on(`u`.`id_persona` = `pu`.`id_persona`)) join `servicio` `s` on(`s`.`id_servicio` = `ps`.`id_servicio`)) join `categoria_servicio` `cs` on(`cs`.`id_categoria_servicio` = `s`.`id_categoria_servicio`)) where `ps`.`activo` = 1 */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -5968,4 +5994,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24  7:39:43
+-- Dump completed on 2026-08-24  8:44:25

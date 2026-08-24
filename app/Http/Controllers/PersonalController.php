@@ -45,6 +45,162 @@ class PersonalController extends Controller
 
     // ---------- Usuarios ----------
 
+    // =================================================================
+    //  Profesionales: la PERSONA, no la cuenta
+    // =================================================================
+
+    /**
+     * Quiénes trabajan en el salón.
+     *
+     * **Es la persona, no el usuario, y esa es toda la diferencia.** Hasta la
+     * 7.68.0 «Profesionales» abría la ficha de usuario, así que para cargar a
+     * alguien había que inventarle una cuenta de sistema — y hay gente que
+     * atiende y no entra al sistema nunca.
+     *
+     * Acá se cargan los datos de `persona`; la cuenta se crea después, desde
+     * **Seguridad → Usuarios**, eligiendo a esta persona.
+     */
+    public function profesionales(): View|StreamedResponse
+    {
+        $f = Listado::filtros([
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nombre, cédula o teléfono', 'ancho' => '250px'],
+            'cuenta' => ['tipo' => 'select', 'etiqueta' => 'Cuenta', 'ancho' => '190px',
+                         'opciones' => ['' => 'Todas', '1' => 'Con cuenta', '0' => 'Sin cuenta']],
+        ]);
+        $f['csv'] = true;
+
+        // Quién es «del personal»: quien tiene cuenta con rol de personal, o
+        // quien fue cargado acá y todavía no la tiene. Lo segundo se sabe
+        // porque no es cliente ni proveedor — no hace falta columna nueva.
+        $w = ["(EXISTS (SELECT 1 FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                         WHERE u.id_persona = pe.id_persona AND r.es_personal = 1)
+               OR (NOT EXISTS (SELECT 1 FROM cliente c WHERE c.id_persona = pe.id_persona)
+               AND NOT EXISTS (SELECT 1 FROM proveedor pr WHERE pr.id_persona = pe.id_persona)
+               AND NOT EXISTS (SELECT 1 FROM usuario u2 WHERE u2.id_persona = pe.id_persona)
+               AND pe.es_personal = 1))"];
+        $par = [];
+
+        if (Listado::hay($f, 'q')) {
+            $w[] = Listado::likeVarias(["CONCAT(pe.nombre,' ',COALESCE(pe.apellido,''))", 'pe.cedula', 'pe.telefono', 'pe.email'],
+                Listado::valor($f, 'q'), 'q', $par);
+        }
+        if (Listado::hay($f, 'cuenta')) {
+            $w[] = (Listado::valor($f, 'cuenta') === '1' ? '' : 'NOT ')
+                . 'EXISTS (SELECT 1 FROM usuario u3 WHERE u3.id_persona = pe.id_persona)';
+        }
+
+        $desde = 'FROM persona pe WHERE ' . implode(' AND ', $w);
+        $cols = "pe.id_persona, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, pe.direccion,
+                 (SELECT u.id_usuario FROM usuario u WHERE u.id_persona = pe.id_persona LIMIT 1) AS id_usuario,
+                 (SELECT u.username FROM usuario u WHERE u.id_persona = pe.id_persona LIMIT 1) AS username,
+                 (SELECT r.nombre FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                   WHERE u.id_persona = pe.id_persona LIMIT 1) AS rol";
+        $orden = 'ORDER BY pe.nombre, pe.apellido';
+
+        if (Listado::pideExport()) {
+            return Listado::exportar('profesionales',
+                ['Nombre', 'Cédula', 'Teléfono', 'Email', 'Usuario'],
+                array_map(fn ($r) => [trim($r->nombre . ' ' . $r->apellido), $r->cedula,
+                    $r->telefono, $r->email, $r->username ?: 'sin cuenta'],
+                    DB::select("SELECT $cols $desde $orden", $par)),
+                $f, 'Profesionales'
+            );
+        }
+
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+
+        return view('seguridad.profesionales', [
+            'rows' => DB::select("SELECT $cols $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'f' => $f,
+            'pag' => $pag,
+        ]);
+    }
+
+    public function profesionalForm(?int $id = null): View
+    {
+        return view('seguridad.profesional_form', [
+            'id' => (int) $id,
+            'p' => $id ? DB::selectOne('SELECT * FROM persona WHERE id_persona = ?', [$id]) : null,
+            // **Qué servicios hace es de la PERSONA, no de su cuenta.** Una
+            // manicurista que no entra a la computadora hace manicura igual,
+            // así que el dato se carga acá y no en la ficha de usuario.
+            'servicios' => DB::select('SELECT id_servicio, nombre FROM servicio WHERE activo = 1 ORDER BY nombre'),
+            'misServicios' => $id ? array_map(fn ($r) => (int) $r->id_servicio,
+                DB::select('SELECT id_servicio FROM persona_servicio WHERE id_persona = ?', [$id])) : [],
+            'cuenta' => $id ? DB::selectOne(
+                'SELECT u.id_usuario, u.username, u.activo, r.nombre AS rol
+                   FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                  WHERE u.id_persona = ? LIMIT 1', [$id]
+            ) : null,
+        ]);
+    }
+
+    public function profesionalGuardar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_persona');
+        $d = [
+            'nombre' => trim((string) $request->input('nombre', '')),
+            'apellido' => trim((string) $request->input('apellido', '')),
+            'cedula' => trim((string) $request->input('cedula', '')) ?: null,
+            'telefono' => trim((string) $request->input('telefono', '')) ?: null,
+            'email' => trim((string) $request->input('email', '')) ?: null,
+            'direccion' => trim((string) $request->input('direccion', '')) ?: null,
+            'fecha_nacimiento' => trim((string) $request->input('fecha_nacimiento', '')) ?: null,
+        ];
+
+        $error = match (true) {
+            $d['nombre'] === '' || $d['apellido'] === '' => 'El nombre y el apellido son obligatorios.',
+            default => Persona::error($d),
+        };
+
+        // La cédula es única a nivel de PERSONA, así que hay que avisarlo antes
+        // de chocar contra el índice con un error feo.
+        if (! $error && $d['cedula']) {
+            $otra = Persona::porDocumento($d['cedula'], null, $id);
+            if ($otra) {
+                $error = 'Ya hay otra persona cargada con esa cédula.';
+            }
+        }
+
+        if ($error) {
+            flash($error, 'error');
+
+            return back()->withInput();
+        }
+
+        $srvs = array_values(array_unique(array_map('intval', (array) $request->input('servicios', []))));
+
+        $idPersona = DB::transaction(function () use ($id, $d, $srvs) {
+            $idPersona = Persona::guardar($id ?: null, $d);
+
+            // **Sin cuenta hay que poder distinguirla de una clienta.** `persona`
+            // no dice a qué se dedica nadie, y una fila suelta —sin usuario, sin
+            // cliente y sin proveedor— podría ser cualquier cosa. La marca es lo
+            // único que la hace aparecer en esta lista.
+            DB::update('UPDATE persona SET es_personal = 1 WHERE id_persona = ?', [$idPersona]);
+
+            // Se reescribe entero: es una lista de casillas, así que lo que no
+            // vino es lo que se destildó. **Ninguna marcada = hace todos**, que
+            // es el criterio permisivo de `fn_usuario_hace_servicio`.
+            DB::delete('DELETE FROM persona_servicio WHERE id_persona = ?', [$idPersona]);
+            foreach ($srvs as $sv) {
+                if ($sv > 0 && DB::scalar('SELECT COUNT(*) FROM servicio WHERE id_servicio = ?', [$sv])) {
+                    DB::insert('INSERT IGNORE INTO persona_servicio (id_persona,id_servicio) VALUES (?,?)',
+                        [$idPersona, $sv]);
+                }
+            }
+
+            return $idPersona;
+        });
+
+        Auditoria::registrar($id ? 'EDICION' : 'ALTA', 'Personal', 'persona', $idPersona,
+            trim($d['nombre'] . ' ' . $d['apellido']));
+
+        flash($id ? 'Datos actualizados.' : 'Profesional cargado. Si va a entrar al sistema, creale la cuenta desde Seguridad → Usuarios.');
+
+        return redirect()->route('seguridad.profesionales');
+    }
+
     public function usuarios(): View|StreamedResponse
     {
         $f = Listado::filtros([
@@ -96,8 +252,8 @@ class PersonalController extends Controller
                  -- tabla de columnas mezcladas, ninguna de las dos preguntas se
                  -- contesta de un vistazo.
                  (SELECT GROUP_CONCAT(sv.nombre ORDER BY sv.nombre SEPARATOR ' · ')
-                    FROM usuario_servicio us JOIN servicio sv ON sv.id_servicio = us.id_servicio AND sv.activo = 1
-                   WHERE us.id_usuario = u.id_usuario) AS servicios,
+                    FROM persona_servicio ps JOIN servicio sv ON sv.id_servicio = ps.id_servicio AND sv.activo = 1
+                   WHERE ps.id_persona = u.id_persona) AS servicios,
                  (SELECT GROUP_CONCAT(su.nombre ORDER BY su.nombre SEPARATOR ' · ')
                     FROM usuario_sucursal usu JOIN sucursal su ON su.id_sucursal = usu.id_sucursal AND su.activo = 1
                    WHERE usu.id_usuario = u.id_usuario) AS sucursales";
@@ -122,7 +278,7 @@ class PersonalController extends Controller
         ]);
     }
 
-    public function usuarioForm(int $id = 0): View|RedirectResponse
+    public function usuarioForm(Request $request, int $id = 0): View|RedirectResponse
     {
         $u = $id ? DB::selectOne(
             'SELECT u.*, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email
@@ -136,15 +292,33 @@ class PersonalController extends Controller
             return redirect()->route('seguridad.usuarios');
         }
 
+        // **La cuenta se le crea a una persona que ya está cargada.** El
+        // formulario dejó de pedir nombre y apellido: eso vive en `persona` y
+        // se carga en Personal → Profesionales. Repetirlo acá era pedir dos
+        // veces el mismo dato y arriesgarse a que quedaran distintos.
+        //
+        // Se ofrecen las personas del personal que TODAVÍA no tienen cuenta,
+        // más la de esta ficha si se está editando.
+        $personas = DB::select(
+            "SELECT pe.id_persona, TRIM(CONCAT(pe.nombre,' ',COALESCE(pe.apellido,''))) AS nombre, pe.cedula
+               FROM persona pe
+              WHERE (pe.id_persona = ?
+                     OR (pe.es_personal = 1
+                         AND NOT EXISTS (SELECT 1 FROM usuario u WHERE u.id_persona = pe.id_persona)))
+              ORDER BY pe.nombre, pe.apellido",
+            [$u->id_persona ?? 0]
+        );
+
         return view('seguridad.usuario_form', [
             'u' => $u,
+            'personas' => $personas,
+            // Se llega acá desde «crearle una cuenta» de Profesionales, con la
+            // persona ya elegida: si no, hay que buscarla de nuevo en el combo.
+            'personaSug' => (int) $request->query('persona', 0),
             'roles' => DB::select('SELECT * FROM rol WHERE es_personal = 1 AND activo = 1 ORDER BY id_rol'),
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             'misSuc' => $id ? array_map(fn ($r) => (int) $r->id_sucursal,
                 DB::select('SELECT id_sucursal FROM usuario_sucursal WHERE id_usuario = ?', [$id])) : [],
-            'servicios' => DB::select('SELECT id_servicio, nombre FROM servicio WHERE activo = 1 ORDER BY nombre'),
-            'misServicios' => $id ? array_map(fn ($r) => (int) $r->id_servicio,
-                DB::select('SELECT id_servicio FROM usuario_servicio WHERE id_usuario = ?', [$id])) : [],
             'turnos' => $this->turnosDisponibles(),
             'misTurnos' => $id ? array_map(fn ($r) => (int) $r->id_turno,
                 DB::select('SELECT id_turno FROM usuario_turno WHERE id_usuario = ?', [$id])) : [],
@@ -161,27 +335,27 @@ class PersonalController extends Controller
             // marcada, más abajo. Ver el comentario del formulario.
             'id_sucursal' => null,
             'username' => trim((string) $request->input('username', '')),
-            'nombre' => trim((string) $request->input('nombre', '')),
-            'apellido' => trim((string) $request->input('apellido', '')),
-            'cedula' => trim((string) $request->input('cedula', '')) ?: null,
-            'telefono' => trim((string) $request->input('telefono', '')) ?: null,
-            'email' => trim((string) $request->input('email', '')),
         ];
+
+        // **La persona se ELIGE, no se tipea.** Sus datos viven en `persona` y
+        // se cargan en Personal -> Profesionales; pedirlos otra vez acá era
+        // pedir dos veces el mismo dato y arriesgarse a que quedaran distintos.
+        $idPersona = (int) $request->input('id_persona', 0);
+        $per = $idPersona
+            ? DB::selectOne('SELECT * FROM persona WHERE id_persona = ?', [$idPersona])
+            : null;
         $pass = (string) $request->input('password', '');
         $sucs = array_values(array_unique(array_map('intval', (array) $request->input('sucursales', []))));
-        // Qué servicios hace. Se reescribe entero: es una lista de casillas, así
-        // que lo que no vino es lo que se destildó. Ninguna marcada = hace todos.
-        $srvs = array_values(array_unique(array_map('intval', (array) $request->input('servicios', []))));
         $turnos = array_values(array_unique(array_map('intval', (array) $request->input('turnos', []))));
         $volver = $id ? redirect()->route('seguridad.usuario_form', $id) : redirect()->route('seguridad.usuario_form');
 
         $error = null;
-        if ($d['username'] === '' || $d['nombre'] === '' || $d['apellido'] === '' || $d['email'] === '') {
-            $error = 'Usuario, nombre, apellido y email son obligatorios.';
+        if (! $per) {
+            $error = 'Elegí a quién le estás creando la cuenta. Si no está en la lista, cargala primero en Personal, Profesionales.';
+        } elseif ($d['username'] === '') {
+            $error = 'El nombre de usuario es obligatorio.';
         } elseif (! preg_match('/^[a-zA-Z0-9._-]{3,60}$/', $d['username'])) {
             $error = 'El nombre de usuario debe tener entre 3 y 60 caracteres (letras, números, punto, guion o guion bajo).';
-        } elseif (! filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
-            $error = 'El email no tiene un formato válido.';
         } elseif (! $d['id_rol'] || ! DB::scalar('SELECT COUNT(*) FROM rol WHERE id_rol = ? AND es_personal = 1 AND activo = 1', [$d['id_rol']])) {
             $error = 'Elegí un rol de personal válido.';
         } elseif ($pass !== '' && strlen($pass) < 6) {
@@ -190,12 +364,9 @@ class PersonalController extends Controller
             $error = 'La contraseña es obligatoria para un usuario nuevo.';
         } elseif (DB::scalar('SELECT COUNT(*) FROM usuario WHERE username = ? AND id_usuario <> ?', [$d['username'], $id])) {
             $error = 'Ese nombre de usuario ya está en uso.';
-        } elseif (DB::scalar('SELECT COUNT(*) FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
-                               WHERE pe.email = ? AND u.id_usuario <> ?', [$d['email'], $id])) {
-            $error = 'Ya existe una cuenta con ese email.';
-        } elseif ($d['cedula'] && DB::scalar('SELECT COUNT(*) FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
-                                               WHERE pe.cedula = ? AND u.id_usuario <> ?', [$d['cedula'], $id])) {
-            $error = 'Ya existe un usuario con esa cédula.';
+        } elseif (DB::scalar('SELECT COUNT(*) FROM usuario WHERE id_persona = ? AND id_usuario <> ?',
+                             [$per->id_persona, $id])) {
+            $error = 'Esa persona ya tiene una cuenta en el sistema.';
         } elseif ($id === (int) session('uid') && $d['id_rol'] !== (int) config('permisos.rol_admin', 1)) {
             $error = 'No podés quitarte a vos mismo el rol de Administrador: pedile a otro Administrador que lo haga.';
         } elseif (! $sucs) {
@@ -225,32 +396,35 @@ class PersonalController extends Controller
         $d['id_sucursal'] = $sucs[0] ?? null;
 
         try {
-            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $srvs, $turnos) {
+            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $turnos, $per) {
+                // **`persona` NO se toca desde acá.** Sus datos se editan en
+                // Personal -> Profesionales; esta pantalla administra la cuenta.
                 if ($id) {
-                    $idPersona = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$id]);
-                    Persona::guardar($idPersona, $d);
                     DB::update(
-                        'UPDATE usuario SET id_rol = :id_rol, id_sucursal = :id_sucursal, username = :username
+                        'UPDATE usuario SET id_persona = :id_persona, id_rol = :id_rol,
+                                            id_sucursal = :id_sucursal, username = :username
                           WHERE id_usuario = :id',
-                        ['id_rol' => $d['id_rol'], 'id_sucursal' => $d['id_sucursal'],
-                         'username' => $d['username'], 'id' => $id]
+                        ['id_persona' => $per->id_persona, 'id_rol' => $d['id_rol'],
+                         'id_sucursal' => $d['id_sucursal'], 'username' => $d['username'], 'id' => $id]
                     );
+                    // Vacío quiere decir «no la cambies», no «dejala en null»:
+                    // el formulario nunca trae la que hay cargada.
                     if ($pass !== '') {
                         DB::update('UPDATE usuario SET password_hash = ? WHERE id_usuario = ?',
                             [Hash::make($pass), $id]);
                     }
                     $idUsuario = $id;
                 } else {
-                    // Si la cédula ya existe puede ser alguien cargado como
-                    // cliente del salón: se le agrega la cuenta sobre la misma
-                    // persona, en vez de duplicarla.
-                    $idPersona = Persona::guardar(Persona::porDocumento($d['cedula']), $d);
                     DB::insert(
                         'INSERT INTO usuario (id_persona,id_rol,id_sucursal,username,password_hash) VALUES (?,?,?,?,?)',
-                        [$idPersona, $d['id_rol'], $d['id_sucursal'], $d['username'], Hash::make($pass)]
+                        [$per->id_persona, $d['id_rol'], $d['id_sucursal'], $d['username'], Hash::make($pass)]
                     );
                     $idUsuario = (int) DB::getPdo()->lastInsertId();
                 }
+
+                // Quien tiene cuenta de personal es personal: así sigue
+                // apareciendo en Profesionales.
+                DB::update('UPDATE persona SET es_personal = 1 WHERE id_persona = ?', [$per->id_persona]);
 
                 // Sucursales donde trabaja (un empleado puede estar en varias)
                 DB::delete('DELETE FROM usuario_sucursal WHERE id_usuario = ?', [$idUsuario]);
@@ -258,16 +432,6 @@ class PersonalController extends Controller
                     if ($s > 0 && DB::scalar('SELECT COUNT(*) FROM sucursal WHERE id_sucursal = ?', [$s])) {
                         DB::insert('INSERT IGNORE INTO usuario_sucursal (id_usuario,id_sucursal) VALUES (?,?)',
                             [$idUsuario, $s]);
-                    }
-                }
-
-                // Qué servicios hace. Ninguno marcado = hace todos, así que la
-                // tabla queda vacía y `fn_usuario_hace_servicio` contesta que sí.
-                DB::delete('DELETE FROM usuario_servicio WHERE id_usuario = ?', [$idUsuario]);
-                foreach ($srvs as $sv) {
-                    if ($sv > 0 && DB::scalar('SELECT COUNT(*) FROM servicio WHERE id_servicio = ?', [$sv])) {
-                        DB::insert('INSERT IGNORE INTO usuario_servicio (id_usuario,id_servicio) VALUES (?,?)',
-                            [$idUsuario, $sv]);
                     }
                 }
 

@@ -1749,7 +1749,9 @@ class FacturacionController extends Controller
             . Sucursales::filtro('vw_caja_resumen', $pm) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pm);
 
         return view('facturacion.arqueo', [
-            'rows' => $rows,
+            // `rows` NO viaja: la tabla del historial salió de esta pantalla y
+            // la reemplaza la de Arqueos del módulo de Caja. Las filas se
+            // siguen leyendo acá porque de ellas salen las cuatro métricas.
             'abierta' => $abierta,
             'porMedio' => $abierta ? DB::select(
                 'SELECT mp.nombre AS medio, mp.tipo, COUNT(*) AS cantidad, SUM(co.monto) AS total

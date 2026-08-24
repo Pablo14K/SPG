@@ -197,7 +197,7 @@ class Pendientes
             }
         }
 
-        if ((int) DB::scalar('SELECT COUNT(*) FROM usuario_servicio') > 0) {
+        if ((int) DB::scalar('SELECT COUNT(*) FROM persona_servicio') > 0) {
             $sinServicios = DB::select(
                 "SELECT CONCAT(pe.nombre, ' ', pe.apellido) AS quien
                    FROM usuario u
@@ -205,7 +205,7 @@ class Pendientes
                    JOIN persona pe ON pe.id_persona = u.id_persona
                   WHERE u.activo = 1 AND r.es_personal = 1
                     AND EXISTS (SELECT 1 FROM usuario_turno ut WHERE ut.id_usuario = u.id_usuario)
-                    AND NOT EXISTS (SELECT 1 FROM usuario_servicio us WHERE us.id_usuario = u.id_usuario)
+                    AND NOT EXISTS (SELECT 1 FROM persona_servicio ps WHERE ps.id_persona = u.id_persona)
                   ORDER BY pe.nombre"
             );
             if ($sinServicios) {
