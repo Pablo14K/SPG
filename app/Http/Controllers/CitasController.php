@@ -229,7 +229,11 @@ class CitasController extends Controller
     public function guardar(Request $request): RedirectResponse
     {
         $idCliente = (int) $request->input('id_cliente', 0);
-        $idUsuario = (int) $request->input('id_usuario', 0);   // 0 = sin preferencia
+        // **Nueva cita ya no manda este campo**: el combo suelto de profesional
+        // salió en la 7.67.0 porque preguntaba lo mismo que el de cada
+        // servicio. Se sigue leyendo porque otras pantallas sí lo mandan, y
+        // porque 0 cae en el reparto, que es lo que hacía «sin preferencia».
+        $idUsuario = (int) $request->input('id_usuario', 0);
         $fecha = str_replace('T', ' ', trim((string) $request->input('fecha_hora', '')));
         if (strlen($fecha) === 16) {
             $fecha .= ':00';
@@ -260,7 +264,7 @@ class CitasController extends Controller
         }
 
         // A quién le toca cada servicio: la pantalla manda prof_servicio[id],
-        // y 0 (o nada) significa «lo hace el profesional principal».
+        // y 0 (o nada) significa «quien esté libre».
         $porServicio = (array) $request->input('prof_servicio', []);
         $asignacion = [];
         foreach ($servicios as $sid) {
@@ -274,8 +278,8 @@ class CitasController extends Controller
             return redirect()->route('citas.form')->with("spg_form_error", true)->withInput();
         }
 
-        // Sin profesional de preferencia se asigna el primero libre por el
-        // bloque que le va a tocar (los servicios que no se repartieron a otro).
+        // Sin nadie elegido se asigna el primero libre por el bloque que le va
+        // a tocar (los servicios que quedaron en «quien esté libre»).
         if (! $idUsuario) {
             $delPrincipal = Agenda::duracion(array_keys(array_filter($asignacion, fn ($p) => $p === 0)));
 

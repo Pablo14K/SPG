@@ -38,19 +38,19 @@
                     </div>
                 @endif
 
-                {{-- 2. Profesional --}}
-                <div class="col-md-6">
-                    <label class="form-label" for="id_usuario">Profesional</label>
-                    <select class="form-select" id="id_usuario" name="id_usuario">
-                        <option value="0">Sin preferencia (el primero libre)</option>
-                        @foreach ($profs as $p)
-                            <option value="{{ $p->id_usuario }}"
-                                @selected((int) old('id_usuario') === (int) $p->id_usuario)>{{ $p->nombre }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                {{-- **El combo suelto de «Profesional» salió, por pedido del
+                     usuario.** Preguntaba lo mismo que el combo que aparece al
+                     lado de cada servicio, y desde dos lados: para entender qué
+                     hacía el de abajo —«lo hace el principal»— había que saber
+                     primero qué era el principal.
 
-                {{-- 3. Servicios --}}
+                     La cita sigue teniendo dueño: sale de
+                     `Agenda::principalDelReparto()`, que es el criterio desde la
+                     5.3.0 y el que la 7.64.0 dejó valiendo también acá. Sin
+                     nadie elegido en ningún servicio, decide el sistema — que es
+                     exactamente lo que hacía «sin preferencia». --}}
+
+                {{-- 2. Servicios --}}
                 <div class="col-12">
                     <label class="form-label">Servicios *</label>
                     <p class="text-muted-warm mb-2" style="font-size:.8rem">
@@ -82,7 +82,7 @@
                                 <select class="form-select form-select-sm" style="width:auto"
                                         name="prof_servicio[{{ $s->id_servicio }}]"
                                         data-prof-de="#srv{{ $s->id_servicio }}">
-                                    <option value="0">lo hace el principal</option>
+                                    <option value="0">quien esté libre</option>
                                     @foreach ($profs as $p)
                                         <option value="{{ $p->id_usuario }}"
                                             @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}</option>
@@ -93,7 +93,7 @@
                     </div>
                 </div>
 
-                {{-- 4. Fecha y hora, ofrecidas por el motor de disponibilidad.
+                {{-- 3. Fecha y hora, ofrecidas por el motor de disponibilidad.
                      El selector lo maneja app.js, el mismo que usa el portal. --}}
                 <div class="col-12">
                     <label class="form-label">Fecha y hora *</label>

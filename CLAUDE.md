@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **21 procedimientos, 36 funciones, 17 triggers y 17 vistas**,
-más **73 restricciones `CHECK`**.
+más **75 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.67.0 | 24/08/2026 | **A dónde transferir la seña lo dice el sistema, y cada sucursal tiene sus cuentas.** **No hay pasarela de pagos y no la va a haber**, así que lo único que el sistema puede hacer es DECIRLE a la clienta a qué cuenta transferir — hasta ahora eso dependía de que alguien contestara el WhatsApp, o sea que la seña se podía trabar por un mensaje sin responder. Entra `dato_pago_sucursal` y su pantalla en **Configuración → Datos de pago**, con **su propio permiso** (`configuracion.pagos`, van 31): el número de cuenta del salón se le puede dar a alguien distinto de quien administra los locales. **Es de cada sucursal a propósito** —dos locales pueden cobrar en cuentas distintas, y la cita ya sabe en cuál ocurre— y la clienta ve **sólo las del local donde reservó**. Qué medios admiten datos sale de `metodo_pago`, no de una lista escrita a mano, así que esta pantalla y la del cobro hablan del mismo vocabulario; el efectivo y las tarjetas quedan afuera porque no hay cuenta que darle a nadie. **Una cuenta se desactiva, no se borra**: la que se dejó de usar sigue siendo la que aparece en los comprobantes de las señas viejas. **Sin ninguna cargada se dice**, en vez de no dibujar nada — un bloque que desaparece deja a la clienta sin saber si tenía que transferir a algún lado. **Y «Volver al inicio» podía ser la misma pantalla que rebotó.** Le pasa a la cuenta de cliente sin ficha vinculada: su inicio es el portal, y el portal es el que le contesta 403 — el botón la devolvía ahí mismo, así que desde afuera «no hacía nada». Ahora, cuando el destino es esta misma URL, se ofrece **cerrar sesión**, que es la única salida real. **Tres cosas de pantalla, las tres por pedido del usuario**: en el arqueo, «Qué» y «Estado» eran dos columnas para una sola pregunta —en la fila de cierre «Cerrada» era tautológico— así que quedó una que dice **Abierta** con la caja viva y **Apertura / Cierre** cuando ya se cerró; **el desglose por medio de pago se muda a Arqueo**, que es la pantalla que contesta «¿cuadró?» — en «Apertura y cierre» era un bloque más donde nadie lo iba a buscar; y **el combo suelto de «Profesional» sale de Nueva cita**, porque preguntaba lo mismo que el de cada servicio y desde dos lados — para entender «lo hace el principal» había que saber primero quién era el principal. La cita **sigue teniendo dueño**: sale de `principalDelReparto()`, y sin nadie elegido decide el sistema, que es exactamente lo que hacía «sin preferencia». De paso, `spg:diagnostico` venía atrasado en **dos** contadores más —esperaba 20 procedimientos y 30 funciones cuando son 21 y 36— y como compara con «menos que», quedarse corto no hace saltar nada: el desfase esconde justo lo que ese número debería detectar. **Y crear un usuario NO FUNCIONABA.** Los tres bloques de la ficha estaban en pestañas, y un campo obligatorio dentro de una pestaña cerrada está en `display:none`: el navegador se niega a enviar un formulario con un `required` que no puede enfocar **y no dice nada** — se apretaba Guardar y no pasaba absolutamente nada, con el único rastro en la consola. Es el patrón de siempre: algo se apaga en silencio y se descubre cuando alguien intenta usarlo. Las tres secciones pasan a verse juntas, con **un solo botón al pie** — siempre se guardaron juntas, lo único que hacían las pestañas era esconder los campos. De paso la contraseña dice lo que hace: **vacío es «no la cambies»**, no «dejala en null» — el campo nunca trae la que hay cargada, porque eso sería mandarla al navegador en cada carga de la pantalla. **Y el ícono de la pestaña es el logo del salón**, el mismo que se ve en la barra: quien tiene varias pestañas abiertas reconoce la del sistema por ahí. Sin logo cargado va la tijera de la identidad, **dibujada como SVG embebido y no como archivo**: no hay paso de compilación en este proyecto y un `.ico` suelto es una cosa más que mantener al día con la paleta. Va en un partial porque son **siete pantallas con cabecera propia** y copiado se desfasan. **139 pruebas**, cuatro nuevas comprobadas en las dos direcciones · 79 tablas · 75 `CHECK`. Los dos `.sql` regenerados |
 | 7.66.0 | 23/08/2026 | **La cita atrasada dejaba de cerrarse nunca, y la reprogramación no tenía tope.** Lo primero se veía en la base: **34 citas en «Atrasada», la más vieja de 963 horas** — cuarenta días. Atrasada es un estado de paso: **bloquea la agenda a propósito**, porque el sillón sigue comprometido hasta que alguien la atienda o la dé por ausente, pero eso vale mientras la cita todavía pueda ocurrir. Cuando el profesional se olvida de cerrarla, queda **contando como cita viva** en el panel, en «Clientes atrasados» y en el porcentaje de asistencia del informe — o sea que el salón decide con un número torcido. Ahora, pasado **un día entero**, el mismo cron la cierra como Ausente y lo deja en auditoría. **Esto NO contradice «la asistencia no es automática»**: esa regla es sobre el mismo día, cuando marcarla ausente sola sería inventar un hecho que todavía puede desmentirse; pasado un día el hecho ya está, y lo único que hace el sistema es dejar de anunciarla como pendiente. Corrido sobre la base real cerró **61**. **Y la clienta pasa a tener UNA sola reprogramación, con motivo obligatorio.** Sin tope, una reserva se empuja hacia adelante indefinidamente y el hueco queda tomado sin que nadie lo use — que es justo lo que la seña vino a evitar. **No hizo falta ninguna columna nueva**: `sp_reprogramar_cita` deja la cita en «Reprogramada» (estado 2) desde siempre, así que ese estado **ya era** la marca de que el cambio se usó. El botón se reemplaza por «Ya cambiada» con la explicación en el `title` —un botón que desaparece se lee como un error del sistema— y el servidor lo vuelve a comprobar. El **motivo** va a la cita, donde lo ve quien atiende ese día, y a la auditoría: si siempre es el mismo horario, el problema es el horario. **Y las tres condiciones se dicen AL RESERVAR**, que es cuando se decide: cuánto tiempo hay para confirmar la seña, que el cambio de día es uno solo, y que faltando a la cita la seña no se devuelve. Enterarse después es enterarse cuando ya no se puede hacer nada distinto. **136 pruebas**, una nueva comprobada en las dos direcciones — mide que la atrasada de hace dos horas **no** se toque y que la de hace dos días sí; con una sola mitad, un comando que cerrara todo pasaría igual. **Y la barra dice contra qué base está corriendo el sistema**, que es la pregunta que la 7.63.3 dejó sin contestar: dos computadoras con el mismo código se ven distinto porque la base no viaja en el zip, y hasta ahora averiguarlo era abrir el `.env`. **Sólo con `APP_DEBUG`**, que en el salón el nombre de la base no le dice nada a nadie. De paso **la prueba del reloj medía el entorno y no la regla**: `ahora_bd()` cachea en un `static` —una vez por petición, que es lo correcto en la web— pero una corrida de pruebas es UN proceso, así que comparaba la hora del primer llamado contra la de cuatro minutos después. Daba 99 s en el host —pasaba raspando— y **92 s en el contenedor, fallando con los dos relojes sincronizados**. Ahora le pregunta a la base directamente, y la mitad que faltaba —que `ahora_bd()` salga de la conexión— es una prueba aparte |
 | 7.65.0 | 23/08/2026 | **La rerserva con seña queda pendiente, el pago al proveedor dice qué compra pagó, y Usuarios y Profesionales dejan de listar lo mismo.** **La seña es lo más delicado y son dos mitades**: si la cita no se creara hasta cobrar, la clienta perdería el horario mientras hace la transferencia — y si el horario quedara tomado para siempre, un sillón se bloquea por alguien que nunca pagó. Ahora **se le guarda por un plazo** (`spg.agenda.sena_horas`, 24 por defecto), la cita se muestra **«sin confirmar»** en el portal y en la agenda, y pasado el plazo `spg:notificaciones` la suelta **y le avisa** — no desaparece en silencio, que es lo que la haría presentarse igual. **Una solicitud pendiente NO se cancela**: la clienta ya avisó que pagó, así que lo que falta es que el salón lo confirme, y cancelársela sería castigarla por la demora del mostrador. **El pago al proveedor SÍ quedaba ligado a su compra** —`sp_pagar_compra` escribe `detalle_pago_proveedor` desde siempre— pero no se veía por ningún lado: con el mismo proveedor repetido no había forma de saber cuál de las cuatro compras se pagó. Ahora la lista lo dice y **la compra muestra sus pagos**, con el saldo al pie; el monto que sale es `monto_aplicado` y no el del pago, porque un pago puede cubrir varias compras. **Y Usuarios y Profesionales listan cosas distintas**: uno contesta «¿quién entra al sistema y con qué rol?» —usuario, rol, sucursales— y el otro «¿quién trabaja y qué hace?» —contacto, servicios, turnos—. **La ficha sigue siendo una sola**: duplicarla las desfasa, que es un error que este proyecto ya se hizo varias veces. **135 pruebas**, una nueva comprobada en las dos direcciones |
 | 7.64.0 | 23/08/2026 | **Siete cosas del portal y del cobro, y tres eran defectos de verdad.** **La cita quedaba a nombre de otra profesional**: al reservar eligiendo a alguien para el único servicio, `cita.id_usuario` seguía en cero y el sistema asignaba «cualquiera que esté libre» — `cita_servicio` tenía a la elegida y la cita a un tercero, y la agenda muestra la de la cita. Ahora sale de `principalDelReparto()`, que es el criterio con el que la cita tiene dueño desde la 5.3.0. **El selector de horarios dibujaba dos veces «1. Elegí el día»**: marcar dos servicios seguidos lanza dos búsquedas y las respuestas no vuelven en orden, así que la vieja llegaba después del `limpiar()` de la nueva y dibujaba su lista — con los días de la consulta anterior, que es peor que el renglón repetido. Cada consulta lleva ahora su número de orden. **Y el cobro proponía la seña ya cobrada**: `sena_requerida` es lo que el salón pide de adelanto y no cambia al cobrarse, así que con la seña puesta se ofrecía el mismo número otra vez y el comprobante quedaba con saldo pendiente por la diferencia. **La factura se manda sola al emitir**, que era lo que faltaba para que emitir y que le llegue sean un solo acto: va después de emitir y no atada a eso —si el correo falla la factura sigue siendo válida— y el aviso dice si salió y a dónde. **La clienta puede cambiar de día desde el portal**: sólo podía cancelar, y son dos cosas distintas —quien no puede el martes quiere venir el jueves, no dejar de venir—; conserva su profesional y su seña. **El combo de profesional ofrece sólo a quien hace ESE servicio**, con el criterio permisivo de siempre, y **el catálogo del equipo pasa a su propia pantalla**: la de reservar ya pide servicios, profesional, día y hora, y el equipo entero desplegado ahí compite con lo único que hay que hacer. **Y los carteles de confirmación son del sistema**: `window.confirm()` dibuja «localhost:8000 dice» con los botones del sistema operativo, y para algo que anula un comprobante eso se lee como un error del navegador. Cae de vuelta al del navegador si Bootstrap no cargó — una confirmación que no se puede mostrar no puede volverse «seguí sin preguntar». **133 pruebas** |
@@ -358,7 +359,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **183 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **188 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -382,7 +383,7 @@ app/
   Servicios/               La capa propia. Todo estático, sin estado.
     Bd.php                 El puente a las rutinas: idDe() enTransaccion() traducir()
     Agenda.php             Huecos, reparto entre profesionales, agendar con candado
-    Permisos.php           Los 30 submódulos y su jerarquía
+    Permisos.php           Los 31 submódulos y su jerarquía
     Sesion.php             Ingreso y datos de la sesión
     Seguridad.php          Códigos de un solo uso (token_seguridad)
     WebAuthn.php           Huella en PHP puro (CBOR, COSE→PEM, OpenSSL)
@@ -414,7 +415,7 @@ app/
 config/
   spg.php                  Versión, puntos, agenda, timbrado
   navegacion.php           Los cinco niveles de navegación, en un solo lugar
-  permisos.php             Los 30 submódulos
+  permisos.php             Los 31 submódulos
 resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
@@ -425,7 +426,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 183 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 188 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -435,7 +436,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 136 pruebas
+tests/Feature/             Las 139 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -807,6 +808,14 @@ segundos por su cuenta, y una barra parpadeando sola sería peor que el silencio
   > «Ahora no» es un `<form>` de verdad y su acción contesta redirect o JSON según quién
   > llame, así que funciona con el JS roto. Si hacés una pantalla de la que haya que poder
   > salir, dejale una salida que ande sin scripts.
+- **El ícono de la pestaña es el logo del salón** (`layout/_favicon`). Quien
+  tiene varias pestañas abiertas reconoce la del sistema por ahí, y una genérica
+  lo obliga a leer el título. Sin logo cargado va la tijera de la identidad,
+  **como SVG embebido y no como archivo**: no hay paso de compilación en este
+  proyecto y un `.ico` suelto es una cosa más que mantener al día con la paleta.
+  Va en un partial porque son **siete pantallas con cabecera propia** —el layout,
+  las dos de acceso, la del token, el 403 y las dos de impresión— y copiado se
+  desfasan. **Si agregás otra pantalla con `<head>` propio, incluilo.**
 - **CSS y JS se enlazan con `recurso('css/app.css')`, no con el `asset()` de Laravel.**
   `recurso()` le pega la fecha de modificación del archivo como `?v=`; sin eso el navegador se
   queda con la versión vieja en caché y los cambios de estilo no se ven.
@@ -990,6 +999,7 @@ arrastra nada a otra sede** — un empleado no lleva su horario de un local al o
 | **Tesorería** | todo | — | facturas por el timbrado, cobros y pagos por la caja |
 | **Reportes** | se puede acotar | el consolidado | selector con «Todas» + bloque «Por sucursal» |
 | **Seguridad** | turnos · asistencia · comisiones | usuarios · roles · sucursales · contacto · auditoría | la auditoría se ve entera **y** se puede filtrar |
+| **Configuración** | **datos de pago** | sucursales · contacto | `dato_pago_sucursal.id_sucursal` — dos locales pueden cobrar en cuentas distintas |
 
 Tres decisiones que no son obvias y conviene no revertir sin pensarlas:
 
@@ -1027,7 +1037,7 @@ los roles nuevos funcionan sin tocar código. El Administrador se detecta con
 
 ### Submódulos: ningún módulo es todo o nada
 
-**Los nueve módulos se dan por partes**: son **30 permisos**, no 9. Quien registra la atención
+**Los nueve módulos se dan por partes**: son **31 permisos**, no 9. Quien registra la atención
 no tiene por qué agendar; quien cobra no tiene por qué anular una liquidación al personal;
 el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La clave es
 `modulo.submodulo` y sigue siendo **un valor atómico por fila**, así que la 1FN se mantiene.
@@ -1042,7 +1052,7 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | `reportes` | no se divide: es una sola pantalla |
 | `seguridad` | `.usuarios` · `.roles` · `.auditoria` |
 | `personal` | `.turnos` · `.asistencia` · `.comisiones` |
-| `configuracion` | `.sucursales` · `.contacto` |
+| `configuracion` | `.sucursales` · `.contacto` · `.pagos` |
 
 Todo sale de **`config/permisos.php`**: la matriz de Seguridad → Roles
 (`Permisos::matriz()`), las claves que acepta el POST (`Permisos::claves()`) y las etiquetas
@@ -1123,19 +1133,37 @@ y son dos trabajos distintos: uno administra **la cuenta** —quién entra, con 
 clave y con qué rol— y el otro **los datos de la persona** y lo que hace en el
 salón.
 
-**Es una sola ficha con pestañas, no dos formularios.** Duplicarla los desfasa:
-se agrega un campo en uno y el otro queda viejo, que es un error que este
-proyecto ya se hizo varias veces. Lo que cambia es cuál pestaña abre y cómo se
-titula, y eso lo decide `?desde=personal` en la URL.
+**Es una sola ficha, no dos formularios.** Duplicarla los desfasa: se agrega un
+campo en uno y el otro queda viejo, que es un error que este proyecto ya se hizo
+varias veces. Lo que cambia entre una entrada y la otra es cómo se titula, y eso
+lo decide `?desde=personal` en la URL.
 
-| Pestaña | Qué lleva |
+| Sección | Qué lleva |
 |---|---|
-| **Datos personales** | nombre, cédula, teléfono, correo, dirección |
+| **Datos de la persona** | nombre, cédula, teléfono, correo, dirección |
 | **Cuenta y acceso** | usuario, contraseña, rol |
 | **Trabajo** | sucursales donde trabaja, servicios que hace, turnos |
 
-> **Los tres bloques se guardan juntos**: todos los campos viajan en el mismo
-> POST, así que nada se pierde por estar en una pestaña cerrada.
+> **Las tres se ven juntas, y las pestañas salieron por eso.** No era una
+> preferencia: **crear un usuario no funcionaba**. Los campos obligatorios de
+> una pestaña cerrada están en `display:none`, y el navegador **se niega a
+> enviar** un formulario con un `required` que no puede enfocar — sin decir
+> nada. Se apretaba Guardar y no pasaba absolutamente nada; el único rastro
+> quedaba en la consola («An invalid form control … is not focusable»), que
+> nadie mira.
+>
+> Es el patrón de siempre de este proyecto, con otra ropa: algo se apaga en
+> silencio y se descubre cuando alguien intenta usarlo. **Si ponés un `required`
+> adentro de algo que se puede ocultar, el formulario deja de enviarse.**
+
+> **La contraseña vacía quiere decir «no la cambies», no «dejala en null».** El
+> campo nunca trae la que hay cargada — eso sería mandarla al navegador en cada
+> carga de la pantalla. Si se escribe una nueva, valen las mismas reglas que en
+> el ingreso.
+
+Lo fija `AccesoTest::la_ficha_de_usuario_no_esconde_campos_y_el_alta_funciona`,
+que comprueba que no haya pestañas, que el alta cree la cuenta y que editar sin
+tocar la contraseña no la borre.
 
 **La creación de cuentas sigue siendo del Administrador y punto** (middleware `admin` en la
 ruta del formulario de usuario), sin importar la matriz. Y ojo con `seguridad.roles`:
@@ -1324,6 +1352,47 @@ que corresponde a esa cita.
   dice cuánto pide el salón y lleva a registrar el comprobante de la
   transferencia; en el mostrador, el profesional la registra a mano cuando la
   clienta la deja en el local. En los dos casos queda atada a la cita.
+
+### A dónde transferir: los datos de pago de cada sucursal
+
+**No hay pasarela de pagos y no la va a haber.** La clienta transfiere por su
+cuenta y sube el comprobante, así que lo único que el sistema puede hacer es
+**decirle a qué cuenta** — hasta la 7.67.0 eso dependía de que alguien
+contestara el WhatsApp, o sea que una seña se podía trabar por un mensaje sin
+responder.
+
+`dato_pago_sucursal` guarda una fila por cuenta, y se administra en
+**Configuración → Datos de pago**.
+
+| | |
+|---|---|
+| Permiso | `configuracion.pagos` — **el suyo**, no el de sucursales |
+| De quién son | **de cada sucursal**: dos locales pueden cobrar en cuentas distintas |
+| Qué ve la clienta | sólo las del local **donde reservó**, al registrar la seña |
+| Qué medios admiten datos | los de `metodo_pago` con tipo `BANCO`, `CHEQUE` u `OTRO` |
+
+Cuatro decisiones que conviene no revertir:
+
+- **El permiso es propio.** El número de cuenta del salón se le puede dar a
+  alguien distinto de quien administra los locales.
+- **Los medios salen de `metodo_pago`**, no de una lista escrita en la pantalla,
+  así que ésta y la del cobro hablan del mismo vocabulario. El efectivo y las
+  tarjetas quedan afuera: no hay ninguna cuenta que darle a nadie.
+- **Se desactiva, no se borra.** Una cuenta que se dejó de usar sigue siendo la
+  que aparece en los comprobantes de las señas viejas; si desaparece, no hay
+  forma de saber a dónde se transfirió.
+- **Sin ninguna cargada se dice.** Un bloque que no se dibuja deja a la clienta
+  sin saber si tenía que transferir a algún lado — es el mismo criterio que
+  IN-06.
+
+> **El titular va como texto y NO enlaza a `persona`.** Es lo que figura en el
+> banco: casi siempre la razón social del salón, a veces la propietaria a
+> título personal. No es una entidad del sistema con contacto propio, así que
+> no aplica la regla de `persona` — el criterio es el mismo que ya tiene
+> `cobro_banco.banco`, que también es texto desde el TCC.
+
+Lo fija `ReglasDeNegocioTest::la_clienta_ve_las_cuentas_del_local_donde_reservo`,
+comprobada en las dos direcciones.
 
 ### La reserva con seña queda pendiente, y el lugar se guarda un plazo
 
@@ -1581,6 +1650,14 @@ manicurista queda libre a los 30 aunque la cita siga.
 - La disponibilidad se pregunta **para cada profesional del reparto**, con su propio bloque.
   `Agenda::validarReparto()` y `Agenda::duracionReparto()` lo resuelven antes de guardar.
 - Sin reparto (el caso de siempre) no cambia nada: un solo grupo, un solo profesional.
+
+> **El combo suelto de «Profesional» salió de Nueva cita en la 7.67.0**, por
+> pedido del usuario: preguntaba lo mismo que el que aparece al lado de cada
+> servicio, y desde dos lados — para entender qué hacía el de abajo («lo hace el
+> principal») había que saber primero quién era el principal. **La cita sigue
+> teniendo dueño**: sale de `Agenda::principalDelReparto()`, y sin nadie elegido
+> decide el sistema, que es exactamente lo que hacía «sin preferencia». El
+> parámetro `id_usuario` se sigue leyendo porque otras pantallas lo mandan.
 
 **Quién puede hacer qué.** `usuario_servicio` dice qué servicios hace cada
 persona, y `fn_usuario_hace_servicio` lo resuelve con el **mismo criterio
@@ -2550,11 +2627,21 @@ Diferencia     = monto_contado − Saldo esperado        (+ sobra · − falta)
 > `ReglasDeNegocioTest::el_arqueo_compara_lo_contado_con_lo_esperado`, que
 > después de cerrar carga un egreso y exige que la diferencia lo siga.
 
+**El desglose por medio de pago vive en Arqueo**, no en «Apertura y cierre».
+Es lo que separa la plata que TIENE que estar en el cajón de la que fue a la
+cuenta — o sea la mitad de la pregunta que esta pantalla contesta. En la de
+abrir y cerrar era un bloque más, donde nadie lo iba a buscar.
+
 **El arqueo es su propia pantalla** (`facturacion.arqueo`), no el pie de
 «Apertura y cierre». Son dos preguntas distintas: «¿abro o cierro?» se hace dos
 veces por día, y «¿cuadraron las cajas de esta semana?» se hace cuando falta
 plata. Con el historial colgado abajo del formulario, la segunda quedaba
 escondida y la primera venía con sesenta filas de ruido.
+
+**«Qué» y «Estado» son UNA sola columna.** Eran dos para la misma pregunta: en
+la fila de cierre, «Cerrada» era tautológico —el cierre ES el cierre— y lo único
+que la apertura necesitaba decir es si esa caja sigue abierta. El badge dice
+**Abierta** con la caja viva y **Apertura / Cierre** cuando ya se cerró.
 
 **El historial son DOS registros por caja —apertura y cierre— y cada cifra tiene
 su columna**: `Monto inicial`, `Esperado`, `Contado` y `Diferencia`. Son cuatro
@@ -3068,7 +3155,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 136 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 139 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3091,7 +3178,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 36 funciones,
-   17 triggers, 17 vistas y 73 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 75 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -3190,7 +3277,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**136 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**139 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

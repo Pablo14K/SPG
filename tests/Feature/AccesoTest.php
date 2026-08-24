@@ -157,7 +157,7 @@ class AccesoTest extends TestCase
             'seguridad.roles', 'seguridad.turnos', 'seguridad.asistencia',
             'seguridad.comisiones', 'seguridad.comision_form',
             'seguridad.sucursales', 'seguridad.sucursal_form',
-            'seguridad.contacto', 'seguridad.auditoria',
+            'seguridad.contacto', 'seguridad.pagos', 'seguridad.auditoria',
             // Los dos landings que salieron de Seguridad en la 7.57.0
             'seguridad.personal.index', 'seguridad.configuracion.index',
         ];
@@ -573,5 +573,114 @@ class AccesoTest extends TestCase
         // que más veces rompió algo —una lista vacía, una división por cero—.
         $this->conSucursal($otra);
         $abrirTodas('parado en un local recién abierto');
+    }
+
+    /**
+     * La pantalla «Sin permiso» siempre tiene una salida que lleva a otro lado.
+     *
+     * **El caso que lo destapó**: una cuenta de cliente sin ficha vinculada. Su
+     * inicio es el portal, y el portal es justamente el que le contesta 403, así
+     * que «Volver al inicio» la devolvía a la misma pantalla — desde afuera, un
+     * botón que no hace nada.
+     *
+     * Se comprueba en las dos direcciones: que **no** ofrezca el enlace circular
+     * y que **sí** ofrezca cerrar sesión, que es la única salida real cuando la
+     * cuenta no puede llegar a ninguna parte.
+     */
+    #[Test]
+    public function sin_permiso_nunca_deja_a_la_persona_sin_salida(): void
+    {
+        // Una cuenta de cliente sin fila en `cliente`: entra, pero el portal no
+        // la puede atender.
+        DB::insert("INSERT INTO persona (nombre, apellido) VALUES ('Sin', 'Ficha')");
+        $per = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert(
+            "INSERT INTO usuario (id_persona, username, password_hash, id_rol, activo)
+             VALUES (?, ?, ?, 4, 1)",
+            [$per, 'sinficha' . $per, password_hash('x', PASSWORD_BCRYPT)]
+        );
+        $uid = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $r = $this->withSession([
+            'uid' => $uid,
+            'rol' => 4,
+            'es_cliente' => true,
+            'sesion_marca' => DB::scalar('SELECT sesion_activa FROM usuario WHERE id_usuario = ?', [$uid]),
+        ])->get(route('portal.index'));
+
+        $r->assertStatus(403);
+        $r->assertDontSee(route('portal.index'), false);
+        $r->assertSee(route('salir'), false);
+    }
+
+    /**
+     * Crear un usuario funciona, y la ficha no esconde ningún campo obligatorio.
+     *
+     * **El defecto que lo motivó**: los tres bloques estaban en pestañas, y un
+     * `required` dentro de una pestaña cerrada está en `display:none`. El
+     * navegador se niega a enviar un formulario con un campo obligatorio que no
+     * puede enfocar, **y no muestra nada** — se apretaba Guardar y no pasaba
+     * absolutamente nada.
+     *
+     * Se comprueba lo que se puede comprobar desde el servidor: que la ficha
+     * **no dibuje pestañas** (que es lo que escondía los campos) y que el POST
+     * cree la cuenta de verdad.
+     */
+    #[Test]
+    public function la_ficha_de_usuario_no_esconde_campos_y_el_alta_funciona(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $ficha = $this->get(route('seguridad.usuario_form'));
+        $ficha->assertOk();
+        $ficha->assertDontSee('data-bs-toggle="pill"', false);
+
+        // Los tres bloques tienen que estar en la misma pantalla.
+        foreach (['name="nombre"', 'name="username"', 'name="sucursales[]"'] as $campo) {
+            $ficha->assertSee($campo, false);
+        }
+
+        $u = 'alta' . random_int(10000, 99999);
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $rol = (int) DB::scalar('SELECT MIN(id_rol) FROM rol WHERE es_personal = 1 AND activo = 1 AND id_rol <> 1');
+
+        $this->post(route('seguridad.usuario.guardar'), [
+            'id_usuario' => 0,
+            'username' => $u,
+            'password' => 'clave123',
+            'id_rol' => $rol,
+            'nombre' => 'Alta',
+            'apellido' => 'De Prueba',
+            'email' => $u . '@ejemplo.test',
+            'sucursales' => [$suc],
+        ]);
+
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM usuario WHERE username = ?', [$u]),
+            'El alta de usuario no llegó a crear la cuenta.');
+
+        // Editar sin tocar la contraseña NO la borra: vacío quiere decir «no la
+        // cambies», no «dejala en null».
+        $id = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE username = ?', [$u]);
+        $antes = (string) DB::scalar('SELECT password_hash FROM usuario WHERE id_usuario = ?', [$id]);
+
+        $this->post(route('seguridad.usuario.guardar'), [
+            'id_usuario' => $id,
+            'username' => $u,
+            'password' => '',
+            'id_rol' => $rol,
+            'nombre' => 'Alta',
+            'apellido' => 'Editada',
+            'email' => $u . '@ejemplo.test',
+            'sucursales' => [$suc],
+        ]);
+
+        $this->assertSame($antes, (string) DB::scalar(
+            'SELECT password_hash FROM usuario WHERE id_usuario = ?', [$id]),
+            'Guardar con la contraseña vacía se la borró: vacío es «no la toques».');
+        $this->assertSame('Editada', DB::scalar(
+            'SELECT pe.apellido FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE u.id_usuario = ?', [$id]),
+            'La edición no se guardó.');
     }
 }

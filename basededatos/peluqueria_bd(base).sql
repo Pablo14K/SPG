@@ -1,8 +1,8 @@
--- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
+-- MariaDB dump 10.19  Distrib 10.4.34-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: peluqueria_bd
+-- Host: localhost    Database: spg_limpia
 -- ------------------------------------------------------
--- Server version	10.4.32-MariaDB
+-- Server version	10.4.34-MariaDB-1:10.4.34+maria~ubu2004
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -969,6 +969,45 @@ CREATE TABLE `credencial_webauthn` (
 LOCK TABLES `credencial_webauthn` WRITE;
 /*!40000 ALTER TABLE `credencial_webauthn` DISABLE KEYS */;
 /*!40000 ALTER TABLE `credencial_webauthn` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `dato_pago_sucursal`
+--
+
+DROP TABLE IF EXISTS `dato_pago_sucursal`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `dato_pago_sucursal` (
+  `id_dato_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_sucursal` int(10) unsigned NOT NULL,
+  `id_metodo_pago` int(10) unsigned NOT NULL,
+  `entidad` varchar(80) NOT NULL,
+  `titular` varchar(120) NOT NULL,
+  `documento` varchar(20) DEFAULT NULL,
+  `tipo_cuenta` varchar(30) DEFAULT NULL,
+  `numero_cuenta` varchar(40) DEFAULT NULL,
+  `observacion` varchar(200) DEFAULT NULL,
+  `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_dato_pago`),
+  UNIQUE KEY `uq_dpago_cuenta` (`id_sucursal`,`id_metodo_pago`,`numero_cuenta`),
+  KEY `ix_dpago_suc` (`id_sucursal`,`activo`,`orden`),
+  KEY `fk_dpago_metodo` (`id_metodo_pago`),
+  CONSTRAINT `fk_dpago_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
+  CONSTRAINT `fk_dpago_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
+  CONSTRAINT `chk_dpago_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
+  CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `dato_pago_sucursal`
+--
+
+LOCK TABLES `dato_pago_sucursal` WRITE;
+/*!40000 ALTER TABLE `dato_pago_sucursal` DISABLE KEYS */;
+/*!40000 ALTER TABLE `dato_pago_sucursal` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -3400,11 +3439,11 @@ INSERT INTO `zona_servicio` VALUES (1,'Cabello',1),(2,'Manos',1),(3,'Pies',1),(4
 UNLOCK TABLES;
 
 --
--- Dumping events for database 'peluqueria_bd'
+-- Dumping events for database 'spg_limpia'
 --
 
 --
--- Dumping routines for database 'peluqueria_bd'
+-- Dumping routines for database 'spg_limpia'
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
@@ -5929,4 +5968,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-22 20:33:20
+-- Dump completed on 2026-08-24  7:39:43

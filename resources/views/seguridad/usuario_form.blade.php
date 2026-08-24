@@ -46,26 +46,27 @@
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <input type="hidden" name="desde" value="{{ request()->query('desde', '') }}">
 
-                    {{-- Los tres bloques siguen estando y se guardan juntos: las
-                         pestañas sólo deciden cuál se ve primero. Todos los
-                         campos viajan en el mismo POST, así que nada se pierde
-                         por estar en una pestaña cerrada. --}}
-                    <ul class="nav nav-pills spg-subtabs mb-3" role="tablist">
-                        <li class="nav-item"><button type="button"
-                            class="nav-link {{ $desdePersonal ? 'active' : '' }}"
-                            data-bs-toggle="pill" data-bs-target="#fmPersona">
-                            <i class="bi bi-person"></i> Datos personales</button></li>
-                        <li class="nav-item"><button type="button"
-                            class="nav-link {{ $desdePersonal ? '' : 'active' }}"
-                            data-bs-toggle="pill" data-bs-target="#fmCuenta">
-                            <i class="bi bi-key"></i> Cuenta y acceso</button></li>
-                        <li class="nav-item"><button type="button" class="nav-link"
-                            data-bs-toggle="pill" data-bs-target="#fmTrabajo">
-                            <i class="bi bi-scissors"></i> Trabajo</button></li>
-                    </ul>
+                    {{-- **Las tres secciones se ven juntas, y las pestañas
+                         salieron por eso.**
 
-                    <div class="tab-content">
-                    <div class="tab-pane fade {{ $desdePersonal ? 'show active' : '' }}" id="fmPersona">
+                         No era una preferencia: **crear un usuario no
+                         funcionaba**. Los campos obligatorios de una pestaña
+                         cerrada están en `display:none`, y el navegador se
+                         niega a enviar un formulario con un `required` que no
+                         puede enfocar — **sin decir nada**. Se apretaba Guardar
+                         y no pasaba absolutamente nada; el único rastro quedaba
+                         en la consola («An invalid form control … is not
+                         focusable»), que nadie mira.
+
+                         Es el patrón de siempre de este proyecto: algo se
+                         apaga en silencio y se descubre cuando alguien intenta
+                         usarlo. Con las tres a la vista, el navegador puede
+                         enfocar el campo que falta y el rechazo se ve.
+
+                         Se guardan juntas, como antes: un solo POST y un solo
+                         botón al pie. --}}
+                    <div>
+                    <div id="fmPersona">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Datos de la persona</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -98,8 +99,8 @@
 
                     </div>{{-- /fmPersona --}}
 
-                    <div class="tab-pane fade {{ $desdePersonal ? '' : 'show active' }}" id="fmCuenta">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta</h2>
+                    <div id="fmCuenta">
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta y acceso</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label" for="username">Usuario *</label>
@@ -111,10 +112,22 @@
                                 Contraseña {{ $id ? '' : '*' }}
                             </label>
                             <input type="password" class="form-control" id="password" name="password"
-                                   {{ $id ? '' : 'required' }} minlength="6">
-                            @if ($id)
-                                <div class="form-text">Dejala vacía para no cambiarla.</div>
-                            @endif
+                                   {{ $id ? '' : 'required' }} minlength="6"
+                                   autocomplete="new-password"
+                                   placeholder="{{ $id ? 'Dejala vacía para no cambiarla' : 'Al menos 6 caracteres' }}">
+                            {{-- **Vacío NO quiere decir «sin contraseña».** El
+                                 campo nunca trae la que hay cargada —eso sería
+                                 mandarla al navegador en cada carga de la
+                                 pantalla— así que vacío sólo significa «no la
+                                 toques»; el servidor la deja como está. --}}
+                            <div class="form-text">
+                                @if ($id)
+                                    Vacío = <strong>no se cambia</strong>. Por seguridad no traemos la
+                                    que tiene cargada. Si escribís una nueva, mínimo 6 caracteres.
+                                @else
+                                    Mínimo 6 caracteres.
+                                @endif
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="id_rol">Rol *</label>
@@ -130,7 +143,7 @@
 
                     </div>{{-- /fmCuenta --}}
 
-                    <div class="tab-pane fade" id="fmTrabajo">
+                    <div id="fmTrabajo">
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursales donde trabaja</h2>
                     {{-- **Una sola pregunta, no dos.** Acá había además un selector de
                          «Sucursal principal» que repetía lo mismo con otras palabras: en
@@ -226,9 +239,11 @@
                     </div>
 
                     </div>{{-- /fmTrabajo --}}
-                    </div>{{-- /tab-content --}}
+                    </div>
 
-                    <div class="d-flex gap-2">
+                    {{-- Un solo botón, al pie de las tres secciones: se guardan
+                         juntas y siempre se guardaron juntas. --}}
+                    <div class="d-flex gap-2 pt-2 border-top">
                         <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
                         <a class="btn btn-outline-neutro" href="{{ $vuelve['ruta'] }}">Cancelar</a>
                     </div>

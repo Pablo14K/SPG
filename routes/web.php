@@ -268,6 +268,15 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('identidad/logo/quitar', [ConfiguracionController::class, 'identidadLogoQuitar'])->name('identidad.logo.quitar');
         });
 
+        // **A dónde le transfiere la clienta la seña.** Su propio permiso: el
+        // número de cuenta del salón se le puede dar a alguien distinto de
+        // quien administra los locales.
+        Route::middleware('modulo:configuracion.pagos')->group(function () {
+            Route::get('pagos', [ConfiguracionController::class, 'pagos'])->name('pagos');
+            Route::post('pagos', [ConfiguracionController::class, 'pagosGuardar'])->name('pagos.guardar');
+            Route::post('pagos/estado', [ConfiguracionController::class, 'pagosEstado'])->name('pagos.estado');
+        });
+
         Route::middleware('modulo:configuracion.contacto')->group(function () {
             Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
             Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');

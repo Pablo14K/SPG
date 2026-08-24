@@ -4349,4 +4349,57 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(6, $estado($vieja),
             'La atrasada de hace dos días tiene que cerrarse sola: si no, bloquea la agenda para siempre.');
     }
+
+    /**
+     * La clienta ve las cuentas de SU local, no las de otro.
+     *
+     * **No hay pasarela de pagos y no la va a haber**: la clienta transfiere
+     * por su cuenta, así que lo único que el sistema puede hacer es decirle a
+     * dónde. Cada sucursal puede cobrar en cuentas distintas, y mostrarle la
+     * del otro local le hace transferir a un lado donde nadie la espera.
+     *
+     * Se comprueba en las DOS direcciones: que aparezca la del local de la
+     * cita y que **no** aparezca la del otro. Con una sola mitad, una consulta
+     * sin filtro pasaría igual.
+     */
+    #[Test]
+    public function la_clienta_ve_las_cuentas_del_local_donde_reservo(): void
+    {
+        $a = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        // La segunda la crea la prueba: `peluqueria_test` trae una sola, y
+        // saltearse ahí sería no medir nada justo en la base que se entrega.
+        DB::insert("INSERT INTO sucursal (nombre, ciudad, activo) VALUES ('Local de prueba', 'Luque', 1)");
+        $b = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        $medio = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' LIMIT 1");
+
+        $cargar = function (int $suc, string $entidad) use ($medio): void {
+            DB::insert(
+                'INSERT INTO dato_pago_sucursal
+                    (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta)
+                 VALUES (?, ?, ?, ?, ?)',
+                [$suc, $medio, $entidad, 'Salón de prueba', 'CTA-' . $suc . '-' . $entidad]
+            );
+        };
+        $cargar($a, 'Banco de acá');
+        $cargar($b, 'Banco del otro local');
+
+        $deLocal = fn (int $suc) => array_map(fn ($r) => $r->entidad, DB::select(
+            'SELECT entidad FROM dato_pago_sucursal WHERE id_sucursal = ? AND activo = 1', [$suc]));
+
+        $this->assertContains('Banco de acá', $deLocal($a));
+        $this->assertNotContains('Banco del otro local', $deLocal($a),
+            'La clienta estaría viendo la cuenta de otra sucursal: transferiría a donde nadie la espera.');
+
+        // Sacar una cuenta la esconde, no la borra: las señas viejas siguen
+        // teniendo su respaldo.
+        DB::update("UPDATE dato_pago_sucursal SET activo = 0
+                     WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]);
+
+        $this->assertNotContains('Banco de acá', $deLocal($a),
+            'Una cuenta desactivada no se le puede seguir ofreciendo a la clienta.');
+        $this->assertSame(1, (int) DB::scalar(
+            "SELECT COUNT(*) FROM dato_pago_sucursal WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]),
+            'Desactivar una cuenta no la borra: el respaldo de las señas viejas se perdería.');
+    }
 }

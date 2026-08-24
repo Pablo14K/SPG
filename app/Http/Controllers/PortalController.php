@@ -512,7 +512,7 @@ class PortalController extends Controller
             // por algo que ya pagó con sus puntos. Si además pidió otro
             // servicio sin canje, ese sí se puede señar — por eso es una resta
             // y no un «tiene canje: no muestres nada».
-            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita,
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal,
                     fn_cita_sena(v.id_cita) AS sena,
                     -- Cuánta seña pide el salón por esta cita. Sale de
                     -- `servicio.sena_porcentaje`: hasta acá el sistema no
@@ -548,7 +548,50 @@ class PortalController extends Controller
             // no en la vista: es una consulta, y en la vista correría una vez
             // por cita.
             'lugar' => Calendario::lugar(),
+
+            // **A dónde transferir la seña, por sucursal.** No hay pasarela de
+            // pagos y no la va a haber: la clienta transfiere por su cuenta,
+            // así que lo único que el sistema puede hacer es decirle a qué
+            // cuenta. Hasta la 7.67.0 eso dependía de que alguien contestara
+            // el WhatsApp.
+            //
+            // Se trae indexado por sucursal porque cada cita puede ser de un
+            // local distinto, y son las cuentas de ESE local las que valen.
+            'cuentas' => $this->cuentasPorSucursal($prox),
         ]);
+    }
+
+    /**
+     * Las cuentas de cobro de los locales donde la clienta tiene cita.
+     *
+     * Una sola consulta para todas: en la vista, dentro del `foreach` de
+     * citas, correría una por cita.
+     */
+    private function cuentasPorSucursal(array $citas): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map(fn ($c) => (int) ($c->id_sucursal ?? 0), $citas)
+        )));
+        if (! $ids) {
+            return [];
+        }
+
+        $filas = DB::select(
+            'SELECT d.id_sucursal, d.entidad, d.titular, d.documento, d.tipo_cuenta,
+                    d.numero_cuenta, d.observacion, m.nombre AS medio
+               FROM dato_pago_sucursal d
+               JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
+              WHERE d.activo = 1 AND d.id_sucursal IN ('
+                . implode(',', array_fill(0, count($ids), '?')) . ')
+              ORDER BY d.orden, d.id_dato_pago', $ids
+        );
+
+        $por = [];
+        foreach ($filas as $f) {
+            $por[(int) $f->id_sucursal][] = $f;
+        }
+
+        return $por;
     }
 
     public function cancelar(Request $request): RedirectResponse

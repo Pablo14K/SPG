@@ -1691,16 +1691,6 @@ class FacturacionController extends Controller
 
         return view('facturacion.caja', [
             'abierta' => $abierta,
-            // Arqueo por medio de pago: sin esto no se puede cuadrar la plata
-            // física contra lo cargado (el efectivo tiene que estar en el cajón;
-            // la tarjeta y el cheque, no).
-            'porMedio' => $abierta ? DB::select(
-                'SELECT mp.nombre AS medio, mp.tipo, COUNT(*) AS cantidad, SUM(co.monto) AS total
-                   FROM cobro co JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
-                  WHERE co.id_caja = ? AND co.id_estado_cobro = 1
-                  GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo
-                  ORDER BY total DESC', [(int) $abierta->id_caja]
-            ) : [],
             // Los movimientos cargados a mano sobre la caja abierta: un gasto
             // de caja chica, un retiro, una devolución. Se listan acá porque
             // son lo único del arqueo que no sale de un cobro o de un pago.
@@ -1750,8 +1740,24 @@ class FacturacionController extends Controller
             }
         }
 
+        // **El desglose por medio vive acá, no en «Apertura y cierre».** Es lo
+        // que separa la plata que tiene que estar en el cajón de la que fue a
+        // la cuenta, o sea la mitad de la pregunta que contesta esta pantalla;
+        // en la de abrir y cerrar era un bloque más que nadie iba a buscar ahí.
+        $pm = [];
+        $abierta = DB::selectOne("SELECT id_caja FROM vw_caja_resumen WHERE estado = 'Abierta'"
+            . Sucursales::filtro('vw_caja_resumen', $pm) . ' ORDER BY fecha_apertura DESC LIMIT 1', $pm);
+
         return view('facturacion.arqueo', [
             'rows' => $rows,
+            'abierta' => $abierta,
+            'porMedio' => $abierta ? DB::select(
+                'SELECT mp.nombre AS medio, mp.tipo, COUNT(*) AS cantidad, SUM(co.monto) AS total
+                   FROM cobro co JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                  WHERE co.id_caja = ? AND co.id_estado_cobro = 1
+                  GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo
+                  ORDER BY total DESC', [(int) $abierta->id_caja]
+            ) : [],
             'cerradas' => $cerradas,
             'sinConteo' => $sinConteo,
             'cuadran' => $cuadran,

@@ -212,13 +212,6 @@ body{
   font-size:.72rem;font-weight:500;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
 }
 
-/* La base con la que corre el sistema, sólo en desarrollo. Va en neutro y no
-   en oro: **no es jerarquía ni acción**, es un dato de contexto para quien
-   programa — el oro se reserva para lo que hay que mirar o tocar. */
-.spg-base-chip{font-size:.72rem;padding:.1rem .5rem;border-radius:20px;
-  border:1px dashed var(--sobre-oscura-tenue);color:var(--sobre-oscura-tenue);
-  margin-left:.35rem;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
-
 /* La sucursal en la que se está trabajando, al lado del nombre.
    Va RELLENA y el rol en contorno, y la diferencia no es capricho: el rol de
    una persona no cambia nunca, la sucursal cambia entre una sesión y la
@@ -687,6 +680,22 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
 
 /* ---- Fila vacía de una tabla ---- */
+/* A dónde transferir la seña. Va en neutros y NO en oro: es un dato para
+   copiar, no una acción ni una jerarquía — el oro se reserva para lo que hay
+   que tocar. El número sí va en monoespaciada, que es lo que hace que no se
+   copie mal un dígito. */
+.spg-cuentas-tit{font-size:.82rem;font-weight:600;color:var(--gris-oscuro);
+  margin-bottom:.4rem;}
+.spg-cuenta{border:1px solid var(--gris-calido);border-radius:8px;
+  padding:.55rem .7rem;margin-bottom:.45rem;background:var(--blanco-hueso);}
+.spg-cuenta:last-child{margin-bottom:0;}
+.spg-cuenta-cab{font-size:.86rem;}
+.spg-cuenta-nro{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:1.02rem;letter-spacing:.02em;word-break:break-all;margin:.1rem 0;}
+.spg-cuenta-pie{font-size:.79rem;color:var(--gris-oscuro);}
+.spg-cuenta-obs{font-size:.79rem;color:var(--gris-oscuro);margin-top:.25rem;
+  padding-top:.25rem;border-top:1px dashed var(--gris-calido);}
+
 .spg-vacio{text-align:center;color:var(--gris-oscuro);padding:2.2rem 1rem;}
 .spg-vacio i{font-size:1.7rem;color:var(--gris-calido);display:block;margin-bottom:.4rem;}
 .spg-vacio .t{font-size:.92rem;color:var(--carbon);margin-bottom:.15rem;}

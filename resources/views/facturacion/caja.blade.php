@@ -133,36 +133,6 @@
             </div>
         </div>
 
-        {{-- Arqueo por medio: sin esto no se puede cuadrar la plata física --}}
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2" id="arqueo"><i class="bi bi-cash-stack"></i> Arqueo por medio de pago</h2>
-            @if ($porMedio)
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-2">
-                        <thead><tr><th>Medio</th><th>¿Está en el cajón?</th><th class="text-end">Cobros</th><th class="text-end">Total</th></tr></thead>
-                        <tbody>
-                            @foreach ($porMedio as $m)
-                                <tr>
-                                    <td>{{ $m->medio }}</td>
-                                    <td>
-                                        @if ($m->tipo === 'EFECTIVO')
-                                            <span class="badge-estado e-ok">sí, contalo</span>
-                                        @else
-                                            <span class="badge-estado e-muted">no, va a la cuenta</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-end">{{ (int) $m->cantidad }}</td>
-                                    <td class="text-end">{{ money($m->total) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @else
-                <p class="text-muted-warm mb-0" style="font-size:.85rem">Todavía no hay cobros en esta caja.</p>
-            @endif
-        </div>
-
     @else
         {{-- **Este `@else` es lo único que hace alcanzable la apertura.** La
              7.46.0 mudó el bloque de movimientos a su propia pantalla y se

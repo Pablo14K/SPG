@@ -98,6 +98,7 @@ return [
         'configuracion' => [
             'configuracion.sucursales' => 'Sucursales',
             'configuracion.contacto' => 'Contacto',
+            'configuracion.pagos' => 'Datos de pago',
         ],
     ],
 

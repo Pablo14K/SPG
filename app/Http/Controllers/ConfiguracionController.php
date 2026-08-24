@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Bd;
+use App\Servicios\Persona;
 use App\Servicios\Sucursales;
+use Illuminate\Database\QueryException;
 use App\Servicios\Auditoria;
 use App\Servicios\Config;
 use App\Servicios\Contacto;
@@ -136,6 +139,151 @@ class ConfiguracionController extends Controller
     }
 
     // ---------- Contacto y soporte ----------
+
+    // =================================================================
+    //  Datos de pago: a dónde le transfiere la clienta
+    // =================================================================
+
+    /**
+     * Los medios que aceptan datos: transferencia, cheque y billetera.
+     *
+     * **Sale de `metodo_pago` y no de una lista escrita acá**, así que esta
+     * pantalla y la del cobro hablan del mismo vocabulario. El efectivo y las
+     * tarjetas quedan afuera: no hay ninguna cuenta que darle a la clienta.
+     */
+    private function mediosConDatos(): array
+    {
+        return DB::select(
+            "SELECT id_metodo_pago, nombre, tipo FROM metodo_pago
+              WHERE activo = 1 AND tipo IN ('BANCO', 'CHEQUE', 'OTRO')
+              ORDER BY id_metodo_pago"
+        );
+    }
+
+    public function pagos(Request $request): View
+    {
+        $mias = Sucursales::delUsuario();
+        $suc = (int) $request->input('sucursal', Sucursales::activa() ?: 0);
+
+        // Nadie pide los datos de un local al que no entra: es la misma regla
+        // con la que se decide qué agenda ve.
+        $ids = array_map(fn ($s) => (int) $s->id_sucursal, $mias);
+        if (! in_array($suc, $ids, true)) {
+            $suc = $ids[0] ?? 0;
+        }
+
+        return view('seguridad.pagos', [
+            'sucursales' => $mias,
+            'sucursal' => $suc,
+            'medios' => $this->mediosConDatos(),
+            'datos' => $suc ? DB::select(
+                'SELECT d.*, m.nombre AS medio
+                   FROM dato_pago_sucursal d
+                   JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
+                  WHERE d.id_sucursal = ?
+                  ORDER BY d.activo DESC, d.orden, d.id_dato_pago', [$suc]
+            ) : [],
+            'editar' => $request->filled('editar') ? DB::selectOne(
+                'SELECT * FROM dato_pago_sucursal WHERE id_dato_pago = ? AND id_sucursal = ?',
+                [(int) $request->input('editar'), $suc]
+            ) : null,
+        ]);
+    }
+
+    public function pagosGuardar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_dato_pago');
+        $suc = (int) $request->input('id_sucursal');
+        $medio = (int) $request->input('id_metodo_pago');
+        $entidad = trim((string) $request->input('entidad', ''));
+        $titular = trim((string) $request->input('titular', ''));
+        $doc = trim((string) $request->input('documento', ''));
+        $tipoCta = trim((string) $request->input('tipo_cuenta', ''));
+        $nro = trim((string) $request->input('numero_cuenta', ''));
+        $obs = trim((string) $request->input('observacion', ''));
+        $orden = (int) $request->input('orden', 0);
+
+        $medios = array_map(fn ($m) => (int) $m->id_metodo_pago, $this->mediosConDatos());
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        $error = match (true) {
+            ! in_array($suc, $suyas, true) => 'Elegí una sucursal a la que tengas acceso.',
+            ! in_array($medio, $medios, true) => 'Elegí cómo se paga.',
+            mb_strlen($entidad) < 2 => 'Escribí el banco o la billetera.',
+            mb_strlen($titular) < 3 => 'Escribí a nombre de quién está la cuenta.',
+            // El número es lo que la clienta va a copiar: sin él, el dato no
+            // sirve para nada. Se pide siempre, aunque la columna admita NULL
+            // para las filas que vengan de otro lado.
+            $nro === '' => 'Escribí el número de cuenta (o el celular, si es billetera).',
+            $doc !== '' && Persona::error('documento', $doc) => Persona::error('documento', $doc),
+            default => null,
+        };
+
+        if ($error) {
+            return back()->with('flash', ['msg' => $error, 'tipo' => 'error'])->withInput();
+        }
+
+        $campos = [$suc, $medio, $entidad, $titular, $doc ?: null,
+            $tipoCta ?: null, $nro, $obs ?: null, max(0, min(255, $orden))];
+
+        try {
+            if ($id) {
+                DB::update(
+                    'UPDATE dato_pago_sucursal
+                        SET id_sucursal = ?, id_metodo_pago = ?, entidad = ?, titular = ?,
+                            documento = ?, tipo_cuenta = ?, numero_cuenta = ?, observacion = ?, orden = ?
+                      WHERE id_dato_pago = ?',
+                    array_merge($campos, [$id])
+                );
+            } else {
+                DB::insert(
+                    'INSERT INTO dato_pago_sucursal
+                        (id_sucursal, id_metodo_pago, entidad, titular, documento,
+                         tipo_cuenta, numero_cuenta, observacion, orden)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    $campos
+                );
+                $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+            }
+        } catch (QueryException $e) {
+            return back()->with('flash', ['msg' => Bd::traducir($e, [
+                'uq_dpago_cuenta' => 'Esa cuenta ya está cargada en esta sucursal.',
+            ], 'No se pudo guardar la cuenta.'), 'tipo' => 'error'])->withInput();
+        }
+
+        Auditoria::registrar($request->filled('id_dato_pago') ? 'EDICION' : 'ALTA',
+            'Configuración', 'dato_pago_sucursal', $id, $entidad . ' — ' . $titular);
+
+        flash('Datos de pago guardados.');
+
+        return redirect()->route('seguridad.pagos', ['sucursal' => $suc]);
+    }
+
+    public function pagosEstado(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_dato_pago');
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        $d = DB::selectOne('SELECT * FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$id]);
+        if (! $d || ! in_array((int) $d->id_sucursal, $suyas, true)) {
+            flash('No encontramos esa cuenta.', 'error');
+
+            return back();
+        }
+
+        // **Se desactiva, no se borra.** Una cuenta que se dejó de usar sigue
+        // siendo la que aparece en los comprobantes de las señas viejas: si
+        // desaparece, no hay forma de saber a dónde se transfirió.
+        DB::update('UPDATE dato_pago_sucursal SET activo = 1 - activo WHERE id_dato_pago = ?', [$id]);
+        Auditoria::registrar($d->activo ? 'BAJA' : 'ALTA', 'Configuración',
+            'dato_pago_sucursal', $id, $d->entidad . ' — ' . $d->titular);
+
+        flash($d->activo
+            ? 'La cuenta ya no se le muestra a la clienta.'
+            : 'La cuenta vuelve a mostrarse.');
+
+        return redirect()->route('seguridad.pagos', ['sucursal' => $d->id_sucursal]);
+    }
 
     public function contacto(): View
     {

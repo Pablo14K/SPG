@@ -90,6 +90,7 @@ return [
         'seguridad.comisiones'      => ['Comisiones',            'percent',            'personal.comisiones'],
         'seguridad.sucursales'      => ['Sucursales',            'shop',               'configuracion.sucursales'],
         'seguridad.contacto'        => ['Contacto',                'headset',            'configuracion.contacto'],
+        'seguridad.pagos'           => ['Datos de pago',           'bank',               'configuracion.pagos'],
         'seguridad.auditoria'       => ['Auditoría',             'journal-text',       'seguridad.auditoria'],
     ],
 

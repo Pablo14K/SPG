@@ -252,10 +252,10 @@ window.SPGCarga = (function () {
   }
 
   function profesional() {
-    // Nueva cita tiene un combo de profesional para toda la cita: ese manda,
-    // y es el que le bloquea el bloque más largo en la agenda. Los selectores
-    // por servicio de esa misma pantalla reparten el trabajo, pero no cambian
-    // a quién se le consultan los huecos.
+    // Un combo de profesional para toda la cita, si la pantalla lo tiene:
+    // ese manda y es el que le bloquea el bloque más largo en la agenda.
+    // **Nueva cita ya no lo tiene** desde la 7.67.0 —preguntaba lo mismo que
+    // el de cada servicio— así que cae en la rama de abajo, la del portal.
     var combo = document.querySelector('[name="id_usuario"]');
     if (combo) return combo.value || 0;
 

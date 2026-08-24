@@ -239,7 +239,47 @@
                                 </div>
                             @endif
 
-                            <label class="form-label" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
+                            {{-- **A dónde transferir.** Es lo único que faltaba
+                                 para que la clienta pueda pagar sin llamar a
+                                 nadie: el sistema no cobra —no hay pasarela y no
+                                 la va a haber— pero sí puede decir a qué cuenta.
+
+                                 Son las del local DONDE RESERVÓ: dos sucursales
+                                 pueden cobrar en cuentas distintas. --}}
+                            @php $ctas = $cuentas[(int) $c->id_sucursal] ?? []; @endphp
+                            @if ($ctas)
+                                <div class="spg-cuentas mt-3">
+                                    <div class="spg-cuentas-tit">
+                                        <i class="bi bi-bank"></i> Podés transferir a:
+                                    </div>
+                                    @foreach ($ctas as $ct)
+                                        <div class="spg-cuenta">
+                                            <div class="spg-cuenta-cab">
+                                                <strong>{{ $ct->entidad }}</strong>
+                                                <span class="text-muted-warm">· {{ $ct->medio }}</span>
+                                            </div>
+                                            <div class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</div>
+                                            <div class="spg-cuenta-pie">
+                                                {{ $ct->titular }}@if ($ct->documento) · {{ $ct->documento }}@endif
+                                                @if ($ct->tipo_cuenta) · {{ $ct->tipo_cuenta }}@endif
+                                            </div>
+                                            @if ($ct->observacion)
+                                                <div class="spg-cuenta-obs">{{ $ct->observacion }}</div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                {{-- **Sin cuentas cargadas se dice, no se calla.** Un
+                                     bloque que desaparece deja a la clienta sin saber
+                                     si tenía que transferir a algún lado. --}}
+                                <div class="alert alert-warning mt-3 py-2" style="font-size:.84rem">
+                                    Todavía no tenemos publicados los datos para transferir.
+                                    Escribinos y te los pasamos.
+                                </div>
+                            @endif
+
+                            <label class="form-label mt-3" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
                             <input class="form-control input-miles" id="ps{{ $c->id_cita }}"
                                    name="monto" data-min="1" inputmode="numeric" required
                                    value="{{ (float) ($c->sena_requerida ?? 0) > 0 ? monto_input($c->sena_requerida) : '' }}">
