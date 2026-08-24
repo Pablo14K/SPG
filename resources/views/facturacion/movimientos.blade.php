@@ -147,7 +147,47 @@
         </div>
     @endif
 
-            {{-- **Filtros arriba, tabla, paginación**: es la pantalla que más
+            {{-- **Los cobros por medio de pago, de las mismas cajas que la tabla.**
+
+         Separa lo que TIENE que estar en el cajón de lo que fue a la cuenta,
+         que es la otra mitad de «qué pasó con la plata de esta caja». Estaba en
+         la pantalla de la caja, donde contestaba la mitad de una pregunta que
+         se hace acá.
+
+         Respeta los mismos filtros: un resumen que mide otra cosa que la tabla
+         de abajo es peor que no tenerlo. --}}
+    @if ($porMedio)
+        <div class="spg-panel mb-3">
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cobros por medio de pago</h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr><th>Caja</th><th>Medio</th><th>¿Está en el cajón?</th>
+                            <th class="text-end">Cobros</th><th class="text-end">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($porMedio as $m)
+                            <tr>
+                                <td class="text-muted-warm">{{ $m->caja_nombre }}</td>
+                                <td>{{ $m->medio }}</td>
+                                <td>
+                                    @if ($m->tipo === 'EFECTIVO')
+                                        <span class="badge-estado e-ok">sí, contalo</span>
+                                    @else
+                                        <span class="badge-estado e-muted">no, va a la cuenta</span>
+                                    @endif
+                                </td>
+                                <td class="text-end">{{ (int) $m->cantidad }}</td>
+                                <td class="text-end">{{ money($m->total) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- **Filtros arriba, tabla, paginación**: es la pantalla que más
          registros acumula del módulo. Antes listaba sólo los de la caja
          abierta, que resolvía el caso de hoy y dejaba sin ver los de
          ayer. --}}

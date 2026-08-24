@@ -578,7 +578,7 @@ class PortalController extends Controller
 
         $filas = DB::select(
             'SELECT d.id_sucursal, d.entidad, d.titular, d.documento, d.tipo_cuenta,
-                    d.numero_cuenta, d.alias, d.observacion, m.nombre AS medio
+                    d.numero_cuenta, d.alias, d.alias_tipo, d.observacion, m.nombre AS medio
                FROM dato_pago_sucursal d
                JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
               WHERE d.activo = 1 AND d.id_sucursal IN ('

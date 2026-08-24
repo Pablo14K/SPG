@@ -51,26 +51,90 @@
                     <input type="hidden" name="id_dato_pago" value="{{ $editar->id_dato_pago }}">
                 @endif
 
-                <div class="mb-2">
-                    <label class="form-label" for="medio">¿Cómo se paga?</label>
-                    <select class="form-select" id="medio" name="id_metodo_pago" required>
-                        @foreach ($medios as $m)
-                            <option value="{{ $m->id_metodo_pago }}"
-                                @selected((int) old('id_metodo_pago', $editar->id_metodo_pago ?? 0) === (int) $m->id_metodo_pago)>
-                                {{ $m->nombre }}</option>
-                        @endforeach
-                    </select>
-                    <div class="form-text">
-                        Sale de los medios de pago del sistema. El efectivo y las
-                        tarjetas no están porque no hay cuenta que darle a nadie.
+                {{-- ---------------------------------------------------------
+                     1. Dónde está la plata --}}
+                <div class="spg-paso">
+                    <span class="spg-paso-n">1</span>
+                    <div class="spg-paso-t">¿Dónde está la cuenta?</div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label" for="medio">Cómo se paga</label>
+                        <select class="form-select" id="medio" name="id_metodo_pago" required>
+                            @foreach ($medios as $m)
+                                <option value="{{ $m->id_metodo_pago }}"
+                                    @selected((int) old('id_metodo_pago', $editar->id_metodo_pago ?? 0) === (int) $m->id_metodo_pago)>
+                                    {{ $m->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="entidad">Banco o billetera</label>
+                        <input class="form-control" id="entidad" name="entidad" required maxlength="80"
+                               value="{{ old('entidad', $editar->entidad ?? '') }}"
+                               placeholder="Itaú, Ueno, Tigo Money…">
                     </div>
                 </div>
 
-                <div class="mb-2">
-                    <label class="form-label" for="entidad">Banco o billetera</label>
-                    <input class="form-control" id="entidad" name="entidad" required maxlength="80"
-                           value="{{ old('entidad', $editar->entidad ?? '') }}"
-                           placeholder="Banco Itaú, Tigo Money…">
+                {{-- ---------------------------------------------------------
+                     2. El ALIAS, y va primero porque es lo que se usa.
+
+                     **En Paraguay el alias es el ÚNICO dato necesario para
+                     transferir** (SIPAP): reemplaza al número de cuenta, a la
+                     entidad y al nombre del destinatario. Y no es una palabra
+                     inventada — es uno de cuatro: cédula, RUC, celular o
+                     correo.
+
+                     Por eso el tipo se guarda: permite validarlo y sobre todo
+                     DECIRLE a la clienta por dónde buscarlo, que es como
+                     funciona la pantalla de su banco. --}}
+                <div class="spg-paso">
+                    <span class="spg-paso-n">2</span>
+                    <div class="spg-paso-t">El alias
+                        <span class="text-muted-warm">— con esto solo alcanza para transferir</span></div>
+                </div>
+
+                {{-- **Es opcional**: no todos los bancos lo usan y no todos los
+                     salones lo registraron. Sin alias la clienta transfiere con
+                     los datos de siempre, que están abajo. --}}
+                <div class="row g-2 mb-1">
+                    <div class="col-5">
+                        <label class="form-label" for="alias_tipo">Tipo de alias</label>
+                        {{-- Los cuatro que habilita el BCP. Es un combo y no
+                             texto libre porque son exactamente esos: escrito a
+                             mano, el sistema no podría validarlo ni decirle a la
+                             clienta por dónde buscarlo. --}}
+                        <select class="form-select" id="alias_tipo" name="alias_tipo"
+                                data-alias-tipo="#alias">
+                            <option value="">— sin alias —</option>
+                            @foreach ($tiposAlias as $k => $v)
+                                <option value="{{ $k }}"
+                                    data-ph="{{ $ejemplosAlias[$k] ?? '' }}"
+                                    data-solo="{{ $filtroAlias[$k] ?? '' }}"
+                                    @selected(old('alias_tipo', $editar->alias_tipo ?? '') === $k)>{{ $v }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-7">
+                        <label class="form-label" for="alias">Alias</label>
+                        <input class="form-control" id="alias" name="alias" maxlength="60"
+                               value="{{ old('alias', $editar->alias ?? '') }}"
+                               placeholder="Elegí primero el tipo">
+                    </div>
+                </div>
+                <div class="form-text mb-3">
+                    Es el que el salón registró en su banco. La clienta lo busca por
+                    ese mismo tipo en su app y le aparece la cuenta:
+                    <strong>no tiene que tipear el número</strong>.
+                </div>
+
+                {{-- ---------------------------------------------------------
+                     3. El respaldo, para quien no transfiere por alias --}}
+                <div class="spg-paso">
+                    <span class="spg-paso-n">3</span>
+                    <div class="spg-paso-t">Los datos de siempre
+                        <span class="text-muted-warm">— por si transfiere sin alias</span></div>
                 </div>
 
                 <div class="mb-2">
@@ -82,40 +146,32 @@
 
                 <div class="row g-2 mb-2">
                     <div class="col-7">
-                        <label class="form-label" for="documento">CI o RUC del titular</label>
-                        <input class="form-control" id="documento" name="documento" maxlength="20"
-                               data-solo="ruc" value="{{ old('documento', $editar->documento ?? '') }}">
-                        <div class="form-text">Opcional, pero varios bancos lo piden al transferir.</div>
+                        <label class="form-label" for="numero_cuenta">Número de cuenta</label>
+                        <input class="form-control" id="numero_cuenta" name="numero_cuenta" required maxlength="40"
+                               value="{{ old('numero_cuenta', $editar->numero_cuenta ?? '') }}"
+                               placeholder="O el celular, si es billetera">
                     </div>
                     <div class="col-5">
-                        <label class="form-label" for="tipo_cuenta">Tipo</label>
-                        <input class="form-control" id="tipo_cuenta" name="tipo_cuenta" maxlength="30"
-                               list="tiposCuenta" value="{{ old('tipo_cuenta', $editar->tipo_cuenta ?? '') }}">
-                        <datalist id="tiposCuenta">
-                            <option value="Caja de ahorro"></option>
-                            <option value="Cuenta corriente"></option>
-                            <option value="Billetera"></option>
-                        </datalist>
+                        <label class="form-label" for="tipo_cuenta">Tipo de cuenta</label>
+                        {{-- **Combo y no texto libre**: escrito a mano, «Caja de
+                             ahorro», «caja de ahorros» y «C. de ahorro» son la
+                             misma cosa tres veces, y la clienta ve lo que se
+                             haya tipeado. --}}
+                        <select class="form-select" id="tipo_cuenta" name="tipo_cuenta">
+                            <option value="">— sin especificar —</option>
+                            @foreach ($tiposCuenta as $tc)
+                                <option value="{{ $tc }}"
+                                    @selected(old('tipo_cuenta', $editar->tipo_cuenta ?? '') === $tc)>{{ $tc }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
                 <div class="mb-2">
-                    <label class="form-label" for="numero_cuenta">Número de cuenta</label>
-                    <input class="form-control" id="numero_cuenta" name="numero_cuenta" required maxlength="40"
-                           value="{{ old('numero_cuenta', $editar->numero_cuenta ?? '') }}"
-                           placeholder="O el celular, si es billetera">
-                </div>
-
-                {{-- **El alias es lo que de verdad se copia hoy.** Varios bancos
-                     paraguayos transfieren por alias en vez de por número de
-                     cuenta, y es más corto y más difícil de tipear mal. Va como
-                     campo propio y no dentro de la aclaración: la clienta lo
-                     tiene que poder copiar de un toque. --}}
-                <div class="mb-2">
-                    <label class="form-label" for="alias">Alias</label>
-                    <input class="form-control" id="alias" name="alias" maxlength="60"
-                           value="{{ old('alias', $editar->alias ?? '') }}"
-                           placeholder="Si el banco lo usa, es lo más fácil de copiar">
+                    <label class="form-label" for="documento">CI o RUC del titular</label>
+                    <input class="form-control" id="documento" name="documento" maxlength="20"
+                           data-solo="ruc" value="{{ old('documento', $editar->documento ?? '') }}">
+                    <div class="form-text">Varios bancos lo piden al transferir sin alias.</div>
                 </div>
 
                 <div class="mb-2">
@@ -125,18 +181,13 @@
                            placeholder="Mandanos el comprobante por WhatsApp">
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label" for="orden">Orden</label>
-                    <input class="form-control" id="orden" name="orden" data-solo="numeros" maxlength="3"
-                           value="{{ old('orden', $editar->orden ?? 0) }}">
-                    <div class="form-text">La de menor número se muestra primero.</div>
+                <div class="pt-2 border-top">
+                    <button class="btn btn-oro"><i class="bi bi-check2"></i> Guardar</button>
+                    @if ($editar)
+                        <a class="btn btn-outline-neutro"
+                           href="{{ route('seguridad.pagos', ['sucursal' => $sucursal]) }}">Cancelar</a>
+                    @endif
                 </div>
-
-                <button class="btn btn-oro"><i class="bi bi-check2"></i> Guardar</button>
-                @if ($editar)
-                    <a class="btn btn-outline-neutro"
-                       href="{{ route('seguridad.pagos', ['sucursal' => $sucursal]) }}">Cancelar</a>
-                @endif
             </form>
         </div>
     </div>
@@ -159,7 +210,7 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>Cómo</th><th>Cuenta</th><th>Titular</th>
+                                <th>Dónde</th><th>Alias</th><th>Cuenta</th>
                                 <th>Se le muestra</th><th></th>
                             </tr>
                         </thead>
@@ -171,20 +222,19 @@
                                         <div class="text-muted-warm" style="font-size:.8rem">{{ $d->medio }}</div>
                                     </td>
                                     <td>
-                                        <div class="spg-cuenta-nro">{{ $d->numero_cuenta ?: '—' }}</div>
                                         @if ($d->alias)
+                                            <div class="spg-cuenta-nro">{{ $d->alias }}</div>
                                             <div class="text-muted-warm" style="font-size:.8rem">
-                                                alias: {{ $d->alias }}</div>
-                                        @endif
-                                        @if ($d->tipo_cuenta)
-                                            <div class="text-muted-warm" style="font-size:.8rem">{{ $d->tipo_cuenta }}</div>
+                                                {{ $tiposAlias[$d->alias_tipo] ?? 'alias' }}</div>
+                                        @else
+                                            <span class="text-muted-warm" style="font-size:.85rem">sin alias</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <div>{{ $d->titular }}</div>
-                                        @if ($d->documento)
-                                            <div class="text-muted-warm" style="font-size:.8rem">{{ $d->documento }}</div>
-                                        @endif
+                                        <div style="font-size:.88rem">{{ $d->numero_cuenta ?: '—' }}</div>
+                                        <div class="text-muted-warm" style="font-size:.8rem">
+                                            {{ $d->titular }}@if ($d->tipo_cuenta) · {{ $d->tipo_cuenta }}@endif
+                                        </div>
                                     </td>
                                     <td>
                                         @if ($d->activo)
@@ -194,6 +244,22 @@
                                         @endif
                                     </td>
                                     <td class="text-end" style="white-space:nowrap">
+                                        {{-- **Reordenar con flechas, no con un número.**
+                                             El campo «orden» hacía elegir un número para
+                                             ordenar dos o tres filas; acá se ve el efecto
+                                             al instante y no hay nada que calcular. --}}
+                                        @if (count($datos) > 1)
+                                            @foreach (['arriba' => 'up', 'abajo' => 'down'] as $dir => $ic)
+                                                <form method="post" action="{{ route('seguridad.pagos.orden') }}" class="d-inline">
+                                                    @csrf
+                                                    <input type="hidden" name="id_dato_pago" value="{{ $d->id_dato_pago }}">
+                                                    <input type="hidden" name="dir" value="{{ $dir }}">
+                                                    <button class="btn btn-sm btn-outline-neutro"
+                                                            title="Mostrarla más {{ $dir }}">
+                                                        <i class="bi bi-arrow-{{ $ic }}"></i></button>
+                                                </form>
+                                            @endforeach
+                                        @endif
                                         <a class="btn btn-sm btn-outline-neutro"
                                            href="{{ route('seguridad.pagos', ['sucursal' => $sucursal, 'editar' => $d->id_dato_pago]) }}">
                                             <i class="bi bi-pencil"></i></a>

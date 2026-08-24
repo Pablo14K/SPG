@@ -288,6 +288,7 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('pagos', [ConfiguracionController::class, 'pagos'])->name('pagos');
             Route::post('pagos', [ConfiguracionController::class, 'pagosGuardar'])->name('pagos.guardar');
             Route::post('pagos/estado', [ConfiguracionController::class, 'pagosEstado'])->name('pagos.estado');
+            Route::post('pagos/orden', [ConfiguracionController::class, 'pagosOrden'])->name('pagos.orden');
         });
 
         Route::middleware('modulo:configuracion.contacto')->group(function () {

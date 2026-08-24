@@ -719,8 +719,8 @@ class AccesoTest extends TestCase
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
         $medio = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' LIMIT 1");
 
-        $cargar = function (string $doc, string $nro) use ($suc, $medio) {
-            return $this->post(route('seguridad.pagos.guardar'), [
+        $cargar = function (string $doc, string $nro, array $extra = []) use ($suc, $medio) {
+            return $this->post(route('seguridad.pagos.guardar'), array_merge([
                 'id_dato_pago' => 0,
                 'id_sucursal' => $suc,
                 'id_metodo_pago' => $medio,
@@ -728,9 +728,12 @@ class AccesoTest extends TestCase
                 'titular' => 'Salón de prueba',
                 'documento' => $doc,
                 'numero_cuenta' => $nro,
-                'alias' => 'alias.' . $nro,
+                // **El alias va con su tipo**: en Paraguay no es texto libre,
+                // es cédula, RUC, celular o correo.
+                'alias' => '0981123456',
+                'alias_tipo' => 'CELULAR',
                 'tipo_cuenta' => 'Caja de ahorro',
-            ]);
+            ], $extra));
         };
 
         // Con RUC (lleva verificador) y con cédula (no lo lleva).
@@ -744,16 +747,29 @@ class AccesoTest extends TestCase
 
         // El alias se guarda: es lo que varios bancos usan para transferir, y
         // es más corto que el número.
-        $this->assertNotNull(DB::scalar(
-            "SELECT alias FROM dato_pago_sucursal
-              WHERE id_sucursal = ? AND titular = 'Salón de prueba' LIMIT 1", [$suc]),
-            'El alias no se guardó.');
+        $guardado = DB::selectOne(
+            "SELECT alias, alias_tipo FROM dato_pago_sucursal
+              WHERE id_sucursal = ? AND titular = 'Salón de prueba' LIMIT 1", [$suc]);
+        $this->assertNotNull($guardado->alias, 'El alias no se guardó.');
+        $this->assertSame('CELULAR', $guardado->alias_tipo,
+            'El tipo del alias tiene que guardarse: es lo que le dice a la clienta por dónde buscarlo.');
 
-        // Y un documento que no es ni cédula ni RUC se rechaza.
-        $cargar('abc!!!', 'CTA-MALA-' . random_int(1000, 9999));
-        $this->assertSame(2, (int) DB::scalar(
-            "SELECT COUNT(*) FROM dato_pago_sucursal
-              WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]),
-            'Un documento con letras y símbolos no puede entrar.');
+        // Y lo que no tiene la forma de su tipo se rechaza. Son tres casos y
+        // los tres son el mismo: el dato tiene que poder usarse de verdad.
+        $malos = [
+            ['abc!!!', ['alias' => '0981123456', 'alias_tipo' => 'CELULAR'],
+             'Un documento con letras y símbolos no puede entrar.'],
+            ['4200000', ['alias' => 'no-es-un-correo', 'alias_tipo' => 'EMAIL'],
+             'Un alias de tipo correo tiene que ser un correo.'],
+            ['4200000', ['alias' => '0981123456', 'alias_tipo' => ''],
+             'Un alias sin tipo no se le puede explicar a la clienta: por dónde lo busca.'],
+        ];
+
+        foreach ($malos as [$doc, $extra, $porque]) {
+            $cargar($doc, 'CTA-MALA-' . random_int(1000, 9999), $extra);
+            $this->assertSame(2, (int) DB::scalar(
+                "SELECT COUNT(*) FROM dato_pago_sucursal
+                  WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]), $porque);
+        }
     }
 }

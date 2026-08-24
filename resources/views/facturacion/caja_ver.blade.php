@@ -54,38 +54,6 @@
         </div>
     </div>
 
-    {{-- **El desglose por medio de pago.** Separa lo que TIENE que estar en el
-         cajón de lo que fue a la cuenta, que es la mitad de la pregunta del
-         arqueo: contar la tarjeta haría que no cierre nunca. --}}
-    @if ($porMedio)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cobros por medio de pago</h2>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr><th>Medio</th><th>¿Está en el cajón?</th>
-                            <th class="text-end">Cobros</th><th class="text-end">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($porMedio as $m)
-                            <tr>
-                                <td>{{ $m->medio }}</td>
-                                <td>
-                                    @if ($m->tipo === 'EFECTIVO')
-                                        <span class="badge-estado e-ok">sí, contalo</span>
-                                    @else
-                                        <span class="badge-estado e-muted">no, va a la cuenta</span>
-                                    @endif
-                                </td>
-                                <td class="text-end">{{ (int) $m->cantidad }}</td>
-                                <td class="text-end">{{ money($m->total) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    @endif
 
     <div class="modal fade" id="modalArqueo" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">

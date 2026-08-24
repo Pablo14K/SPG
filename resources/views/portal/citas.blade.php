@@ -259,9 +259,16 @@
                                                 <span class="text-muted-warm">· {{ $ct->medio }}</span>
                                             </div>
                                             @if ($ct->alias)
+                                                @php
+                                                    $comoBuscar = [
+                                                        'CI' => 'cédula', 'RUC' => 'RUC',
+                                                        'CELULAR' => 'celular', 'EMAIL' => 'correo',
+                                                    ][$ct->alias_tipo] ?? 'alias';
+                                                @endphp
                                                 <div class="spg-cuenta-nro">{{ $ct->alias }}</div>
                                                 <div class="spg-cuenta-pie">
-                                                    o por número: {{ $ct->numero_cuenta }}</div>
+                                                    buscalo por <strong>{{ $comoBuscar }}</strong>
+                                                    · o por número: {{ $ct->numero_cuenta }}</div>
                                             @else
                                                 <div class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</div>
                                             @endif

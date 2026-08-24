@@ -1272,8 +1272,8 @@ window.SPGCarga = (function () {
     telefono:  /[^0-9+().\s-]/g
   };
 
-  document.querySelectorAll('[data-solo]').forEach(function (campo) {
-    var malos = JUEGOS[campo.getAttribute('data-solo')];
+  function filtrar(campo, juego) {
+    var malos = JUEGOS[juego];
     if (!malos) return;
 
     campo.addEventListener('input', function () {
@@ -1287,6 +1287,51 @@ window.SPGCarga = (function () {
       campo.value = limpio;
       try { campo.setSelectionRange(quitados, quitados); } catch (e) { /* no todos lo admiten */ }
     });
+  }
+
+  document.querySelectorAll('[data-solo]').forEach(function (campo) {
+    filtrar(campo, campo.getAttribute('data-solo'));
+  });
+
+  // -------------------------------------------------------------------
+  //  El alias de transferencia cambia de forma con su tipo.
+  //
+  //  En Paraguay el alias es un identificador que la persona ya tiene
+  //  —cédula, RUC, celular o correo— así que el ejemplo y los caracteres
+  //  que se dejan escribir dependen de cuál eligió. Ver «Datos de pago».
+  //
+  //  **Es una comodidad, no el control**: el servidor valida igual, y sin
+  //  `app.js` el campo se sigue pudiendo llenar.
+  // -------------------------------------------------------------------
+  document.querySelectorAll('[data-alias-tipo]').forEach(function (combo) {
+    var campo = document.querySelector(combo.getAttribute('data-alias-tipo'));
+    if (!campo) return;
+
+    var base = campo.getAttribute('placeholder') || '';
+    var actual = null;
+
+    function aplicar() {
+      var op = combo.options[combo.selectedIndex],
+          ej = op ? op.getAttribute('data-ph') : '',
+          juego = op ? op.getAttribute('data-solo') : '';
+
+      campo.setAttribute('placeholder', ej ? 'Ej: ' + ej : base);
+      campo.disabled = combo.value === '';
+
+      // El filtro se engancha una sola vez por juego: `filtrar()` agrega un
+      // listener, así que reengancharlo en cada cambio los acumularía.
+      if (juego && juego !== actual) {
+        filtrar(campo, juego);
+        actual = juego;
+      }
+    }
+
+    combo.addEventListener('change', function () {
+      // Al cambiar de tipo lo escrito ya no aplica: un RUC no es un correo.
+      if (campo.value !== '') { campo.value = ''; }
+      aplicar();
+    });
+    aplicar();
   });
 })();
 

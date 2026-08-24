@@ -1024,6 +1024,7 @@ CREATE TABLE `dato_pago_sucursal` (
   `tipo_cuenta` varchar(30) DEFAULT NULL,
   `numero_cuenta` varchar(40) DEFAULT NULL,
   `alias` varchar(60) DEFAULT NULL,
+  `alias_tipo` varchar(10) DEFAULT NULL,
   `observacion` varchar(200) DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
@@ -1034,7 +1035,8 @@ CREATE TABLE `dato_pago_sucursal` (
   CONSTRAINT `fk_dpago_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
   CONSTRAINT `fk_dpago_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_dpago_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
-  CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3)
+  CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3),
+  CONSTRAINT `chk_dpago_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -6072,4 +6074,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24  9:48:12
+-- Dump completed on 2026-08-24 10:13:19

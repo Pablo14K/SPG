@@ -680,6 +680,18 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
 
 /* ---- Fila vacía de una tabla ---- */
+/* Los pasos numerados de un formulario largo. El número va en oro suave y no
+   en oro macizo: es jerarquía, no acción — el oro lleno se reserva para lo que
+   hay que apretar. */
+.spg-paso{display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem;
+  padding-top:.35rem;border-top:1px solid var(--gris-calido);}
+.spg-paso:first-of-type{border-top:none;padding-top:0;}
+.spg-paso-n{display:inline-flex;align-items:center;justify-content:center;
+  width:1.4rem;height:1.4rem;border-radius:50%;flex:0 0 auto;
+  background:var(--oro-suave);color:var(--oro-texto);
+  font-size:.78rem;font-weight:600;}
+.spg-paso-t{font-size:.92rem;font-weight:600;}
+
 /* A dónde transferir la seña. Va en neutros y NO en oro: es un dato para
    copiar, no una acción ni una jerarquía — el oro se reserva para lo que hay
    que tocar. El número sí va en monoespaciada, que es lo que hace que no se

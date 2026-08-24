@@ -145,6 +145,60 @@ class ConfiguracionController extends Controller
     // =================================================================
 
     /**
+     * Los cuatro tipos de alias del SIPAP.
+     *
+     * **En Paraguay el alias es el ÚNICO dato necesario para transferir**:
+     * reemplaza al número de cuenta, a la entidad y al nombre del
+     * destinatario. Y no es una palabra inventada — el BCP habilita cuatro,
+     * y son todos identificadores que la persona ya tiene.
+     *
+     * Guardar el tipo permite validarlo y sobre todo DECIRLE a la clienta por
+     * dónde buscarlo, que es como funciona la pantalla de su banco.
+     */
+    /**
+     * Los tipos de cuenta que se pueden elegir.
+     *
+     * **Va como combo y no como texto libre**: escrito a mano, «Caja de
+     * ahorro», «caja de ahorros» y «C. de ahorro» son la misma cosa tres
+     * veces, y la clienta ve lo que se haya tipeado.
+     */
+    private const CUENTA_TIPOS = ['Caja de ahorro', 'Cuenta corriente', 'Billetera', 'Cuenta única'];
+
+    private const ALIAS_TIPOS = [
+        'CI' => 'Cédula',
+        'RUC' => 'RUC',
+        'CELULAR' => 'Celular',
+        'EMAIL' => 'Correo',
+    ];
+
+    /**
+     * Cómo se ve cada tipo de alias, para que la pantalla lo muestre de ejemplo.
+     *
+     * Un placeholder que cambia con el tipo es lo que evita el error de tipeo
+     * antes de que ocurra: quien ve «80012345-6» no escribe el RUC sin guion.
+     */
+    private const ALIAS_EJEMPLOS = [
+        'CI' => '4200000',
+        'RUC' => '80012345-6',
+        'CELULAR' => '0981123456',
+        'EMAIL' => 'salon@correo.com',
+    ];
+
+    /**
+     * Qué caracteres deja escribir cada tipo (`data-solo` de `app.js`).
+     *
+     * **La pantalla no puede ser más estricta que el servidor**, así que cada
+     * juego copia la regla de `Persona::error()`. El correo queda libre: no
+     * hay juego de caracteres que lo describa sin dejar afuera uno válido.
+     */
+    private const ALIAS_FILTROS = [
+        'CI' => 'numeros',
+        'RUC' => 'ruc',
+        'CELULAR' => 'telefono',
+        'EMAIL' => '',
+    ];
+
+    /**
      * Los medios que aceptan datos: transferencia, cheque y billetera.
      *
      * **Sale de `metodo_pago` y no de una lista escrita acá**, así que esta
@@ -176,6 +230,10 @@ class ConfiguracionController extends Controller
             'sucursales' => $mias,
             'sucursal' => $suc,
             'medios' => $this->mediosConDatos(),
+            'tiposAlias' => self::ALIAS_TIPOS,
+            'ejemplosAlias' => self::ALIAS_EJEMPLOS,
+            'filtroAlias' => self::ALIAS_FILTROS,
+            'tiposCuenta' => self::CUENTA_TIPOS,
             'datos' => $suc ? DB::select(
                 'SELECT d.*, m.nombre AS medio
                    FROM dato_pago_sucursal d
@@ -200,9 +258,15 @@ class ConfiguracionController extends Controller
         $doc = trim((string) $request->input('documento', ''));
         $tipoCta = trim((string) $request->input('tipo_cuenta', ''));
         $alias = trim((string) $request->input('alias', ''));
+        $aliasTipo = trim((string) $request->input('alias_tipo', ''));
         $nro = trim((string) $request->input('numero_cuenta', ''));
         $obs = trim((string) $request->input('observacion', ''));
-        $orden = (int) $request->input('orden', 0);
+        // **El orden ya no se tipea.** Un campo numérico para ordenar dos o
+        // tres filas hace pensar de más; se reordena con flechas en la lista,
+        // que es lo mismo sin tener que elegir un número.
+        $orden = $id
+            ? (int) DB::scalar('SELECT orden FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$id])
+            : (int) DB::scalar('SELECT COALESCE(MAX(orden), 0) + 1 FROM dato_pago_sucursal WHERE id_sucursal = ?', [$suc]);
 
         $medios = array_map(fn ($m) => (int) $m->id_metodo_pago, $this->mediosConDatos());
         $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
@@ -226,7 +290,19 @@ class ConfiguracionController extends Controller
                 && Persona::error(['ruc' => $doc]) !== null
                     => 'El documento del titular no tiene un formato válido (cédula o RUC).',
 
-            default => null,
+            // **El alias y su tipo van juntos o no van.** Un alias sin tipo no
+            // se le puede explicar a la clienta —«buscá por qué cosa»— y un
+            // tipo sin alias no es nada.
+            $alias !== '' && ! isset(self::ALIAS_TIPOS[$aliasTipo])
+                => 'Elegí de qué tipo es el alias: cédula, RUC, celular o correo.',
+            $aliasTipo !== '' && $alias === ''
+                => 'Escribí el alias, o dejá el tipo en «sin alias».',
+            $tipoCta !== '' && ! in_array($tipoCta, self::CUENTA_TIPOS, true)
+                => 'Elegí un tipo de cuenta de la lista.',
+
+            // **Y se valida contra su tipo**, que es lo que el tipo hace útil:
+            // un alias de correo mal escrito no lo encuentra nadie.
+            default => $this->errorAlias($aliasTipo, $alias),
         };
 
         if ($error) {
@@ -234,7 +310,8 @@ class ConfiguracionController extends Controller
         }
 
         $campos = [$suc, $medio, $entidad, $titular, $doc ?: null,
-            $tipoCta ?: null, $nro, $alias ?: null, $obs ?: null, max(0, min(255, $orden))];
+            $tipoCta ?: null, $nro, $alias ?: null, $alias === '' ? null : $aliasTipo,
+            $obs ?: null, max(0, min(255, $orden))];
 
         try {
             if ($id) {
@@ -242,7 +319,7 @@ class ConfiguracionController extends Controller
                     'UPDATE dato_pago_sucursal
                         SET id_sucursal = ?, id_metodo_pago = ?, entidad = ?, titular = ?,
                             documento = ?, tipo_cuenta = ?, numero_cuenta = ?, alias = ?,
-                            observacion = ?, orden = ?
+                            alias_tipo = ?, observacion = ?, orden = ?
                       WHERE id_dato_pago = ?',
                     array_merge($campos, [$id])
                 );
@@ -250,8 +327,8 @@ class ConfiguracionController extends Controller
                 DB::insert(
                     'INSERT INTO dato_pago_sucursal
                         (id_sucursal, id_metodo_pago, entidad, titular, documento,
-                         tipo_cuenta, numero_cuenta, alias, observacion, orden)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                         tipo_cuenta, numero_cuenta, alias, alias_tipo, observacion, orden)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     $campos
                 );
                 $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
@@ -268,6 +345,72 @@ class ConfiguracionController extends Controller
         flash('Datos de pago guardados.');
 
         return redirect()->route('seguridad.pagos', ['sucursal' => $suc]);
+    }
+
+    /**
+     * ¿El alias tiene la forma de su tipo? Devuelve el problema, o null.
+     *
+     * Se reusa `Persona::error()` para cédula, RUC y teléfono: son las mismas
+     * reglas que el resto del sistema, y tenerlas dos veces las desincroniza.
+     */
+    private function errorAlias(string $tipo, string $alias): ?string
+    {
+        if ($alias === '') {
+            return null;
+        }
+
+        return match ($tipo) {
+            'CI' => Persona::error(['cedula' => $alias])
+                ? 'El alias de tipo cédula sólo puede tener números.' : null,
+            'RUC' => Persona::error(['ruc' => $alias])
+                ? 'El alias de tipo RUC no tiene un formato válido (ej: 80012345-6).' : null,
+            'CELULAR' => Persona::error(['telefono' => $alias])
+                ? 'El alias de tipo celular tiene que ser un número de teléfono.' : null,
+            'EMAIL' => filter_var($alias, FILTER_VALIDATE_EMAIL) === false
+                ? 'El alias de tipo correo no tiene un formato válido.' : null,
+            default => null,
+        };
+    }
+
+    /**
+     * Sube o baja una cuenta en la lista que ve la clienta.
+     *
+     * **Se intercambia el orden con la vecina**, no se recalcula todo: así una
+     * sola fila se mueve y el resto queda donde estaba.
+     */
+    public function pagosOrden(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_dato_pago');
+        $arriba = $request->input('dir') === 'arriba';
+        $suyas = array_map(fn ($su) => (int) $su->id_sucursal, Sucursales::delUsuario());
+
+        $d = DB::selectOne('SELECT * FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$id]);
+        if (! $d || ! in_array((int) $d->id_sucursal, $suyas, true)) {
+            flash('No encontramos esa cuenta.', 'error');
+
+            return back();
+        }
+
+        $vecina = DB::selectOne(
+            'SELECT id_dato_pago, orden FROM dato_pago_sucursal
+              WHERE id_sucursal = ? AND (orden ' . ($arriba ? '<' : '>') . ' ? OR (orden = ? AND id_dato_pago '
+              . ($arriba ? '<' : '>') . ' ?))
+              ORDER BY orden ' . ($arriba ? 'DESC' : 'ASC') . ', id_dato_pago '
+              . ($arriba ? 'DESC' : 'ASC') . ' LIMIT 1',
+            [$d->id_sucursal, $d->orden, $d->orden, $id]
+        );
+
+        // Ya está en la punta: no es un error, no hay nada que hacer.
+        if ($vecina) {
+            Bd::enTransaccion(function () use ($d, $vecina, $id) {
+                DB::update('UPDATE dato_pago_sucursal SET orden = ? WHERE id_dato_pago = ?',
+                    [$vecina->orden, $id]);
+                DB::update('UPDATE dato_pago_sucursal SET orden = ? WHERE id_dato_pago = ?',
+                    [$d->orden, $vecina->id_dato_pago]);
+            });
+        }
+
+        return redirect()->route('seguridad.pagos', ['sucursal' => $d->id_sucursal]);
     }
 
     public function pagosEstado(Request $request): RedirectResponse

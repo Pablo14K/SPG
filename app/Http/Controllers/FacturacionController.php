@@ -1715,8 +1715,41 @@ class FacturacionController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
+        // **Los cobros por medio de pago, de las mismas cajas que la tabla.**
+        // Separa lo que TIENE que estar en el cajón de lo que fue a la cuenta,
+        // que es la otra mitad de «qué pasó con la plata de esta caja».
+        //
+        // Sale de los MISMOS filtros: un resumen que mide otra cosa que la
+        // tabla de abajo es peor que no tenerlo.
+        $wc = ['co.id_estado_cobro = 1',
+               'c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')'];
+        $pc = [];
+        if (Listado::hay($f, 'caja')) {
+            $wc[] = 'c.id_caja_fisica = :cf';
+            $pc['cf'] = (int) Listado::valor($f, 'caja');
+        }
+        if (Listado::hay($f, 'desde')) {
+            $wc[] = 'DATE(co.fecha) >= :d';
+            $pc['d'] = Listado::valor($f, 'desde');
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $wc[] = 'DATE(co.fecha) <= :h';
+            $pc['h'] = Listado::valor($f, 'hasta');
+        }
+
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
+            'porMedio' => DB::select(
+                'SELECT cf.nombre AS caja_nombre, mp.nombre AS medio, mp.tipo,
+                        COUNT(*) AS cantidad, SUM(co.monto) AS total
+                   FROM cobro co
+                   JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                   JOIN caja c ON c.id_caja = co.id_caja
+                   JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                  WHERE ' . implode(' AND ', $wc) . '
+                  GROUP BY cf.id_caja_fisica, cf.nombre, mp.id_metodo_pago, mp.nombre, mp.tipo
+                  ORDER BY cf.nombre, total DESC', $pc
+            ),
             'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
                                      FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
             // **Las notas de crédito que todavía no se devolvieron.** La
@@ -1823,19 +1856,17 @@ class FacturacionController extends Controller
               ORDER BY fecha_apertura DESC LIMIT 1", [$id]
         );
 
+        // **El desglose por medio de pago se fue a Movimientos**, por pedido
+        // del usuario: ahí es donde se mira qué pasó con la plata de una caja,
+        // y respeta los mismos filtros. Acá quedaría contestando la mitad de
+        // una pregunta que se hace en otra pantalla.
+        //
+        // Al cerrar no se pierde nada: el modal del arqueo tiene su propio
+        // desglose completo —inicial, cobros, ingresos, egresos, pagos—.
         return view('facturacion.caja_ver', [
             'cajon' => $cajon,
             'abierta' => $abierta,
             'saldo' => $abierta ? Caja::saldo((int) $abierta->id_caja) : null,
-            // El desglose por medio: separa lo que TIENE que estar en el cajón
-            // de lo que fue a la cuenta. Es la mitad de la pregunta del arqueo.
-            'porMedio' => $abierta ? DB::select(
-                'SELECT mp.nombre AS medio, mp.tipo, COUNT(*) AS cantidad, SUM(co.monto) AS total
-                   FROM cobro co JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
-                  WHERE co.id_caja = ? AND co.id_estado_cobro = 1
-                  GROUP BY mp.id_metodo_pago, mp.nombre, mp.tipo
-                  ORDER BY total DESC', [(int) $abierta->id_caja]
-            ) : [],
         ]);
     }
 
