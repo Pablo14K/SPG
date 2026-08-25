@@ -60,7 +60,7 @@ class FacturacionController extends Controller
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'clipboard-check',
                  't' => 'Arqueos', 'd' => 'Cómo cerró cada caja y si cuadró', 'grupo' => 'Caja'],
                 ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
-                 't' => 'Movimiento de efectivo', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
+                 't' => 'Movimientos de caja', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
                  'grupo' => 'Caja'],
 
                 ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
@@ -1827,37 +1827,8 @@ class FacturacionController extends Controller
         $union = '(' . implode(') UNION ALL (', $partes) . ')';
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) FROM ($union) t", $par));
 
-        $wc = ['co.id_estado_cobro = 1', $enSuc];
-        $pc = [];
-        if (Listado::hay($f, 'caja')) {
-            $wc[] = 'c.id_caja_fisica = :cf';
-            $pc['cf'] = (int) Listado::valor($f, 'caja');
-        }
-        if (Listado::hay($f, 'desde')) {
-            $wc[] = 'DATE(co.fecha) >= :d';
-            $pc['d'] = Listado::valor($f, 'desde');
-        }
-        if (Listado::hay($f, 'hasta')) {
-            $wc[] = 'DATE(co.fecha) <= :h';
-            $pc['h'] = Listado::valor($f, 'hasta');
-        }
-
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
-            // Cuánto entró por cada medio, y si eso TIENE que estar en el
-            // cajón o fue a la cuenta: es la otra mitad del arqueo, y la tabla
-            // de abajo no lo contesta de un vistazo.
-            'porMedio' => DB::select(
-                'SELECT cf.nombre AS caja_nombre, mp.nombre AS medio, mp.tipo,
-                        COUNT(*) AS cantidad, SUM(co.monto) AS total
-                   FROM cobro co
-                   JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
-                   JOIN caja c ON c.id_caja = co.id_caja
-                   JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                  WHERE ' . implode(' AND ', $wc) . '
-                  GROUP BY cf.id_caja_fisica, cf.nombre, mp.id_metodo_pago, mp.nombre, mp.tipo
-                  ORDER BY cf.nombre, total DESC', $pc
-            ),
             'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
                                      FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
             // **Las notas de crédito que todavía no se devolvieron.** La
@@ -2175,7 +2146,10 @@ class FacturacionController extends Controller
      */
     public function movimientoCaja(Request $request): RedirectResponse
     {
-        $volver = redirect()->route('facturacion.movimientos');
+        $cajaFiltro = (int) $request->input('caja', 0);
+        $volver = $cajaFiltro
+            ? redirect()->route('facturacion.movimientos', ['caja' => $cajaFiltro])
+            : redirect()->route('facturacion.movimientos');
         $idTipo = (int) $request->input('id_tipo_mov_caja', 0);
         $monto = num($request->input('monto'));
         $concepto = trim((string) $request->input('concepto', ''));
@@ -2342,10 +2316,12 @@ class FacturacionController extends Controller
      */
     private function documentoValido(string $doc): bool
     {
-        $doc = str_replace(' ', '', $doc);
+        $doc = trim($doc);
 
-        if (preg_match('/^(\d{3,8})-(\d)$/', $doc, $m)) {
-            return Sifen::dvRuc($m[1]) === (int) $m[2];
+        if (str_contains($doc, '-')) {
+            // El RUC puede terminar en cualquier dígito verificador válido;
+            // no se debe confundir el ejemplo histórico «…-8» con una regla.
+            return Sifen::rucValido($doc);
         }
 
         // Sin guion se acepta como cédula: no todo el mundo tiene RUC.

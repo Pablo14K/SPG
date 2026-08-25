@@ -117,14 +117,19 @@
                                     @endphp
 
                                     @unless ($enCurso || ! $esHoy)
-                                    <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
-                                        @csrf
-                                        <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
-                                        <input type="hidden" name="dia" value="{{ $dia }}">
-                                        <input type="hidden" name="id_estado_cita" value="5">
-                                        <button class="btn btn-sm btn-outline-neutro" title="Marcar en proceso">
-                                            <i class="bi bi-play-fill"></i></button>
-                                    </form>
+                                        @if ($c->fichaje_ok ?? true)
+                                            <form method="post" action="{{ route('citas.estado') }}" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                                                <input type="hidden" name="dia" value="{{ $dia }}">
+                                                <input type="hidden" name="id_estado_cita" value="5">
+                                                <button class="btn btn-sm btn-outline-neutro" title="Marcar en proceso">
+                                                    <i class="bi bi-play-fill"></i></button>
+                                            </form>
+                                        @else
+                                            <span class="badge-estado e-warn" title="Primero hay que marcar la entrada en Asistencia">
+                                                <i class="bi bi-person-check"></i> falta fichaje</span>
+                                        @endif
                                     @endunless
 
                                     @if ($esHoy && $urlAtender = Navegacion::url('citas.atender'))
@@ -165,6 +170,12 @@
                                             <i class="bi bi-calendar-event"></i></button>
                                     @endunless
 
+                                    @if ($puedeReasignar && ! $enCurso)
+                                        <button class="btn btn-sm btn-outline-neutro" title="Cambiar profesional"
+                                                data-bs-toggle="modal" data-bs-target="#modalReasignar{{ $c->id_cita }}">
+                                            <i class="bi bi-person-gear"></i></button>
+                                    @endif
+
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
                                          la caja abierta. Con la caja cerrada el aviso de arriba
                                          explica por qué no está el botón.
@@ -190,6 +201,9 @@
 
                                          Son TRES situaciones distintas y cada una dice
                                          lo suyo: sin comprobante, con saldo, y saldada. --}}
+                                    <a class="btn btn-sm btn-outline-neutro" title="Ver detalle de la atención"
+                                       href="{{ route('citas.atender', ['id' => $c->id_cita]) }}">
+                                        <i class="bi bi-eye"></i> Detalle</a>
                                     @if (! $c->id_factura)
                                         {{-- **Primero se cobra, después el comprobante.**
                                              Es el orden del mostrador: la clienta paga y recién
@@ -353,6 +367,51 @@
             </div>
         </div>
     @endforeach
+
+    @if ($puedeReasignar)
+        {{-- Administración puede cambiar sólo la persona de esta cita. El
+             servidor vuelve a comprobar turno, disponibilidad y estado. --}}
+        @foreach ($rows as $c)
+            @continue (in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
+            <div class="modal fade" id="modalReasignar{{ $c->id_cita }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="{{ route('citas.reasignar.una') }}">
+                            @csrf
+                            <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                            <input type="hidden" name="dia" value="{{ $dia }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title" style="font-size:1rem">
+                                    <i class="bi bi-person-gear"></i> Cambiar profesional</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-warm" style="font-size:.84rem">
+                                    {{ $c->cliente }} · {{ fecha($c->fecha_hora, 'd/m H:i') }}<br>
+                                    Profesional actual: <strong>{{ $c->profesional }}</strong>.
+                                    Se conservarán los servicios y el horario.
+                                </p>
+                                <label class="form-label" for="reas{{ $c->id_cita }}">Atenderá *</label>
+                                <select class="form-select" id="reas{{ $c->id_cita }}" name="a" required>
+                                    <option value="">— Elegí un profesional —</option>
+                                    @foreach ($profs as $p)
+                                        @if ((int) $p->id_usuario !== (int) $c->id_usuario)
+                                            <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <div class="form-text">Sólo se podrá guardar si trabaja ese día y queda libre para todos los servicios.</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Cambiar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @endif
 
     {{-- Un modal de seña por cita.
          La seña se cobra ANTES de atender, así que todavía no hay factura: queda

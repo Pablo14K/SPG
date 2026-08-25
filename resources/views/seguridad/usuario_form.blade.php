@@ -278,6 +278,11 @@
                         </div>
                     </div>
                     <div class="mb-2">
+                        <label class="form-label" for="tr_flex">Flexibilidad de entrada (minutos)</label>
+                        <input type="number" class="form-control form-control-sm" id="tr_flex"
+                               name="flexibilidad_entrada_min" value="15" min="0" max="180" required>
+                    </div>
+                    <div class="mb-2">
                         <label class="form-label" for="tr_suc">Sucursal</label>
                         <select class="form-select form-select-sm" id="tr_suc" name="id_sucursal" required>
                             @foreach ($sucursales as $s)

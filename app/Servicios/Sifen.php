@@ -105,6 +105,18 @@ class Sifen
         return $resto > 1 ? 11 - $resto : 0;
     }
 
+    /** Valida un RUC completo sin imponer un dígito verificador concreto. */
+    public static function rucValido(string $documento): bool
+    {
+        $doc = strtoupper(trim($documento));
+        $doc = str_replace(['.', ' '], '', $doc);
+        if (! preg_match('/^([0-9A-Z]{3,10})-?([0-9])$/', $doc, $m)) {
+            return false;
+        }
+
+        return self::dvRuc($m[1]) === (int) $m[2];
+    }
+
     /**
      * Revisa los datos del receptor antes de emitir. Devuelve el problema, o
      * null si está todo bien.
@@ -134,7 +146,8 @@ class Sifen
 
         if ($tipo === 'RUC') {
             // D206 + D207: el RUC va con su dígito verificador.
-            if (! preg_match('/^([0-9A-Za-z]{3,8})-?([0-9])$/', $doc, $m)) {
+            $normalizado = strtoupper(str_replace(['.', ' '], '', $doc));
+            if (! preg_match('/^([0-9A-Z]{3,10})-?([0-9])$/', $normalizado, $m)) {
                 return 'El RUC va con su dígito verificador, así: 80012345-0.';
             }
             $esperado = self::dvRuc($m[1]);

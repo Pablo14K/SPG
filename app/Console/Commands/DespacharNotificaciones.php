@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Asistencia;
 use App\Servicios\Notificaciones;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -49,6 +50,7 @@ class DespacharNotificaciones extends Command
 
     public function handle(): int
     {
+        $asistencias = Asistencia::marcarEntradasVencidas();
         $atrasadas = $this->marcarAtrasadas();
         $ausentes = $this->cerrarAtrasadasViejas();
         $nuevos = Notificaciones::generarRecordatorios();
@@ -59,6 +61,7 @@ class DespacharNotificaciones extends Command
         $r = Notificaciones::despachar((int) $this->option('max'));
 
         $this->line("  citas marcadas atrasadas: $atrasadas");
+        $this->line("  entradas fuera de tolerancia marcadas ausentes: $asistencias");
         $this->line("  atrasadas cerradas como ausente: $ausentes");
         $this->line("  recordatorios nuevos: $nuevos");
         $this->line("  avisos internos cerrados: $cerrados");

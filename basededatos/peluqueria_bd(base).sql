@@ -2998,12 +2998,14 @@ CREATE TABLE `turno_laboral` (
   `nombre` varchar(60) NOT NULL,
   `hora_inicio` time NOT NULL,
   `hora_fin` time NOT NULL,
+  `flexibilidad_entrada_min` smallint(5) unsigned NOT NULL DEFAULT 15,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_turno`),
   UNIQUE KEY `uq_turno_nombre` (`id_sucursal`,`nombre`),
   KEY `idx_turno_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_turno_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON UPDATE CASCADE,
-  CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`)
+  CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`),
+  CONSTRAINT `chk_turno_flexibilidad` CHECK (`flexibilidad_entrada_min` <= 180)
 ) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -3013,7 +3015,7 @@ CREATE TABLE `turno_laboral` (
 
 LOCK TABLES `turno_laboral` WRITE;
 /*!40000 ALTER TABLE `turno_laboral` DISABLE KEYS */;
-INSERT INTO `turno_laboral` VALUES (15,1,'Turno Mañana','08:00:00','13:00:00',1),(16,1,'Turno Tarde','13:00:00','19:00:00',1);
+INSERT INTO `turno_laboral` VALUES (15,1,'Turno Mañana','08:00:00','13:00:00',15,1),(16,1,'Turno Tarde','14:00:00','19:00:00',15,1);
 /*!40000 ALTER TABLE `turno_laboral` ENABLE KEYS */;
 UNLOCK TABLES;
 

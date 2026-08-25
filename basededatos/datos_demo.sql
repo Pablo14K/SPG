@@ -146,10 +146,10 @@ WHERE NOT EXISTS (SELECT 1 FROM usuario us WHERE us.id_persona = p.id_persona);
 -- nibilidad` exige que la cita entre en uno.
 -- Igual que `producto`: sin índice único por nombre, IGNORE no frena la
 -- segunda corrida y quedarían cuatro turnos donde hay dos.
-INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, activo)
+INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin, flexibilidad_entrada_min, activo)
 SELECT v.* FROM (
-      SELECT 1 AS id_sucursal, 'Turno Mañana' AS nombre, '08:00:00' AS hora_inicio, '13:00:00' AS hora_fin, 1 AS activo UNION ALL
-      SELECT 1, 'Turno Tarde',  '13:00:00', '19:00:00', 1
+      SELECT 1 AS id_sucursal, 'Turno Mañana' AS nombre, '08:00:00' AS hora_inicio, '13:00:00' AS hora_fin, 15 AS flexibilidad_entrada_min, 1 AS activo UNION ALL
+      SELECT 1, 'Turno Tarde',  '14:00:00', '19:00:00', 15, 1
 ) v
 WHERE NOT EXISTS (SELECT 1 FROM turno_laboral x WHERE x.nombre = v.nombre);
 

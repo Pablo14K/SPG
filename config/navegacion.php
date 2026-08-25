@@ -78,7 +78,7 @@ return [
         'facturacion.cajas'         => ['Cajas',                 'safe',               'facturacion.caja', true, 'Caja'],
         'facturacion.caja_ver'      => ['Ver la caja',           'safe',               'facturacion.caja', false, 'Caja'],
         'facturacion.arqueo'        => ['Arqueos',               'clipboard-check',    'facturacion.caja', true, 'Caja'],
-        'facturacion.movimientos'   => ['Movimiento de efectivo', 'cash-coin',      'facturacion.movimientos', true, 'Caja'],
+        'facturacion.movimientos'   => ['Movimientos de caja', 'cash-coin',      'facturacion.movimientos', true, 'Caja'],
         'facturacion.pagos'         => ['Pagos al profesional',  'wallet2',            'facturacion.pagos', true, 'Pagos'],
         'facturacion.proveedores'   => ['Pagos a proveedores',   'truck',              'facturacion.proveedores', true, 'Pagos'],
         'reportes.index'            => ['Reportes',              'bar-chart',          'reportes'],

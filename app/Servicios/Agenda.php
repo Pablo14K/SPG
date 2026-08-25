@@ -433,6 +433,27 @@ class Agenda
         );
     }
 
+    /** ¿La persona trabaja al menos un turno ese día en el local? */
+    public static function trabajaEseDia(int $idUsuario, string $fecha, ?int $idSucursal = null): bool
+    {
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+        if (! self::elSalonUsaTurnos($suc ?: null)) {
+            return true;
+        }
+
+        return (bool) DB::scalar(
+            'SELECT EXISTS (
+                SELECT 1
+                  FROM usuario_turno ut
+                  JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                  JOIN turno_dia td ON td.id_turno = t.id_turno
+                                   AND td.dia_semana = WEEKDAY(?) + 1
+                 WHERE ut.id_usuario = ?
+                   AND (? = 0 OR t.id_sucursal = ?)
+            )', [$fecha, $idUsuario, $suc, $suc]
+        );
+    }
+
     /**
      * ¿Por qué se perdió el hueco?
      *

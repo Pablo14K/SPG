@@ -1,6 +1,8 @@
 @extends('layout.app')
 
-@section('titulo', 'Movimiento de efectivo')
+@php use App\Servicios\Listado; @endphp
+
+@section('titulo', 'Movimientos de caja')
 
 @section('contenido')
     {{-- **Todo lo que movió la caja, no sólo lo manual.** Un pago a
@@ -24,7 +26,7 @@
         </div>
     @else
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Movimiento de efectivo</h2>
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja</h2>
             <p class="text-muted-warm" style="font-size:.85rem">
                 Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi,
                 la plata que se saca para el cambio, un retiro. <strong>Queda en el arqueo</strong>, así
@@ -34,6 +36,9 @@
             <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
                   class="row g-2 align-items-end" enctype="multipart/form-data">
                 @csrf
+                @if (Listado::hay($f, 'caja'))
+                    <input type="hidden" name="caja" value="{{ Listado::valor($f, 'caja') }}">
+                @endif
 
                 {{-- **La clase decide el signo, y decide qué respaldo se pide.**
                      Antes había un «ingreso/egreso» suelto y un texto libre, así
@@ -148,46 +153,6 @@
                 </div>
             </form>
 
-        </div>
-    @endif
-
-            {{-- **Los cobros por medio de pago, de las mismas cajas que la tabla.**
-
-         Separa lo que TIENE que estar en el cajón de lo que fue a la cuenta,
-         que es la otra mitad de «qué pasó con la plata de esta caja». Estaba en
-         la pantalla de la caja, donde contestaba la mitad de una pregunta que
-         se hace acá.
-
-         Respeta los mismos filtros: un resumen que mide otra cosa que la tabla
-         de abajo es peor que no tenerlo. --}}
-    @if ($porMedio)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cobros por medio de pago</h2>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr><th>Caja</th><th>Medio</th><th>¿Está en el cajón?</th>
-                            <th class="text-end">Cobros</th><th class="text-end">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($porMedio as $m)
-                            <tr>
-                                <td class="text-muted-warm">{{ $m->caja_nombre }}</td>
-                                <td>{{ $m->medio }}</td>
-                                <td>
-                                    @if ($m->tipo === 'EFECTIVO')
-                                        <span class="badge-estado e-ok">sí, contalo</span>
-                                    @else
-                                        <span class="badge-estado e-muted">no, va a la cuenta</span>
-                                    @endif
-                                </td>
-                                <td class="text-end">{{ (int) $m->cantidad }}</td>
-                                <td class="text-end">{{ money($m->total) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
         </div>
     @endif
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Agenda;
+use App\Servicios\Asistencia;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Borrador;
@@ -60,6 +61,7 @@ class CitasController extends Controller
     {
         $servicios = array_map('intval', (array) $request->query('servicios', []));
         $idUsuario = ((int) $request->query('id_usuario', 0)) ?: null;
+        $idSucursal = ((int) $request->query('sucursal', 0)) ?: Sucursales::activa();
         $duracion = Agenda::duracion($servicios);
 
         if ($duracion <= 0) {
@@ -74,16 +76,22 @@ class CitasController extends Controller
 
         $fecha = (string) $request->query('fecha', '');
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            if ($idUsuario && ! Agenda::trabajaEseDia($idUsuario, $fecha, $idSucursal)) {
+                return response()->json([
+                    'ok' => true, 'duracion' => $duracion, 'horas' => [],
+                    'motivo' => 'Ese profesional no trabaja el ' . fecha($fecha, 'd/m/Y') . '. Elegí otra persona o fecha.',
+                ]);
+            }
             return response()->json([
                 'ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion),
+                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal),
             ]);
         }
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario),
-            'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion),
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal),
+            'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal),
         ]);
     }
 
@@ -93,6 +101,7 @@ class CitasController extends Controller
 
     public function agenda(Request $request): View
     {
+        Asistencia::marcarEntradasVencidas();
         $dia = (string) $request->query('dia', date('Y-m-d'));
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $dia) || ! strtotime($dia)) {
             $dia = date('Y-m-d');
@@ -126,6 +135,7 @@ class CitasController extends Controller
                     -- tenía forma de saber que la cita era para la hija de la
                     -- clienta, ni cuánta gente esperar.
                     c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
+                    c.id_usuario, c.id_sucursal,
                     (SELECT ss.id_solicitud FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,
@@ -162,6 +172,16 @@ class CitasController extends Controller
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
         $puedeCobrar = Permisos::puede('facturacion.cobros');
 
+        // La agenda necesita saber si «En proceso» va a ser aceptado por el
+        // servidor. Se calcula una vez por fila y se vuelve a comprobar al
+        // hacer el POST, porque la tolerancia puede vencer entre ambas cosas.
+        foreach ($rows as $row) {
+            $fichaje = $this->estadoFichaje($row);
+            $row->fichaje_ok = (bool) ($fichaje['ok'] ?? false);
+            $row->fichaje_futura = (bool) ($fichaje['futura'] ?? false);
+            $row->fichaje_turno = $fichaje['turno'] ?? null;
+        }
+
         return view('citas.agenda', [
             'rows' => $rows,
             'dia' => $dia,
@@ -177,6 +197,8 @@ class CitasController extends Controller
             // Emitir el comprobante es de `facturacion.facturas`, no de cobros:
             // son dos permisos distintos y quien sólo cobra no debería emitir.
             'puedeFacturar' => Permisos::puede('facturacion.facturas'),
+            'puedeReasignar' => Permisos::esAdmin(),
+            'profs' => Permisos::esAdmin() ? Agenda::profesionales() : [],
         ]);
     }
 
@@ -300,6 +322,27 @@ class CitasController extends Controller
             }
         }
 
+        // Un profesional puede hacer todos los servicios, pero no todos los
+        // días. Se comprueba el turno de cada integrante del reparto antes de
+        // llegar al procedimiento, para que el formulario nunca confirme una
+        // cita fuera de su jornada y el mensaje explique qué debe corregirse.
+        $idSucursal = Sucursales::activa();
+        $aRevisar = array_values(array_unique(array_filter(
+            array_merge([$idUsuario], array_map('intval', array_values($asignacion)))
+        )));
+        foreach ($aRevisar as $idProf) {
+            if (! Agenda::trabajaEseDia($idProf, substr($fecha, 0, 10), $idSucursal)) {
+                $nombreProf = (string) DB::scalar(
+                    'SELECT CONCAT(pe.nombre,\' \',pe.apellido)
+                       FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+                      WHERE u.id_usuario = ?', [$idProf]
+                );
+                flash($nombreProf . ' no trabaja ese día. Elegí otra fecha o profesional.', 'warning');
+
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            }
+        }
+
         foreach (array_unique(array_values($asignacion)) as $idAyuda) {
             if ($idAyuda > 0 && ! $this->esPersonalActivo((int) $idAyuda)) {
                 flash('Uno de los profesionales elegidos ya no está activo.', 'error');
@@ -414,6 +457,18 @@ class CitasController extends Controller
             flash('Esa cita ya está cerrada: no se le puede cambiar el estado.', 'warning');
 
             return $volver;
+        }
+
+        if ($estado === 5) {
+            $fichaje = $this->estadoFichaje($cita);
+            if (! ($fichaje['ok'] ?? false)) {
+                flash(($fichaje['futura'] ?? false)
+                    ? 'El profesional todavía no puede fichar una cita futura.'
+                    : 'Primero hay que marcar la entrada del profesional en Asistencia. '
+                      . 'Si llegó tarde, puede justificarla y después fichar.', 'warning');
+
+                return $volver;
+            }
         }
 
         // El 1 permite deshacer un «Ausente» marcado por error: si no, la cita
@@ -716,6 +771,69 @@ class CitasController extends Controller
                 . implode(', ', array_slice($ocupadas, 0, 6))
                 . (count($ocupadas) > 6 ? '…' : '')
                 . '). Esas quedan como estaban: pasalas a otra persona o reprogramalas.', 'warning');
+        }
+
+        return $volver;
+    }
+
+    /** Reasigna una cita puntual desde la agenda cuando su profesional falta. */
+    public function reasignarUna(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_cita', 0);
+        $a = (int) $request->input('a', 0);
+        $dia = (string) $request->input('dia', ahora_bd('Y-m-d'));
+        $volver = redirect()->route('citas.agenda', ['dia' => $dia]);
+
+        $cita = DB::selectOne(
+            'SELECT id_cita, id_usuario, id_estado_cita, fecha_hora
+               FROM cita WHERE id_cita = ?', [$id]
+        );
+        if (! $cita) {
+            flash('Esa cita no existe.', 'error');
+
+            return $volver;
+        }
+        if (! $a || ! $this->esPersonalActivo($a)) {
+            flash('Elegí un profesional activo.', 'error');
+
+            return $volver;
+        }
+        if ($a === (int) $cita->id_usuario) {
+            flash('Elegí un profesional distinto al actual.', 'warning');
+
+            return $volver;
+        }
+        if (in_array((int) $cita->id_estado_cita, [3, 4, 6], true)) {
+            flash('Solo se puede cambiar el profesional de una cita abierta.', 'warning');
+
+            return $volver;
+        }
+        if ((string) $cita->fecha_hora < ahora_bd()) {
+            flash('La cita ya empezó o quedó atrás; no se puede reasignar desde la agenda.', 'warning');
+
+            return $volver;
+        }
+
+        try {
+            if (! Agenda::reasignar($id, $a)) {
+                flash('Ese profesional no queda libre en el horario de la cita.', 'warning');
+
+                return $volver;
+            }
+            $nombre = (string) DB::scalar(
+                'SELECT CONCAT(pe.nombre,\' \',pe.apellido)
+                   FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+                  WHERE u.id_usuario = ?', [$a]
+            );
+            Auditoria::registrar('MODIFICACION', 'Citas', 'cita', $id,
+                'Profesional cambiado por administración a ' . $nombre);
+            flash('La cita pasó a ' . $nombre . '. El horario se mantuvo.');
+        } catch (QueryException $ex) {
+            Log::error('No se pudo reasignar la cita ' . $id, ['error' => $ex->getMessage()]);
+            flash('Ese profesional no está disponible en ese horario.', 'warning');
+        } catch (Throwable $ex) {
+            Log::error('No se pudo reasignar la cita ' . $id, ['error' => $ex->getMessage()]);
+            flash('No se pudo cambiar el profesional de la cita.', 'error');
         }
 
         return $volver;

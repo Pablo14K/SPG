@@ -22,8 +22,8 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.70.2',
-    'version_fecha' => '2026-08-24',
+    'version' => '7.71.0',
+    'version_fecha' => '2026-08-25',
 
     'moneda' => 'Gs.',
 
@@ -44,6 +44,9 @@ return [
     'agenda' => [
         'paso_min' => 15,    // cada cuántos minutos se ofrece un horario
         'dias_vista' => 60,  // hasta cuántos días para adelante se reserva
+        // Pausa mínima entre el fin de un turno y el comienzo del siguiente
+        // en la misma sucursal. Se puede ajustar sin cambiar el esquema.
+        'descanso_turnos_min' => 60,
 
         // **La jornada de un salón que todavía no cargó turnos.** Es la red del
         // criterio permisivo: mientras nadie tenga un turno, se ofrece esta

@@ -36,6 +36,7 @@
                                 {{ $f->turno }}
                                 <div class="text-muted-warm" style="font-size:.76rem">
                                     {{ substr((string) $f->hora_inicio, 0, 5) }} a {{ substr((string) $f->hora_fin, 0, 5) }}
+                                    · tolerancia {{ (int) ($f->flexibilidad_entrada_min ?? 15) }} min
                                     · {{ $f->sucursal }}
                                 </div>
                             </td>
@@ -52,10 +53,15 @@
                                 @if ($f->justificada === null && $f->hora_entrada)
                                     <span class="badge-estado e-ok">Presente</span>
                                 @elseif ((int) $f->justificada === 1)
-                                    <span class="badge-estado e-warn">Falta con permiso</span>
+                                    <span class="badge-estado e-warn">
+                                        {{ str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:')
+                                            ? 'Llegada tardía justificada' : 'Falta con permiso' }}</span>
                                     <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
                                 @elseif ((int) $f->justificada === 0 && $f->id_asistencia)
                                     <span class="badge-estado e-no">Falta sin aviso</span>
+                                    @if ($f->motivo_ausencia)
+                                        <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
+                                    @endif
                                 @else
                                     <span class="badge-estado e-muted">Sin fichar</span>
                                 @endif
@@ -73,6 +79,9 @@
                                     // algo que no cumple. Con un día anterior se sigue
                                     // pudiendo corregir la planilla, que es otra cosa.
                                     $cerrado = ! $corrige && ! empty($f->fuera);
+                                    $entradaTardiaJustificada = ! $f->hora_entrada
+                                        && (int) ($f->justificada ?? -1) === 1
+                                        && str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:');
                                 @endphp
                                 @if ($cerrado)
                                     <span class="text-muted-warm" style="font-size:.78rem"
@@ -80,7 +89,8 @@
                                         <i class="bi bi-clock-history"></i> fuera de horario</span>
                                 @endif
                                 @if ($porOtros || $mio)
-                                    @if (! $cerrado && ! $f->hora_entrada && $f->justificada === null)
+                                    @if (! $cerrado && ! $f->hora_entrada
+                                         && ($f->justificada === null || $entradaTardiaJustificada))
                                         <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="accion" value="entrada">
@@ -95,7 +105,8 @@
                                                        value="{{ substr((string) $f->hora_inicio, 0, 5) }}"
                                                        title="Hora real de entrada de ese día">
                                             @endif
-                                            <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
+                                            <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i>
+                                                {{ $entradaTardiaJustificada ? 'Entrada justificada' : 'Entrada' }}</button>
                                         </form>
                                     @elseif (! $cerrado && $f->hora_entrada && ! $f->hora_salida)
                                         <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
@@ -133,6 +144,13 @@
                                                     <i class="bi bi-eraser"></i></button>
                                             </form>
                                         @endif
+                                    @endif
+
+                                    @if (! $f->hora_entrada && $f->id_asistencia
+                                         && (int) ($f->justificada ?? -1) === 0)
+                                        <button class="btn btn-sm btn-outline-neutro" title="Justificar llegada tardía"
+                                                data-bs-toggle="modal" data-bs-target="#modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                            <i class="bi bi-chat-square-text"></i> Justificar</button>
                                     @endif
                                 @endif
                             </td>
@@ -189,6 +207,43 @@
             </div>
         @endforeach
     @endif
+
+    @foreach ($filas as $f)
+        @php $mio = (int) $f->id_usuario === $yo; @endphp
+        @if (($porOtros || $mio) && ! $f->hora_entrada && $f->id_asistencia
+             && (int) ($f->justificada ?? -1) === 0)
+            <div class="modal fade" id="modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}">
+                            @csrf
+                            <input type="hidden" name="accion" value="justificar">
+                            <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
+                            <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
+                            <input type="hidden" name="fecha" value="{{ $fecha }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title" style="font-size:1rem">Justificar llegada tardía</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-warm" style="font-size:.84rem">
+                                    {{ $f->profesional }} puede marcar la entrada después de la tolerancia,
+                                    pero el motivo queda registrado para administración.
+                                </p>
+                                <label class="form-label" for="just{{ $f->id_usuario }}_{{ $f->id_turno }}">Motivo *</label>
+                                <textarea class="form-control" id="just{{ $f->id_usuario }}_{{ $f->id_turno }}"
+                                          name="motivo_ausencia" maxlength="200" rows="2" required></textarea>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Justificar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endforeach
 
     @if ($rows)
         <div class="spg-panel mt-3">

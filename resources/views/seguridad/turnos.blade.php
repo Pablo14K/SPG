@@ -18,7 +18,7 @@
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Turno</th><th>Horario</th><th>Días</th><th>Quiénes lo trabajan</th>
+                            <tr><th>Turno</th><th>Horario</th><th>Entrada</th><th>Días</th><th>Quiénes lo trabajan</th>
                                 <th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
@@ -32,6 +32,7 @@
                                         {{ substr((string) $t->hora_inicio, 0, 5) }}
                                         a {{ substr((string) $t->hora_fin, 0, 5) }}
                                     </td>
+                                    <td>{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
                                     <td class="text-muted-warm" style="font-size:.82rem">{{ $t->dias_texto }}</td>
                                     <td class="text-muted-warm" style="font-size:.82rem">
                                         @if (! empty($gente[$t->id_turno]))
@@ -57,7 +58,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <div class="spg-vacio">
                                             <i class="bi bi-clock"></i>
                                             <div class="t">Todavía no hay turnos cargados.</div>

@@ -75,7 +75,7 @@ return [
             // lo respalde, sólo un concepto escrito— así que es la parte que un
             // salón puede querer dar por separado. Es el mismo criterio que
             // separó Timbrados de Facturación en la 5.2.0.
-            'facturacion.movimientos' => 'Movimiento de efectivo',
+            'facturacion.movimientos' => 'Movimientos de caja',
             'facturacion.pagos' => 'Pagos al personal',
             'facturacion.proveedores' => 'Pagos a proveedores',
             'facturacion.timbrados' => 'Timbrados',

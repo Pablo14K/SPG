@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Sucursales;
 use App\Servicios\Auditoria;
+use App\Servicios\Asistencia;
 use App\Servicios\Borrador;
 use App\Servicios\Listado;
 use App\Servicios\Notificaciones;
@@ -573,6 +574,7 @@ class PersonalController extends Controller
             'nombre' => trim((string) $request->input('nombre', '')),
             'hora_inicio' => substr(trim((string) $request->input('hora_inicio', '')), 0, 5),
             'hora_fin' => substr(trim((string) $request->input('hora_fin', '')), 0, 5),
+            'flexibilidad_entrada_min' => (int) $request->input('flexibilidad_entrada_min', 15),
         ];
         $dias = array_values(array_unique(array_filter(
             array_map('intval', (array) $request->input('dias', [])),
@@ -591,13 +593,15 @@ class PersonalController extends Controller
                 if ($id) {
                     DB::update(
                         'UPDATE turno_laboral SET id_sucursal=:id_sucursal, nombre=:nombre,
-                            hora_inicio=:hora_inicio, hora_fin=:hora_fin WHERE id_turno=:id',
+                            hora_inicio=:hora_inicio, hora_fin=:hora_fin,
+                            flexibilidad_entrada_min=:flexibilidad_entrada_min WHERE id_turno=:id',
                         $d + ['id' => $id]
                     );
                 } else {
                     DB::insert(
-                        'INSERT INTO turno_laboral (id_sucursal,nombre,hora_inicio,hora_fin,activo)
-                         VALUES (:id_sucursal,:nombre,:hora_inicio,:hora_fin,1)', $d
+                        'INSERT INTO turno_laboral
+                            (id_sucursal,nombre,hora_inicio,hora_fin,flexibilidad_entrada_min,activo)
+                         VALUES (:id_sucursal,:nombre,:hora_inicio,:hora_fin,:flexibilidad_entrada_min,1)', $d
                     );
                     $id = (int) DB::getPdo()->lastInsertId();
                 }
@@ -614,7 +618,8 @@ class PersonalController extends Controller
                 $d['nombre'] . ' ' . $d['hora_inicio'] . ' a ' . $d['hora_fin'] . ' · ' . $this->diasTexto($dias));
 
             flash('Turno «' . $d['nombre'] . '» guardado: ' . $d['hora_inicio'] . ' a ' . $d['hora_fin']
-                . ', ' . mb_strtolower($this->diasTexto($dias)) . '. Asignáselo al personal desde su ficha.');
+                . ', tolerancia de ' . $d['flexibilidad_entrada_min'] . ' minuto(s), '
+                . mb_strtolower($this->diasTexto($dias)) . '. Asignáselo al personal desde su ficha.');
         } catch (Throwable) {
             flash('No se pudo guardar el turno.', 'error');
 
@@ -664,6 +669,7 @@ class PersonalController extends Controller
             'nombre' => trim((string) $request->input('nombre', '')),
             'hora_inicio' => substr(trim((string) $request->input('hora_inicio', '')), 0, 5),
             'hora_fin' => substr(trim((string) $request->input('hora_fin', '')), 0, 5),
+            'flexibilidad_entrada_min' => (int) $request->input('flexibilidad_entrada_min', 15),
         ];
         $dias = array_values(array_unique(array_filter(
             array_map('intval', (array) $request->input('dias', [])),
@@ -681,8 +687,9 @@ class PersonalController extends Controller
         try {
             $idTurno = DB::transaction(function () use ($d, $dias) {
                 DB::insert(
-                    'INSERT INTO turno_laboral (id_sucursal,nombre,hora_inicio,hora_fin,activo)
-                     VALUES (:id_sucursal,:nombre,:hora_inicio,:hora_fin,1)', $d
+                    'INSERT INTO turno_laboral
+                        (id_sucursal,nombre,hora_inicio,hora_fin,flexibilidad_entrada_min,activo)
+                     VALUES (:id_sucursal,:nombre,:hora_inicio,:hora_fin,:flexibilidad_entrada_min,1)', $d
                 );
                 $idTurno = (int) DB::getPdo()->lastInsertId();
                 foreach ($dias as $dia) {
@@ -843,6 +850,13 @@ class PersonalController extends Controller
 
     public function asistencia(Request $request): View
     {
+        // La pantalla también es un punto de recuperación si el cron estuvo
+        // detenido: al abrirla se materializan las faltas cuya tolerancia ya
+        // venció, sin tocar fichajes o permisos que alguien ya registró.
+        if ((string) $request->query('fecha', ahora_bd('Y-m-d')) === ahora_bd('Y-m-d')) {
+            Asistencia::marcarEntradasVencidas();
+        }
+
         // La fecha y la hora salen del reloj de la base, no del de PHP
         $fecha = (string) $request->query('fecha', ahora_bd('Y-m-d'));
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || ! strtotime($fecha)) {
@@ -852,6 +866,7 @@ class PersonalController extends Controller
 
         $filas = DB::select(
             "SELECT ut.id_usuario, t.id_turno, t.nombre AS turno, t.hora_inicio, t.hora_fin,
+                    t.flexibilidad_entrada_min,
                     s.nombre AS sucursal,
                     CONCAT(pe.nombre,' ',pe.apellido) AS profesional,
                     a.id_asistencia, a.hora_entrada, a.hora_salida, a.motivo_ausencia,
@@ -882,7 +897,11 @@ class PersonalController extends Controller
         // rechazo llegaba después de apretarlo. Un botón que no va a poder
         // hacer nada es peor que uno ausente — promete algo y no lo cumple.
         foreach ($filas as $f) {
-            $f->fuera = $fecha === ahora_bd('Y-m-d') ? $this->fueraDeFranja($f) : null;
+            $tardiaJustificada = ! $f->hora_entrada
+                && (int) ($f->justificada ?? -1) === 1
+                && str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:');
+            $f->fuera = $fecha === ahora_bd('Y-m-d')
+                ? $this->fueraDeFranja($f, ($f->hora_entrada || $tardiaJustificada) ? 'salida' : 'entrada') : null;
         }
 
         return view('seguridad.asistencia', [
@@ -935,7 +954,7 @@ class PersonalController extends Controller
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || ! strtotime($fecha)) {
             $error = 'La fecha no es válida.';
             $volver = redirect()->route('seguridad.asistencia');
-        } elseif (! in_array($accion, ['entrada', 'salida', 'falta_con', 'falta_sin', 'limpiar'], true)) {
+        } elseif (! in_array($accion, ['entrada', 'salida', 'falta_con', 'falta_sin', 'justificar', 'limpiar'], true)) {
             $error = 'Acción no válida.';
         } elseif (! $idQuien || ! $idTurno) {
             $error = 'Elegí a quién y a qué turno corresponde.';
@@ -949,7 +968,7 @@ class PersonalController extends Controller
         $trabaja = null;
         if (! $error) {
             $trabaja = DB::selectOne(
-                'SELECT t.nombre, t.hora_inicio, t.hora_fin
+                'SELECT t.nombre, t.hora_inicio, t.hora_fin, t.flexibilidad_entrada_min
                    FROM usuario_turno ut
                    JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
                    JOIN turno_dia td    ON td.id_turno = t.id_turno AND td.dia_semana = ?
@@ -973,7 +992,21 @@ class PersonalController extends Controller
 
         if (! $error && $trabaja && in_array($accion, ['entrada', 'salida'], true)) {
             if ($fecha === ahora_bd('Y-m-d')) {
-                $error = $this->fueraDeFranja($trabaja);
+                // La justificación habilita una entrada tardía dentro del
+                // turno, aun cuando ya venció la tolerancia configurada.
+                $yaParaFranja = DB::selectOne(
+                    'SELECT hora_entrada, justificada, observaciones
+                       FROM asistencia WHERE id_usuario = ? AND id_turno = ? AND fecha = ?',
+                    [$idQuien, $idTurno, $fecha]
+                );
+                $tardiaJustificada = $accion === 'entrada'
+                    && $yaParaFranja
+                    && ! $yaParaFranja->hora_entrada
+                    && (int) $yaParaFranja->justificada === 1
+                    && str_starts_with((string) ($yaParaFranja->observaciones ?? ''), 'Llegada tardía justificada:');
+                $error = $tardiaJustificada
+                    ? $this->fueraDeFranja($trabaja, 'salida')
+                    : $this->fueraDeFranja($trabaja, $accion);
             } elseif (! $this->registraPorOtros()) {
                 // Fichar un día pasado no es fichar: es corregir la planilla.
                 $error = 'No podés fichar una fecha que ya pasó. Pedile a quien administra '
@@ -1027,10 +1060,14 @@ class PersonalController extends Controller
 
                     return $volver;
                 }
+                $observacionTardia = $ya && (int) $ya->justificada === 1
+                    ? (string) ($ya->observaciones ?? '') : null;
                 $this->asistenciaGuardar($idQuien, $idTurno, $fecha, [
                     'hora_entrada' => $ahora, 'motivo_ausencia' => null, 'justificada' => null,
+                    'observaciones' => $observacionTardia ?: null,
                 ]);
-                flash('Entrada de ' . $quien . ' registrada a las ' . substr($ahora, 0, 5) . '.');
+                flash('Entrada de ' . $quien . ' registrada a las ' . substr($ahora, 0, 5) . '.'
+                    . ($observacionTardia ? ' Quedó asentada como llegada tardía justificada.' : ''));
             } elseif ($accion === 'salida') {
                 if (! $ya || ! $ya->hora_entrada) {
                     flash('Primero marcá la entrada de ' . $quien . '.', 'warning');
@@ -1063,6 +1100,26 @@ class PersonalController extends Controller
                 ]);
                 flash('Salida de ' . $quien . ' registrada a las ' . substr($ahora, 0, 5) . '.'
                     . ($extras > 0 ? ' Se le contaron ' . cant($extras) . ' hora(s) extra.' : ''));
+            } elseif ($accion === 'justificar') {
+                if ($ya && $ya->hora_entrada) {
+                    flash($quien . ' ya tiene una entrada registrada; no hay una llegada tardía que justificar.', 'warning');
+
+                    return $volver;
+                }
+                if (! $motivo) {
+                    flash('Escribí el motivo de la llegada tardía: es lo que la justifica.', 'error');
+
+                    return $volver;
+                }
+                $this->asistenciaGuardar($idQuien, $idTurno, $fecha, [
+                    'hora_entrada' => null, 'hora_salida' => null, 'horas_extras' => 0,
+                    'justificada' => 1,
+                    'motivo_ausencia' => $motivo,
+                    'observaciones' => 'Llegada tardía justificada: ' . $motivo,
+                ]);
+                Auditoria::registrar('JUSTIFICACION', 'Personal', 'asistencia', $idQuien,
+                    $quien . ' justificó una llegada tardía del ' . $fecha . ': ' . $motivo);
+                flash('Se justificó la llegada tardía de ' . $quien . '. Ya puede marcar la entrada dentro del turno.', 'success');
             } else {
                 $justificada = $accion === 'falta_con' ? 1 : 0;
                 if ($justificada && ! $motivo) {
@@ -1106,7 +1163,7 @@ class PersonalController extends Controller
      * cruzar las 12 de la noche (un turno de 20:00 a 02:00), y ahí la
      * comparación de cadenas da cualquier cosa.
      */
-    private function fueraDeFranja(object $turno): ?string
+    private function fueraDeFranja(object $turno, string $accion = 'entrada'): ?string
     {
         $enMinutos = fn (string $hms): int => (int) substr($hms, 0, 2) * 60 + (int) substr($hms, 3, 2);
 
@@ -1117,7 +1174,9 @@ class PersonalController extends Controller
         }
 
         $desde = $ini - (int) config('spg.fichaje.gracia_antes_min', 60);
-        $hasta = $fin + (int) config('spg.fichaje.gracia_despues_min', 120);
+        $hasta = $accion === 'entrada'
+            ? $ini + (int) ($turno->flexibilidad_entrada_min ?? 15)
+            : $fin + (int) config('spg.fichaje.gracia_despues_min', 120);
         $ahoraM = $enMinutos(ahora_bd('H:i:s'));
 
         if ($hasta - $desde >= 1440) {
@@ -1233,6 +1292,9 @@ class PersonalController extends Controller
         if ($d['hora_fin'] <= $d['hora_inicio']) {
             return 'La hora de fin tiene que ser posterior a la de inicio.';
         }
+        if ($d['flexibilidad_entrada_min'] < 0 || $d['flexibilidad_entrada_min'] > 180) {
+            return 'La flexibilidad de entrada tiene que estar entre 0 y 180 minutos.';
+        }
         if (! $dias) {
             return 'Marcá al menos un día de la semana: el turno son los días en que se trabaja.';
         }
@@ -1244,25 +1306,37 @@ class PersonalController extends Controller
             return 'Ya existe un turno con ese nombre en esa sucursal.';
         }
 
-        // Dos turnos de la misma sucursal no pueden pisarse el horario en un
-        // mismo día: si «Mañana» va de 08:00 a 12:00 y alguien carga otro de
-        // 11:00 a 15:00 para el lunes, ese lunes hay dos turnos activos a las
-        // 11:30 y la agenda no sabe cuál vale.
+        // Dos turnos de la misma sucursal tienen que dejar una pausa real. No
+        // alcanza con que no se pisen: al terminar un turno hay que entregar
+        // caja, ordenar el puesto y recibir al siguiente equipo.
         $in = implode(',', array_fill(0, count($dias), '?'));
-        $choque = DB::selectOne(
-            "SELECT t.nombre, td.dia_semana
+        $existentes = DB::select(
+            "SELECT t.nombre, t.hora_inicio, t.hora_fin, td.dia_semana
                FROM turno_laboral t
                JOIN turno_dia td ON td.id_turno = t.id_turno
               WHERE t.activo = 1 AND t.id_sucursal = ? AND t.id_turno <> ?
                 AND td.dia_semana IN ($in)
-                AND t.hora_inicio < ? AND ? < t.hora_fin
-              ORDER BY td.dia_semana LIMIT 1",
-            array_merge([$d['id_sucursal'], $id], $dias, [$d['hora_fin'], $d['hora_inicio']])
+              ORDER BY td.dia_semana, t.hora_inicio",
+            array_merge([$d['id_sucursal'], $id], $dias)
         );
-        if ($choque) {
-            return 'Se pisa con el turno «' . $choque->nombre . '» el '
-                . mb_strtolower(self::DIAS[(int) $choque->dia_semana] ?? '')
-                . '. Cambiá el horario o sacá ese día.';
+        $aMinutos = static function (string $hora): int {
+            return (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
+        };
+        $pausaMin = (int) config('spg.agenda.descanso_turnos_min', 60);
+        $nuevoIni = $aMinutos($d['hora_inicio'] . ':00');
+        $nuevoFin = $aMinutos($d['hora_fin'] . ':00');
+        foreach ($existentes as $otro) {
+            $otroIni = $aMinutos((string) $otro->hora_inicio);
+            $otroFin = $aMinutos((string) $otro->hora_fin);
+            $distancia = $nuevoFin <= $otroIni
+                ? $otroIni - $nuevoFin
+                : ($otroFin <= $nuevoIni ? $nuevoIni - $otroFin : -1);
+            if ($distancia < $pausaMin) {
+                return 'El turno «' . $otro->nombre . '» del '
+                    . mb_strtolower(self::DIAS[(int) $otro->dia_semana] ?? '')
+                    . ' queda a menos de ' . $pausaMin
+                    . ' minutos. Dejá al menos ese espacio entre la salida y la próxima entrada.';
+            }
         }
 
         if ($id && ! DB::scalar('SELECT COUNT(*) FROM turno_laboral WHERE id_turno = ? AND activo = 1', [$id])) {
@@ -1282,7 +1356,8 @@ class PersonalController extends Controller
         // empleado no arrastra su horario de otra sucursal, y la pantalla que
         // los asigna tampoco debería ofrecerlo.
         $turnos = DB::select(
-            'SELECT t.id_turno, t.nombre, t.hora_inicio, t.hora_fin, t.id_sucursal, s.nombre AS sucursal,
+            'SELECT t.id_turno, t.nombre, t.hora_inicio, t.hora_fin, t.flexibilidad_entrada_min,
+                    t.id_sucursal, s.nombre AS sucursal,
                     (SELECT COUNT(*) FROM usuario_turno ut WHERE ut.id_turno = t.id_turno) AS asignados
                FROM turno_laboral t
                JOIN sucursal s ON s.id_sucursal = t.id_sucursal

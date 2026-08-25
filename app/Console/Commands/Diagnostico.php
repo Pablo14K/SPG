@@ -35,7 +35,7 @@ class Diagnostico extends Command
      * justamente lo que este número tendría que detectar. **Al agregar un
      * CHECK, actualizalo acá en la misma tanda.**
      */
-    private const CHECKS = 77;
+    private const CHECKS = 78;
 
     public function handle(): int
     {
@@ -152,7 +152,7 @@ class Diagnostico extends Command
             }
         }
 
-        // Y las 56 restricciones CHECK, que un export de phpMyAdmin se come sin
+        // Y las 78 restricciones CHECK, que un export de phpMyAdmin se come sin
         // avisar: la copia acepta valores que la base real rechaza.
         $checks = (int) DB::scalar("SELECT COUNT(*) FROM information_schema.table_constraints
                                      WHERE constraint_schema = DATABASE() AND constraint_type = 'CHECK'");
