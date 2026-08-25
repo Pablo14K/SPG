@@ -192,8 +192,12 @@ class Pendientes
                     count($sinTurno) . ' persona(s) sin turno asignado: ' . self::nombres($sinTurno)
                     . '. No aparecen en la agenda, porque el salón usa turnos. Si alguna atiende, '
                     . 'hay que darle uno.',
-                    'Personal → Turnos, y después la ficha de cada persona',
-                    'seguridad.turnos', 'personal.turnos');
+                    // Los turnos YA existen: este bloque sólo corre cuando
+                    // alguien tiene uno asignado. Lo que falta es dárselo a
+                    // esta persona, y eso se hace en su ficha — mandar a
+                    // Turnos manda a crear otro, que no es el problema.
+                    'Seguridad → Usuarios → la ficha, «Turnos que trabaja»',
+                    'seguridad.usuarios', 'seguridad.usuarios');
             }
         }
 
@@ -213,8 +217,8 @@ class Pendientes
                     count($sinServicios) . ' profesional(es) sin servicios cargados: ' . self::nombres($sinServicios)
                     . '. Se les ofrece para todo, así que la clienta puede reservar una coloración '
                     . 'con quien sólo hace uñas, y el «no» llega el día de la cita.',
-                    'Seguridad → Usuarios → la ficha, «Servicios que hace»',
-                    'seguridad.usuarios', 'seguridad.usuarios');
+                    'Personal → Profesionales → la ficha, «Servicios que hace»',
+                    'seguridad.profesionales', 'personal.profesionales');
             }
         }
     }

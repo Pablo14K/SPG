@@ -1648,11 +1648,27 @@ class FacturacionController extends Controller
      * separado. Mismo criterio que separó Timbrados en la 5.2.0.
      */
     /**
-     * Movimientos de efectivo: filtros, tabla y paginación.
+     * Movimientos de caja: TODO lo que movió la plata, no sólo lo manual.
      *
-     * **Es la pantalla que más registros acumula del módulo**, así que no se
-     * muestran todos de golpe. Antes listaba sólo los de la caja abierta, que
-     * resolvía el caso de hoy y dejaba sin ver los de ayer.
+     * **Un pago a proveedor es un movimiento de caja, y un cobro también.**
+     * Antes esta pantalla listaba únicamente `movimiento_caja` —el gasto, el
+     * retiro, la devolución— así que en un salón que no carga ninguno se veía
+     * vacía aunque la caja hubiera tenido setenta cobros. El nombre
+     * «movimiento de efectivo» le hacía creer al lector que esos otros no
+     * contaban.
+     *
+     * Las cuatro fuentes son exactamente las que suma `fn_caja_saldo`, así que
+     * lo que se lista acá es lo que explica el arqueo:
+     *
+     * | Fuente | Signo |
+     * |---|---|
+     * | `cobro` | entra |
+     * | `movimiento_caja` | según su clase |
+     * | `pago_proveedor` | sale |
+     * | `pago_personal` | sale |
+     *
+     * **El formulario de carga manual sigue siendo el mismo**: es lo único que
+     * no sale de un documento, y por eso pide concepto y comprobante.
      */
     public function movimientos(): View
     {
@@ -1665,64 +1681,134 @@ class FacturacionController extends Controller
                 . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
         }
 
-        $opTipo = ['' => 'Todos'];
-        foreach (DB::select('SELECT id_tipo_mov_caja, nombre FROM tipo_movimiento_caja ORDER BY id_tipo_mov_caja') as $t) {
-            $opTipo[(string) $t->id_tipo_mov_caja] = $t->nombre;
-        }
-
         $f = Listado::filtros([
-            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Concepto o comprobante', 'ancho' => '230px'],
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Concepto, cliente o proveedor', 'ancho' => '230px'],
             'caja' => ['tipo' => 'select', 'etiqueta' => 'Caja', 'opciones' => $opCaja, 'ancho' => '180px'],
-            'tipo' => ['tipo' => 'select', 'etiqueta' => 'Movimiento', 'opciones' => $opTipo, 'ancho' => '190px'],
+            'clase' => ['tipo' => 'select', 'etiqueta' => 'Qué', 'ancho' => '190px',
+                        'opciones' => ['' => 'Todo', 'cobro' => 'Cobros', 'manual' => 'Gastos y retiros',
+                                       'prov' => 'Pagos a proveedores', 'pers' => 'Pagos al personal']],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
         ]);
 
         // El aislamiento por sucursal sale de la caja del movimiento, que es de
-        // dónde salió esa plata — no hace falta columna propia.
+        // dónde salió esa plata — no hace falta columna propia en cada tabla.
         $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
-        $w = ['c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')'];
+        $enSuc = 'c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')';
+
         $par = [];
+        $filtros = function (string $campoFecha) use ($f, &$par, $enSuc): string {
+            $w = [$enSuc];
+            if (Listado::hay($f, 'caja')) {
+                $w[] = 'c.id_caja_fisica = :cf';
+                $par['cf'] = (int) Listado::valor($f, 'caja');
+            }
+            if (Listado::hay($f, 'desde')) {
+                $w[] = "DATE($campoFecha) >= :d";
+                $par['d'] = Listado::valor($f, 'desde');
+            }
+            if (Listado::hay($f, 'hasta')) {
+                $w[] = "DATE($campoFecha) <= :h";
+                $par['h'] = Listado::valor($f, 'hasta');
+            }
 
-        if (Listado::hay($f, 'q')) {
-            $w[] = Listado::likeVarias(['mc.concepto', 'mc.nro_comprobante'],
-                Listado::valor($f, 'q'), 'q', $par);
-        }
-        if (Listado::hay($f, 'caja')) {
-            $w[] = 'c.id_caja_fisica = :cf';
-            $par['cf'] = (int) Listado::valor($f, 'caja');
-        }
-        if (Listado::hay($f, 'tipo')) {
-            $w[] = 'mc.id_tipo_mov_caja = :t';
-            $par['t'] = (int) Listado::valor($f, 'tipo');
-        }
-        if (Listado::hay($f, 'desde')) {
-            $w[] = 'DATE(mc.fecha) >= :d';
-            $par['d'] = Listado::valor($f, 'desde');
-        }
-        if (Listado::hay($f, 'hasta')) {
-            $w[] = 'DATE(mc.fecha) <= :h';
-            $par['h'] = Listado::valor($f, 'hasta');
+            return implode(' AND ', $w);
+        };
+
+        $q = Listado::valor($f, 'q');
+        $clase = (string) Listado::valor($f, 'clase');
+        $como = $q !== '' ? '%' . $q . '%' : null;
+        if ($como !== null) {
+            $par['q'] = $como;
         }
 
-        $desde = 'FROM movimiento_caja mc
-                  JOIN caja c ON c.id_caja = mc.id_caja
-                  JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                  LEFT JOIN tipo_movimiento_caja tmc ON tmc.id_tipo_mov_caja = mc.id_tipo_mov_caja
-                  LEFT JOIN usuario u ON u.id_usuario = mc.id_usuario
-                  LEFT JOIN persona pe ON pe.id_persona = u.id_persona
-                  WHERE ' . implode(' AND ', $w);
+        // **Una consulta por fuente, unidas.** Cada una tiene su tabla y su
+        // forma de nombrar lo que pasó; forzarlas a un solo JOIN daría filas
+        // duplicadas y un `CASE` de veinte líneas.
+        $partes = [];
 
-        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+        if ($clase === '' || $clase === 'cobro') {
+            $partes[] = "SELECT 'cobro' AS clase, co.fecha AS cuando, cf.nombre AS caja_nombre,
+                                CONCAT('Cobro', COALESCE(CONCAT(' · ', pe.nombre, ' ', COALESCE(pec.apellido,'')), '')) AS detalle,
+                                mp.nombre AS medio, co.monto AS monto, 1 AS signo,
+                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
+                                1 AS activo, NULL AS motivo, co.id_cobro AS id_ref
+                           FROM cobro co
+                           JOIN caja c ON c.id_caja = co.id_caja
+                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                           JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                           LEFT JOIN usuario u ON u.id_usuario = co.id_usuario
+                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
+                           LEFT JOIN factura fa ON fa.id_factura = co.id_factura
+                           LEFT JOIN cita ci ON ci.id_cita = COALESCE(co.id_cita, fa.id_cita)
+                           LEFT JOIN cliente cl ON cl.id_cliente = COALESCE(ci.id_cliente, fa.id_cliente)
+                           LEFT JOIN persona pe ON pe.id_persona = cl.id_persona
+                           LEFT JOIN persona pec ON pec.id_persona = cl.id_persona
+                          WHERE co.id_estado_cobro = 1 AND " . $filtros('co.fecha')
+                . ($como !== null ? " AND (pe.nombre LIKE :q OR mp.nombre LIKE :q)" : '');
+        }
 
-        // **Los cobros por medio de pago, de las mismas cajas que la tabla.**
-        // Separa lo que TIENE que estar en el cajón de lo que fue a la cuenta,
-        // que es la otra mitad de «qué pasó con la plata de esta caja».
-        //
-        // Sale de los MISMOS filtros: un resumen que mide otra cosa que la
-        // tabla de abajo es peor que no tenerlo.
-        $wc = ['co.id_estado_cobro = 1',
-               'c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')'];
+        if ($clase === '' || $clase === 'manual') {
+            $partes[] = "SELECT 'manual' AS clase, mc.fecha AS cuando, cf.nombre AS caja_nombre,
+                                CONCAT(COALESCE(tmc.nombre, mc.tipo), ' · ', mc.concepto) AS detalle,
+                                'Efectivo' AS medio, mc.monto AS monto,
+                                IF(mc.tipo = 'INGRESO', 1, -1) AS signo,
+                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
+                                mc.activo AS activo, mc.anulado_motivo AS motivo,
+                                mc.id_movimiento_caja AS id_ref
+                           FROM movimiento_caja mc
+                           JOIN caja c ON c.id_caja = mc.id_caja
+                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                           LEFT JOIN tipo_movimiento_caja tmc ON tmc.id_tipo_mov_caja = mc.id_tipo_mov_caja
+                           LEFT JOIN usuario u ON u.id_usuario = mc.id_usuario
+                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
+                          WHERE " . $filtros('mc.fecha')
+                . ($como !== null ? " AND (mc.concepto LIKE :q OR mc.nro_comprobante LIKE :q)" : '');
+        }
+
+        if ($clase === '' || $clase === 'prov') {
+            $partes[] = "SELECT 'prov' AS clase, pp.fecha AS cuando, cf.nombre AS caja_nombre,
+                                CONCAT('Pago a proveedor · ', COALESCE(ppe.nombre, 'sin nombre')) AS detalle,
+                                mp.nombre AS medio, fn_pago_proveedor_monto(pp.id_pago_proveedor) AS monto,
+                                -1 AS signo,
+                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
+                                1 AS activo, NULL AS motivo, pp.id_pago_proveedor AS id_ref
+                           FROM pago_proveedor pp
+                           JOIN caja c ON c.id_caja = pp.id_caja
+                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                           JOIN metodo_pago mp ON mp.id_metodo_pago = pp.id_metodo_pago
+                           LEFT JOIN proveedor pr ON pr.id_proveedor = pp.id_proveedor
+                           LEFT JOIN persona ppe ON ppe.id_persona = pr.id_persona
+                           LEFT JOIN usuario u ON u.id_usuario = pp.id_usuario
+                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
+                          WHERE pp.id_estado_pago_proveedor = 1 AND " . $filtros('pp.fecha')
+                . ($como !== null ? " AND (ppe.nombre LIKE :q OR pp.referencia LIKE :q)" : '');
+        }
+
+        if ($clase === '' || $clase === 'pers') {
+            $partes[] = "SELECT 'pers' AS clase, pl.fecha AS cuando, cf.nombre AS caja_nombre,
+                                CONCAT('Liquidación · ', TRIM(CONCAT_WS(' ', ppe.nombre, ppe.apellido))) AS detalle,
+                                COALESCE(mp.nombre, 'Efectivo') AS medio,
+                                fn_pago_personal_monto(pl.id_pago_personal) AS monto, -1 AS signo,
+                                TRIM(CONCAT_WS(' ', pur.nombre, pur.apellido)) AS quien,
+                                1 AS activo, NULL AS motivo,
+                                pl.id_pago_personal AS id_ref
+                           FROM pago_personal pl
+                           JOIN caja c ON c.id_caja = pl.id_caja
+                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                           LEFT JOIN metodo_pago mp ON mp.id_metodo_pago = pl.id_metodo_pago
+                           LEFT JOIN usuario u ON u.id_usuario = pl.id_usuario
+                           LEFT JOIN persona ppe ON ppe.id_persona = u.id_persona
+                           LEFT JOIN usuario ur ON ur.id_usuario = pl.id_usuario_registro
+                           LEFT JOIN persona pur ON pur.id_persona = ur.id_persona
+                          WHERE pl.id_estado_pago = 1 AND " . $filtros('pl.fecha')
+                . ($como !== null ? " AND (ppe.nombre LIKE :q)" : '');
+        }
+
+        $union = '(' . implode(') UNION ALL (', $partes) . ')';
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) FROM ($union) t", $par));
+
+        $wc = ['co.id_estado_cobro = 1', $enSuc];
         $pc = [];
         if (Listado::hay($f, 'caja')) {
             $wc[] = 'c.id_caja_fisica = :cf';
@@ -1739,6 +1825,9 @@ class FacturacionController extends Controller
 
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
+            // Cuánto entró por cada medio, y si eso TIENE que estar en el
+            // cajón o fue a la cuenta: es la otra mitad del arqueo, y la tabla
+            // de abajo no lo contesta de un vistazo.
             'porMedio' => DB::select(
                 'SELECT cf.nombre AS caja_nombre, mp.nombre AS medio, mp.tipo,
                         COUNT(*) AS cantidad, SUM(co.monto) AS total
@@ -1756,18 +1845,11 @@ class FacturacionController extends Controller
             // devolución no se tipea: se elige la nota y el monto sale de ella,
             // que es lo que evita que queden dos salidas por la misma
             // devolución con números distintos.
-            //
-            // Son las de ESTE local: la sucursal de un comprobante sale de su
-            // timbrado, que es por sucursal desde siempre (7.37.0).
             'notas' => $this->notasPorDevolver(),
             'f' => $f,
             'pag' => $pag,
             'movimientos' => DB::select(
-                "SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.fecha,
-                        mc.activo, mc.anulado_motivo, mc.id_caja,
-                        cf.nombre AS caja_nombre, tmc.nombre AS clase,
-                        TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS quien
-                 $desde ORDER BY mc.fecha DESC, mc.id_movimiento_caja DESC
+                "SELECT * FROM ($union) t ORDER BY t.cuando DESC
                  LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
             ),
         ]);

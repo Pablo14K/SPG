@@ -230,6 +230,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.70.1 | 24/08/2026 | **Movimientos se veía vacía, guardar un usuario no andaba, y dos avisos mandaban al lugar equivocado.** **Un pago a proveedor es un movimiento de caja, y un cobro también.** La pantalla listaba únicamente `movimiento_caja` —el gasto, el retiro, la devolución— así que en un salón que no carga ninguno se veía vacía **aunque la caja hubiera tenido setenta cobros**; el nombre «movimiento de efectivo» encima hacía creer que esos otros no contaban. Ahora lista **las cuatro fuentes que suma `fn_caja_saldo`** —cobros, movimientos manuales, pagos a proveedores y liquidaciones— con su signo y su medio, que es lo que de verdad explica el arqueo. Medido contra la base: de 0 filas a **70**. Es una consulta por fuente unidas con UNION, y no un JOIN: cada tabla nombra distinto lo que pasó, y forzarlas a una sola daría filas duplicadas. **Sólo se anula lo cargado a mano** —un cobro se anula desde el comprobante, que es donde la numeración de la SET lo puede rastrear—. **Y guardar un usuario estaba roto desde la 7.68.0**: la auditoría escribía `$d['nombre'] . ' ' . $d['apellido']`, dos claves que dejaron de existir cuando la persona pasó a elegirse en vez de tipearse. El `catch (Throwable)` se comía el `ErrorException` y la pantalla contestaba «¿usuario, email o cédula duplicado?», mandando a mirar el lugar equivocado — es exactamente lo que la regla del proyecto previene, y el `catch` no logueaba. Ahora sí. **Dos avisos de `spg:pendientes` apuntaban mal**: el de «sin turno asignado» llevaba a **crear** turnos cuando ese bloque sólo corre si ya hay uno asignado —lo que falta es dárselo a esa persona, y eso está en su ficha— y el de «sin servicios cargados» seguía mandando a Usuarios cuando desde la 7.68.0 se cargan en Profesionales. **145 pruebas**, una nueva comprobada en las dos direcciones — y la primera versión **pasaba sin medir nada**, porque buscaba el monto en el HTML entero y el resumen de arriba también lo trae: mide las filas que arma el controlador |
 | 7.70.0 | 24/08/2026 | **El servicio tiene imagen de referencia, y al reservar se elige mirando el resultado.** «Mechas» es una palabra; la foto es lo que la clienta va a recibir. La lista de servicios pasa de renglones con checkbox a **tarjetas con imagen**, en las dos pantallas que reservan —el portal y Nueva cita— con **un solo componente**, porque copiado se desfasan. **El funcionamiento no se tocó**, que era la condición: es el mismo checkbox, con el mismo `name` y los mismos `data-`, así que la agenda, el reparto entre profesionales y los canjes siguen exactamente igual. **La tarjeta entera es un `<label>`**, así que marca sin JavaScript — con `app.js` caído se sigue pudiendo reservar. El `select` de profesional queda adentro y no se dispara al elegirlo: por especificación, un clic sobre contenido interactivo dentro de un `label` no activa el control asociado. **Sin imagen se dice, no se pone una genérica**: una foto de archivo que no es de este salón promete un resultado que no se puede sostener, así que la tarjeta muestra «Sin imagen de referencia». **Se guarda el nombre del archivo, no el archivo**, que es el criterio del logo desde la 7.35.0 — un BLOB hincha la base y complica el volcado que se entrega. La subida se extrae a `App\Servicios\Imagen`, con las tres defensas de siempre: se comprueba que sea una imagen **de verdad** con `getimagesize` y no por la extensión, se limita el tamaño, y **el archivo se escribe antes de tocar la base** — si falla, no queda una fila apuntando a un archivo que no está. SVG no entra: se sirve como marcado. El oro va **sólo en la tarjeta elegida**, borde y anillo: en las quince, la elegida dejaría de distinguirse. **144 pruebas**, una nueva comprobada en las dos direcciones — mide que sin imagen salga el aviso, que con imagen salga la foto, y que el checkbox que manda los servicios siga ahí |
 | 7.69.1 | 24/08/2026 | **El formulario de datos de pago se rehace alrededor del ALIAS, que en Paraguay es lo que de verdad se usa.** Investigado contra el BCP: en el SIPAP **el alias es el único dato necesario para transferir** —reemplaza al número de cuenta, a la entidad y al nombre del destinatario— y **no es texto libre**: es uno de cuatro, cédula, RUC, celular o correo. Así que se guarda con su tipo (`alias_tipo`), y eso hace dos cosas: **valida** —un alias de tipo correo mal escrito no lo encuentra nadie— y sobre todo **le dice a la clienta por dónde buscarlo**, que es como funciona la pantalla de su banco: el portal muestra «buscalo por celular» en vez de un número sin contexto. El campo cambia de ejemplo y de caracteres admitidos según el tipo, y **es opcional**: no todos los bancos lo usan. El formulario pasa a **tres pasos numerados** —dónde está la cuenta, el alias, los datos de siempre— en vez de doce campos corridos. **El tipo de cuenta pasa a combo**: escrito a mano, «Caja de ahorro», «caja de ahorros» y «C. de ahorro» son la misma cosa tres veces, y la clienta ve lo que se haya tipeado. **Y el campo «orden» se va**: hacía elegir un número para ordenar dos o tres filas — se reordena con flechas en la lista, donde se ve el efecto al instante. **El desglose por medio de pago se muda a Movimientos**, por pedido del usuario: ahí es donde se mira qué pasó con la plata de una caja. Respeta los mismos filtros —un resumen que mide otra cosa que la tabla es peor que no tenerlo— y **se agrupa también por cajón**, que si no los cobros de dos cajones se suman en una fila y el número no le sirve a ninguno de los dos arqueos. **143 pruebas**, una reescrita más exigente: mide el alias con su tipo y rechaza tres formas de cargarlo mal · 77 `CHECK` |
 | 7.69.0 | 24/08/2026 | **El cajón físico entra al modelo, y el módulo de Caja se rehace en tres pantallas.** **`caja` era una SESIÓN, no un cajón**: cada fila es una apertura con su cierre, y el cajón no existía en ninguna parte — así que «una caja abierta por sucursal» era en realidad «un cajón por local» sin decirlo. Un salón con dos puestos de cobro no lo podía representar: el segundo no abría. Entra **`caja_fisica`** —tiene nombre y vive en un local— y `caja` sigue siendo la sesión sobre él. Cada sucursal que ya existía estrenó su «Caja 1», así que nada cambió de significado para quien venía usando el sistema. **`trg_caja_bi` se acota al cajón**, que es el mismo defecto que la 7.36.2 corrigió a nivel de sucursal, un nivel más adentro. **Y los tres procedimientos que mueven plata tuvieron que aprender a elegir**: con un solo cajón la pregunta no existía; con varios abiertos, elegir mal deja el arqueo de otra persona descuadrado sin que nada lo diga. El orden es **el cajón de esta persona en el local del documento** → cualquiera de ese local → cualquiera suyo, en una sola consulta. La sucursal la sigue mandando el DOCUMENTO, que es lo de la 7.36.3 y no cambia. **Las tres pantallas tienen la misma forma —filtros, tabla, paginación— y no cambia con el tamaño del salón**: con 3 cajones o con 300 lo único que crece son las filas. **Cajas** dice lo mínimo para elegir —caja, estado, responsable, hora— y nada más; el monto y los movimientos se consultan entrando, porque una tabla que lo muestra todo no se lee. **La caja individual** es a propósito casi vacía: efectivo esperado, el desglose por medio, y los dos botones. **Arqueos** pasa de una tabla de sesenta filas fijas a una con filtros por sucursal, caja, fecha y resultado — y **las cuatro cifras de arriba salen de lo filtrado**, que si midieran otra cosa que la tabla serían peor que no tenerlas. **Movimientos** listaba sólo los de la caja abierta, o sea que resolvía el caso de hoy y dejaba sin ver los de ayer. **Crear cajones es del Administrador y el formulario va abajo**: la pantalla se piensa primero para operar los que existen. **Un cajón se da de baja, no se borra**, y no con la sesión abierta — quedaría plata adentro de algo que el sistema dejó de ofrecer. **143 pruebas**, una nueva comprobada en las dos direcciones: mide que dos cajones del mismo local abran a la vez **y** que el mismo no abra dos veces — con una sola mitad, un disparador borrado pasaría igual. De paso, **un filtro en `null` salía como campo de texto**: `Listado::filtros()` lo toma como uno sin tipo, así que el de sucursal aparecía como un buscador titulado «sucursal» — se saca del arreglo, no se pone en null. · 80 tablas · 76 `CHECK` |
@@ -443,7 +444,7 @@ public/assets/             app.css · imprimir.css · app.js · webauthn.js
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 144 pruebas
+tests/Feature/             Las 145 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2594,7 +2595,7 @@ lo único que crece son las filas.
 | Pantalla | Qué contesta |
 |---|---|
 | **Cajas** | ¿cuál está abierta y quién la tiene? |
-| **Movimientos** | ¿qué entró o salió sin ser un cobro ni un pago? |
+| **Movimientos** | ¿qué entró y salió de la caja? — **todo**, no sólo lo manual |
 | **Arqueos** | ¿cuadraron las cajas? |
 
 - **La lista dice lo mínimo para elegir** —caja, estado, responsable, hora— y
@@ -2754,6 +2755,32 @@ Cuatro cosas al tocarlo:
 
 **Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
+
+### Movimientos: todo lo que movió la caja
+
+**Un pago a proveedor es un movimiento de caja, y un cobro también.** La
+pantalla lista **las cuatro fuentes que suma `fn_caja_saldo`**, que es
+exactamente lo que explica el arqueo:
+
+| Fuente | Signo |
+|---|---|
+| `cobro` | entra |
+| `movimiento_caja` | según su clase |
+| `pago_proveedor` | sale |
+| `pago_personal` | sale |
+
+> Hasta la 7.70.1 listaba **sólo `movimiento_caja`**, así que en un salón que no
+> carga ninguno se veía vacía aunque la caja hubiera tenido setenta cobros — y
+> el nombre «movimiento de efectivo» hacía creer que esos otros no contaban.
+
+- **Es una consulta por fuente unidas con UNION**, no un JOIN: cada tabla
+  nombra distinto lo que pasó, y forzarlas a una sola daría filas duplicadas y
+  un `CASE` de veinte líneas.
+- **Sólo se anula lo cargado a mano.** Un cobro se anula desde el comprobante,
+  que es donde la numeración de la SET lo puede rastrear.
+- **El resumen por medio de pago se queda arriba**: la tabla dice qué pasó uno
+  por uno, y el resumen dice cuánto hay de cada medio y si va al cajón o a la
+  cuenta — que es la mitad de la pregunta del arqueo.
 
 ### El movimiento de efectivo: nada entra ni sale de la nada
 
@@ -3234,7 +3261,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 144 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 145 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -3375,7 +3402,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**144 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**145 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -450,15 +451,20 @@ class PersonalController extends Controller
             });
 
             Auditoria::registrar($id ? 'MODIFICACION' : 'ALTA', 'Personal', 'usuario', $r['id'],
-                $d['nombre'] . ' ' . $d['apellido']);
+                trim($per->nombre . ' ' . ($per->apellido ?? '')) . ' · ' . $d['username']);
 
             flash(($id ? 'Usuario actualizado.' : 'Usuario creado.')
                 . (count($sucs) > 1 ? ' Trabaja en ' . count($sucs) . ' sucursales.' : '')
                 . ($r['turnos']
                     ? " Trabaja {$r['turnos']} turno(s)."
                     : ' Sin turno asignado: no va a aparecer en la agenda hasta que se le asigne uno.'));
-        } catch (Throwable) {
-            flash('No se pudo guardar el usuario (¿usuario, email o cédula duplicado?).', 'error');
+        } catch (Throwable $e) {
+            // **Un `catch` que no supo traducir el error tiene que registrarlo.**
+            // Sin esto el mensaje culpaba a un duplicado y el log quedaba vacío:
+            // el problema real era una clave de `$d` que dejó de existir.
+            Log::error('No se pudo guardar el usuario: ' . $e->getMessage()
+                . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
+            flash('No se pudo guardar el usuario. El detalle quedó registrado.', 'error');
 
             return $volver->withInput();
         }

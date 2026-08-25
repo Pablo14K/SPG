@@ -4459,4 +4459,65 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT id_sucursal FROM caja WHERE id_caja_fisica = ? ORDER BY id_caja DESC LIMIT 1', [$a]),
             'La sucursal de la sesión tiene que ser la del cajón.');
     }
+
+    /**
+     * Movimientos lista TODO lo que movió la caja, no sólo lo cargado a mano.
+     *
+     * **Un pago a proveedor es un movimiento de caja, y un cobro también.**
+     * Antes la pantalla listaba únicamente `movimiento_caja`, así que en un
+     * salón que no carga ninguno se veía vacía aunque la caja hubiera tenido
+     * setenta cobros — y el nombre «movimiento de efectivo» hacía creer que
+     * esos otros no contaban.
+     *
+     * Las cuatro fuentes son exactamente las que suma `fn_caja_saldo`, así que
+     * lo que se lista es lo que explica el arqueo. La prueba lo mide contra la
+     * base: **cada fuente con filas tiene que aparecer**.
+     */
+    #[Test]
+    public function movimientos_lista_las_cuatro_fuentes_que_mueven_la_caja(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
+            [$suc, 'Prueba movs ' . uniqid()]);
+        $cajon = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // Una caja abierta con un cobro y un movimiento manual adentro: son dos
+        // fuentes distintas y las dos tienen que salir en la misma tabla.
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                    VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+        $caja = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $efectivo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' LIMIT 1");
+        $cita = (int) DB::scalar('SELECT MAX(id_cita) FROM cita');
+        DB::insert('INSERT INTO cobro (id_cita, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, fecha)
+                    VALUES (?, ?, 1, 1, ?, 123456, NOW())', [$cita, $efectivo, $caja]);
+
+        $tipo = (int) DB::scalar('SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE activo = 1 LIMIT 1');
+        DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, id_tipo_mov_caja, monto, concepto, id_usuario, fecha)
+                    VALUES (?, 'EGRESO', ?, 7890, 'Gasto de prueba', 1, NOW())", [$caja, $tipo]);
+
+        $r = $this->get(route('facturacion.movimientos'))->assertOk();
+        $filas = collect($r->viewData('movimientos'));
+
+        $clases = $filas->pluck('clase')->unique()->all();
+
+        // El cobro: antes NO salía, y es lo que hacía ver la pantalla vacía.
+        $this->assertContains('cobro', $clases,
+            'Un cobro es un movimiento de caja y tiene que salir en la lista.');
+        $this->assertContains('manual', $clases,
+            'El movimiento cargado a mano tiene que seguir saliendo.');
+
+        $this->assertTrue($filas->contains(fn ($m) => (float) $m->monto === 123456.0 && (int) $m->signo === 1),
+            'El cobro entra a la caja: tiene que listarse con signo positivo.');
+        $this->assertTrue($filas->contains(fn ($m) => (float) $m->monto === 7890.0 && (int) $m->signo === -1),
+            'El gasto sale de la caja: tiene que listarse con signo negativo.');
+
+        DB::delete('DELETE FROM movimiento_caja WHERE id_caja = ?', [$caja]);
+        DB::delete('DELETE FROM cobro WHERE id_caja = ?', [$caja]);
+        DB::delete('DELETE FROM caja WHERE id_caja = ?', [$caja]);
+        DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
+    }
 }
