@@ -127,8 +127,10 @@ Las tres veces que mordió, para no repetirlas:
 - **El Automatizador SIFEN se caía y nadie lo notaba**, así que las facturas se acumulaban en
   PENDIENTE. Por eso ahora sube con el resto en el `docker-compose.yml`.
 
-> **Y antes de entregar, dos cosas más**: `DB_DATABASE=peluqueria_bd` —la base que se instala,
-> no el mes simulado— y los dos `.sql` regenerados en la misma tanda que el cambio de esquema.
+> **Y antes de comprimir, dos cosas más**: `DB_DATABASE=peluqueria_test` —la copia cargada
+> que se quiere mostrar— y `basededatos/1mes_simulacion.sql` regenerado desde la base que
+> se quiere transportar. Para instalar un salón vacío, cambiar explícitamente a
+> `peluqueria_bd`.
 
 ### Lo de la entrega se avisa AL DESPLEGAR, no antes
 
@@ -140,7 +142,7 @@ Van en esta lista, y **no se traen a colación mientras se está desarrollando**
 
 | Qué | Cuándo importa |
 |---|---|
-| `DB_DATABASE` apuntando a `peluqueria_test` en vez de `peluqueria_bd` | Al entregar: el salón instala la base vacía, no el mes simulado |
+| `DB_DATABASE` apuntando a `peluqueria_bd` en vez de `peluqueria_test` | Al compartir una demo: la aplicación arranca sin la operación cargada, aunque el ZIP sí traiga el dump |
 | La contraseña de Gmail que quedó en el historial de git (`0de5fb6`, `e18367b`) | Al publicar el repositorio o al desplegar. Se rota en `myaccount.google.com/apppasswords`, y **eso lo hace el usuario** |
 | `APP_DEBUG`, `APP_URL`, `LOG_LEVEL` y las credenciales del `.env` de producción | Al desplegar — ver `DESPLIEGUE.md` y `.env.produccion.example` |
 | Qué NO se sube (`basededatos/`, `CLAUDE.md`, `tests/`, `docker/`) | Al desplegar |
@@ -230,6 +232,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.72.0 | 25/08/2026 | **Docker vuelve a viajar con la operación cargada.** El problema no era el ZIP sino la base que elegía `docker/php/env.docker`: el importador sí llevaba `1mes_simulacion.sql`, pero la aplicación arrancaba contra `peluqueria_bd`, que no tiene citas ni facturas. Se regeneró el dump de `peluqueria_test` desde la base cargada actual —**172 citas, 63 facturas, 33 clientas, cobros y asistencia**—, se comprobó importándolo en MariaDB 10.4 y Docker queda apuntando a esa copia. `peluqueria_bd` sigue disponible como base limpia para una instalación desde cero. **146 pruebas** · 78 `CHECK` |
 | 7.71.0 | 25/08/2026 | **Turnos, asistencia y agenda quedan coordinados.** Cada turno guarda la **flexibilidad de entrada** (por defecto 15 minutos), y el proceso programado crea la falta sin aviso cuando vence sin fichaje; la persona puede justificar una llegada tardía desde Asistencia y administración puede revisarla o registrarla por ella. **«En proceso» exige entrada marcada**, también en el servidor, y la agenda muestra el motivo cuando falta. Administración puede **cambiar el profesional de una cita puntual** —se conservan horario y servicios, pero se vuelve a validar turno, sucursal y disponibilidad—. Los turnos de una sucursal dejan ahora al menos **60 minutos entre salida y entrada**, y la nueva cita no ofrece ni acepta un profesional que no trabaje ese día. **Movimientos de caja** conserva el filtro de cajón al registrar un movimiento y deja de mostrar el resumen redundante de cobros; las citas atendidas tienen «Ver detalle». La validación de RUC calcula el dígito real sin imponer que termine en `-8`. Las imágenes de servicios ya estaban disponibles desde la 7.70.0 y se mantienen. **146 pruebas** · 78 `CHECK` |
 | 7.70.2 | 25/08/2026 | **«Ver movimientos» de una caja rompía la pantalla, y es un error que este documento ya tenía anotado.** Con el filtro de caja puesto la consulta moría con *Invalid parameter number*: el marcador **`:cf` aparecía en las cuatro partes del UNION**, y la conexión abre PDO con `ATTR_EMULATE_PREPARES` en `false`, así que MySQL prepara de verdad y **no admite un marcador con nombre repetido**. Lo mismo `:d`, `:h` y `:q`. Ahora cada fuente lleva su sufijo —`:cf_cobro`, `:cf_manual`…— y la búsqueda registra un nombre por campo. **La 7.70.1 no lo vio porque su prueba no filtraba**: medía que las cuatro fuentes salieran, y sin filtros no hay marcador que repetir. La nueva entra por el camino real —dos cajas abiertas en el MISMO local, una con su movimiento y la otra con el suyo— y exige que **cada una muestre lo suyo y no lo de la otra**: con dos cajones, leer el arqueo de uno con los movimientos del otro es peor que no verlos. Comprobada en las dos direcciones: con el marcador compartido, falla. **146 pruebas** |
 | 7.70.1 | 24/08/2026 | **Movimientos se veía vacía, guardar un usuario no andaba, y dos avisos mandaban al lugar equivocado.** **Un pago a proveedor es un movimiento de caja, y un cobro también.** La pantalla listaba únicamente `movimiento_caja` —el gasto, el retiro, la devolución— así que en un salón que no carga ninguno se veía vacía **aunque la caja hubiera tenido setenta cobros**; el nombre «movimiento de efectivo» encima hacía creer que esos otros no contaban. Ahora lista **las cuatro fuentes que suma `fn_caja_saldo`** —cobros, movimientos manuales, pagos a proveedores y liquidaciones— con su signo y su medio, que es lo que de verdad explica el arqueo. Medido contra la base: de 0 filas a **70**. Es una consulta por fuente unidas con UNION, y no un JOIN: cada tabla nombra distinto lo que pasó, y forzarlas a una sola daría filas duplicadas. **Sólo se anula lo cargado a mano** —un cobro se anula desde el comprobante, que es donde la numeración de la SET lo puede rastrear—. **Y guardar un usuario estaba roto desde la 7.68.0**: la auditoría escribía `$d['nombre'] . ' ' . $d['apellido']`, dos claves que dejaron de existir cuando la persona pasó a elegirse en vez de tipearse. El `catch (Throwable)` se comía el `ErrorException` y la pantalla contestaba «¿usuario, email o cédula duplicado?», mandando a mirar el lugar equivocado — es exactamente lo que la regla del proyecto previene, y el `catch` no logueaba. Ahora sí. **Dos avisos de `spg:pendientes` apuntaban mal**: el de «sin turno asignado» llevaba a **crear** turnos cuando ese bloque sólo corre si ya hay uno asignado —lo que falta es dárselo a esa persona, y eso está en su ficha— y el de «sin servicios cargados» seguía mandando a Usuarios cuando desde la 7.68.0 se cargan en Profesionales. **145 pruebas**, una nueva comprobada en las dos direcciones — y la primera versión **pasaba sin medir nada**, porque buscaba el monto en el HTML entero y el resumen de arriba también lo trae: mide las filas que arma el controlador |
@@ -2952,8 +2955,8 @@ crea e importa las dos en el primer arranque (`docker/bd/10-importar.sh`):
 
 | Valor | Para qué |
 |---|---|
-| `DB_DATABASE=peluqueria_bd` | ver el sistema como lo recibe el salón: catálogos y nada más. **Es la que hay que dejar puesta antes de entregar** |
-| `DB_DATABASE=peluqueria_test` | **el que viene puesto hoy**: 172 citas, 62 facturas, 33 clientas. Sin datos no se ven la paginación, los filtros, las exportaciones ni el estado del cobro en la agenda |
+| `DB_DATABASE=peluqueria_test` | **el que viene puesto hoy**: la copia cargada del ZIP, con 172 citas, 63 facturas, 33 clientas, cobros y asistencia |
+| `DB_DATABASE=peluqueria_bd` | ver el sistema para una instalación desde cero: catálogo y cuentas, sin operación |
 
 **Los nombres son esos dos y no hay un tercero.** `peluqueria_bd_test` no existe, y mezclarlos
 es el error fácil porque el síntoma engaña: la pantalla de ingreso contesta 200 igual —no toca
@@ -2971,7 +2974,8 @@ configuración pisando el cambio.
 > **esa misma base** — revierten con `DatabaseTransactions`, salvo `ConcurrenciaAgendaTest`,
 > que limpia a mano en `tearDown()`.
 >
-> **Antes de entregar hay que dejarlo en `peluqueria_bd`**, que es la base que se instala.
+> **Para una instalación desde cero hay que cambiarlo a `peluqueria_bd`**. Para una demo o
+> revisión funcional, se deja en `peluqueria_test`, que es la base cargada que viaja en el ZIP.
 
 > **Cuidado con `artisan serve` y las variables de entorno.** Sólo le reenvía al servidor que
 > atiende las peticiones una **lista blanca** (`APP_ENV`, `PATH`, las de Xdebug…). Definir
@@ -3144,7 +3148,7 @@ tarde o temprano se carga el equivocado y se prueba contra un esquema que ya no 
 | Archivo | Qué es | Cuándo se usa |
 |---|---|---|
 | **`basededatos/peluqueria_bd(base).sql`** | La base **que se entrega**: esquema completo y sólo lo mínimo para entrar (catálogos del sistema, la sucursal 1 y las cuentas `admin` y `cliente`) | Instalar el sistema en un salón, o levantar una base limpia |
-| **`basededatos/1mes_simulacion.sql`** | El mes simulado del QA: 172 citas, 62 facturas, 33 clientas | Cargar `peluqueria_test` para probar con datos de verdad |
+| **`basededatos/1mes_simulacion.sql`** | La copia cargada que viaja con Docker: 172 citas, 63 facturas, 33 clientas, cobros y asistencia | Cargar `peluqueria_test` para probar con datos de verdad |
 
 > **`peluqueria_bd(base).sql` tiene que estar SIEMPRE al día.** No es un respaldo viejo: es el
 > archivo que se entrega y con el que se instala. Cada vez que cambie **una tabla, una columna,
@@ -3243,7 +3247,7 @@ lugar.
 /c/xampp/mysql/bin/mysql.exe -u root peluqueria_test < "basededatos/1mes_simulacion.sql"
 ```
 
-Con `basededatos/1mes_simulacion.sql` la base de prueba queda con datos de verdad —172 citas, 62 facturas,
+Con `basededatos/1mes_simulacion.sql` la base de prueba queda con datos de verdad —172 citas, 63 facturas,
 33 clientas—, que es lo que hace falta para que una prueba signifique algo. Si lo que querés es
 una base limpia, cargá `basededatos/peluqueria_bd(base).sql` en su lugar.
 

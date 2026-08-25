@@ -120,8 +120,8 @@ Compara la base contra `basededatos/peluqueria_bd(base).sql` y te dice qué falt
 
 | Valor | Qué se ve al entrar |
 |---|---|
-| `DB_DATABASE=peluqueria_bd` | **lo que viene puesto hoy**: la base **vacía, la que se entrega** — el sistema tal como lo encuentra el salón el primer día, con los catálogos y las cuentas para entrar |
-| `DB_DATABASE=peluqueria_test` | el mes simulado del QA — 172 citas, 62 facturas, 33 clientas. Para mirar las pantallas con datos de verdad |
+| `DB_DATABASE=peluqueria_test` | **lo que viene puesto hoy**: la copia cargada que viaja en el ZIP — 172 citas, 63 facturas, 33 clientas, cobros y asistencia |
+| `DB_DATABASE=peluqueria_bd` | la base limpia de entrega — catálogo y cuentas para iniciar un salón desde cero |
 
 > Son esos dos nombres y no hay un tercero: **`peluqueria_bd_test` no existe**. Es el error
 > fácil, y engaña — la pantalla de ingreso sigue contestando 200 porque no toca la base hasta
@@ -138,7 +138,8 @@ docker compose restart app
 a cuál se conecta la aplicación. El contenedor hace `config:clear` en cada arranque, así que
 no queda una caché vieja pisando el cambio.
 
-> **Antes de entregar, volver a `peluqueria_bd`**, que es la que se instala en el salón.
+> **Para entregar un salón desde cero, cambiar a `peluqueria_bd`**. Para una demo o
+> una revisión funcional, dejar `peluqueria_test`, que es la que viaja cargada en el ZIP.
 >
 > Las **57 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
 > corran donde corran. Ojo con eso si trabajás sobre `peluqueria_test` en pantalla — las
@@ -199,8 +200,8 @@ Se crean **dos**, y cada una tiene su papel:
 
 | Base | Qué es | Con qué se carga |
 |---|---|---|
-| `peluqueria_bd` | la que **se entrega**: esquema al día, sin operación | `basededatos/peluqueria_bd(base).sql` |
-| `peluqueria_test` | la de trabajo: 172 citas, 62 facturas, 33 clientas | `basededatos/1mes_simulacion.sql` |
+| `peluqueria_bd` | la base limpia: esquema al día, catálogo y cuentas | `basededatos/peluqueria_bd(base).sql` |
+| `peluqueria_test` | la copia cargada que usa Docker: 172 citas, 63 facturas, 33 clientas y operación | `basededatos/1mes_simulacion.sql` |
 
 ```bash
 /c/xampp/mysql/bin/mysql.exe -u root peluqueria_bd   < "basededatos/peluqueria_bd(base).sql"

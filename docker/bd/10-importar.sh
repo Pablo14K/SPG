@@ -2,10 +2,12 @@
 # Importa las dos bases del proyecto. MariaDB corre esto UNA sola vez, cuando
 # el volumen está vacío: si querés repetirlo, `docker compose down -v`.
 #
-# Son dos y cada una tiene su papel:
+# Son dos y cada una tiene su papel. La aplicación Docker apunta a
+# `peluqueria_test`, que es la copia cargada que viaja dentro del ZIP; la otra
+# queda disponible para instalar un salón desde cero:
 #
-#   peluqueria_bd    la que se ENTREGA: esquema al día, sin operación
-#   peluqueria_test  la de trabajo, con el mes simulado del QA
+#   peluqueria_bd    esquema al día, catálogo demo y cuentas de acceso
+#   peluqueria_test  operación cargada: 172 citas, 63 facturas y 33 clientas
 #
 # Ninguno de los dos .sql lleva CREATE DATABASE ni USE adentro, así que respetan
 # el nombre que se les pasa acá y no se pisan entre sí.
