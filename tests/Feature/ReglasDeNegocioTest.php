@@ -4520,4 +4520,76 @@ class ReglasDeNegocioTest extends TestCase
         DB::delete('DELETE FROM caja WHERE id_caja = ?', [$caja]);
         DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
     }
+
+    /**
+     * Cada caja muestra SUS movimientos, y con el filtro puesto no revienta.
+     *
+     * **Dos defectos en el mismo camino, y el segundo tapaba al primero.**
+     *
+     * El que se veía: con el filtro de caja puesto —que es lo que hace el botón
+     * «Ver movimientos»— la consulta moría con *Invalid parameter number*. El
+     * marcador `:cf` aparecía en las cuatro partes del UNION, y la conexión abre
+     * PDO con `ATTR_EMULATE_PREPARES` en `false`: MySQL prepara de verdad y
+     * **no admite un marcador con nombre repetido**. Está anotado en el
+     * documento del proyecto desde hace versiones, y así y todo volvió a pasar.
+     *
+     * El de fondo: con dos cajas abiertas en el mismo local, cada una tiene que
+     * poder mirar lo suyo — si no, el arqueo de una se lee con los movimientos
+     * de la otra.
+     *
+     * **La prueba suma las partes y exige que den el total**: es lo único que
+     * demuestra que el filtro filtra y que no se pierde nada por el camino.
+     */
+    #[Test]
+    public function cada_caja_muestra_sus_propios_movimientos(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        // Dos cajones del MISMO local, los dos con una caja abierta: es el caso
+        // que el rediseño de la 7.69.0 vino a hacer posible.
+        $ids = [];
+        foreach (['A', 'B'] as $letra) {
+            DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
+                [$suc, 'Filtro ' . $letra . ' ' . uniqid()]);
+            $cf = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (1, ?, ?, 1, 0)', [$suc, $cf]);
+            $ids[$letra] = ['cajon' => $cf, 'caja' => (int) DB::scalar('SELECT LAST_INSERT_ID()')];
+        }
+
+        // Un movimiento en cada uno, con montos distintos para poder decir cuál
+        // es cuál.
+        $tipo = (int) DB::scalar('SELECT id_tipo_mov_caja FROM tipo_movimiento_caja WHERE activo = 1 LIMIT 1');
+        foreach (['A' => 1111, 'B' => 2222] as $letra => $monto) {
+            DB::insert("INSERT INTO movimiento_caja (id_caja, tipo, id_tipo_mov_caja, monto, concepto, id_usuario, fecha)
+                        VALUES (?, 'EGRESO', ?, ?, ?, 1, NOW())",
+                [$ids[$letra]['caja'], $tipo, $monto, 'Movimiento ' . $letra]);
+        }
+
+        $montosDe = function (int $cajon): array {
+            $r = $this->get(route('facturacion.movimientos', ['caja' => $cajon]))->assertOk();
+
+            return collect($r->viewData('movimientos'))->map(fn ($m) => (float) $m->monto)->all();
+        };
+
+        // 1) Con el filtro puesto la pantalla ABRE: antes moría con
+        //    «Invalid parameter number» por el marcador repetido.
+        $deA = $montosDe($ids['A']['cajon']);
+        $deB = $montosDe($ids['B']['cajon']);
+
+        // 2) Y cada una muestra lo suyo, no lo de la otra.
+        $this->assertContains(1111.0, $deA, 'La caja A tiene que mostrar su movimiento.');
+        $this->assertNotContains(2222.0, $deA, 'La caja A no puede mostrar los movimientos de la B.');
+        $this->assertContains(2222.0, $deB, 'La caja B tiene que mostrar su movimiento.');
+        $this->assertNotContains(1111.0, $deB, 'La caja B no puede mostrar los movimientos de la A.');
+
+        foreach (['B', 'A'] as $letra) {
+            DB::delete('DELETE FROM movimiento_caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
+            DB::delete('DELETE FROM caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
+            DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$ids[$letra]['cajon']]);
+        }
+    }
 }

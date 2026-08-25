@@ -1697,19 +1697,26 @@ class FacturacionController extends Controller
         $enSuc = 'c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')';
 
         $par = [];
-        $filtros = function (string $campoFecha) use ($f, &$par, $enSuc): string {
+        // **Cada fuente lleva sus PROPIOS marcadores.** La conexión abre PDO
+        // con `ATTR_EMULATE_PREPARES` en `false`, así que MySQL prepara de
+        // verdad y **no admite `:cf` cuatro veces** — con el filtro de caja
+        // puesto, la consulta reventaba con «Invalid parameter number».
+        //
+        // Es el mismo error que el documento del proyecto ya anota, y por eso
+        // el sufijo va por fuente: `:cf_cobro`, `:cf_manual`, …
+        $filtros = function (string $campoFecha, string $suf) use ($f, &$par, $enSuc): string {
             $w = [$enSuc];
             if (Listado::hay($f, 'caja')) {
-                $w[] = 'c.id_caja_fisica = :cf';
-                $par['cf'] = (int) Listado::valor($f, 'caja');
+                $w[] = "c.id_caja_fisica = :cf_$suf";
+                $par["cf_$suf"] = (int) Listado::valor($f, 'caja');
             }
             if (Listado::hay($f, 'desde')) {
-                $w[] = "DATE($campoFecha) >= :d";
-                $par['d'] = Listado::valor($f, 'desde');
+                $w[] = "DATE($campoFecha) >= :d_$suf";
+                $par["d_$suf"] = Listado::valor($f, 'desde');
             }
             if (Listado::hay($f, 'hasta')) {
-                $w[] = "DATE($campoFecha) <= :h";
-                $par['h'] = Listado::valor($f, 'hasta');
+                $w[] = "DATE($campoFecha) <= :h_$suf";
+                $par["h_$suf"] = Listado::valor($f, 'hasta');
             }
 
             return implode(' AND ', $w);
@@ -1718,9 +1725,21 @@ class FacturacionController extends Controller
         $q = Listado::valor($f, 'q');
         $clase = (string) Listado::valor($f, 'clase');
         $como = $q !== '' ? '%' . $q . '%' : null;
-        if ($como !== null) {
-            $par['q'] = $como;
-        }
+
+        // Mismo motivo que arriba: `:q` aparecía en las cuatro y dos veces en
+        // algunas. Cada uso se registra con su nombre propio.
+        $buscar = function (array $campos, string $suf) use ($como, &$par): string {
+            if ($como === null) {
+                return '';
+            }
+            $ors = [];
+            foreach ($campos as $i => $campo) {
+                $par["q{$suf}{$i}"] = $como;
+                $ors[] = "$campo LIKE :q{$suf}{$i}";
+            }
+
+            return ' AND (' . implode(' OR ', $ors) . ')';
+        };
 
         // **Una consulta por fuente, unidas.** Cada una tiene su tabla y su
         // forma de nombrar lo que pasó; forzarlas a un solo JOIN daría filas
@@ -1744,8 +1763,8 @@ class FacturacionController extends Controller
                            LEFT JOIN cliente cl ON cl.id_cliente = COALESCE(ci.id_cliente, fa.id_cliente)
                            LEFT JOIN persona pe ON pe.id_persona = cl.id_persona
                            LEFT JOIN persona pec ON pec.id_persona = cl.id_persona
-                          WHERE co.id_estado_cobro = 1 AND " . $filtros('co.fecha')
-                . ($como !== null ? " AND (pe.nombre LIKE :q OR mp.nombre LIKE :q)" : '');
+                          WHERE co.id_estado_cobro = 1 AND " . $filtros('co.fecha', 'cobro')
+                . $buscar(['pe.nombre', 'mp.nombre'], 'co');
         }
 
         if ($clase === '' || $clase === 'manual') {
@@ -1762,8 +1781,8 @@ class FacturacionController extends Controller
                            LEFT JOIN tipo_movimiento_caja tmc ON tmc.id_tipo_mov_caja = mc.id_tipo_mov_caja
                            LEFT JOIN usuario u ON u.id_usuario = mc.id_usuario
                            LEFT JOIN persona pu ON pu.id_persona = u.id_persona
-                          WHERE " . $filtros('mc.fecha')
-                . ($como !== null ? " AND (mc.concepto LIKE :q OR mc.nro_comprobante LIKE :q)" : '');
+                          WHERE " . $filtros('mc.fecha', 'manual')
+                . $buscar(['mc.concepto', 'mc.nro_comprobante'], 'mc');
         }
 
         if ($clase === '' || $clase === 'prov') {
@@ -1781,8 +1800,8 @@ class FacturacionController extends Controller
                            LEFT JOIN persona ppe ON ppe.id_persona = pr.id_persona
                            LEFT JOIN usuario u ON u.id_usuario = pp.id_usuario
                            LEFT JOIN persona pu ON pu.id_persona = u.id_persona
-                          WHERE pp.id_estado_pago_proveedor = 1 AND " . $filtros('pp.fecha')
-                . ($como !== null ? " AND (ppe.nombre LIKE :q OR pp.referencia LIKE :q)" : '');
+                          WHERE pp.id_estado_pago_proveedor = 1 AND " . $filtros('pp.fecha', 'prov')
+                . $buscar(['ppe.nombre', 'pp.referencia'], 'pp');
         }
 
         if ($clase === '' || $clase === 'pers') {
@@ -1801,8 +1820,8 @@ class FacturacionController extends Controller
                            LEFT JOIN persona ppe ON ppe.id_persona = u.id_persona
                            LEFT JOIN usuario ur ON ur.id_usuario = pl.id_usuario_registro
                            LEFT JOIN persona pur ON pur.id_persona = ur.id_persona
-                          WHERE pl.id_estado_pago = 1 AND " . $filtros('pl.fecha')
-                . ($como !== null ? " AND (ppe.nombre LIKE :q)" : '');
+                          WHERE pl.id_estado_pago = 1 AND " . $filtros('pl.fecha', 'pers')
+                . $buscar(['ppe.nombre'], 'pl');
         }
 
         $union = '(' . implode(') UNION ALL (', $partes) . ')';
