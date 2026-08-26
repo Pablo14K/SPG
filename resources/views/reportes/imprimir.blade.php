@@ -2,25 +2,49 @@
     Informe listo para papel.
 
     No usa el layout general a propósito: sin barra de módulos, sin migas y sin
-    pie, maquetado para hoja A4. El botón abre el diálogo de impresión del
-    navegador, donde se elige «Guardar como PDF». No hay librería de PDF: sería
-    una dependencia más para hacer lo que el navegador ya hace.
+    pie, maquetado para hoja A4. La misma vista sirve para la descarga PDF y
+    para una eventual previsualización en el navegador.
 --}}
+@php
+    $pdf = $pdf ?? false;
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Informe {{ fecha($desde, 'd/m/Y') }} – {{ fecha($hasta, 'd/m/Y') }} · {{ config('app.name') }}</title>
-    @include('layout._favicon')
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
-    <link href="{{ recurso('css/imprimir.css') }}" rel="stylesheet" media="print">
+    @if (! $pdf)
+        @include('layout._favicon')
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
+        <link href="{{ recurso('css/imprimir.css') }}" rel="stylesheet" media="print">
+    @else
+        <style>
+            @page { margin: 24px 28px; }
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #28251f; font-family: DejaVu Sans, sans-serif; font-size: 9px; }
+            .container { width: 100%; max-width: none; padding: 0; }
+            .d-flex { display: flex; }
+            .justify-content-between { justify-content: space-between; }
+            .align-items-start { align-items: flex-start; }
+            .text-end { text-align: right; }
+            .text-muted-warm { color: #746d61; }
+            .table { width: 100%; border-collapse: collapse; margin: 5px 0 13px; }
+            .table th { background: #f1e7c3; color: #382f1e; font-weight: bold; }
+            .table th, .table td { border: 0.5px solid #d8d0c2; padding: 4px 5px; }
+            .table-sm th, .table-sm td { padding: 3px 4px; }
+            h1, h2 { color: #4d3b18; }
+            hr { border: 0; border-top: 1px solid #d8d0c2; margin: 8px 0; }
+            .mt-4 { margin-top: 14px; }
+        </style>
+    @endif
 </head>
 <body class="spg-imprimir">
 
 <div class="container py-3" style="max-width:900px">
 
+    @if (! $pdf)
     <div class="no-imprimir mb-3 d-flex gap-2">
         <button class="btn btn-oro" type="button" onclick="window.print(); return false;">
             <i class="bi bi-printer"></i> Imprimir / guardar PDF
@@ -28,6 +52,7 @@
         <span class="form-text align-self-center">Descargar PDF: elegí «Guardar como PDF» en la ventana de impresión.</span>
         <a class="btn btn-outline-neutro" href="{{ route('reportes.index', request()->query()) }}">Volver</a>
     </div>
+    @endif
 
     <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
@@ -110,7 +135,10 @@
 
     @endif
 
-    @if ($ver("sucursales") && count($porSucursal) > 1)
+    @php
+        $mostrarSucursales = $ver('sucursales') && count($porSucursal) > 1;
+    @endphp
+    @if ($mostrarSucursales)
     <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Por sucursal</h2>
     <table class="table table-sm">
         <thead><tr><th>Sucursal</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>

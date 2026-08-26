@@ -48,8 +48,8 @@
                 <i class="bi bi-file-earmark-spreadsheet"></i> Excel</a>
             <button type="button" class="btn btn-sm btn-outline-neutro"
                     data-bs-toggle="modal" data-bs-target="#modalImprimir"
-                    title="Hoja lista para imprimir o guardar como PDF">
-                <i class="bi bi-file-earmark-pdf"></i> PDF / Imprimir</button>
+                    title="Descargar el informe en PDF">
+                <i class="bi bi-file-earmark-pdf"></i> Descargar PDF</button>
         </div>
     </div>
 
@@ -129,13 +129,13 @@
 
                 <div class="modal-header">
                     <h5 class="modal-title" style="font-size:1rem">
-                        <i class="bi bi-printer"></i> ¿Qué querés imprimir?</h5>
+                        <i class="bi bi-file-earmark-pdf"></i> Descargar informe PDF</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted-warm" style="font-size:.85rem">
                         Sale con el período y los filtros que tenés puestos ahora.
-                        Si no marcás ninguno se imprime el informe entero.
+                        Si no marcás ninguno se descarga el informe entero.
                     </p>
 
                     <div class="form-check mb-2">
@@ -156,7 +156,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                    <button class="btn btn-oro"><i class="bi bi-printer"></i> Ver para imprimir</button>
+                    <button class="btn btn-oro"><i class="bi bi-download"></i> Descargar PDF</button>
                 </div>
             </form>
         </div>

@@ -7,7 +7,9 @@ cd /app
 
 # 1. Las dependencias. El .env está en .gitignore, así que quien clona el
 #    repositorio no lo tiene y `vendor/` tampoco.
-if [ ! -f vendor/autoload.php ]; then
+# Se comprueba también Dompdf: `vendor/` vive en un volumen propio y puede
+# haber sido creado antes de agregar una dependencia nueva al proyecto.
+if [ ! -f vendor/autoload.php ] || [ ! -d vendor/dompdf/dompdf ]; then
     echo "== SPG: instalando dependencias (la primera vez tarda) =="
     composer install --no-interaction --prefer-dist
 fi

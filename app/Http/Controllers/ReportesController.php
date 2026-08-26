@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -103,11 +106,10 @@ class ReportesController extends Controller
     /**
      * Informe listo para papel: sin barra de módulos ni pie, maquetado para A4.
      *
-     * El botón «Imprimir / guardar PDF» abre el diálogo de impresión del navegador,
-     * donde se elige «Guardar como PDF». No hay librería de PDF a propósito:
-     * traería Composer al proyecto sin agregar nada que el navegador no haga.
+     * «Descargar PDF» genera el documento del lado del servidor para que el
+     * navegador lo baje directamente, con los mismos filtros y bloques elegidos.
      */
-    public function imprimir(Request $request): View
+    public function imprimir(Request $request): Response
     {
         $f = $this->rango();
         $datos = $this->datos($f);
@@ -142,8 +144,22 @@ class ReportesController extends Controller
             ? 'Informe completo'
             : implode(' · ', array_map(fn ($b) => self::BLOQUES[$b], $elegidos));
         $datos['ver'] = fn (string $cual) => in_array($cual, $elegidos, true);
+        $datos['pdf'] = true;
 
-        return view('reportes.imprimir', $datos);
+        $html = view('reportes.imprimir', $datos)->render();
+        $opciones = new Options();
+        $opciones->set('defaultFont', 'DejaVu Sans');
+        $opciones->set('isHtml5ParserEnabled', true);
+        $dompdf = new Dompdf($opciones);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="informe_' . $datos['desde'] . '_' . $datos['hasta'] . '.pdf"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
     }
 
     // -----------------------------------------------------------------
@@ -801,8 +817,9 @@ class ReportesController extends Controller
                 .t{font-size:15pt;font-weight:bold;color:#8A6C1E;padding:4px 0}
                 .s{font-size:10pt;color:#555;padding:2px 0}
                 .hoja{page-break-inside:avoid;margin-bottom:12px}
-                .b{background:#C9A84C;border:0;padding:0}
-                .bf{background:#F7F5F2;border:0;padding:0}
+                .grafico{width:220px;min-width:220px;padding:4px 8px}
+                .grafico-fondo{width:200px;height:12px;background:#F1E7C3;border:1px solid #D7C58A}
+                .grafico-barra{height:12px;background:#C9A84C}
             </style></head><body>';
             echo '<div class="t">' . e($titulo) . '</div>';
             if ($filtros) {
@@ -832,7 +849,7 @@ class ReportesController extends Controller
                     }
                 }
                 if ($conBarra) {
-                    echo '<th colspan="10">Gráfico</th>';
+                    echo '<th class="grafico">Proporción</th>';
                 }
                 echo '</tr>';
 
@@ -861,12 +878,15 @@ class ReportesController extends Controller
                             . e($num ? (string) $val : (string) $val) . '</td>';
                     }
                     if ($conBarra) {
-                        // Diez celdas: las llenas son la barra. Redondear hacia
-                        // arriba deja que un valor chiquito igual se vea.
-                        $llenas = $prop === null ? 0 : max(1, (int) ceil($prop * 10));
-                        for ($i = 0; $i < 10; $i++) {
-                            echo '<td class="' . ($i < $llenas ? 'b' : 'bf') . '">&nbsp;</td>';
-                        }
+                        // Una sola celda con una barra proporcional evita que
+                        // Excel estire diez columnas y convierta el gráfico en
+                        // un bloque enorme, como ocurría con la exportación
+                        // anterior.
+                        $proporcion = max(0, min(1, (float) ($prop ?? 0)));
+                        $ancho = round($proporcion * 200, 1);
+                        echo '<td class="grafico"><div class="grafico-fondo">'
+                            . '<div class="grafico-barra" style="width:' . $ancho . 'px">&nbsp;</div>'
+                            . '</div></td>';
                     }
                     echo '</tr>';
                 }

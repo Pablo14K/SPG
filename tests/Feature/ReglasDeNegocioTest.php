@@ -733,8 +733,13 @@ class ReglasDeNegocioTest extends TestCase
                  'es_personal' => true, 'es_cliente' => false, 'tema' => 'oscuro']); $this->conSucursal();
         $this->get(route('panel'))->assertOk()->assertSee('data-tema="oscuro"', false);
 
-        // **El papel no**: un informe impreso en oscuro sería tinta sobre negro.
-        $this->get(route('reportes.imprimir'))->assertOk()->assertDontSee('data-tema="oscuro"', false);
+        // **El PDF no**: se descarga como documento independiente y nunca
+        // arrastra el tema oscuro de la pantalla.
+        $pdf = $this->get(route('reportes.imprimir'));
+        $pdf->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition');
+        $this->assertStringStartsWith('%PDF', $pdf->getContent());
 
         // Y se vuelve al claro sin dejar rastro.
         $this->assertTrue(Sesion::guardarTema($u, 'claro'));
