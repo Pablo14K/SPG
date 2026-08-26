@@ -385,7 +385,7 @@
     <div class="spg-footer-pie">
         <span>© {{ date('Y') }} {{ config('app.name') }} · Luque, Paraguay</span>
         <span class="spg-footer-sep">·</span>
-        <span>Los comprobantes siguen el formato de la SET (Manual Técnico SIFEN v150)</span>
+        <span>Los comprobantes siguen el formato de la DNIT (Manual Técnico SIFEN v150)</span>
     </div>
 </footer>
 

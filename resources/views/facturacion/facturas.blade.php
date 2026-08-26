@@ -4,7 +4,7 @@
 
 @section('contenido')
     <x-encabezado
-        sub="Los comprobantes emitidos. <strong>Anular no es borrar</strong>: la numeración de la SET no puede tener huecos, así que el comprobante anulado sigue apareciendo con su sello."
+        sub="Los comprobantes emitidos. <strong>Anular no es borrar</strong>: la numeración de la DNIT no puede tener huecos, así que el comprobante anulado sigue apareciendo con su sello."
         :accion="['ruta' => 'facturacion.emitir', 't' => 'Emitir factura', 'ic' => 'receipt-cutoff']" />
 
     @if (! $caja)

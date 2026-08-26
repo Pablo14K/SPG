@@ -63,7 +63,7 @@
                     <label class="form-label" for="actividad_cod">Código de actividad</label>
                     <input class="form-control" id="actividad_cod" name="actividad_cod" data-solo="numeros" inputmode="numeric" maxlength="10"
                            value="{{ old('actividad_cod', $actividad['cod']) }}" placeholder="96021">
-                    <div class="form-text">El de la SET, el mismo del RUC.</div>
+                    <div class="form-text">El de la DNIT, el mismo del RUC.</div>
                 </div>
                 <div class="col-md-5">
                     <label class="form-label" for="actividad_desc">Actividad económica</label>

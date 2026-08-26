@@ -63,14 +63,14 @@
                         <label class="form-label" for="medio">Cómo se paga</label>
                         <select class="form-select" id="medio" name="id_metodo_pago" required>
                             @foreach ($medios as $m)
-                                <option value="{{ $m->id_metodo_pago }}"
+                                <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
                                     @selected((int) old('id_metodo_pago', $editar->id_metodo_pago ?? 0) === (int) $m->id_metodo_pago)>
                                     {{ $m->nombre }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-6">
-                        <label class="form-label" for="entidad">Banco o billetera</label>
+                        <label class="form-label" for="entidad" data-medio-label="entidad">Banco o billetera</label>
                         <input class="form-control" id="entidad" name="entidad" required maxlength="80"
                                value="{{ old('entidad', $editar->entidad ?? '') }}"
                                placeholder="Itaú, Ueno, Tigo Money…">
@@ -137,7 +137,7 @@
                         <span class="text-muted-warm">— por si transfiere sin alias</span></div>
                 </div>
 
-                <div class="mb-2">
+                <div class="mb-2" data-medio-campo="titular">
                     <label class="form-label" for="titular">A nombre de</label>
                     <input class="form-control" id="titular" name="titular" required maxlength="120"
                            value="{{ old('titular', $editar->titular ?? '') }}"
@@ -145,13 +145,13 @@
                 </div>
 
                 <div class="row g-2 mb-2">
-                    <div class="col-7">
-                        <label class="form-label" for="numero_cuenta">Número de cuenta</label>
+                    <div class="col-7" data-medio-campo="numero">
+                        <label class="form-label" for="numero_cuenta" data-medio-label="numero">Número de cuenta</label>
                         <input class="form-control" id="numero_cuenta" name="numero_cuenta" required maxlength="40"
                                value="{{ old('numero_cuenta', $editar->numero_cuenta ?? '') }}"
                                placeholder="O el celular, si es billetera">
                     </div>
-                    <div class="col-5">
+                    <div class="col-5" data-medio-campo="tipo-cuenta">
                         <label class="form-label" for="tipo_cuenta">Tipo de cuenta</label>
                         {{-- **Combo y no texto libre**: escrito a mano, «Caja de
                              ahorro», «caja de ahorros» y «C. de ahorro» son la
@@ -167,7 +167,7 @@
                     </div>
                 </div>
 
-                <div class="mb-2">
+                <div class="mb-2" data-medio-campo="documento">
                     <label class="form-label" for="documento">CI o RUC del titular</label>
                     <input class="form-control" id="documento" name="documento" maxlength="20"
                            data-solo="ruc" value="{{ old('documento', $editar->documento ?? '') }}">
@@ -289,4 +289,36 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const medio = document.getElementById('medio');
+    if (!medio) return;
+
+    const entidad = document.getElementById('entidad');
+    const entidadLabel = document.querySelector('[data-medio-label="entidad"]');
+    const numeroLabel = document.querySelector('[data-medio-label="numero"]');
+    const tipoCuenta = document.querySelector('[data-medio-campo="tipo-cuenta"]');
+
+    function actualizarDatos() {
+        const opcion = medio.options[medio.selectedIndex];
+        const tipo = opcion ? opcion.dataset.tipo : '';
+        const billetera = tipo === 'OTRO';
+
+        if (entidadLabel) entidadLabel.textContent = billetera ? 'Billetera o proveedor' : 'Banco';
+        if (entidad) entidad.placeholder = billetera ? 'Tigo Money, Personal Pay…' : 'Itaú, Ueno…';
+        if (numeroLabel) numeroLabel.textContent = billetera ? 'Número de celular o cuenta' : 'Número de cuenta';
+        if (tipoCuenta) {
+            tipoCuenta.classList.toggle('d-none', billetera);
+            const select = tipoCuenta.querySelector('select');
+            if (select && billetera) select.value = '';
+        }
+    }
+
+    medio.addEventListener('change', actualizarDatos);
+    actualizarDatos();
+});
+</script>
+@endpush
 @endsection

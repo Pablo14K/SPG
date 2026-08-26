@@ -526,7 +526,7 @@ class FacturacionController extends Controller
             // `fn_timbrado_vigente` cae al timbrado de otra sede cuando el local
             // no tiene el suyo, y esa caída es deliberada: dejar de facturar
             // sería peor. Pero arrastra dos cosas que no se ven: el
-            // establecimiento impreso —los tres dígitos con los que la SET sabe
+            // establecimiento impreso —los tres dígitos con los que la DNIT sabe
             // de qué local salió el comprobante— dice la sede ajena, y desde la
             // 7.36.3 el cobro deduce su sucursal del timbrado, así que **la
             // plata entra al cajón del otro local**.
@@ -1430,7 +1430,7 @@ class FacturacionController extends Controller
             // en la simulación de 60 días se declararon 70 de 70 facturas y
             // 0 de 5 notas, así que la DNIT seguía viendo la venta original y
             // no su reverso. Un salón que devuelve todos los meses termina
-            // declarando de más ante la SET sin que ninguna pantalla lo diga.
+            // declarando de más ante la DNIT sin que ninguna pantalla lo diga.
             //
             // Va **después** de emitir y no atada a ella, que es la regla de
             // siempre: la nota ya es válida sin la DNIT, así que si el envío
@@ -1518,7 +1518,7 @@ class FacturacionController extends Controller
             $error = 'No se puede cobrar una cita cancelada o marcada como ausente.';
         } elseif ($yaFacturada) {
             // Con comprobante emitido el cobro va contra ÉL, que es donde la
-            // numeración de la SET lo puede rastrear.
+            // numeración de la DNIT lo puede rastrear.
             $error = 'Esa cita ya tiene comprobante emitido: cobralo desde Facturas.';
         } elseif ($monto <= 0) {
             $error = 'Ingresá un monto mayor a cero.';
@@ -2863,7 +2863,7 @@ class FacturacionController extends Controller
     public function timbradoGuardar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_timbrado', 0);
-        // Solo dígitos: se rellena con ceros a la izquierda como pide la SET
+            // Solo dígitos: se rellena con ceros a la izquierda como pide la DNIT
         $nro = preg_replace('/\D/', '', (string) $request->input('nro_timbrado', ''));
         $est = str_pad(preg_replace('/\D/', '', (string) $request->input('establecimiento', '')) ?: '', 3, '0', STR_PAD_LEFT);
         $pun = str_pad(preg_replace('/\D/', '', (string) $request->input('punto_expedicion', '')) ?: '', 3, '0', STR_PAD_LEFT);
@@ -2942,7 +2942,7 @@ class FacturacionController extends Controller
                 flash('Timbrado cargado. Los comprobantes se numerarán ' . $est . '-' . $pun . '-0000001 en adelante.');
             }
         } catch (Throwable) {
-            flash('No se pudo guardar el timbrado. Revisá que los datos cumplan el formato de la SET.', 'error');
+            flash('No se pudo guardar el timbrado. Revisá que los datos cumplan el formato de la DNIT.', 'error');
 
             return $volver->withInput();
         }

@@ -13,13 +13,13 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Informes parametrizados, repartidos en siete pantallas.
+ * Informes parametrizados, repartidos en seis pantallas.
  *
  * **Antes era una sola pantalla con todo adentro**: siete tablas y dos
  * gráficos apilados, 2.600 px de alto, y para mirar una cosa había que pasar
  * por las otras seis. Un informe que muestra todo junto no se lee: se hojea.
  *
- * Ahora hay un **Resumen** —lo que se mira todos los días— y seis informes
+ * Ahora hay un **Resumen** —lo que se mira todos los días— y cinco informes
  * especializados a los que se entra cuando hace falta el detalle. La navegación
  * es de pestañas, que es lo que ya usa el sistema en otros lados y no trae nada
  * nuevo.
@@ -43,11 +43,6 @@ class ReportesController extends Controller
         'ingresos' => ['Ingresos', 'cash-coin', 'De dónde viene la plata'],
         'compras' => ['Compras', 'truck', 'Proveedores y lo que se les debe'],
         'sucursales' => ['Por sucursal', 'shop', 'Los locales, uno al lado del otro'],
-        // **Todo junto, para quien lo quiere de un tirón.** Es lo que había
-        // antes de partir el módulo, y sigue teniendo su lugar: se usa para
-        // leerlo entero de arriba abajo o para llevárselo en una sola planilla.
-        // Lo que cambió es que ya no es la ÚNICA forma de mirarlo.
-        'todos' => ['Todos', 'list-ul', 'Todos los informes, uno abajo del otro'],
     ];
 
     /**
@@ -81,10 +76,8 @@ class ReportesController extends Controller
         // garantiza que el Excel diga lo mismo que se estaba mirando: si se
         // rearmara la consulta, un filtro olvidado bastaría para que no
         // coincidieran y nadie se daría cuenta hasta comparar a mano.
-        // **Sólo Excel.** El CSV bajaba los mismos números sin los gráficos y
-        // sin formato, así que era la versión pobre de lo mismo: dos botones
-        // para una sola necesidad. El `.xls` se abre igual en cualquier
-        // planilla y trae las barras al lado de cada número.
+        // **Sólo Excel.** La planilla se abre igual en cualquier programa de
+        // hojas de cálculo y trae las barras al lado de cada número.
         if ((string) $request->query('export', '') === 'xls') {
             return $this->exportar($seccion, $datos, 'xls');
         }
@@ -110,7 +103,7 @@ class ReportesController extends Controller
     /**
      * Informe listo para papel: sin barra de módulos ni pie, maquetado para A4.
      *
-     * El botón «Descargar PDF» abre el diálogo de impresión del navegador,
+     * El botón «Imprimir / guardar PDF» abre el diálogo de impresión del navegador,
      * donde se elige «Guardar como PDF». No hay librería de PDF a propósito:
      * traería Composer al proyecto sin agregar nada que el navegador no haga.
      */
@@ -761,15 +754,6 @@ class ReportesController extends Controller
                 ['titulo' => 'Cobrado por sucursal', 'cols' => ['Sucursal', 'Total'],
                  'filas' => array_map(fn ($s) => [$s->sucursal, (float) $s->total], $datos['ingresoSucursal'])],
             ],
-            'todos' => array_merge(
-                [$resumen],
-                $this->hojasDe('citas', $datos),
-                [$tServ],
-                $this->hojasDe('equipo', $datos),
-                $this->hojasDe('ingresos', $datos),
-                $this->hojasDe('compras', $datos),
-                $this->hojasDe('sucursales', $datos),
-            ),
             default => [$resumen, $tServ, $tMedios, $tDia],
         };
     }
@@ -801,16 +785,22 @@ class ReportesController extends Controller
             // El BOM es lo que hace que Excel en Windows lea UTF-8; sin él, las
             // ñ y las tildes salen rotas. Es el mismo motivo que en el CSV.
             echo "\xEF\xBB\xBF";
-            echo '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head>';
-            echo '<meta charset="utf-8">';
+            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+                . 'xmlns:x="urn:schemas-microsoft-com:office:excel" '
+                . 'xmlns="http://www.w3.org/TR/REC-html40" lang="es"><head>';
+            echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">';
+            echo '<meta name="ProgId" content="Excel.Sheet">';
             echo '<style>
+                @page{margin:.5in;size:landscape}
                 table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt}
                 th{background:#0D0D0D;color:#C9A84C;font-weight:bold;text-align:left;
-                   border:1px solid #8A6C1E;padding:4px 8px}
-                td{border:1px solid #E0DDD8;padding:3px 8px}
-                td.n{text-align:right}
-                .t{font-size:15pt;font-weight:bold;color:#8A6C1E}
-                .s{font-size:10pt;color:#555}
+                   border:1px solid #8A6C1E;padding:6px 8px;white-space:nowrap}
+                td{border:1px solid #E0DDD8;padding:4px 8px;vertical-align:top}
+                td.n{text-align:right;mso-number-format:"#,##0.00"}
+                td.c{text-align:right;mso-number-format:"[$₲-es-PY] #,##0.00"}
+                .t{font-size:15pt;font-weight:bold;color:#8A6C1E;padding:4px 0}
+                .s{font-size:10pt;color:#555;padding:2px 0}
+                .hoja{page-break-inside:avoid;margin-bottom:12px}
                 .b{background:#C9A84C;border:0;padding:0}
                 .bf{background:#F7F5F2;border:0;padding:0}
             </style></head><body>';
@@ -827,7 +817,7 @@ class ReportesController extends Controller
                     echo '<div class="s">Sin datos para el período seleccionado.</div><br>';
                     continue;
                 }
-                echo '<table><tr>';
+                echo '<div class="hoja"><table><tr>';
                 foreach ($hoja['cols'] as $col) {
                     echo '<th>' . e($col) . '</th>';
                 }
@@ -835,7 +825,7 @@ class ReportesController extends Controller
                 // barra, dibujada con el relleno de las celdas.
                 $conBarra = false;
                 foreach ($hoja['filas'] as $fila) {
-                    foreach ($fila as $celda) {
+                    foreach ($fila as $indice => $celda) {
                         if (is_array($celda)) {
                             $conBarra = true;
                         }
@@ -849,13 +839,25 @@ class ReportesController extends Controller
                 foreach ($hoja['filas'] as $fila) {
                     echo '<tr>';
                     $prop = null;
-                    foreach ($fila as $celda) {
+                    foreach ($fila as $indice => $celda) {
                         $val = is_array($celda) ? $celda[0] : $celda;
                         if (is_array($celda)) {
                             $prop = (float) $celda[1];
                         }
                         $num = is_int($val) || is_float($val);
-                        echo '<td' . ($num ? ' class="n"' : '') . '>'
+                        $clase = '';
+                        if ($num) {
+                            // Los importes se reconocen como moneda y el resto
+                            // de los números como cantidades, evitando que
+                            // Excel los importe como texto.
+                            $columna = mb_strtolower((string) ($hoja['cols'][$indice] ?? ''));
+                            $clase = (str_contains($columna, 'ingreso')
+                                || str_contains($columna, 'total')
+                                || str_contains($columna, 'saldo')
+                                || str_contains($columna, 'generado'))
+                                ? 'c' : 'n';
+                        }
+                        echo '<td' . ($clase ? ' class="' . $clase . '"' : '') . '>'
                             . e($num ? (string) $val : (string) $val) . '</td>';
                     }
                     if ($conBarra) {
@@ -868,7 +870,7 @@ class ReportesController extends Controller
                     }
                     echo '</tr>';
                 }
-                echo '</table><br>';
+                echo '</table></div>';
             }
             echo '</body></html>';
         }, $nombre . '.xls', [

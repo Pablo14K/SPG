@@ -3,7 +3,7 @@
 
     Se piden ANTES de emitir, y no después, por una razón concreta: un rechazo
     de la DNIT por un dato mal cargado **no se reintenta**. El número de
-    comprobante ya se gastó —la numeración de la SET no puede tener huecos—, así
+    comprobante ya se gastó —la numeración de la DNIT no puede tener huecos—, así
     que hay que anular y hacer otro. Todo lo que se pueda comprobar sin salir del
     salón se comprueba en esta pantalla.
 

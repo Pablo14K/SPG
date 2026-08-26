@@ -14,6 +14,14 @@
      tabla que lo muestra todo no se lee, se hojea. --}}
 <x-encabezado sub="Los cajones del salón y cuál está abierto ahora." />
 
+@if ($puedeCrear)
+    <div class="d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-oro" data-bs-toggle="modal" data-bs-target="#modalCajaNueva">
+            <i class="bi bi-plus-circle"></i> Nueva caja
+        </button>
+    </div>
+@endif
+
 <x-filtros :f="$f" />
 
 <div class="spg-panel">
@@ -60,7 +68,7 @@
                                 <div class="t">No hay cajas cargadas</div>
                                 <div class="d">
                                     @if ($puedeCrear)
-                                        Creá una con el formulario de abajo.
+                                        Creá una con el botón «Nueva caja».
                                     @else
                                         Pedile a un Administrador que cargue una: sin caja no se cobra.
                                     @endif
@@ -76,34 +84,40 @@
 
 <x-paginacion :pag="$pag" :f="$f" />
 
-{{-- **Crear una caja es del Administrador, y por eso el formulario está abajo
-     y no arriba.** La pantalla se piensa primero para operar los cajones que
-     existen, no para crearlos: un salón carga los suyos una vez. --}}
 @if ($puedeCrear)
-    <div class="spg-panel mt-3">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-circle"></i> Caja nueva</h2>
-        <form method="post" action="{{ route('facturacion.caja_fisica.guardar') }}"
-              class="d-flex gap-2 align-items-end flex-wrap">
-            @csrf
-            <div>
-                <label class="form-label" for="cf_nombre">Nombre</label>
-                <input class="form-control form-control-sm" id="cf_nombre" name="nombre"
-                       required maxlength="60" placeholder="Caja 2, Mostrador…">
+    <div class="modal fade" id="modalCajaNueva" tabindex="-1" aria-labelledby="modalCajaNuevaTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="modalCajaNuevaTitulo"><i class="bi bi-plus-circle"></i> Caja nueva</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form method="post" action="{{ route('facturacion.caja_fisica.guardar') }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="cf_nombre">Nombre</label>
+                            <input class="form-control" id="cf_nombre" name="nombre" required maxlength="60" placeholder="Caja 2, Mostrador…">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label" for="cf_suc">Sucursal</label>
+                            <select class="form-select" id="cf_suc" name="id_sucursal" required>
+                                @foreach ($sucursales as $s)
+                                    <option value="{{ $s->id_sucursal }}">{{ $s->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <p class="text-muted-warm mb-0 mt-3" style="font-size:.82rem">
+                            Cada caja lleva su propio arqueo y movimientos independientes.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-oro"><i class="bi bi-check2"></i> Crear</button>
+                    </div>
+                </form>
             </div>
-            <div>
-                <label class="form-label" for="cf_suc">Sucursal</label>
-                <select class="form-select form-select-sm" id="cf_suc" name="id_sucursal" required>
-                    @foreach ($sucursales as $s)
-                        <option value="{{ $s->id_sucursal }}">{{ $s->nombre }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <button class="btn btn-sm btn-oro"><i class="bi bi-check2"></i> Crear</button>
-        </form>
-        <p class="text-muted-warm mt-2 mb-0" style="font-size:.82rem">
-            Cada caja lleva su propio arqueo. Dos personas cobrando en el mismo
-            cajón cuentan la misma plata al cerrar, así que conviene una por puesto.
-        </p>
+        </div>
     </div>
 @endif
 @endsection

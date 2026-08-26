@@ -22,7 +22,10 @@
 <div class="container py-3" style="max-width:900px">
 
     <div class="no-imprimir mb-3 d-flex gap-2">
-        <button class="btn btn-oro" onclick="window.print()"><i class="bi bi-printer"></i> Descargar PDF</button>
+        <button class="btn btn-oro" type="button" onclick="window.print(); return false;">
+            <i class="bi bi-printer"></i> Imprimir / guardar PDF
+        </button>
+        <span class="form-text align-self-center">Descargar PDF: elegí «Guardar como PDF» en la ventana de impresión.</span>
         <a class="btn btn-outline-neutro" href="{{ route('reportes.index', request()->query()) }}">Volver</a>
     </div>
 

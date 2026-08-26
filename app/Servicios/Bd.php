@@ -13,7 +13,7 @@ use Throwable;
  *
  * La regla número uno del proyecto es que la lógica de negocio vive en la base
  * de datos: 20 procedimientos, 30 funciones y 17 disparadores que ya validan
- * disponibilidad, numeración de la SET, stock, arqueo de caja y descuentos.
+ * disponibilidad, numeración de la DNIT, stock, arqueo de caja y descuentos.
  * PHP no la reimplementa: la llama. Esta clase es el único lugar que sabe
  * *cómo* se la llama, para que los servicios de arriba se ocupen solo del qué.
  *

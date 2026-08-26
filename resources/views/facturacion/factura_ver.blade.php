@@ -390,7 +390,7 @@
                         </div>
                         <div class="modal-body">
                             <p class="text-muted-warm" style="font-size:.85rem">
-                                El comprobante no se borra: la numeración de la SET no puede tener huecos.
+                                El comprobante no se borra: la numeración de la DNIT no puede tener huecos.
                                 Va a seguir apareciendo en el listado con el sello «Anulada».
                                 Si tiene cobros, hay que anularlos primero.
                             </p>

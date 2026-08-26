@@ -3,7 +3,7 @@
 @section('titulo', 'Timbrados')
 
 @section('contenido')
-    <x-encabezado sub="Numeración de los comprobantes según la SET (Manual Técnico SIFEN v150): timbrado de 8 dígitos, establecimiento y punto de expedición de 3, y correlativo de 7. El número impreso queda <code>001-001-0000001</code>." />
+    <x-encabezado sub="Numeración de los comprobantes según la DNIT (Manual Técnico SIFEN v150): timbrado de 8 dígitos, establecimiento y punto de expedición de 3, y correlativo de 7. El número impreso queda <code>001-001-0000001</code>." />
 
     <div class="row g-3">
         <div class="col-lg-5">

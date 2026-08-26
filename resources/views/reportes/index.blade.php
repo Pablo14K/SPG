@@ -40,9 +40,8 @@
             {{-- **Bajar lo que se está mirando.** Los dos salen del mismo rango
                  y los mismos filtros que la pantalla.
 
-                 **El CSV se fue**: bajaba los mismos números sin los gráficos y
-                 sin formato, o sea la versión pobre de lo mismo. Dos botones
-                 para una sola necesidad hacen elegir sin motivo. --}}
+                 La planilla contiene los mismos números y gráficos que esta
+                 pantalla, para que la descarga no pierda contexto. --}}
             <a class="btn btn-sm btn-outline-neutro"
                href="{{ route('reportes.index', request()->except('export') + ['export' => 'xls']) }}"
                title="Planilla de Excel con los números y los gráficos">

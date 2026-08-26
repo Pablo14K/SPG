@@ -199,7 +199,7 @@ class ConfiguracionController extends Controller
     ];
 
     /**
-     * Los medios que aceptan datos: transferencia, cheque y billetera.
+     * Los medios que aceptan datos: cuentas bancarias y billeteras.
      *
      * **Sale de `metodo_pago` y no de una lista escrita acá**, así que esta
      * pantalla y la del cobro hablan del mismo vocabulario. El efectivo y las
@@ -209,7 +209,7 @@ class ConfiguracionController extends Controller
     {
         return DB::select(
             "SELECT id_metodo_pago, nombre, tipo FROM metodo_pago
-              WHERE activo = 1 AND tipo IN ('BANCO', 'CHEQUE', 'OTRO')
+              WHERE activo = 1 AND tipo IN ('BANCO', 'OTRO')
               ORDER BY id_metodo_pago"
         );
     }
@@ -268,13 +268,20 @@ class ConfiguracionController extends Controller
             ? (int) DB::scalar('SELECT orden FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$id])
             : (int) DB::scalar('SELECT COALESCE(MAX(orden), 0) + 1 FROM dato_pago_sucursal WHERE id_sucursal = ?', [$suc]);
 
-        $medios = array_map(fn ($m) => (int) $m->id_metodo_pago, $this->mediosConDatos());
+        $mediosConDatos = $this->mediosConDatos();
+        $medioTipos = [];
+        foreach ($mediosConDatos as $m) {
+            $medioTipos[(int) $m->id_metodo_pago] = (string) $m->tipo;
+        }
+        $medios = array_keys($medioTipos);
         $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
 
         $error = match (true) {
             ! in_array($suc, $suyas, true) => 'Elegí una sucursal a la que tengas acceso.',
             ! in_array($medio, $medios, true) => 'Elegí cómo se paga.',
-            mb_strlen($entidad) < 2 => 'Escribí el banco o la billetera.',
+            ! in_array($medioTipos[$medio] ?? '', ['BANCO', 'OTRO'], true) => 'Ese tipo de pago no admite datos de cuenta.',
+            mb_strlen($entidad) < 2 => ($medioTipos[$medio] ?? '') === 'BANCO'
+                ? 'Escribí el banco.' : 'Escribí la billetera o proveedor.',
             mb_strlen($titular) < 3 => 'Escribí a nombre de quién está la cuenta.',
             // El número es lo que la clienta va a copiar: sin él, el dato no
             // sirve para nada. Se pide siempre, aunque la columna admita NULL

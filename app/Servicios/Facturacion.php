@@ -19,7 +19,7 @@ use Throwable;
  *    y `fn_factura_saldo` los resta a todos. Por eso el pago mixto no es una
  *    función aparte: es el modelo.
  *
- *  · **Anular no es borrar.** La numeración de la SET no puede tener huecos,
+ *  · **Anular no es borrar.** La numeración de la DNIT no puede tener huecos,
  *    así que los procedimientos solo cambian el estado y el comprobante sigue
  *    apareciendo en el listado, con su sello de anulado.
  */

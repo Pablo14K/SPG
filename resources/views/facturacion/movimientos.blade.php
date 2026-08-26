@@ -196,7 +196,7 @@
                                 {{-- **Sólo se anula lo cargado a mano**, y sólo
                                      mientras su caja siga abierta: un cobro se
                                      anula desde el comprobante, que es donde la
-                                     numeración de la SET lo puede rastrear. --}}
+                                     numeración de la DNIT lo puede rastrear. --}}
                                 @if ($m->clase === 'manual' && $m->activo && $abierta)
                                     <button type="button" class="btn btn-sm btn-outline-neutro"
                                             data-bs-toggle="modal" data-bs-target="#anularMov{{ $m->id_ref }}">

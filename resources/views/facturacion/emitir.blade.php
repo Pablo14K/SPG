@@ -42,7 +42,7 @@
          caída de `fn_timbrado_vigente` existe para que un local sin timbrado
          propio pueda seguir facturando. Pero arrastra dos cosas que no se ven
          en la pantalla y que quien atiende necesita saber: el establecimiento
-         impreso —los tres dígitos con los que la SET identifica el local— va a
+         impreso —los tres dígitos con los que la DNIT identifica el local— va a
          decir la otra sede, y el cobro va a entrar al cajón de esa otra sede,
          porque desde la 7.36.3 la sucursal del cobro se deduce del timbrado.
 
@@ -135,7 +135,7 @@
                                             @endforeach
                                         </select>
                                         <button class="btn btn-sm btn-oro"
-                                                data-confirmar="Se va a emitir el comprobante de {{ $c->cliente }} por {{ money($c->total) }} (antes de descuentos). La numeración de la SET no se puede reusar. ¿Confirmás?">
+                                                data-confirmar="Se va a emitir el comprobante de {{ $c->cliente }} por {{ money($c->total) }} (antes de descuentos). La numeración de la DNIT no se puede reusar. ¿Confirmás?">
                                             <i class="bi bi-receipt-cutoff"></i> Emitir
                                         </button>
                                     </form>
