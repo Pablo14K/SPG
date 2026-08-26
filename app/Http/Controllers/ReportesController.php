@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * gráficos apilados, 2.600 px de alto, y para mirar una cosa había que pasar
  * por las otras seis. Un informe que muestra todo junto no se lee: se hojea.
  *
- * Ahora hay un **Resumen** —lo que se mira todos los días— y cinco informes
+ * Ahora hay un **Resumen** —lo que se mira todos los días—, seis informes
  * especializados a los que se entra cuando hace falta el detalle. La navegación
  * es de pestañas, que es lo que ya usa el sistema en otros lados y no trae nada
  * nuevo.
@@ -46,6 +46,7 @@ class ReportesController extends Controller
         'ingresos' => ['Ingresos', 'cash-coin', 'De dónde viene la plata'],
         'compras' => ['Compras', 'truck', 'Proveedores y lo que se les debe'],
         'sucursales' => ['Por sucursal', 'shop', 'Los locales, uno al lado del otro'],
+        'todos' => ['Todos', 'list-ul', 'Todos los informes, uno abajo del otro'],
     ];
 
     /**
@@ -770,6 +771,15 @@ class ReportesController extends Controller
                 ['titulo' => 'Cobrado por sucursal', 'cols' => ['Sucursal', 'Total'],
                  'filas' => array_map(fn ($s) => [$s->sucursal, (float) $s->total], $datos['ingresoSucursal'])],
             ],
+            'todos' => array_merge(
+                [$resumen],
+                $this->hojasDe('citas', $datos),
+                [$tServ],
+                $this->hojasDe('equipo', $datos),
+                $this->hojasDe('ingresos', $datos),
+                $this->hojasDe('compras', $datos),
+                $this->hojasDe('sucursales', $datos),
+            ),
             default => [$resumen, $tServ, $tMedios, $tDia],
         };
     }
@@ -817,9 +827,10 @@ class ReportesController extends Controller
                 .t{font-size:15pt;font-weight:bold;color:#8A6C1E;padding:4px 0}
                 .s{font-size:10pt;color:#555;padding:2px 0}
                 .hoja{page-break-inside:avoid;margin-bottom:12px}
-                .grafico{width:220px;min-width:220px;padding:4px 8px}
-                .grafico-fondo{width:200px;height:12px;background:#F1E7C3;border:1px solid #D7C58A}
-                .grafico-barra{height:12px;background:#C9A84C}
+                .grafico{width:230px;min-width:230px;padding:5px 8px;vertical-align:middle}
+                .grafico-barra{border-collapse:separate;border-spacing:1px 0;margin:0}
+                .grafico-segmento{width:8px;height:13px;padding:0;border:0}
+                .grafico-leyenda{font-size:9pt;color:#6B5A38;margin-top:3px;text-align:left}
             </style></head><body>';
             echo '<div class="t">' . e($titulo) . '</div>';
             if ($filtros) {
@@ -838,8 +849,8 @@ class ReportesController extends Controller
                 foreach ($hoja['cols'] as $col) {
                     echo '<th>' . e($col) . '</th>';
                 }
-                // La columna del gráfico va al final y ocupa diez celdas: es la
-                // barra, dibujada con el relleno de las celdas.
+                // La columna del gráfico va al final. Se usa una columna
+                // compacta para que los gráficos queden junto a sus números.
                 $conBarra = false;
                 foreach ($hoja['filas'] as $fila) {
                     foreach ($fila as $indice => $celda) {
@@ -849,7 +860,7 @@ class ReportesController extends Controller
                     }
                 }
                 if ($conBarra) {
-                    echo '<th class="grafico">Proporción</th>';
+                    echo '<th class="grafico">Gráfico</th>';
                 }
                 echo '</tr>';
 
@@ -878,15 +889,21 @@ class ReportesController extends Controller
                             . e($num ? (string) $val : (string) $val) . '</td>';
                     }
                     if ($conBarra) {
-                        // Una sola celda con una barra proporcional evita que
-                        // Excel estire diez columnas y convierta el gráfico en
-                        // un bloque enorme, como ocurría con la exportación
-                        // anterior.
+                        // Excel no conserva un <div> con width dentro de un HTML
+                        // disfrazado de XLS. La barra se arma con segmentos de
+                        // celdas: se mantiene visible en Excel, LibreOffice y
+                        // Google Sheets, sin volver al bloque gigante anterior.
                         $proporcion = max(0, min(1, (float) ($prop ?? 0)));
-                        $ancho = round($proporcion * 200, 1);
-                        echo '<td class="grafico"><div class="grafico-fondo">'
-                            . '<div class="grafico-barra" style="width:' . $ancho . 'px">&nbsp;</div>'
-                            . '</div></td>';
+                        $segmentos = 24;
+                        $llenos = (int) round($proporcion * $segmentos);
+                        echo '<td class="grafico"><table class="grafico-barra" cellspacing="0" cellpadding="0"><tr>';
+                        for ($i = 0; $i < $segmentos; $i++) {
+                            $color = $i < $llenos ? '#C9A84C' : '#F1E7C3';
+                            echo '<td class="grafico-segmento" bgcolor="' . $color . '" style="background-color:' . $color
+                                . ';width:8px;height:13px">&nbsp;</td>';
+                        }
+                        echo '</tr></table><div class="grafico-leyenda">'
+                            . e(number_format($proporcion * 100, 1, ',', '.')) . '%</div></td>';
                     }
                     echo '</tr>';
                 }

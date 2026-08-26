@@ -346,6 +346,30 @@ class AccesoTest extends TestCase
     }
 
     #[Test]
+    public function reportes_conserva_todos_y_los_graficos_en_excel(): void
+    {
+        $this->entrarComo(self::ADMIN, self::CLAVE);
+
+        $this->get(route('reportes.index', ['r' => 'todos']))
+            ->assertOk()
+            ->assertSee('Todos los informes, uno abajo del otro')
+            ->assertSee('ver aparte');
+
+        // El XLS es HTML compatible con Excel: los gráficos se construyen con
+        // segmentos de celdas porque Excel no conserva un div con width.
+        $archivo = $this->get(route('reportes.index', ['r' => 'servicios', 'export' => 'xls']))
+            ->assertOk()
+            ->assertDownload();
+        $contenido = $archivo->streamedContent();
+
+        $this->assertStringContainsString('grafico-segmento', $contenido,
+            'El Excel tiene que conservar segmentos visibles para cada gráfico.');
+        $this->assertStringContainsString('Gráfico', $contenido);
+        $this->assertStringNotContainsString('grafico-fondo', $contenido,
+            'No debe volver el bloque único que Excel ignoraba.');
+    }
+
+    #[Test]
     public function un_formato_de_exportacion_inventado_muestra_la_pantalla(): void
     {
         // `?export=xlsx` no tiene que bajar nada ni reventar: se ignora y se
