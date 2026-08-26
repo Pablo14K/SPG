@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Servicios\Auditoria;
 use App\Servicios\Asistencia;
+use App\Servicios\CitasVencidas;
 use App\Servicios\Notificaciones;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -36,23 +36,11 @@ class DespacharNotificaciones extends Command
      */
     private const GRACIA_MIN = 30;
 
-    /**
-     * Cuántas horas atrasada antes de darla por ausente.
-     *
-     * **Es el día siguiente, no el mismo día.** Atrasada quiere decir «se hizo
-     * la hora y nadie tocó nada», y eso durante la jornada es una situación
-     * real: la clienta viene tarde, quien atiende está ocupada, se marca
-     * después. Pasado un día entero ya no queda ninguna lectura razonable —
-     * o no vino, o el salón se olvidó de cerrarla— y en las dos la cita ya no
-     * está pasando.
-     */
-    private const AUSENTE_HS = 24;
-
     public function handle(): int
     {
         $asistencias = Asistencia::marcarEntradasVencidas();
+        $ausentes = CitasVencidas::cerrarPendientes();
         $atrasadas = $this->marcarAtrasadas();
-        $ausentes = $this->cerrarAtrasadasViejas();
         $nuevos = Notificaciones::generarRecordatorios();
         $cerrados = Notificaciones::cerrarInternas();
         // Las reservas que pedían seña y nadie confirmó a tiempo: el horario se
@@ -62,7 +50,7 @@ class DespacharNotificaciones extends Command
 
         $this->line("  citas marcadas atrasadas: $atrasadas");
         $this->line("  entradas fuera de tolerancia marcadas ausentes: $asistencias");
-        $this->line("  atrasadas cerradas como ausente: $ausentes");
+        $this->line("  citas pendientes de más de 24 horas cerradas como ausente: $ausentes");
         $this->line("  recordatorios nuevos: $nuevos");
         $this->line("  avisos internos cerrados: $cerrados");
         $this->line("  reservas soltadas por seña sin confirmar: $sinSena");
@@ -106,44 +94,4 @@ class DespacharNotificaciones extends Command
         );
     }
 
-    /**
-     * Cierra como Ausente lo que quedó atrasado más de un día.
-     *
-     * **Atrasada es un estado de paso, y estaba quedando permanente.** Bloquea
-     * la agenda a propósito —el sillón sigue comprometido hasta que alguien la
-     * atienda o la dé por ausente— pero eso vale mientras la cita todavía
-     * pueda ocurrir. Se midieron citas con **más de 800 horas** ahí adentro:
-     * el profesional se olvidó de cerrarlas y nadie volvió a mirarlas.
-     *
-     * Lo que arrastra es peor que el número feo: cada una sigue contando como
-     * cita viva en el panel, en «Clientes atrasados» y en los informes, así
-     * que el porcentaje de asistencia sale mal y el salón decide con eso.
-     *
-     * **Esto NO contradice «la asistencia no es automática».** Esa regla es
-     * sobre el mismo día, cuando marcar ausente sola sería inventar un hecho
-     * que todavía puede desmentirse. Pasado un día entero el hecho ya está:
-     * esa cita no se atendió. Lo único que hace el sistema es dejar de
-     * anunciarla como pendiente.
-     *
-     * Queda en auditoría a nombre del profesional de la cita, para que se
-     * distinga de una que alguien cerró a mano.
-     */
-    private function cerrarAtrasadasViejas(): int
-    {
-        $viejas = DB::select(
-            'SELECT id_cita, id_usuario, fecha_hora FROM cita
-              WHERE id_estado_cita = 7
-                AND fecha_hora < DATE_SUB(NOW(), INTERVAL ? HOUR)',
-            [self::AUSENTE_HS]
-        );
-
-        foreach ($viejas as $c) {
-            DB::update('UPDATE cita SET id_estado_cita = 6 WHERE id_cita = ?', [$c->id_cita]);
-            Auditoria::registrarComo((int) $c->id_usuario, 'AUSENCIA', 'Citas', 'cita', (int) $c->id_cita,
-                'El sistema la cerró como ausente: quedó atrasada más de '
-                . self::AUSENTE_HS . ' horas sin que nadie la atendiera ni la marcara.');
-        }
-
-        return count($viejas);
-    }
 }

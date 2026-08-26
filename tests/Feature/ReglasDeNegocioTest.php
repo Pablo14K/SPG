@@ -4310,32 +4310,35 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
-     * Una cita atrasada más de un día se cierra sola como ausente.
+     * Una cita pendiente más de un día se cierra sola como ausente.
      *
-     * **Atrasada es un estado de paso y estaba quedando permanente.** Bloquea
-     * la agenda a propósito, pero eso vale mientras la cita todavía pueda
-     * ocurrir: se midieron citas con más de 800 horas ahí adentro, contando
-     * como vivas en el panel y torciendo el porcentaje de asistencia.
+     * **Atrasada es un estado de paso y una cita que sigue Programada o
+     * Reprogramada tampoco puede quedar permanente.** Bloquea la agenda a
+     * propósito, pero eso vale mientras la cita todavía pueda ocurrir: se
+     * midieron citas con más de 800 horas ahí adentro, contando como vivas en
+     * el panel y torciendo el porcentaje de asistencia.
      *
-     * Se comprueban las DOS mitades, que es lo que hace que la prueba mida
-     * algo: **la de hace dos horas NO se toca** —todavía puede atenderse— y
-     * **la de hace dos días sí**. Con una sola, un comando que cerrara todo
-     * pasaría igual.
+     * Se comprueban las dos mitades y la reprogramación, que es lo que hace
+     * que la prueba mida algo: **la de hace dos horas NO se toca** —todavía
+     * puede atenderse—, las tres pendientes de hace dos días sí, y **la
+     * reprogramada para el futuro NO se toca**. Esta última garantiza que el
+     * contador de 24 horas empiece de nuevo con la fecha elegida al
+     * reprogramar.
      */
     #[Test]
-    public function la_cita_atrasada_mas_de_un_dia_se_cierra_como_ausente(): void
+    public function las_citas_pendientes_mas_de_un_dia_se_cierran_como_ausentes(): void
     {
         $srv = DB::selectOne('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
-        $cli = DB::selectOne('SELECT id_cliente FROM cliente LIMIT 1');
+        $clientes = DB::select('SELECT id_cliente FROM cliente ORDER BY id_cliente LIMIT 4');
         $usr = DB::selectOne('SELECT id_usuario FROM usuario WHERE activo = 1 LIMIT 1');
         $suc = DB::selectOne('SELECT id_sucursal FROM sucursal WHERE activo = 1 LIMIT 1');
 
-        // Dos citas atrasadas: una de recién, otra de anteayer.
-        $crear = function (string $cuando) use ($cli, $usr, $suc, $srv): int {
+        // Pendientes en los tres estados que pueden quedar abiertos.
+        $crear = function (int $cliente, string $cuando, int $estado) use ($usr, $suc, $srv): int {
             DB::insert(
                 'INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
-                 VALUES (?, ?, ?, ?, 7)',
-                [$cli->id_cliente, $usr->id_usuario, $suc->id_sucursal, $cuando]
+                  VALUES (?, ?, ?, ?, ?)',
+                 [$cliente, $usr->id_usuario, $suc->id_sucursal, $cuando, $estado]
             );
             $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
             DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?, ?)',
@@ -4344,8 +4347,10 @@ class ReglasDeNegocioTest extends TestCase
             return $id;
         };
 
-        $reciente = $crear(date('Y-m-d H:i:s', strtotime('-2 hours')));
-        $vieja = $crear(date('Y-m-d H:i:s', strtotime('-2 days')));
+        $reciente = $crear((int) $clientes[0]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 hours')), 7);
+        $programada = $crear((int) $clientes[1]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 days')), 1);
+        $reprogramada = $crear((int) $clientes[2]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 days')), 2);
+        $reprogramadaFutura = $crear((int) $clientes[3]->id_cliente, date('Y-m-d H:i:s', strtotime('+2 hours')), 2);
 
         $this->artisan('spg:notificaciones', ['--max' => 0]);
 
@@ -4354,8 +4359,12 @@ class ReglasDeNegocioTest extends TestCase
 
         $this->assertSame(7, $estado($reciente),
             'La atrasada de hace dos horas todavía se puede atender: el sistema no decide por nadie.');
-        $this->assertSame(6, $estado($vieja),
-            'La atrasada de hace dos días tiene que cerrarse sola: si no, bloquea la agenda para siempre.');
+        $this->assertSame(6, $estado($programada),
+            'Una cita que sigue programada dos días después tiene que cerrarse sola como ausente.');
+        $this->assertSame(6, $estado($reprogramada),
+            'Una cita reprogramada cuya nueva fecha ya pasó hace dos días tiene que cerrarse como ausente.');
+        $this->assertSame(2, $estado($reprogramadaFutura),
+            'Reprogramar al futuro reinicia el plazo: la cita no se puede cerrar antes de su nueva fecha.');
     }
 
     /**

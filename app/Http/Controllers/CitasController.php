@@ -11,6 +11,7 @@ use App\Servicios\Bd;
 use App\Servicios\Borrador;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
+use App\Servicios\CitasVencidas;
 use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -101,6 +102,10 @@ class CitasController extends Controller
 
     public function agenda(Request $request): View
     {
+        // Punto de recuperación si el scheduler estuvo detenido: una cita que
+        // ya pasó 24 horas no puede seguir Programada al día siguiente. Como
+        // se consulta la fecha vigente, reprogramar reinicia el contador.
+        CitasVencidas::cerrarPendientes();
         Asistencia::marcarEntradasVencidas();
         $dia = (string) $request->query('dia', date('Y-m-d'));
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $dia) || ! strtotime($dia)) {
