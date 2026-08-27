@@ -7,7 +7,7 @@
 # queda disponible para instalar un salón desde cero:
 #
 #   peluqueria_bd    esquema al día, catálogo demo y cuentas de acceso
-#   peluqueria_test  operación cargada: 172 citas, 63 facturas y 33 clientas
+#   peluqueria_test  operación cargada: 172 citas, 62 facturas y 33 clientas
 #
 # Ninguno de los dos .sql lleva CREATE DATABASE ni USE adentro, así que respetan
 # el nombre que se les pasa acá y no se pisan entre sí.
