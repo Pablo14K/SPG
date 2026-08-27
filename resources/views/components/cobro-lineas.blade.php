@@ -12,9 +12,38 @@
     · $max     lo máximo que se puede cobrar acá
     · $sugerido el monto que viene propuesto (por defecto, todo lo que falta)
     · $metodos los medios de pago activos
+    · $cajas   las cajas abiertas del local, para elegir a cuál entra la plata
 --}}
+@php $cajasAbiertas = $cajas ?? \App\Servicios\Caja::abiertasDe(); @endphp
                             <div class="spg-cobro" data-saldo="{{ (float) $max }}"
                                      data-sugerido="{{ (float) ($sugerido ?? $max) }}">
+                                {{-- **A qué caja entra la plata.** Con dos cajones
+                                     abiertos en el mismo local, dejar que el sistema
+                                     elija manda el cobro al arqueo de otra persona y
+                                     nada lo dice — quien cuenta al cerrar se encuentra
+                                     con plata que no cobró, o le falta la que sí.
+
+                                     **Con una sola no se pregunta**: la respuesta sería
+                                     una y hacer elegir es hacer perder un clic. --}}
+                                @if (count($cajasAbiertas) > 1)
+                                    <div class="mb-3">
+                                        <label class="form-label" for="cajaCobro{{ $uid }}">
+                                            ¿A qué caja entra?</label>
+                                        <select class="form-select form-select-sm" name="id_caja"
+                                                id="cajaCobro{{ $uid }}" required>
+                                            @foreach ($cajasAbiertas as $ca)
+                                                <option value="{{ $ca->id_caja }}" @selected($ca->es_mia)>
+                                                    {{ $ca->nombre }}
+                                                    @if ($ca->responsable) · {{ $ca->responsable }}@endif
+                                                    @if ($ca->es_mia) · la tuya @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @elseif (count($cajasAbiertas) === 1)
+                                    <input type="hidden" name="id_caja" value="{{ $cajasAbiertas[0]->id_caja }}">
+                                @endif
+
                                 <div class="spg-cobro-lineas"></div>
 
                                 {{-- El aire de arriba no es adorno: las líneas se van

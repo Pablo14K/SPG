@@ -296,13 +296,24 @@ class ReportesController extends Controller
         $joinCita = 'FROM cita c
                      JOIN usuario u  ON u.id_usuario = c.id_usuario
                      JOIN persona pe ON pe.id_persona = u.id_persona
+                     JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
                      WHERE ' . implode(' AND ', $wCita);
 
+        // **Las citas que todavía no ocurrieron se cuentan aparte.**
+        // Sin eso, un informe del mes en curso mostraba «100 citas, 20
+        // atendidas, 7 canceladas» y dejaba 73 sin explicar: quien lo lee
+        // supone que algo se perdió, cuando lo que pasa es que todavía no
+        // llegaron.
         $citas = DB::selectOne(
             "SELECT COUNT(*) total,
                     SUM(c.id_estado_cita = 4) atendidas,
                     SUM(c.id_estado_cita = 3) canceladas,
-                    SUM(c.id_estado_cita = 6) ausencias
+                    SUM(c.id_estado_cita = 6) ausencias,
+                    -- Pendiente es la que sigue ocupando la agenda: programada,
+                    -- reprogramada, atrasada o en proceso. Sale de
+                    -- `bloquea_agenda` y no de una lista de ids escrita a mano,
+                    -- que es como el panel se quedó corto en la 7.52.1.
+                    SUM(ec.bloquea_agenda = 1) pendientes
                $joinCita", $par
         );
 
@@ -373,6 +384,11 @@ class ReportesController extends Controller
         );
 
         $atendidas = (int) $citas->atendidas;
+
+        // Las que ya se resolvieron: atendidas, canceladas y ausentes. Es el
+        // denominador honesto de la asistencia — las pendientes todavía pueden
+        // terminar de cualquiera de las tres formas.
+        $cerradas = $atendidas + (int) $citas->canceladas + (int) $citas->ausencias;
         $totalCitas = (int) $citas->total;
 
         // --- Demanda ---
@@ -540,9 +556,14 @@ class ReportesController extends Controller
             // que no pueden contradecirlos. Con cero citas no se muestran: un
             // «0 %» de asistencia sobre un período sin citas dice algo que no
             // pasó.
-            'pctAsistencia' => $totalCitas > 0 ? $atendidas * 100 / $totalCitas : null,
-            'pctCancelacion' => $totalCitas > 0 ? (int) $citas->canceladas * 100 / $totalCitas : null,
-            'pctAusencia' => $totalCitas > 0 ? (int) $citas->ausencias * 100 / $totalCitas : null,
+            // **La asistencia se mide sobre las citas que YA ocurrieron.**
+            // Contra el total, un informe del mes en curso decía «20 % de
+            // asistencia» sólo porque 73 citas todavía no llegaron — y con ese
+            // número el salón decide.
+            'cerradas' => $cerradas,
+            'pctAsistencia' => $cerradas > 0 ? $atendidas * 100 / $cerradas : null,
+            'pctCancelacion' => $cerradas > 0 ? (int) $citas->canceladas * 100 / $cerradas : null,
+            'pctAusencia' => $cerradas > 0 ? (int) $citas->ausencias * 100 / $cerradas : null,
 
             'servicios' => $servicios,
             'totalServicios' => $totalServicios,
@@ -656,23 +677,36 @@ class ReportesController extends Controller
         $dias = [1 => 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         $c = $datos['citas'];
 
+        // **Las cifras de citas suman el total.** Sin «Pendientes», un informe
+        // del mes en curso mostraba 100 citas con 20 atendidas y 7 canceladas, y
+        // dejaba 73 sin explicar.
         $resumen = ['titulo' => 'Resumen del período', 'cols' => ['Indicador', 'Valor'], 'filas' => [
             ['Citas del período', (int) $c->total],
             ['Atendidas', (int) $c->atendidas],
+            ['Pendientes (todavía sin ocurrir)', (int) $c->pendientes],
             ['Canceladas', (int) $c->canceladas],
             ['No vino la clienta', (int) $c->ausencias],
             ['Ingresos cobrados', (float) $datos['ingresos']],
             ['Devuelto (notas de crédito)', (float) $datos['devoluciones']],
             ['Ingreso neto', (float) $datos['ingresos'] - (float) $datos['devoluciones']],
-            ['Ticket promedio', (float) $datos['ticket']],
+            ['Ticket promedio cobrado', (float) $datos['ticket']],
         ]];
         if ($datos['pctAsistencia'] !== null) {
-            $resumen['filas'][] = ['Asistencia', round((float) $datos['pctAsistencia'], 1) . ' %'];
-            $resumen['filas'][] = ['Cancelación', round((float) $datos['pctCancelacion'], 1) . ' %'];
+            // **Sobre las citas que YA ocurrieron**, no sobre el total: contra
+            // el total, un mes en curso da «20 % de asistencia» sólo porque
+            // faltan citas por pasar.
+            $resumen['filas'][] = ['Asistencia (de las ya ocurridas)',
+                round((float) $datos['pctAsistencia'], 1) . ' %'];
+            $resumen['filas'][] = ['Cancelación (de las ya ocurridas)',
+                round((float) $datos['pctCancelacion'], 1) . ' %'];
         }
 
-        $tServ = ['titulo' => 'Servicios más solicitados',
-                  'cols' => ['Servicio', 'Categoría', 'Veces', '% del total', 'Ingreso generado'],
+        // **«% del total» no decía de qué total.** Se calcula sobre los
+        // servicios realizados, no sobre las citas — una cita puede llevar
+        // varios— así que «7 de 28 servicios» se leía como «7 de las 20 citas».
+        $tServ = ['titulo' => 'Servicios realizados',
+                  'grafico' => '% de los servicios',
+                  'cols' => ['Servicio', 'Categoría', 'Veces', '% de los servicios', 'Facturado'],
                   'filas' => array_map(function ($s) use ($datos) {
                       $t = max(1, (int) $datos['totalServicios']);
 
@@ -683,6 +717,7 @@ class ReportesController extends Controller
                   }, $datos['servicios'])];
 
         $tMedios = ['titulo' => 'Medios de pago',
+                    'grafico' => '% de lo cobrado',
                     'cols' => ['Medio', 'Tipo', 'Cobros', 'Total'],
                     'filas' => array_map(function ($m) use ($datos) {
                         $t = max(0.01, (float) $datos['ingresos']);
@@ -691,7 +726,10 @@ class ReportesController extends Controller
                                 [(float) $m->total, (float) $m->total / $t]];
                     }, $datos['medios'])];
 
+        // La barra compara contra el día MÁS cargado, no contra el total: es
+        // «qué tan lleno está respecto del pico», y el rótulo lo dice.
         $tDia = ['titulo' => 'Demanda por día',
+                 'grafico' => 'Comparado con el día más cargado',
                  'cols' => ['Día', 'Citas', 'Atendidas', 'No vino'],
                  'filas' => array_map(function ($x) use ($datos, $dias) {
                      $t = max(1, (int) $datos['maxDemandaDia']);
@@ -702,6 +740,7 @@ class ReportesController extends Controller
                  }, $datos['demandaDia'])];
 
         $tHora = ['titulo' => 'Demanda por hora',
+                  'grafico' => 'Comparado con la hora más cargada',
                   'cols' => ['Hora', 'Citas', 'Atendidas', 'No vino'],
                   'filas' => array_map(function ($x) use ($datos) {
                       $t = max(1, (int) $datos['maxDemanda']);
@@ -718,9 +757,13 @@ class ReportesController extends Controller
                 $tDia, $tHora,
             ],
             'servicios' => [$tServ],
+            // **«Faltó» es del PROFESIONAL y «Generado» es FACTURADO.** Con
+            // los nombres cortos convivían con «No vino la clienta» y con los
+            // ingresos cobrados, y se leían como lo mismo.
             'equipo' => [['titulo' => 'El equipo',
+                'grafico' => 'Comparado con quien más facturó',
                 'cols' => ['Profesional', 'Citas', 'Atendidas', 'No vino la clienta', 'Canceladas',
-                           'Faltó', 'Servicios', 'Generado', 'Comisión', 'Puntaje'],
+                           'Ausencias del profesional', 'Servicios', 'Facturado', 'Comisión', 'Puntaje'],
                 'filas' => array_map(function ($e) use ($datos) {
                     $maxGen = 0.0;
                     foreach ($datos['equipo'] as $x) {
@@ -738,7 +781,7 @@ class ReportesController extends Controller
             'ingresos' => [$tMedios, $tServ,
                 ['titulo' => 'Cobrado por día', 'cols' => ['Día', 'Total'],
                  'filas' => array_map(fn ($x) => [fecha($x->dia, 'd/m/Y'), (float) $x->total], $datos['ingresoDia'])],
-                ['titulo' => 'Generado por profesional', 'cols' => ['Profesional', 'Servicios', 'Generado'],
+                ['titulo' => 'Facturado por profesional', 'cols' => ['Profesional', 'Servicios', 'Facturado'],
                  'filas' => array_map(fn ($e) => [$e->profesional, (int) $e->servicios, (float) $e->generado],
                      $datos['equipo'])]],
             'compras' => [
@@ -757,6 +800,7 @@ class ReportesController extends Controller
             ],
             'sucursales' => [
                 ['titulo' => 'Por sucursal',
+                 'grafico' => 'Comparado con la sucursal con más citas',
                  'cols' => ['Sucursal', 'Citas', 'Atendidas', 'Canceladas', 'No vino', 'Clientas', 'Servicios'],
                  'filas' => array_map(function ($s) use ($datos) {
                      $maxC = 0;
@@ -860,7 +904,12 @@ class ReportesController extends Controller
                     }
                 }
                 if ($conBarra) {
-                    echo '<th class="grafico">Gráfico</th>';
+                    // **«Gráfico» no decía qué mide.** Cada tabla declara su
+                    // rótulo, porque la barra compara contra cosas distintas: en
+                    // servicios es el % del total, en demanda es contra el día
+                    // más cargado. Sin el nombre, el mismo dibujo se leía como
+                    // el mismo número.
+                    echo '<th class="grafico">' . e($hoja['grafico'] ?? 'Gráfico') . '</th>';
                 }
                 echo '</tr>';
 
@@ -882,7 +931,9 @@ class ReportesController extends Controller
                             $clase = (str_contains($columna, 'ingreso')
                                 || str_contains($columna, 'total')
                                 || str_contains($columna, 'saldo')
-                                || str_contains($columna, 'generado'))
+                                || str_contains($columna, 'generado')
+                                || str_contains($columna, 'facturado')
+                                || str_contains($columna, 'comisi'))
                                 ? 'c' : 'n';
                         }
                         echo '<td' . ($clase ? ' class="' . $clase . '"' : '') . '>'

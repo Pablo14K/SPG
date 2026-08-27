@@ -1,7 +1,8 @@
 {{-- **Servicios: qué se hace más y cuánto deja.**
 
      El resumen muestra los ocho primeros; acá va el catálogo entero con el
-     porcentaje sobre el total, que es lo que permite decir «la mitad de lo que
+     porcentaje sobre el total de SERVICIOS realizados —no sobre las citas,
+     que pueden llevar varios—, que es lo que permite decir «la mitad de lo que
      hacemos son cortes» sin sacar la cuenta a mano. --}}
 @if ($servicios)
     <div class="spg-panel">
@@ -13,8 +14,12 @@
                         <th>Servicio</th><th>Categoría</th>
                         <th class="text-end">Veces</th>
                         <th style="width:22%">Participación</th>
-                        <th class="text-end">%</th>
-                        <th class="text-end">Ingreso generado</th>
+                        {{-- **El porcentaje es sobre los SERVICIOS, no sobre las
+                             citas.** Una cita puede llevar varios, así que «7 de
+                             28 servicios» con el rótulo corto se leía como «7 de
+                             las 20 citas». --}}
+                        <th class="text-end">% de los servicios</th>
+                        <th class="text-end">Facturado</th>
                     </tr>
                 </thead>
                 <tbody>

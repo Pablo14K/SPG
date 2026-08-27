@@ -1,13 +1,13 @@
--- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
+-- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
 --
--- Host: 127.0.0.1    Database: peluqueria_test
+-- Host: localhost    Database: peluqueria_test
 -- ------------------------------------------------------
--- Server version	5.5.5-10.4.32-MariaDB
+-- Server version	10.4.32-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -21,7 +21,7 @@
 
 DROP TABLE IF EXISTS `asistencia`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `asistencia` (
   `id_asistencia` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_turno` int(10) unsigned NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE `asistencia` (
   CONSTRAINT `fk_asistencia_turno` FOREIGN KEY (`id_turno`) REFERENCES `turno_laboral` (`id_turno`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_asistencia_usuario` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_asistencia_extras` CHECK (`horas_extras` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=404 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=813 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -61,7 +61,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `auditoria`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `auditoria` (
   `id_auditoria` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE `auditoria` (
   KEY `fk_auditoria_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_aud_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_auditoria_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`)
-) ENGINE=InnoDB AUTO_INCREMENT=8206 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12081 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -98,7 +98,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `ausencia_agenda`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `ausencia_agenda` (
   `id_ausencia` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned DEFAULT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE `ausencia_agenda` (
   CONSTRAINT `fk_ausencia_tipo` FOREIGN KEY (`id_tipo_ausencia`) REFERENCES `tipo_ausencia` (`id_tipo_ausencia`) ON UPDATE CASCADE,
   CONSTRAINT `fk_ausencia_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ausencia_rango` CHECK (`fecha_fin` > `fecha_inicio`)
-) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=204 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -135,7 +135,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `caja`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `caja` (
   `id_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -163,7 +163,7 @@ CREATE TABLE `caja` (
   CONSTRAINT `fk_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_caja_inicial` CHECK (`monto_inicial` >= 0),
   CONSTRAINT `chk_caja_contado` CHECK (`monto_contado` is null or `monto_contado` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=1408 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1660 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -210,7 +210,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `caja_fisica`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `caja_fisica` (
   `id_caja_fisica` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -221,7 +221,7 @@ CREATE TABLE `caja_fisica` (
   KEY `idx_cf_sucursal` (`id_sucursal`,`activo`),
   CONSTRAINT `fk_cf_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_cf_nombre` CHECK (char_length(trim(`nombre`)) >= 2)
-) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=277 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -240,7 +240,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `calificacion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `calificacion` (
   `id_calificacion` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -270,7 +270,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `canje`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `canje` (
   `id_canje` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
@@ -287,7 +287,7 @@ CREATE TABLE `canje` (
   CONSTRAINT `fk_canje_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`),
   CONSTRAINT `fk_canje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_canje_puntos` CHECK (`puntos` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=614 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=666 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -305,7 +305,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `canjeable_sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `canjeable_sucursal` (
   `id_servicio_canjeable` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -332,7 +332,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `categoria_producto`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `categoria_producto` (
   `id_categoria` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -357,7 +357,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `categoria_servicio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `categoria_servicio` (
   `id_categoria_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -382,7 +382,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `cita`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cita` (
   `id_cita` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
@@ -407,7 +407,7 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cita_personas` CHECK (`personas` >= 1 and `personas` <= 20),
   CONSTRAINT `chk_cita_para` CHECK (`para_otra_persona` = 0 or `nombre_para` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=3173 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3518 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -468,7 +468,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `cita_pedido`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cita_pedido` (
   `id_pedido` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -496,7 +496,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `cita_servicio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cita_servicio` (
   `id_cita_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -510,7 +510,7 @@ CREATE TABLE `cita_servicio` (
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3633 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3998 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -578,7 +578,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `cliente`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cliente` (
   `id_cliente` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned DEFAULT NULL,
@@ -610,7 +610,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `cobro`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cobro` (
   `id_cobro` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_factura` int(10) unsigned DEFAULT NULL,
@@ -639,7 +639,7 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=1051 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1158 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -681,7 +681,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `cobro_banco`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cobro_banco` (
   `id_cobro_banco` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cobro` int(10) unsigned NOT NULL,
@@ -737,7 +737,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `cobro_tarjeta`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cobro_tarjeta` (
   `id_cobro_tarjeta` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cobro` int(10) unsigned NOT NULL,
@@ -796,7 +796,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `comision`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `comision` (
   `id_comision` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -815,7 +815,7 @@ CREATE TABLE `comision` (
   CONSTRAINT `fk_comision_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_comision_tipo` CHECK (`tipo` in ('PORCENTAJE','MONTO')),
   CONSTRAINT `chk_comision_valor` CHECK (`valor` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=206 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -834,7 +834,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `compra`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `compra` (
   `id_compra` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_proveedor` int(10) unsigned NOT NULL,
@@ -876,7 +876,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `compra_cuota`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `compra_cuota` (
   `id_compra_cuota` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_compra` int(10) unsigned NOT NULL,
@@ -907,7 +907,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `condicion_venta`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `condicion_venta` (
   `id_condicion_venta` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -935,7 +935,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `configuracion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `configuracion` (
   `id_configuracion` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `nombre_salon` varchar(60) NOT NULL DEFAULT 'Peluquería Luque',
@@ -967,7 +967,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `contacto_soporte`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `contacto_soporte` (
   `id_contacto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `canal` varchar(20) NOT NULL,
@@ -995,7 +995,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `credencial_webauthn`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `credencial_webauthn` (
   `id_credencial` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -1026,7 +1026,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `dato_pago_sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `dato_pago_sucursal` (
   `id_dato_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -1050,7 +1050,7 @@ CREATE TABLE `dato_pago_sucursal` (
   CONSTRAINT `chk_dpago_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
   CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3),
   CONSTRAINT `chk_dpago_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL'))
-) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=149 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1068,7 +1068,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `descuento`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `descuento` (
   `id_descuento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(80) NOT NULL,
@@ -1102,7 +1102,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `detalle_compra`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `detalle_compra` (
   `id_detalle_compra` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_compra` int(10) unsigned NOT NULL,
@@ -1135,7 +1135,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `detalle_factura`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `detalle_factura` (
   `id_detalle_factura` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_factura` int(10) unsigned NOT NULL,
@@ -1155,7 +1155,7 @@ CREATE TABLE `detalle_factura` (
   CONSTRAINT `chk_df_precio` CHECK (`precio_unitario` >= 0),
   CONSTRAINT `chk_df_iva` CHECK (`tasa_iva` in (0,5,10)),
   CONSTRAINT `chk_df_item` CHECK (`id_servicio` is not null and `id_producto` is null or `id_servicio` is null and `id_producto` is not null)
-) ENGINE=InnoDB AUTO_INCREMENT=778 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=856 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1211,7 +1211,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `detalle_pago_personal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `detalle_pago_personal` (
   `id_detalle_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_pago_personal` int(10) unsigned NOT NULL,
@@ -1223,7 +1223,7 @@ CREATE TABLE `detalle_pago_personal` (
   CONSTRAINT `fk_dpp_pago` FOREIGN KEY (`id_pago_personal`) REFERENCES `pago_personal` (`id_pago_personal`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_dpp_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON UPDATE CASCADE,
   CONSTRAINT `chk_dpp_monto` CHECK (`monto` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=9292 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10065 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1241,7 +1241,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `detalle_pago_proveedor`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `detalle_pago_proveedor` (
   `id_detalle_pago_proveedor` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_pago_proveedor` int(10) unsigned NOT NULL,
@@ -1272,7 +1272,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_caja`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_caja` (
   `id_estado_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(30) NOT NULL,
@@ -1297,7 +1297,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_cita`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_cita` (
   `id_estado_cita` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1323,7 +1323,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_cobro`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_cobro` (
   `id_estado_cobro` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1348,7 +1348,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_compra`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_compra` (
   `id_estado_compra` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1373,7 +1373,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_factura`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_factura` (
   `id_estado_factura` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1398,7 +1398,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_pago_personal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_pago_personal` (
   `id_estado_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1423,7 +1423,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `estado_pago_proveedor`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `estado_pago_proveedor` (
   `id_estado_pago_proveedor` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1448,7 +1448,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `factura`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `factura` (
   `id_factura` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
@@ -1484,7 +1484,7 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=439 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=491 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1582,7 +1582,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `factura_descuento`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `factura_descuento` (
   `id_factura_descuento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_factura` int(10) unsigned NOT NULL,
@@ -1594,7 +1594,7 @@ CREATE TABLE `factura_descuento` (
   CONSTRAINT `fk_fd_descuento` FOREIGN KEY (`id_descuento`) REFERENCES `descuento` (`id_descuento`) ON UPDATE CASCADE,
   CONSTRAINT `fk_fd_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_fd_monto` CHECK (`monto_aplicado` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=367 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=419 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1613,7 +1613,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `factura_electronica`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `factura_electronica` (
   `id_factura_electronica` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_factura` int(10) unsigned NOT NULL,
@@ -1650,7 +1650,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `metodo_pago`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `metodo_pago` (
   `id_metodo_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -1678,7 +1678,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `movimiento_caja`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `movimiento_caja` (
   `id_movimiento_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_caja` int(10) unsigned NOT NULL,
@@ -1706,7 +1706,7 @@ CREATE TABLE `movimiento_caja` (
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0),
   CONSTRAINT `chk_movcaja_concepto` CHECK (`concepto` is not null and `concepto` <> '')
-) ENGINE=InnoDB AUTO_INCREMENT=751 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=898 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1724,7 +1724,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `movimiento_inventario`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `movimiento_inventario` (
   `id_movimiento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_producto` int(10) unsigned NOT NULL,
@@ -1748,7 +1748,7 @@ CREATE TABLE `movimiento_inventario` (
   CONSTRAINT `fk_movinv_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_mi_cantidad` CHECK (`cantidad` > 0),
   CONSTRAINT `chk_mi_precio` CHECK (`precio_unitario` is null or `precio_unitario` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=1249 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1332 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1857,7 +1857,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `movimiento_punto`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `movimiento_punto` (
   `id_movimiento_punto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
@@ -1872,7 +1872,7 @@ CREATE TABLE `movimiento_punto` (
   CONSTRAINT `fk_mp_cliente` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id_cliente`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mp_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_mp_tipo` CHECK (`tipo` = 'ACUMULA' and `puntos` > 0 or `tipo` = 'CANJE' and `puntos` < 0 or `tipo` = 'AJUSTE' and `puntos` <> 0)
-) ENGINE=InnoDB AUTO_INCREMENT=1443 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1560 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1912,7 +1912,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `nivel`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `nivel` (
   `id_nivel` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_descuento` int(10) unsigned DEFAULT NULL,
@@ -1943,7 +1943,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `notificacion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `notificacion` (
   `id_notificacion` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_tipo_notificacion` int(10) unsigned NOT NULL,
@@ -1973,7 +1973,7 @@ CREATE TABLE `notificacion` (
   CONSTRAINT `fk_notif_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_notif_canal` CHECK (`canal` in ('WHATSAPP','EMAIL','SMS','SISTEMA')),
   CONSTRAINT `chk_notif_estado` CHECK (`estado` in ('PENDIENTE','ENVIADA','FALLIDA','LEIDA'))
-) ENGINE=InnoDB AUTO_INCREMENT=2063 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2241 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1992,7 +1992,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `pago_personal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `pago_personal` (
   `id_pago_personal` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -2014,7 +2014,7 @@ CREATE TABLE `pago_personal` (
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario_registro` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=307 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=333 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2057,7 +2057,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `pago_proveedor`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `pago_proveedor` (
   `id_pago_proveedor` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_proveedor` int(10) unsigned NOT NULL,
@@ -2121,7 +2121,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `persona`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `persona` (
   `id_persona` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(120) NOT NULL,
@@ -2139,7 +2139,7 @@ CREATE TABLE `persona` (
   UNIQUE KEY `uq_persona_ruc` (`ruc`),
   KEY `idx_persona_nombre` (`apellido`,`nombre`),
   KEY `idx_persona_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=242 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2158,7 +2158,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `persona_servicio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `persona_servicio` (
   `id_persona_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_persona` int(10) unsigned NOT NULL,
@@ -2171,7 +2171,7 @@ CREATE TABLE `persona_servicio` (
   CONSTRAINT `fk_ps_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_ps_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_ps_duracion` CHECK (`duracion_min` is null or `duracion_min` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2189,7 +2189,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `preferencia_cliente`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `preferencia_cliente` (
   `id_preferencia` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
@@ -2216,7 +2216,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `preferencia_recordatorio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `preferencia_recordatorio` (
   `id_cliente` int(10) unsigned NOT NULL,
   `dias_antes` tinyint(3) unsigned NOT NULL DEFAULT 1,
@@ -2243,7 +2243,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `preferencia_usuario`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `preferencia_usuario` (
   `id_usuario` int(10) unsigned NOT NULL,
   `tema` varchar(10) NOT NULL DEFAULT 'claro' COMMENT 'Tema de la interfaz: claro u oscuro',
@@ -2271,7 +2271,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `producto`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `producto` (
   `id_producto` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria` int(10) unsigned NOT NULL,
@@ -2311,7 +2311,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `producto_sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `producto_sucursal` (
   `id_producto` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -2341,7 +2341,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `producto_utilizado`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `producto_utilizado` (
   `id_producto_utilizado` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_servicio_realizado` int(10) unsigned NOT NULL,
@@ -2353,7 +2353,7 @@ CREATE TABLE `producto_utilizado` (
   CONSTRAINT `fk_pu_producto` FOREIGN KEY (`id_producto`) REFERENCES `producto` (`id_producto`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pu_servicio_realizado` FOREIGN KEY (`id_servicio_realizado`) REFERENCES `servicio_realizado` (`id_servicio_realizado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_pu_cantidad` CHECK (`cantidad` > 0)
-) ENGINE=InnoDB AUTO_INCREMENT=262 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=275 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2402,7 +2402,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `proveedor`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `proveedor` (
   `id_proveedor` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `contacto` varchar(120) DEFAULT NULL,
@@ -2430,7 +2430,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `rol`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `rol` (
   `id_rol` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(50) NOT NULL,
@@ -2458,7 +2458,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `rol_modulo`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `rol_modulo` (
   `id_rol` int(10) unsigned NOT NULL,
   `modulo` varchar(40) NOT NULL,
@@ -2483,7 +2483,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `sena_solicitud`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `sena_solicitud` (
   `id_solicitud` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -2503,7 +2503,7 @@ CREATE TABLE `sena_solicitud` (
   CONSTRAINT `fk_senasol_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `chk_senasol_monto` CHECK (`monto` > 0),
   CONSTRAINT `chk_senasol_estado` CHECK (`id_cobro` is null or `rechazada_en` is null)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2521,7 +2521,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `servicio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `servicio` (
   `id_servicio` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_categoria_servicio` int(10) unsigned NOT NULL,
@@ -2564,7 +2564,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `servicio_canjeable`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `servicio_canjeable` (
   `id_servicio_canjeable` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_servicio` int(10) unsigned NOT NULL,
@@ -2576,7 +2576,7 @@ CREATE TABLE `servicio_canjeable` (
   CONSTRAINT `fk_servcanje_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`),
   CONSTRAINT `chk_servcanje_puntos` CHECK (`puntos` > 0),
   CONSTRAINT `chk_servcanje_vigencia` CHECK (`dias_vigencia` between 1 and 365)
-) ENGINE=InnoDB AUTO_INCREMENT=616 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=668 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2595,7 +2595,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `servicio_descuento`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `servicio_descuento` (
   `id_servicio_descuento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_servicio` int(10) unsigned NOT NULL,
@@ -2623,7 +2623,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `servicio_realizado`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `servicio_realizado` (
   `id_servicio_realizado` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -2641,7 +2641,7 @@ CREATE TABLE `servicio_realizado` (
   CONSTRAINT `fk_sr_detalle_factura` FOREIGN KEY (`id_detalle_factura`) REFERENCES `detalle_factura` (`id_detalle_factura`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
   CONSTRAINT `fk_sr_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=552 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=591 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2685,7 +2685,7 @@ DELIMITER ;
 
 DROP TABLE IF EXISTS `servicio_sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `servicio_sucursal` (
   `id_servicio` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -2712,7 +2712,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `sucursal` (
   `id_sucursal` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(120) NOT NULL,
@@ -2723,7 +2723,7 @@ CREATE TABLE `sucursal` (
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_sucursal`),
   UNIQUE KEY `uq_sucursal_ruc` (`ruc`)
-) ENGINE=InnoDB AUTO_INCREMENT=1878 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2742,7 +2742,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `timbrado`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `timbrado` (
   `id_timbrado` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -2767,7 +2767,7 @@ CREATE TABLE `timbrado` (
   CONSTRAINT `chk_timbrado_est` CHECK (`establecimiento` regexp '^[0-9]{3}$'),
   CONSTRAINT `chk_timbrado_pun` CHECK (`punto_expedicion` regexp '^[0-9]{3}$'),
   CONSTRAINT `chk_timbrado_rango7` CHECK (`nro_desde` >= 1 and `nro_hasta` <= 9999999 and `nro_desde` <= `nro_hasta`)
-) ENGINE=InnoDB AUTO_INCREMENT=229 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=255 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2786,7 +2786,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `tipo_ausencia`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tipo_ausencia` (
   `id_tipo_ausencia` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(40) NOT NULL,
@@ -2811,7 +2811,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `tipo_comprobante`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tipo_comprobante` (
   `id_tipo_comprobante` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `codigo` varchar(5) NOT NULL,
@@ -2842,7 +2842,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `tipo_movimiento_caja`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tipo_movimiento_caja` (
   `id_tipo_mov_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -2871,7 +2871,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `tipo_movimiento_inventario`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tipo_movimiento_inventario` (
   `id_tipo_movimiento` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -2899,7 +2899,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `tipo_notificacion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `tipo_notificacion` (
   `id_tipo_notificacion` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -2927,7 +2927,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `token_cita`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `token_cita` (
   `id_token` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cita` int(10) unsigned NOT NULL,
@@ -2958,7 +2958,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `token_seguridad`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `token_seguridad` (
   `id_token` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -2972,7 +2972,7 @@ CREATE TABLE `token_seguridad` (
   PRIMARY KEY (`id_token`),
   KEY `idx_tok_usuario` (`id_usuario`,`tipo`),
   CONSTRAINT `fk_tok_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2990,7 +2990,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `turno_dia`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `turno_dia` (
   `id_turno` int(10) unsigned NOT NULL,
   `dia_semana` tinyint(3) unsigned NOT NULL,
@@ -3016,7 +3016,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `turno_laboral`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `turno_laboral` (
   `id_turno` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -3031,7 +3031,7 @@ CREATE TABLE `turno_laboral` (
   CONSTRAINT `fk_turno_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON UPDATE CASCADE,
   CONSTRAINT `chk_turno_horas` CHECK (`hora_fin` > `hora_inicio`),
   CONSTRAINT `chk_turno_flexibilidad` CHECK (`flexibilidad_entrada_min` <= 180)
-) ENGINE=InnoDB AUTO_INCREMENT=260 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=312 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3050,7 +3050,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `usuario`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `usuario` (
   `id_usuario` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_rol` int(10) unsigned NOT NULL,
@@ -3071,7 +3071,7 @@ CREATE TABLE `usuario` (
   CONSTRAINT `fk_usua_persona` FOREIGN KEY (`id_persona`) REFERENCES `persona` (`id_persona`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON UPDATE CASCADE,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=336 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=390 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3090,7 +3090,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `usuario_sucursal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `usuario_sucursal` (
   `id_usuario` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -3117,7 +3117,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `usuario_turno`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `usuario_turno` (
   `id_usuario` int(10) unsigned NOT NULL,
   `id_turno` int(10) unsigned NOT NULL,
@@ -3139,348 +3139,348 @@ INSERT INTO `usuario_turno` VALUES (8,3),(9,4),(10,3),(10,4),(11,4),(12,3),(12,4
 UNLOCK TABLES;
 
 --
--- Temporary view structure for view `vw_agenda_bloqueos`
+-- Temporary table structure for view `vw_agenda_bloqueos`
 --
 
 DROP TABLE IF EXISTS `vw_agenda_bloqueos`;
 /*!50001 DROP VIEW IF EXISTS `vw_agenda_bloqueos`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_agenda_bloqueos` AS SELECT
  1 AS `id_ausencia`,
- 1 AS `alcance`,
- 1 AS `tipo`,
- 1 AS `fecha_inicio`,
- 1 AS `fecha_fin`,
- 1 AS `motivo`*/;
+  1 AS `alcance`,
+  1 AS `tipo`,
+  1 AS `fecha_inicio`,
+  1 AS `fecha_fin`,
+  1 AS `motivo` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_agenda_citas`
+-- Temporary table structure for view `vw_agenda_citas`
 --
 
 DROP TABLE IF EXISTS `vw_agenda_citas`;
 /*!50001 DROP VIEW IF EXISTS `vw_agenda_citas`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_agenda_citas` AS SELECT
  1 AS `id_cita`,
- 1 AS `fecha_hora`,
- 1 AS `duracion_min`,
- 1 AS `cliente`,
- 1 AS `telefono`,
- 1 AS `profesional`,
- 1 AS `estado`,
- 1 AS `servicios`,
- 1 AS `observaciones`*/;
+  1 AS `fecha_hora`,
+  1 AS `duracion_min`,
+  1 AS `cliente`,
+  1 AS `telefono`,
+  1 AS `profesional`,
+  1 AS `estado`,
+  1 AS `servicios`,
+  1 AS `observaciones` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_caja_resumen`
+-- Temporary table structure for view `vw_caja_resumen`
 --
 
 DROP TABLE IF EXISTS `vw_caja_resumen`;
 /*!50001 DROP VIEW IF EXISTS `vw_caja_resumen`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_caja_resumen` AS SELECT
  1 AS `id_sucursal`,
- 1 AS `id_caja`,
- 1 AS `id_caja_fisica`,
- 1 AS `caja_nombre`,
- 1 AS `sucursal_nombre`,
- 1 AS `responsable`,
- 1 AS `estado`,
- 1 AS `fecha_apertura`,
- 1 AS `fecha_cierre`,
- 1 AS `monto_inicial`,
- 1 AS `monto_contado`,
- 1 AS `observacion_apertura`,
- 1 AS `observacion_cierre`,
- 1 AS `motivo_diferencia`,
- 1 AS `diferencia`,
- 1 AS `arqueo_por`,
- 1 AS `cobros_efectivo`,
- 1 AS `cobros_otros`,
- 1 AS `cobros`,
- 1 AS `otros_ingresos`,
- 1 AS `egresos`,
- 1 AS `pagos_prov_efectivo`,
- 1 AS `pagos_prov_otros`,
- 1 AS `pagos_proveedor`,
- 1 AS `pagos_pers_efectivo`,
- 1 AS `pagos_pers_otros`,
- 1 AS `pagos_personal`,
- 1 AS `saldo`*/;
+  1 AS `id_caja`,
+  1 AS `id_caja_fisica`,
+  1 AS `caja_nombre`,
+  1 AS `sucursal_nombre`,
+  1 AS `responsable`,
+  1 AS `estado`,
+  1 AS `fecha_apertura`,
+  1 AS `fecha_cierre`,
+  1 AS `monto_inicial`,
+  1 AS `monto_contado`,
+  1 AS `observacion_apertura`,
+  1 AS `observacion_cierre`,
+  1 AS `motivo_diferencia`,
+  1 AS `diferencia`,
+  1 AS `arqueo_por`,
+  1 AS `cobros_efectivo`,
+  1 AS `cobros_otros`,
+  1 AS `cobros`,
+  1 AS `otros_ingresos`,
+  1 AS `egresos`,
+  1 AS `pagos_prov_efectivo`,
+  1 AS `pagos_prov_otros`,
+  1 AS `pagos_proveedor`,
+  1 AS `pagos_pers_efectivo`,
+  1 AS `pagos_pers_otros`,
+  1 AS `pagos_personal`,
+  1 AS `saldo` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_cliente_fidelizacion`
+-- Temporary table structure for view `vw_cliente_fidelizacion`
 --
 
 DROP TABLE IF EXISTS `vw_cliente_fidelizacion`;
 /*!50001 DROP VIEW IF EXISTS `vw_cliente_fidelizacion`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_cliente_fidelizacion` AS SELECT
  1 AS `id_cliente`,
- 1 AS `cliente`,
- 1 AS `telefono`,
- 1 AS `visitas`,
- 1 AS `puntos`,
- 1 AS `nivel`,
- 1 AS `descuento_del_nivel`*/;
+  1 AS `cliente`,
+  1 AS `telefono`,
+  1 AS `visitas`,
+  1 AS `puntos`,
+  1 AS `nivel`,
+  1 AS `descuento_del_nivel` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_compra_resumen`
+-- Temporary table structure for view `vw_compra_resumen`
 --
 
 DROP TABLE IF EXISTS `vw_compra_resumen`;
 /*!50001 DROP VIEW IF EXISTS `vw_compra_resumen`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_compra_resumen` AS SELECT
  1 AS `id_compra`,
- 1 AS `fecha`,
- 1 AS `proveedor`,
- 1 AS `registro`,
- 1 AS `estado`,
- 1 AS `total`,
- 1 AS `observaciones`*/;
+  1 AS `fecha`,
+  1 AS `proveedor`,
+  1 AS `registro`,
+  1 AS `estado`,
+  1 AS `total`,
+  1 AS `observaciones` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_cuenta_proveedor`
+-- Temporary table structure for view `vw_cuenta_proveedor`
 --
 
 DROP TABLE IF EXISTS `vw_cuenta_proveedor`;
 /*!50001 DROP VIEW IF EXISTS `vw_cuenta_proveedor`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_cuenta_proveedor` AS SELECT
  1 AS `id_compra`,
- 1 AS `id_proveedor`,
- 1 AS `proveedor`,
- 1 AS `fecha`,
- 1 AS `nro_factura_proveedor`,
- 1 AS `condicion`,
- 1 AS `vencimiento`,
- 1 AS `total`,
- 1 AS `pagado`,
- 1 AS `saldo`,
- 1 AS `vencida`*/;
+  1 AS `id_proveedor`,
+  1 AS `proveedor`,
+  1 AS `fecha`,
+  1 AS `nro_factura_proveedor`,
+  1 AS `condicion`,
+  1 AS `vencimiento`,
+  1 AS `total`,
+  1 AS `pagado`,
+  1 AS `saldo`,
+  1 AS `vencida` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_demanda_por_hora`
+-- Temporary table structure for view `vw_demanda_por_hora`
 --
 
 DROP TABLE IF EXISTS `vw_demanda_por_hora`;
 /*!50001 DROP VIEW IF EXISTS `vw_demanda_por_hora`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_demanda_por_hora` AS SELECT
  1 AS `hora`,
- 1 AS `citas`,
- 1 AS `atendidas`,
- 1 AS `ausencias`,
- 1 AS `canceladas`*/;
+  1 AS `citas`,
+  1 AS `atendidas`,
+  1 AS `ausencias`,
+  1 AS `canceladas` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_detalle_factura`
+-- Temporary table structure for view `vw_detalle_factura`
 --
 
 DROP TABLE IF EXISTS `vw_detalle_factura`;
 /*!50001 DROP VIEW IF EXISTS `vw_detalle_factura`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_detalle_factura` AS SELECT
  1 AS `id_detalle_factura`,
- 1 AS `id_factura`,
- 1 AS `item`,
- 1 AS `clase`,
- 1 AS `cantidad`,
- 1 AS `precio_unitario`,
- 1 AS `tasa_iva`,
- 1 AS `subtotal`*/;
+  1 AS `id_factura`,
+  1 AS `item`,
+  1 AS `clase`,
+  1 AS `cantidad`,
+  1 AS `precio_unitario`,
+  1 AS `tasa_iva`,
+  1 AS `subtotal` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_factura_impuestos`
+-- Temporary table structure for view `vw_factura_impuestos`
 --
 
 DROP TABLE IF EXISTS `vw_factura_impuestos`;
 /*!50001 DROP VIEW IF EXISTS `vw_factura_impuestos`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_factura_impuestos` AS SELECT
  1 AS `id_factura`,
- 1 AS `nro_comprobante`,
- 1 AS `tipo_comprobante`,
- 1 AS `signo`,
- 1 AS `gravado_10`,
- 1 AS `iva_10`,
- 1 AS `gravado_5`,
- 1 AS `iva_5`,
- 1 AS `exentas`,
- 1 AS `total_comprobante`*/;
+  1 AS `nro_comprobante`,
+  1 AS `tipo_comprobante`,
+  1 AS `signo`,
+  1 AS `gravado_10`,
+  1 AS `iva_10`,
+  1 AS `gravado_5`,
+  1 AS `iva_5`,
+  1 AS `exentas`,
+  1 AS `total_comprobante` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_factura_resumen`
+-- Temporary table structure for view `vw_factura_resumen`
 --
 
 DROP TABLE IF EXISTS `vw_factura_resumen`;
 /*!50001 DROP VIEW IF EXISTS `vw_factura_resumen`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_factura_resumen` AS SELECT
  1 AS `id_factura`,
- 1 AS `fecha_emision`,
- 1 AS `nro_comprobante`,
- 1 AS `tipo_comprobante`,
- 1 AS `signo`,
- 1 AS `cliente`,
- 1 AS `condicion_venta`,
- 1 AS `fecha_vencimiento`,
- 1 AS `estado`,
- 1 AS `subtotal`,
- 1 AS `descuento_total`,
- 1 AS `total`,
- 1 AS `total_neto`,
- 1 AS `cobrado`,
- 1 AS `saldo`,
- 1 AS `comprobante_origen`*/;
+  1 AS `fecha_emision`,
+  1 AS `nro_comprobante`,
+  1 AS `tipo_comprobante`,
+  1 AS `signo`,
+  1 AS `cliente`,
+  1 AS `condicion_venta`,
+  1 AS `fecha_vencimiento`,
+  1 AS `estado`,
+  1 AS `subtotal`,
+  1 AS `descuento_total`,
+  1 AS `total`,
+  1 AS `total_neto`,
+  1 AS `cobrado`,
+  1 AS `saldo`,
+  1 AS `comprobante_origen` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_habilitacion_profesional`
+-- Temporary table structure for view `vw_habilitacion_profesional`
 --
 
 DROP TABLE IF EXISTS `vw_habilitacion_profesional`;
 /*!50001 DROP VIEW IF EXISTS `vw_habilitacion_profesional`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_habilitacion_profesional` AS SELECT
  1 AS `profesional`,
- 1 AS `servicio`,
- 1 AS `categoria`,
- 1 AS `duracion_min`,
- 1 AS `precio`,
- 1 AS `comision_vigente`*/;
+  1 AS `servicio`,
+  1 AS `categoria`,
+  1 AS `duracion_min`,
+  1 AS `precio`,
+  1 AS `comision_vigente` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_historial_cliente`
+-- Temporary table structure for view `vw_historial_cliente`
 --
 
 DROP TABLE IF EXISTS `vw_historial_cliente`;
 /*!50001 DROP VIEW IF EXISTS `vw_historial_cliente`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_historial_cliente` AS SELECT
  1 AS `id_cliente`,
- 1 AS `cliente`,
- 1 AS `id_cita`,
- 1 AS `fecha_hora`,
- 1 AS `servicio`,
- 1 AS `precio`,
- 1 AS `profesional`,
- 1 AS `nro_comprobante`,
- 1 AS `puntaje`*/;
+  1 AS `cliente`,
+  1 AS `id_cita`,
+  1 AS `fecha_hora`,
+  1 AS `servicio`,
+  1 AS `precio`,
+  1 AS `profesional`,
+  1 AS `nro_comprobante`,
+  1 AS `puntaje` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_pago_personal_resumen`
+-- Temporary table structure for view `vw_pago_personal_resumen`
 --
 
 DROP TABLE IF EXISTS `vw_pago_personal_resumen`;
 /*!50001 DROP VIEW IF EXISTS `vw_pago_personal_resumen`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_pago_personal_resumen` AS SELECT
  1 AS `id_pago_personal`,
- 1 AS `fecha`,
- 1 AS `periodo`,
- 1 AS `beneficiario`,
- 1 AS `estado`,
- 1 AS `servicios`,
- 1 AS `monto`*/;
+  1 AS `fecha`,
+  1 AS `periodo`,
+  1 AS `beneficiario`,
+  1 AS `estado`,
+  1 AS `servicios`,
+  1 AS `monto` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_producto_bajo_stock`
+-- Temporary table structure for view `vw_producto_bajo_stock`
 --
 
 DROP TABLE IF EXISTS `vw_producto_bajo_stock`;
 /*!50001 DROP VIEW IF EXISTS `vw_producto_bajo_stock`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_bajo_stock` AS SELECT
  1 AS `id_producto`,
- 1 AS `id_sucursal`,
- 1 AS `nombre`,
- 1 AS `categoria`,
- 1 AS `stock_actual`,
- 1 AS `stock_minimo`,
- 1 AS `faltante`,
- 1 AS `precio_costo`*/;
+  1 AS `id_sucursal`,
+  1 AS `nombre`,
+  1 AS `categoria`,
+  1 AS `stock_actual`,
+  1 AS `stock_minimo`,
+  1 AS `faltante`,
+  1 AS `precio_costo` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_producto_stock`
+-- Temporary table structure for view `vw_producto_stock`
 --
 
 DROP TABLE IF EXISTS `vw_producto_stock`;
 /*!50001 DROP VIEW IF EXISTS `vw_producto_stock`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_producto_stock` AS SELECT
  1 AS `id_producto`,
- 1 AS `id_sucursal`,
- 1 AS `nombre`,
- 1 AS `categoria`,
- 1 AS `unidad_medida`,
- 1 AS `stock_actual`,
- 1 AS `stock_minimo`,
- 1 AS `precio_costo`,
- 1 AS `precio_venta`,
- 1 AS `activo`*/;
+  1 AS `id_sucursal`,
+  1 AS `nombre`,
+  1 AS `categoria`,
+  1 AS `unidad_medida`,
+  1 AS `stock_actual`,
+  1 AS `stock_minimo`,
+  1 AS `precio_costo`,
+  1 AS `precio_venta`,
+  1 AS `activo` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_servicios_mas_solicitados`
+-- Temporary table structure for view `vw_servicios_mas_solicitados`
 --
 
 DROP TABLE IF EXISTS `vw_servicios_mas_solicitados`;
 /*!50001 DROP VIEW IF EXISTS `vw_servicios_mas_solicitados`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_servicios_mas_solicitados` AS SELECT
  1 AS `id_servicio`,
- 1 AS `servicio`,
- 1 AS `categoria`,
- 1 AS `veces_realizado`,
- 1 AS `ingreso_generado`*/;
+  1 AS `servicio`,
+  1 AS `categoria`,
+  1 AS `veces_realizado`,
+  1 AS `ingreso_generado` */;
 SET character_set_client = @saved_cs_client;
 
 --
--- Temporary view structure for view `vw_servicios_por_profesional`
+-- Temporary table structure for view `vw_servicios_por_profesional`
 --
 
 DROP TABLE IF EXISTS `vw_servicios_por_profesional`;
 /*!50001 DROP VIEW IF EXISTS `vw_servicios_por_profesional`*/;
 SET @saved_cs_client     = @@character_set_client;
-/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = utf8;
 /*!50001 CREATE VIEW `vw_servicios_por_profesional` AS SELECT
  1 AS `id_servicio_realizado`,
- 1 AS `fecha_hora`,
- 1 AS `profesional`,
- 1 AS `servicio`,
- 1 AS `precio`,
- 1 AS `pagado`*/;
+  1 AS `fecha_hora`,
+  1 AS `profesional`,
+  1 AS `servicio`,
+  1 AS `precio`,
+  1 AS `pagado` */;
 SET character_set_client = @saved_cs_client;
 
 --
@@ -3489,7 +3489,7 @@ SET character_set_client = @saved_cs_client;
 
 DROP TABLE IF EXISTS `zona_servicio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `zona_servicio` (
   `id_zona` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nombre` varchar(60) NOT NULL,
@@ -3516,6 +3516,8 @@ UNLOCK TABLES;
 --
 -- Dumping routines for database 'peluqueria_test'
 --
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_caja_diferencia` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3523,8 +3525,6 @@ UNLOCK TABLES;
 /*!50003 SET character_set_client  = utf8 */ ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_caja_diferencia`(p_id_caja INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -3534,8 +3534,8 @@ BEGIN
 
   SELECT monto_contado INTO v_contado FROM caja WHERE id_caja = p_id_caja;
 
-
-
+  
+  
   IF v_contado IS NULL THEN
     RETURN NULL;
   END IF;
@@ -3547,6 +3547,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_caja_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3554,8 +3556,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_caja_saldo`(p_id_caja INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -3578,9 +3578,9 @@ BEGIN
   SELECT COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto END), 0),
          COALESCE(SUM(CASE WHEN tipo = 'EGRESO'  THEN monto END), 0)
     INTO v_ing, v_egr
-
-
-
+  
+  
+  
   FROM movimiento_caja WHERE id_caja = p_id_caja AND activo = 1;
 
   SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
@@ -3589,8 +3589,8 @@ BEGIN
   WHERE pp.id_caja = p_id_caja AND pp.id_estado_pago_proveedor = 1
     AND mp.tipo = 'EFECTIVO';
 
-
-
+  
+  
   SELECT COALESCE(SUM(fn_pago_personal_monto(pg.id_pago_personal)), 0) INTO v_pers
   FROM pago_personal pg
   JOIN metodo_pago mp ON mp.id_metodo_pago = pg.id_metodo_pago
@@ -3604,6 +3604,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_canje_estado` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3611,8 +3613,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_canje_estado`(p_id_canje INT UNSIGNED) RETURNS varchar(12) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci
     READS SQL DATA
@@ -3633,6 +3633,53 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_descuento_monto` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_descuento_monto`(p_id_cita INT UNSIGNED, p_id_descuento INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_base        DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_restringido INT DEFAULT 0;
+
+  IF p_id_descuento IS NULL THEN RETURN 0; END IF;
+
+  
+  
+  SELECT COUNT(*) INTO v_restringido
+    FROM servicio_descuento WHERE id_descuento = p_id_descuento;
+
+  IF v_restringido > 0 THEN
+    SELECT COALESCE(SUM(s.precio), 0) INTO v_base
+      FROM cita_servicio cs
+      JOIN servicio s ON s.id_servicio = cs.id_servicio
+      JOIN servicio_descuento sd
+        ON sd.id_servicio = cs.id_servicio AND sd.id_descuento = p_id_descuento
+     WHERE cs.id_cita = p_id_cita;
+  ELSE
+    SELECT COALESCE(SUM(s.precio), 0) INTO v_base
+      FROM cita_servicio cs
+      JOIN servicio s ON s.id_servicio = cs.id_servicio
+     WHERE cs.id_cita = p_id_cita;
+  END IF;
+
+  RETURN fn_descuento_monto(p_id_descuento, v_base);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_duracion` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3640,8 +3687,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion`(p_id_cita INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3674,6 +3719,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_duracion_de` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3681,8 +3728,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3708,6 +3753,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_inicio_de` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3715,8 +3762,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_inicio_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3759,6 +3804,40 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_promo_vigente` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_promo_vigente`(p_id_cita INT UNSIGNED) RETURNS int(10) unsigned
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_id INT UNSIGNED DEFAULT NULL;
+
+  SELECT d.id_descuento INTO v_id
+    FROM descuento d
+   WHERE d.activo = 1
+     AND NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento)
+     AND fn_cita_descuento_monto(p_id_cita, d.id_descuento) > 0
+   ORDER BY fn_cita_descuento_monto(p_id_cita, d.id_descuento) DESC,
+            d.id_descuento ASC
+   LIMIT 1;
+
+  RETURN v_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_sena` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3766,8 +3845,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_sena`(p_id_cita INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -3782,6 +3859,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_sena_requerida` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3789,8 +3868,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8 */ ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_sena_requerida`(p_id_cita INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -3798,12 +3875,12 @@ CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_sena_requerida`(p_id_cita IN
 BEGIN
   DECLARE v_monto DECIMAL(14,2) DEFAULT 0;
 
-
-
-
-
-
-
+  
+  
+  
+  
+  
+  
   SELECT COALESCE(SUM(ROUND(s.precio * s.sena_porcentaje / 100)), 0)
     INTO v_monto
     FROM cita_servicio cs
@@ -3820,6 +3897,59 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_total` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = cp850 */ ;
+/*!50003 SET character_set_results = cp850 */ ;
+/*!50003 SET collation_connection  = cp850_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_total`(p_id_cita INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_cliente  INT UNSIGNED;
+  DECLARE v_bruto    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_canjeado DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_nivel    INT UNSIGNED;
+  DECLARE v_promo    INT UNSIGNED;
+  DECLARE v_m_nivel  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_m_promo  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_desc     DECIMAL(14,2) DEFAULT 0;
+
+  SELECT id_cliente INTO v_cliente FROM cita WHERE id_cita = p_id_cita;
+  IF v_cliente IS NULL THEN RETURN 0; END IF;
+
+  SELECT COALESCE(SUM(s.precio), 0) INTO v_bruto
+    FROM cita_servicio cs
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+   WHERE cs.id_cita = p_id_cita;
+
+  
+  SELECT COALESCE(SUM(s.precio), 0) INTO v_canjeado
+    FROM canje ca
+    JOIN servicio s ON s.id_servicio = ca.id_servicio
+   WHERE ca.id_cita = p_id_cita;
+
+  SET v_nivel = fn_cliente_descuento(v_cliente);
+  SET v_promo = fn_cita_promo_vigente(p_id_cita);
+  SET v_m_nivel = fn_cita_descuento_monto(p_id_cita, v_nivel);
+  SET v_m_promo = fn_cita_descuento_monto(p_id_cita, v_promo);
+
+  SET v_desc = IF(v_m_promo > v_m_nivel, v_m_promo, v_m_nivel);
+
+  RETURN GREATEST(v_bruto - v_canjeado - v_desc, 0);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cliente_descuento` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3827,8 +3957,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cliente_descuento`(p_id_cliente INT UNSIGNED) RETURNS int(10) unsigned
     READS SQL DATA
@@ -3843,6 +3971,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cliente_nivel` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3850,8 +3980,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cliente_nivel`(p_id_cliente INT UNSIGNED) RETURNS int(10) unsigned
     READS SQL DATA
@@ -3869,6 +3997,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cliente_puntos` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3876,8 +4006,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cliente_puntos`(p_id_cliente INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3892,6 +4020,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cliente_visitas` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3899,8 +4029,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cliente_visitas`(p_id_cliente INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3915,6 +4043,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_comision_servicio` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3922,8 +4052,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_comision_servicio`(p_id_servicio_realizado INT UNSIGNED) RETURNS decimal(12,2)
     READS SQL DATA
@@ -3936,8 +4064,8 @@ BEGIN
   DECLARE v_tipo     VARCHAR(20)   DEFAULT NULL;
   DECLARE v_valor    DECIMAL(12,2) DEFAULT 0;
 
-
-
+  
+  
   SELECT sr.id_usuario, sr.id_servicio, DATE(sr.fecha_hora), s.precio, c.id_sucursal
     INTO v_usuario, v_servicio, v_fecha, v_precio, v_sucursal
   FROM servicio_realizado sr
@@ -3947,9 +4075,9 @@ BEGIN
 
   IF v_usuario IS NULL THEN RETURN 0; END IF;
 
-
-
-
+  
+  
+  
   SELECT c.tipo, c.valor INTO v_tipo, v_valor
   FROM comision c
   WHERE c.id_usuario = v_usuario
@@ -3971,6 +4099,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_compra_cuotas` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3978,8 +4108,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_cuotas`(p_id_compra INT UNSIGNED) RETURNS smallint(5) unsigned
     READS SQL DATA
@@ -3993,6 +4121,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_compra_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4000,8 +4130,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_saldo`(p_id_compra INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4018,6 +4146,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_compra_total` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4025,8 +4155,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_total`(p_id_compra INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4041,6 +4169,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_compra_vencimiento` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4048,8 +4178,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_compra_vencimiento`(p_id_compra INT UNSIGNED) RETURNS date
     READS SQL DATA
@@ -4075,6 +4203,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_descuento_monto` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4082,8 +4212,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_descuento_monto`(p_id_descuento INT UNSIGNED, p_base DECIMAL(14,2)) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4118,6 +4246,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_descuento_monto_factura` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4125,8 +4255,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_descuento_monto_factura`(p_id_factura   INT UNSIGNED,
                 p_id_descuento INT UNSIGNED
@@ -4159,6 +4287,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_es_personal` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4166,8 +4296,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_es_personal`(p_id_usuario INT UNSIGNED) RETURNS tinyint(1)
     READS SQL DATA
@@ -4183,6 +4311,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_descuento` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4190,8 +4320,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_descuento`(p_id_factura INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4206,6 +4334,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_nro` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4213,8 +4343,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_nro`(p_id_factura INT UNSIGNED) RETURNS varchar(20) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci
     READS SQL DATA
@@ -4231,6 +4359,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4238,8 +4368,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_saldo`(p_id_factura INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4250,7 +4378,7 @@ BEGIN
   SELECT COALESCE(SUM(monto), 0) INTO v_cobrado
   FROM cobro WHERE id_factura = p_id_factura AND id_estado_cobro = 1;
 
-
+  
   SELECT COALESCE(SUM(co.monto), 0) INTO v_sena
   FROM factura f
   JOIN cobro co ON co.id_cita = f.id_cita AND co.id_estado_cobro = 1
@@ -4263,6 +4391,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_subtotal` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4270,8 +4400,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_subtotal`(p_id_factura INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4286,6 +4414,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_total` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4293,8 +4423,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_total`(p_id_factura INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4306,6 +4434,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_vencimiento` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4313,8 +4443,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_vencimiento`(p_id_factura INT UNSIGNED) RETURNS date
     READS SQL DATA
@@ -4331,6 +4459,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_pago_personal_monto` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4338,8 +4468,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_pago_personal_monto`(p_id_pago INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4354,6 +4482,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_pago_proveedor_monto` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4361,8 +4491,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_pago_proveedor_monto`(p_id_pago INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4377,6 +4505,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_producto_stock` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4384,8 +4514,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_producto_stock`(p_id_producto INT UNSIGNED, p_id_sucursal INT UNSIGNED) RETURNS decimal(12,4)
     READS SQL DATA
@@ -4404,6 +4532,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_promo_vigente` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4411,8 +4541,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_promo_vigente`(p_id_factura INT UNSIGNED) RETURNS int(10) unsigned
     READS SQL DATA
@@ -4436,6 +4564,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_proveedor_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4443,8 +4573,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_proveedor_saldo`(p_id_proveedor INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
@@ -4460,6 +4588,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_puede_realizar` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4467,8 +4597,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_puede_realizar`(p_id_usuario INT UNSIGNED, p_id_servicio INT UNSIGNED) RETURNS tinyint(1)
     READS SQL DATA
@@ -4481,7 +4609,7 @@ BEGIN
   SELECT id_persona INTO v_persona FROM usuario WHERE id_usuario = p_id_usuario;
   IF v_persona IS NULL THEN RETURN 1; END IF;
 
-
+  
   SELECT COUNT(*) INTO v_cargadas FROM persona_servicio
    WHERE id_persona = v_persona AND activo = 1;
   IF v_cargadas = 0 THEN RETURN 1; END IF;
@@ -4495,6 +4623,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_siguiente_correlativo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4502,8 +4632,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_siguiente_correlativo`(p_id_timbrado INT UNSIGNED) RETURNS int(10) unsigned
     READS SQL DATA
@@ -4536,6 +4664,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_timbrado_vigente` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4543,8 +4673,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_timbrado_vigente`(p_id_tipo_comprobante INT UNSIGNED,
   p_fecha               DATE,
@@ -4582,6 +4710,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_usuario_hace_servicio` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4589,8 +4719,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_usuario_hace_servicio`(p_id_usuario INT UNSIGNED, p_id_servicio INT UNSIGNED) RETURNS tinyint(1)
     READS SQL DATA
@@ -4600,9 +4728,9 @@ BEGIN
 
   SELECT id_persona INTO v_persona FROM usuario WHERE id_usuario = p_id_usuario;
 
-
-
-
+  
+  
+  
   IF v_persona IS NULL
      OR NOT EXISTS (SELECT 1 FROM persona_servicio WHERE id_persona = v_persona) THEN
     RETURN 1;
@@ -4616,6 +4744,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_verificar_disponibilidad` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4623,8 +4753,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_verificar_disponibilidad`(p_id_usuario      INT UNSIGNED,
   p_fecha_hora      DATETIME,
@@ -4644,9 +4772,9 @@ BEGIN
   SET v_dur = IF(p_duracion_min IS NULL OR p_duracion_min <= 0, 60, p_duracion_min);
   SET v_fin = p_fecha_hora + INTERVAL v_dur MINUTE;
 
-
-
-
+  
+  
+  
   IF EXISTS (SELECT 1 FROM ausencia_agenda a
               WHERE a.activo = 1
                 AND (a.id_usuario = p_id_usuario OR a.id_usuario IS NULL)
@@ -4657,10 +4785,10 @@ BEGIN
     RETURN 0;
   END IF;
 
-
-
-
-
+  
+  
+  
+  
   SELECT COUNT(*) INTO v_turnos
     FROM usuario_turno ut
     JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
@@ -4668,30 +4796,30 @@ BEGIN
      AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
 
   IF v_turnos = 0 THEN
-
-
-
-
-
-
-
-
+    
+    
+    
+    
+    
+    
+    
+    
     SELECT COUNT(*) INTO v_salon
       FROM usuario_turno ut
       JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
      WHERE ut.id_usuario = p_id_usuario;
     IF v_salon = 0 THEN
-
-
+      
+      
       SELECT COUNT(*) INTO v_salon
         FROM usuario_turno ut
         JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1;
       IF v_salon > 0 THEN RETURN 0; END IF;
     ELSE
-
-
-
-
+      
+      
+      
+      
       SELECT COUNT(*) INTO v_salon
         FROM turno_laboral t
        WHERE t.activo = 1 AND (p_id_sucursal IS NULL OR t.id_sucursal = p_id_sucursal);
@@ -4711,9 +4839,9 @@ BEGIN
     IF v_cubre = 0 THEN RETURN 0; END IF;
   END IF;
 
-
-
-
+  
+  
+  
   SELECT COUNT(*) INTO v_conflictos
     FROM cita c
     JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
@@ -4735,6 +4863,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_abrir_caja` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4742,8 +4872,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_abrir_caja`(
   IN  p_id_usuario     INT UNSIGNED,
@@ -4774,6 +4902,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_agendar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4781,8 +4911,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_agendar_cita`(
     IN  p_id_cliente    INT UNSIGNED,
@@ -4795,8 +4923,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_agendar_cita`(
 BEGIN
   DECLARE v_lock INT UNSIGNED;
 
-
-
+  
+  
   SELECT id_usuario INTO v_lock FROM usuario
    WHERE id_usuario = p_id_usuario FOR UPDATE;
 
@@ -4804,18 +4932,18 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa sucursal no existe o esta dada de baja.';
   END IF;
 
-
-
-
-
-
-
+  
+  
+  
+  
+  
+  
   IF fn_verificar_disponibilidad(p_id_usuario, p_fecha_hora, p_duracion_min, NULL, p_id_sucursal) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en ese horario.';
   END IF;
 
-
-
+  
+  
 
   INSERT INTO cita (id_cliente, id_usuario, id_sucursal, id_estado_cita, fecha_hora, observaciones)
   VALUES (p_id_cliente, p_id_usuario, p_id_sucursal, 1, p_fecha_hora, p_observaciones);
@@ -4831,6 +4959,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_anular_cobro` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4838,8 +4968,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_anular_cobro`(
     IN p_id_cobro   INT UNSIGNED,
@@ -4866,6 +4994,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_anular_factura` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4873,8 +5003,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_anular_factura`(
     IN p_id_factura INT UNSIGNED,
@@ -4898,6 +5026,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_anular_pago_proveedor` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4905,8 +5035,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_anular_pago_proveedor`(
     IN p_id_pago    INT UNSIGNED,
@@ -4934,6 +5062,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_aplicar_descuento` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4941,8 +5071,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_aplicar_descuento`(
     IN p_id_factura   INT UNSIGNED,
@@ -4976,6 +5104,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cancelar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4983,8 +5113,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cancelar_cita`(IN p_id_cita INT UNSIGNED)
 BEGIN
@@ -5005,7 +5133,7 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya estaba cancelada.';
   END IF;
 
-
+  
   IF v_estado = 4 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya fue atendida, asi que no se puede cancelar.';
   END IF;
@@ -5022,6 +5150,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_canjear_servicio` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5029,8 +5159,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_canjear_servicio`(
     IN  p_id_cliente  INT UNSIGNED,
@@ -5068,8 +5196,8 @@ BEGIN
   VALUES (p_id_cliente, p_id_servicio, v_cuesta, DATE_ADD(CURDATE(), INTERVAL v_dias DAY));
   SET p_id_canje = LAST_INSERT_ID();
 
-
-
+  
+  
   CALL sp_registrar_puntos(p_id_cliente, NULL, 'CANJE', -v_cuesta,
        CONCAT('Canje por ', v_nombre));
 END ;;
@@ -5078,6 +5206,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cerrar_caja` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5085,8 +5215,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8 */ ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cerrar_caja`(
   IN p_id_caja       INT UNSIGNED,
@@ -5121,6 +5249,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_confirmar_compra` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5128,8 +5258,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_confirmar_compra`(
   IN p_id_compra  INT UNSIGNED,
@@ -5168,6 +5296,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_emitir_factura` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5175,8 +5305,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_factura`(
   IN  p_id_cliente           INT UNSIGNED,
@@ -5196,9 +5324,9 @@ BEGIN
   DECLARE v_m_nivel   DECIMAL(14,2) DEFAULT 0;
   DECLARE v_m_promo   DECIMAL(14,2) DEFAULT 0;
 
-
-
-
+  
+  
+  
   SET v_suc = p_id_sucursal;
   IF p_id_cita IS NOT NULL THEN
     SELECT id_sucursal INTO v_suc FROM cita WHERE id_cita = p_id_cita;
@@ -5214,9 +5342,9 @@ BEGIN
   INSERT INTO factura (id_cliente, id_cita, id_usuario, id_tipo_comprobante, id_condicion_venta,
                        id_sucursal, id_timbrado, id_estado_factura, nro_correlativo)
   VALUES (p_id_cliente, p_id_cita, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
-
-
-
+          
+          
+          
           v_suc, v_timbrado, 1, v_nro);
   SET p_id_factura = LAST_INSERT_ID();
 
@@ -5255,6 +5383,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_emitir_nota_credito` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5262,8 +5392,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_nota_credito`(
     IN  p_id_factura_origen INT UNSIGNED,
@@ -5292,13 +5420,13 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solo se puede acreditar un comprobante de venta.';
   END IF;
 
-
-
-
-
-
-
-
+  
+  
+  
+  
+  
+  
+  
   SELECT COALESCE(f.id_sucursal, t.id_sucursal) INTO v_suc
     FROM factura f LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
    WHERE f.id_factura = p_id_factura_origen;
@@ -5331,6 +5459,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_generar_recordatorios` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5338,8 +5468,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generar_recordatorios`(IN p_horas INT)
 BEGIN
@@ -5359,6 +5487,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_pagar_compra` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5366,8 +5496,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
   IN  p_id_compra    INT UNSIGNED,
@@ -5375,6 +5503,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
   IN  p_id_usuario   INT UNSIGNED,
   IN  p_monto        DECIMAL(14,2),
   IN  p_referencia   VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_pago      INT UNSIGNED
 )
 BEGIN
@@ -5406,25 +5535,44 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El monto supera el saldo pendiente de la compra.';
   END IF;
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
 
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
 
-
-
-
-
-
-
-
-
-
-
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO pago_proveedor (id_proveedor, id_usuario, id_metodo_pago, id_estado_pago_proveedor, id_caja, referencia)
   VALUES (v_proveedor, p_id_usuario, p_id_metodo, 1, v_caja, p_referencia);
@@ -5438,6 +5586,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_cobro` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5445,8 +5595,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
   IN  p_id_factura  INT UNSIGNED,
@@ -5454,6 +5602,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
   IN  p_id_usuario  INT UNSIGNED,
   IN  p_monto       DECIMAL(14,2),
   IN  p_referencia  VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
@@ -5464,19 +5613,19 @@ BEGIN
   DECLARE v_sucursal  INT UNSIGNED DEFAULT NULL;
   DECLARE v_lock      INT UNSIGNED DEFAULT NULL;
 
-
-
+  
+  
   SELECT id_factura INTO v_lock FROM factura WHERE id_factura = p_id_factura FOR UPDATE;
 
-
-
-
-
-
-
-
-
-
+  
+  
+  
+  
+  
+  
+  
+  
+  
   SELECT f.id_estado_factura, tc.signo, COALESCE(f.id_sucursal, t.id_sucursal)
     INTO v_estado, v_signo, v_sucursal
   FROM factura f
@@ -5501,26 +5650,45 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El monto supera el saldo pendiente de la factura.';
   END IF;
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
 
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
 
-
-
-
-
-
-
-
-
-
-
-
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia)
   VALUES (p_id_factura, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia);
@@ -5531,6 +5699,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_movimiento_inventario` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5538,8 +5708,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_movimiento_inventario`(
   IN p_id_producto        INT UNSIGNED,
@@ -5562,6 +5730,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_pago_personal` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5569,8 +5739,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_pago_personal`(
     IN  p_id_usuario          INT UNSIGNED,
@@ -5597,6 +5765,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_puntos` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5604,8 +5774,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_puntos`(
     IN p_id_cliente    INT UNSIGNED,
@@ -5622,6 +5790,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_sena` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5629,8 +5799,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = cp850 */ ;
 /*!50003 SET character_set_results = cp850 */ ;
 /*!50003 SET collation_connection  = cp850_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
   IN  p_id_cita     INT UNSIGNED,
@@ -5638,6 +5806,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
   IN  p_id_usuario  INT UNSIGNED,
   IN  p_monto       DECIMAL(14,2),
   IN  p_referencia  VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
@@ -5660,11 +5829,10 @@ BEGIN
   IF p_monto <= 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La sena tiene que ser mayor que cero.';
   END IF;
-
-  SELECT COALESCE(SUM(s.precio), 0) INTO v_total
-    FROM cita_servicio cs
-    JOIN servicio s ON s.id_servicio = cs.id_servicio
-   WHERE cs.id_cita = p_id_cita;
+  
+  
+  
+  SET v_total = fn_cita_total(p_id_cita);
 
   IF v_total <= 0 THEN
     SIGNAL SQLSTATE '45000'
@@ -5678,25 +5846,44 @@ BEGIN
       SET MESSAGE_TEXT = 'El monto no puede superar lo que valen los servicios de la cita.';
   END IF;
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
 
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
 
-
-
-
-
-
-
-
-
-
-
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_cita, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia, observaciones)
   VALUES (NULL, p_id_cita, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia, 'Sena de reserva');
@@ -5707,6 +5894,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_reprogramar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5714,8 +5903,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_reprogramar_cita`(IN p_id_cita INT UNSIGNED, IN p_nueva_fecha DATETIME)
 BEGIN
@@ -5723,8 +5910,8 @@ BEGIN
   DECLARE v_estado  INT UNSIGNED DEFAULT NULL;
   DECLARE v_lock    INT UNSIGNED;
 
-
-
+  
+  
   SELECT id_cita INTO v_lock FROM cita WHERE id_cita = p_id_cita FOR UPDATE;
 
   SELECT id_usuario, id_estado_cita INTO v_usuario, v_estado
@@ -5734,8 +5921,8 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cita no existe.';
   END IF;
 
-
-
+  
+  
   IF v_estado = 3 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita fue cancelada, asi que no se puede reprogramar.';
   END IF;
@@ -5744,12 +5931,12 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa cita ya fue atendida, asi que no se puede reprogramar.';
   END IF;
 
-
+  
   SELECT id_usuario INTO v_lock FROM usuario
    WHERE id_usuario = v_usuario FOR UPDATE;
 
-
-
+  
+  
   IF fn_verificar_disponibilidad(v_usuario, p_nueva_fecha, fn_cita_duracion(p_id_cita), p_id_cita,
                                  (SELECT id_sucursal FROM cita WHERE id_cita = p_id_cita)) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional no esta disponible en el nuevo horario.';
@@ -5762,6 +5949,8 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_revertir_pago_personal` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -5769,8 +5958,6 @@ DELIMITER ;
 /*!50003 SET character_set_client  = utf8mb4 */ ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_revertir_pago_personal`(
     IN p_id_pago    INT UNSIGNED,
@@ -6102,4 +6289,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-25 17:16:21
+-- Dump completed on 2026-08-27 10:13:42

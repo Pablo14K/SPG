@@ -77,17 +77,17 @@ class Facturacion
             $detalle = [];
 
             foreach ($lineas as $l) {
+                // **El cajón se manda, no se deduce.** Con varios abiertos,
+                // dejar que el procedimiento adivine mandaba la plata al arqueo
+                // de otra persona — y el `UPDATE` que había acá sólo corregía
+                // los cobros que quedaban SIN caja, o sea nunca los mal
+                // asignados. Ahora es un parámetro y la base lo valida.
                 $idCobro = Bd::idDe('sp_registrar_cobro',
-                    [$idFactura, $l['metodo'], $idUsuario, $l['monto'], $l['referencia'] ?? null]);
+                    [$idFactura, $l['metodo'], $idUsuario, $l['monto'],
+                     $l['referencia'] ?? null, $idCaja ?: null]);
                 if (! $idCobro) {
                     throw new RuntimeException('sin_cobro');
                 }
-
-                // El procedimiento busca una caja abierta del PROPIO usuario. Si
-                // la caja del salón la abrió otra persona, el cobro quedaría
-                // fuera del arqueo: se lo reasigna.
-                DB::update('UPDATE cobro SET id_caja = ? WHERE id_cobro = ? AND id_caja IS NULL',
-                    [$idCaja, $idCobro]);
 
                 self::guardarDetalle($idCobro, (string) $l['tipo'], (array) ($l['detalle'] ?? []));
 
@@ -164,12 +164,8 @@ class Facturacion
      */
     public static function sena(int $idCita, int $idMetodo, int $idUsuario, float $monto, ?string $ref, int $idCaja): int
     {
-        $idCobro = Bd::idDe('sp_registrar_sena', [$idCita, $idMetodo, $idUsuario, $monto, $ref]);
-        if ($idCobro) {
-            DB::update('UPDATE cobro SET id_caja = ? WHERE id_cobro = ? AND id_caja IS NULL', [$idCaja, $idCobro]);
-        }
-
-        return $idCobro;
+        return Bd::idDe('sp_registrar_sena',
+            [$idCita, $idMetodo, $idUsuario, $monto, $ref, $idCaja ?: null]);
     }
 
     public static function anularFactura(int $idFactura, int $idUsuario): void

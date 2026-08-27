@@ -1069,9 +1069,13 @@ class InventarioController extends Controller
         // tener varios papeles en la mano: mandarla al detalle obliga a
         // apretar «atrás» entre una y otra, que es lo que este atajo vino a
         // evitar.
-        $volver = $request->input('desde') === 'lista'
-            ? redirect()->route('inventario.compras')
-            : redirect()->route('inventario.compra_ver', ['id' => $id]);
+        $volver = match ($request->input('desde')) {
+            'lista' => redirect()->route('inventario.compras'),
+            // Desde Pagos a proveedores: es donde se alcanza la compra ya
+            // saldada, que salió de «Cuentas por pagar».
+            'pagos' => redirect()->route('facturacion.proveedores'),
+            default => redirect()->route('inventario.compra_ver', ['id' => $id]),
+        };
 
         $compra = DB::selectOne(
             'SELECT id_compra, nro_factura_proveedor FROM compra WHERE id_compra = ?', [$id]);

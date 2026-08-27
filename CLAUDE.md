@@ -12,7 +12,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **21 procedimientos, 36 funciones, 17 triggers y 17 vistas**,
+La base (`peluqueria_bd`) tiene **21 procedimientos, 39 funciones, 17 triggers y 17 vistas**,
 más **78 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
@@ -232,6 +232,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.77.0 | 27/08/2026 | **El descuento se ve al cobrar, la plata sale del cajón que uno elige, y el informe deja de mentir por omisión.** **El cobro salía al precio de lista.** `sp_emitir_factura` aplica el mejor descuento —nivel o promoción, nunca los dos— desde la 5.5.0, pero lo calcula **sobre la factura ya creada**, y desde la 7.19.0 el orden del mostrador es al revés: primero se cobra contra la cita y después se elige el comprobante. Así que la clienta con 10 % de nivel pagaba el 100 %, y el descuento aparecía **cuando ya había pagado**. Entran `fn_cita_descuento_monto`, `fn_cita_promo_vigente` y `fn_cita_total`, que son las mismas reglas resueltas sobre la CITA — replicación deliberada y anotada, como el espejo de la agenda: si cambia el criterio de la factura, cambia acá. **La seña se topea contra el total con descuento**, que si no se puede señar más de lo que la cita va a costar y el comprobante sale con saldo negativo — FA-03 por otra puerta. El precio de lista queda **tachado al lado**: un total menor sin explicación se lee como un error de la pantalla. **Con varios cajones abiertos, la pantalla pregunta de cuál sale la plata.** El orden automático de la 7.69.0 sigue de red, pero adivinar deja el arqueo de otra persona descuadrado **sin que nada lo diga** y se descubre al cerrar. Los tres procedimientos que mueven plata —`sp_registrar_cobro`, `sp_registrar_sena`, `sp_pagar_compra`— reciben la caja; el id del POST **no se cree**, se valida contra las abiertas de los locales de esa persona. Con una sola abierta no se pregunta: hace perder un clic. **La factura del proveedor se puede cargar desde donde se la tenga.** Una vez saldada, la compra sale de «Cuentas por pagar» y desde ahí ya no se la alcanzaba: quedaba sin número para siempre. Ahora se acepta **en el mismo modal del pago** —que es cuando el papel casi siempre llega— y después desde la fila de la compra ya pagada. **Sólo se escribe si estaba vacío**: un número ya cargado es el que figura en el comprobante. **Y el informe tenía tres números sin denominador.** «100 citas · 20 atendidas · 7 canceladas · 0 no vino» dejaba **73 sin explicar**, así que quien lo lee supone que algo se perdió — entra **Pendientes**, sacado de `estado_cita.bloquea_agenda` y no de una lista de ids escrita a mano. La **asistencia se mide sobre las citas que YA ocurrieron**: contra el total, un mes en curso daba «20 %» sólo porque faltaban 73 por pasar, y con ese número el salón decide. Y el **«% del total» de servicios es sobre SERVICIOS**, no sobre citas — una cita lleva varios, así que «7 de 28» se leía como «7 de las 20 citas». De paso, **«Faltó» pasa a «Ausencias del profesional»** —convivía con «No vino la clienta» en la misma tabla y se leían como lo mismo—, **«Generado» pasa a «Facturado»** —el ticket promedio sale de lo cobrado, así que los dos no cierran entre sí— y en el Excel **la columna «Gráfico» dice qué mide**: la misma barra era el % del total en servicios y «contra el día más cargado» en demanda, y con el mismo rótulo se leían como el mismo número. **Cajas pasa a tarjetas y los movimientos del día se ven ahí mismo.** El botón mandaba al listado general, o sea que había que volver a filtrar por la caja en la que ya se estaba parado; ahora cada cajón es una tarjeta con su saldo, su responsable y **sus** movimientos de hoy en un modal. Las cuatro fuentes se arman **una sola vez** (`partesMovimientos()`) y las comparten el listado y el modal: escritas dos veces, una de las dos se queda atrás. Y entra al documento la sección **«Cuatro palabras que no son sinónimos»** —caja, apertura, movimientos y arqueo—, que es lo que hacía buscar el arqueo en la pantalla de abrir. **147 pruebas · 1085 aserciones**, dos extendidas y comprobadas en las dos direcciones: con dos cajones abiertos en el mismo local cada tarjeta trae lo suyo y no lo del otro, y la caja abierta dibuja su modal — sin la variable que lo llena, 500 · 39 funciones · 78 `CHECK`. Los dos `.sql` regenerados desde una copia limpia |
 | 7.76.0 | 26/08/2026 | **Vuelven «Todos» y los gráficos de Excel.** Reportes recupera la vista que reúne todos los informes en una sola pantalla y en una sola planilla. El `.xls` conserva gráficos compatibles con Excel mediante segmentos de celdas coloreadas, con escala proporcional, leyenda porcentual y tamaño compacto: reemplaza el `div` que Excel ignoraba sin volver al bloque genérico de la versión anterior. **147 pruebas · 1074 aserciones** · 78 `CHECK` |
 | 7.75.0 | 26/08/2026 | **Las citas pendientes no quedan programadas para siempre.** El despachador automático cierra como **Ausente** las citas Programadas, Reprogramadas o Atrasadas que superan 24 horas desde su fecha y hora vigente, siempre que no hayan sido iniciadas ni atendidas. Una reprogramación toma su nueva `fecha_hora`, por lo que el plazo vuelve a empezar; el cierre queda auditado a nombre del profesional. **146 pruebas · 1064 aserciones** · 78 `CHECK` |
 | 7.74.0 | 26/08/2026 | **Reportes descargables de verdad y Docker alineado.** Excel reemplaza las diez columnas de celdas coloreadas por una barra horizontal compacta y proporcional, evitando gráficos gigantes y difíciles de leer. «Descargar PDF» genera y descarga un documento PDF real con Dompdf, conservando el período, filtros y bloques seleccionados. El arranque de Docker detecta Dompdf aunque el volumen `vendor` sea anterior. También se alineó la base activa con `turno_laboral.flexibilidad_entrada_min`, que faltaba en un volumen viejo y rompía Agenda. **146 pruebas** · 78 `CHECK` |
@@ -1918,6 +1919,26 @@ la pantalla pide mililitros; sin ellas se comporta como siempre.
 la que espera `fn_producto_stock`: la conversión pasa al entrar y al salir, nunca queda
 guardada en dos unidades.
 
+### El papel del proveedor se puede cargar después, y desde donde se lo tenga
+
+**La mercadería llega antes que la factura**, así que `compra.nro_factura_proveedor`
+es opcional al registrar la compra y se completa cuando el papel aparece. El
+problema era **dónde**: una vez saldada, la compra sale de «Cuentas por pagar» y
+desde ahí ya no se la alcanzaba — quedaba sin número para siempre.
+
+| Desde dónde | Cuándo |
+|---|---|
+| Inventario → Compras, en la lista y en la compra | en cualquier momento |
+| **Tesorería → Pagos a proveedores**, en el mismo modal del pago | **al pagar**, que es cuando el papel casi siempre llega |
+| Tesorería → Pagos a proveedores, en la fila de la compra ya pagada | después, si no se cargó al pagar |
+
+- **Sólo se escribe si estaba vacío** (`COALESCE(NULLIF(TRIM(...), ''), '') = ''`):
+  un número ya cargado es el que figura en el comprobante y no se pisa desde un
+  modal de pago.
+- **Vuelve a donde se lo cargó.** El formulario declara `desde`, así que cargarlo
+  desde Pagos no te deja en la ficha de la compra, que es una pantalla a la que
+  no ibas.
+
 ### La cantidad la decide el pelo de la clienta, así que necesita decimales de verdad
 
 **No hay una cantidad fija por servicio**: un lavado lleva 15 ml o 60 según el pelo, y la
@@ -2036,6 +2057,31 @@ que cambiar el período no te devuelva al Resumen.
 > asignado pedía el informe de otro cambiando el desplegable, y los números
 > salían. **Con un solo local el filtro se pone solo y no se ofrece** — si no,
 > vería el consolidado del salón, que es justo lo que el aislamiento impide.
+
+### Un número sin su denominador informa mal
+
+Los tres defectos de esta clase que tenía el informe, porque vuelven fácil:
+
+| Decía | El problema | Dice |
+|---|---|---|
+| «100 citas · 20 atendidas · 7 canceladas · 0 no vino» | **faltaban 73** y quien lo lee supone que algo se perdió | entra **Pendientes**, y las cifras suman el total |
+| «Asistencia 20 %» | medía sobre el TOTAL, así que un mes en curso siempre da pésimo | **sobre las que ya ocurrieron** — atendidas + canceladas + ausentes |
+| «% del total» en servicios | el total es de **servicios**, no de citas: una cita lleva varios | «% de los servicios» |
+
+- **Pendiente sale de `estado_cita.bloquea_agenda`**, no de una lista de ids
+  escrita a mano — que es como el panel se quedó corto en la 7.52.1 al entrar
+  Atrasada.
+- **«Faltó» es del PROFESIONAL y sale del fichaje**; «No vino la clienta» sale de
+  la cita. En la misma tabla, con los rótulos cortos, el resumen podía decir «no
+  vino: 0» y el equipo «Faltó: 2» — dos ausencias distintas que se leían como la
+  misma.
+- **«Generado» es FACTURADO, no cobrado.** El ticket promedio sí sale de lo
+  cobrado, así que los dos números no cierran entre sí y hay que decir cuál es
+  cuál.
+- **En el Excel, la columna del gráfico dice qué mide.** «Gráfico» a secas no
+  distinguía que en servicios la barra es el % del total y en demanda es contra
+  el día más cargado: el mismo dibujo se leía como el mismo número. Cada hoja
+  declara su `'grafico' => '…'`.
 
 ### Los gráficos, sin librería
 
@@ -2245,6 +2291,32 @@ cargarla**: se agregó en el formulario del descuento.
 > promociones cargadas en Servicios → Promociones no llegaban nunca a una factura**: la
 > pantalla parecía andar y no hacía nada. `fn_descuento_monto` ya validaba vigencia y topeaba
 > el descuento al total, o sea que faltaba únicamente conectarla.
+
+#### Y lo que se cobra ANTES de facturar también lo descuenta
+
+`sp_emitir_factura` aplicaba el descuento desde siempre, pero **la agenda y el
+portal mostraban el precio de lista**: se cobraba la atención contra la cita
+—sin comprobante todavía, que es el orden del mostrador desde la 7.19.0— y el
+modal proponía el total sin descontar nada. La clienta con 10 % de nivel pagaba
+el 100 %, y el descuento aparecía recién al emitir, cuando ya había pagado.
+
+| Función | Qué contesta |
+|---|---|
+| `fn_cita_descuento_monto(id_cita)` | cuánto descuenta el mejor de los dos, sobre esa cita |
+| `fn_cita_promo_vigente(id_cita)` | la mejor promoción vigente que le aplica |
+| `fn_cita_total(id_cita)` | precio de lista − canjeado − descuento: **lo que hay que cobrar** |
+
+- **La regla no se reescribe: se reusa.** `fn_cita_descuento_monto` compara el
+  descuento del nivel contra la mejor promoción y aplica **uno solo**, igual que
+  el procedimiento — con los dos criterios escritos aparte, uno de los dos se
+  queda atrás y la pantalla promete un total que la factura no respeta.
+- **Va en la base y no en PHP** porque lo consultan tres lugares: la agenda, el
+  portal de la clienta y el tope de la seña.
+- **La seña se topea contra el total con descuento**, no contra el de lista: si
+  no, se puede señar más de lo que la cita va a costar y el comprobante sale con
+  saldo negativo — que es FA-03 otra vez, por otra puerta.
+- **El precio de lista se sigue mostrando tachado** cuando hay descuento: un
+  total menor sin explicación se lee como un error de la pantalla.
 
 ## Facturación electrónica (SIFEN)
 
@@ -2601,27 +2673,58 @@ Se trabaja con **una sesión abierta por cajón**, y lo hace cumplir
 `trg_caja_bi`, acotado a `NEW.id_caja_fisica`. Es el mismo defecto que la 7.36.2
 corrigió a nivel de sucursal, un nivel más adentro.
 
-**El módulo son tres pantallas, todas con la misma forma**: filtros arriba,
-tabla, paginación. No cambia con el tamaño del salón — con 3 cajones o con 300
-lo único que crece son las filas.
+### Cuatro palabras que no son sinónimos
 
-| Pantalla | Qué contesta |
-|---|---|
-| **Cajas** | ¿cuál está abierta y quién la tiene? |
-| **Movimientos** | ¿qué entró y salió de la caja? — **todo**, no sólo lo manual |
-| **Arqueos** | ¿cuadraron las cajas? |
+**Caja, apertura, movimientos y arqueo se dicen juntas y son cuatro cosas
+distintas.** Confundirlas es lo que hacía que el mostrador buscara el arqueo en
+la pantalla de abrir, o que «movimiento de efectivo» pareciera el único
+movimiento que la caja tiene.
 
-- **La lista dice lo mínimo para elegir** —caja, estado, responsable, hora— y
-  nada más. El monto, los movimientos y el arqueo se consultan **entrando**:
-  una tabla que lo muestra todo no se lee, se hojea.
-- **La caja individual es a propósito casi vacía**: efectivo esperado, el
-  desglose por medio de pago, y los dos botones. Ahí no se listan las otras
-  cajas — la lista sirve para elegir, esta pantalla para operar.
-- **Crear cajones es del Administrador y el formulario va abajo.** La pantalla
-  se piensa primero para operar los que existen: un salón carga los suyos una
-  vez.
+| Palabra | Qué es | Dónde vive | Cuándo pasa |
+|---|---|---|---|
+| **Caja** | el **cajón físico**: un puesto de cobro con nombre, en un local | `caja_fisica` | se carga **una vez** |
+| **Apertura y cierre** | la **sesión** de trabajo sobre ese cajón, con su monto inicial y su responsable | `caja` | **dos veces por día** |
+| **Movimientos** | **qué entró y salió** durante esa sesión | `cobro`, `movimiento_caja`, `pago_proveedor`, `pago_personal` | **todo el día** |
+| **Arqueo** | **contar** el efectivo y compararlo con lo esperado | `caja.monto_contado` + `fn_caja_diferencia` | **al cerrar** |
+
+Dos confusiones concretas que esto evita:
+
+- **Un cajón no es una caja abierta.** La «Caja 2» existe aunque nadie la haya
+  abierto hoy; lo que se abre y se cierra es la sesión. Por eso la lista
+  distingue «Cerrada» —el cajón está, sin sesión— de que el cajón no exista.
+- **Un movimiento no es sólo lo cargado a mano.** Un cobro es un movimiento de
+  caja, y un pago a proveedor también: son las cuatro fuentes que suma
+  `fn_caja_saldo`. Mientras la pantalla listó sólo `movimiento_caja` se veía
+  vacía **aunque la caja hubiera tenido setenta cobros**.
+
+### Las tres pantallas
+
+| Pantalla | Qué contesta | Cómo se ve |
+|---|---|---|
+| **Cajas** | ¿cuál está abierta, cuánto tiene y qué pasó hoy? | **tarjetas**, una por cajón |
+| **Movimientos** | ¿qué entró y salió, en cualquier fecha? | filtros · tabla · paginación |
+| **Arqueos** | ¿cuadraron las cajas? | filtros · tabla · paginación |
+
+- **Cada tarjeta trae los movimientos de SU caja**, del día, en un modal. Con
+  dos cajones abiertos en el mismo local, leer el arqueo de uno con los
+  movimientos del otro es peor que no verlos.
+- **El botón abre un modal, no manda a otra pantalla.** «¿Qué pasó hoy con esta
+  caja?» es la pregunta del mostrador, y el listado general la obligaba a volver
+  a filtrar por la caja en la que ya estaba parada. La historia entera sigue
+  estando allá, con sus filtros — el modal la enlaza.
+- **La caja individual es a propósito casi vacía**: efectivo esperado, monto de
+  apertura, cobrado en efectivo, y los dos botones. Ahí no se listan las otras
+  cajas — la lista sirve para elegir, esta pantalla para operar la elegida.
+- **Crear cajones es del Administrador y el formulario va arriba, en un modal.**
+  La pantalla se piensa primero para operar los que existen: un salón carga los
+  suyos una vez.
 - **Un cajón se da de baja, no se borra**, y no con la sesión abierta: quedaría
   plata adentro de algo que el sistema dejó de ofrecer y nadie podría cerrarlo.
+
+> **Las cuatro fuentes se arman una sola vez**, en
+> `FacturacionController::partesMovimientos()`, y las usan el listado y el modal.
+> Escritas dos veces, una de las dos se queda atrás — que es el error que este
+> proyecto ya se hizo con `datos_demo.sql` y con el espejo de la agenda.
 Sin caja abierta **no se mueve un guaraní**: quedaría fuera del arqueo y el cierre no cerraría.
 **La SUCURSAL la decide el documento; el CAJÓN, quién opera.** Son dos preguntas
 y se contestan distinto:
@@ -2644,6 +2747,22 @@ orden de preferencia va en una sola consulta dentro de los tres procedimientos:
 > La simulación midió un pago de **Gs. 1.150.000** validado contra un cajón y grabado en otro,
 > que quedó en −1.000.000. El `UPDATE cobro SET id_caja = ? … AND id_caja IS NULL` del
 > controlador sigue ahí, pero **sólo rellena lo que el procedimiento no pudo resolver**. La cierra quien la abrió, o el Administrador.
+
+**Y con varios cajones abiertos, la pantalla PREGUNTA.** El orden de arriba
+sigue valiendo como red —resuelve el caso normal y el de quien opera sin
+elegir— pero cuando hay más de una caja abierta en el local, quien cobra ve un
+combo y dice de cuál sale la plata. Adivinar ahí deja el arqueo de otra persona
+descuadrado **sin que nada lo diga**, y se descubre al cerrar.
+
+| | |
+|---|---|
+| Quién arma el combo | `Caja::abiertasDe()` — las abiertas del local, la propia primero |
+| Quién valida | `FacturacionController::cajaElegida()`, contra las sucursales de esa persona |
+| Cuándo se ofrece | sólo con **más de una** abierta: con una sola, preguntar hace perder un clic |
+
+> **El id que viaja en el POST no se cree.** Se comprueba que esa caja esté
+> abierta y sea de un local al que la persona entra — si no, cambiando un
+> número oculto se le mete plata al cajón de otra sucursal.
 
 **`exigeCaja($queIbaAHacer)` de `FacturacionController` es el guardián**, y está en
 las nueve acciones que tocan plata: cobrar, anular un cobro, emitir y anular factura, la
@@ -3028,7 +3147,7 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 36 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
+   Las 39 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
    Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
    de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
    reemplazar el definidor por el usuario real, y ese usuario necesita
@@ -3297,8 +3416,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 36 funciones,
-   17 triggers, 17 vistas y 77 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 39 funciones,
+   17 triggers, 17 vistas y 78 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,

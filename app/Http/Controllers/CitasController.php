@@ -153,13 +153,20 @@ class CitasController extends Controller
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS sena_comprobante,
                     f.id_factura,
-                    -- **Cuánto vale la cita**, para que el modal de cobro lo diga
-                    -- antes y no después. Es la MISMA expresión con la que la base
-                    -- topea la seña, así que la pantalla no puede ofrecer un monto
-                    -- que el procedimiento vaya a rechazar.
+                    -- **Cuánto vale la cita, CON su descuento.** Antes era la suma
+                    -- de los precios de lista, así que el modal ofrecía cobrar de
+                    -- más: `sp_emitir_factura` aplica el mejor descuento entre el
+                    -- del nivel y la promoción vigente, y la pantalla no lo sabía.
+                    --
+                    -- `fn_cita_total` es la misma regla resuelta sobre la cita, o
+                    -- sea antes de que exista la factura.
+                    fn_cita_total(v.id_cita) AS total_cita,
+                    -- El precio de lista se conserva para poder MOSTRAR el
+                    -- descuento: un total más bajo sin explicación se lee como un
+                    -- error de la pantalla.
                     (SELECT COALESCE(SUM(s2.precio),0) FROM cita_servicio cs2
                        JOIN servicio s2 ON s2.id_servicio = cs2.id_servicio
-                      WHERE cs2.id_cita = v.id_cita) AS total_cita,
+                      WHERE cs2.id_cita = v.id_cita) AS total_lista,
                     -- Cuánta seña pide el salón por esta cita: sale de
                     -- `servicio.sena_porcentaje`, no de lo que se tipee.
                     fn_cita_sena_requerida(v.id_cita) AS sena_requerida,

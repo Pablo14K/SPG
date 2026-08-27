@@ -76,10 +76,19 @@
     <h2 style="font-size:1rem;margin:1rem 0 .5rem">Resumen del período</h2>
     <table class="table table-sm">
         <tbody>
+            {{-- **Las cifras tienen que sumar el total.** Sin «Pendientes»,
+                 un informe del mes en curso mostraba 100 citas con 20 atendidas
+                 y 7 canceladas, y dejaba 73 sin explicar en el papel. --}}
             <tr><td>Citas del período</td><td class="text-end">{{ (int) $citas->total }}</td></tr>
             <tr><td>Atendidas</td><td class="text-end">{{ (int) $citas->atendidas }}</td></tr>
+            <tr><td>Pendientes (todavía sin ocurrir)</td>
+                <td class="text-end">{{ (int) $citas->pendientes }}</td></tr>
             <tr><td>Canceladas</td><td class="text-end">{{ (int) $citas->canceladas }}</td></tr>
             <tr><td>No vino la clienta</td><td class="text-end">{{ (int) $citas->ausencias }}</td></tr>
+            @if ($pctAsistencia !== null)
+                <tr><td>Asistencia (de las {{ $cerradas }} ya ocurridas)</td>
+                    <td class="text-end">{{ round($pctAsistencia, 1) }} %</td></tr>
+            @endif
             <tr><td><strong>Ingresos cobrados</strong></td>
                 <td class="text-end"><strong>{{ money($ingresos) }}</strong></td></tr>
             @if ($devoluciones > 0)
@@ -88,14 +97,14 @@
                 <tr><td><strong>Ingreso neto</strong></td>
                     <td class="text-end"><strong>{{ money($ingresos - $devoluciones) }}</strong></td></tr>
             @endif
-            <tr><td>Ticket promedio</td><td class="text-end">{{ money($ticket) }}</td></tr>
+            <tr><td>Ticket promedio cobrado</td><td class="text-end">{{ money($ticket) }}</td></tr>
         </tbody>
     </table>
 
     @endif
 
     @if ($ver("servicios"))
-    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Servicios más solicitados</h2>
+    <h2 style="font-size:1rem;margin:1.2rem 0 .5rem">Servicios realizados</h2>
     <table class="table table-sm">
         <thead><tr><th>Servicio</th><th>Categoría</th><th class="text-end">Veces</th><th class="text-end">Ingreso</th></tr></thead>
         <tbody>
@@ -165,8 +174,10 @@
     <table class="table table-sm">
         <thead><tr><th>Profesional</th><th class="text-end">Citas</th><th class="text-end">Atendidas</th>
             <th class="text-end">No vino</th><th class="text-end">Canceladas</th>
-            <th class="text-end">Faltó</th><th class="text-end">Servicios</th>
-            <th class="text-end">Generado</th><th class="text-end">Comisión</th>
+            {{-- «Faltó» es del PROFESIONAL: sale del fichaje, no de la cita.
+                 En la misma tabla que «No vino» se leían como lo mismo. --}}
+            <th class="text-end">Ausencias del prof.</th><th class="text-end">Servicios</th>
+            <th class="text-end">Facturado</th><th class="text-end">Comisión</th>
             <th class="text-end">Puntaje</th></tr></thead>
         <tbody>
             @forelse ($equipo as $e)

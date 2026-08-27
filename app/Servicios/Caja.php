@@ -76,6 +76,33 @@ class Caja
         return self::$cache;
     }
 
+    /**
+     * Las cajas abiertas de un local, para elegir a cuál entra la plata.
+     *
+     * **Con una sola no hay que preguntar nada**: la pantalla no dibuja el
+     * combo y el procedimiento la resuelve como siempre. Con dos o más, elegir
+     * mal deja el arqueo de otra persona descuadrado y nada lo dice.
+     *
+     * @return array<int, object>
+     */
+    public static function abiertasDe(?int $idSucursal = null): array
+    {
+        $suc = $idSucursal ?: Sucursales::activa();
+
+        return DB::select(
+            "SELECT c.id_caja, cf.nombre,
+                    TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS responsable,
+                    (c.id_usuario = ?) AS es_mia
+               FROM caja c
+               JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+               LEFT JOIN usuario u  ON u.id_usuario = c.id_usuario
+               LEFT JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE c.id_estado_caja = 1 AND (? = 0 OR c.id_sucursal = ?)
+              ORDER BY es_mia DESC, cf.nombre",
+            [(int) session('uid', 0), $suc, $suc]
+        );
+    }
+
     public static function olvidar(): void
     {
         self::$cache = false;

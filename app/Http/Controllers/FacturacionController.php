@@ -913,8 +913,16 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // **A qué caja entra la plata lo dice la pantalla.** Con dos cajones
+        // abiertos, dejar que el sistema elija manda el cobro al arqueo de otra
+        // persona: quien cuenta al cerrar se encuentra con plata que no cobró.
+        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+        if ($idCaja instanceof RedirectResponse) {
+            return $idCaja;
+        }
+
         try {
-            $r = Facturacion::cobrar($idFactura, (int) session('uid'), $lineas, (int) $caja->id_caja);
+            $r = Facturacion::cobrar($idFactura, (int) session('uid'), $lineas, $idCaja);
 
             Auditoria::registrar('COBRO', 'Facturacion', 'factura', $idFactura,
                 'Cobro ' . money($r['total'])
@@ -1536,16 +1544,23 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // La caja la elige quien cobra cuando hay más de una abierta: si no, la
+        // seña entra al arqueo del cajón equivocado.
+        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+        if ($idCaja instanceof RedirectResponse) {
+            return $idCaja;
+        }
+
         try {
             // **Una llamada por línea, todo en una transacción.** Es el mismo
             // modelo que el cobro contra factura: `cobro` es cada pago, no el
             // pago de la cita. Si una línea falla no queda media cita cobrada.
             $idCobro = 0;
             $cobrados = [];
-            Bd::enTransaccion(function () use ($lineas, $idCita, $caja, &$idCobro, &$cobrados) {
+            Bd::enTransaccion(function () use ($lineas, $idCita, $idCaja, &$idCobro, &$cobrados) {
                 foreach ($lineas as $l) {
                     $nuevo = Facturacion::sena($idCita, (int) $l['metodo'], (int) session('uid'),
-                        (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), (int) $caja->id_caja);
+                        (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), $idCaja);
                     $idCobro = $idCobro ?: $nuevo;
                     $cobrados[] = $nuevo;
                     if (! empty($l['detalle'])) {
@@ -1741,9 +1756,47 @@ class FacturacionController extends Controller
             return ' AND (' . implode(' OR ', $ors) . ')';
         };
 
-        // **Una consulta por fuente, unidas.** Cada una tiene su tabla y su
-        // forma de nombrar lo que pasó; forzarlas a un solo JOIN daría filas
-        // duplicadas y un `CASE` de veinte líneas.
+        $partes = $this->partesMovimientos($clase, $filtros, $buscar);
+
+        $union = '(' . implode(') UNION ALL (', $partes) . ')';
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) FROM ($union) t", $par));
+
+        return view('facturacion.movimientos', [
+            'abierta' => $abierta,
+            'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
+                                     FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
+            // **Las notas de crédito que todavía no se devolvieron.** La
+            // devolución no se tipea: se elige la nota y el monto sale de ella,
+            // que es lo que evita que queden dos salidas por la misma
+            // devolución con números distintos.
+            'notas' => $this->notasPorDevolver(),
+            'f' => $f,
+            'pag' => $pag,
+            'movimientos' => DB::select(
+                "SELECT * FROM ($union) t ORDER BY t.cuando DESC
+                 LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
+            ),
+        ]);
+    }
+
+    /**
+     * Las cuatro fuentes que suma `fn_caja_saldo`, como consultas sueltas.
+     *
+     * **Una consulta por fuente, unidas con UNION.** Cada tabla nombra
+     * distinto lo que pasó —un cobro tiene medio de pago, una liquidación
+     * tiene a quién se le pagó— y forzarlas a un solo JOIN daría filas
+     * duplicadas y un `CASE` de veinte líneas.
+     *
+     * Vive acá y no dentro de `movimientos()` porque la usan dos pantallas:
+     * el listado con sus filtros y el modal del día de cada caja. Escrita
+     * dos veces, una de las dos se queda atrás.
+     *
+     * @param  callable(string,string):string  $filtros  el WHERE de esa fuente
+     * @param  callable(array,string):string   $buscar   el LIKE, o cadena vacía
+     * @return string[]
+     */
+    private function partesMovimientos(string $clase, callable $filtros, callable $buscar): array
+    {
         $partes = [];
 
         if ($clase === '' || $clase === 'cobro') {
@@ -1824,25 +1877,38 @@ class FacturacionController extends Controller
                 . $buscar(['ppe.nombre'], 'pl');
         }
 
-        $union = '(' . implode(') UNION ALL (', $partes) . ')';
-        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) FROM ($union) t", $par));
+        return $partes;
+    }
 
-        return view('facturacion.movimientos', [
-            'abierta' => $abierta,
-            'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
-                                     FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
-            // **Las notas de crédito que todavía no se devolvieron.** La
-            // devolución no se tipea: se elige la nota y el monto sale de ella,
-            // que es lo que evita que queden dos salidas por la misma
-            // devolución con números distintos.
-            'notas' => $this->notasPorDevolver(),
-            'f' => $f,
-            'pag' => $pag,
-            'movimientos' => DB::select(
-                "SELECT * FROM ($union) t ORDER BY t.cuando DESC
-                 LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
-            ),
-        ]);
+    /**
+     * Los movimientos de HOY de un cajón, para el modal de la lista.
+     *
+     * **Es la pregunta del mostrador, no la del informe.** «¿Qué entró y salió
+     * de esta caja hoy?» se contesta de un vistazo y sin salir de la pantalla;
+     * para mirar los de la semana pasada está Movimientos, con sus filtros.
+     *
+     * Sale de las MISMAS cuatro fuentes que el listado —un pago a proveedor es
+     * un movimiento de caja, y un cobro también— así que el modal y la
+     * pantalla no pueden decir cosas distintas.
+     *
+     * @return array<int, object>
+     */
+    private function movimientosDelDia(int $idCajaFisica): array
+    {
+        $par = [];
+        // Un marcador por fuente: la conexión prepara de verdad y no admite el
+        // mismo nombre dos veces en la misma sentencia.
+        $filtros = function (string $campoFecha, string $suf) use (&$par, $idCajaFisica): string {
+            $par["cf_$suf"] = $idCajaFisica;
+
+            return "c.id_caja_fisica = :cf_$suf AND DATE($campoFecha) = CURDATE()";
+        };
+        $buscar = fn (array $campos, string $suf): string => '';
+
+        $partes = $this->partesMovimientos('', $filtros, $buscar);
+        $union = '(' . implode(') UNION ALL (', $partes) . ')';
+
+        return DB::select("SELECT * FROM ($union) t ORDER BY t.cuando DESC LIMIT 60", $par);
     }
 
     /**
@@ -1893,8 +1959,24 @@ class FacturacionController extends Controller
         // cien ya sería raro, y la consulta trae una fila por cada uno.
         $pag = Listado::paginacion(count($todas));
 
+        $rows = array_slice($todas, $pag['offset'], $pag['porPagina']);
+
+        // **Cada tarjeta trae los movimientos de SU caja**, que es lo que hace
+        // que la pantalla conteste sola: con dos cajones abiertos, leer el
+        // arqueo de uno con los movimientos del otro es peor que no verlos.
+        //
+        // Se consulta sólo para las cajas de esta página —son las que se
+        // dibujan— y sólo las del día: la historia entera está en Movimientos.
+        $movs = [];
+        if (Permisos::puede('facturacion.movimientos')) {
+            foreach ($rows as $c) {
+                $movs[(int) $c->id_caja_fisica] = $this->movimientosDelDia((int) $c->id_caja_fisica);
+            }
+        }
+
         return view('facturacion.cajas', [
-            'rows' => array_slice($todas, $pag['offset'], $pag['porPagina']),
+            'rows' => $rows,
+            'movs' => $movs,
             'f' => $f,
             'pag' => $pag,
             'sucursales' => $mias,
@@ -1939,6 +2021,12 @@ class FacturacionController extends Controller
             'cajon' => $cajon,
             'abierta' => $abierta,
             'saldo' => $abierta ? Caja::saldo((int) $abierta->id_caja) : null,
+            // **«Ver movimientos» abre un modal, no manda a otra pantalla.**
+            // La pregunta del mostrador es «¿qué pasó hoy con ESTA caja?», y
+            // mandarla al listado general la obligaba a volver a filtrar por
+            // la caja en la que ya estaba parada.
+            'movs' => Permisos::puede('facturacion.movimientos')
+                ? $this->movimientosDelDia($id) : [],
         ]);
     }
 
@@ -2699,7 +2787,18 @@ class FacturacionController extends Controller
                                     ORDER BY c2.fecha SEPARATOR ' · ')
                            FROM detalle_pago_proveedor d2
                            JOIN compra c2 ON c2.id_compra = d2.id_compra
-                          WHERE d2.id_pago_proveedor = pp.id_pago_proveedor) AS compras
+                          WHERE d2.id_pago_proveedor = pp.id_pago_proveedor) AS compras,
+                        -- **La compra que todavía no tiene su número de factura.**
+                        -- Una vez pagada desaparece de «Cuentas por pagar», así que
+                        -- desde ahí ya no se le puede cargar el papel: el proveedor
+                        -- muchas veces lo trae después, y quedaba sin forma de
+                        -- vincularlo. Acá sí está, porque el pago no se va nunca.
+                        (SELECT d3.id_compra
+                           FROM detalle_pago_proveedor d3
+                           JOIN compra c3 ON c3.id_compra = d3.id_compra
+                          WHERE d3.id_pago_proveedor = pp.id_pago_proveedor
+                            AND COALESCE(NULLIF(TRIM(c3.nro_factura_proveedor), ''), '') = ''
+                          LIMIT 1) AS compra_sin_factura
                    FROM pago_proveedor pp
                    JOIN proveedor pr ON pr.id_proveedor = pp.id_proveedor
                    JOIN persona pe_pr ON pe_pr.id_persona = pr.id_persona
@@ -2747,7 +2846,25 @@ class FacturacionController extends Controller
         // efecto es el que se reportó — un pago mayor al disponible que entra
         // sin quejarse— y es el mismo desajuste que la 7.36.3 corrigió del
         // lado del procedimiento, que quedó a medias del lado de la pantalla.
-        $idCajaPago = (int) (DB::scalar(
+        // **Y de QUÉ cajón de ese local sale, lo elige quien paga.** Con dos
+        // abiertos, tomar «el último» dejaba el egreso en el arqueo de otra
+        // persona sin que nada lo dijera. El combo sólo aparece cuando hay más
+        // de uno: con uno solo la pregunta no significa nada.
+        $idCajaElegida = (int) $request->input('id_caja', 0);
+        if ($idCajaElegida) {
+            $valida = (int) DB::scalar(
+                'SELECT COUNT(*) FROM caja k JOIN compra c ON c.id_compra = ?
+                  WHERE k.id_caja = ? AND k.id_estado_caja = 1 AND k.id_sucursal = c.id_sucursal',
+                [$idCompra, $idCajaElegida]
+            );
+            if (! $valida) {
+                flash('Esa caja no está abierta o no es del local de la compra.', 'error');
+
+                return $volver;
+            }
+        }
+
+        $idCajaPago = $idCajaElegida ?: (int) (DB::scalar(
             'SELECT k.id_caja FROM compra c
                JOIN caja k ON k.id_sucursal = c.id_sucursal AND k.id_estado_caja = 1
               WHERE c.id_compra = ? ORDER BY k.id_caja DESC LIMIT 1', [$idCompra]
@@ -2767,13 +2884,26 @@ class FacturacionController extends Controller
         }
 
         try {
-            $idPago = Bd::idDe('sp_pagar_compra', [$idCompra, $idMetodo, (int) session('uid'), $monto, $ref]);
+            // La caja la elige quien paga cuando hay más de una abierta: sin
+            // eso, el egreso salía del arqueo del cajón equivocado.
+            $idPago = Bd::idDe('sp_pagar_compra',
+                [$idCompra, $idMetodo, (int) session('uid'), $monto, $ref, $idCajaElegida ?: null]);
             if ($idPago) {
                 // Igual que en el cobro: el procedimiento busca la caja del
                 // propio usuario, y la del salón puede haberla abierto otra persona.
                 DB::update('UPDATE pago_proveedor SET id_caja = ? WHERE id_pago_proveedor = ? AND id_caja IS NULL',
                     [$idCajaPago, $idPago]);
             }
+            // **El papel casi siempre llega con el pago.** Se acepta acá para
+            // no obligar a entrar a la compra: una vez saldada sale de
+            // «Cuentas por pagar» y desde ahí ya no se la alcanza.
+            $nroFac = trim((string) $request->input('nro_factura_proveedor', ''));
+            if ($nroFac !== '' && preg_match('/^[0-9][0-9-]{2,29}$/', $nroFac)) {
+                DB::update("UPDATE compra SET nro_factura_proveedor = ?
+                             WHERE id_compra = ? AND COALESCE(NULLIF(TRIM(nro_factura_proveedor), ''), '') = ''",
+                    [$nroFac, $idCompra]);
+            }
+
             Auditoria::registrar('PAGO_PROVEEDOR', 'Facturacion', 'compra', $idCompra, 'Pago ' . money($monto));
             flash('Pago al proveedor registrado por ' . money($monto) . '.');
         } catch (Throwable $ex) {
@@ -2784,6 +2914,35 @@ class FacturacionController extends Controller
         }
 
         return $volver;
+    }
+
+    /**
+     * A qué caja abierta va la plata: la que eligió la pantalla, o la de siempre.
+     *
+     * **Se valida que esté abierta y que sea de un local al que la persona
+     * entra.** El id viaja en el formulario, así que se puede cambiar: sin esta
+     * comprobación se podría meter un cobro en el arqueo de otra sucursal.
+     */
+    private function cajaElegida(Request $request, int $porDefecto): int|RedirectResponse
+    {
+        $id = (int) $request->input('id_caja', 0);
+        if (! $id || $id === $porDefecto) {
+            return $porDefecto;
+        }
+
+        $suyas = array_map(fn ($su) => (int) $su->id_sucursal, Sucursales::delUsuario());
+        $ok = (int) DB::scalar(
+            'SELECT COUNT(*) FROM caja WHERE id_caja = ? AND id_estado_caja = 1
+              AND id_sucursal IN (' . implode(',', $suyas ?: [0]) . ')', [$id]
+        );
+
+        if (! $ok) {
+            flash('Esa caja no está abierta o no es de un local al que entres.', 'error');
+
+            return back();
+        }
+
+        return $id;
     }
 
     public function anularPagoProveedor(Request $request): RedirectResponse

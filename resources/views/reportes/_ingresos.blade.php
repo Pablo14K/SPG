@@ -84,7 +84,7 @@
 
         <div class="col-lg-6">
             <div class="spg-panel h-100">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-person-badge"></i> Generado por profesional</h2>
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-person-badge"></i> Facturado por profesional</h2>
                 @if ($equipo)
                     @php $maxGen = 0; foreach ($equipo as $e) { $maxGen = max($maxGen, (float) $e->generado); } @endphp
                     @foreach ($equipo as $e)
@@ -104,7 +104,7 @@
 
         <div class="col-lg-6">
             <div class="spg-panel h-100">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Generado por servicio</h2>
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Facturado por servicio</h2>
                 @if ($servicios)
                     @php
                         $porIngreso = $servicios;

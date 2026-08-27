@@ -313,6 +313,21 @@ class AccesoTest extends TestCase
             'name="id_caja_fisica"', $html,
             'El formulario tiene que decir QUÉ caja abre: con varios cajones, sin eso no se sabe cuál.'
         );
+
+        // 3) **Y con la caja ABIERTA la pantalla también se dibuja entera.**
+        //    Es un camino distinto —otra rama del `@if`— y ahí vive el modal
+        //    de los movimientos del día: una variable que la vista lee y el
+        //    controlador no manda no es error de sintaxis, revienta al abrir.
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                    VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+
+        $abierta = (string) $this->get(route('facturacion.caja_ver', $cajon))->assertOk()->getContent();
+
+        $this->assertStringContainsString('modalMovsDia', $abierta,
+            'Con la caja abierta tiene que estar el modal de los movimientos del día.');
+        $this->assertStringContainsString(route('facturacion.caja.cerrar'), $abierta,
+            'Con la caja abierta, su pantalla tiene que ofrecer el arqueo.');
     }
 
     /** Las doce listas que ofrecen el botón de bajar. */
@@ -364,7 +379,21 @@ class AccesoTest extends TestCase
 
         $this->assertStringContainsString('grafico-segmento', $contenido,
             'El Excel tiene que conservar segmentos visibles para cada gráfico.');
-        $this->assertStringContainsString('Gráfico', $contenido);
+        // **La columna del gráfico dice QUÉ mide.** «Gráfico» a secas no
+        // decía de qué total salía la barra, y en la misma planilla compara
+        // contra cosas distintas: acá es el % de los servicios realizados, en
+        // demanda es contra el día más cargado. El mismo dibujo con el mismo
+        // rótulo se leía como el mismo número.
+        $this->assertStringContainsString('% de los servicios', $contenido,
+            'La barra de servicios tiene que decir sobre qué total se mide.');
+        $this->assertStringNotContainsString('<th class="grafico">Gráfico</th>', $contenido,
+            'No debe volver el rótulo genérico que no decía qué mide.');
+
+        // Y el porcentaje NO es sobre las citas: una cita puede llevar varios
+        // servicios, así que «7 de 28» con el rótulo viejo se leía como «7 de
+        // las 20 citas».
+        $this->assertStringNotContainsString('% del total', $contenido);
+
         $this->assertStringNotContainsString('grafico-fondo', $contenido,
             'No debe volver el bloque único que Excel ignoraba.');
     }

@@ -508,8 +508,14 @@
                                 {{-- Lo que hay que cobrar, arriba del campo y no en un
                                      rechazo posterior. Un modal que pide un monto sin
                                      decir cuál es el monto obliga a saberlo de memoria. --}}
+                                @php $lista = (float) ($c->total_lista ?? $totalCita); @endphp
                                 @if ($totalCita > 0)
                                     <div class="spg-cobro-cuenta mb-2">
+                                        @if ($lista > $totalCita)
+                                            <span>Precio de lista <strong>{{ money($lista) }}</strong></span>
+                                            <span class="txt-ok">· descuento
+                                                <strong>− {{ money($lista - $totalCita) }}</strong></span>
+                                        @endif
                                         <span>La cita vale <strong>{{ money($totalCita) }}</strong></span>
                                         @if ((float) $c->sena > 0)
                                             <span>· ya cobrado <strong>{{ money($c->sena) }}</strong></span>

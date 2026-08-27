@@ -76,24 +76,41 @@
          su propia sección; repetir acá las citas sería ruido. --}}
     @if (! in_array($seccion, ['compras'], true))
         <div class="spg-metrics spg-metrics-compacto mb-3">
+            {{-- **Las cuatro cifras de citas tienen que sumar el total.**
+                 Antes eran «100 citas · 20 atendidas · 7 canceladas · 0 no
+                 vino» y quedaban 73 sin explicar: quien lo lee supone que algo
+                 se perdió, cuando lo que pasa es que todavía no llegaron.
+
+                 Y los porcentajes se miden sobre lo que YA ocurrió, no sobre
+                 el total: contra el total, un informe del mes en curso decía
+                 «20 % de asistencia» sólo porque faltaban 73 citas por pasar —
+                 y con ese número el salón decide. --}}
             <div class="spg-metric"><div class="lbl">Citas del período</div>
-                <div class="val">{{ (int) $citas->total }}</div></div>
+                <div class="val">{{ (int) $citas->total }}</div>
+                @if ((int) $citas->pendientes > 0)
+                    <div class="spg-metric-pie">{{ (int) $citas->pendientes }} todavía por ocurrir</div>
+                @endif
+            </div>
             <div class="spg-metric"><div class="lbl">Atendidas</div>
                 <div class="val">{{ (int) $citas->atendidas }}</div>
                 @if ($pctAsistencia !== null)
-                    <div class="spg-metric-pie">{{ round($pctAsistencia, 1) }} % del total</div>
+                    <div class="spg-metric-pie">{{ round($pctAsistencia, 1) }} % de las {{ $cerradas }} ya ocurridas</div>
                 @endif
+            </div>
+            <div class="spg-metric"><div class="lbl">Pendientes</div>
+                <div class="val">{{ (int) $citas->pendientes }}</div>
+                <div class="spg-metric-pie">agendadas, todavía sin ocurrir</div>
             </div>
             <div class="spg-metric"><div class="lbl">Canceladas</div>
                 <div class="val">{{ (int) $citas->canceladas }}</div>
                 @if ($pctCancelacion !== null)
-                    <div class="spg-metric-pie">{{ round($pctCancelacion, 1) }} % del total</div>
+                    <div class="spg-metric-pie">{{ round($pctCancelacion, 1) }} % de las ya ocurridas</div>
                 @endif
             </div>
             <div class="spg-metric"><div class="lbl">No vino la clienta</div>
                 <div class="val">{{ (int) $citas->ausencias }}</div>
                 @if ($pctAusencia !== null)
-                    <div class="spg-metric-pie">{{ round($pctAusencia, 1) }} % del total</div>
+                    <div class="spg-metric-pie">{{ round($pctAusencia, 1) }} % de las ya ocurridas</div>
                 @endif
             </div>
             <div class="spg-metric"><div class="lbl">Ingresos cobrados</div>
@@ -106,9 +123,9 @@
                     <div class="spg-metric-pie txt-no">− {{ money($devoluciones) }} devuelto</div>
                 </div>
             @endif
-            <div class="spg-metric"><div class="lbl">Ticket promedio</div>
+            <div class="spg-metric"><div class="lbl">Ticket promedio cobrado</div>
                 <div class="val">{{ money($ticket) }}</div>
-                <div class="spg-metric-pie">por cita atendida</div>
+                <div class="spg-metric-pie">lo cobrado ÷ citas atendidas</div>
             </div>
         </div>
     @endif

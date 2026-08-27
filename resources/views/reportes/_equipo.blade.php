@@ -30,7 +30,13 @@
                                 <th class="text-end">Atendidas</th>
                                 <th class="text-end">No vino la clienta</th>
                                 <th class="text-end">Canceladas</th>
-                                <th class="text-end">Faltó</th>
+                                {{-- **«Faltó» es del PROFESIONAL, no de la clienta.**
+                                     Con el rótulo corto convivía con «No vino la
+                                     clienta» en la misma tabla y se leían como lo
+                                     mismo: el resumen podía decir «no vino: 0» y
+                                     acá aparecer «Faltó: 2». Son dos ausencias
+                                     distintas y ahora el nombre lo dice. --}}
+                                <th class="text-end">Ausencias del profesional</th>
                                 <th class="text-end">Puntaje</th>
                             </tr>
                         </thead>
@@ -75,7 +81,7 @@
                                 <th>Profesional</th>
                                 <th class="text-end">Servicios</th>
                                 <th style="width:20%">Participación</th>
-                                <th class="text-end">Generado</th>
+                                <th class="text-end">Facturado</th>
                                 <th class="text-end">Comisión</th>
                             </tr>
                         </thead>

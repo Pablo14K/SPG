@@ -45,15 +45,42 @@
 
         <div class="d-flex gap-2 flex-wrap mt-3">
             @if (Permisos::puede('facturacion.movimientos'))
-                <a class="btn btn-outline-neutro"
-                   href="{{ route('facturacion.movimientos', ['caja' => $cajon->id_caja_fisica]) }}">
-                    <i class="bi bi-list-ul"></i> Ver movimientos</a>
+                {{-- **Abre un modal, no manda a otra pantalla.** La pregunta es
+                     «¿qué pasó hoy con ESTA caja?», y el listado general la
+                     obligaba a volver a filtrar por la caja en la que ya estaba
+                     parada. La historia entera sigue estando allá. --}}
+                <button type="button" class="btn btn-outline-neutro"
+                        data-bs-toggle="modal" data-bs-target="#modalMovsDia">
+                    <i class="bi bi-list-ul"></i> Movimientos de hoy</button>
             @endif
             <button class="btn btn-oro" data-bs-toggle="modal" data-bs-target="#modalArqueo">
                 <i class="bi bi-lock"></i> Cerrar caja</button>
         </div>
     </div>
 
+
+    @if (Permisos::puede('facturacion.movimientos'))
+        <div class="modal fade" id="modalMovsDia" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5">
+                            <i class="bi bi-list-ul"></i> {{ $cajon->nombre }} · movimientos de hoy</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        @include('facturacion._movs_dia', ['movs' => $movs, 'cajon' => $cajon->nombre])
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <a class="btn btn-sm btn-outline-neutro"
+                           href="{{ route('facturacion.movimientos', ['caja' => $cajon->id_caja_fisica]) }}">
+                            <i class="bi bi-clock-history"></i> Ver todos los movimientos</a>
+                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="modal fade" id="modalArqueo" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">

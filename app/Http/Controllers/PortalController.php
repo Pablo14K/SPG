@@ -521,7 +521,9 @@ class PortalController extends Controller
                     fn_cita_sena_requerida(v.id_cita) AS sena_requerida,
                     (SELECT COALESCE(SUM(s.precio),0)
                        FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
-                      WHERE cs.id_cita = v.id_cita) AS total_cita,
+                      WHERE cs.id_cita = v.id_cita) AS total_lista,
+                    -- Con el descuento aplicado: es lo que va a pagar.
+                    fn_cita_total(v.id_cita) AS total_cita,
                     (SELECT COALESCE(SUM(s2.precio),0)
                        FROM canje cj JOIN servicio s2 ON s2.id_servicio = cj.id_servicio
                       WHERE cj.id_cita = v.id_cita) AS canjeado,

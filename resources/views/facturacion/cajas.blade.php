@@ -5,14 +5,19 @@
 @section('contenido')
 @php use App\Servicios\Permisos; @endphp
 
-{{-- **Filtros arriba, tabla, paginación.** Es la misma forma que Movimientos y
-     Arqueos, y no cambia con el tamaño del salón: con 3 cajones o con 300 lo
-     único que crece son las filas.
+{{-- **Filtros arriba, tarjetas, paginación.** Cada cajón es una tarjeta y
+     **cada tarjeta trae sus propios movimientos**, que es lo que hace que la
+     pantalla conteste sola: con dos cajones abiertos en el mismo local, leer el
+     arqueo de uno con los movimientos del otro es peor que no verlos.
 
-     Cada fila dice lo mínimo para ELEGIR —caja, estado, responsable, hora— y
-     nada más. El monto, los movimientos y el arqueo se consultan entrando: una
-     tabla que lo muestra todo no se lee, se hojea. --}}
-<x-encabezado sub="Los cajones del salón y cuál está abierto ahora." />
+     Antes era una tabla y el botón mandaba al listado general de Movimientos —
+     o sea que había que volver a filtrar por la caja en la que ya se estaba
+     parado. Los del día se ven en un modal, acá mismo; la historia entera sigue
+     estando en Movimientos, con sus filtros y su paginación.
+
+     La forma no cambia con el tamaño del salón: con 3 cajones o con 300 lo
+     único que crece son las tarjetas, y la paginación las corta. --}}
+<x-encabezado sub="Los cajones del salón, cuál está abierto y qué pasó hoy con cada uno." />
 
 @if ($puedeCrear)
     <div class="d-flex justify-content-end mb-3">
@@ -24,62 +29,123 @@
 
 <x-filtros :f="$f" />
 
-<div class="spg-panel">
-    <div class="table-responsive">
-        <table class="table align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Caja</th>
-                    @if (count($sucursales) > 1)<th>Sucursal</th>@endif
-                    <th>Estado</th><th>Responsable</th><th>Apertura</th><th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($rows as $c)
-                    <tr>
-                        <td>{{ $c->nombre }}</td>
+<div class="row g-3">
+    @forelse ($rows as $c)
+        @php
+            $delDia = $movs[(int) $c->id_caja_fisica] ?? [];
+            $entro = 0;
+            $salio = 0;
+            foreach ($delDia as $m) {
+                if (! $m->activo) {
+                    continue;
+                }
+                if ((int) $m->signo > 0) {
+                    $entro += (float) $m->monto;
+                } else {
+                    $salio += (float) $m->monto;
+                }
+            }
+        @endphp
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="spg-panel h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <h2 class="spg-form-titulo mb-0"><i class="bi bi-safe"></i> {{ $c->nombre }}</h2>
                         @if (count($sucursales) > 1)
-                            <td class="text-muted-warm">{{ $c->sucursal }}</td>
+                            <div class="text-muted-warm" style="font-size:.82rem">{{ $c->sucursal }}</div>
                         @endif
-                        <td>
-                            @if ($c->id_caja)
-                                <span class="badge-estado e-ok"><i class="bi bi-unlock"></i> Abierta</span>
+                    </div>
+                    @if ($c->id_caja)
+                        <span class="badge-estado e-ok"><i class="bi bi-unlock"></i> Abierta</span>
+                    @else
+                        <span class="badge-estado e-muted"><i class="bi bi-lock"></i> Cerrada</span>
+                    @endif
+                </div>
+
+                @if ($c->id_caja)
+                    {{-- **El efectivo esperado es lo que tiene que estar en ESTE
+                         cajón**, no en el salón: es contra lo que se cuenta al
+                         cerrar. --}}
+                    <div class="mt-3">
+                        <div class="text-muted-warm" style="font-size:.8rem">Efectivo esperado</div>
+                        <div class="val oro" style="font-size:1.35rem">{{ money($c->saldo) }}</div>
+                    </div>
+                    <div class="text-muted-warm mt-2" style="font-size:.82rem">
+                        <i class="bi bi-person"></i> {{ $c->responsable ?: '—' }}
+                        · desde {{ fecha($c->fecha_apertura, 'd/m H:i') }}
+                    </div>
+
+                    @if (Permisos::puede('facturacion.movimientos'))
+                        <div class="text-muted-warm mt-2" style="font-size:.82rem">
+                            @if ($delDia)
+                                <i class="bi bi-list-ul"></i> {{ count($delDia) }} movimiento{{ count($delDia) === 1 ? '' : 's' }} hoy
+                                · <span class="txt-ok">+ {{ money($entro) }}</span>
+                                · <span class="txt-no">− {{ money($salio) }}</span>
                             @else
-                                <span class="badge-estado e-muted"><i class="bi bi-lock"></i> Cerrada</span>
+                                <i class="bi bi-list-ul"></i> Sin movimientos hoy
                             @endif
-                        </td>
-                        <td class="text-muted-warm">{{ $c->responsable ?: '—' }}</td>
-                        <td class="text-muted-warm" style="white-space:nowrap">
-                            {{ $c->fecha_apertura ? fecha($c->fecha_apertura, 'd/m H:i') : '—' }}</td>
-                        <td class="text-end">
-                            {{-- **Un solo botón por fila.** «Ver» si está abierta,
-                                 «Abrir» si no: son las dos únicas cosas que se
-                                 hacen desde una lista. --}}
-                            <a class="btn btn-sm {{ $c->id_caja ? 'btn-outline-neutro' : 'btn-oro' }}"
-                               href="{{ route('facturacion.caja_ver', $c->id_caja_fisica) }}">
-                                {{ $c->id_caja ? 'Ver' : 'Abrir' }}</a>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="{{ count($sucursales) > 1 ? 6 : 5 }}">
-                            <div class="spg-vacio">
-                                <i class="bi bi-safe"></i>
-                                <div class="t">No hay cajas cargadas</div>
-                                <div class="d">
-                                    @if ($puedeCrear)
-                                        Creá una con el botón «Nueva caja».
-                                    @else
-                                        Pedile a un Administrador que cargue una: sin caja no se cobra.
-                                    @endif
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                        </div>
+                    @endif
+                @else
+                    <div class="text-muted-warm mt-3" style="font-size:.85rem">
+                        Sin caja abierta. Mientras esté cerrada no se puede cobrar desde este cajón.
+                    </div>
+                @endif
+
+                <div class="d-flex gap-2 flex-wrap mt-3 pt-3 border-top">
+                    @if ($c->id_caja && Permisos::puede('facturacion.movimientos'))
+                        <button type="button" class="btn btn-sm btn-outline-neutro"
+                                data-bs-toggle="modal" data-bs-target="#modalMovs{{ $c->id_caja_fisica }}">
+                            <i class="bi bi-list-ul"></i> Movimientos de hoy</button>
+                    @endif
+                    <a class="btn btn-sm {{ $c->id_caja ? 'btn-outline-neutro' : 'btn-oro' }}"
+                       href="{{ route('facturacion.caja_ver', $c->id_caja_fisica) }}">
+                        {{ $c->id_caja ? 'Arqueo y cierre' : 'Abrir caja' }}</a>
+                </div>
+            </div>
+        </div>
+
+        @if ($c->id_caja && Permisos::puede('facturacion.movimientos'))
+            <div class="modal fade" id="modalMovs{{ $c->id_caja_fisica }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5">
+                                <i class="bi bi-list-ul"></i> {{ $c->nombre }} · movimientos de hoy</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            @include('facturacion._movs_dia', ['movs' => $delDia, 'cajon' => $c->nombre])
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            {{-- La historia completa sigue estando donde se puede
+                                 filtrar por fecha, medio y clase. --}}
+                            <a class="btn btn-sm btn-outline-neutro"
+                               href="{{ route('facturacion.movimientos', ['caja' => $c->id_caja_fisica]) }}">
+                                <i class="bi bi-clock-history"></i> Ver todos los movimientos</a>
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @empty
+        <div class="col-12">
+            <div class="spg-panel">
+                <div class="spg-vacio">
+                    <i class="bi bi-safe"></i>
+                    <div class="t">No hay cajas cargadas</div>
+                    <div class="d">
+                        @if ($puedeCrear)
+                            Creá una con el botón «Nueva caja».
+                        @else
+                            Pedile a un Administrador que cargue una: sin caja no se cobra.
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforelse
 </div>
 
 <x-paginacion :pag="$pag" :f="$f" />

@@ -1,8 +1,8 @@
--- MariaDB dump 10.19  Distrib 10.4.34-MariaDB, for debian-linux-gnu (x86_64)
+-- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
 --
--- Host: localhost    Database: spg_l
+-- Host: localhost    Database: peluqueria_regen
 -- ------------------------------------------------------
--- Server version	10.4.34-MariaDB-1:10.4.34+maria~ubu2004
+-- Server version	10.4.32-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -3485,11 +3485,11 @@ INSERT INTO `zona_servicio` VALUES (1,'Cabello',1),(2,'Manos',1),(3,'Pies',1),(4
 UNLOCK TABLES;
 
 --
--- Dumping events for database 'spg_l'
+-- Dumping events for database 'peluqueria_regen'
 --
 
 --
--- Dumping routines for database 'spg_l'
+-- Dumping routines for database 'peluqueria_regen'
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
@@ -3602,6 +3602,51 @@ BEGIN
   IF v_vence < CURDATE() THEN RETURN 'VENCIDO'; END IF;
 
   RETURN 'DISPONIBLE';
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_descuento_monto` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_descuento_monto`(p_id_cita INT UNSIGNED, p_id_descuento INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_base        DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_restringido INT DEFAULT 0;
+
+  IF p_id_descuento IS NULL THEN RETURN 0; END IF;
+
+  
+  
+  SELECT COUNT(*) INTO v_restringido
+    FROM servicio_descuento WHERE id_descuento = p_id_descuento;
+
+  IF v_restringido > 0 THEN
+    SELECT COALESCE(SUM(s.precio), 0) INTO v_base
+      FROM cita_servicio cs
+      JOIN servicio s ON s.id_servicio = cs.id_servicio
+      JOIN servicio_descuento sd
+        ON sd.id_servicio = cs.id_servicio AND sd.id_descuento = p_id_descuento
+     WHERE cs.id_cita = p_id_cita;
+  ELSE
+    SELECT COALESCE(SUM(s.precio), 0) INTO v_base
+      FROM cita_servicio cs
+      JOIN servicio s ON s.id_servicio = cs.id_servicio
+     WHERE cs.id_cita = p_id_cita;
+  END IF;
+
+  RETURN fn_descuento_monto(p_id_descuento, v_base);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -3736,6 +3781,38 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_promo_vigente` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_promo_vigente`(p_id_cita INT UNSIGNED) RETURNS int(10) unsigned
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_id INT UNSIGNED DEFAULT NULL;
+
+  SELECT d.id_descuento INTO v_id
+    FROM descuento d
+   WHERE d.activo = 1
+     AND NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento)
+     AND fn_cita_descuento_monto(p_id_cita, d.id_descuento) > 0
+   ORDER BY fn_cita_descuento_monto(p_id_cita, d.id_descuento) DESC,
+            d.id_descuento ASC
+   LIMIT 1;
+
+  RETURN v_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_sena` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3789,6 +3866,57 @@ BEGIN
                       WHERE cj.id_cita = cs.id_cita AND cj.id_servicio = cs.id_servicio);
 
   RETURN v_monto;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_total` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_total`(p_id_cita INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+    DETERMINISTIC
+BEGIN
+  DECLARE v_cliente  INT UNSIGNED;
+  DECLARE v_bruto    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_canjeado DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_nivel    INT UNSIGNED;
+  DECLARE v_promo    INT UNSIGNED;
+  DECLARE v_m_nivel  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_m_promo  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_desc     DECIMAL(14,2) DEFAULT 0;
+
+  SELECT id_cliente INTO v_cliente FROM cita WHERE id_cita = p_id_cita;
+  IF v_cliente IS NULL THEN RETURN 0; END IF;
+
+  SELECT COALESCE(SUM(s.precio), 0) INTO v_bruto
+    FROM cita_servicio cs
+    JOIN servicio s ON s.id_servicio = cs.id_servicio
+   WHERE cs.id_cita = p_id_cita;
+
+  
+  SELECT COALESCE(SUM(s.precio), 0) INTO v_canjeado
+    FROM canje ca
+    JOIN servicio s ON s.id_servicio = ca.id_servicio
+   WHERE ca.id_cita = p_id_cita;
+
+  SET v_nivel = fn_cliente_descuento(v_cliente);
+  SET v_promo = fn_cita_promo_vigente(p_id_cita);
+  SET v_m_nivel = fn_cita_descuento_monto(p_id_cita, v_nivel);
+  SET v_m_promo = fn_cita_descuento_monto(p_id_cita, v_promo);
+
+  SET v_desc = IF(v_m_promo > v_m_nivel, v_m_promo, v_m_nivel);
+
+  RETURN GREATEST(v_bruto - v_canjeado - v_desc, 0);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -5335,14 +5463,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_pagar_compra` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
   IN  p_id_compra    INT UNSIGNED,
@@ -5350,6 +5478,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_pagar_compra`(
   IN  p_id_usuario   INT UNSIGNED,
   IN  p_monto        DECIMAL(14,2),
   IN  p_referencia   VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_pago      INT UNSIGNED
 )
 BEGIN
@@ -5393,13 +5522,32 @@ BEGIN
   
   
   
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
+
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
+
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO pago_proveedor (id_proveedor, id_usuario, id_metodo_pago, id_estado_pago_proveedor, id_caja, referencia)
   VALUES (v_proveedor, p_id_usuario, p_id_metodo, 1, v_caja, p_referencia);
@@ -5414,14 +5562,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_cobro` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
   IN  p_id_factura  INT UNSIGNED,
@@ -5429,6 +5577,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_cobro`(
   IN  p_id_usuario  INT UNSIGNED,
   IN  p_monto       DECIMAL(14,2),
   IN  p_referencia  VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
@@ -5489,13 +5638,32 @@ BEGIN
   
   
   
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
+
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
+
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia)
   VALUES (p_id_factura, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia);
@@ -5598,14 +5766,14 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_registrar_sena` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
   IN  p_id_cita     INT UNSIGNED,
@@ -5613,6 +5781,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_sena`(
   IN  p_id_usuario  INT UNSIGNED,
   IN  p_monto       DECIMAL(14,2),
   IN  p_referencia  VARCHAR(50),
+  IN  p_id_caja     INT UNSIGNED,
   OUT p_id_cobro    INT UNSIGNED
 )
 BEGIN
@@ -5635,11 +5804,10 @@ BEGIN
   IF p_monto <= 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La sena tiene que ser mayor que cero.';
   END IF;
-
-  SELECT COALESCE(SUM(s.precio), 0) INTO v_total
-    FROM cita_servicio cs
-    JOIN servicio s ON s.id_servicio = cs.id_servicio
-   WHERE cs.id_cita = p_id_cita;
+  
+  
+  
+  SET v_total = fn_cita_total(p_id_cita);
 
   IF v_total <= 0 THEN
     SIGNAL SQLSTATE '45000'
@@ -5665,13 +5833,32 @@ BEGIN
   
   
   
-  SELECT id_caja INTO v_caja FROM caja
-   WHERE id_estado_caja = 1
-     AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
-   ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
-            (id_sucursal = v_sucursal) DESC,
-            id_caja DESC
-   LIMIT 1;
+  
+  
+  
+  
+  IF p_id_caja IS NOT NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_caja = p_id_caja AND id_estado_caja = 1
+       AND (v_sucursal IS NULL OR id_sucursal = v_sucursal);
+
+    IF v_caja IS NULL THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Esa caja no esta abierta o no es de este local.';
+    END IF;
+  END IF;
+
+  
+  
+  IF v_caja IS NULL THEN
+    SELECT id_caja INTO v_caja FROM caja
+     WHERE id_estado_caja = 1
+       AND (id_sucursal = v_sucursal OR id_usuario = p_id_usuario)
+     ORDER BY (id_sucursal = v_sucursal AND id_usuario = p_id_usuario) DESC,
+              (id_sucursal = v_sucursal) DESC,
+              id_caja DESC
+     LIMIT 1;
+  END IF;
 
   INSERT INTO cobro (id_factura, id_cita, id_metodo_pago, id_estado_cobro, id_usuario, id_caja, monto, referencia, observaciones)
   VALUES (NULL, p_id_cita, p_id_metodo, 1, p_id_usuario, v_caja, p_monto, p_referencia, 'Sena de reserva');
@@ -6077,4 +6264,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-24 13:02:53
+-- Dump completed on 2026-08-27 10:13:37

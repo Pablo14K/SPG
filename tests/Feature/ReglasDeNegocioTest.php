@@ -322,7 +322,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // Se cobra una seña de la CITA (id_factura queda NULL, como en el sistema)
         Bd::idDe('sp_registrar_sena', [
-            (int) $f->id_cita, 1, (int) $f->id_usuario, $sena, 'seña de prueba',
+            (int) $f->id_cita, 1, (int) $f->id_usuario, $sena, 'seña de prueba', null,
         ]);
 
         $this->assertEqualsWithDelta($sena, (float) DB::scalar('SELECT fn_cita_sena(?)', [$f->id_cita]), 0.01);
@@ -1090,7 +1090,7 @@ class ReglasDeNegocioTest extends TestCase
         $cajaAjena = (int) DB::getPdo()->lastInsertId();
 
         $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
-        $idCobro = Bd::idDe('sp_registrar_sena', [(int) $cita->id_cita, $metodo, $uid, 1000.0, 'TEST-LOCAL']);
+        $idCobro = Bd::idDe('sp_registrar_sena', [(int) $cita->id_cita, $metodo, $uid, 1000.0, 'TEST-LOCAL', null]);
 
         $quedo = (int) DB::scalar('SELECT id_caja FROM cobro WHERE id_cobro = ?', [$idCobro]);
 
@@ -2659,10 +2659,22 @@ class ReglasDeNegocioTest extends TestCase
         $r = $this->get(route('citas.agenda', ['dia' => date('Y-m-d')]))->assertOk();
 
         $html = $r->getContent();
-        $this->assertStringContainsString('A cobrar ' . money((float) $srv->precio), $html,
+        $conDescuento = (float) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
+
+        $this->assertStringContainsString('A cobrar ' . money($conDescuento), $html,
             'El modal tiene que decir cuánto falta cobrar, no esperar a rechazarlo.');
         $this->assertStringContainsString('La cita vale', $html,
             'Y cuánto vale la cita, que es de dónde sale ese número.');
+
+        // **Con descuento vigente, el modal NO puede ofrecer el precio de lista.**
+        // Es lo que hacía cobrar de más: `sp_emitir_factura` aplica el mejor
+        // descuento y la pantalla no lo sabía.
+        if ($conDescuento < (float) $srv->precio) {
+            $this->assertStringNotContainsString('A cobrar ' . money((float) $srv->precio), $html,
+                'Con descuento vigente el modal estaría ofreciendo el precio de lista.');
+            $this->assertStringContainsString('descuento', $html,
+                'Un total más bajo sin decir por qué se lee como un error de la pantalla.');
+        }
     }
 
     /**
@@ -3116,27 +3128,30 @@ class ReglasDeNegocioTest extends TestCase
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
             // Sin caja abierta no se mueve un guaraní, así que se abre: es el
             // camino real, no un atajo.
-            \App\Servicios\Bd::idDe('sp_abrir_caja', [1, 0, $suc, '']);
+            \App\Servicios\Bd::idDe('sp_abrir_caja', [1, 0, $this->cajonDe($suc), '']);
         }
 
+        // **Lo que se cobra es el total CON descuento**: el tope de la base
+        // sale de `fn_cita_total`, así que cobrar el precio de lista con una
+        // promoción vigente lo rechazaría — y con razón.
+        $total = (int) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
+
         // Mitad y mitad, en dos medios distintos.
-        $mitad = (int) floor((float) $srv->precio / 2);
+        $mitad = (int) floor($total / 2);
         $this->post(route('facturacion.sena'), [
             'id_cita' => $idCita,
             'metodo' => [$efectivo, $otro],
-            'monto' => [(string) $mitad, (string) ((int) $srv->precio - $mitad)],
+            'monto' => [(string) $mitad, (string) ($total - $mitad)],
             'referencia' => ['', 'OP-123'],
         ]);
 
         $cobros = DB::select('SELECT monto, id_metodo_pago FROM cobro WHERE id_cita = ? AND id_estado_cobro = 1', [$idCita]);
         $this->assertCount(2, $cobros,
             'Dos medios son dos cobros: `cobro` es cada pago, no el pago de la cita.');
-        $this->assertEqualsWithDelta((float) $srv->precio, array_sum(array_map(fn ($c) => (float) $c->monto, $cobros)), 0.01,
+        $this->assertEqualsWithDelta((float) $total, array_sum(array_map(fn ($c) => (float) $c->monto, $cobros)), 0.01,
             'Entre las dos líneas tiene que entrar el total de la cita.');
         $this->assertEqualsWithDelta(0.0, (float) DB::scalar(
-            'SELECT (SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
-                       JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?)
-                  - fn_cita_sena(?)', [$idCita, $idCita]
+            'SELECT fn_cita_total(?) - fn_cita_sena(?)', [$idCita, $idCita]
         ), 0.01, 'Y la cita tiene que quedar saldada.');
     }
 
@@ -3204,7 +3219,7 @@ class ReglasDeNegocioTest extends TestCase
         $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
         if (! $caja) {
             $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
-            Bd::idDe('sp_abrir_caja', [1, 0, $suc, '']);
+            Bd::idDe('sp_abrir_caja', [1, 0, $this->cajonDe($suc), '']);
             $caja = DB::selectOne('SELECT id_caja FROM caja WHERE id_estado_caja = 1 ORDER BY id_caja DESC LIMIT 1');
         }
         $id = (int) $caja->id_caja;
@@ -3432,7 +3447,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComoAdministrador();
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
-            Bd::idDe('sp_abrir_caja', [1, 200000, $suc, '']);
+            Bd::idDe('sp_abrir_caja', [1, 200000, $this->cajonDe($suc), '']);
         }
 
         $cuantos = fn () => (int) DB::scalar('SELECT COUNT(*) FROM movimiento_caja');
@@ -3513,7 +3528,7 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComoAdministrador();
         $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc])) {
-            Bd::idDe('sp_abrir_caja', [1, 500000, $suc, '']);
+            Bd::idDe('sp_abrir_caja', [1, 500000, $this->cajonDe($suc), '']);
         }
 
         // Una devolución vigente sobre esa nota: la segunda ya no puede entrar.
@@ -3612,7 +3627,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         $efectivo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'EFECTIVO' AND activo = 1 LIMIT 1");
-        Bd::idDe('sp_registrar_cobro', [$idFactura, $efectivo, 1, 1000.0, null]);
+        Bd::idDe('sp_registrar_cobro', [$idFactura, $efectivo, 1, 1000.0, null, null]);
 
         $delCobro = (int) DB::scalar(
             'SELECT k.id_sucursal FROM cobro co JOIN caja k ON k.id_caja = co.id_caja
@@ -3877,7 +3892,7 @@ class ReglasDeNegocioTest extends TestCase
                      WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
 
         $abrir = function (float $inicial) use ($uid, $suc): int {
-            $id = Bd::idDe('sp_abrir_caja', [$uid, $inicial, $suc, '']);
+            $id = Bd::idDe('sp_abrir_caja', [$uid, $inicial, $this->cajonDe($suc), '']);
 
             return (int) $id;
         };
@@ -4329,7 +4344,18 @@ class ReglasDeNegocioTest extends TestCase
     public function las_citas_pendientes_mas_de_un_dia_se_cierran_como_ausentes(): void
     {
         $srv = DB::selectOne('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
-        $clientes = DB::select('SELECT id_cliente FROM cliente ORDER BY id_cliente LIMIT 4');
+        $clientes = DB::select(
+            'SELECT c.id_cliente FROM cliente c
+              WHERE NOT EXISTS (
+                    SELECT 1 FROM cita ci
+                      JOIN cita_servicio cs ON cs.id_cita = ci.id_cita
+                      JOIN estado_cita ec ON ec.id_estado_cita = ci.id_estado_cita
+                     WHERE ci.id_cliente = c.id_cliente
+                       AND cs.id_servicio = ?
+                       AND DATE(ci.fecha_hora) = CURDATE()
+                       AND ec.bloquea_agenda = 1)
+              ORDER BY c.id_cliente LIMIT 4', [$srv->id_servicio ?? 0]
+        );
         $usr = DB::selectOne('SELECT id_usuario FROM usuario WHERE activo = 1 LIMIT 1');
         $suc = DB::selectOne('SELECT id_sucursal FROM sucursal WHERE activo = 1 LIMIT 1');
 
@@ -4564,9 +4590,11 @@ class ReglasDeNegocioTest extends TestCase
         // Dos cajones del MISMO local, los dos con una caja abierta: es el caso
         // que el rediseño de la 7.69.0 vino a hacer posible.
         $ids = [];
+        // Un solo token para las dos: así el filtro de la lista las trae juntas.
+        $token = uniqid();
         foreach (['A', 'B'] as $letra) {
             DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
-                [$suc, 'Filtro ' . $letra . ' ' . uniqid()]);
+                [$suc, 'Filtro ' . $letra . ' ' . $token]);
             $cf = (int) DB::scalar('SELECT LAST_INSERT_ID()');
 
             DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
@@ -4599,6 +4627,31 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNotContains(2222.0, $deA, 'La caja A no puede mostrar los movimientos de la B.');
         $this->assertContains(2222.0, $deB, 'La caja B tiene que mostrar su movimiento.');
         $this->assertNotContains(1111.0, $deB, 'La caja B no puede mostrar los movimientos de la A.');
+
+        // 3) **Y la LISTA de cajas trae los de cada una.** Cada cajón es una
+        //    tarjeta con sus propios movimientos del día, así que el mismo
+        //    aislamiento tiene que valer ahí: con dos cajones abiertos en el
+        //    mismo local, leer el arqueo de uno con los movimientos del otro es
+        //    peor que no verlos.
+        $lista = $this->get(route('facturacion.cajas', ['q' => $token]))->assertOk();
+        $movs = $lista->viewData('movs');
+
+        $montosDeLaTarjeta = fn (int $cajon): array => collect($movs[$cajon] ?? [])
+            ->map(fn ($m) => (float) $m->monto)->all();
+
+        $tA = $montosDeLaTarjeta($ids['A']['cajon']);
+        $tB = $montosDeLaTarjeta($ids['B']['cajon']);
+
+        $this->assertContains(1111.0, $tA, 'La tarjeta de la caja A tiene que traer su movimiento.');
+        $this->assertNotContains(2222.0, $tA, 'La tarjeta de la A no puede traer los de la B.');
+        $this->assertContains(2222.0, $tB, 'La tarjeta de la caja B tiene que traer su movimiento.');
+        $this->assertNotContains(1111.0, $tB, 'La tarjeta de la B no puede traer los de la A.');
+
+        // Y el modal existe: el botón abre acá mismo en vez de mandar al
+        // listado general, que obligaba a volver a filtrar por la caja en la
+        // que ya se estaba parado.
+        $lista->assertSee('modalMovs' . $ids['A']['cajon'], false)
+              ->assertSee('Movimientos de hoy');
 
         foreach (['B', 'A'] as $letra) {
             DB::delete('DELETE FROM movimiento_caja WHERE id_caja = ?', [$ids[$letra]['caja']]);

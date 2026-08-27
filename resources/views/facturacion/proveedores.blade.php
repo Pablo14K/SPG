@@ -78,7 +78,18 @@
                                  forma de saber cuál de las cuatro compras se pagó.
                                  Un pago puede cubrir varias, y por eso salen todas. --}}
                             <td class="text-muted-warm" style="font-size:.83rem">
-                                {{ $p->compras ?: '—' }}</td>
+                                {{ $p->compras ?: '—' }}
+                                {{-- **El papel que llega después del pago.** La compra
+                                     saldada ya no está en «Cuentas por pagar», así que
+                                     éste es el único lugar desde donde se la puede
+                                     alcanzar. --}}
+                                @if ($p->compra_sin_factura && $p->estado !== 'Anulado')
+                                    <button type="button" class="btn btn-sm btn-rapido mt-1"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalNroFac{{ $p->compra_sin_factura }}">
+                                        <i class="bi bi-receipt"></i> Cargar la factura</button>
+                                @endif
+                            </td>
                             <td>{{ $p->metodo }}</td>
                             <td class="text-muted-warm">{{ $p->referencia ?: '—' }}</td>
                             <td class="text-end">{{ money($p->monto) }}</td>
@@ -100,6 +111,46 @@
         </div>
     </div>
 
+    {{-- Cargar el número de la factura de una compra ya pagada. --}}
+    @php $yaPuesto = []; @endphp
+    @foreach ($pagos as $p)
+        @if ($p->compra_sin_factura && ! in_array($p->compra_sin_factura, $yaPuesto, true))
+            @php $yaPuesto[] = $p->compra_sin_factura; @endphp
+            <div class="modal fade" id="modalNroFac{{ $p->compra_sin_factura }}" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <form method="post" action="{{ route('inventario.compra.factura') }}" class="modal-content">
+                        @csrf
+                        <input type="hidden" name="id_compra" value="{{ $p->compra_sin_factura }}">
+                        <input type="hidden" name="desde" value="pagos">
+                        <div class="modal-header">
+                            <h5 class="modal-title" style="font-size:1rem">
+                                <i class="bi bi-receipt"></i> Factura del proveedor</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted-warm" style="font-size:.86rem">
+                                {{ $p->proveedor }} · {{ $p->compras }}
+                            </p>
+                            <label class="form-label" for="nf{{ $p->compra_sin_factura }}">Número</label>
+                            <input class="form-control" id="nf{{ $p->compra_sin_factura }}"
+                                   name="nro_factura_proveedor" required maxlength="30"
+                                   placeholder="001-001-0001234">
+                            <div class="form-text">
+                                Es el número del papel que entregó el proveedor. Queda
+                                pegado a la compra, así que el pago y la factura se
+                                pueden rastrear juntos.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-oro"><i class="bi bi-check2"></i> Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
+    @endforeach
+
     {{-- Un modal de pago por cuenta pendiente --}}
     @if ($caja)
         @foreach ($cuentas as $c)
@@ -115,6 +166,26 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
+                                {{-- **El número de la factura del proveedor se carga
+                                     acá si todavía no está.** El papel casi siempre
+                                     llega con el pago, y una vez saldada la compra
+                                     desaparece de esta lista: desde ahí ya no había
+                                     dónde vincularlo. --}}
+                                @unless (trim((string) ($c->nro_factura_proveedor ?? '')) !== '')
+                                    <div class="mb-3">
+                                        <label class="form-label" for="nfp{{ $c->id_compra }}">
+                                            Nº de factura del proveedor
+                                            <span class="text-muted-warm">(opcional)</span></label>
+                                        <input class="form-control" id="nfp{{ $c->id_compra }}"
+                                               name="nro_factura_proveedor" maxlength="30"
+                                               placeholder="001-001-0001234">
+                                        <div class="form-text">
+                                            Si el papel vino con el pago, cargalo ahora: después
+                                            la compra sale de esta lista.
+                                        </div>
+                                    </div>
+                                @endunless
+
                                 <p class="mb-3">
                                     Saldo de la compra: <strong class="txt-oro">{{ money($c->saldo) }}</strong>
                                     {{-- **El pago parcial ya se podía y no se decía.** Viene
