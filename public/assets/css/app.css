@@ -1096,14 +1096,13 @@ html,body{max-width:100%;overflow-x:hidden;}
   .btn.cargando::after,.spg-spinner{animation-duration:2.5s;}
 }
 
-/* Cuánto vale la cita y cuánto falta cobrar, arriba del campo de monto del
-   modal de cobro. El importe pendiente va en oro porque es jerarquía —es EL
-   número de la pantalla—, que es uno de los usos permitidos; el resto del
-   renglón queda en neutro para que ese número destaque solo. */
-.spg-cobro-cuenta{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .5rem;
-  background:var(--oro-tinte);border:1px solid var(--gris-calido);border-radius:.4rem;
-  padding:.45rem .6rem;font-size:.85rem;color:var(--carbon);}
-.spg-cobro-falta{margin-left:auto;color:var(--oro-texto);font-size:1rem;}
+/* Acá vivían las dos clases del renglón de cuenta del modal de cobro. Se
+   fueron cuando ese renglón pasó a ser una tabla: cuatro cifras en una línea
+   —lista, descuento, total, seña— no dejaban decir de dónde salía ninguna, y
+   quien cobra no puede defender un número que no puede explicar.
+
+   Lo detectó la prueba que exige que toda clase del CSS aparezca en algún
+   marcado, que es justamente para esto. */
 
 /* ---------------------------------------------------------------------------
    El portal en el celular.

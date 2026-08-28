@@ -116,6 +116,9 @@ class FacturacionController extends Controller
 
         $w = ['1=1'];
         $par = [];
+        // Los parámetros del bloque de «falta facturar» van aparte: comparten
+        // consulta con nada, y mezclarlos repetiría marcadores.
+        $parSf = [];
         if (Listado::hay($f, 'q')) {
             $w[] = Listado::likeVarias(['v.nro_comprobante', 'v.cliente'], Listado::valor($f, 'q'), 'q', $par);
         }
@@ -174,6 +177,29 @@ class FacturacionController extends Controller
         // sobre una nota de crédito, que no se cobra.
         return view('facturacion.facturas', [
             'rows' => DB::select("SELECT *, $acreditada $desde ORDER BY v.fecha_emision DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            // **A quién falta facturarle.** Atender y facturar son dos pasos, y
+            // entre uno y otro la plata se olvida: la cita queda Atendida, la
+            // clienta no siempre pide comprobante, y nadie vuelve a pasar por
+            // acá. Esta lista muestra lo emitido — o sea, justo lo que NO
+            // permite darse cuenta de lo que falta.
+            //
+            // Es del local activo, como todo lo demás, y se acota a lo reciente:
+            // una cita de hace tres meses sin facturar ya no se factura, se
+            // corrige.
+            'sinFacturar' => DB::select(
+                "SELECT c.id_cita, c.fecha_hora,
+                        CONCAT(pe.nombre,' ',pe.apellido) AS cliente,
+                        fn_cita_total(c.id_cita) AS total
+                   FROM cita c
+                   JOIN cliente cl ON cl.id_cliente = c.id_cliente
+                   JOIN persona pe ON pe.id_persona = cl.id_persona
+                  WHERE c.id_estado_cita = 4
+                    AND c.fecha_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    AND NOT EXISTS (SELECT 1 FROM factura f
+                                     WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
+                    " . Sucursales::filtro('c', $parSf) . "
+                  ORDER BY c.fecha_hora DESC LIMIT 20", $parSf
+            ),
             // El `tipo` decide qué datos extra se piden (tarjeta / banco / cheque)
             'metodos' => DB::select('SELECT id_metodo_pago, nombre, tipo FROM metodo_pago WHERE activo = 1 ORDER BY id_metodo_pago'),
             'caja' => Caja::abierta(),
@@ -572,7 +598,19 @@ class FacturacionController extends Controller
     public function emitirGuardar(Request $request): RedirectResponse
     {
         $idCita = (int) $request->input('id_cita', 0);
-        $idTipo = (int) $request->input('id_tipo_comprobante', 1) ?: 1;
+
+        // **La factura SIN NOMBRE es la misma factura, sin datos del receptor.**
+        // La DNIT la admite por debajo del tope, y es el caso de todos los días:
+        // la clienta que no da su RUC. El combo ofrece las dos como opciones
+        // distintas porque para quien cobra son dos cosas distintas —una pide
+        // los datos y la otra no— aunque el tipo de comprobante sea el mismo.
+        //
+        // La marca viaja pegada al id (`1-inn`) y no en un campo aparte: un
+        // `select` más un `checkbox` que hay que combinar bien es una forma de
+        // equivocarse. `(int)` se queda con el número y descarta el sufijo.
+        $bruto = (string) $request->input('id_tipo_comprobante', '1');
+        $innominada = str_ends_with($bruto, '-inn');
+        $idTipo = (int) $bruto ?: 1;
         $idCond = (int) $request->input('id_condicion_venta', 1) ?: 1;
 
         $cita = $this->citaFacturable($idCita, $idTipo);
@@ -580,12 +618,29 @@ class FacturacionController extends Controller
             return $cita;
         }
 
+        // **Sin nombre sólo por debajo del tope.** Es el rechazo 1321 de la
+        // DNIT: a partir de Gs. 60.000.000 el comprobante tiene que decir a
+        // quién se le vendió. Se avisa acá y no después de gastar el número.
+        if ($innominada) {
+            $total = (float) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
+            if ($total >= Sifen::TOPE_INNOMINADO) {
+                flash('Esta cita suma ' . money($total) . ' y desde ' . money(Sifen::TOPE_INNOMINADO)
+                    . ' la factura tiene que llevar los datos de la clienta. '
+                    . 'Elegí «Factura declarada».', 'error');
+
+                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+            }
+        }
+
         // Un comprobante que se declara ante la DNIT necesita los datos del
         // receptor ANTES de emitirse: un rechazo por un RUC mal tipeado no se
         // reintenta —el número ya se gastó y hay que anular y rehacer—, así
         // que todo lo que se pueda comprobar sin salir del salón se comprueba
         // antes. El Ticket no pasa por acá: es interno y no se declara.
-        if (Sifen::activo() && Sifen::esElectronico($idTipo)) {
+        //
+        // **La innominada tampoco**: no lleva datos del receptor, así que no
+        // hay nada que pedir ni que validar. Va derecho a emitirse.
+        if (Sifen::activo() && Sifen::esElectronico($idTipo) && ! $innominada) {
             return redirect()->route('facturacion.receptor', [
                 'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
             ]);

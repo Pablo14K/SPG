@@ -537,6 +537,9 @@
                                 // cobraba la seña dos veces y el comprobante quedaba
                                 // con saldo pendiente por la diferencia.
                                 $pide = (float) ($c->sena_requerida ?? 0);
+                                // Con la atención en curso tampoco: la clienta está en el
+                                // sillón, así que ya no hay reserva que garantizar.
+                                $enCursoCobro = $c->estado === 'En proceso';
                                 $yaSeno = (float) $c->sena > 0;
                                 $sugerido = (float) ($c->sena_pedida ?? 0) > 0
                                     ? (float) $c->sena_pedida
@@ -572,24 +575,83 @@
                                 {{-- Lo que hay que cobrar, arriba del campo y no en un
                                      rechazo posterior. Un modal que pide un monto sin
                                      decir cuál es el monto obliga a saberlo de memoria. --}}
-                                @php $lista = (float) ($c->total_lista ?? $totalCita); @endphp
+                                @php
+                                    $lista = (float) ($c->total_lista ?? $totalCita);
+                                    $dg = $desglosesSena[$c->id_cita] ?? null;
+                                @endphp
                                 @if ($totalCita > 0)
-                                    <div class="spg-cobro-cuenta mb-2">
-                                        @if ($lista > $totalCita)
-                                            <span>Precio de lista <strong>{{ money($lista) }}</strong></span>
-                                            <span class="txt-ok">· descuento
-                                                <strong>− {{ money($lista - $totalCita) }}</strong></span>
-                                        @endif
-                                        <span>La cita vale <strong>{{ money($totalCita) }}</strong></span>
-                                        @if ((float) $c->sena > 0)
-                                            <span>· ya cobrado <strong>{{ money($c->sena) }}</strong></span>
-                                        @endif
-                                        @if ($pide > 0)
-                                            <strong class="spg-cobro-falta">Seña que pide el salón: {{ money($pide) }}</strong>
-                                        @else
-                                            <strong class="spg-cobro-falta">A cobrar {{ money($falta) }}</strong>
-                                        @endif
-                                    </div>
+                                    {{-- **Cada número con su origen.** Antes eran cuatro
+                                         cifras en una línea —lista, descuento, total,
+                                         seña— y no se podía decir de dónde salía ninguna:
+                                         quien cobra no puede defenderlas si la clienta
+                                         pregunta, y un total más bajo sin explicación se
+                                         lee como un error de la pantalla. --}}
+                                    <table class="table table-sm align-middle mb-2" style="font-size:.86rem">
+                                        <tbody>
+                                            @foreach (($dg['filas'] ?? []) as $fl)
+                                                <tr>
+                                                    <td>
+                                                        {{ $fl->nombre }}
+                                                        @if ((int) $fl->canjeado > 0)
+                                                            <span class="badge-estado e-ok">canjeado</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-end text-muted-warm">{{ money($fl->precio) }}</td>
+                                                </tr>
+                                            @endforeach
+                                            <tr>
+                                                <td>Precio de lista</td>
+                                                <td class="text-end">{{ money($lista) }}</td>
+                                            </tr>
+                                            @if ($lista > $totalCita)
+                                                <tr class="txt-ok">
+                                                    <td>
+                                                        Descuento
+                                                        {{-- **Cuál de los dos ganó.** El sistema
+                                                             aplica uno solo —el mejor entre el
+                                                             del nivel y la promoción vigente— y
+                                                             sin decir cuál, el número no se puede
+                                                             explicar. --}}
+                                                        <span class="text-muted-warm" style="font-size:.8rem">
+                                                            @if (! empty($dg['promo']))
+                                                                por la promoción «{{ $dg['promo'] }}»
+                                                            @elseif (! empty($dg['nivel']))
+                                                                por su nivel {{ $dg['nivel'] }}
+                                                            @endif
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">− {{ money($lista - $totalCita) }}</td>
+                                                </tr>
+                                            @endif
+                                            <tr style="border-top:2px solid var(--gris-calido)">
+                                                <th>Total de la cita</th>
+                                                <th class="text-end">{{ money($totalCita) }}</th>
+                                            </tr>
+                                            @if ((float) $c->sena > 0)
+                                                <tr>
+                                                    <td class="text-muted-warm">Ya cobrado (seña)</td>
+                                                    <td class="text-end text-muted-warm">− {{ money($c->sena) }}</td>
+                                                </tr>
+                                            @endif
+                                            <tr>
+                                                {{-- **Con la atención ya registrada no se pide
+                                                     seña.** La seña garantiza una reserva, y
+                                                     con la clienta ya atendida no hay nada que
+                                                     reservar: lo que queda es cobrar el saldo.
+                                                     El modal seguía anunciando «seña que pide
+                                                     el salón» sobre citas atendidas, y encima
+                                                     ese número crece con los servicios que se
+                                                     agregan en el sillón — que no se señan. --}}
+                                                @if ($pide > 0 && $c->estado !== 'Atendida' && ! $enCursoCobro)
+                                                    <th>Seña que pide el salón</th>
+                                                    <th class="text-end txt-oro">{{ money($pide) }}</th>
+                                                @else
+                                                    <th>A cobrar</th>
+                                                    <th class="text-end txt-oro">{{ money($falta) }}</th>
+                                                @endif
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 @else
                                     {{-- Sin servicios cargados no hay monto que cobrar, y la
                                          base lo rechaza igual: mejor decirlo antes. --}}

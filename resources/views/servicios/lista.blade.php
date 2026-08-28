@@ -26,8 +26,15 @@
                         <tr>
                             <td>
                                 {{ $s->nombre }}
-                                @if ($s->requiere_exclusividad)
-                                    <span class="badge-estado e-warn" title="No se puede hacer al mismo tiempo que otro servicio exclusivo">exclusivo</span>
+                                {{-- **El badge «exclusivo» se fue.** Desde la 7.43.0
+                                     lo que decide si dos servicios pueden hacerse a la
+                                     vez es la ZONA DEL CUERPO, no una casilla: el
+                                     lavado y la coloración suman porque son sobre la
+                                     misma cabeza, aunque el lavado no sea «exclusivo».
+                                     `requiere_exclusividad` quedó en la base sin uso,
+                                     y el badge seguía anunciando una regla que hace
+                                     doce versiones no se aplica. --}}
+                                @if (false)
                                 @endif
                                 @if ($s->descripcion)
                                     <div class="text-muted-warm" style="font-size:.76rem">{{ $s->descripcion }}</div>

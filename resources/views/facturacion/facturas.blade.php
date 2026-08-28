@@ -14,7 +14,46 @@
     @endif
 
     <div class="spg-panel">
-        <x-filtros :f="$f" />
+        {{-- **A quién falta facturarle.** Esta pantalla lista lo emitido, o sea justo
+     lo que NO permite darse cuenta de lo que falta: atender y facturar son dos
+     pasos, la clienta no siempre pide comprobante, y la cita queda Atendida sin
+     que nadie vuelva a pasar por acá.
+
+     Va arriba y compacto: es una tarea pendiente, no un informe. Con la lista
+     vacía el bloque no se dibuja — un panel que dice «no falta ninguna» es
+     ruido todos los días para avisar una vez por semana. --}}
+@if (! empty($sinFacturar))
+    <div class="spg-panel mb-3" style="border-left:3px solid var(--oro)">
+        <h2 class="spg-form-titulo mb-2">
+            <i class="bi bi-receipt"></i>
+            Falta facturar {{ count($sinFacturar) }} atención{{ count($sinFacturar) === 1 ? '' : 'es' }}
+        </h2>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0" style="font-size:.86rem">
+                <thead>
+                    <tr><th>Cuándo</th><th>Clienta</th><th class="text-end">Total</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($sinFacturar as $sf)
+                        <tr>
+                            <td class="text-muted-warm" style="white-space:nowrap">
+                                {{ fecha($sf->fecha_hora, 'd/m H:i') }}</td>
+                            <td>{{ $sf->cliente }}</td>
+                            <td class="text-end">{{ money($sf->total) }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-oro"
+                                   href="{{ route('facturacion.emitir', ['cita' => $sf->id_cita]) }}">
+                                    Emitir</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endif
+
+<x-filtros :f="$f" />
 
         <div class="table-responsive">
             <table class="table align-middle">

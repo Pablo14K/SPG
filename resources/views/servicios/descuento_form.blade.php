@@ -36,9 +36,19 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="valor">Valor</label>
-                    <input class="form-control input-miles" id="valor" name="valor" data-decimales="2" data-min="0"
+                    <label class="form-label" for="valor">Valor *</label>
+                    <input class="form-control input-miles" id="valor" name="valor" data-decimales="2"
+                           data-min="1" required
                            value="{{ old('valor', $d->valor ?? '') }}">
+                    {{-- **Cero no es un descuento, es no tener descuento**, y una
+                         promoción al 0 % ocupa lugar en la lista sin hacer nada.
+                         El tope del 100 % lo comprueba el servidor: en porcentaje
+                         no puede pasarse, y en monto fijo la base ya topea al
+                         total de la factura. --}}
+                    <div class="form-text">
+                        En porcentaje, entre 1 y 100. En monto fijo, lo que se descuenta
+                        en guaraníes.
+                    </div>
                 </div>
 
                 <div class="col-md-6">

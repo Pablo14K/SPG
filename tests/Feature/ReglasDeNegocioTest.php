@@ -2678,10 +2678,16 @@ class ReglasDeNegocioTest extends TestCase
         $html = $r->getContent();
         $conDescuento = (float) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
 
-        $this->assertStringContainsString('A cobrar ' . money($conDescuento), $html,
+        // El renglón de la cuenta pasó a ser una tabla: el monto y su rótulo
+        // ya no van en la misma cadena, así que se miden por separado.
+        $this->assertStringContainsString('A cobrar', $html,
             'El modal tiene que decir cuánto falta cobrar, no esperar a rechazarlo.');
-        $this->assertStringContainsString('La cita vale', $html,
+        $this->assertStringContainsString(money($conDescuento), $html,
+            'Y el número tiene que ser el que se va a cobrar de verdad.');
+        $this->assertStringContainsString('Total de la cita', $html,
             'Y cuánto vale la cita, que es de dónde sale ese número.');
+        $this->assertStringContainsString('Precio de lista', $html,
+            'Con el desglose abierto: un total suelto no se puede comprobar.');
 
         // **Con descuento vigente, el modal NO puede ofrecer el precio de lista.**
         // Es lo que hacía cobrar de más: `sp_emitir_factura` aplica el mejor
@@ -2689,8 +2695,15 @@ class ReglasDeNegocioTest extends TestCase
         if ($conDescuento < (float) $srv->precio) {
             $this->assertStringNotContainsString('A cobrar ' . money((float) $srv->precio), $html,
                 'Con descuento vigente el modal estaría ofreciendo el precio de lista.');
-            $this->assertStringContainsString('descuento', $html,
+            $this->assertStringContainsString('Descuento', $html,
                 'Un total más bajo sin decir por qué se lee como un error de la pantalla.');
+            // **Y de dónde sale ese descuento.** Se aplica uno solo —el mejor
+            // entre el del nivel y la promoción vigente— así que decir cuál
+            // ganó es lo que permite defender el número si la clienta pregunta.
+            $this->assertTrue(
+                str_contains($html, 'por su nivel') || str_contains($html, 'por la promoción'),
+                'El descuento tiene que decir si vino del nivel de la clienta o de una promoción.'
+            );
         }
     }
 

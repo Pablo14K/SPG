@@ -687,6 +687,16 @@ class ServiciosController extends Controller
             $error = 'Ya existe un descuento con ese nombre.';
         } elseif ($d['fecha_inicio'] && $d['fecha_fin'] && $d['fecha_inicio'] > $d['fecha_fin']) {
             $error = 'La fecha de inicio no puede ser posterior a la de fin.';
+        } elseif (! $id && $d['fecha_fin'] && $d['fecha_fin'] < ahora_bd('Y-m-d')) {
+            // **Una promoción que nace vencida no descuenta nada.** Se carga,
+            // aparece en la lista y `fn_descuento_monto` la descarta por
+            // vigencia: el salón cree que la publicó y ninguna factura la
+            // aplica. Al editar sí se admite —así se cierra una que ya corrió—.
+            $error = 'Esa promoción vence el ' . fecha($d['fecha_fin'], 'd/m/Y')
+                   . ', que ya pasó: no se le aplicaría a ninguna factura. '
+                   . 'Corregí la fecha o dejala vacía si no vence.';
+        } elseif ($d['tipo'] === 'MONTO' && $d['valor'] < 1) {
+            $error = 'Un descuento en monto fijo tiene que ser de al menos Gs. 1.';
         }
         if ($error) {
             flash($error, 'error');

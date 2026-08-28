@@ -119,14 +119,30 @@
                                           class="d-flex gap-1 justify-content-end">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
-                                        {{-- Ticket viene marcado porque en el mostrador la mayoría
-                                             no pide factura: quien la pide lo dice, y ahí se cambia. --}}
+                                        {{-- **Las dos formas de la factura, nombradas.**
+                                             «Factura (se declara)» era una sola opción y
+                                             dejaba fuera el caso de todos los días: la
+                                             clienta que no da su RUC. Esa es la factura
+                                             **innominada**, que la DNIT admite por debajo
+                                             del tope y que va sin datos del receptor.
+
+                                             Son dos opciones y no una casilla aparte
+                                             porque para quien cobra son dos cosas
+                                             distintas —una pide los datos y la otra no—
+                                             aunque el tipo de comprobante sea el mismo. El
+                                             sufijo `-inn` viaja pegado al id. --}}
                                         <select class="form-select form-select-sm" name="id_tipo_comprobante" style="width:auto">
                                             @foreach ($tipos as $t)
+                                                @php $declarable = $sifen && \App\Servicios\Sifen::esElectronico((int) $t->id_tipo_comprobante); @endphp
                                                 <option value="{{ $t->id_tipo_comprobante }}"
                                                     @selected((int) $t->id_tipo_comprobante === $tipoDefecto)>
-                                                    {{ $t->nombre }}@if ($sifen && \App\Servicios\Sifen::esElectronico((int) $t->id_tipo_comprobante)) (se declara)@endif
+                                                    {{ $t->nombre }}@if ($declarable) declarada @endif
                                                 </option>
+                                                @if ($declarable)
+                                                    <option value="{{ $t->id_tipo_comprobante }}-inn">
+                                                        {{ $t->nombre }} sin nombre
+                                                    </option>
+                                                @endif
                                             @endforeach
                                         </select>
                                         <select class="form-select form-select-sm" name="id_condicion_venta" style="width:auto">

@@ -27,7 +27,8 @@ class Sena
      * **Lo canjeado no pide seña y aparece igual**, marcado: sacarlo de la
      * lista dejaría un total que no cierra con los servicios que se ven.
      *
-     * @return array{filas: array<int, object>, total: float, lista: float}
+     * @return array{filas: array<int, object>, total: float, lista: float,
+     *               descuento: float, promo: ?string, nivel: ?string}
      */
     public static function desglose(int $idCita): array
     {
@@ -61,6 +62,37 @@ class Sena
             $lista += (float) $f->precio;
         }
 
-        return ['filas' => $filas, 'total' => $total, 'lista' => $lista];
+        // **De dónde sale el descuento.** Un total más bajo sin explicación se
+        // lee como un error de la pantalla, y quien cobra no puede defenderlo
+        // si la clienta pregunta. Se aplica UNO SOLO —el mejor entre el del
+        // nivel y la promoción vigente—, así que decir cuál es alcanza.
+        $d = DB::selectOne(
+            'SELECT fn_cita_descuento_monto(c.id_cita, fn_cliente_descuento(c.id_cliente)) AS por_nivel,
+                    fn_cita_promo_vigente(c.id_cita) AS id_promo,
+                    (SELECT n.nombre FROM cliente cl2
+                       JOIN nivel n ON n.id_nivel = fn_cliente_nivel(cl2.id_cliente)
+                      WHERE cl2.id_cliente = c.id_cliente) AS nivel
+               FROM cita c WHERE c.id_cita = ?', [$idCita]
+        );
+
+        $porPromo = $d && $d->id_promo
+            ? (float) DB::scalar('SELECT fn_cita_descuento_monto(?, ?)', [$idCita, (int) $d->id_promo])
+            : 0.0;
+        $porNivel = (float) ($d->por_nivel ?? 0);
+
+        $promo = $porPromo > $porNivel && $d && $d->id_promo
+            ? (string) DB::scalar('SELECT nombre FROM descuento WHERE id_descuento = ?', [(int) $d->id_promo])
+            : null;
+
+        return [
+            'filas' => $filas,
+            'total' => $total,
+            'lista' => $lista,
+            'descuento' => max($porNivel, $porPromo),
+            'promo' => $promo,
+            // El nivel sólo se nombra si es el que ganó: decir «Oro» cuando el
+            // descuento vino de una promoción sería explicar mal el número.
+            'nivel' => $promo === null && $porNivel > 0 ? (string) ($d->nivel ?? '') : null,
+        ];
     }
 }

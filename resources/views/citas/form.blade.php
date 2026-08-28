@@ -55,8 +55,9 @@
                     <label class="form-label">Servicios *</label>
                     <p class="text-muted-warm mb-2" style="font-size:.8rem">
                         Se puede repartir la cita entre varias personas: elegí quién hace cada servicio.
-                        Los que están marcados como <em>exclusivos</em> ocupan a la clienta entera y no se
-                        pueden hacer en paralelo con otro exclusivo.
+                        Dos servicios de la <em>misma zona del cuerpo</em> no se pueden hacer
+                        a la vez —van uno después del otro— y los de zonas distintas sí
+                        conviven.
                     </p>
 
                     {{-- **Tarjetas con la imagen de referencia.** El
