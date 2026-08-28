@@ -25,16 +25,29 @@
              está pasando ahora, qué se está perdiendo y qué hacer. Antes decía
              «el comprobante por defecto no tiene timbrado vigente», que son
              dos palabras del sistema y ninguna del salón. --}}
+        {{-- **«No tiene timbrado» se leía como «no hay timbrados».** Quien abre
+             esta pantalla acaba de ver dos filas cargadas en Timbrados, así que
+             el aviso parecía contradecirlas — y no: los que están son de OTROS
+             comprobantes. El aviso nombra los dos lados, el que falta y los que
+             sí están, para que no haya nada que adivinar. --}}
         <div class="alert alert-warning">
-            <strong>Ahora mismo todo se emite como {{ $tipos[0]->nombre }}.</strong>
-            El {{ $tipoDefectoNombre }} —el comprobante que se usa cuando la clienta
-            <em>no</em> pide factura— no tiene timbrado cargado, así que no se puede elegir.
-            @if (\App\Servicios\Permisos::puede('facturacion.timbrados'))
-                <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargale un timbrado</a>
-                y vuelve a aparecer en la lista.
-            @else
-                Pedile a quien maneja los timbrados que le cargue uno y vuelve a aparecer en la lista.
-            @endif
+            <strong>Falta el timbrado del {{ $tipoDefectoNombre }}.</strong>
+            Es el comprobante que se usa cuando la clienta <em>no</em> pide factura, y
+            **sin su propio timbrado no se puede numerar**, así que no aparece en la
+            lista de abajo: por ahora todo sale como
+            {{ collect($tipos)->pluck('nombre')->join(' o ') }}.
+            <div class="mt-1" style="font-size:.86rem">
+                Los timbrados cargados son de
+                <strong>{{ collect($tipos)->pluck('nombre')->join(' y ') }}</strong> — cada
+                comprobante lleva el suyo, con su propia numeración.
+                @if (\App\Servicios\Permisos::puede('facturacion.timbrados'))
+                    <a class="link-oro" href="{{ route('facturacion.timbrados') }}">Cargá el
+                    del {{ $tipoDefectoNombre }}</a> y vuelve a aparecer acá.
+                @else
+                    Pedile a quien maneja los timbrados que cargue el del
+                    {{ $tipoDefectoNombre }}.
+                @endif
+            </div>
         </div>
     @endif
 

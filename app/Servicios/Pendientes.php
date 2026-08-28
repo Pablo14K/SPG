@@ -113,6 +113,36 @@ class Pendientes
                 'facturacion.timbrados', 'facturacion.timbrados');
         }
 
+        // **El comprobante por defecto sin su timbrado es el caso que más
+        // confunde.** `fn_timbrado_vigente` es por TIPO: tener cargado el de
+        // Factura no habilita el Comprobante de pago, que es el que el salón
+        // configuró para el mostrador. Sin el suyo, la pantalla cae en Factura
+        // —o sea, se declara ante la DNIT cada atención— que es justo lo
+        // contrario de lo que se quiso.
+        //
+        // Y desde afuera se lee como una contradicción: en Timbrados hay dos
+        // filas cargadas y la pantalla de emitir dice que falta uno.
+        $porDefecto = (int) config('sifen.tipo_por_defecto', 1);
+        $sinElSuyo = DB::selectOne(
+            'SELECT tc.nombre FROM tipo_comprobante tc
+              WHERE tc.id_tipo_comprobante = ? AND tc.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM timbrado t
+                                 WHERE t.id_tipo_comprobante = tc.id_tipo_comprobante
+                                   AND t.activo = 1
+                                   AND CURDATE() BETWEEN t.fecha_inicio AND t.fecha_fin)',
+            [$porDefecto]
+        );
+        if ($sinElSuyo) {
+            self::anotar(self::CONFUNDE,
+                'El «' . $sinElSuyo->nombre . '» es el comprobante configurado por defecto y '
+                . 'no tiene timbrado vigente. Cada comprobante lleva el suyo, con su propia '
+                . 'numeración: tener cargado el de Factura no lo habilita. Mientras falte, '
+                . 'todo se emite como Factura —o sea, se declara ante la DNIT— que es lo '
+                . 'contrario de lo que se configuró.',
+                'Tesorería → Timbrados, uno por comprobante',
+                'facturacion.timbrados', 'facturacion.timbrados');
+        }
+
         $vencidos = (int) DB::scalar(
             'SELECT COUNT(*) FROM timbrado WHERE activo = 1 AND fecha_fin < CURDATE()');
         if ($vencidos) {
