@@ -142,6 +142,40 @@ class Notificaciones
     }
 
     /**
+     * Le avisa a la clienta que su cita cambió de profesional.
+     *
+     * **Va a venir esperando a alguien y la atiende otra persona**, así que
+     * enterarse en el sillón es la peor forma. El aviso sale por la misma cola
+     * que los demás —`spg:notificaciones` la despacha— y por eso esto no
+     * bloquea el cambio: si el correo falla, la cita ya está reasignada.
+     *
+     * Devuelve `false` cuando esa clienta no tiene correo cargado: no es un
+     * error, es que no hay a dónde mandarlo, y la pantalla lo dice para que el
+     * salón la llame.
+     */
+    public static function avisarCambioDeProfesional(int $idCita, string $nuevo, string $motivo): bool
+    {
+        $c = DB::selectOne(
+            'SELECT c.id_cliente, c.fecha_hora, pe.email
+               FROM cita c
+               JOIN cliente cl ON cl.id_cliente = c.id_cliente
+               JOIN persona pe ON pe.id_persona = cl.id_persona
+              WHERE c.id_cita = ?', [$idCita]
+        );
+        if (! $c) {
+            return false;
+        }
+
+        self::crear(self::CANCELACION, (int) $c->id_cliente, $idCita,
+            'Tu cita del ' . date('d/m/Y \a \l\a\s H:i', strtotime((string) $c->fecha_hora))
+            . ' la va a atender ' . $nuevo . '. El día y la hora no cambian.'
+            . ' Motivo: ' . $motivo
+            . ' Si preferís otro horario, podés cambiarlo desde «Mis citas».');
+
+        return trim((string) ($c->email ?? '')) !== '';
+    }
+
+    /**
      * Tira el recordatorio de esa cita si todavía no salió.
      *
      * Lo llama `Agenda::reprogramar()`. `generarRecordatorios()` saltea toda

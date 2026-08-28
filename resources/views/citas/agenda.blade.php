@@ -30,6 +30,13 @@
         </form>
     </div>
 
+    {{-- **Los filtros del día.** Un día cargado son treinta filas, y buscar
+         «las de Carmen» o «las que faltan atender» era recorrerlas a ojo.
+
+         El día viaja con ellos en un campo oculto: sin eso, filtrar te
+         devolvía a hoy y había que volver a elegir la fecha. --}}
+    <x-filtros :f="$f" :ocultos="['dia' => $dia]" />
+
     @if ($puedeCobrar && ! $caja)
         <div class="alert alert-warning">
             La caja está cerrada. Para cobrar una seña hay que abrirla primero.
@@ -52,17 +59,28 @@
                         <tr>
                             <td style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
                             <td>
-                                {{ $c->cliente }}
-                                {{-- **La cita puede ser para otra persona**, y hasta ahora
-                                     no se veía en ningún lado: quien atiende esperaba a la
-                                     clienta y venía la hija. Igual con cuánta gente va. --}}
+                                {{-- **Arriba va quien SE ATIENDE; abajo y en chico, quien
+                                     la pidió.** Con el badge «para Josefina» al lado del
+                                     nombre de la clienta, el renglón tenía dos nombres del
+                                     mismo tamaño y había que leer la etiqueta para saber
+                                     cuál era cuál — y el que importa ese día es a quién
+                                     hay que sentar en el sillón.
+
+                                     Invertirlo no agrega píxeles: son las mismas dos
+                                     líneas, con la jerarquía al derecho. El resto —cuántas
+                                     van, qué dejó dicho— sigue en el modal, que es donde
+                                     se mira una vez al preparar el turno. --}}
                                 @if ($c->para_otra_persona)
-                                    <span class="badge-estado e-warn"
-                                          title="La reservó {{ $c->cliente }} para otra persona">
-                                        para {{ $c->nombre_para ?: 'otra persona' }}</span>
-                                @endif
-                                @if ((int) $c->personas > 1)
-                                    <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
+                                    {{ $c->nombre_para ?: 'Otra persona' }}
+                                    <div class="text-muted-warm" style="font-size:.78rem">
+                                        la pidió {{ $c->cliente }}@if ((int) $c->personas > 1) ·
+                                            {{ (int) $c->personas }} personas @endif
+                                    </div>
+                                @else
+                                    {{ $c->cliente }}
+                                    @if ((int) $c->personas > 1)
+                                        <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
+                                    @endif
                                 @endif
                                 @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
                                     <button type="button" class="btn btn-sm btn-outline-neutro spg-btn-mini"
@@ -197,10 +215,16 @@
                                             <i class="bi bi-calendar-event"></i></button>
                                     @endunless
 
+                                    {{-- **El ícono cambió.** `person-gear` al lado de
+                                         `person-x` —marcar ausente— son dos monigotes
+                                         casi iguales, y las dos acciones no se parecen
+                                         en nada: una anota que la clienta no vino y la
+                                         otra le cambia quién la atiende. Las flechas
+                                         dicen «pasa de uno a otro». --}}
                                     @if ($puedeReasignar && ! $enCurso)
                                         <button class="btn btn-sm btn-outline-neutro" title="Cambiar profesional"
                                                 data-bs-toggle="modal" data-bs-target="#modalReasignar{{ $c->id_cita }}">
-                                            <i class="bi bi-person-gear"></i></button>
+                                            <i class="bi bi-arrow-left-right"></i></button>
                                     @endif
 
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
@@ -428,6 +452,19 @@
                                     @endforeach
                                 </select>
                                 <div class="form-text">Sólo se podrá guardar si trabaja ese día y queda libre para todos los servicios.</div>
+
+                                {{-- **El motivo se le manda a la clienta.** No es
+                                     burocracia: va en el correo que le avisa el
+                                     cambio, y es lo único que queda en la auditoría
+                                     para saber por qué esa cita cambió de manos. --}}
+                                <label class="form-label mt-3" for="motReas{{ $c->id_cita }}">¿Por qué se cambia? *</label>
+                                <textarea class="form-control" id="motReas{{ $c->id_cita }}" name="motivo"
+                                          rows="2" maxlength="200" minlength="10" required
+                                          placeholder="Se lo vamos a contar a la clienta"></textarea>
+                                <div class="form-text">
+                                    Al menos 10 caracteres. Se le avisa por correo a la clienta,
+                                    con este motivo.
+                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

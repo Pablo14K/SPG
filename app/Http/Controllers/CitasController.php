@@ -12,6 +12,7 @@ use App\Servicios\Borrador;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
 use App\Servicios\CitasVencidas;
+use App\Servicios\Listado;
 use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
@@ -41,6 +42,16 @@ use Throwable;
  */
 class CitasController extends Controller
 {
+    /**
+     * Cuánto antes de la hora se puede registrar una atención.
+     *
+     * **Atender antes de hora no es adelantarse: es registrar como hecho algo
+     * que no pasó.** La comisión, el consumo de stock y el cobro quedan
+     * cargados a un momento en que la clienta ni estaba. Un cuarto de hora de
+     * margen cubre a la que llega temprano, que es el caso real.
+     */
+    private const MINUTOS_ANTES_DE_ATENDER = 25;
+
     /** Estados: 1 Programada · 2 Reprogramada · 3 Cancelada · 4 Atendida · 5 En proceso · 6 Ausente */
     private const CERRADAS = [3, 4];
 
@@ -127,6 +138,59 @@ class CitasController extends Controller
         // aparecía ocupado por alguien que atiende a treinta cuadras.
         $soloMias .= Sucursales::filtro('c', $par);
 
+        // **Filtros.** Un día cargado son treinta filas, y buscar «las de
+        // Carmen» o «las que faltan atender» era recorrerlas a ojo. Todos
+        // arrancan en «Todos»: la agenda del día tiene que seguir mostrando el
+        // día entero si nadie pide otra cosa.
+        $opEstado = ['' => 'Todos'];
+        foreach (DB::select('SELECT id_estado_cita, nombre FROM estado_cita ORDER BY id_estado_cita') as $e) {
+            $opEstado[(string) $e->id_estado_cita] = $e->nombre;
+        }
+
+        $opProf = ['' => 'Todos'];
+        foreach (Agenda::profesionales() as $pr) {
+            $opProf[(string) $pr->id_usuario] = $pr->nombre;
+        }
+
+        $opServ = ['' => 'Todos'];
+        foreach (DB::select('SELECT id_servicio, nombre FROM servicio WHERE activo = 1 ORDER BY nombre') as $sv) {
+            $opServ[(string) $sv->id_servicio] = $sv->nombre;
+        }
+
+        $campos = ['cliente' => ['tipo' => 'texto', 'etiqueta' => 'Cliente',
+                                 'ph' => 'Nombre de la clienta', 'ancho' => '200px']];
+        // Quien sólo ve lo suyo no elige profesional: hay una sola respuesta.
+        if ($verTodo) {
+            $campos['prof'] = ['tipo' => 'select', 'etiqueta' => 'Profesional',
+                               'opciones' => $opProf, 'ancho' => '190px'];
+        }
+        $campos['servicio'] = ['tipo' => 'select', 'etiqueta' => 'Servicio',
+                               'opciones' => $opServ, 'ancho' => '190px'];
+        $campos['estado'] = ['tipo' => 'select', 'etiqueta' => 'Estado',
+                             'opciones' => $opEstado, 'ancho' => '160px'];
+
+        $f = Listado::filtros($campos);
+
+        if (Listado::hay($f, 'cliente')) {
+            $soloMias .= ' AND v.cliente LIKE :cli';
+            $par['cli'] = '%' . Listado::valor($f, 'cliente') . '%';
+        }
+        if (Listado::hay($f, 'prof')) {
+            $soloMias .= ' AND c.id_usuario = :prof';
+            $par['prof'] = (int) Listado::valor($f, 'prof');
+        }
+        if (Listado::hay($f, 'estado')) {
+            $soloMias .= ' AND c.id_estado_cita = :est';
+            $par['est'] = (int) Listado::valor($f, 'estado');
+        }
+        if (Listado::hay($f, 'servicio')) {
+            // El servicio puede estar en el reparto o suelto: alcanza con que
+            // la cita lo tenga.
+            $soloMias .= ' AND EXISTS (SELECT 1 FROM cita_servicio cs9
+                                        WHERE cs9.id_cita = c.id_cita AND cs9.id_servicio = :srv)';
+            $par['srv'] = (int) Listado::valor($f, 'servicio');
+        }
+
         // El comprobante viene en la misma consulta porque la agenda tiene que
         // poder contestar «¿esto ya se cobró?» sin salir de la pantalla: una
         // cita queda Atendida y el dinero todavía no entró, y como la clienta
@@ -177,9 +241,21 @@ class CitasController extends Controller
                          ELSE fn_factura_saldo(f.id_factura) END AS saldo
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
                LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
               WHERE DATE(v.fecha_hora) = :d $soloMias
-              ORDER BY (c.id_estado_cita IN (4, 3, 6)) ASC, v.fecha_hora", $par
+              -- **Primero lo que falta hacer, y dentro por hora.** El peso sale
+              -- de lo que la cita todavía pide del salón: lo que ocupa la
+              -- agenda arriba, lo atendido después, y lo que no va a ocurrir
+              -- —cancelada, ausente— al final. Sale de `bloquea_agenda` y no de
+              -- una lista de ids escrita a mano, que es como el panel se quedó
+              -- corto en la 7.52.1 al entrar Atrasada.
+              ORDER BY CASE
+                         WHEN ec.bloquea_agenda = 1 THEN 1
+                         WHEN c.id_estado_cita = 4 THEN 2
+                         ELSE 3
+                       END,
+                       v.fecha_hora", $par
         );
 
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
@@ -216,7 +292,13 @@ class CitasController extends Controller
             // Emitir el comprobante es de `facturacion.facturas`, no de cobros:
             // son dos permisos distintos y quien sólo cobra no debería emitir.
             'puedeFacturar' => Permisos::puede('facturacion.facturas'),
-            'puedeReasignar' => Permisos::esAdmin(),
+            // **Cambiar el profesional es administración, no mostrador.** La
+            // clienta eligió a alguien, muchas veces por algo, así que
+            // cambiárselo es una decisión del salón — y quien atiende no
+            // debería poder moverse citas entre sí. Lo tienen el Administrador
+            // y quien administra los turnos, que son los que saben quién
+            // trabaja cuándo. `reasignarUna()` lo vuelve a comprobar.
+            'puedeReasignar' => Permisos::esAdmin() || Permisos::puede('personal.turnos'),
             'profs' => Permisos::esAdmin() ? Agenda::profesionales() : [],
 
             // **El mismo desglose que ve la clienta en el portal.** Quien
@@ -225,6 +307,7 @@ class CitasController extends Controller
             // Sólo de las que piden algo — para el resto el bloque no se
             // dibuja, así que traerlo sería una consulta al pedo por fila.
             'desglosesSena' => $this->desglosesDeSena($rows),
+            'f' => $f,
         ]);
     }
 
@@ -514,6 +597,31 @@ class CitasController extends Controller
         }
         if ($this->citaAjena($cita)) {
             abort(403, 'Esa cita es de otro profesional.');
+        }
+
+        // **Una atención ya registrada no se vuelve a tocar.** La pantalla la
+        // dibuja como detalle, pero esconder los campos no es el control: sin
+        // esto, un POST armado a mano agregaría servicios a una cita cerrada —
+        // y si ya se facturó, la factura queda corta.
+        if ((int) $cita->id_estado_cita === 4) {
+            flash('Esa atención ya está registrada. Si hay que corregirla, anulá el '
+                . 'comprobante o pedíselo a administración.', 'warning');
+
+            return $volver;
+        }
+
+        // **Una cita que todavía falta no se atiende.** Atender antes de hora
+        // no es un adelanto: es registrar como hecho algo que no pasó, y con
+        // eso la comisión, el consumo de stock y el cobro quedan cargados a un
+        // día en que la clienta ni estaba. Un cuarto de hora de margen alcanza
+        // para la que llegó temprano.
+        $faltan = (strtotime((string) $cita->fecha_hora) - strtotime(ahora_bd())) / 60;
+        if ($faltan > self::MINUTOS_ANTES_DE_ATENDER) {
+            flash('Esa cita es a las ' . fecha($cita->fecha_hora, 'H:i') . ' y todavía faltan '
+                . (int) $faltan . ' minutos. Se puede registrar desde '
+                . self::MINUTOS_ANTES_DE_ATENDER . ' minutos antes.', 'warning');
+
+            return $volver;
         }
         // **En proceso y Ausente son del DÍA de la cita.** Desde la agenda de
         // otro día se podían apretar igual, y una cita quedaba «en proceso» un
@@ -857,7 +965,29 @@ class CitasController extends Controller
         $id = (int) $request->input('id_cita', 0);
         $a = (int) $request->input('a', 0);
         $dia = (string) $request->input('dia', ahora_bd('Y-m-d'));
+        $motivo = trim((string) $request->input('motivo', ''));
         $volver = redirect()->route('citas.agenda', ['dia' => $dia]);
+
+        // **Cambiar el profesional de una cita es administración, no mostrador.**
+        // La clienta eligió a alguien, muchas veces por algo; cambiárselo es una
+        // decisión del salón, y quien atiende no debería poder moverse citas
+        // entre sí. Lo tienen el Administrador y quien administre los turnos,
+        // que son los dos que saben quién trabaja cuándo.
+        if (! Permisos::esAdmin() && ! Permisos::puede('personal.turnos')) {
+            flash('Sólo administración puede cambiar el profesional de una cita.', 'error');
+
+            return $volver;
+        }
+
+        // **Con motivo, y que explique algo.** Es lo que se le manda a la
+        // clienta por correo y lo único que queda en la auditoría: «cambio» no
+        // le dice nada a nadie tres meses después.
+        if (mb_strlen($motivo) < 10) {
+            flash('Escribí por qué se cambia el profesional, con al menos 10 caracteres: '
+                . 'es lo que se le avisa a la clienta.', 'error');
+
+            return $volver;
+        }
 
         $cita = DB::selectOne(
             'SELECT id_cita, id_usuario, id_estado_cita, fecha_hora
@@ -901,8 +1031,17 @@ class CitasController extends Controller
                   WHERE u.id_usuario = ?', [$a]
             );
             Auditoria::registrar('MODIFICACION', 'Citas', 'cita', $id,
-                'Profesional cambiado por administración a ' . $nombre);
-            flash('La cita pasó a ' . $nombre . '. El horario se mantuvo.');
+                'Profesional cambiado por administración a ' . $nombre . ': ' . $motivo);
+
+            // **A la clienta hay que avisarle.** Va a venir esperando a alguien
+            // y la atiende otra persona: enterarse en el sillón es la peor
+            // forma. El aviso va DESPUÉS del cambio y no atado a él — si el
+            // correo falla, la cita ya está reasignada y el salón puede llamar.
+            $aviso = Notificaciones::avisarCambioDeProfesional($id, $nombre, $motivo);
+
+            flash('La cita pasó a ' . $nombre . '. El horario se mantuvo.'
+                . ($aviso ? ' Se le avisó a la clienta por correo.'
+                          : ' No se le pudo avisar por correo: no tiene dirección cargada.'));
         } catch (QueryException $ex) {
             Log::error('No se pudo reasignar la cita ' . $id, ['error' => $ex->getMessage()]);
             flash('Ese profesional no está disponible en ese horario.', 'warning');
@@ -1052,8 +1191,19 @@ class CitasController extends Controller
             return redirect()->route('citas.agenda');
         }
 
+        // **Una cita ya atendida se MIRA, no se edita.** El botón de la agenda
+        // dice «Detalle», pero abría la misma pantalla de registrar: se podían
+        // marcar servicios nuevos y cargar productos sobre una atención que ya
+        // terminó, y encima ofrecía el catálogo entero — quince servicios que
+        // esa clienta no recibió.
+        //
+        // Ya existía el candado por factura emitida, que es más tarde: entre
+        // atender y facturar quedaba una ventana abierta.
+        $soloLectura = (int) $cita->id_estado_cita === 4;
+
         return view('citas.atender', [
             'cita' => $cita,
+            'soloLectura' => $soloLectura,
             // Quién puede atender: un servicio agregado en el sillón lo puede
             // hacer otra persona, y sin esto quedaba a nombre del profesional
             // de la cita — la comisión se le atribuía a quien no lo hizo.
@@ -1062,7 +1212,11 @@ class CitasController extends Controller
             'fichaje' => $this->estadoFichaje($cita),
             // Todos los servicios activos: los agendados vienen marcados y el
             // resto se puede sumar sobre la marcha si la clienta pide algo más.
+            // Con la cita cerrada se listan SÓLO los que se realizaron: el
+            // catálogo entero en una pantalla de consulta es ruido, y además
+            // invita a marcar algo sobre una atención terminada.
             'servicios' => DB::select(
+                ($soloLectura ? 'SELECT * FROM (' : '') .
                 'SELECT s.id_servicio, s.nombre, s.precio, cs.nombre AS categoria,
                         (SELECT COUNT(*) FROM cita_servicio x
                           WHERE x.id_cita = :c1 AND x.id_servicio = s.id_servicio) AS agendado,
@@ -1074,7 +1228,8 @@ class CitasController extends Controller
                           WHERE x2.id_cita = :c5 AND x2.id_servicio = s.id_servicio LIMIT 1) AS id_usuario
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
-                  WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre',
+                  WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'
+                . ($soloLectura ? ') t WHERE t.ya > 0' : ''),
                 ['c1' => $id, 'c2' => $id, 'c5' => $id]
             ),
             // **A qué servicio se le imputa el producto: sólo a los de ESTA

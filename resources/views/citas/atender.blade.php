@@ -3,6 +3,20 @@
 @section('titulo', 'Registrar atención')
 
 @section('contenido')
+@php
+    // **Con la cita ya atendida la pantalla es un detalle, no un formulario.**
+    // El candado por factura emitida existía desde antes, pero es más tarde:
+    // entre atender y facturar quedaba una ventana en la que se podían marcar
+    // servicios nuevos sobre una atención terminada.
+    //
+    // Se reusa `$factura` en vez de repetir la condición en veinte `@disabled`:
+    // los dos casos significan lo mismo —esto ya no se toca— y con dos
+    // variables, la próxima que se agregue se olvida en la mitad de los campos.
+    $factura = $factura ?? null;
+    if (($soloLectura ?? false) && ! $factura) {
+        $factura = (object) ['id_factura' => 0, 'nro' => null, 'solo_lectura' => true];
+    }
+@endphp
     @php use App\Servicios\Navegacion; @endphp
 
     <x-encabezado :sub="'Cita de <strong>' . e($cita->cliente) . '</strong> con ' . e($cita->profesional)
@@ -47,13 +61,21 @@
         </div>
     @endif
 
-    @if ($factura)
+    @if ($factura && ! ($factura->solo_lectura ?? false))
         <div class="alert alert-warning">
             Esta cita ya fue facturada con el comprobante <strong>{{ $factura->nro }}</strong>.
             No se le pueden agregar más servicios ni productos: la factura quedaría corta.
             @if ($url = Navegacion::url('facturacion.factura_ver'))
                 <a class="link-oro" href="{{ $url . '?id=' . $factura->id_factura }}">Ver el comprobante</a>
             @endif
+        </div>
+    @elseif ($factura)
+        {{-- **Atendida y facturada no son lo mismo, y el aviso tiene que
+             decir cuál es.** Con el texto de la factura sobre una cita que
+             todavía no se facturó, se buscaba un comprobante que no existe. --}}
+        <div class="alert alert-warning">
+            Esta atención ya está registrada. Abajo está lo que se hizo y lo que se usó:
+            es el detalle, no se puede modificar.
         </div>
     @endif
 
@@ -223,14 +245,21 @@
                         </div>
                         <div class="col-md-4">
                             <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
-                                {{-- **Los agendados y también los que se agregan acá.**
-                                     Antes salían sólo los de `cita_servicio`, así que un
-                                     servicio marcado en el sillón no aparecía en esta lista
-                                     hasta después de guardar: el producto que se le usó no
-                                     tenía dónde imputarse y quedaba colgado del primero.
+                                {{-- **Sólo los servicios MARCADOS.** Salía el catálogo
+                                     entero —quince opciones— y eso deja imputar un producto
+                                     a un servicio que la clienta no recibió: el consumo
+                                     queda colgado de algo que no ocurrió, y el servidor lo
+                                     rechaza al guardar con un mensaje que manda a mirar el
+                                     lugar equivocado.
 
-                                     Los que no están marcados los esconde `app.js`; sin él
-                                     se ven todos y se puede imputar igual. --}}
+                                     Entran los dos casos: lo que se agendó y lo que se
+                                     agrega en el sillón. El comentario de antes decía que
+                                     `app.js` los escondía y **no lo hacía nadie** — la lista
+                                     se dibujaba completa. Ahora lo hace el bloque de abajo,
+                                     que además reacciona al marcar y desmarcar.
+
+                                     Sin JavaScript se ven todos y se puede imputar igual:
+                                     es una ayuda, no el control. --}}
                                 <option value="0">— imputar al primer servicio —</option>
                                 @foreach ($servicios as $sc)
                                     <option value="{{ $sc->id_servicio }}" data-srv="{{ $sc->id_servicio }}">
@@ -289,6 +318,53 @@
 
 @push('scripts')
 <script>
+// ---------------------------------------------------------------------------
+// «¿En qué servicio se usó?» ofrece sólo los servicios marcados
+// ---------------------------------------------------------------------------
+// El catálogo entero deja imputar un producto a un servicio que la clienta no
+// recibió, y ahí el consumo queda colgado de algo que no ocurrió.
+//
+// Se recalcula al marcar y desmarcar, y también sobre las filas que agrega el
+// botón «Otra fila»: por eso se recorre el documento cada vez en vez de
+// guardarse la lista.
+(function () {
+    function refrescarServiciosDe() {
+        var marcados = {};
+        document.querySelectorAll('.srvAt').forEach(function (chk) {
+            if (chk.checked) marcados[chk.value] = true;
+        });
+
+        document.querySelectorAll('[name="servicio_de[]"]').forEach(function (sel) {
+            var visibles = 0;
+            sel.querySelectorAll('option[data-srv]').forEach(function (op) {
+                var ok = !!marcados[op.dataset.srv];
+                op.hidden = !ok;
+                op.disabled = !ok;
+                if (ok) visibles++;
+                // Si la opción elegida deja de estar marcada, se vuelve al
+                // primer servicio: dejarla seleccionada y escondida mandaría
+                // el id igual y el servidor lo rechazaría al guardar.
+                if (!ok && sel.value === op.value) sel.value = '0';
+            });
+            // Sin ningún servicio marcado no hay nada que imputar: el combo
+            // queda con su única opción y no engaña.
+            sel.disabled = sel.disabled || visibles === 0 ? sel.disabled : false;
+        });
+    }
+
+    document.addEventListener('change', function (ev) {
+        if (ev.target.classList && ev.target.classList.contains('srvAt')) refrescarServiciosDe();
+    });
+    document.addEventListener('click', function (ev) {
+        if (ev.target.closest && ev.target.closest('#masProductos')) {
+            // La fila nueva se clona después del clic.
+            setTimeout(refrescarServiciosDe, 0);
+        }
+    });
+
+    refrescarServiciosDe();
+})();
+
 // La unidad del campo depende del producto elegido: «ml» para los fraccionados
 // y la unidad de compra para el resto. Se actualiza sola al cambiar el select.
 function spgUnidad(fila) {
