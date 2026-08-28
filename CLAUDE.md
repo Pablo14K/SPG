@@ -127,10 +127,19 @@ Las tres veces que mordió, para no repetirlas:
 - **El Automatizador SIFEN se caía y nadie lo notaba**, así que las facturas se acumulaban en
   PENDIENTE. Por eso ahora sube con el resto en el `docker-compose.yml`.
 
-> **Y antes de comprimir, dos cosas más**: `DB_DATABASE=peluqueria_test` —la copia cargada
-> que se quiere mostrar— y `basededatos/1mes_simulacion.sql` regenerado desde la base que
-> se quiere transportar. Para instalar un salón vacío, cambiar explícitamente a
-> `peluqueria_bd`.
+#### Antes de comprimir
+
+El objetivo es que quien reciba el ZIP **descomprima y pruebe**, sin configurar nada:
+
+| Qué | Por qué |
+|---|---|
+| `DB_DATABASE=peluqueria_test` en `docker/php/env.docker` | es la copia cargada; con `peluqueria_bd` la aplicación arranca sin operación aunque el ZIP traiga las dos |
+| `basededatos/1mes_simulacion.sql` regenerado **desde la base que se quiere transportar** | el volcado no se actualiza solo: lo cargado desde el último dump no viaja |
+| **`docker/php/secretos.env` adentro** | no está en git, así que una herramienta que respete el `.gitignore` lo deja afuera — y el sistema llega sin correo |
+| `docker compose down -v && docker compose up` y contar | es lo único que prueba que lo que se entrega **carga**: el importador corre una sola vez, con el volumen vacío |
+
+Para instalar un salón vacío en vez de mostrar la demo, cambiar explícitamente a
+`peluqueria_bd`.
 
 #### «Actualizar Docker» es levantarlo DE CERO, no reiniciarlo
 
@@ -265,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.85.2 | 28/08/2026 | **El ZIP tiene que llegar listo para probar, y ahora el sistema avisa si no llegó así.** La 7.85.1 sacó las credenciales del archivo versionado, y eso abrió una pregunta que conviene tener contestada por escrito: **el repositorio y el ZIP son dos canales distintos**. Al repositorio no van —es el respaldo del TCC, queda publicado, y lo que entra al historial no sale nunca más—; al ZIP **sí**, porque quien lo recibe tiene que descomprimir y probar, no configurar un servidor de correo para ver si el registro de clientas anda. Se resuelve solo comprimiendo la carpeta: `secretos.env` es un archivo más ahí adentro. Lo que **no** hay que hacer es armarlo con `git archive` ni con una herramienta que respete el `.gitignore`. **Y si igual se cuela, ahora se nota.** `spg:diagnostico` distinguía «hay driver» de nada más: con `MAIL_MAILER=smtp` en el `.env` y las credenciales vacías decía **OK** y el sistema no mandaba un solo correo — la forma exacta en que esto se rompió entre la 6.4.0 y la 7.8.0, con la pantalla diciendo «te enviamos un código» igual. Ahora comprueba usuario **y** contraseña, nombra el archivo que falta y dice qué se pierde: verificación, recuperación, segundo factor y recordatorios. Comprobado en las dos direcciones — sacando `secretos.env` y levantando, salta. Entra además la lista de **«antes de comprimir»** completa: la base que queda apuntada, el volcado regenerado, `secretos.env` adentro, y el `down -v` con los conteos comparados, que es lo único que prueba que lo que se entrega **carga**. **148 pruebas · 1127 aserciones** |
 | 7.85.1 | 28/08/2026 | **Las credenciales salen del archivo versionado, la cola de avisos se vacía, y XAMPP queda afuera.** **`skip-worktree` esconde MÁS de lo que se le pidió.** La contraseña de Gmail vivía dentro de `docker/php/env.docker`, que sí se versiona, así que el archivo iba marcado para que git no lo mandara — y esa marca **esconde todos sus cambios**: ni se commitean ni aparecen en `git status`. Ya había costado caro dos veces, con `SIFEN_TIPO_DEFECTO` apuntando a un comprobante dado de baja (7.12.1) y con `DB_DATABASE` viajando mal. Ahora las credenciales viven en **`docker/php/secretos.env`** —ignorado, con su `secretos.env.example`— y el compose las pasa como variables del contenedor. **Laravel las respeta porque Dotenv arranca inmutable**: no pisa una variable ya puesta, así que lo del archivo aparte le gana a lo del `.env` montado, donde esas claves quedaron vacías. Comprobado: la contraseña resuelve, el token también, y el `diff` de `env.docker` no lleva ni una credencial. Va con `required: false`, para que quien clone levante sin correo en vez de no levantar. **La cola de salida se vació**: 43 avisos PENDIENTE que al levantar el cron en otra máquina se hubieran disparado. Se **borran** en vez de marcarse, y no es un detalle — marcarlos FALLIDA dejaría a esas citas sin recordatorio **para siempre**, porque `generarRecordatorios()` saltea toda cita que ya tenga uno; borrados, los que todavía corresponden se vuelven a generar solos. Nada se pierde: no se había enviado ninguno. **Ojo con la consecuencia**: los 27 avisos de cancelación que había ahí no van a salir, así que esas clientas no se enteran por correo de que su reserva se soltó. **Y se deja de usar XAMPP**, por decisión del usuario: se trabaja directo sobre Docker. Era la razón del puerto 3307 y de media docena de advertencias del documento; el motivo de fondo para no usarlo seguía valiendo igual —su Apache trae PHP 8.2 y Laravel 13 pide 8.3—, así que eran dos caminos para lo mismo y uno sin garantizar la versión del motor. El README pierde la «Opción B», el `.env` del host apunta al **3307** —sin XAMPP, en el 3306 no hay nadie— y los ejemplos de volcado pasan a `docker compose exec` + `docker compose cp`. **148 pruebas · 1127 aserciones** con el contenedor levantado de cero |
 | 7.85.0 | 28/08/2026 | **Se retira el «Comprobante de pago»: lo reemplaza la factura sin nombre.** Existía para un caso concreto —«la clienta no pide factura»— como documento interno, numerado con su propio timbrado y **fuera** de la DNIT. La **factura sin nombre** de la 7.83.0 cubre ese mismo caso sin pedir una serie aparte y sin dejar cobros fuera de lo declarado, así que el otro pasaba a ser un tipo más que mantener. **Y en la práctica nunca llegó a tener timbrado cargado**, con lo cual todo salía como Factura igual — sólo que sin que nadie lo hubiera decidido, y con un aviso permanente en la pantalla de emitir. **Es una baja, no un borrado**: `tipo_comprobante.activo` existe para que volver a habilitarlo no toque una línea de código, y es la misma mecánica con la que la 7.9.0 retiró cinco tipos. No tenía comprobantes emitidos ni timbrados, así que no deja nada colgando. **`SIFEN_TIPO_DEFECTO` se mueve en la misma tanda**, que es la trampa que este documento ya anota: apuntando a un tipo inactivo, la lista cae en el primero que quede **sin avisar**. Pasa de 8 a **1** en `config/sifen.php` y en los tres `.env` — el valor por defecto del `env()` incluido, que es el que vale cuando la clave no está. Con esto el combo del cobro queda en las dos opciones que se pidieron: **Factura declarada** y **Factura sin nombre**, y el aviso de «falta el timbrado» desaparece solo, porque el comprobante por defecto ahora es el que sí lo tiene. > **Ojo con la palabra**: la innominada **se declara**. No es «una factura sin declarar» — es la misma factura electrónica con el grupo del receptor vacío, que la DNIT admite por debajo de Gs. 60.000.000. Lo que cambia es qué datos lleva, no si se informa. **148 pruebas · 1127 aserciones** · los dos `.sql` regenerados |
 | 7.84.1 | 28/08/2026 | **«Falta el timbrado» se leía como «no hay timbrados», y nadie lo avisaba antes de la pantalla de emitir.** El aviso era correcto y estaba mal escrito: **el timbrado es por TIPO de comprobante**, así que tener cargado el de Factura no habilita el «Comprobante de pago» —que es el que `SIFEN_TIPO_DEFECTO` marca como el de todos los días—. Quien abría Emitir acababa de ver dos timbrados cargados en su pantalla y leía que faltaba uno: parecía una contradicción. Ahora el aviso **nombra los dos lados**, el que falta y los que sí están, y dice que cada comprobante lleva el suyo con su propia numeración. **Y `spg:pendientes` no lo reportaba**, que es donde tendría que haber aparecido primero: es el caso exacto de «el sistema decide distinto de lo que esperás» —mientras falte, **cada atención sale como Factura y se declara ante la DNIT**, lo contrario de lo que el salón configuró— y la lista de lo que falta cargar lo pasaba por alto. Comprobado: el salón tiene timbrado de Factura y de Nota de crédito, ninguno del Comprobante de pago, y `fn_timbrado_vigente(8, hoy, 1)` devuelve NULL. De paso, la copia cargada viajaba con **el RUC `80012345-6` del archivo de ejemplo del Automatizador**, que tiene el dígito verificador mal —la 7.52.0 ya lo había anotado y el propio sistema lo rechaza desde la 7.5.0—: pasa a `80012345-0`. Y se corrió el despachador para que el volcado no viaje con citas colgadas: 2 cerradas por vencimiento, 5 faltas sin fichaje y 10 reservas soltadas por seña sin confirmar. **148 pruebas · 1127 aserciones** sobre el contenedor levantado de cero, con los conteos comprobados antes y después |
@@ -3168,6 +3178,30 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 >
 > Una contraseña de aplicación de Google se revoca en `myaccount.google.com/apppasswords`
 > sin tocar la cuenta.
+
+#### El ZIP y el repositorio son dos canales distintos
+
+**`secretos.env` NO va al repositorio y SÍ va al ZIP.** No es una contradicción: son dos
+cosas con destinatarios distintos.
+
+| | Qué lleva | Por qué |
+|---|---|---|
+| **El repositorio** | sin credenciales | es el respaldo del TCC y queda publicado; lo que entra al historial **no sale nunca más** — la contraseña que hay hoy sigue siendo legible en dos commits viejos |
+| **El ZIP** | con credenciales | quien lo recibe tiene que **descomprimir y probar**, no configurar un servidor de correo para ver si el registro de clientas anda |
+
+**Se arma comprimiendo la carpeta, y eso lo resuelve solo**: `secretos.env` es un archivo
+más ahí adentro. Lo que **no** hay que hacer es armarlo con `git archive` ni con una
+herramienta que respete el `.gitignore` — eso deja el sistema sin correo, y sin decirlo.
+
+> **Y si igual se cuela, ahora se nota.** `spg:diagnostico` distingue «el driver dice smtp»
+> de «hay con qué autenticarse»: con las credenciales vacías avisa que **no va a salir ni un
+> correo y que la pantalla igual va a decir que lo mandó**, que es la forma exacta en que
+> esto se rompió entre la 6.4.0 y la 7.8.0. Comprobado en las dos direcciones — sacando el
+> archivo, salta.
+
+Qué se pierde si falta: el código de verificación, la recuperación de contraseña, el segundo
+factor y los recordatorios de cita. O sea, **una clienta nueva no puede terminar de
+registrarse**.
 
 > **La contraseña que está puesta hoy YA ESTÁ EN EL HISTORIAL DE GIT, y conviene cambiarla.**
 > Es la misma que se commiteó en la 6.1.3 y se sacó en la 6.4.0 — pero *sacarla de un archivo

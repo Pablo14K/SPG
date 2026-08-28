@@ -115,15 +115,30 @@ class Diagnostico extends Command
             $this->linea('Driver', 'log — los correos NO se envían');
             $this->linea('Dónde queda el código', 'storage/logs/laravel.log');
             $this->linea('Para verlo', 'docker compose exec app tail -f storage/logs/laravel.log');
-            $this->linea('Para que salga', 'poné MAIL_MAILER=smtp y las credenciales en docker/php/env.docker');
+            $this->linea('Para que salga', 'copiá docker/php/secretos.env.example a secretos.env y completalo');
         } elseif ($driver === 'array') {
             $this->linea('Driver', 'array — los correos se descartan (es lo normal en las pruebas)');
         } else {
             $desde = (string) config('mail.from.address');
             $usuario = (string) config('mail.mailers.smtp.username');
+            $clave = (string) config('mail.mailers.smtp.password');
             $this->bien('Driver: ' . $driver . ' por ' . config('mail.mailers.smtp.host'));
-            if ($usuario === '') {
-                $this->mal('Falta MAIL_USERNAME: el servidor va a rechazar el envío.');
+
+            // **El caso del ZIP que llegó sin `secretos.env`.** Las credenciales
+            // viven en ese archivo, que no se versiona: si al comprimir se lo
+            // dejó afuera, el driver sigue diciendo `smtp` —eso está en el
+            // `.env`— y los envíos fallan uno por uno **sin que nada lo diga**,
+            // porque la pantalla igual contesta «te enviamos un código».
+            //
+            // Es exactamente la clase de función apagada en silencio que este
+            // comando existe para destapar.
+            if ($usuario === '' || $clave === '') {
+                $this->mal('El driver dice smtp pero faltan las credenciales: NO va a salir '
+                    . 'ningún correo, y la pantalla igual va a decir que lo mandó.');
+                $this->linea('Casi seguro', 'falta docker/php/secretos.env — no se versiona, '
+                    . 'así que si el ZIP se armó sin él, hay que copiarlo del .example');
+                $this->linea('Qué se pierde', 'código de verificación, recuperación de contraseña, '
+                    . 'segundo factor y recordatorios de cita');
                 $problemas++;
             } elseif ($desde !== '' && $usuario !== '' && ! str_contains($desde, explode('@', $usuario)[1] ?? '@')) {
                 // Gmail y la mayoría rechazan un From de otro dominio.
