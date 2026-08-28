@@ -67,5 +67,9 @@ return [
      * volver a habilitar alguno se lo reactiva ahí y vuelve a aparecer: no hay
      * nada escrito en el código que dependa de estos números.
      */
-    'tipo_por_defecto' => (int) env('SIFEN_TIPO_DEFECTO', 8),
+    // **Se mueve junto con la baja de un tipo.** Apuntando a uno inactivo,
+    // la pantalla cae en el primero que quede sin decir nada, que es
+    // justo lo contrario de lo que el salón configuró. El 8 —«Comprobante
+    // de pago»— se dio de baja: lo reemplaza la factura sin nombre.
+    'tipo_por_defecto' => (int) env('SIFEN_TIPO_DEFECTO', 1),
 ];

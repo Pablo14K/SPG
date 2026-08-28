@@ -265,6 +265,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.85.0 | 28/08/2026 | **Se retira el «Comprobante de pago»: lo reemplaza la factura sin nombre.** Existía para un caso concreto —«la clienta no pide factura»— como documento interno, numerado con su propio timbrado y **fuera** de la DNIT. La **factura sin nombre** de la 7.83.0 cubre ese mismo caso sin pedir una serie aparte y sin dejar cobros fuera de lo declarado, así que el otro pasaba a ser un tipo más que mantener. **Y en la práctica nunca llegó a tener timbrado cargado**, con lo cual todo salía como Factura igual — sólo que sin que nadie lo hubiera decidido, y con un aviso permanente en la pantalla de emitir. **Es una baja, no un borrado**: `tipo_comprobante.activo` existe para que volver a habilitarlo no toque una línea de código, y es la misma mecánica con la que la 7.9.0 retiró cinco tipos. No tenía comprobantes emitidos ni timbrados, así que no deja nada colgando. **`SIFEN_TIPO_DEFECTO` se mueve en la misma tanda**, que es la trampa que este documento ya anota: apuntando a un tipo inactivo, la lista cae en el primero que quede **sin avisar**. Pasa de 8 a **1** en `config/sifen.php` y en los tres `.env` — el valor por defecto del `env()` incluido, que es el que vale cuando la clave no está. Con esto el combo del cobro queda en las dos opciones que se pidieron: **Factura declarada** y **Factura sin nombre**, y el aviso de «falta el timbrado» desaparece solo, porque el comprobante por defecto ahora es el que sí lo tiene. > **Ojo con la palabra**: la innominada **se declara**. No es «una factura sin declarar» — es la misma factura electrónica con el grupo del receptor vacío, que la DNIT admite por debajo de Gs. 60.000.000. Lo que cambia es qué datos lleva, no si se informa. **148 pruebas · 1127 aserciones** · los dos `.sql` regenerados |
 | 7.84.1 | 28/08/2026 | **«Falta el timbrado» se leía como «no hay timbrados», y nadie lo avisaba antes de la pantalla de emitir.** El aviso era correcto y estaba mal escrito: **el timbrado es por TIPO de comprobante**, así que tener cargado el de Factura no habilita el «Comprobante de pago» —que es el que `SIFEN_TIPO_DEFECTO` marca como el de todos los días—. Quien abría Emitir acababa de ver dos timbrados cargados en su pantalla y leía que faltaba uno: parecía una contradicción. Ahora el aviso **nombra los dos lados**, el que falta y los que sí están, y dice que cada comprobante lleva el suyo con su propia numeración. **Y `spg:pendientes` no lo reportaba**, que es donde tendría que haber aparecido primero: es el caso exacto de «el sistema decide distinto de lo que esperás» —mientras falte, **cada atención sale como Factura y se declara ante la DNIT**, lo contrario de lo que el salón configuró— y la lista de lo que falta cargar lo pasaba por alto. Comprobado: el salón tiene timbrado de Factura y de Nota de crédito, ninguno del Comprobante de pago, y `fn_timbrado_vigente(8, hoy, 1)` devuelve NULL. De paso, la copia cargada viajaba con **el RUC `80012345-6` del archivo de ejemplo del Automatizador**, que tiene el dígito verificador mal —la 7.52.0 ya lo había anotado y el propio sistema lo rechaza desde la 7.5.0—: pasa a `80012345-0`. Y se corrió el despachador para que el volcado no viaje con citas colgadas: 2 cerradas por vencimiento, 5 faltas sin fichaje y 10 reservas soltadas por seña sin confirmar. **148 pruebas · 1127 aserciones** sobre el contenedor levantado de cero, con los conteos comprobados antes y después |
 | 7.84.0 | 28/08/2026 | **Los productos duplicados se dan de baja, no se borran, y «faltan 0» deja de existir.** El catálogo tenía tres pares que eran el mismo producto cargado dos veces —«Shampoo  profesional 1L» con dos espacios, «guantes de latex» contra «Guantes de latex (caja)», «Tintura» contra «Tintura profesional»— y **cada par parte el stock en dos**: ni el consumo fraccionado ni ningún informe pueden comparar el mismo frasco. Es exactamente lo que la 7.33.0 vino a evitar pasando el catálogo a único. **Se dan de BAJA, no se borran**, y no es una preferencia: los seis tienen movimientos de inventario, consumo en atenciones y renglones de compra colgando. Borrarlos rompe el arqueo del stock y deja compras apuntando al vacío — es la misma regla que ya vale para el cajón, la cuenta de cobro y el timbrado: *lo que la historia nombra no se puede quitar*. Quedan seis productos activos y la lista de compras baja de cinco a dos. De paso, «guantes de latex» pasa a **«Guantes de latex»**: en minúscula era el único del catálogo así. **Y `vw_producto_bajo_stock` devolvía «faltan 0».** Lista con `stock_actual <= stock_minimo`, así que un producto parado JUSTO en su mínimo aparecía con faltante cero: la pantalla decía «comprar 0 · Gs. 0», que se lee como que ese producto está bien — y era la mitad del ruido que hacía ilegible la tabla. **El `<=` se conserva y es lo correcto**: el mínimo es el punto de reposición, así que llegar a él ES el momento de avisar. Lo que estaba mal era la cantidad, porque para volver a estar POR ENCIMA del mínimo hace falta al menos una unidad. **148 pruebas · 1127 aserciones** · 17 vistas. Los dos `.sql` regenerados |
 | 7.83.0 | 28/08/2026 | **Cada número del cobro dice de dónde sale, y la factura sin nombre entra al combo.** **El renglón de la cuenta eran cuatro cifras en una línea** —lista, descuento, total, seña— y no dejaba decir de dónde salía ninguna: quien cobra no puede defender un número que no puede explicar. Pasa a ser una tabla con **cada servicio y su precio**, el precio de lista, el descuento **con su origen** —«por su nivel Oro» o «por la promoción X», que el sistema aplica uno solo y sin decir cuál el número no se sostiene— y el total. **Y con la cita ya atendida deja de pedir seña**: la seña garantiza una reserva y con la clienta atendida no hay nada que reservar, así que ese número —que además crece con los servicios agregados en el sillón, que no se señan— pasa a ser «A cobrar». **La factura sin nombre entra al combo.** «Factura (se declara)» era una sola opción y dejaba fuera el caso de todos los días: la clienta que no da su RUC. Esa es la **innominada**, que la DNIT admite por debajo de Gs. 60.000.000 y va sin datos del receptor — así que **no pasa por la pantalla del receptor**, que no tendría nada que pedir. Son dos opciones y no una casilla aparte porque para quien cobra son dos cosas distintas; el tope se comprueba **antes** de gastar el número, que es el rechazo 1321. **Y la lista de comprobantes dice a quién falta facturarle.** Es la pantalla que lista lo emitido, o sea justo lo que NO permite darse cuenta de lo que falta: atender y facturar son dos pasos, la clienta no siempre pide comprobante, y la cita queda Atendida sin que nadie vuelva a pasar. Va arriba, compacto, y **no se dibuja cuando no falta ninguna**. De paso: **el badge «exclusivo» sale del catálogo de servicios**, donde anunciaba una regla que dejó de aplicarse en la 7.43.0 —lo que decide si dos servicios pueden hacerse a la vez es la ZONA DEL CUERPO— y **el formulario de promociones se valida**: el valor no puede ser cero —una promo al 0 % ocupa lugar sin hacer nada— y una que **nace vencida** se rechaza al crearla, porque se carga, aparece en la lista y `fn_descuento_monto` la descarta por vigencia sin que nadie se entere. **148 pruebas · 1127 aserciones**; la del modal de cobro pide ahora que el descuento diga su origen. Y **la guardia del CSS se ganó el sueldo**: al pasar el renglón a tabla quedaron dos clases sin marcado y la prueba las encontró |
@@ -2482,29 +2483,48 @@ Hoy el salón usa tres, y cada uno tiene su papel:
 
 | Comprobante | Para qué | ¿Se declara? |
 |---|---|---|
-| **Recibo de dinero** (8) | **el de todos los días**, el que viene marcado | no: queda interno del salón |
-| **Factura** (1) | cuando la clienta la pide | sí |
+| **Factura** (1) | todo lo que se cobra | sí |
 | **Nota de crédito** (5) | anular o devolver | sí |
 
-En la 7.9.0 se dieron de baja Boleta de venta, Ticket, Autofactura, Nota de débito y Nota de
-remisión, porque no se usan; ninguno tenía comprobantes emitidos.
-`config('sifen.tipos_electronicos')` dice cuáles van a la DNIT: 1 y 5. Cada tipo necesita
-**su propio timbrado**.
+Y la Factura se emite de **dos formas**, que es lo que se elige al cobrar:
 
-**La decisión de fondo no cambió: la clienta no siempre pide factura.** Lo que cambió es qué
-comprobante cumple ese papel — era el Ticket hasta la 7.9.0 y es el Recibo de dinero desde la
-7.10.0.
+| Opción | Datos del receptor | Cuándo |
+|---|---|---|
+| **Factura declarada** | se piden y se validan | la clienta da su RUC o su cédula |
+| **Factura sin nombre** | van vacíos (innominada) | la clienta no los da — el caso de todos los días |
 
-> **Para ser el de todos los días, el Recibo tuvo que pasar a `signo = 1`.** Con el `0` que
-> traía **no se podía cobrar**: `sp_registrar_cobro` lo rechaza con «Ese tipo de comprobante no
-> se cobra», y la pantalla de emitir —que filtra por `signo = 1`— ni siquiera lo mostraba. El
-> signo distingue un documento de venta de uno que no mueve plata, como la nota de remisión;
-> un comprobante que se cobra es de venta.
+**Las dos se declaran ante la DNIT.** La innominada no es «una factura sin
+declarar»: es la misma factura electrónica, con el grupo del receptor vacío,
+que la DNIT admite **por debajo de Gs. 60.000.000** (`Sifen::TOPE_INNOMINADO`,
+rechazo 1321 si se pasa). Lo que cambia es qué datos lleva, no si se informa.
+
+> **El «Comprobante de pago» (8) se dio de baja en la 7.85.0.** Existía para el
+> caso de «la clienta no pide factura»: un documento interno, numerado con su
+> propio timbrado y **fuera** de la DNIT. La factura sin nombre cubre ese mismo
+> caso sin pedir una serie aparte ni dejar cobros fuera de lo declarado, así que
+> el otro pasó a ser un tipo más que había que mantener —y que en la práctica
+> nunca llegó a tener timbrado cargado, con lo que **todo salía como Factura
+> igual**, sin que nadie lo hubiera decidido.
+>
+> No tenía comprobantes emitidos, así que la baja no deja nada colgando. Y es
+> una baja, no un borrado: `tipo_comprobante.activo` existe para que volver a
+> habilitarlo no toque una línea de código.
+
+En la 7.9.0 se habían dado de baja Boleta de venta, Ticket, Autofactura, Nota de débito y Nota
+de remisión, por lo mismo. `config('sifen.tipos_electronicos')` dice cuáles van a la DNIT: 1 y 5.
+Cada tipo necesita **su propio timbrado**.
 
 > **`SIFEN_TIPO_DEFECTO` tiene que moverse junto con la baja de un tipo.** Si apunta a uno que
 > ya no está activo, la lista cae en el primero que quede **sin avisar** — que es justo lo
-> contrario de lo configurado. Por eso la pantalla avisa cuando el tipo por defecto no está
-> disponible.
+> contrario de lo configurado. Pasó al retirar el Ticket en la 7.9.0 y se volvió a cuidar al
+> retirar el Comprobante de pago: hoy vale **1**, la Factura, en `config/sifen.php` y en los
+> tres `.env`.
+>
+> **Y el timbrado es por TIPO, no uno para todo.** Tener cargado el de Factura no habilita a
+> ningún otro comprobante: `fn_timbrado_vigente(tipo, fecha, sucursal)` pregunta por los tres.
+> El aviso de la pantalla de emitir **nombra cuál falta y cuáles sí están**, porque «no tiene
+> timbrado» se leía como «no hay timbrados» estando parado frente a dos filas cargadas.
+> `spg:pendientes` también lo reporta, que es donde tendría que verse primero.
 
 ### Los datos del receptor se piden ANTES de emitir
 
