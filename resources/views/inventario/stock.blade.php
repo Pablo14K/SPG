@@ -20,9 +20,15 @@
             <h2 class="spg-form-titulo mb-1">
                 <i class="bi bi-cart-plus"></i> Lista de compras
             </h2>
+            {{-- **El mínimo es el punto de reposición**, así que llegar a él ya
+                 es motivo de aviso: por eso entra también el que está justo en
+                 su mínimo. Lo que se sugiere comprar nunca es cero — con cero
+                 el producto se queda donde está, y la lista decía «comprar 0 ·
+                 Gs. 0», que se lee como que está bien. --}}
             <p class="text-muted-warm mb-2" style="font-size:.85rem">
                 {{ count($bajo) }} producto{{ count($bajo) === 1 ? '' : 's' }}
-                por debajo del mínimo. Comprando esto, cada uno vuelve a su mínimo.
+                llegó a su mínimo o quedó por debajo. Comprando esto, cada uno
+                vuelve a estar por encima.
             </p>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-2">
