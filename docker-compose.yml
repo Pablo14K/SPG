@@ -72,6 +72,25 @@ services:
         condition: service_healthy
     environment:
       TZ: America/Asuncion
+    # **Las credenciales entran por acá, no por el `.env` montado.**
+    #
+    # Con la contraseña dentro de `env.docker`, ese archivo tenía que ir con
+    # `git update-index --skip-worktree` para no commitearla — y esa marca
+    # esconde TODOS sus cambios, también los que sí hay que commitear: el
+    # repositorio quedó una vez con `SIFEN_TIPO_DEFECTO` apuntando a un
+    # comprobante dado de baja porque nadie vio que la corrección no se había
+    # guardado (7.12.1). Separándolas, `env.docker` vuelve a versionarse normal.
+    #
+    # Laravel las respeta porque Dotenv arranca en modo **inmutable**: no pisa
+    # una variable que ya está puesta, así que lo de acá le gana a lo del
+    # `.env` montado —donde esas claves quedaron vacías—.
+    #
+    # `required: false` para que quien clone pueda levantar sin correo: el
+    # sistema arranca igual y `spg:diagnostico` dice que el correo está apagado,
+    # que es mejor que no arrancar.
+    env_file:
+      - path: ./docker/php/secretos.env
+        required: false
     ports:
       - "8000:8000"
     volumes:

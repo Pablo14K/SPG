@@ -265,6 +265,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.85.1 | 28/08/2026 | **Las credenciales salen del archivo versionado, la cola de avisos se vacía, y XAMPP queda afuera.** **`skip-worktree` esconde MÁS de lo que se le pidió.** La contraseña de Gmail vivía dentro de `docker/php/env.docker`, que sí se versiona, así que el archivo iba marcado para que git no lo mandara — y esa marca **esconde todos sus cambios**: ni se commitean ni aparecen en `git status`. Ya había costado caro dos veces, con `SIFEN_TIPO_DEFECTO` apuntando a un comprobante dado de baja (7.12.1) y con `DB_DATABASE` viajando mal. Ahora las credenciales viven en **`docker/php/secretos.env`** —ignorado, con su `secretos.env.example`— y el compose las pasa como variables del contenedor. **Laravel las respeta porque Dotenv arranca inmutable**: no pisa una variable ya puesta, así que lo del archivo aparte le gana a lo del `.env` montado, donde esas claves quedaron vacías. Comprobado: la contraseña resuelve, el token también, y el `diff` de `env.docker` no lleva ni una credencial. Va con `required: false`, para que quien clone levante sin correo en vez de no levantar. **La cola de salida se vació**: 43 avisos PENDIENTE que al levantar el cron en otra máquina se hubieran disparado. Se **borran** en vez de marcarse, y no es un detalle — marcarlos FALLIDA dejaría a esas citas sin recordatorio **para siempre**, porque `generarRecordatorios()` saltea toda cita que ya tenga uno; borrados, los que todavía corresponden se vuelven a generar solos. Nada se pierde: no se había enviado ninguno. **Ojo con la consecuencia**: los 27 avisos de cancelación que había ahí no van a salir, así que esas clientas no se enteran por correo de que su reserva se soltó. **Y se deja de usar XAMPP**, por decisión del usuario: se trabaja directo sobre Docker. Era la razón del puerto 3307 y de media docena de advertencias del documento; el motivo de fondo para no usarlo seguía valiendo igual —su Apache trae PHP 8.2 y Laravel 13 pide 8.3—, así que eran dos caminos para lo mismo y uno sin garantizar la versión del motor. El README pierde la «Opción B», el `.env` del host apunta al **3307** —sin XAMPP, en el 3306 no hay nadie— y los ejemplos de volcado pasan a `docker compose exec` + `docker compose cp`. **148 pruebas · 1127 aserciones** con el contenedor levantado de cero |
 | 7.85.0 | 28/08/2026 | **Se retira el «Comprobante de pago»: lo reemplaza la factura sin nombre.** Existía para un caso concreto —«la clienta no pide factura»— como documento interno, numerado con su propio timbrado y **fuera** de la DNIT. La **factura sin nombre** de la 7.83.0 cubre ese mismo caso sin pedir una serie aparte y sin dejar cobros fuera de lo declarado, así que el otro pasaba a ser un tipo más que mantener. **Y en la práctica nunca llegó a tener timbrado cargado**, con lo cual todo salía como Factura igual — sólo que sin que nadie lo hubiera decidido, y con un aviso permanente en la pantalla de emitir. **Es una baja, no un borrado**: `tipo_comprobante.activo` existe para que volver a habilitarlo no toque una línea de código, y es la misma mecánica con la que la 7.9.0 retiró cinco tipos. No tenía comprobantes emitidos ni timbrados, así que no deja nada colgando. **`SIFEN_TIPO_DEFECTO` se mueve en la misma tanda**, que es la trampa que este documento ya anota: apuntando a un tipo inactivo, la lista cae en el primero que quede **sin avisar**. Pasa de 8 a **1** en `config/sifen.php` y en los tres `.env` — el valor por defecto del `env()` incluido, que es el que vale cuando la clave no está. Con esto el combo del cobro queda en las dos opciones que se pidieron: **Factura declarada** y **Factura sin nombre**, y el aviso de «falta el timbrado» desaparece solo, porque el comprobante por defecto ahora es el que sí lo tiene. > **Ojo con la palabra**: la innominada **se declara**. No es «una factura sin declarar» — es la misma factura electrónica con el grupo del receptor vacío, que la DNIT admite por debajo de Gs. 60.000.000. Lo que cambia es qué datos lleva, no si se informa. **148 pruebas · 1127 aserciones** · los dos `.sql` regenerados |
 | 7.84.1 | 28/08/2026 | **«Falta el timbrado» se leía como «no hay timbrados», y nadie lo avisaba antes de la pantalla de emitir.** El aviso era correcto y estaba mal escrito: **el timbrado es por TIPO de comprobante**, así que tener cargado el de Factura no habilita el «Comprobante de pago» —que es el que `SIFEN_TIPO_DEFECTO` marca como el de todos los días—. Quien abría Emitir acababa de ver dos timbrados cargados en su pantalla y leía que faltaba uno: parecía una contradicción. Ahora el aviso **nombra los dos lados**, el que falta y los que sí están, y dice que cada comprobante lleva el suyo con su propia numeración. **Y `spg:pendientes` no lo reportaba**, que es donde tendría que haber aparecido primero: es el caso exacto de «el sistema decide distinto de lo que esperás» —mientras falte, **cada atención sale como Factura y se declara ante la DNIT**, lo contrario de lo que el salón configuró— y la lista de lo que falta cargar lo pasaba por alto. Comprobado: el salón tiene timbrado de Factura y de Nota de crédito, ninguno del Comprobante de pago, y `fn_timbrado_vigente(8, hoy, 1)` devuelve NULL. De paso, la copia cargada viajaba con **el RUC `80012345-6` del archivo de ejemplo del Automatizador**, que tiene el dígito verificador mal —la 7.52.0 ya lo había anotado y el propio sistema lo rechaza desde la 7.5.0—: pasa a `80012345-0`. Y se corrió el despachador para que el volcado no viaje con citas colgadas: 2 cerradas por vencimiento, 5 faltas sin fichaje y 10 reservas soltadas por seña sin confirmar. **148 pruebas · 1127 aserciones** sobre el contenedor levantado de cero, con los conteos comprobados antes y después |
 | 7.84.0 | 28/08/2026 | **Los productos duplicados se dan de baja, no se borran, y «faltan 0» deja de existir.** El catálogo tenía tres pares que eran el mismo producto cargado dos veces —«Shampoo  profesional 1L» con dos espacios, «guantes de latex» contra «Guantes de latex (caja)», «Tintura» contra «Tintura profesional»— y **cada par parte el stock en dos**: ni el consumo fraccionado ni ningún informe pueden comparar el mismo frasco. Es exactamente lo que la 7.33.0 vino a evitar pasando el catálogo a único. **Se dan de BAJA, no se borran**, y no es una preferencia: los seis tienen movimientos de inventario, consumo en atenciones y renglones de compra colgando. Borrarlos rompe el arqueo del stock y deja compras apuntando al vacío — es la misma regla que ya vale para el cajón, la cuenta de cobro y el timbrado: *lo que la historia nombra no se puede quitar*. Quedan seis productos activos y la lista de compras baja de cinco a dos. De paso, «guantes de latex» pasa a **«Guantes de latex»**: en minúscula era el único del catálogo así. **Y `vw_producto_bajo_stock` devolvía «faltan 0».** Lista con `stock_actual <= stock_minimo`, así que un producto parado JUSTO en su mínimo aparecía con faltante cero: la pantalla decía «comprar 0 · Gs. 0», que se lee como que ese producto está bien — y era la mitad del ruido que hacía ilegible la tabla. **El `<=` se conserva y es lo correcto**: el mínimo es el punto de reposición, así que llegar a él ES el momento de avisar. Lo que estaba mal era la cantidad, porque para volver a estar POR ENCIMA del mínimo hace falta al menos una unidad. **148 pruebas · 1127 aserciones** · 17 vistas. Los dos `.sql` regenerados |
@@ -1310,10 +1311,11 @@ instala.
 `ahora_bd()`.** Le pregunta la hora a MariaDB (una sola vez por petición, con caché) en vez
 de confiar en la de PHP.
 
-El motivo es que **la base de zonas horarias de PHP se desactualiza y nadie lo nota**. La del
-XAMPP de la PC de desarrollo es la **2023.3**, anterior a que Paraguay dejara sin efecto el
-horario de verano: en agosto cree que estamos en UTC−4 y devuelve **15:19 cuando el reloj
-marca 16:19**. Preguntarle a la base saca a PHP de la ecuación.
+El motivo es que **la base de zonas horarias de PHP se desactualiza y nadie lo nota**. En la
+PC donde nació esta regla era la **2023.3**, anterior a que Paraguay dejara sin efecto el
+horario de verano: en agosto creía que estábamos en UTC−4 y devolvía **15:19 cuando el reloj
+marcaba 16:19**. Preguntarle a la base saca a PHP de la ecuación, y por eso la regla vale
+igual en el contenedor y en el servidor: no depende de qué tzdata traiga PHP.
 
 Donde importa hoy: el **fichaje de asistencia**, que registra la hora del clic. Un fichaje
 una hora corrido no sirve para nada.
@@ -1322,7 +1324,7 @@ una hora corrido no sirve para nada.
 
 | Entorno | Qué hay que hacer |
 |---|---|
-| XAMPP | nada: MariaDB toma la zona de Windows, que está bien |
+| Docker | ya está resuelto — ver la fila de abajo. Es el único entorno de desarrollo desde la 7.85.1 |
 | Docker | ya está resuelto — `docker-compose.yml` le pasa `--default-time-zone=-03:00`. Hace falta porque la imagen de MariaDB 10.4 **también** trae tzdata vieja y `America/Asuncion` le da UTC−4 |
 | VPS | fijar `timedatectl set-timezone America/Asuncion` y **comprobarlo con `SELECT NOW()`** contra el reloj de pared. Un VPS recién instalado corre en UTC |
 
@@ -1932,9 +1934,10 @@ en hora flotante y Google con `ctz=America/Asuncion`. Son las dos caras de la mi
 > sistema **hace**, y conviene comprobarlo antes de darlo por cierto.
 
 > **Las horas van en «hora flotante»: sin `Z` y sin convertir a UTC.** Es a propósito y no
-> hay que "corregirlo". La base de zonas horarias de PHP en este XAMPP es la **2023.3**,
-> anterior a que Paraguay dejara sin efecto el horario de verano, así que PHP cree que en
-> agosto estamos en UTC−4 cuando en realidad quedamos fijos en UTC−3. Si se convirtiera a
+> hay que "corregirlo". Una base de zonas horarias de PHP anterior a que Paraguay dejara sin
+> efecto el horario de verano cree que en agosto estamos en UTC−4 cuando en realidad quedamos
+> fijos en UTC−3 — y eso no se puede dar por descartado en la máquina de quien recibe el
+> `.ics`, que es la que interpreta. Si se convirtiera a
 > UTC, al cliente le llegaría la cita **una hora corrida**. Sin conversión no hay desfase
 > posible: el teléfono lee 17:00 y muestra 17:00. Por lo mismo, el enlace a Google Calendar
 > manda la hora local con `ctz=America/Asuncion` y deja que Google haga la conversión, que
@@ -3097,17 +3100,31 @@ el cajón terminaba faltando plata que nunca salió.
 
 ## Entorno
 
-Hay **dos formas de levantarlo en desarrollo**, y dan lo mismo. Los pasos están en
-`README.md`; acá va lo que conviene tener presente al programar.
+**Se trabaja sobre Docker, y sólo sobre Docker.** Los pasos están en `README.md`;
+acá va lo que conviene tener presente al programar.
 
-| | Cómo |
-|---|---|
-| **Docker** | `docker compose up`. Fija MariaDB 10.4, importa las dos bases solo y clava la zona horaria. La base queda en el **3307**, para convivir con un XAMPP ya instalado |
-| **A mano** | XAMPP para MariaDB + un PHP 8.3 aparte, y `php artisan serve` |
+```bash
+docker compose up -d                       # levanta todo
+docker compose exec app php artisan test   # las pruebas
+docker compose exec app php artisan spg:diagnostico
+```
 
-> **El Apache de XAMPP no sirve para este proyecto: trae PHP 8.2 y Laravel 13 pide 8.3.** Por
-> eso el sistema **no se publica en `htdocs`** —como se hacía con la versión anterior— sino
-> que se sirve con `artisan serve` o desde el contenedor.
+`docker compose up` fija **MariaDB 10.4** —que es lo que importa: las 78 `CHECK` y las 60
+rutinas están escritas para ese motor—, importa las dos bases solo y clava la zona horaria.
+La base se publica en el **3307**.
+
+> **XAMPP salió de la ecuación** (7.85.1, por decisión del usuario). Convivir con él era la
+> razón del 3307 y de media docena de advertencias de este documento; el motivo de fondo para
+> no usarlo sigue valiendo: **su Apache trae PHP 8.2 y Laravel 13 pide 8.3**, así que el
+> sistema nunca se publicó en `htdocs`.
+>
+> Lo que eso cambia al trabajar: **todo comando de `artisan` va con
+> `docker compose exec app`**, y `mysql`/`mysqldump` con `docker compose exec bd`. Los
+> ejemplos de este documento que llaman a `/c/xampp/mysql/bin/…` quedan como referencia
+> histórica — el equivalente de hoy está en cada sección.
+>
+> El `.env` de la computadora apunta al **3307**, no al 3306, por si algo se corre desde el
+> host: sin XAMPP, en el 3306 no hay nadie.
 
 ### Los cuatro archivos de entorno, y por qué son cuatro
 
@@ -3118,25 +3135,39 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 |---|---|---|
 | `.env` | el real de esta computadora | **no** (está en `.gitignore`) |
 | `.env.example` | plantilla para desarrollar. `cp .env.example .env` y andar | sí |
-| `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | sí, **pero hoy no** — ver abajo |
+| `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | **sí** |
+| `docker/php/secretos.env` | las contraseñas y tokens del contenedor | **no** (`.gitignore`) — su plantilla es `secretos.env.example` |
 | `.env.produccion.example` | plantilla del servidor | sí |
 
-> **`env.docker` lleva hoy una contraseña de aplicación de Google, así que está marcado para
-> que git no lo mande.** Es lo que hace que salgan de verdad el código de verificación, la
-> recuperación de contraseña, el segundo factor y los recordatorios; son las mismas
-> credenciales con las que el Automatizador SIFEN manda el PDF del comprobante.
+> **Las credenciales viven en `docker/php/secretos.env`, y por eso `env.docker` se
+> versiona normal.** Hasta la 7.85.1 la contraseña de Gmail estaba dentro de `env.docker`,
+> que sí se versiona, así que había que esconderlo con
+> `git update-index --skip-worktree` — y **esa marca esconde TODOS sus cambios, no sólo la
+> contraseña**: ni se commitean ni aparecen en `git status`. El repositorio quedó una vez
+> con `SIFEN_TIPO_DEFECTO` apuntando a un comprobante dado de baja porque nadie vio que la
+> corrección no se había guardado (7.12.1), y la línea de `DB_DATABASE` viajó mal más de
+> una vez por lo mismo.
+>
+> **Cómo funciona ahora**: el compose lo pasa como variables del contenedor
+> (`env_file`), y Laravel las respeta porque **Dotenv arranca en modo inmutable** — no pisa
+> una variable que ya está puesta. Así que lo de `secretos.env` le gana a lo del `.env`
+> montado, donde esas claves quedaron vacías.
 >
 > ```bash
-> git update-index --skip-worktree docker/php/env.docker
+> cp docker/php/secretos.env.example docker/php/secretos.env   # y completar
 > ```
 >
-> **Mientras esté así, NINGÚN cambio de ese archivo se commitea** —ni la contraseña ni el
-> `DB_DATABASE`—, y git no los muestra en `status`. Es la trampa de este mecanismo: si algún
-> día hay que versionar algo de ahí, se saca la marca con `--no-skip-worktree`, se quita la
-> contraseña y recién ahí se commitea. Se comprueba con `git ls-files -v docker/php/env.docker`:
-> una **S** adelante quiere decir que está marcado.
+> **Va con `required: false`** a propósito: quien clone puede levantar sin correo. El
+> sistema arranca igual y `spg:diagnostico` dice que está apagado, que es mejor que no
+> arrancar — y sobre todo mejor que arrancar con el correo muerto **en silencio**, que es
+> lo que pasó entre la 6.4.0 y la 7.8.0.
 >
-> Se revoca en `myaccount.google.com/apppasswords` sin tocar la cuenta.
+> Qué hay adentro: `MAIL_*` —el código de verificación, la recuperación de contraseña, el
+> segundo factor y los recordatorios dependen de eso— y `SIFEN_TOKEN`, que tiene que
+> coincidir con el `SIFEN_API_TOKEN` del Automatizador.
+>
+> Una contraseña de aplicación de Google se revoca en `myaccount.google.com/apppasswords`
+> sin tocar la cuenta.
 
 > **La contraseña que está puesta hoy YA ESTÁ EN EL HISTORIAL DE GIT, y conviene cambiarla.**
 > Es la misma que se commiteó en la 6.1.3 y se sacó en la 6.4.0 — pero *sacarla de un archivo
@@ -3245,9 +3276,10 @@ triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí 
    entrada marcada a las 12 de la noche. Al desplegar hay que fijar
    `timedatectl set-timezone America/Asuncion` (o `default-time-zone='-03:00'` en MySQL) y
    **comprobarlo con `SELECT NOW()` contra el reloj de pared** antes de dar nada por bueno.
-   > El motivo original de `ahora_bd()` —la tzdata vieja de este XAMPP— **no existe en el
-   > servidor**, que trae PHP actualizado. Igual no se saca: es la misma función y da lo mismo
-   > en los dos lados. Lo que cambia es *qué* hay que configurar para que dé bien.
+   > El motivo original de `ahora_bd()` —una tzdata de PHP vieja— **no existe ni en el
+   > contenedor ni en el servidor**, que traen PHP al día. Igual no se saca: es la misma
+   > función y da lo mismo en los tres lados. Lo que cambia es *qué* hay que configurar para
+   > que dé bien — y en el contenedor ya está resuelto en el `docker-compose.yml`.
 
 2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
    Las 39 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
@@ -3385,8 +3417,13 @@ tarde o temprano se carga el equivocado y se prueba contra un esquema que ya no 
 Se regenera siempre con `mysqldump`, nunca exportando desde phpMyAdmin:
 
 ```bash
-/c/xampp/mysql/bin/mysqldump.exe -u root --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd > "basededatos/peluqueria_bd(base).sql"
+docker compose exec -T bd sh -c "mysqldump -uroot -proot --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd > /tmp/base.sql"
+docker compose cp bd:/tmp/base.sql "basededatos/peluqueria_bd(base).sql"
 ```
+
+> **Se vuelca DENTRO del contenedor y se copia con `docker compose cp`.** Pasar el volcado
+> por una tubería de PowerShell lo rompe: PS 5.1 decodifica con la página de códigos de la
+> consola y le agrega BOM, que es la trampa de acentos de la 7.13.2 por otra puerta.
 
 Antes de regenerarlo, comprobá que la base esté **vacía de operación** (la tabla de arriba dice
 qué queda y qué se borra); si tiene datos de prueba, pasale primero `basededatos/dejar_lista.sql`.
@@ -3469,9 +3506,13 @@ lugar.
 ### Probar cambios sin tocar la base real
 
 ```bash
-/c/xampp/mysql/bin/mysql.exe -u root -e "DROP DATABASE IF EXISTS peluqueria_test; CREATE DATABASE peluqueria_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-/c/xampp/mysql/bin/mysql.exe -u root peluqueria_test < "basededatos/1mes_simulacion.sql"
+docker compose exec -T bd mysql -uroot -proot -e "DROP DATABASE IF EXISTS peluqueria_test; CREATE DATABASE peluqueria_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker compose exec -T bd sh -c "mysql -uroot -proot --default-character-set=utf8mb4 peluqueria_test < /sql/1mes_simulacion.sql"
 ```
+
+> **`--default-character-set=utf8mb4` no es opcional**: sin él los acentos entran dobles y
+> «Coloración» queda como «Coloraci├│n». Y `basededatos/` está montado en `/sql` dentro del
+> contenedor, que es de donde lo lee el importador del arranque.
 
 Con `basededatos/1mes_simulacion.sql` la base de prueba queda con datos de verdad —172 citas, 63 facturas,
 33 clientas—, que es lo que hace falta para que una prueba signifique algo. Si lo que querés es

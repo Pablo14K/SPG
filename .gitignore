@@ -37,3 +37,6 @@ _sim30/log/
 
 # El banco adversario se versiona; sus corridas no.
 _qa/log/
+
+# Las credenciales del contenedor. La plantilla es secretos.env.example.
+docker/php/secretos.env

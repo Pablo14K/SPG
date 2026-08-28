@@ -32,20 +32,21 @@ El detalle completo está en `CLAUDE.md`, que es la documentación del proyecto.
 
 ---
 
-## Dos formas de levantarlo
+## Cómo se levanta
 
-| | Cuándo conviene |
-|---|---|
-| **[Con Docker](#opción-a-con-docker-un-solo-comando)** | no tenés PHP 8.3 ni MariaDB, o querés que la versión del motor sea exactamente la misma que acá |
-| **[A mano](#opción-b-a-mano-xampp--php-83)** | ya tenés XAMPP andando, o la máquina es justa de recursos |
+**Con Docker, y sólo con Docker.** Pesa más al instalar (pide WSL2 y ~2 GB de RAM), pero
+**fija MariaDB 10.4**, importa las dos bases solo y clava la zona horaria — que son las tres
+cosas que más se rompen al armar el entorno en otra computadora, y las tres que hacen que
+«en mi máquina anda» deje de significar algo.
 
-Las dos dan lo mismo. Docker pesa más al instalar (pide WSL2 y ~2 GB de RAM), pero **fija
-MariaDB 10.4**, importa las dos bases solo y clava la zona horaria — que son las tres cosas
-que más se rompen al armar el entorno en otra computadora.
+> Hasta la 7.85.1 había una segunda forma, a mano con XAMPP. Se retiró: MariaDB tiene que ser
+> **10.4** —las 78 `CHECK` y las 60 rutinas están escritas para ese motor— y el Apache de
+> XAMPP trae **PHP 8.2** cuando Laravel 13 pide 8.3, así que igual había que instalar un PHP
+> aparte. Dos caminos para lo mismo, y uno de ellos con la versión del motor sin garantizar.
 
 ---
 
-## Opción A — con Docker, un solo comando
+## Con Docker, un solo comando
 
 Hace falta [Docker Desktop](https://www.docker.com/products/docker-desktop/) (en Windows pide
 WSL2 y virtualización habilitada en el firmware). Después:
@@ -64,7 +65,7 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose up` | arranca |
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
-| `docker compose exec app php artisan test` | corre las 62 pruebas |
+| `docker compose exec app php artisan test` | corre las 148 pruebas |
 | `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
@@ -141,113 +142,45 @@ no queda una caché vieja pisando el cambio.
 > **Para entregar un salón desde cero, cambiar a `peluqueria_bd`**. Para una demo o
 > una revisión funcional, dejar `peluqueria_test`, que es la que viaja cargada en el ZIP.
 >
-> Las **57 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
+> Las **148 pruebas no dependen de esto**: `phpunit.xml` fija `peluqueria_test` por su cuenta,
 > corran donde corran. Ojo con eso si trabajás sobre `peluqueria_test` en pantalla — las
 > pruebas escriben sobre esa misma base (revierten con `DatabaseTransactions`, salvo la de
 > concurrencia, que limpia a mano).
 
-La base queda publicada en **el puerto 3307**, no en el 3306, para que conviva con un XAMPP
-ya instalado sin pelearse por el puerto. Desde afuera del contenedor (por ejemplo con
+La base queda publicada en **el puerto 3307**. Desde afuera del contenedor (por ejemplo con
 HeidiSQL o Workbench): `127.0.0.1:3307`, usuario `root`, contraseña `root`.
 
-**El contenedor usa su propio `.env`** (`docker/php/env.docker`, montado encima del otro), así
-que si además trabajás sin Docker tu `.env` de siempre queda intacto y los dos conviven. No
+**El contenedor usa su propio `.env`** (`docker/php/env.docker`, montado encima del otro). No
 alcanzaba con poner las credenciales como variables del contenedor: `php artisan serve` le
 reenvía al servidor que atiende las peticiones **solo una lista blanca** de variables, así que
 `DB_HOST` no llegaba y la web contestaba *Connection refused* mientras los comandos de consola
 andaban bien.
 
+**Las contraseñas van aparte**, en `docker/php/secretos.env`, que no se versiona:
+
+```bash
+cp docker/php/secretos.env.example docker/php/secretos.env   # y completar
+```
+
+Sin ese archivo el sistema levanta igual, sólo que **sin correo** — o sea sin código de
+verificación, sin recuperación de contraseña, sin segundo factor y sin recordatorios.
+`docker compose exec app php artisan spg:diagnostico` lo dice en su sección de correo, que
+existe justamente porque un correo apagado no se nota: la pantalla sigue diciendo «te enviamos
+un código».
+
+### Todo se corre dentro del contenedor
+
+```bash
+docker compose exec app php artisan test
+docker compose exec app php artisan spg:diagnostico
+docker compose exec app php artisan spg:pendientes
+docker compose exec -T bd mysql -uroot -proot peluqueria_test
+```
+
 > Esto es **solo para desarrollar**. El VPS se despliega con el panel, no con contenedores:
 > ver `DESPLIEGUE.md`.
 
 ---
-
-## Opción B — a mano (XAMPP + PHP 8.3)
-
-### 1. PHP 8.3 o más — el de XAMPP no sirve
-
-Laravel 13 pide 8.3, y el Apache de XAMPP trae **8.2**. Por eso el proyecto **no se sirve
-desde `htdocs`**: se levanta con `artisan serve` usando un PHP aparte.
-
-```bash
-"C:/php/php.exe" -v
-```
-
-Tiene que decir 8.3 o más. Si no lo tenés, bajá PHP 8.3 de [windows.php.net](https://windows.php.net/download/)
-(el ZIP *Thread Safe* x64), descomprimilo en `C:\php` y en su `php.ini` activá al menos:
-`extension=pdo_mysql`, `extension=mbstring`, `extension=openssl`, `extension=fileinfo`,
-`extension=curl`, `extension=zip`.
-
-De XAMPP se usa **solo MariaDB**. Apache no hace falta para el sistema nuevo.
-
-### 2. Las dependencias
-
-Si la carpeta vino con `vendor/` adentro, saltealo. Si no:
-
-```bash
-composer install
-```
-
-(Composer se baja de [getcomposer.org](https://getcomposer.org/download/); apuntalo al PHP 8.3.)
-
-### 3. La base de datos
-
-Se crean **dos**, y cada una tiene su papel:
-
-```bash
-/c/xampp/mysql/bin/mysql.exe -u root -e "CREATE DATABASE peluqueria_bd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE peluqueria_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-```
-
-| Base | Qué es | Con qué se carga |
-|---|---|---|
-| `peluqueria_bd` | la base limpia: esquema al día, catálogo y cuentas | `basededatos/peluqueria_bd(base).sql` |
-| `peluqueria_test` | la copia cargada que usa Docker: 172 citas, 63 facturas, 33 clientas y operación | `basededatos/1mes_simulacion.sql` |
-
-```bash
-/c/xampp/mysql/bin/mysql.exe -u root peluqueria_bd   < "basededatos/peluqueria_bd(base).sql"
-/c/xampp/mysql/bin/mysql.exe -u root peluqueria_test < "basededatos/1mes_simulacion.sql"
-```
-
-Ninguno de los dos archivos lleva `CREATE DATABASE` ni `USE` adentro, así que respetan el
-nombre que les pasás y no pisan otra base.
-
-> **Nunca importar con `--skip-grant-tables`**: las vistas y rutinas quedan con el DEFINER
-> vacío y todo revienta con el error 1449.
-
-### 4. La configuración
-
-```bash
-cp .env.example .env
-"C:/php/php.exe" artisan key:generate
-```
-
-En `.env`, lo único que suele haber que tocar es `DB_PASSWORD` (en XAMPP, `root` va sin
-contraseña, así que se deja vacío).
-
-### 5. Comprobar antes de arrancar
-
-```bash
-"C:/php/php.exe" artisan spg:diagnostico
-```
-
-Revisa la conexión, que los dos relojes coincidan, que estén las 20 rutinas / 30 funciones /
-17 triggers / 17 vistas / 57 CHECK, que las funciones **respondan de verdad** (ahí sale el
-1449 si quedó mal el import) y que Laravel no haya ensuciado la base.
-
-Tiene que terminar en **«Todo en orden.»**
-
-### 6. Arrancar
-
-```bash
-"C:/php/php.exe" artisan serve --port=8000
-```
-
-http://localhost:8000
-
-| Usuario | Contraseña | Qué ve |
-|---|---|---|
-| `admin` | `admin123` | todo: los 7 módulos |
-| `cliente` | `cliente123` | el portal de la clienta |
 
 ---
 
@@ -257,7 +190,7 @@ http://localhost:8000
 "C:/php/php.exe" artisan test
 ```
 
-**57 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
+**148 pruebas**, y corren contra `peluqueria_test` — una base de verdad, con el esquema del
 TCC. Cubren la concurrencia de la agenda (5 procesos en paralelo sobre el mismo hueco tienen
 que dejar **una sola** cita), el arqueo de caja, los correlativos sin huecos y la jerarquía
 de los 28 permisos.
@@ -284,7 +217,7 @@ app/
   Http/Controllers/        un controlador por módulo
   Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
-tests/Feature/             las 57 pruebas
+tests/Feature/             las 148 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS
 ```
 
@@ -292,12 +225,20 @@ DESPLIEGUE.md              cómo publicarlo en el VPS
 
 ## Dos avisos que ahorran horas
 
-**La hora no se toma con `date()`, se toma con `ahora_bd()`.** La base de zonas horarias de
-PHP en este XAMPP es anterior a que Paraguay dejara sin efecto el horario de verano, así que
-en agosto PHP devuelve una hora menos. `ahora_bd()` se la pregunta a MariaDB, que sí da la
-correcta. Importa en el fichaje de asistencia.
+**La hora no se toma con `date()`, se toma con `ahora_bd()`.** Una base de zonas horarias de
+PHP anterior a que Paraguay dejara sin efecto el horario de verano devuelve, en agosto, una
+hora menos. `ahora_bd()` se la pregunta a MariaDB, que sí da la correcta — y eso saca a PHP de
+la ecuación en cualquier máquina. Importa en el fichaje de asistencia, que registra la hora
+del clic.
 
-**MariaDB se arranca y se apaga desde el panel de XAMPP.** Si se la mata de golpe, el log de
-Aria queda a medio escribir y al arrancar de nuevo falla con *«Could not open mysql.plugin
-table»*. Se arregla borrando `aria_log.00000001` y `aria_log_control` de
-`C:\xampp\mysql\data`, que MariaDB recrea sola. Los datos no se pierden: son InnoDB.
+**Actualizar Docker es `down -v`, no reiniciar.** El guion que importa las dos bases corre
+**una sola vez, con el volumen vacío**, así que sobre un volumen que ya tiene datos no vuelve
+a correr: queda código nuevo contra base vieja, y no falla al arrancar sino cuando alguien
+abre la pantalla que usa lo que se agregó.
+
+```bash
+docker compose down -v && docker compose up -d
+```
+
+**Antes de eso, volcá lo que tengas cargado**: `down -v` borra el volumen. El procedimiento
+completo —con el orden y qué comprobar después— está en `CLAUDE.md`.
