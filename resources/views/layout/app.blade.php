@@ -296,12 +296,55 @@
 @endif
 
 <main class="container py-2">
-    @foreach (session('spg_flash', []) as $spgF)
-        @php $spgCls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$spgF['tipo']] ?? 'secondary'; @endphp
-        <div class="alert alert-{{ $spgCls }} alert-dismissible fade show" role="alert">
-            {{ $spgF['msg'] }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-        </div>
+    {{-- **Hay avisos que no se pueden perder de vista, y una franja se cierra
+         sin leerse.** El de la reserva sin confirmar dice tres cosas que la
+         clienta necesita saber ANTES de irse de la pantalla —el plazo de la
+         seña, que el cambio de día es uno solo, y que la seña no vuelve— así
+         que va como ventana del sistema, con su botón de Aceptar, igual que la
+         de cerrar sesión.
+
+         El tipo `modal` es el único que se dibuja así; los demás siguen siendo
+         la franja de siempre, que para «Guardado» es lo correcto. --}}
+    @foreach (session('spg_flash', []) as $spgI => $spgF)
+        @if (($spgF['tipo'] ?? '') === 'modal')
+            <div class="modal fade" id="spgAviso{{ $spgI }}" tabindex="-1" aria-hidden="true"
+                 data-spg-abrir>
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5">
+                                <i class="bi bi-info-circle"></i> {{ $spgF['titulo'] ?? 'Tenelo en cuenta' }}</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{-- Cada renglón es una frase: un párrafo de seis líneas
+                                 no se lee, se saltea. --}}
+                            @foreach (preg_split('/\n+/', (string) $spgF['msg']) as $spgL)
+                                @if (trim($spgL) !== '')
+                                    <p class="mb-2">{{ trim($spgL) }}</p>
+                                @endif
+                            @endforeach
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-oro" data-bs-dismiss="modal">Aceptar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{-- **El respaldo se dibuja SIEMPRE y lo saca el JS al abrir la
+                 ventana**, no al revés. Con `<noscript>` sólo aparecía con el
+                 JavaScript apagado: si Bootstrap no carga —o carga mal— el
+                 modal queda en `display:none` y el aviso desaparecía entero,
+                 que es justo lo que no puede pasar con éste. --}}
+            <div class="alert alert-warning" role="alert"
+                 data-spg-respaldo="spgAviso{{ $spgI }}">{{ $spgF['msg'] }}</div>
+        @else
+            @php $spgCls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$spgF['tipo']] ?? 'secondary'; @endphp
+            <div class="alert alert-{{ $spgCls }} alert-dismissible fade show" role="alert">
+                {{ $spgF['msg'] }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        @endif
     @endforeach
 
     @if ($errors->any())

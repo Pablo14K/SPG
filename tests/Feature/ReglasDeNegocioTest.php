@@ -54,9 +54,20 @@ class ReglasDeNegocioTest extends TestCase
         if (! $turno) {
             return;   // sin turno no se le exige fichaje
         }
+        // **`INSERT IGNORE` no alcanzaba, y el nombre del método prometía otra
+        // cosa.** Si esa persona ya tiene fila de hoy —porque alguien la marcó
+        // ausente desde Asistencia, que es lo que pasó con la base cargada del
+        // 28/08— el INSERT se ignoraba en silencio, `hora_entrada` quedaba en
+        // NULL y la atención se rechazaba por falta de fichaje. La prueba medía
+        // eso en vez de la regla.
+        //
+        // El postcondición es «esta persona tiene entrada marcada hoy», así que
+        // se escribe igual: `justificada = NULL` es presente.
         DB::insert(
-            'INSERT IGNORE INTO asistencia (id_turno, id_usuario, fecha, hora_entrada, id_usuario_registro)
-             VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO asistencia (id_turno, id_usuario, fecha, hora_entrada, id_usuario_registro)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE hora_entrada = VALUES(hora_entrada),
+                                     justificada = NULL',
             [$turno, $idUsuario, ahora_bd('Y-m-d'), ahora_bd('H:i:s'), $idUsuario]
         );
     }
@@ -1065,9 +1076,14 @@ class ReglasDeNegocioTest extends TestCase
     public function el_cobro_va_a_la_caja_del_local_no_a_la_de_quien_opera(): void
     {
         $uid = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE activo = 1 ORDER BY id_usuario LIMIT 1');
+        // **La cita tiene que tener espacio para la seña.** «La última con
+        // servicios» puede estar ya cobrada entera, y ahí `sp_registrar_sena`
+        // rechaza con «el monto no puede superar lo que valen los servicios»:
+        // la prueba medía el tope en vez de a qué cajón entra la plata.
         $cita = DB::selectOne(
             'SELECT c.id_cita, c.id_sucursal FROM cita c
               WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+                AND fn_cita_total(c.id_cita) - fn_cita_sena(c.id_cita) >= 1000
               ORDER BY c.id_cita DESC LIMIT 1');
         if (! $uid || ! $cita) {
             $this->markTestSkipped('Hace falta una cita con servicios en la base de prueba.');
@@ -3579,10 +3595,16 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_cobro_entra_al_cajon_del_local_de_la_atencion(): void
     {
+        // Sin cobros previos y con monto suficiente: si la cita ya está
+        // saldada, el cobro de prueba se rechaza por el tope y no se llega a
+        // medir a qué cajón entró.
         $cita = DB::selectOne(
             'SELECT c.id_cita, c.id_cliente, c.id_usuario, c.id_sucursal FROM cita c
               WHERE EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
                 AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita)
+                AND NOT EXISTS (SELECT 1 FROM cobro co
+                                 WHERE co.id_cita = c.id_cita AND co.id_estado_cobro = 1)
+                AND fn_cita_total(c.id_cita) >= 1000
               ORDER BY c.id_cita DESC LIMIT 1'
         );
         if (! $cita) {

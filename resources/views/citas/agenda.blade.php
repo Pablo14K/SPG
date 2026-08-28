@@ -534,6 +534,19 @@
                                     </div>
                                 @endif
 
+                                {{-- **El mismo desglose que ve la clienta.** Quien
+                                     confirma el pago tiene que poder comprobar que el
+                                     número está bien, y con un total suelto no puede:
+                                     no sabe si esa seña es de un servicio o de tres.
+                                     Es el mismo bloque, así que el salón y la clienta
+                                     no pueden estar mirando cuentas distintas. --}}
+                                @if ($c->estado !== 'Atendida' && ! empty($desglosesSena[$c->id_cita]['filas']))
+                                    @include('facturacion._sena_desglose', [
+                                        'desglose' => $desglosesSena[$c->id_cita],
+                                        'yaPuesta' => (float) $c->sena,
+                                    ])
+                                @endif
+
                                 {{-- **Las mismas líneas que en Facturas.** Acá había un
                                      solo monto y un solo medio: no se podía dividir el pago
                                      —mitad efectivo, mitad tarjeta, que en el mostrador es
@@ -547,8 +560,40 @@
                                  entera hacía cobrar de más con un clic. El tope sigue
                                  siendo lo que falta: se puede corregir hacia arriba si de
                                  verdad entregó más. --}}
+                            @if ($c->id_solicitud)
+                                {{-- **Confirmar no es fijar el monto.** Acá el trabajo es
+                                     decir «sí, este dinero entró»: dejar el campo editable
+                                     invita a corregirlo de memoria, y entonces lo que la
+                                     clienta registró y lo que el salón cobró dejan de ser
+                                     lo mismo sin que nada lo explique.
+
+                                     El monto viaja en un `hidden` y se muestra al lado. Lo
+                                     único que se elige es CON QUÉ pagó, que eso el portal
+                                     no lo sabe. Si el dinero que llegó no es ése, se
+                                     rechaza la solicitud y se cobra a mano. --}}
+                                <div class="mb-2">
+                                    <div class="form-label">Monto que registró la clienta</div>
+                                    <div class="val oro" style="font-size:1.25rem">{{ money($sugerido) }}</div>
+                                    <input type="hidden" name="monto[]" value="{{ monto_input($sugerido) }}">
+                                </div>
+                                @include('facturacion._caja_elegir', [
+                                    'cajas' => \App\Servicios\Caja::abiertasDe(),
+                                    'uid' => 'Sena' . $c->id_cita,
+                                    'rotulo' => '¿A qué caja entra?',
+                                ])
+                                <div class="mb-2">
+                                    <label class="form-label" for="mpSena{{ $c->id_cita }}">¿Con qué pagó?</label>
+                                    <select class="form-select form-select-sm" name="metodo[]"
+                                            id="mpSena{{ $c->id_cita }}" required>
+                                        @foreach ($metodos as $m)
+                                            <option value="{{ $m->id_metodo_pago }}">{{ $m->nombre }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @else
                             <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos"
                                 :sugerido="$sugerido" />
+                            @endif
 
                                 {{-- **La caja es del local, no de quien la abrió.** Desde la
                                      7.36.3 la sucursal del cobro se deduce de la cita, así que

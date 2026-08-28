@@ -9,6 +9,7 @@ use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
 use App\Servicios\Canje;
+use App\Servicios\Sena;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -355,20 +356,28 @@ class PortalController extends Controller
             // hacer nada distinto. Van juntas y en el mismo aviso porque son
             // las tres caras del mismo trato: le guardamos el lugar y por eso
             // pedimos algo a cambio.
-            $reglas = ' Podés cambiar el día **una sola vez** desde «Mis citas». '
-                . 'Y si no venís, la seña no se devuelve: es lo que cubre el horario '
+            // **Sin asteriscos.** El mensaje se dibuja con `{{ }}`, que escapa
+            // y no interpreta Markdown, así que los `**` salían tal cual en la
+            // pantalla de la clienta.
+            //
+            // Y va en renglones, no en un párrafo corrido: el modal los separa
+            // en frases, porque seis líneas seguidas no se leen.
+            $reglas = "\nEl día lo podés cambiar una sola vez, desde «Mis citas»."
+                . "\nSi no venís, la seña no se devuelve: es lo que cubre el horario "
                 . 'que nadie más pudo usar.';
 
             flash($senaPide > 0
-                ? 'Te guardamos el horario, pero **tu cita todavía no está confirmada**: '
-                    . 'para eso hace falta la seña de ' . money($senaPide) . '. '
-                    . 'Registrá acá el comprobante de la transferencia'
-                    . ($horas > 0 ? ' dentro de las ' . $horas . ' horas' : '')
-                    . '; si no llegamos a confirmarla, soltamos el lugar y te avisamos.'
-                    . $reglas . $canje
-                : '¡Tu cita fue reservada! Podés cambiar el día **una sola vez** '
-                    . 'desde «Mis citas».' . $canje,
-                $senaPide > 0 ? 'warning' : 'success');
+                ? 'Te guardamos el horario, pero tu cita todavía no está confirmada.'
+                    . "\nPara confirmarla hace falta la seña de " . money($senaPide) . '. '
+                    . 'Registrá el comprobante de la transferencia desde «Mis citas»'
+                    . ($horas > 0 ? ', dentro de las ' . $horas . ' horas' : '')
+                    . '. Si no llegamos a confirmarla soltamos el lugar y te avisamos.'
+                    . $reglas . ($canje ? "\n" . trim($canje) : '')
+                : "¡Tu cita fue reservada!\nEl día lo podés cambiar una sola vez, "
+                    . 'desde «Mis citas».' . ($canje ? "\n" . trim($canje) : ''),
+                // Las tres condiciones hay que leerlas antes de irse de la
+                // pantalla, así que es ventana y no franja.
+                $senaPide > 0 ? 'modal' : 'success');
 
             if ($senaPide > 0) {
                 return redirect()->route('portal.citas', ['sena' => $idCita]);
@@ -417,6 +426,10 @@ class PortalController extends Controller
                FROM cita c WHERE c.id_cita = ? AND c.id_cliente = ?', [$idCita, $idc]
         );
 
+        // **Cuánto pide el salón por esa cita.** Se pregunta a la base, que es
+        // la autoridad: la pantalla propone el número pero lo que vale es esto.
+        $pide = $cita ? (float) DB::scalar('SELECT fn_cita_sena_requerida(?)', [$idCita]) : 0.0;
+
         $error = null;
         if (! $cita) {
             $error = 'Esa cita no es tuya.';
@@ -424,6 +437,13 @@ class PortalController extends Controller
             $error = 'Esa cita ya está cerrada, no se le puede dejar una seña.';
         } elseif ($monto <= 0) {
             $error = 'Escribí cuánto vas a dejar de seña.';
+        } elseif ($pide > 0 && $monto + 0.01 < $pide) {
+            // **Menos de lo que se pide no reserva nada.** Registrar Gs. 10.000
+            // sobre una seña de 210.000 deja la cita igual de sin confirmar,
+            // pero con un aviso pendiente que alguien tiene que ir a rechazar a
+            // mano — y la clienta creyendo que ya la aseguró.
+            $error = 'La seña de esta cita es de ' . money($pide) . ' y estás registrando '
+                . money($monto) . '. Registrá el total: con menos, el horario no queda confirmado.';
         } elseif (DB::scalar(
             'SELECT COUNT(*) FROM sena_solicitud WHERE id_cita = ? AND id_cobro IS NULL AND rechazada_en IS NULL',
             [$idCita]
@@ -560,7 +580,34 @@ class PortalController extends Controller
             // Se trae indexado por sucursal porque cada cita puede ser de un
             // local distinto, y son las cuentas de ESE local las que valen.
             'cuentas' => $this->cuentasPorSucursal($prox),
+
+            // **De dónde sale la seña de cada cita.** El total solo no se puede
+            // comprobar: con tres servicios marcados no se sabe si es de uno o
+            // de todos. Se resuelve acá y no en la vista, que ahí correría una
+            // consulta por cita dentro del `foreach`.
+            'desgloses' => $this->desglosesDeSena($prox),
         ]);
+    }
+
+    /**
+     * El desglose de la seña de cada cita que la pide.
+     *
+     * Sólo de las que piden algo: para las demás el bloque no se dibuja, así
+     * que traerlo sería una consulta al pedo por cita.
+     *
+     * @param  array<int, object>  $citas
+     * @return array<int, array{filas: array<int, object>, total: float, lista: float}>
+     */
+    private function desglosesDeSena(array $citas): array
+    {
+        $out = [];
+        foreach ($citas as $c) {
+            if ((float) ($c->sena_requerida ?? 0) > 0) {
+                $out[(int) $c->id_cita] = Sena::desglose((int) $c->id_cita);
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -660,7 +707,24 @@ class PortalController extends Controller
                                WHERE ps.id_persona = u.id_persona), '') AS servicios,
                     (SELECT ROUND(AVG(cal.puntaje),1) FROM calificacion cal
                        JOIN cita c ON c.id_cita = cal.id_cita
-                      WHERE c.id_usuario = u.id_usuario) AS puntaje
+                      WHERE c.id_usuario = u.id_usuario) AS puntaje,
+                    -- **En qué turnos atiende, y a qué hora.** «Hace mechas» no
+                    -- alcanza para decidir: la clienta necesita saber si esa
+                    -- persona está a la mañana o a la tarde antes de elegirla,
+                    -- porque si no descubre el horario recién en el selector.
+                    --
+                    -- Se arma acá y no en la vista: son los turnos DE ESE LOCAL
+                    -- —el mismo criterio con el que se decide quién aparece— y
+                    -- resolverlo en PHP sería una consulta por profesional.
+                    COALESCE((SELECT GROUP_CONCAT(DISTINCT
+                                        CONCAT(tl2.nombre, ': ',
+                                               TIME_FORMAT(tl2.hora_inicio, '%H:%i'), ' a ',
+                                               TIME_FORMAT(tl2.hora_fin, '%H:%i'))
+                                        ORDER BY tl2.hora_inicio SEPARATOR '|')
+                                FROM usuario_turno ut2
+                                JOIN turno_laboral tl2 ON tl2.id_turno = ut2.id_turno AND tl2.activo = 1
+                               WHERE ut2.id_usuario = u.id_usuario
+                                 AND (? = 0 OR tl2.id_sucursal = ?)), '') AS turnos
                FROM usuario u
                JOIN rol r ON r.id_rol = u.id_rol
                JOIN persona pe ON pe.id_persona = u.id_persona
@@ -669,7 +733,7 @@ class PortalController extends Controller
                              JOIN turno_laboral tl ON tl.id_turno = ut.id_turno
                             WHERE ut.id_usuario = u.id_usuario AND tl.activo = 1
                               AND (? = 0 OR tl.id_sucursal = ?))
-              ORDER BY pe.nombre", [$elegida, $elegida]
+              ORDER BY pe.nombre", [$elegida, $elegida, $elegida, $elegida]
         );
 
         return view('portal.profesionales', [

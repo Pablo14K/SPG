@@ -59,6 +59,22 @@
                             </div>
                         @endif
 
+                        {{-- **Los turnos, antes que los servicios.** Saber si
+                             atiende a la mañana o a la tarde es lo primero que
+                             decide si esa persona sirve: de nada vale que haga
+                             mechas si trabaja cuando la clienta no puede venir.
+                             Son los turnos DE ESTE LOCAL, la misma regla con la
+                             que se decide quién aparece en la lista. --}}
+                        @if (trim((string) ($p->turnos ?? '')) !== '')
+                            <div class="mb-2">
+                                @foreach (explode('|', (string) $p->turnos) as $t)
+                                    <div class="text-muted-warm" style="font-size:.82rem">
+                                        <i class="bi bi-clock"></i> {{ $t }}
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
                         {{-- **Sin servicios cargados hace todos**, que es el criterio
                              permisivo de siempre. Decir «no hace nada» sería mentir:
                              lo que pasa es que el salón todavía no lo administró. --}}

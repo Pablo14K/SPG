@@ -654,6 +654,22 @@ window.SPGCarga = (function () {
   }
   window.SPGConfirmar = confirmar;
 
+  // ---------------------------------------------------------------------
+  // Los avisos que se dibujan como ventana (`flash($msg, 'modal')`)
+  // ---------------------------------------------------------------------
+  // Se abren solos: es lo que los distingue de la franja, que se cierra sin
+  // leerse. Si Bootstrap no cargó no pasa nada — el marcado deja una franja de
+  // respaldo con el mismo texto, así que el aviso nunca desaparece.
+  document.querySelectorAll('[data-spg-abrir]').forEach(function (caja) {
+    if (!window.bootstrap || !window.bootstrap.Modal) return;
+    window.bootstrap.Modal.getOrCreateInstance(caja).show();
+
+    // Recién ahora se saca la franja de respaldo: si la ventana no se pudo
+    // abrir, el texto tiene que seguir estando en algún lado.
+    var respaldo = document.querySelector('[data-spg-respaldo="' + caja.id + '"]');
+    if (respaldo) respaldo.remove();
+  });
+
   document.addEventListener('submit', function (ev) {
     var form = ev.target;
     if (!(form instanceof HTMLFormElement)) return;

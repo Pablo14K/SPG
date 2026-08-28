@@ -53,19 +53,29 @@
                                     <a class="btn btn-sm btn-oro" href="{{ route('portal.atencion', ['id' => $c->id_cita]) }}">
                                         <i class="bi bi-eye"></i> Ver</a>
                                 @elseif (! in_array($c->estado, ['Atendida', 'Cancelada'], true))
-                                    {{-- Los dos calendarios, como en la pantalla del correo. Acá
-                                         estaba SÓLO el de Google, así que quien no usa Google no
-                                         tenía forma de agendar la cita en su teléfono. El .ics es
-                                         el genérico: lo abre el calendario que traiga el celular.
-                                         Van con texto y no sólo con ícono porque esta pantalla se
-                                         mira desde el celular, donde el `title` no se ve. --}}
-                                    <a class="btn btn-sm btn-rapido" download
-                                       href="{{ route('cita.calendario', ['id' => $c->id_cita]) }}">
-                                        <i class="bi bi-phone"></i> Calendario</a>
-                                    <a class="btn btn-sm btn-outline-neutro" target="_blank" rel="noopener"
-                                       title="Agendar en Google Calendar"
-                                       href="{{ \App\Servicios\Calendario::urlGoogle($c, $lugar) }}">
-                                        <i class="bi bi-google"></i></a>
+                                    {{-- **Los dos calendarios, en un solo desplegable.**
+                                         Estaban como dos botones y el segundo era una «G»
+                                         suelta: no se leía como un calendario, así que
+                                         quien no usa Google entendía que no había opción
+                                         para su teléfono — y quien sí lo usa no sabía que
+                                         esa letra abría el suyo. Ahora el botón dice
+                                         «Calendario» y adentro cada opción se nombra.
+
+                                         **Es `<details>`, el desplegable del propio
+                                         navegador, y no uno de Bootstrap**: así funciona
+                                         con `app.js` caído. Agendar la cita en el teléfono
+                                         no puede depender de que cargue una librería. --}}
+                                    <details class="spg-desple d-inline-block">
+                                        <summary class="btn btn-sm btn-rapido">
+                                            <i class="bi bi-calendar-plus"></i> Calendario</summary>
+                                        <div class="spg-desple-menu">
+                                            <a download href="{{ route('cita.calendario', ['id' => $c->id_cita]) }}">
+                                                <i class="bi bi-phone"></i> Calendario del celular</a>
+                                            <a target="_blank" rel="noopener"
+                                               href="{{ \App\Servicios\Calendario::urlGoogle($c, $lugar) }}">
+                                                <i class="bi bi-google"></i> Calendario de Google</a>
+                                        </div>
+                                    </details>
                                     {{-- Registrar la seña NO es pagarla: no hay pasarela de pago
                                          y no la va a haber. Es un aviso, y el salón lo confirma
                                          cuando recibe el dinero. Por eso el botón dice
@@ -292,10 +302,38 @@
                                 </div>
                             @endif
 
+                            {{-- **De dónde sale ese número.** Un total suelto no se
+                                 puede comprobar: con tres servicios marcados, la
+                                 clienta no sabe si la seña es de uno o de todos, ni
+                                 qué porcentaje se le aplicó. El desglose es el mismo
+                                 bloque que ve quien confirma el pago en el mostrador,
+                                 así que los dos discuten sobre los mismos números. --}}
+                            @if (! empty($desgloses[$c->id_cita]['filas']))
+                                <div class="mt-3">
+                                    <div class="form-label">Cómo se calcula</div>
+                                    @include('facturacion._sena_desglose', [
+                                        'desglose' => $desgloses[$c->id_cita],
+                                        'yaPuesta' => (float) ($c->sena ?? 0),
+                                    ])
+                                </div>
+                            @endif
+
                             <label class="form-label mt-3" for="ps{{ $c->id_cita }}">¿Cuánto vas a dejar?</label>
                             <input class="form-control input-miles" id="ps{{ $c->id_cita }}"
-                                   name="monto" data-min="1" inputmode="numeric" required
+                                   name="monto" inputmode="numeric" required
+                                   data-min="{{ (float) ($c->sena_requerida ?? 0) > 0 ? (int) $c->sena_requerida : 1 }}"
                                    value="{{ (float) ($c->sena_requerida ?? 0) > 0 ? monto_input($c->sena_requerida) : '' }}">
+                            @if ((float) ($c->sena_requerida ?? 0) > 0)
+                                {{-- **Menos de lo que se pide no reserva nada**, y hay
+                                     que decirlo antes: con Gs. 10.000 sobre una seña de
+                                     210.000 la cita queda igual de sin confirmar, pero
+                                     con un aviso que alguien tiene que ir a rechazar. El
+                                     servidor lo vuelve a comprobar. --}}
+                                <div class="form-text">
+                                    El mínimo es {{ money($c->sena_requerida) }}: con menos,
+                                    el horario no queda confirmado.
+                                </div>
+                            @endif
 
                             {{-- **El comprobante de la transferencia.** La cita se
                                  reserva desde afuera del local, así que no hay nada

@@ -16,6 +16,7 @@ use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
 use App\Servicios\Persona;
 use App\Servicios\Sucursales;
+use App\Servicios\Sena;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -211,7 +212,32 @@ class CitasController extends Controller
             'puedeFacturar' => Permisos::puede('facturacion.facturas'),
             'puedeReasignar' => Permisos::esAdmin(),
             'profs' => Permisos::esAdmin() ? Agenda::profesionales() : [],
+
+            // **El mismo desglose que ve la clienta en el portal.** Quien
+            // confirma el pago tiene que poder comprobar el número: con un
+            // total suelto no sabe si esa seña es de un servicio o de tres.
+            // Sólo de las que piden algo — para el resto el bloque no se
+            // dibuja, así que traerlo sería una consulta al pedo por fila.
+            'desglosesSena' => $this->desglosesDeSena($rows),
         ]);
+    }
+
+    /**
+     * El desglose de la seña de cada cita que la pide.
+     *
+     * @param  array<int, object>  $citas
+     * @return array<int, array{filas: array<int, object>, total: float, lista: float}>
+     */
+    private function desglosesDeSena(array $citas): array
+    {
+        $out = [];
+        foreach ($citas as $c) {
+            if ((float) ($c->sena_requerida ?? 0) > 0) {
+                $out[(int) $c->id_cita] = Sena::desglose((int) $c->id_cita);
+            }
+        }
+
+        return $out;
     }
 
     public function form(Request $request): View

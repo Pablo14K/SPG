@@ -1402,3 +1402,49 @@ html,body{max-width:100%;overflow-x:hidden;}
 @media (prefers-reduced-motion: reduce) {
     .spg-nav-mod, .spg-cajon-fondo { transition: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Desplegable nativo (`<details>`), para agrupar dos acciones parientes
+   ---------------------------------------------------------------------------
+   Lo usa la pantalla de «Mis citas» para los dos calendarios. Es `<details>` y
+   no un dropdown de Bootstrap **a propósito**: lo abre el navegador, así que
+   funciona con `app.js` caído — agendar la cita en el teléfono no puede
+   depender de que cargue una librería.
+
+   El `summary` se dibuja como botón, y el marcador triangular se saca: con el
+   ícono al lado se lee como una flecha de más.                              */
+.spg-desple { position: relative; }
+
+.spg-desple > summary { list-style: none; cursor: pointer; }
+.spg-desple > summary::-webkit-details-marker { display: none; }
+.spg-desple > summary::marker { content: ''; }
+
+.spg-desple-menu {
+    position: absolute;
+    z-index: 20;
+    min-width: 220px;
+    margin-top: .25rem;
+    padding: .3rem;
+    background: var(--blanco);
+    border: 1px solid var(--gris-calido);
+    border-radius: .5rem;
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12);
+}
+
+.spg-desple-menu a {
+    display: block;
+    padding: .45rem .6rem;
+    border-radius: .35rem;
+    color: var(--carbon);
+    text-decoration: none;
+    font-size: .88rem;
+    white-space: nowrap;
+}
+
+.spg-desple-menu a:hover,
+.spg-desple-menu a:focus { background: var(--oro-tinte); color: var(--negro); }
+
+/* Pegado al borde derecho no se sale de la pantalla en el celular. */
+@media (max-width: 575.98px) {
+    .spg-desple-menu { right: 0; }
+}
