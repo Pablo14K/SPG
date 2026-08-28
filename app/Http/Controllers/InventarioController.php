@@ -248,8 +248,19 @@ class InventarioController extends Controller
             $error = 'Elegí una categoría válida.';
         } elseif (DB::scalar('SELECT COUNT(*) FROM producto WHERE nombre = ? AND id_producto <> ?', [$d['nombre'], $id])) {
             $error = 'Ya existe un producto con ese nombre.';
-        } elseif ($minimo < 0 || $d['precio_costo'] < 0) {
-            $error = 'El precio y el stock mínimo no pueden ser negativos.';
+        } elseif ($d['precio_costo'] < 0) {
+            $error = 'El precio no puede ser negativo.';
+        } elseif ($minimo <= 0) {
+            // **Un mínimo en cero no avisa nunca.** `vw_producto_bajo_stock`
+            // compara `stock < stock_minimo`, así que con cero la condición no
+            // se cumple ni con el depósito vacío: el producto desaparece del
+            // aviso de reposición y el salón se entera cuando lo va a usar.
+            //
+            // Se veía en la pantalla de Stock: cuatro de cinco productos con
+            // «faltan 0» y costo de reponer Gs. 0, que se lee como que están
+            // bien cuando en realidad no había ninguno.
+            $error = 'El stock mínimo tiene que ser mayor a cero: es a partir de cuánto '
+                   . 'el sistema avisa que hay que reponer. Con cero no avisa nunca.';
         } elseif (! in_array($d['tasa_iva'], [0, 5, 10], true)) {
             $error = 'La tasa de IVA debe ser 0, 5 o 10.';
         } elseif ($stockInicial < 0) {
@@ -988,6 +999,7 @@ class InventarioController extends Controller
     public function compraForm(Request $request): View
     {
         // Sólo los productos de este local: una compra ingresa mercadería acá.
+        $suc = Sucursales::activa() ?: 1;
 
         return view('inventario.compra_form', [
             'proveedores' => DB::select(
@@ -1014,15 +1026,38 @@ class InventarioController extends Controller
             // producto que ya existe, la pantalla lo trae en vez de hacerlo
             // tipear de memoria. Se puede cambiar — un proveedor sube los
             // precios y lo que vale es lo que dice la factura de hoy.
+            //
+            // **Y con cuánto hay y cuánto tendría que haber**, que es lo que
+            // dibuja el buscador de la lupa: elegir qué comprar sin ver el
+            // stock obliga a abrir Inventario en otra pestaña y volver.
             'productos' => DB::select(
-                'SELECT p.id_producto, p.nombre,
+                'SELECT p.id_producto, p.nombre, p.unidad_medida, cp.nombre AS categoria,
+                        COALESCE(fn_producto_stock(p.id_producto, :suc), 0) AS hay,
+                        COALESCE(ps.stock_minimo, 0) AS minimo,
                         (SELECT dc.precio_unitario FROM detalle_compra dc
                            JOIN compra c ON c.id_compra = dc.id_compra
                           WHERE dc.id_producto = p.id_producto
                           ORDER BY c.fecha DESC, dc.id_detalle_compra DESC LIMIT 1) AS ultimo_precio
-                   FROM producto p WHERE p.activo = 1 ORDER BY p.nombre'
+                   FROM producto p
+                   JOIN categoria_producto cp ON cp.id_categoria = p.id_categoria
+                   LEFT JOIN producto_sucursal ps
+                          ON ps.id_producto = p.id_producto AND ps.id_sucursal = :suc2
+                  WHERE p.activo = 1 ORDER BY p.nombre',
+                ['suc' => $suc, 'suc2' => $suc]
             ),
             'sel_proveedor' => (int) $request->query('proveedor', 0),
+
+            // **Lo que falta reponer, para venir con la compra ya cargada.**
+            // El botón de Stock dice «Registrar la compra» debajo de una lista
+            // de faltantes: quien lo aprieta espera encontrarlos puestos, no
+            // volver a tipear uno por uno lo que la pantalla acabó de calcular.
+            'reponer' => $request->query('reponer')
+                ? DB::select(
+                    'SELECT v.id_producto, v.nombre, v.faltante, v.precio_costo
+                       FROM vw_producto_bajo_stock v
+                      WHERE v.id_sucursal = ? ORDER BY v.faltante DESC', [$suc]
+                )
+                : [],
         ]);
     }
 

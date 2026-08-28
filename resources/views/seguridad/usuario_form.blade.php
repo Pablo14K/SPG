@@ -39,7 +39,7 @@
     </div>
 
     <div class="row g-3">
-        <div class="col-lg-8">
+        <div class="col-lg-9">
             <div class="spg-panel">
                 <form method="post" action="{{ route('seguridad.usuario.guardar') }}" id="formUsuario">
                     @csrf
@@ -191,6 +191,12 @@
                                 </div>
                             @endforeach
                         </div>
+                        {{-- **El alta rápida, al lado de lo que completa.** Estaba
+                             en una columna al costado, lejos de las casillas que
+                             viene a llenar: había que buscarla. --}}
+                        <button type="button" class="btn btn-sm btn-rapido mt-2"
+                                data-bs-toggle="modal" data-bs-target="#modalSucursalRapida">
+                            <i class="bi bi-plus-lg"></i> Crear una sucursal</button>
                     </div>
 
                     {{-- **Los servicios que hace salieron de acá** (7.68.0): son
@@ -239,6 +245,10 @@
                     </div>{{-- /fmTrabajo --}}
                     </div>
 
+                    <button type="button" class="btn btn-sm btn-rapido mb-3"
+                            data-bs-toggle="modal" data-bs-target="#modalTurnoRapido">
+                        <i class="bi bi-plus-lg"></i> Crear un turno</button>
+
                     {{-- Un solo botón, al pie de las tres secciones: se guardan
                          juntas y siempre se guardaron juntas. --}}
                     <div class="d-flex gap-2 pt-2 border-top">
@@ -249,15 +259,28 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
-            {{-- Altas rápidas: crear un turno o una sucursal sin salir de la
-                 ficha. Sin esto había que ir a otra pantalla, crearlo y volver
-                 a cargar todo de cero. --}}
-            <div class="spg-panel mb-3">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Turno nuevo</h2>
-                {{-- data-borrador: al enviar, app.js le adjunta lo que haya
-                     cargado en la ficha, y el controlador se lo devuelve. --}}
-                <form method="post" action="{{ route('seguridad.turno.rapido') }}"
+    </div>
+
+    {{-- **El alta rápida abre en ventana, no en una columna al costado.**
+         Ahí competía con la ficha —dos formularios uno al lado del otro,
+         y el de la derecha se leía como parte del de la izquierda— y en
+         el celular quedaba debajo de todo, donde nadie la encontraba.
+
+         **Lo cargado en la ficha no se pierde**: `data-borrador` le
+         adjunta el formulario principal al enviar, y el controlador lo
+         devuelve. Sin eso, crear un turno a mitad de un alta borraba el
+         usuario, la contraseña y el rol. --}}
+    <div class="modal fade" id="modalTurnoRapido" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5">
+                        <i class="bi bi-clock"></i> Turno nuevo</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+<form method="post" action="{{ route('seguridad.turno.rapido') }}"
                       data-borrador="#formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
@@ -309,11 +332,31 @@
                     </div>
                     <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear turno</button>
                 </form>
+                </div>
             </div>
+        </div>
+    </div>
 
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursal nueva</h2>
-                <form method="post" action="{{ route('seguridad.sucursal.rapida') }}"
+    {{-- **El alta rápida abre en ventana, no en una columna al costado.**
+         Ahí competía con la ficha —dos formularios uno al lado del otro,
+         y el de la derecha se leía como parte del de la izquierda— y en
+         el celular quedaba debajo de todo, donde nadie la encontraba.
+
+         **Lo cargado en la ficha no se pierde**: `data-borrador` le
+         adjunta el formulario principal al enviar, y el controlador lo
+         devuelve. Sin eso, crear un turno a mitad de un alta borraba el
+         usuario, la contraseña y el rol. --}}
+    <div class="modal fade" id="modalSucursalRapida" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5">
+                        <i class="bi bi-shop"></i> Sucursal nueva</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+<form method="post" action="{{ route('seguridad.sucursal.rapida') }}"
                       data-borrador="#formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
@@ -327,9 +370,11 @@
                     </div>
                     <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear sucursal</button>
                 </form>
+                </div>
             </div>
         </div>
     </div>
+
 @endsection
 
 @once

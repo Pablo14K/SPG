@@ -114,8 +114,34 @@
                         $vCant = (array) old('cantidad', []);
                         $vPrecio = (array) old('precio', []);
                         $vCat = (array) old('categoria', []);
+
+                        // **Se llega desde «Registrar la compra» de Stock con la
+                        // lista de faltantes.** El botón está debajo de esa lista:
+                        // quien lo aprieta espera encontrarlos puestos, no volver a
+                        // tipear uno por uno lo que la pantalla acaba de calcular.
+                        //
+                        // Sólo si el formulario no viene de un rechazo: ahí manda lo
+                        // que la persona había cargado.
+                        if (! $vNombre && ! empty($reponer)) {
+                            foreach ($reponer as $r) {
+                                $vNombre[] = $r->nombre;
+                                $vId[] = (int) $r->id_producto;
+                                $vCant[] = cant($r->faltante);
+                                $vPrecio[] = monto_input($r->precio_costo);
+                            }
+                        }
+
                         $cuantas = max(3, count($vNombre));
                     @endphp
+
+                    @if (! empty($reponer) && ! (array) old('nombre', []))
+                        <div class="alert alert-warning py-2" style="font-size:.85rem">
+                            <i class="bi bi-cart-check"></i>
+                            Cargamos los {{ count($reponer) }} productos que están por debajo
+                            del mínimo, con la cantidad que falta y el último precio de costo.
+                            Corregí lo que haga falta antes de guardar.
+                        </div>
+                    @endif
                     {{-- Los rótulos de las columnas: con cinco campos por fila
                          y sólo placeholders, hay que adivinar cuál es cuál. --}}
                     <div class="row g-2 mb-1 text-muted-warm d-none d-md-flex" style="font-size:.78rem">
@@ -130,9 +156,21 @@
                         @for ($i = 0; $i < $cuantas; $i++)
                             <div class="row g-2 mb-2 filaCompra">
                                 <div class="col-md-5">
-                                    <input class="form-control form-control-sm nombreProd" name="nombre[]"
-                                           list="listaProductos" placeholder="Producto" autocomplete="off"
-                                           value="{{ $vNombre[$i] ?? '' }}">
+                                    {{-- **La lupa abre el catálogo con el stock a la
+                                         vista.** El `datalist` sugiere por nombre, que
+                                         sirve cuando ya se sabe qué se busca; para
+                                         decidir QUÉ comprar hace falta ver cuánto hay y
+                                         cuánto tendría que haber, y eso obligaba a abrir
+                                         Inventario en otra pestaña y volver. --}}
+                                    <div class="input-group input-group-sm">
+                                        <button type="button" class="btn btn-outline-neutro spg-buscar-prod"
+                                                data-bs-toggle="modal" data-bs-target="#modalBuscarProd"
+                                                title="Buscar en el catálogo" aria-label="Buscar en el catálogo">
+                                            <i class="bi bi-search"></i></button>
+                                        <input class="form-control form-control-sm nombreProd" name="nombre[]"
+                                               list="listaProductos" placeholder="Producto" autocomplete="off"
+                                               value="{{ $vNombre[$i] ?? '' }}">
+                                    </div>
                                     <input type="hidden" name="id_producto[]" class="idProd"
                                            value="{{ $vId[$i] ?? 0 }}">
                                 </div>
@@ -162,8 +200,15 @@
                                      multiplicar de cabeza para saber si un
                                      renglón está bien cargado, y el error
                                      aparece recién en el total. --}}
-                                <div class="col-md-1 d-flex align-items-center justify-content-end">
+                                <div class="col-md-1 d-flex align-items-center justify-content-end gap-2">
                                     <span class="subtotalFila text-muted-warm" style="font-size:.85rem">—</span>
+                                    {{-- **Quitar la fila.** Sin esto, una fila cargada
+                                         por error sólo se podía «borrar» vaciando sus
+                                         tres campos a mano — y si quedaba algo, el
+                                         renglón entraba a la compra. --}}
+                                    <button type="button" class="btn btn-sm btn-outline-neutro spg-quitar-fila"
+                                            title="Quitar este renglón" aria-label="Quitar este renglón">
+                                        <i class="bi bi-x-lg"></i></button>
                                 </div>
                             </div>
                         @endfor
@@ -177,6 +222,68 @@
                          style="border-top:1px solid var(--gris-calido);padding-top:.6rem">
                         <span class="text-muted-warm" id="compraLineas">0 renglones</span>
                         <strong>Total: <span class="txt-oro" id="compraTotal">Gs. 0</span></strong>
+                    </div>
+
+                    {{-- **El buscador del catálogo.** Uno solo para todas las
+                         filas: la lupa que se apretó queda anotada y ahí se
+                         vuelcan el nombre, el id y el último precio. Dieciséis
+                         modales iguales —uno por fila— serían el mismo HTML
+                         repetido y un `id` distinto por renglón. --}}
+                    <div class="modal fade" id="modalBuscarProd" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h2 class="modal-title fs-5">
+                                        <i class="bi bi-search"></i> Buscar en el catálogo</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Cerrar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input class="form-control mb-2" id="filtroProd" data-filtra="#tablaProd"
+                                           placeholder="Nombre o categoría" autocomplete="off">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0" id="tablaProd"
+                                               style="font-size:.86rem">
+                                            <thead>
+                                                <tr>
+                                                    <th>Producto</th>
+                                                    <th class="text-end">Hay</th>
+                                                    <th class="text-end">Mínimo</th>
+                                                    <th class="text-end">Último precio</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($productos as $p)
+                                                    @php $falta = (float) $p->hay < (float) $p->minimo; @endphp
+                                                    <tr>
+                                                        <td>
+                                                            {{ $p->nombre }}
+                                                            <div class="text-muted-warm" style="font-size:.78rem">
+                                                                {{ $p->categoria }}</div>
+                                                        </td>
+                                                        <td class="text-end {{ $falta ? 'txt-no' : '' }}">
+                                                            {{ cant($p->hay) }}</td>
+                                                        <td class="text-end text-muted-warm">{{ cant($p->minimo) }}</td>
+                                                        <td class="text-end text-muted-warm">
+                                                            {{ $p->ultimo_precio !== null ? money($p->ultimo_precio) : '—' }}</td>
+                                                        <td class="text-end">
+                                                            <button type="button" class="btn btn-sm btn-oro spg-elegir-prod"
+                                                                    data-bs-dismiss="modal"
+                                                                    data-id="{{ $p->id_producto }}"
+                                                                    data-nombre="{{ $p->nombre }}"
+                                                                    data-precio="{{ $p->ultimo_precio !== null ? (int) $p->ultimo_precio : '' }}"
+                                                                    data-falta="{{ $falta ? (int) ceil((float) $p->minimo - (float) $p->hay) : '' }}">
+                                                                Elegir</button>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <datalist id="listaProductos">
@@ -398,6 +505,66 @@
         cont.appendChild(copia);
         enganchar(copia);
         recalcular();
+    });
+
+    // -----------------------------------------------------------------
+    // Quitar un renglón
+    // -----------------------------------------------------------------
+    // Se escucha en el contenedor y no fila por fila: las filas se clonan al
+    // apretar «Agregar», así que un listener por botón dejaría sin efecto el
+    // de las nuevas.
+    //
+    // **Nunca se queda sin ninguna**: con cero filas la pantalla no tiene
+    // dónde cargar y el botón de agregar clona la primera, que ya no existe.
+    // Si es la última, se vacía en vez de sacarse.
+    document.getElementById('filasCompra').addEventListener('click', function (ev) {
+        var boton = ev.target.closest('.spg-quitar-fila');
+        if (!boton) return;
+
+        var cont = this, fila = boton.closest('.filaCompra');
+        if (cont.querySelectorAll('.filaCompra').length > 1) {
+            fila.remove();
+        } else {
+            fila.querySelectorAll('input').forEach(function (i) {
+                i.value = i.classList.contains('idProd') ? '0' : '';
+            });
+        }
+        recalcular();
+    });
+
+    // -----------------------------------------------------------------
+    // El buscador del catálogo (la lupa)
+    // -----------------------------------------------------------------
+    // Hay UN solo modal para todas las filas, así que hay que recordar cuál
+    // lupa se apretó: sin eso, el producto elegido caería siempre en la
+    // primera. `filaBuscando` es esa memoria.
+    var filaBuscando = null;
+
+    document.getElementById('filasCompra').addEventListener('click', function (ev) {
+        var lupa = ev.target.closest('.spg-buscar-prod');
+        if (lupa) filaBuscando = lupa.closest('.filaCompra');
+    });
+
+    document.querySelectorAll('.spg-elegir-prod').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var fila = filaBuscando || document.querySelector('.filaCompra');
+            if (!fila) return;
+
+            fila.querySelector('.nombreProd').value = b.dataset.nombre || '';
+            fila.querySelector('.idProd').value = b.dataset.id || '0';
+
+            // El precio y la cantidad se COMPLETAN, no se imponen: lo que ya
+            // se escribió a mano es lo que dice la factura de hoy.
+            var precio = fila.querySelector('.precioProd');
+            if (precio && precio.value.trim() === '' && b.dataset.precio) {
+                precio.value = miles(parseFloat(b.dataset.precio));
+            }
+            var cantidad = fila.querySelector('[name="cantidad[]"]');
+            if (cantidad && cantidad.value.trim() === '' && b.dataset.falta) {
+                cantidad.value = b.dataset.falta;
+            }
+            recalcular();
+        });
     });
 })();
 </script>

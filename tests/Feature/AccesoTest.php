@@ -246,6 +246,9 @@ class AccesoTest extends TestCase
             // devolvía 500: filtraba por `producto.id_sucursal`, columna que la
             // 7.33.0 eliminó. No se podía registrar ninguna compra.
             ['inventario.compra_form', []],
+            // Con la lista de faltantes ya cargada, que es como se llega desde
+            // el botón de Stock: arma las filas con otro camino.
+            ['inventario.compra_form', ['reponer' => 1]],
             ['inventario.compras', []],
             ['clientes.canjes', []],
             ['reportes.index', []],
