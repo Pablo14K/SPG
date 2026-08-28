@@ -193,6 +193,12 @@ class CitasController extends Controller
             $row->fichaje_ok = (bool) ($fichaje['ok'] ?? false);
             $row->fichaje_futura = (bool) ($fichaje['futura'] ?? false);
             $row->fichaje_turno = $fichaje['turno'] ?? null;
+            // **«Falta fichaje» y «está marcado ausente» no son lo mismo.** Si
+            // a esa persona ya se la dio por ausente hoy, no va a fichar: lo
+            // que hay que hacer no es esperar, es cambiarle el profesional a
+            // la cita. Decir «falta fichaje» manda a esperar algo que no va a
+            // pasar.
+            $row->prof_ausente = ! $row->fichaje_ok && $this->marcadoAusente($row);
         }
 
         return view('citas.agenda', [
@@ -402,9 +408,40 @@ class CitasController extends Controller
         // paralelo, no uno detrás del otro.
         $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
 
+        // **Para quién es la cita, y cuántas van.** El portal lo pregunta
+        // desde la 7.57.0 y el mostrador no: la clienta que llama para
+        // reservarle a su hija quedaba cargada como si fuera para ella, y el
+        // día de la cita quien atiende esperaba a una y venía otra.
+        //
+        // Se valida acá y no sólo en la pantalla: `personas` entra en la base
+        // con un `CHECK`, y un nombre vacío con la casilla marcada deja una
+        // cita que dice «es para otra persona» sin decir para quién.
+        $paraOtro = (bool) $request->input('para_otra_persona', 0);
+        $nombrePara = trim((string) $request->input('nombre_para', ''));
+        $personas = (int) $request->input('personas', 1);
+
+        if ($paraOtro && mb_strlen($nombrePara) < 3) {
+            flash('Si la cita es para otra persona, escribí su nombre: es lo que ve '
+                . 'quien atiende ese día.', 'error');
+
+            return back()->withInput();
+        }
+        if ($personas < 1 || $personas > 20) {
+            flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
+
+            return back()->withInput();
+        }
+
         try {
             $idCita = Agenda::agendar($idCliente, $idUsuario, $fecha, $dur, $obs, $asignacion);
             $equipo = count(array_filter(array_values($asignacion))) > 0;
+
+            // Va aparte del `sp_agendar_cita` por el mismo motivo que en el
+            // portal: el procedimiento es el del TCC y no recibe estos campos.
+            DB::update(
+                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
+                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
+            );
             Auditoria::registrar('ALTA', 'Citas', 'cita', $idCita,
                 'Cita agendada para ' . $fecha . ($equipo ? ' con varios profesionales' : ''));
 
@@ -1537,6 +1574,23 @@ class CitasController extends Controller
             : null;
 
         return ['ok' => false, 'futura' => false, 'dia' => $dia, 'turno' => $turno];
+    }
+
+    /**
+     * ¿A este profesional ya se lo dio por ausente ese día?
+     *
+     * Es una fila de `asistencia` sin entrada y con `justificada` puesta —0 sin
+     * aviso, 1 con permiso—: alguien decidió que no vino. La distinción importa
+     * en la agenda, porque cambia qué hay que hacer con la cita.
+     */
+    private function marcadoAusente(object $cita): bool
+    {
+        return (bool) DB::scalar(
+            'SELECT COUNT(*) FROM asistencia
+              WHERE id_usuario = ? AND fecha = ?
+                AND hora_entrada IS NULL AND justificada IS NOT NULL',
+            [(int) $cita->id_usuario, substr((string) $cita->fecha_hora, 0, 10)]
+        );
     }
 
     private function ficho(int $idUsuario, string $fecha): bool

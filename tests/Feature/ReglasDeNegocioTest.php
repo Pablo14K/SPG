@@ -16,6 +16,7 @@ use App\Servicios\Config;
 use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
+use App\Servicios\CitasVencidas;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -4396,7 +4397,7 @@ class ReglasDeNegocioTest extends TestCase
                        AND cs.id_servicio = ?
                        AND DATE(ci.fecha_hora) = CURDATE()
                        AND ec.bloquea_agenda = 1)
-              ORDER BY c.id_cliente LIMIT 4', [$srv->id_servicio ?? 0]
+              ORDER BY c.id_cliente LIMIT 5', [$srv->id_servicio ?? 0]
         );
         $usr = DB::selectOne('SELECT id_usuario FROM usuario WHERE activo = 1 LIMIT 1');
         $suc = DB::selectOne('SELECT id_sucursal FROM sucursal WHERE activo = 1 LIMIT 1');
@@ -4415,7 +4416,10 @@ class ReglasDeNegocioTest extends TestCase
             return $id;
         };
 
-        $reciente = $crear((int) $clientes[0]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 hours')), 7);
+        // **La tolerancia pasó de 24 horas a 15 minutos**, por pedido del
+        // usuario, así que lo que se mide es ese borde: recién pasada la hora
+        // la clienta todavía puede estar llegando, y pasados los 15 no.
+        $reciente = $crear((int) $clientes[0]->id_cliente, date('Y-m-d H:i:s', strtotime('-5 minutes')), 7);
         $programada = $crear((int) $clientes[1]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 days')), 1);
         $reprogramada = $crear((int) $clientes[2]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 days')), 2);
         $reprogramadaFutura = $crear((int) $clientes[3]->id_cliente, date('Y-m-d H:i:s', strtotime('+2 hours')), 2);
@@ -4426,13 +4430,25 @@ class ReglasDeNegocioTest extends TestCase
             'SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$id]);
 
         $this->assertSame(7, $estado($reciente),
-            'La atrasada de hace dos horas todavía se puede atender: el sistema no decide por nadie.');
+            'Dentro de la tolerancia la cita sigue abierta: a los cinco minutos la clienta '
+            . 'está llegando, no faltando.');
         $this->assertSame(6, $estado($programada),
             'Una cita que sigue programada dos días después tiene que cerrarse sola como ausente.');
         $this->assertSame(6, $estado($reprogramada),
             'Una cita reprogramada cuya nueva fecha ya pasó hace dos días tiene que cerrarse como ausente.');
         $this->assertSame(2, $estado($reprogramadaFutura),
             'Reprogramar al futuro reinicia el plazo: la cita no se puede cerrar antes de su nueva fecha.');
+
+        // Y la otra mitad del borde: pasada la tolerancia se cierra sola, sin
+        // esperar el día entero. Con la regla vieja esta seguiría en 7.
+        // **Con su propia clienta**: `trg_citaserv_bi` no deja repetir el
+        // mismo servicio el mismo día, y la primera ya tiene la suya.
+        $pasada = $crear((int) $clientes[4]->id_cliente,
+            date('Y-m-d H:i:s', strtotime('-' . (CitasVencidas::MINUTOS_SIN_PRESENTARSE + 10) . ' minutes')), 1);
+        $this->artisan('spg:notificaciones', ['--max' => 0]);
+
+        $this->assertSame(6, $estado($pasada),
+            'Pasada la tolerancia, la clienta que no se presentó queda ausente: es lo que se pidió.');
     }
 
     /**

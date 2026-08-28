@@ -142,6 +142,45 @@
                     </div>
                 @endif
 
+                {{-- **La cita puede ser para otra persona, también acá.** El
+                     portal lo pregunta desde la 7.57.0 y el mostrador no, así que
+                     la clienta que llama por teléfono para reservarle a su hija
+                     quedaba cargada como si fuera para ella: la agenda esperaba a
+                     una y venía otra, y el control de solape lo tomaba por error
+                     —esas citas SÍ se superponen a propósito, son dos personas—.
+
+                     No se crea una ficha de cliente para quien se atiende: sería
+                     inventar una persona que el salón no registró. El nombre va
+                     como texto en la cita, igual que en el portal. --}}
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
+                               id="paraOtro" @checked(old('para_otra_persona'))>
+                        <label class="form-check-label" for="paraOtro">
+                            La cita es para otra persona
+                        </label>
+                    </div>
+                    {{-- Arranca visible y lo esconde el JS: sin `app.js` se ven
+                         los dos campos y se agenda igual. --}}
+                    <div id="bloqueParaQuien" class="mt-2">
+                        <label class="form-label" for="nombre_para">¿Para quién?</label>
+                        <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
+                               placeholder="Nombre y apellido de quien se atiende"
+                               value="{{ old('nombre_para') }}">
+                        <div class="form-text">
+                            Con el nombre completo: es lo que ve quien atiende ese día.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label" for="personas">¿Cuántas personas van?</label>
+                    <input class="form-control" id="personas" name="personas"
+                           value="{{ old('personas', 1) }}" style="max-width:140px"
+                           data-solo="numeros" inputmode="numeric" maxlength="2">
+                    <div class="form-text">Entre 1 y 20.</div>
+                </div>
+
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label>
                     <textarea class="form-control" id="observaciones" name="observaciones"

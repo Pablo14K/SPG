@@ -904,8 +904,63 @@ class PersonalController extends Controller
                 ? $this->fueraDeFranja($f, ($f->hora_entrada || $tardiaJustificada) ? 'salida' : 'entrada') : null;
         }
 
+        // **Los últimos registros, con filtros.** Eran sesenta filas fijas:
+        // para saber si alguien faltó el mes pasado había que recorrerlas a
+        // ojo, y a los seis meses de operación esa tabla no dice nada. Es la
+        // misma forma que las demás listas del sistema — filtros arriba, tabla,
+        // y un tope que ahora significa «los 60 de lo filtrado».
+        $opProf = ['' => 'Todos'];
+        foreach (DB::select(
+            "SELECT DISTINCT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
+               FROM asistencia a
+               JOIN usuario u  ON u.id_usuario = a.id_usuario
+               JOIN persona pe ON pe.id_persona = u.id_persona
+              ORDER BY pe.nombre, pe.apellido") as $o) {
+            $opProf[(string) $o->id_usuario] = $o->nombre;
+        }
+
+        $campos = [];
+        // Quien sólo ve lo suyo no elige de quién: hay una sola respuesta.
+        if ($porOtros) {
+            $campos['quien'] = ['tipo' => 'select', 'etiqueta' => 'Profesional',
+                                'opciones' => $opProf, 'ancho' => '200px'];
+        }
+        $campos['estado'] = ['tipo' => 'select', 'etiqueta' => 'Estado', 'ancho' => '170px',
+                             'opciones' => ['' => 'Todos', 'ok' => 'Presente',
+                                            'con' => 'Con permiso', 'sin' => 'Sin aviso']];
+        $campos['desde'] = ['tipo' => 'fecha', 'etiqueta' => 'Desde'];
+        $campos['hasta'] = ['tipo' => 'fecha', 'etiqueta' => 'Hasta'];
+
+        $fa = Listado::filtros($campos);
+
+        $wa = [];
+        $pa = [];
+        if (! $porOtros) {
+            $wa[] = 'a.id_usuario = ' . (int) session('uid');
+        } elseif (Listado::hay($fa, 'quien')) {
+            $wa[] = 'a.id_usuario = :quien';
+            $pa['quien'] = (int) Listado::valor($fa, 'quien');
+        }
+        if (Listado::hay($fa, 'desde')) {
+            $wa[] = 'a.fecha >= :d';
+            $pa['d'] = Listado::valor($fa, 'desde');
+        }
+        if (Listado::hay($fa, 'hasta')) {
+            $wa[] = 'a.fecha <= :h';
+            $pa['h'] = Listado::valor($fa, 'hasta');
+        }
+        $est = (string) Listado::valor($fa, 'estado');
+        if ($est === 'ok') {
+            $wa[] = 'a.justificada IS NULL';
+        } elseif ($est === 'con') {
+            $wa[] = 'a.justificada = 1';
+        } elseif ($est === 'sin') {
+            $wa[] = 'a.justificada = 0';
+        }
+
         return view('seguridad.asistencia', [
             'filas' => $filas,
+            'fa' => $fa,
             'rows' => DB::select(
                 "SELECT a.*, t.nombre AS turno, t.hora_inicio, t.hora_fin,
                         CONCAT(pe.nombre,' ',pe.apellido) AS profesional
@@ -913,8 +968,8 @@ class PersonalController extends Controller
                    JOIN turno_laboral t ON t.id_turno = a.id_turno
                    JOIN usuario u       ON u.id_usuario = a.id_usuario
                    JOIN persona pe      ON pe.id_persona = u.id_persona
-                  " . ($porOtros ? '' : 'WHERE a.id_usuario = ' . (int) session('uid')) . '
-                  ORDER BY a.fecha DESC, t.hora_inicio DESC LIMIT 60'
+                  " . ($wa ? 'WHERE ' . implode(' AND ', $wa) : '') . '
+                  ORDER BY a.fecha DESC, t.hora_inicio DESC LIMIT 60', $pa
             ),
             'fecha' => $fecha,
             'dia' => $dia,
@@ -1101,13 +1156,29 @@ class PersonalController extends Controller
                 flash('Salida de ' . $quien . ' registrada a las ' . substr($ahora, 0, 5) . '.'
                     . ($extras > 0 ? ' Se le contaron ' . cant($extras) . ' hora(s) extra.' : ''));
             } elseif ($accion === 'justificar') {
+                // **Justificar es del Administrador.** Dar el permiso por una
+                // falta es una decisión sobre el sueldo de esa persona, no una
+                // tarea del mostrador: quien administra los turnos marca quién
+                // vino, quien dirige el salón decide si esa ausencia estaba
+                // autorizada. El botón ya no se dibuja para los demás; esto es
+                // lo que lo hace cumplir.
+                if (! Permisos::esAdmin()) {
+                    flash('Sólo un Administrador puede dar el permiso por una falta.', 'error');
+
+                    return $volver;
+                }
                 if ($ya && $ya->hora_entrada) {
                     flash($quien . ' ya tiene una entrada registrada; no hay una llegada tardía que justificar.', 'warning');
 
                     return $volver;
                 }
-                if (! $motivo) {
-                    flash('Escribí el motivo de la llegada tardía: es lo que la justifica.', 'error');
+                // **Al menos diez caracteres.** «ok» o un punto no explican
+                // nada, y esto es lo único que queda escrito de por qué esa
+                // falta no se descuenta: quien lo lea en tres meses tiene que
+                // poder entenderlo.
+                if (mb_strlen((string) $motivo) < 10) {
+                    flash('Escribí el motivo con al menos 10 caracteres: es lo único que explica '
+                        . 'por qué esa falta lleva permiso.', 'error');
 
                     return $volver;
                 }
@@ -1121,7 +1192,19 @@ class PersonalController extends Controller
                     $quien . ' justificó una llegada tardía del ' . $fecha . ': ' . $motivo);
                 flash('Se justificó la llegada tardía de ' . $quien . '. Ya puede marcar la entrada dentro del turno.', 'success');
             } else {
+                // **Marcar una falta la deja SIN AVISO, siempre.** Antes el
+                // modal ofrecía «Con permiso» y «Sin aviso» **y** la fila tenía
+                // además el botón «Justificar»: tres caminos para dos estados, y
+                // obligaba a decidir el permiso en el momento de marcar, que es
+                // justo cuando todavía no se sabe por qué no vino.
+                //
+                // Marcar es constatar; justificar es otra cosa y pasa después.
+                // `falta_con` se sigue aceptando por si quedó algún formulario
+                // viejo abierto, pero la pantalla ya no lo manda.
                 $justificada = $accion === 'falta_con' ? 1 : 0;
+                if ($justificada && ! Permisos::esAdmin()) {
+                    $justificada = 0;
+                }
                 if ($justificada && ! $motivo) {
                     flash('Escribí el motivo del permiso: es lo que justifica la falta.', 'error');
 

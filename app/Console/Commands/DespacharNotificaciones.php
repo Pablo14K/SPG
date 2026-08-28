@@ -40,6 +40,13 @@ class DespacharNotificaciones extends Command
     {
         $asistencias = Asistencia::marcarEntradasVencidas();
         $ausentes = CitasVencidas::cerrarPendientes();
+        // **Y las que ni se presentaron.** Por pedido del usuario: pasados los
+        // minutos de tolerancia, la cita se cierra como Ausente sin esperar el
+        // día entero. Va DESPUÉS de `marcarAtrasadas()` en el orden lógico pero
+        // antes en el código a propósito: las dos miran los mismos estados y
+        // cerrar primero evita marcar como atrasada una que se va a dar por
+        // ausente en el mismo paso.
+        $ausentes += CitasVencidas::cerrarNoPresentadas();
         $atrasadas = $this->marcarAtrasadas();
         $nuevos = Notificaciones::generarRecordatorios();
         $cerrados = Notificaciones::cerrarInternas();

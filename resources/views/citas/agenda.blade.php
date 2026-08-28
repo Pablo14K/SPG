@@ -97,7 +97,17 @@
                                 @endif
                             </td>
                             <td class="text-end" style="white-space:nowrap">
-                                @if (! in_array($c->estado, ['Cancelada', 'Atendida'], true))
+                                {{-- **Ausente cierra la fila, igual que Cancelada.** La
+                                     clienta no vino: no hay nada que marcar en proceso, ni
+                                     que atender, ni que reprogramar. Los botones seguían
+                                     ahí y eran seis promesas que el servidor rechaza una
+                                     por una — y encima invitaban a «arreglarlo» tocando
+                                     cosas sobre una cita que ya terminó.
+
+                                     Lo único que sobrevive es cobrar lo que haya quedado
+                                     debiendo, que sí puede pasar con una seña ya cobrada:
+                                     eso está en la rama de abajo. --}}
+                                @if (! in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
                                     {{-- **Con la cita ya en proceso, tres botones dejan de tener
                                          sentido y molestan.** Marcarla en proceso otra vez no hace
                                          nada; marcarla ausente contradice lo que se está viendo
@@ -126,13 +136,30 @@
                                                 <button class="btn btn-sm btn-outline-neutro" title="Marcar en proceso">
                                                     <i class="bi bi-play-fill"></i></button>
                                             </form>
+                                        @elseif ($c->prof_ausente ?? false)
+                                            {{-- **«Falta fichaje» acá informaba mal.** Cuando a
+                                                 esa persona ya se la marcó ausente, el problema
+                                                 no es que todavía no fichó —no va a fichar— sino
+                                                 que la cita se quedó sin quién la atienda. Decir
+                                                 «falta fichaje» manda a esperar algo que no va a
+                                                 pasar; lo que hay que hacer es cambiar el
+                                                 profesional. --}}
+                                            <span class="badge-estado e-no"
+                                                  title="Ya está marcado como ausente hoy: hay que asignarle la cita a otra persona">
+                                                <i class="bi bi-person-x"></i> profesional ausente</span>
                                         @else
                                             <span class="badge-estado e-warn" title="Primero hay que marcar la entrada en Asistencia">
                                                 <i class="bi bi-person-check"></i> falta fichaje</span>
                                         @endif
                                     @endunless
 
-                                    @if ($esHoy && $urlAtender = Navegacion::url('citas.atender'))
+                                    {{-- **Sin fichaje tampoco se registra la atención.**
+                                         El servidor lo rechaza igual, así que ofrecer el
+                                         botón es prometer algo que no va a cumplir: se
+                                         aprieta, se carga la pantalla entera y el «no»
+                                         llega al guardar. --}}
+                                    @if ($esHoy && ($c->fichaje_ok ?? true)
+                                         && $urlAtender = Navegacion::url('citas.atender'))
                                         <a class="btn btn-sm btn-outline-neutro" title="Registrar atención"
                                            href="{{ $urlAtender . '?id=' . $c->id_cita }}">
                                             <i class="bi bi-clipboard-check"></i></a>

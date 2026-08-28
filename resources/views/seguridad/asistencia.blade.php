@@ -210,7 +210,7 @@
 
     @foreach ($filas as $f)
         @php $mio = (int) $f->id_usuario === $yo; @endphp
-        @if (($porOtros || $mio) && ! $f->hora_entrada && $f->id_asistencia
+        @if (\App\Servicios\Permisos::esAdmin() && ! $f->hora_entrada && $f->id_asistencia
              && (int) ($f->justificada ?? -1) === 0)
             <div class="modal fade" id="modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}" tabindex="-1">
                 <div class="modal-dialog">
@@ -230,9 +230,18 @@
                                     {{ $f->profesional }} puede marcar la entrada después de la tolerancia,
                                     pero el motivo queda registrado para administración.
                                 </p>
+                                {{-- **Al menos diez caracteres.** «ok», «sí» o un
+                                     punto no explican nada, y esto es lo único que
+                                     queda escrito de por qué esa falta no se
+                                     descuenta: el que lo lea dentro de tres meses
+                                     tiene que poder entenderlo. El servidor lo
+                                     vuelve a comprobar. --}}
                                 <label class="form-label" for="just{{ $f->id_usuario }}_{{ $f->id_turno }}">Motivo *</label>
                                 <textarea class="form-control" id="just{{ $f->id_usuario }}_{{ $f->id_turno }}"
-                                          name="motivo_ausencia" maxlength="200" rows="2" required></textarea>
+                                          name="motivo_ausencia" maxlength="200" rows="2"
+                                          minlength="10" required
+                                          placeholder="Por qué se le da el permiso"></textarea>
+                                <div class="form-text">Al menos 10 caracteres: es lo único que explica la falta.</div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
@@ -245,9 +254,17 @@
         @endif
     @endforeach
 
-    @if ($rows)
-        <div class="spg-panel mt-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos registros</h2>
+    {{-- **Los últimos registros, con filtros.** Eran sesenta filas fijas: para
+         saber si alguien faltó el mes pasado había que recorrerlas a ojo, y a
+         los seis meses de operación esa tabla deja de decir nada. El panel se
+         dibuja aunque no haya filas, que si no el filtro que no encuentra nada
+         desaparece junto con la respuesta. --}}
+    <div class="spg-panel mt-3">
+        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos registros</h2>
+
+        <x-filtros :f="$fa" />
+
+        @if ($rows)
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
@@ -275,6 +292,12 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-    @endif
+        @else
+            <div class="spg-vacio">
+                <i class="bi bi-clock-history"></i>
+                <div class="t">No hay registros con esos filtros</div>
+                <div class="d">Probá con otro rango de fechas o sacando algún filtro.</div>
+            </div>
+        @endif
+    </div>
 @endsection
