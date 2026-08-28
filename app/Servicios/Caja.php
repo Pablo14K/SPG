@@ -90,11 +90,12 @@ class Caja
         $suc = $idSucursal ?: Sucursales::activa();
 
         return DB::select(
-            "SELECT c.id_caja, cf.nombre,
+            "SELECT c.id_caja, cf.nombre, su.nombre AS sucursal,
                     TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS responsable,
                     (c.id_usuario = ?) AS es_mia
                FROM caja c
                JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+               JOIN sucursal su ON su.id_sucursal = c.id_sucursal
                LEFT JOIN usuario u  ON u.id_usuario = c.id_usuario
                LEFT JOIN persona pe ON pe.id_persona = u.id_persona
               WHERE c.id_estado_caja = 1 AND (? = 0 OR c.id_sucursal = ?)

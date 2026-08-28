@@ -232,6 +232,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.78.0 | 28/08/2026 | **Al pagar se elige de qué caja sale la plata, y las fechas dicen de qué son.** **Los dos pagos tomaban «la última caja abierta».** El cobro y la seña ya preguntaban desde la 7.77.0, pero el pago a proveedores y la liquidación al personal no: `sp_pagar_compra` recibía la caja y **la pantalla nunca la mandaba**, y `pagarPersonal` usaba directamente lo que devolviera `Caja::abierta()`. Con dos puestos de cobro en el mismo local eso deja el egreso en el arqueo de otra persona **sin que nada lo diga**, y se descubre al cerrar, cuando ya no se sabe de qué movimiento vino la diferencia. El bloque de elegir pasa a ser **uno solo** (`facturacion/_caja_elegir`) y lo comparten los cuatro lugares — escrito cuatro veces, tres se quedan atrás. **En el pago a proveedores las cajas son las del local DE LA COMPRA**, que es de donde sale la plata desde la 7.36.3, no las del local donde está parada la persona. **Y con una sola caja no se pregunta, pero SÍ se dice cuál es**: ésa era la queja real — no que hubiera que elegir, sino no saber de qué cajón salió. **El «Nº de operación» del pago no es la factura del proveedor**, y el modal los ponía uno al lado del otro sin distinguirlos: se leía como que el sistema pedía la factura dos veces. Pasa a llamarse **«Comprobante de este pago»** —el número que devuelve el banco al transferir, o el recibo que firma el proveedor— y dice qué es: el respaldo de la salida de plata, opcional porque en efectivo casi nunca hay ninguno. **El arqueo dice desde cuándo estuvo abierta la caja.** Un cierre sin su apertura no se puede juzgar: «cerró con Gs. 40.000 de diferencia» significa una cosa si estuvo abierta dos horas y otra si estuvo tres días. `fecha_apertura` ya estaba en `vw_caja_resumen` — faltaba mostrarla. **Y toda fecha de las pantallas de caja lleva su rótulo**: «26/08 09:15» al lado de un nombre se puede leer como el último movimiento o el cierre previsto, así que ahora dice «Abierta el 26/08 a las 09:15». De paso, **una prueba fallaba desde que la 7.77.1 cambió el volcado y no era por eso**: la del local recién abierto fijaba `+5 days` y esa fecha cayó sobre una cita ya cargada, así que medía el solape —que a propósito no se filtra por sucursal— en vez de la regla. Ahora busca un día en que esa persona no tenga citas, que es la misma lección de `clienteLibreHoy()`. **Y las dos pantallas de pagos entran a la lista que las dibuja enteras**, donde faltaban: son justo las que arman los modales, y un `@include` con una variable que el controlador no manda no es error de sintaxis — revienta al abrir. **148 pruebas · 1093 aserciones**, una nueva comprobada en las dos direcciones: mide que la pantalla ofrezca elegir **y** que lo elegido sea lo que se guarda — con sólo la primera mitad, un servidor que ignorara el campo pasaría igual |
 | 7.77.1 | 27/08/2026 | **La copia cargada que viaja en el ZIP se regeneró desde la base que la aplicación usa de verdad.** La 7.77.0 la volcó desde el `peluqueria_test` del **XAMPP del host**, y la aplicación corre contra el del **contenedor** — son dos bases distintas con el mismo nombre, y la del host estaba una operación atrasada. Medido: la del contenedor tiene 67 acciones en auditoría del 26/08 que la del host no tiene. Ahora sale de ahí, y **el volcado se copia con `docker compose cp` en vez de pasarlo por PowerShell**: la tubería de PS 5.1 decodifica con la página de códigos de la consola y le agrega BOM, que es la misma trampa de acentos de la 7.13.2 por otra puerta — comprobado byte a byte, «Coloración» viaja como `C3B3` y el archivo arranca en `-- ` sin BOM. **Se verificó importándolo en una base vacía del mismo MariaDB 10.4**: 39 funciones, 21 procedimientos, 17 disparadores, 17 vistas, 80 tablas, 78 `CHECK`, 172 citas, 62 facturas, 33 clientas y 70 cobros — cero huérfanos y ningún cajón con dos cajas abiertas. De paso el encabezado del importador decía 63 facturas y son 62. **`peluqueria_bd(base).sql` no se toca**: es la base limpia de instalación y la 7.77.0 ya la dejó al día, con 0 citas y sin ninguna persona real adentro |
 | 7.77.0 | 27/08/2026 | **El descuento se ve al cobrar, la plata sale del cajón que uno elige, y el informe deja de mentir por omisión.** **El cobro salía al precio de lista.** `sp_emitir_factura` aplica el mejor descuento —nivel o promoción, nunca los dos— desde la 5.5.0, pero lo calcula **sobre la factura ya creada**, y desde la 7.19.0 el orden del mostrador es al revés: primero se cobra contra la cita y después se elige el comprobante. Así que la clienta con 10 % de nivel pagaba el 100 %, y el descuento aparecía **cuando ya había pagado**. Entran `fn_cita_descuento_monto`, `fn_cita_promo_vigente` y `fn_cita_total`, que son las mismas reglas resueltas sobre la CITA — replicación deliberada y anotada, como el espejo de la agenda: si cambia el criterio de la factura, cambia acá. **La seña se topea contra el total con descuento**, que si no se puede señar más de lo que la cita va a costar y el comprobante sale con saldo negativo — FA-03 por otra puerta. El precio de lista queda **tachado al lado**: un total menor sin explicación se lee como un error de la pantalla. **Con varios cajones abiertos, la pantalla pregunta de cuál sale la plata.** El orden automático de la 7.69.0 sigue de red, pero adivinar deja el arqueo de otra persona descuadrado **sin que nada lo diga** y se descubre al cerrar. Los tres procedimientos que mueven plata —`sp_registrar_cobro`, `sp_registrar_sena`, `sp_pagar_compra`— reciben la caja; el id del POST **no se cree**, se valida contra las abiertas de los locales de esa persona. Con una sola abierta no se pregunta: hace perder un clic. **La factura del proveedor se puede cargar desde donde se la tenga.** Una vez saldada, la compra sale de «Cuentas por pagar» y desde ahí ya no se la alcanzaba: quedaba sin número para siempre. Ahora se acepta **en el mismo modal del pago** —que es cuando el papel casi siempre llega— y después desde la fila de la compra ya pagada. **Sólo se escribe si estaba vacío**: un número ya cargado es el que figura en el comprobante. **Y el informe tenía tres números sin denominador.** «100 citas · 20 atendidas · 7 canceladas · 0 no vino» dejaba **73 sin explicar**, así que quien lo lee supone que algo se perdió — entra **Pendientes**, sacado de `estado_cita.bloquea_agenda` y no de una lista de ids escrita a mano. La **asistencia se mide sobre las citas que YA ocurrieron**: contra el total, un mes en curso daba «20 %» sólo porque faltaban 73 por pasar, y con ese número el salón decide. Y el **«% del total» de servicios es sobre SERVICIOS**, no sobre citas — una cita lleva varios, así que «7 de 28» se leía como «7 de las 20 citas». De paso, **«Faltó» pasa a «Ausencias del profesional»** —convivía con «No vino la clienta» en la misma tabla y se leían como lo mismo—, **«Generado» pasa a «Facturado»** —el ticket promedio sale de lo cobrado, así que los dos no cierran entre sí— y en el Excel **la columna «Gráfico» dice qué mide**: la misma barra era el % del total en servicios y «contra el día más cargado» en demanda, y con el mismo rótulo se leían como el mismo número. **Cajas pasa a tarjetas y los movimientos del día se ven ahí mismo.** El botón mandaba al listado general, o sea que había que volver a filtrar por la caja en la que ya se estaba parado; ahora cada cajón es una tarjeta con su saldo, su responsable y **sus** movimientos de hoy en un modal. Las cuatro fuentes se arman **una sola vez** (`partesMovimientos()`) y las comparten el listado y el modal: escritas dos veces, una de las dos se queda atrás. Y entra al documento la sección **«Cuatro palabras que no son sinónimos»** —caja, apertura, movimientos y arqueo—, que es lo que hacía buscar el arqueo en la pantalla de abrir. **147 pruebas · 1085 aserciones**, dos extendidas y comprobadas en las dos direcciones: con dos cajones abiertos en el mismo local cada tarjeta trae lo suyo y no lo del otro, y la caja abierta dibuja su modal — sin la variable que lo llena, 500 · 39 funciones · 78 `CHECK`. Los dos `.sql` regenerados desde una copia limpia |
 | 7.76.0 | 26/08/2026 | **Vuelven «Todos» y los gráficos de Excel.** Reportes recupera la vista que reúne todos los informes en una sola pantalla y en una sola planilla. El `.xls` conserva gráficos compatibles con Excel mediante segmentos de celdas coloreadas, con escala proporcional, leyenda porcentual y tamaño compacto: reemplaza el `div` que Excel ignoraba sin volver al bloque genérico de la versión anterior. **147 pruebas · 1074 aserciones** · 78 `CHECK` |
@@ -1940,6 +1941,19 @@ desde ahí ya no se la alcanzaba — quedaba sin número para siempre.
   desde Pagos no te deja en la ficha de la compra, que es una pantalla a la que
   no ibas.
 
+> **Y no confundirlo con la referencia del pago, que es otra cosa.** El modal
+> tenía dos campos que parecían el mismo, y se leía como que el sistema pedía la
+> factura dos veces:
+>
+> | Campo | Qué es | De quién |
+> |---|---|---|
+> | **Nº de factura del proveedor** | el comprobante que él emite por la mercadería | del proveedor, uno solo por compra |
+> | **Comprobante de este pago** | el número que devuelve el banco al transferir, o el recibo que él firma | del salón, uno por cada pago |
+>
+> El segundo es opcional a propósito: pagando en efectivo casi nunca hay
+> ninguno. Lo que hace es dejar rastro de la salida de plata el día que el
+> proveedor diga que no se le pagó.
+
 ### La cantidad la decide el pelo de la clienta, así que necesita decimales de verdad
 
 **No hay una cantidad fija por servicio**: un lavado lleva 15 ml o 60 según el pelo, y la
@@ -2709,6 +2723,10 @@ Dos confusiones concretas que esto evita:
 - **Cada tarjeta trae los movimientos de SU caja**, del día, en un modal. Con
   dos cajones abiertos en el mismo local, leer el arqueo de uno con los
   movimientos del otro es peor que no verlos.
+- **Toda fecha lleva su rótulo.** «26/08 09:15» al lado de un nombre se puede
+  leer como el último movimiento, el cierre previsto o cualquier otra cosa: es
+  la apertura, y la tarjeta lo dice con todas las letras. Vale igual para la
+  cabecera de la caja individual.
 - **El botón abre un modal, no manda a otra pantalla.** «¿Qué pasó hoy con esta
   caja?» es la pregunta del mostrador, y el listado general la obligaba a volver
   a filtrar por la caja en la que ya estaba parada. La historia entera sigue
@@ -2760,10 +2778,29 @@ descuadrado **sin que nada lo diga**, y se descubre al cerrar.
 | Quién arma el combo | `Caja::abiertasDe()` — las abiertas del local, la propia primero |
 | Quién valida | `FacturacionController::cajaElegida()`, contra las sucursales de esa persona |
 | Cuándo se ofrece | sólo con **más de una** abierta: con una sola, preguntar hace perder un clic |
+| Dónde se dibuja | `facturacion/_caja_elegir` — **un solo bloque** para los cuatro lugares |
+
+**Vale para todo lo que mueve plata, no sólo para cobrar**: el cobro, la seña,
+el pago a proveedores y la liquidación al personal. Los dos últimos tomaban
+«la última caja abierta» y ahí es donde más se nota — un egreso en el arqueo de
+otra persona aparece como faltante el día que ella cierre.
+
+> **Con una sola no se pregunta, pero SÍ se dice cuál es.** Ésa era la queja
+> real: no que hubiera que elegir, sino no saber de qué cajón salió. El bloque
+> escribe el nombre de la caja aunque no haya nada que decidir.
+
+**En el pago a proveedores las cajas son las del local DE LA COMPRA**, no las
+del local donde está parada la persona: es de ahí de donde `sp_pagar_compra`
+saca la plata desde la 7.36.3. Por eso se buscan por compra y no una sola vez.
 
 > **El id que viaja en el POST no se cree.** Se comprueba que esa caja esté
 > abierta y sea de un local al que la persona entra — si no, cambiando un
 > número oculto se le mete plata al cajón de otra sucursal.
+
+Lo fija `ReglasDeNegocioTest::al_pagar_se_elige_de_que_caja_sale_la_plata`,
+comprobada en las dos direcciones: mide que la pantalla **ofrezca** elegir y que
+lo elegido sea lo que se **guarda** — con sólo la primera mitad, un servidor que
+ignorara el campo pasaría igual.
 
 **`exigeCaja($queIbaAHacer)` de `FacturacionController` es el guardián**, y está en
 las nueve acciones que tocan plata: cobrar, anular un cobro, emitir y anular factura, la
@@ -2855,6 +2892,11 @@ escondida y la primera venía con sesenta filas de ruido.
 la fila de cierre, «Cerrada» era tautológico —el cierre ES el cierre— y lo único
 que la apertura necesitaba decir es si esa caja sigue abierta. El badge dice
 **Abierta** con la caja viva y **Apertura / Cierre** cuando ya se cerró.
+
+**La tabla dice desde cuándo estuvo abierta esa caja.** Un cierre sin su
+apertura no se puede juzgar: «cerró con Gs. 40.000 de diferencia» significa una
+cosa si estuvo abierta dos horas y otra si estuvo tres días. `fecha_apertura` ya
+estaba en `vw_caja_resumen`; lo que faltaba era mostrarla.
 
 **El historial son DOS registros por caja —apertura y cierre— y cada cifra tiene
 su columna**: `Monto inicial`, `Esperado`, `Contado` y `Diferencia`. Son cuatro

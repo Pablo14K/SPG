@@ -42,7 +42,10 @@
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Cerrada</th><th>Caja</th><th>Sucursal</th><th>Responsable</th>
+                    {{-- **Un cierre sin su apertura no se puede juzgar.** «Cerró
+                         con Gs. 40.000 de diferencia» significa una cosa si la caja
+                         estuvo abierta dos horas y otra si estuvo tres días. --}}
+                    <th>Abierta</th><th>Cerrada</th><th>Caja</th><th>Sucursal</th><th>Responsable</th>
                     <th class="text-end">Esperado</th>
                     <th class="text-end">Contado</th>
                     <th class="text-end">Diferencia</th>
@@ -52,6 +55,8 @@
             <tbody>
                 @forelse ($rows as $c)
                     <tr>
+                        <td class="text-muted-warm" style="white-space:nowrap">
+                            {{ $c->fecha_apertura ? fecha($c->fecha_apertura, 'd/m/Y H:i') : '—' }}</td>
                         <td style="white-space:nowrap">{{ fecha($c->fecha_cierre, 'd/m/Y H:i') }}</td>
                         <td>{{ $c->caja_nombre }}</td>
                         <td class="text-muted-warm">{{ $c->sucursal_nombre }}</td>
@@ -86,7 +91,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8">
+                        <td colspan="9">
                             <div class="spg-vacio">
                                 <i class="bi bi-clipboard-check"></i>
                                 <div class="t">No hay arqueos con esos filtros</div>

@@ -70,9 +70,17 @@
                         <div class="text-muted-warm" style="font-size:.8rem">Efectivo esperado</div>
                         <div class="val oro" style="font-size:1.35rem">{{ money($c->saldo) }}</div>
                     </div>
+                    {{-- **Una fecha suelta no dice de qué es.** «26/08 09:15» al
+                         lado de un nombre se puede leer como el último movimiento,
+                         el cierre previsto o cualquier otra cosa: es la apertura, y
+                         el rótulo tiene que decirlo. --}}
                     <div class="text-muted-warm mt-2" style="font-size:.82rem">
-                        <i class="bi bi-person"></i> {{ $c->responsable ?: '—' }}
-                        · desde {{ fecha($c->fecha_apertura, 'd/m H:i') }}
+                        <i class="bi bi-person"></i> Abierta por {{ $c->responsable ?: '—' }}
+                    </div>
+                    <div class="text-muted-warm" style="font-size:.82rem">
+                        <i class="bi bi-clock"></i> Abierta el
+                        {{ fecha($c->fecha_apertura, 'd/m/Y') }} a las
+                        {{ fecha($c->fecha_apertura, 'H:i') }}
                     </div>
 
                     @if (Permisos::puede('facturacion.movimientos'))

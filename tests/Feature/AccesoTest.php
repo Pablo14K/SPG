@@ -232,6 +232,13 @@ class AccesoTest extends TestCase
             ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
             ['facturacion.cajas', []],
             ['facturacion.arqueo', []],
+            // **Las dos pantallas de pagos faltaban en esta lista**, y son las
+            // que arman los modales con el combo de caja: un `@include` con una
+            // variable que el controlador no manda no es error de sintaxis,
+            // revienta al dibujar. Es el mismo agujero por el que «Nueva
+            // compra» estuvo devolviendo 500 sin que nadie lo viera.
+            ['facturacion.proveedores', []],
+            ['facturacion.pagos', []],
             ['inventario.productos', []],
             ['inventario.stock', []],
             ['inventario.ajuste', []],

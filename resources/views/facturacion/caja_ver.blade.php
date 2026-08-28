@@ -20,8 +20,11 @@
         @endif
     </h1>
     <div class="sub">
-        {{ $cajon->sucursal }}@if ($abierta) · {{ $abierta->responsable }} · desde
-            {{ fecha($abierta->fecha_apertura, 'd/m H:i') }}@endif
+        {{-- La fecha se nombra: suelta, se lee como cualquier cosa menos la
+             apertura, que es lo que es. --}}
+        {{ $cajon->sucursal }}@if ($abierta) · abierta por {{ $abierta->responsable }}
+            el {{ fecha($abierta->fecha_apertura, 'd/m/Y') }} a las
+            {{ fecha($abierta->fecha_apertura, 'H:i') }}@endif
     </div>
 </div>
 

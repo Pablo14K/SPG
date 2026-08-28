@@ -3670,7 +3670,27 @@ class ReglasDeNegocioTest extends TestCase
         DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Recien abierta ' . uniqid()]);
         $nueva = (int) DB::scalar('SELECT LAST_INSERT_ID()');
 
-        $cuando = date('Y-m-d H:i:s', strtotime('+5 days 10:00'));
+        // **El día se busca, no se fija.** Con un `+5 days` a secas la prueba
+        // caía sobre una fecha en la que esa persona ya tenía cita, y entonces
+        // medía el solape —que a propósito NO se filtra por sucursal: la
+        // persona es una sola— en vez de la regla del criterio permisivo. Es la
+        // misma lección que dejó `clienteLibreHoy()`: una prueba que depende
+        // del calendario dice cosas distintas según el día que se corra.
+        $cuando = null;
+        for ($d = 5; $d <= 120; $d++) {
+            $tal = date('Y-m-d', strtotime("+$d days"));
+            $ocupada = (int) DB::scalar(
+                'SELECT COUNT(*) FROM cita c
+                   JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+                  WHERE c.id_usuario = ? AND DATE(c.fecha_hora) = ? AND ec.bloquea_agenda = 1',
+                [$conTurno, $tal]
+            );
+            if (! $ocupada) {
+                $cuando = $tal . ' 10:00:00';
+                break;
+            }
+        }
+        $this->assertNotNull($cuando, 'Hace falta un día libre para medir la regla.');
 
         // 1) La que no atiende en ningún lado, tampoco acá.
         $this->assertFalse(Agenda::huecoLibre($sinTurno, $cuando, 30, null, $nueva),
@@ -3683,7 +3703,7 @@ class ReglasDeNegocioTest extends TestCase
             'Un local sin turnos propios tiene que poder operar el primer día.');
 
         // 3) Y el espejo de PHP dice lo mismo, que es donde esto se rompe.
-        $this->assertSame([], Agenda::slotsProfesional($sinTurno, date('Y-m-d', strtotime('+5 days')), 30, null, $nueva),
+        $this->assertSame([], Agenda::slotsProfesional($sinTurno, substr($cuando, 0, 10), 30, null, $nueva),
             'La pantalla no puede ofrecer huecos de alguien que la base va a rechazar.');
     }
 
@@ -4655,6 +4675,85 @@ class ReglasDeNegocioTest extends TestCase
 
         foreach (['B', 'A'] as $letra) {
             DB::delete('DELETE FROM movimiento_caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
+            DB::delete('DELETE FROM caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
+            DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$ids[$letra]['cajon']]);
+        }
+    }
+
+    /**
+     * Al pagar se elige de qué caja sale la plata, y el servidor la respeta.
+     *
+     * **Sin esto, el egreso caía en «la última caja abierta».** Con dos puestos
+     * de cobro en el mismo local eso deja el arqueo de otra persona
+     * descuadrado, y no se descubre hasta cerrar — que es cuando ya no se sabe
+     * de qué movimiento vino la diferencia.
+     *
+     * Se mide en las dos mitades que importan: que la pantalla OFREZCA elegir,
+     * y que lo elegido sea lo que se guarda. Con sólo la primera, un servidor
+     * que ignorara el campo pasaría igual.
+     */
+    #[Test]
+    public function al_pagar_se_elige_de_que_caja_sale_la_plata(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $suc = (int) session('id_sucursal');
+        $this->assertNotSame(0, $suc, 'La sesión tiene que tener una sucursal elegida.');
+
+        // Dos cajones abiertos en el MISMO local: con uno solo la pregunta no
+        // existe y la pantalla no dibuja el combo, así que no se mediría nada.
+        $ids = [];
+        foreach (['A', 'B'] as $letra) {
+            DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
+                [$suc, 'Pago ' . $letra . ' ' . uniqid()]);
+            $cf = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (1, ?, ?, 1, 500000)', [$suc, $cf]);
+            $ids[$letra] = ['cajon' => $cf, 'caja' => (int) DB::scalar('SELECT LAST_INSERT_ID()')];
+        }
+
+        // 1) Las dos pantallas de pagos ofrecen elegir.
+        $this->get(route('facturacion.pagos'))->assertOk()
+            ->assertSee('name="id_caja"', false);
+        $this->get(route('facturacion.proveedores'))->assertOk()
+            ->assertSee('name="id_caja"', false);
+
+        // 2) Y lo elegido es lo que se guarda. Se liquida contra la caja B, que
+        //    NO es la última abierta ni la primera: si el controlador ignorara
+        //    el campo, el pago quedaría en otra.
+        $prof = (int) DB::scalar(
+            'SELECT sr.id_usuario FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE d.id_detalle_pago IS NULL GROUP BY sr.id_usuario LIMIT 1'
+        );
+        $this->assertNotSame(0, $prof, 'Hace falta alguien con servicios sin liquidar.');
+
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago
+                                     WHERE activo = 1 AND tipo <> 'EFECTIVO' LIMIT 1");
+
+        $this->post(route('facturacion.pagar_personal'), [
+            'id_usuario' => $prof,
+            'periodo' => date('m/Y'),
+            'id_metodo_pago' => $metodo,
+            'id_caja' => $ids['B']['caja'],
+        ])->assertRedirect();
+
+        $guardada = (int) DB::scalar(
+            'SELECT id_caja FROM pago_personal WHERE id_usuario = ? ORDER BY id_pago_personal DESC LIMIT 1',
+            [$prof]
+        );
+
+        $this->assertSame($ids['B']['caja'], $guardada,
+            'La liquidación tiene que quedar en la caja elegida, no en la última abierta.');
+
+        // Se limpia a mano lo que cuelga del pago: `DatabaseTransactions` lo
+        // revierte igual, pero el orden importa si algún día no lo hiciera.
+        foreach (['B', 'A'] as $letra) {
+            DB::delete('DELETE FROM detalle_pago_personal WHERE id_pago_personal IN
+                        (SELECT id_pago_personal FROM pago_personal WHERE id_caja = ?)',
+                [$ids[$letra]['caja']]);
+            DB::delete('DELETE FROM pago_personal WHERE id_caja = ?', [$ids[$letra]['caja']]);
             DB::delete('DELETE FROM caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
             DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$ids[$letra]['cajon']]);
         }

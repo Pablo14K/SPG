@@ -10,6 +10,22 @@
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-wallet2"></i> Liquidar</h2>
 
+                {{-- **De qué cajón sale la plata.** Con uno solo no se pregunta,
+                     pero se dice cuál es: quien liquida tiene que saber en qué
+                     arqueo va a aparecer ese egreso. Con dos o más, cada fila
+                     trae su combo. --}}
+                @if (count($cajas) === 1)
+                    <p class="text-muted-warm mb-2" style="font-size:.82rem">
+                        <i class="bi bi-safe"></i> Sale de <strong>{{ $cajas[0]->nombre }}</strong>@if ($cajas[0]->responsable),
+                        abierta por {{ $cajas[0]->responsable }}@endif.
+                    </p>
+                @elseif (count($cajas) > 1)
+                    <p class="text-muted-warm mb-2" style="font-size:.82rem">
+                        <i class="bi bi-safe"></i> Hay {{ count($cajas) }} cajas abiertas en este local:
+                        elegí de cuál sale antes de liquidar.
+                    </p>
+                @endif
+
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead><tr><th>Profesional</th><th class="text-end">Pendientes</th><th></th></tr></thead>
@@ -42,6 +58,12 @@
                                                             @selected($m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
                                                     @endforeach
                                                 </select>
+                                                @include('facturacion._caja_elegir', [
+                                                    'cajas' => $cajas,
+                                                    'uid' => 'Pers' . $p->id_usuario,
+                                                    'rotulo' => '¿De qué caja sale la plata?',
+                                                    'compacto' => true,
+                                                ])
                                                 <button class="btn btn-sm btn-oro"
                                                         data-confirmar="Se van a liquidar {{ (int) $p->pendientes }} servicio(s) de {{ $p->nombre }}. ¿Confirmás?">
                                                     Liquidar</button>

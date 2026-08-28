@@ -195,6 +195,18 @@
                                     <br><span style="font-size:.82rem">Podés pagar menos: lo que quede
                                     sigue como saldo pendiente de esta compra.</span>
                                 </p>
+                                {{-- **De qué cajón sale la plata.** Con dos abiertos,
+                                     tomar «el último» deja el egreso en el arqueo de
+                                     otra persona y se descubre al cerrar. Son los del
+                                     local DE LA COMPRA, que es de donde sale. --}}
+                                @include('facturacion._caja_elegir', [
+                                    'cajas' => $cajasPorCompra[$c->id_compra] ?? [],
+                                    'uid' => 'Prov' . $c->id_compra,
+                                    'rotulo' => '¿De qué caja sale la plata?',
+                                    'ayuda' => 'El egreso entra al arqueo de esa caja. Son las abiertas en '
+                                        . $c->sucursal . ', que es el local de la compra.',
+                                ])
+
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label">Medio de pago</label>
@@ -213,9 +225,24 @@
                                         </div>
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">Referencia</label>
-                                        <input class="form-control" name="referencia" maxlength="60"
-                                               placeholder="Nº de operación, recibo…">
+                                        {{-- **No es la factura del proveedor.** Se leía
+                                             como que el sistema la pedía dos veces: acá
+                                             va el comprobante de ESTE pago —el número
+                                             que devuelve el banco al transferir, o el
+                                             recibo que firma el proveedor—, que es lo
+                                             que permite rastrearlo el día que reclamen
+                                             que no se pagó. En efectivo casi nunca hay
+                                             ninguno, y por eso es opcional. --}}
+                                        <label class="form-label" for="refp{{ $c->id_compra }}">
+                                            Comprobante de este pago
+                                            <span class="text-muted-warm">(opcional)</span></label>
+                                        <input class="form-control" id="refp{{ $c->id_compra }}"
+                                               name="referencia" maxlength="60"
+                                               placeholder="Nº de transferencia, recibo…">
+                                        <div class="form-text">
+                                            Es el respaldo de la salida de plata, no la factura del
+                                            proveedor: esa es la de arriba y se carga una sola vez.
+                                        </div>
                                     </div>
                                 </div>
                             </div>

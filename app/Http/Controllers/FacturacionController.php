@@ -2624,6 +2624,11 @@ class FacturacionController extends Controller
                 "SELECT id_metodo_pago, nombre, tipo FROM metodo_pago
                   WHERE activo = 1 ORDER BY (tipo = 'EFECTIVO') DESC, nombre"
             ),
+            // **De qué cajón sale la liquidación.** Hasta acá salía del que
+            // devolviera `Caja::abierta()`, o sea el último abierto: con dos
+            // puestos, el egreso caía en el arqueo de otra persona sin que
+            // nada lo dijera.
+            'cajas' => Caja::abiertasDe(),
         ]);
     }
 
@@ -2662,6 +2667,16 @@ class FacturacionController extends Controller
             return $caja;
         }
 
+        // **De qué cajón sale la plata lo elige quien liquida.** Con dos
+        // abiertos, `Caja::abierta()` devuelve uno de los dos y el egreso caía
+        // en el arqueo de otra persona sin que nada lo dijera — se descubre al
+        // cerrar. **El id del POST no se cree**: `cajaElegida()` comprueba que
+        // esa caja esté abierta y sea de un local al que esta persona entra.
+        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+        if ($idCaja instanceof RedirectResponse) {
+            return $idCaja;
+        }
+
         // Cuánto se le va a pagar, para poder comprobarlo ANTES de registrarlo.
         $monto = (float) DB::scalar(
             'SELECT COALESCE(SUM(fn_comision_servicio(sr.id_servicio_realizado)),0)
@@ -2676,7 +2691,10 @@ class FacturacionController extends Controller
         // en absoluto**: se liquidaron Gs. 1.868.250 en 90 días sin que el
         // arqueo registrara un solo egreso.
         if (Caja::esEfectivo($idMetodo)) {
-            $enCaja = Caja::saldo((int) $caja->id_caja);
+            // Contra el cajón ELEGIDO: mirar otro haría que el control no
+            // signifique nada, que es el defecto que la 7.55.0 corrigió en el
+            // pago a proveedores.
+            $enCaja = Caja::saldo($idCaja);
             if ($monto > $enCaja + 0.01) {
                 flash('En la caja hay ' . money($enCaja) . ' en efectivo y la liquidación es de '
                     . money($monto) . '. Pagale con otro medio o registrá primero el ingreso.', 'error');
@@ -2687,7 +2705,7 @@ class FacturacionController extends Controller
 
         try {
             $idPago = Bd::idDe('sp_registrar_pago_personal',
-                [$idProf, (int) session('uid'), $periodo, $idMetodo, (int) $caja->id_caja]);
+                [$idProf, (int) session('uid'), $periodo, $idMetodo, $idCaja]);
             Auditoria::registrar('PAGO_PERSONAL', 'Facturacion', 'pago_personal', $idPago,
                 "Liquidación $periodo ($pend servicios) por " . money($monto));
             flash('Liquidación de ' . money($monto) . ' registrada.'
@@ -2763,8 +2781,25 @@ class FacturacionController extends Controller
 
     public function proveedores(): View
     {
+        // **La plata sale del cajón del LOCAL DE LA COMPRA**, no del local
+        // donde está parada la persona: es lo que hace `sp_pagar_compra` desde
+        // la 7.36.3. Por eso las cajas se buscan por compra y no una sola vez.
+        $cuentas = DB::select(
+            'SELECT v.*, c.id_sucursal, su.nombre AS sucursal
+               FROM vw_cuenta_proveedor v
+               JOIN compra c ON c.id_compra = v.id_compra
+               JOIN sucursal su ON su.id_sucursal = c.id_sucursal
+              WHERE v.saldo > 0 ORDER BY v.vencida DESC, v.vencimiento'
+        );
+
+        $cajasPorCompra = [];
+        foreach ($cuentas as $c) {
+            $cajasPorCompra[(int) $c->id_compra] = Caja::abiertasDe((int) $c->id_sucursal);
+        }
+
         return view('facturacion.proveedores', [
-            'cuentas' => DB::select('SELECT * FROM vw_cuenta_proveedor WHERE saldo > 0 ORDER BY vencida DESC, vencimiento'),
+            'cuentas' => $cuentas,
+            'cajasPorCompra' => $cajasPorCompra,
             // El monto no se guarda: lo calcula la función de la base
             'pagos' => DB::select(
                 "SELECT pp.id_pago_proveedor, pp.fecha, pp.referencia,
