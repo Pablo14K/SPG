@@ -177,8 +177,9 @@ docker compose exec app php artisan spg:pendientes
 docker compose exec -T bd mysql -uroot -proot peluqueria_test
 ```
 
-> Esto es **solo para desarrollar**. El VPS se despliega con el panel, no con contenedores:
-> ver `DESPLIEGUE.md`.
+> Esto es **solo para desarrollar**. El servidor tiene su propio compose —
+> `docker-compose.produccion.yml`, con php-fpm detrás de Caddy, HTTPS y la base sin ningún
+> puerto abierto—: ver `DESPLIEGUE.md`.
 
 ---
 

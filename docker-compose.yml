@@ -1,9 +1,10 @@
-# Entorno de desarrollo en contenedores.
+# Entorno de DESARROLLO en contenedores. Desde la 7.85.1 es el único: se dejó
+# de usar XAMPP y se trabaja directo sobre Docker.
 #
-# Es una ALTERNATIVA a instalar PHP 8.3 y XAMPP a mano, no un reemplazo: quien
-# ya tenga el entorno andando puede seguir con `php artisan serve` y ni mirar
-# este archivo. Tampoco es como se despliega en el VPS — allá va con Hestia y
-# el panel; para eso está DESPLIEGUE.md.
+# **El del servidor es otro archivo: `docker-compose.produccion.yml`.** No es
+# una preferencia de estilo — este publica la base en el 3307 y sirve con
+# `artisan serve`, que atiende una petición por vez. Las dos cosas van de
+# aceptables acá a peligrosas en un VPS con IP pública. Ver DESPLIEGUE.md.
 #
 # Lo que resuelve, en orden de importancia:
 #

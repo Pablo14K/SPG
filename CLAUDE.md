@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.86.0 | 01/09/2026 | **El sistema se despliega, y el VPS vino con Docker: el plan que estaba escrito cambia de raíz.** `DESPLIEGUE.md` asumía un servidor con panel Hestia y PHP y MariaDB instalados a mano, y **sus cuatro pasos más peligrosos los resuelve el contenedor solo**: los **84 `DEFINER`** que había que reescribir con `spg:preparar-sql` —o error 1449 en la pantalla de ingreso— no hacen falta porque adentro se importa y se consulta como root; PHP 8.3 viene en la imagen; la zona horaria la clava el compose; y los permisos de `CREATE ROUTINE` y `log_bin_trust_function_creators` también. Quedan anotados igual, en «Lo que Docker se llevó puesto», porque el motivo de cada uno sigue valiendo. **Son DOS compose y esa es la parte que hay que entender**, porque usar el de desarrollo en un servidor sería grave: aquél sirve con `artisan serve` —que atiende **una petición por vez**, o sea que una pantalla lenta deja a los demás esperando— y **publica la base en el 3307**, que en una IP pública es la base de un salón real escuchando en internet. El de producción sirve con **php-fpm detrás de Caddy** y **no publica NINGÚN puerto salvo el 80 y el 443**. Caddy y no nginx por una sola razón que pesa más que las demás: **el certificado lo saca y lo renueva solo**, y HTTPS acá no es un lujo — WebAuthn no existe fuera de un contexto seguro, así que sin certificado el ingreso con huella desaparece. **Se conecta como root y es deliberado**: un usuario limitado devolvería el 1449, y lo que protege no es el usuario sino que **no haya puerto**. Entra **OPcache con `validate_timestamps=0`**, con su trampa escrita al lado: después de subir código hay que **reiniciar el contenedor** o se sigue sirviendo el viejo **sin que nada avise**, que es la forma exacta en que este proyecto se rompe siempre. El planificador pasa a ser un **servicio** —sin él no salen recordatorios, las citas vencidas no se cierran y las señas no se sueltan— y el **respaldo se agenda en el host**, a propósito: **el volumen de Docker no es un respaldo, es el mismo disco**, y un `down -v` mal tipeado borra la base sin preguntar. Si falta `APP_KEY` o `DB_PASSWORD` **el contenedor se apaga**: en desarrollo arrancar igual es una comodidad, en el servidor un sistema andando con la configuración equivocada es peor que uno que no arrancó. **Y verificarlo destapó un defecto que llevaba desde la 7.6.0.** La comprobación de zona horaria del modo `--produccion` leía `@@system_time_zone` y lo comparaba contra la lista `['UTC','GMT']`, así que fallaba en los dos sentidos: **mostraba `-04` marcado OK** —la tzdata vieja de MariaDB 10.4, que NO es la que gobierna `NOW()`; es el mismo defecto que la 7.6.0 corrigió arriba y acá quedó sin tocar, lo mismo escrito dos veces— y, peor, **dejaba pasar un servidor en Miami**: `EST` no está en la lista, o sea verde en pantalla con el fichaje corrido una hora, que es justo lo que ese bloque existe para detectar. Ahora **mide** `TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW())` contra −10800, que no depende del nombre, ni de cómo se configuró, ni de qué tzdata traiga la imagen. Comprobado en las dos direcciones: con −05 falla, con −03 pasa. **Y el despliegue se ensayó entero acá antes de tocar el VPS**: los cinco contenedores levantados de cero, las dos bases importadas, ingreso real como `admin` **por HTTPS** hasta el panel, el CSS servido por Caddy, las cuatro cabeceras de seguridad, la cookie de sesión con `Secure`, el 80 redirigiendo 308 al 443 y —lo que importa— **sólo el proxy publicando puerto**: `bd`, `app`, `cron` y `sifen` con ninguno. Con `SPG_DOMINIO=localhost` a propósito, que Let's Encrypt admite **cinco intentos fallidos por semana y por dominio**. Se instala **`peluqueria_bd`**, la limpia: comprobado que no lleva ni un correo real adentro, al revés que el mes simulado, que tiene dos. **Y de paso se cerraron tres pruebas que medían el entorno y no la regla**, el defecto que este proyecto ya tiene anotado: la del solape de la clienta tomaba **la cita más nueva a secas**, y el día que la más nueva resultó ser una «para otra persona» —justo el caso que la regla excluye a propósito— se puso roja sin que nada hubiera cambiado; la de `persona_servicio` daba por hecho que esa persona no tenía ninguna fila cargada, así que contra un único ya ocupado reventaba con 1062 en vez de medir nada; y la del producto sin stock creaba la cita a **+3 horas** y fichaje nunca, o sea que desde la 7.82.0 chocaba contra dos reglas nuevas —`MINUTOS_ANTES_DE_ATENDER` y la entrada marcada— y rechazaba antes de llegar a los productos, que es lo que dice medir. Las tres pasan a **garantizar su propia premisa**, que es la misma lección de `clienteLibreHoy()`. **148 pruebas · 1139 aserciones** |
 | 7.85.2 | 28/08/2026 | **El ZIP tiene que llegar listo para probar, y ahora el sistema avisa si no llegó así.** La 7.85.1 sacó las credenciales del archivo versionado, y eso abrió una pregunta que conviene tener contestada por escrito: **el repositorio y el ZIP son dos canales distintos**. Al repositorio no van —es el respaldo del TCC, queda publicado, y lo que entra al historial no sale nunca más—; al ZIP **sí**, porque quien lo recibe tiene que descomprimir y probar, no configurar un servidor de correo para ver si el registro de clientas anda. Se resuelve solo comprimiendo la carpeta: `secretos.env` es un archivo más ahí adentro. Lo que **no** hay que hacer es armarlo con `git archive` ni con una herramienta que respete el `.gitignore`. **Y si igual se cuela, ahora se nota.** `spg:diagnostico` distinguía «hay driver» de nada más: con `MAIL_MAILER=smtp` en el `.env` y las credenciales vacías decía **OK** y el sistema no mandaba un solo correo — la forma exacta en que esto se rompió entre la 6.4.0 y la 7.8.0, con la pantalla diciendo «te enviamos un código» igual. Ahora comprueba usuario **y** contraseña, nombra el archivo que falta y dice qué se pierde: verificación, recuperación, segundo factor y recordatorios. Comprobado en las dos direcciones — sacando `secretos.env` y levantando, salta. Entra además la lista de **«antes de comprimir»** completa: la base que queda apuntada, el volcado regenerado, `secretos.env` adentro, y el `down -v` con los conteos comparados, que es lo único que prueba que lo que se entrega **carga**. **148 pruebas · 1127 aserciones** |
 | 7.85.1 | 28/08/2026 | **Las credenciales salen del archivo versionado, la cola de avisos se vacía, y XAMPP queda afuera.** **`skip-worktree` esconde MÁS de lo que se le pidió.** La contraseña de Gmail vivía dentro de `docker/php/env.docker`, que sí se versiona, así que el archivo iba marcado para que git no lo mandara — y esa marca **esconde todos sus cambios**: ni se commitean ni aparecen en `git status`. Ya había costado caro dos veces, con `SIFEN_TIPO_DEFECTO` apuntando a un comprobante dado de baja (7.12.1) y con `DB_DATABASE` viajando mal. Ahora las credenciales viven en **`docker/php/secretos.env`** —ignorado, con su `secretos.env.example`— y el compose las pasa como variables del contenedor. **Laravel las respeta porque Dotenv arranca inmutable**: no pisa una variable ya puesta, así que lo del archivo aparte le gana a lo del `.env` montado, donde esas claves quedaron vacías. Comprobado: la contraseña resuelve, el token también, y el `diff` de `env.docker` no lleva ni una credencial. Va con `required: false`, para que quien clone levante sin correo en vez de no levantar. **La cola de salida se vació**: 43 avisos PENDIENTE que al levantar el cron en otra máquina se hubieran disparado. Se **borran** en vez de marcarse, y no es un detalle — marcarlos FALLIDA dejaría a esas citas sin recordatorio **para siempre**, porque `generarRecordatorios()` saltea toda cita que ya tenga uno; borrados, los que todavía corresponden se vuelven a generar solos. Nada se pierde: no se había enviado ninguno. **Ojo con la consecuencia**: los 27 avisos de cancelación que había ahí no van a salir, así que esas clientas no se enteran por correo de que su reserva se soltó. **Y se deja de usar XAMPP**, por decisión del usuario: se trabaja directo sobre Docker. Era la razón del puerto 3307 y de media docena de advertencias del documento; el motivo de fondo para no usarlo seguía valiendo igual —su Apache trae PHP 8.2 y Laravel 13 pide 8.3—, así que eran dos caminos para lo mismo y uno sin garantizar la versión del motor. El README pierde la «Opción B», el `.env` del host apunta al **3307** —sin XAMPP, en el 3306 no hay nadie— y los ejemplos de volcado pasan a `docker compose exec` + `docker compose cp`. **148 pruebas · 1127 aserciones** con el contenedor levantado de cero |
 | 7.85.0 | 28/08/2026 | **Se retira el «Comprobante de pago»: lo reemplaza la factura sin nombre.** Existía para un caso concreto —«la clienta no pide factura»— como documento interno, numerado con su propio timbrado y **fuera** de la DNIT. La **factura sin nombre** de la 7.83.0 cubre ese mismo caso sin pedir una serie aparte y sin dejar cobros fuera de lo declarado, así que el otro pasaba a ser un tipo más que mantener. **Y en la práctica nunca llegó a tener timbrado cargado**, con lo cual todo salía como Factura igual — sólo que sin que nadie lo hubiera decidido, y con un aviso permanente en la pantalla de emitir. **Es una baja, no un borrado**: `tipo_comprobante.activo` existe para que volver a habilitarlo no toque una línea de código, y es la misma mecánica con la que la 7.9.0 retiró cinco tipos. No tenía comprobantes emitidos ni timbrados, así que no deja nada colgando. **`SIFEN_TIPO_DEFECTO` se mueve en la misma tanda**, que es la trampa que este documento ya anota: apuntando a un tipo inactivo, la lista cae en el primero que quede **sin avisar**. Pasa de 8 a **1** en `config/sifen.php` y en los tres `.env` — el valor por defecto del `env()` incluido, que es el que vale cuando la clave no está. Con esto el combo del cobro queda en las dos opciones que se pidieron: **Factura declarada** y **Factura sin nombre**, y el aviso de «falta el timbrado» desaparece solo, porque el comprobante por defecto ahora es el que sí lo tiene. > **Ojo con la palabra**: la innominada **se declara**. No es «una factura sin declarar» — es la misma factura electrónica con el grupo del receptor vacío, que la DNIT admite por debajo de Gs. 60.000.000. Lo que cambia es qué datos lleva, no si se informa. **148 pruebas · 1127 aserciones** · los dos `.sql` regenerados |
@@ -506,9 +507,16 @@ routes/
 public/assets/             app.css · imprimir.css · app.js · webauthn.js
                            imprimir.css estiliza `.spg-imprimir`: el informe y los listados
 basededatos/               Los .sql (ver «Solo hay DOS archivos .sql»)
+docker/                    Los dos entornos, que son DOS y no uno:
+  php/Dockerfile           desarrollo — php:8.3-cli + `artisan serve`
+  php/Dockerfile.produccion  servidor — php:8.3-fpm + OPcache, detrás de Caddy
+  php/env.docker           el .env de desarrollo · env.produccion el del servidor
+  php/secretos.env         las credenciales de ESTA máquina (no se versiona)
+  caddy/Caddyfile          el HTTP del servidor, con el certificado automático
+  respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 146 pruebas
+tests/Feature/             Las 148 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -3123,6 +3131,16 @@ docker compose exec app php artisan spg:diagnostico
 rutinas están escritas para ese motor—, importa las dos bases solo y clava la zona horaria.
 La base se publica en el **3307**.
 
+> **Y hay un SEGUNDO compose, el del servidor: `docker-compose.produccion.yml`.** No es una
+> variante cosmética — el de desarrollo sirve con `artisan serve`, que atiende una petición
+> por vez, y **publica la base en el 3307**, que en una IP pública es la base de un salón real
+> escuchando en internet. Ver *«El servidor de producción»* y `DESPLIEGUE.md`.
+>
+> Si lo levantás acá para ensayarlo, acordate de `docker compose exec app php artisan
+> optimize:clear` después: `bootstrap/cache` vive en el bind mount, así que su `optimize`
+> —hecho con `--no-dev`— deja al contenedor de desarrollo sin PHPUnit y `artisan test`
+> contesta «Command "test" is not defined».
+
 > **XAMPP salió de la ecuación** (7.85.1, por decisión del usuario). Convivir con él era la
 > razón del 3307 y de media docena de advertencias de este documento; el motivo de fondo para
 > no usarlo sigue valiendo: **su Apache trae PHP 8.2 y Laravel 13 pide 8.3**, así que el
@@ -3277,82 +3295,72 @@ configuración pisando el cambio.
 **Producción — VPS compartido con otros grupos de la facultad.** Ver la sección de abajo:
 **no es el mismo entorno que esta PC**, y hay cuatro diferencias que rompen cosas en silencio.
 
-### El servidor de producción: es un VPS con root, no un hosting compartido
+### El servidor de producción: un VPS de Hostinger CON DOCKER
 
-El sistema se va a publicar en un **VPS que se comparte entre varios grupos de la facultad**
-(hasta 8), no en un hosting compartido tipo cPanel. La diferencia es la que decide si este
-proyecto puede desplegarse o no: **un hosting compartido clásico no deja crear funciones ni
-triggers**, y acá *toda* la lógica de negocio vive ahí. Con acceso root, sí se puede.
+El sistema se publica en **`https://spg.columbiatcc.online`**, sobre un VPS de Hostinger que
+**viene con Docker**. El dominio se compró entre varios grupos de la facultad, así que el SPG
+va en un subdominio y el servidor se comparte con otros proyectos.
 
-| | |
+**Que el VPS traiga Docker cambia el despliegue de raíz**, y para bien: los cuatro pasos más
+peligrosos del plan anterior —el que asumía un panel Hestia con PHP y MariaDB instalados a
+mano— los resuelve el contenedor solo.
+
+| Antes había que… | Con Docker |
 |---|---|
-| Proveedor | Vefixy · VPS Starter (Miami) |
-| Recursos | 2 vCores Ryzen 9, **4 GB RAM**, 80 GB NVMe — **compartidos entre todos los grupos** |
-| Acceso | root · panel Hestia o CyberPanel |
-| PHP | **8.3 o más**, que es lo que pide Laravel 13. Con root se instala la versión que haga falta, y Hestia admite varias a la vez (otro grupo puede seguir con 8.1). **Confirmarlo antes de pagar** |
-| Base | MySQL / MariaDB, **un usuario y una base por grupo** (no se entra como `root`) |
-| Dirección | un subdominio del dominio común, ej. `peluqueria.proyectosfacultad.com` |
-| HTTPS | Let's Encrypt, gratis y renovado por el panel |
-| Tareas programadas | cron del panel — es lo que reemplaza al Programador de tareas de Windows |
+| Reescribir los **84 `DEFINER`** con `spg:preparar-sql`, o error 1449 en la pantalla de ingreso | **no hace falta**: adentro del contenedor se importa y se consulta como root |
+| Confirmarle al proveedor que hay **PHP 8.3** | la imagen es `php:8.3-fpm` |
+| Fijar la **zona horaria** del sistema operativo y de MySQL | el compose clava `TZ` y `--default-time-zone=-03:00` |
+| Pedir `CREATE ROUTINE`, `TRIGGER`, `log_bin_trust_function_creators` | está en el compose |
+| Importar el `.sql` a mano | se importa solo en el primer arranque |
 
-> **Los pasos concretos, en el orden que funciona, están en `DESPLIEGUE.md`.** Acá quedan los porqués; allá, los comandos. Dos ayudas del
-> proyecto Laravel: **`php artisan spg:preparar-sql <archivo> <usuario>`** reescribe los 84
-> `DEFINER` del volcado y pasa `SQL SECURITY DEFINER` a `INVOKER`, y
-> **`php artisan spg:diagnostico --produccion`** revisa las diez cosas de esta sección y dice
-> qué hacer con cada una. El despliegue se ensayó entero en la PC de desarrollo el 10/08/2026,
-> con una base vacía y un usuario limitado: importó y arrancó.
+> **Los pasos concretos están en `DESPLIEGUE.md`.** Acá quedan los porqués; allá, los comandos.
 
-**Las cinco reglas del despliegue.** Las cuatro primeras rompen algo sin avisar:
+**Son DOS compose y eso es lo primero que hay que entender**, porque usar el de desarrollo en
+un servidor sería grave:
 
-1. **La zona horaria del servidor está en Miami.** `ahora_bd()` le pregunta la hora a MariaDB,
-   y MariaDB toma la del sistema operativo: en un VPS recién instalado eso es **UTC**, así que
-   el fichaje de asistencia quedaría **4 horas corrido** y nadie se daría cuenta hasta ver una
-   entrada marcada a las 12 de la noche. Al desplegar hay que fijar
-   `timedatectl set-timezone America/Asuncion` (o `default-time-zone='-03:00'` en MySQL) y
-   **comprobarlo con `SELECT NOW()` contra el reloj de pared** antes de dar nada por bueno.
-   > El motivo original de `ahora_bd()` —una tzdata de PHP vieja— **no existe ni en el
-   > contenedor ni en el servidor**, que traen PHP al día. Igual no se saca: es la misma
-   > función y da lo mismo en los tres lados. Lo que cambia es *qué* hay que configurar para
-   > que dé bien — y en el contenedor ya está resuelto en el `docker-compose.yml`.
+| | `docker-compose.yml` | `docker-compose.produccion.yml` |
+|---|---|---|
+| Sirve con | `artisan serve` — **una petición por vez** | **php-fpm detrás de Caddy** |
+| La base | publicada en el **3307** | **sin ningún puerto**: sólo la red interna |
+| El SIFEN | publicado en el 8090 | sin puerto |
+| Contraseñas | `root`/`root`, escritas en el archivo | de `secretos.env`, que no se versiona |
+| HTTPS | no hay | Caddy, con certificado automático |
+| El planificador | no está | servicio `cron`, `schedule:run` cada minuto |
+| OPcache | no | sí, con `validate_timestamps=0` |
 
-2. **Los `DEFINER` del dump apuntan a `root@localhost` y en el servidor no somos root.**
-   Las 39 funciones, 21 procedimientos, 17 triggers y 17 vistas se crearon con ese definidor.
-   Importados con el usuario del grupo, MySQL contesta **error 1449** y el sistema entero deja
-   de andar —es el mismo error que ya está documentado más arriba—. Antes de importar hay que
-   reemplazar el definidor por el usuario real, y ese usuario necesita
-   `CREATE ROUTINE`, `ALTER ROUTINE`, `TRIGGER` y `EXECUTE`. Si el servidor tiene el binlog
-   activo con `log_bin_trust_function_creators = 0`, las funciones **no se crean**: hay que
-   ponerlo en 1 desde root.
+Las cinco decisiones del compose de producción que **no hay que revertir sin pensarlas**:
 
-3. **La carpeta pública del sitio tiene que apuntar a `public/`**, no a la raíz del proyecto.
-   Si apunta a la raíz, el `.env` con la contraseña de la base queda descargable por HTTP, y
-   `basededatos/` le entrega el esquema completo a cualquiera que pida la URL. Es un descuido
-   de un minuto que se paga con la base de un salón real; `spg:diagnostico --produccion` lo
-   comprueba.
+- **La base no publica ningún puerto.** En desarrollo el 3307 sirve para mirarla desde el
+  host; en un VPS con IP pública eso es la base de un salón real escuchando en internet.
+- **Se conecta como root, y es deliberado.** Un usuario limitado obligaría a reescribir los 84
+  definidores —el error 1449— porque las rutinas las crea root al importar y las llamaría otro.
+  Adentro del contenedor eso no compra seguridad: **lo que protege es que no haya puerto**, y
+  eso ya está. Lo que sí importa es que la contraseña no sea `root`.
+- **El 80 se abre aunque todo vaya por HTTPS.** Let's Encrypt valida por ahí: sin el 80, el
+  certificado no se emite ni se renueva.
+- **OPcache con `validate_timestamps=0`.** Es lo que más rinde por lo poco que cuesta, y trae
+  su propia trampa: **después de subir código nuevo hay que reiniciar el contenedor**, o se
+  sigue sirviendo el viejo sin que nada avise. Por eso el despliegue es `up -d --build`.
+- **El planificador es un servicio, no una línea de cron del host.** Así se apaga y se prende
+  con el resto, y no queda una tarea del sistema apuntando a una ruta que alguien movió.
 
-4. **Los 4 GB de RAM son de todos los grupos, no nuestros.** Nada de procesos residentes:
-   la cola de correos se despacha con `queue:work --stop-when-empty` disparado por cron, nunca
-   con un worker permanente ni con Supervisor. Y en producción va siempre `APP_DEBUG=false`
-   más `php artisan optimize` (config, rutas y vistas cacheadas), que además ahorra memoria.
+**Lo único que se agenda en el host es el respaldo** (`docker/respaldo.sh`), y va afuera a
+propósito: **el volumen de Docker no es un respaldo, es el mismo disco.** Un
+`docker compose down -v` mal tipeado borra la base sin preguntar.
 
-5. **En el servidor no se compila nada.** No hay Node ni hace falta: Bootstrap viene por CDN
-   y `app.css` es un archivo propio. Lo que se sube es el código y, si algún día se usa Vite,
-   el `public/build` ya compilado. `vendor/` se resuelve con
-   `composer install --no-dev --optimize-autoloader`.
+Tres cosas del `.env` de producción que se olvidan y se pagan:
 
-Tres cosas más que hay que dejar acomodadas en el `.env` de producción, porque el sistema las
-usa para armar enlaces y credenciales:
+- **`APP_URL` con el subdominio real.** De ahí salen los enlaces de los correos —reprogramar,
+  cancelar, agregar la cita al calendario—. Con el valor de desarrollo, a la clienta le llega
+  un enlace a `localhost`, que abre en su propia computadora y no lleva a ningún lado.
+- **`APP_DEBUG=false`.** Con `true`, cualquier error le muestra al visitante la traza completa,
+  con la contraseña de la base adentro.
+- **`APP_KEY`**: se genera **una vez** y va en `secretos.env`. Si cambia, las sesiones abiertas
+  y todo lo cifrado dejan de leerse.
 
-- **`APP_URL` con el subdominio real.** De ahí salen los enlaces de los correos (reprogramar,
-  cancelar, agendar en el calendario). Con el valor de desarrollo, el cliente recibe un enlace
-  a `localhost` que no abre en ningún lado.
-- **SMTP saliente por el puerto 587.** Es por donde salen el código de verificación, la
-  recuperación de contraseña, el segundo factor y los recordatorios. Está en la lista de cosas
-  a confirmarle al proveedor antes de pagar; si lo bloquean, el registro de clientes no
-  funciona.
-- **WebAuthn necesita HTTPS y el dominio como `rpId`.** Hoy anda en `localhost` por la
-  excepción que hacen los navegadores. Las credenciales registradas en desarrollo **no sirven**
-  en producción: cada persona vuelve a registrar su huella la primera vez.
+- **WebAuthn necesita HTTPS y el dominio como `rpId`.** No hay nada que configurar —lo toma de
+  la propia petición— pero las credenciales registradas en desarrollo **no sirven** en
+  producción: cada persona vuelve a registrar su huella la primera vez.
 
   > **Por eso el ingreso con huella NO se puede probar desde el celular en la red local**, y no
   > es un problema del teléfono. Entrando por `http://192.168.x.x:8000` fallan las dos
@@ -3360,6 +3368,11 @@ usa para armar enlaces y credenciales:
   > y el `rpId` sería una dirección IP, que la especificación no admite. Recién en el servidor,
   > con el subdominio y HTTPS, funciona. `SPGBio.estado()` lo explica en pantalla en vez de
   > echarle la culpa al equipo.
+
+**Y el correo saliente sigue siendo lo que hay que confirmar con el proveedor**: por el puerto
+587 salen el código de verificación, la recuperación de contraseña, el segundo factor y los
+recordatorios. Si Hostinger lo bloquea, **una clienta nueva no puede terminar de registrarse**.
+
 
 ### `peluqueria_bd` es la base que se entrega: esquema al día, sin datos
 
@@ -3752,6 +3765,19 @@ Seis cosas que hay que saber antes de tocarlas:
   segunda mitad —que `ahora_bd()` salga de la conexión— usa un margen de diez
   minutos, que sigue detectando un error de zona (3.600 s como mínimo) sin
   volver a medir la duración de la corrida.
+- **Una prueba tiene que GARANTIZAR su propia premisa, no esperar a encontrarla.** Es el
+  defecto que más veces puso esta batería en rojo sin que el sistema hubiera cambiado, y
+  siempre con la misma forma: la prueba toma «la primera» o «la más nueva» fila que haya y
+  resulta que ese día esa fila no sirve para lo que la prueba mide.
+  | Tomaba | El día que… | Ahora |
+  |---|---|---|
+  | la cita más nueva que bloquea agenda | la más nueva fue una **«para otra persona»**, que la regla excluye a propósito | pide `para_otra_persona = 0` |
+  | el primer profesional del listado | ese profesional **no trabaja hoy**, y atender exige fichaje | pide uno con turno **de hoy**, y le marca la entrada |
+  | un profesional cualquiera, para cargarle un servicio | ya tenía una fila suelta de una corrida anterior: **1062** en vez de medir | las borra primero, dentro de la transacción |
+  | un día fijo (`+5 days`) | ese día ya tenía una cita cargada | busca un día libre de verdad |
+  Y lo mismo con el calendario y con las sucursales: `clienteLibreHoy()` y `conSucursal()`
+  existen por esto. **Si una prueba se pone roja y el sistema no cambió, mirá primero su
+  premisa.**
 - **Lo que restaura el estado va en `tearDown`, nunca después de un `assert`.** Si la aserción
   falla, lo que viene después **no se ejecuta**: una corrida fallida a propósito dejó el salón
   sin ninguna caja abierta, y la prueba de la seña —que necesita una— se saltó sin decir por

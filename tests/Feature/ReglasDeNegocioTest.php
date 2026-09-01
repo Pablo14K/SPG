@@ -1505,8 +1505,21 @@ class ReglasDeNegocioTest extends TestCase
     public function un_producto_sin_stock_no_tumba_los_servicios_de_la_atencion(): void
     {
         $cliente = $this->clienteLibreHoy();
-        $prof = (int) DB::scalar('SELECT id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
-                                   WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 1');
+        // **Alguien que trabaje HOY**, porque atender exige el fichaje de
+        // entrada y sólo se ficha contra un turno de ese día. Tomando al primer
+        // profesional a secas, la prueba pasaba o fallaba según el día de la
+        // semana que tocara correrla.
+        $hoy = (int) date('N');
+        $turno = DB::selectOne(
+            'SELECT ut.id_usuario, t.id_turno FROM usuario u
+               JOIN rol r            ON r.id_rol = u.id_rol
+               JOIN usuario_turno ut ON ut.id_usuario = u.id_usuario
+               JOIN turno_laboral t  ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td     ON td.id_turno = t.id_turno AND td.dia_semana = ?
+              WHERE u.activo = 1 AND r.es_personal = 1
+              ORDER BY u.id_usuario LIMIT 1', [$hoy]
+        );
+        $prof = (int) ($turno->id_usuario ?? 0);
         $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
 
         // Un producto que NO tiene con qué: se pide mucho más de lo que hay.
@@ -1520,8 +1533,22 @@ class ReglasDeNegocioTest extends TestCase
         }
         $pedir = (float) $prod->stock + 1000;
 
+        // **La entrada marcada.** Sin fichaje, `atenderGuardar` rechaza antes
+        // de llegar a los productos, así que la prueba no mediría nada de lo
+        // que dice medir. Se pone acá, y no se discute la regla: es la misma
+        // que impide que la comisión se le cargue a quien no estuvo.
+        DB::insert('INSERT INTO asistencia (id_usuario, id_turno, fecha, hora_entrada) VALUES (?,?,?,?)
+                    ON DUPLICATE KEY UPDATE hora_entrada = VALUES(hora_entrada)',
+            [$prof, (int) $turno->id_turno, date('Y-m-d'), date('H:i:s')]);
+
+        // **Dentro de la ventana de `MINUTOS_ANTES_DE_ATENDER`.** La cita se
+        // creaba a +3 horas, y desde que existe esa regla el servidor rechaza
+        // atender algo que todavía falta —con razón: sería anotar como hecho
+        // algo que no pasó—. La prueba mide otra cosa (que un producto sin
+        // stock no borre los servicios), así que lo que hace falta es que la
+        // cita esté en hora, no discutir la regla.
         DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
-            [$cliente, $prof, 1, date('Y-m-d H:i:s', strtotime('+3 hours'))]);
+            [$cliente, $prof, 1, date('Y-m-d H:i:s', strtotime('+10 minutes'))]);
         $idCita = (int) DB::getPdo()->lastInsertId();
         DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $servicio]);
 
@@ -3211,6 +3238,16 @@ class ReglasDeNegocioTest extends TestCase
         [$hace, $noHace] = [(int) $srv[0]->id_servicio, (int) $srv[1]->id_servicio];
         $cuando = date('Y-m-d H:i:s', strtotime('+5 days 10:00'));
 
+        // **La prueba tiene que garantizar su propia premisa.** El primer tramo
+        // mide el criterio permisivo —«sin nada cargado los hace todos»— así que
+        // esa persona no puede tener ni una fila; y el segundo inserta una, que
+        // contra un `uq_persona_servicio` ya ocupado revienta con 1062 en vez de
+        // medir nada. Con una fila suelta de una corrida anterior la prueba
+        // decía cosas distintas según el día. Va adentro de la transacción de
+        // `DatabaseTransactions`, así que se deshace al terminar.
+        DB::delete('DELETE FROM persona_servicio WHERE id_persona =
+                        (SELECT id_persona FROM usuario WHERE id_usuario = ?)', [$prof]);
+
         // 1) Sin nada cargado los hace todos: el criterio permisivo de siempre.
         $this->assertSame(1, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$prof, $noHace]),
             'Sin servicios cargados, esa persona los hace todos.');
@@ -4139,10 +4176,17 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function una_clienta_no_se_pisa_a_si_misma_salvo_que_sea_para_otra_persona(): void
     {
+        // **La cita de partida NO puede ser una «para otra persona»**, que es
+        // justo el caso que la regla excluye a propósito: contra una de ésas no
+        // hay solape que detectar, así que la prueba mediría lo contrario de lo
+        // que dice medir. Tomaba la más nueva a secas, y el día que la más nueva
+        // resultó ser para la hija de alguien, se puso roja sin que nada
+        // hubiera cambiado en el sistema.
         $cita = DB::selectOne(
             'SELECT c.id_cita, c.id_cliente, c.fecha_hora FROM cita c
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE ec.bloquea_agenda = 1
+                AND c.para_otra_persona = 0
                 AND EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
               ORDER BY c.id_cita DESC LIMIT 1'
         );

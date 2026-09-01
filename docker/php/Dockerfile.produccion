@@ -1,0 +1,52 @@
+# PHP 8.3 para el SERVIDOR. El de desarrollo es `Dockerfile`, al lado.
+#
+# La diferencia que importa es una sola y es la razón de que este archivo
+# exista: en desarrollo el servidor lo levanta `php artisan serve`, que
+# **atiende una petición por vez**. En la computadora de uno no se nota; en un
+# servidor con tres personas usando el sistema, una pantalla lenta —el
+# calendario de 60 días, un informe— deja a las otras dos esperando, y desde
+# afuera se lee como que el sistema se colgó.
+#
+# Por eso acá va `php-fpm`, que mantiene varios procesos hijos, y quien atiende
+# el HTTP es Caddy (ver docker/caddy/Caddyfile).
+FROM php:8.3-fpm
+
+# Las mismas extensiones que en desarrollo, más OPcache: guarda el bytecode ya
+# compilado en memoria, así PHP no vuelve a leer y parsear las mismas ~600
+# clases en cada petición. En desarrollo estorba —hay que reiniciar para ver un
+# cambio—, en el servidor es lo que más rinde por lo poco que cuesta.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libzip-dev unzip mariadb-client \
+    && docker-php-ext-install pdo_mysql zip opcache \
+    && apt-get purge -y --auto-remove \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# `validate_timestamps=0` es lo que hace que OPcache no vuelva a mirar el disco
+# nunca. Es correcto en el servidor **y** es la trampa que va con esto: después
+# de subir código nuevo hay que reiniciar el contenedor, o se sigue sirviendo el
+# viejo sin que nada avise. El guion de despliegue lo hace.
+RUN { \
+      echo 'opcache.enable=1'; \
+      echo 'opcache.memory_consumption=128'; \
+      echo 'opcache.max_accelerated_files=10000'; \
+      echo 'opcache.validate_timestamps=0'; \
+      echo 'expose_php=Off'; \
+      echo 'upload_max_filesize=8M'; \
+      echo 'post_max_size=10M'; \
+    } > /usr/local/etc/php/conf.d/spg.ini
+
+# La zona horaria del contenedor, para que PHP y la base cuenten lo mismo.
+ENV TZ=America/Asuncion
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+WORKDIR /app
+
+COPY entrada-produccion.sh /usr/local/bin/entrada
+# Si el archivo viajó desde Windows con fin de línea CRLF, el contenedor
+# contesta «bad interpreter» y no hay forma de adivinar por qué.
+RUN sed -i 's/\r$//' /usr/local/bin/entrada && chmod +x /usr/local/bin/entrada
+
+EXPOSE 9000
+ENTRYPOINT ["entrada"]

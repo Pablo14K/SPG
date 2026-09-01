@@ -37,6 +37,16 @@ class Diagnostico extends Command
      */
     private const CHECKS = 78;
 
+    /**
+     * Cuánto se aparta de UTC la hora de Paraguay, en segundos.
+     *
+     * Es una constante y no un cálculo con tzdata a propósito: **Paraguay quedó
+     * fijo en UTC-3** desde que dejó sin efecto el horario de verano, así que
+     * este número no cambia en marzo ni en octubre — y preguntárselo a una
+     * tzdata desactualizada es justamente el error que se está detectando.
+     */
+    private const UTC_PARAGUAY = -3 * 3600;
+
     public function handle(): int
     {
         $problemas = 0;
@@ -425,17 +435,37 @@ class Diagnostico extends Command
             $this->bien('APP_KEY cargada.');
         }
 
-        // La zona horaria, otra vez pero explícita: en el VPS de Miami el
-        // sistema operativo arranca en UTC y nadie lo nota hasta ver un fichaje
-        // marcado a las 12 de la noche.
-        $zonaBd = (string) DB::scalar('SELECT @@system_time_zone');
-        if (in_array(strtoupper($zonaBd), ['UTC', 'GMT'], true)) {
-            $this->mal('La base corre en ' . $zonaBd . '. Fijá la zona del servidor con '
-                . '«timedatectl set-timezone America/Asuncion» y reiniciá MySQL, o el fichaje de '
-                . 'asistencia queda corrido 3 o 4 horas.');
+        // La zona horaria, otra vez pero MEDIDA en lugar de leída por su nombre.
+        //
+        // Antes se leía `@@system_time_zone` y se lo comparaba contra la lista
+        // ['UTC', 'GMT'], y eso fallaba en los dos sentidos:
+        //
+        //   · **Mostraba -04 en el contenedor**, que es la tzdata de MariaDB
+        //     10.4 —anterior a que Paraguay dejara sin efecto el horario de
+        //     verano—. Esa NO es la zona que gobierna NOW(): la que manda es
+        //     `@@time_zone`, en -03:00 por el compose. Quedaba un -04 alarmante
+        //     al lado de una hora perfectamente correcta, marcado «OK». Es el
+        //     mismo defecto que la 7.6.0 corrigió arriba, en la sección «La
+        //     hora», y que acá quedó sin tocar: lo mismo escrito dos veces.
+        //   · **Y dejaba pasar un servidor en Miami**, cuyo `@@system_time_zone`
+        //     dice `EST` y no está en la lista: verde en pantalla y el fichaje
+        //     corrido una hora, que es justo lo que este bloque existe para
+        //     detectar.
+        //
+        // Lo que se mide ahora es lo único que importa: **cuánto se aparta de
+        // UTC la hora que la base va a sellar**. No depende de cómo se haya
+        // configurado, ni de qué tzdata traiga la imagen, ni del nombre.
+        $desfaseUtc = (int) DB::scalar('SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW())');
+        $zonaBd = (string) DB::scalar('SELECT @@time_zone');
+        if (abs($desfaseUtc - self::UTC_PARAGUAY) > 60) {
+            $this->mal('La base sella la hora en UTC' . sprintf('%+g', round($desfaseUtc / 3600, 1))
+                . ' y Paraguay es UTC-3: el fichaje de asistencia va a quedar corrido '
+                . round(abs($desfaseUtc - self::UTC_PARAGUAY) / 3600, 1) . ' hora(s). '
+                . 'Con Docker se arregla con --default-time-zone=-03:00 en el compose; sin Docker, '
+                . 'con «timedatectl set-timezone America/Asuncion» y reiniciando MySQL.');
             $problemas++;
         } else {
-            $this->bien('Zona horaria de la base: ' . $zonaBd);
+            $this->bien('La base sella la hora en UTC-3 (zona: ' . $zonaBd . ').');
         }
 
         // ---- Que el .env no sea descargable --------------------------------

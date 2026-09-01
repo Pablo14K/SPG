@@ -40,3 +40,8 @@ _qa/log/
 
 # Las credenciales del contenedor. La plantilla es secretos.env.example.
 docker/php/secretos.env
+
+# Los respaldos de la base del servidor. Son datos de un salón real: no van al
+# repositorio ni por accidente. La carpeta sí, para que exista.
+respaldos/*
+!respaldos/.gitkeep

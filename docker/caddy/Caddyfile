@@ -1,0 +1,67 @@
+# El servidor HTTP del VPS. Es Caddy y no nginx por una sola razón que pesa
+# más que todas las demás juntas: **el certificado HTTPS lo saca y lo renueva
+# solo**, contra Let's Encrypt, sin certbot y sin un cron que se olvide de
+# correr. Y HTTPS acá no es un lujo: WebAuthn —el ingreso con huella— no existe
+# fuera de un contexto seguro, así que sin certificado esa función desaparece.
+#
+# El dominio y el correo salen del entorno para que este archivo no tenga nada
+# de este proyecto en particular: el VPS es compartido con otros grupos de la
+# facultad, y cada uno agrega su bloque acá abajo con su propio subdominio.
+# Ver docker/php/secretos.env.
+{
+	# A dónde avisa Let's Encrypt si un certificado está por vencer y no se
+	# pudo renovar. Sin esto el aviso no llega a ningún lado.
+	email {$SPG_EMAIL_TLS}
+}
+
+{$SPG_DOMINIO} {
+	# **La raíz es `public/`, nunca la del proyecto.** Es la regla que más caro
+	# se paga si se equivoca: apuntando a la raíz, el `.env` con la contraseña
+	# de la base queda descargable por HTTP, y `basededatos/` le entrega el
+	# esquema completo a cualquiera que pida la URL.
+	root * /app/public
+
+	encode zstd gzip
+
+	# El PHP se lo pasa a php-fpm, que es el contenedor `app`. El puerto 9000
+	# no está publicado: sólo se llega desde la red interna de Docker.
+	php_fastcgi app:9000 {
+		# Sin esto, php-fpm busca los archivos en SU ruta y Caddy en la suya.
+		# Coinciden porque las dos montan el proyecto en /app, pero dejarlo
+		# escrito evita que un cambio de ruta rompa todo en silencio.
+		root /app/public
+	}
+
+	# Lo que no es PHP —el CSS, el JS, las fotos de los servicios— lo sirve
+	# Caddy directo, sin molestar a PHP.
+	file_server
+
+	header {
+		# El navegador recuerda por un año que este sitio es sólo HTTPS, así
+		# que ni siquiera intenta la primera petición en claro.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Nada de este sistema tiene por qué dibujarse dentro de un iframe
+		# ajeno: es la defensa contra el clickjacking sobre los botones que
+		# anulan comprobantes.
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Que no se filtre la versión del servidor.
+		-Server
+	}
+
+	# Un intento de bajar cualquiera de estos es alguien tanteando, no un
+	# error: la raíz ya es public/, así que ni siquiera están acá adentro.
+	# Se contesta 404 y no 403, que un 403 confirma que el archivo existe.
+	@prohibido {
+		path /.env* /.git/* /*.sql /composer.json /composer.lock
+	}
+	respond @prohibido 404
+
+	log {
+		output file /var/log/caddy/spg.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

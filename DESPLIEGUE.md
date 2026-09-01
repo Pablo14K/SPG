@@ -1,207 +1,301 @@
-# Despliegue del SPG en el VPS compartido
+# Despliegue del SPG
 
-El sistema se publica en un **VPS que se comparte entre varios grupos de la facultad**
-(Vefixy · 2 vCores, 4 GB RAM, 80 GB NVMe, root, panel Hestia o CyberPanel). No es un hosting
-compartido tipo cPanel, y esa diferencia es la que decide si este proyecto se puede desplegar:
-**un hosting compartido clásico no deja crear funciones ni triggers**, y acá *toda* la lógica
-de negocio vive ahí — 20 procedimientos, 30 funciones, 17 triggers, 17 vistas y 56 `CHECK`.
+El sistema se publica en **`https://spg.columbiatcc.online`**, sobre un **VPS de Hostinger
+con Docker**. El dominio se compró entre varios grupos de la facultad, así que el SPG vive en
+un subdominio y **comparte el servidor con otros proyectos**: eso decide buena parte de lo que
+está escrito acá abajo.
 
-Este documento es la lista de pasos en el orden que funciona. Los cuatro primeros son los que
-**rompen algo sin avisar**: si se saltean, el sistema arranca igual y falla después, en
-producción y con datos de un salón real.
-
-> **Ensayado en la PC de desarrollo el 10/08/2026**: se creó una base vacía y un usuario
-> limitado (sin acceso a `mysql.user`, como el del VPS), se preparó el `.sql` con
-> `spg:preparar-sql`, se importó **como ese usuario** y se comprobó que las rutinas responden
-> y que el ingreso funciona. Los comandos de abajo son los que se usaron.
+> **Este documento cambió de raíz cuando el VPS vino con Docker.** La versión anterior asumía
+> un servidor con panel (Hestia/CyberPanel) y PHP y MariaDB instalados a mano, y sus cuatro
+> pasos más peligrosos eran justamente los que el contenedor resuelve solo. Quedan anotados en
+> *«Lo que Docker se llevó puesto»*, al final, porque el motivo de cada uno sigue siendo
+> instructivo y porque si algún día hay que desplegar sin contenedores vuelven a valer.
 
 ---
 
-## 0. Antes de pagar el servidor, confirmarle al proveedor
+## Lo que Docker resuelve solo, y lo que no
+
+| Antes había que… | Con Docker |
+|---|---|
+| Reescribir los **84 `DEFINER`** con `spg:preparar-sql`, o error 1449 en la pantalla de ingreso | **No hace falta**: adentro del contenedor se importa y se consulta como root |
+| Confirmarle al proveedor que hay **PHP 8.3** | **Ya está**: la imagen es `php:8.3-fpm` |
+| Fijar la **zona horaria** del sistema operativo y de MySQL | **Ya está**: el compose clava `TZ` y `--default-time-zone=-03:00` |
+| Pedir `CREATE ROUTINE`, `TRIGGER` y `log_bin_trust_function_creators` | **Ya está** en el compose |
+| Importar el `.sql` a mano | **Se importa solo** en el primer arranque |
+
+Lo que sigue siendo trabajo, y es de lo que trata este documento:
+
+1. **El DNS**, que es de otro (el dominio se compró en grupo).
+2. **HTTPS**, sin el cual el ingreso con huella no existe.
+3. **Que la base y el SIFEN no queden escuchando en una IP pública.**
+4. **Las contraseñas**, que en desarrollo son `root`/`root`.
+5. **El planificador y el respaldo**, que en el compose de desarrollo no existen.
+
+---
+
+## 0. Antes de tocar el servidor
 
 | Qué | Por qué |
 |---|---|
-| **PHP 8.3 o más** | lo pide Laravel 13. Hestia admite varias versiones a la vez, así que otro grupo puede seguir con 8.1 |
-| **Permiso para crear rutinas y triggers** (`CREATE ROUTINE`, `ALTER ROUTINE`, `TRIGGER`, `EXECUTE`) | sin eso el sistema no funciona: la lógica está en la base |
-| **SMTP saliente por el puerto 587** | por ahí salen el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios. Si lo bloquean, el registro de clientas no anda |
-| **HTTPS con Let's Encrypt** | WebAuthn (el ingreso con huella) no funciona sin HTTPS |
-| **Cron del panel** | reemplaza al Programador de tareas de Windows |
+| **Acceso al DNS de `columbiatcc.online`** | hay que crear un registro A. Si el dominio lo administra otro del grupo, es lo primero que hay que pedirle |
+| **La IP del VPS** | la da el panel de Hostinger |
+| **Acceso SSH como root** | todo lo demás se hace por ahí |
+| **SMTP saliente por el 587** | por ahí salen el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios. Si Hostinger lo bloquea, **una clienta nueva no puede terminar de registrarse** |
+| **Una contraseña de aplicación de Gmail NUEVA** | ver el aviso de *«Antes de publicar»* — la que está en uso hay que rotarla |
 
 ---
 
-## 1. La zona horaria — el error que nadie nota
+## 1. El DNS: que el subdominio llegue al VPS
 
-Un VPS recién instalado corre en **UTC**, y el de Vefixy está en Miami. `ahora_bd()` le
-pregunta la hora a MariaDB, y MariaDB toma la del sistema operativo: **el fichaje de asistencia
-quedaría 3 o 4 horas corrido**, y no se nota hasta ver una entrada marcada a las 12 de la noche.
+En el panel donde se administra `columbiatcc.online`, un registro **A**:
 
-```bash
-sudo timedatectl set-timezone America/Asuncion
-sudo systemctl restart mysql        # o mariadb, según el panel
+```
+Tipo   Nombre   Valor              TTL
+A      spg      <IP del VPS>       3600
 ```
 
-Y **comprobarlo contra el reloj de pared**, que es el único chequeo que vale:
+Y comprobarlo **antes de seguir**, porque el certificado depende de esto:
 
 ```bash
-mysql -u spg_peluqueria -p -e "SELECT NOW();"
+dig +short spg.columbiatcc.online
 ```
 
-Si el panel no deja tocar la zona del sistema, la alternativa es fijarla en MySQL:
-`default-time-zone = '-03:00'` en `my.cnf`. Paraguay quedó fijo en UTC−3 desde que dejó sin
-efecto el horario de verano, así que ese valor no cambia en marzo ni en octubre.
+Tiene que devolver la IP del VPS. **Si todavía no propagó, no sigas**: Caddy le pide el
+certificado a Let's Encrypt apenas arranca, y Let's Encrypt admite **cinco intentos fallidos
+por semana y por dominio**. Cinco arranques con el DNS a medias dejan el subdominio sin
+certificado hasta la semana siguiente.
 
 ---
 
-## 2. Preparar el `.sql` — los DEFINER
+## 2. El servidor: Docker y el cortafuegos
 
-Las 50 rutinas, los 17 triggers y las 17 vistas se crearon con ``DEFINER=`root`@`localhost` ``.
-En el VPS **no entramos como root**: cada grupo tiene su usuario. Importado tal cual, MySQL
-contesta **error 1449** la primera vez que algo llame a una función — es decir, en la pantalla
-de ingreso — y el sistema entero deja de andar.
-
-Hay un comando que lo resuelve y no toca el original:
+Hostinger entrega el VPS con Docker instalado. Se comprueba y se cierra todo lo demás:
 
 ```bash
-php artisan spg:preparar-sql "Referencias/peluqueria_bd(base).sql" spg_peluqueria --host=localhost
+docker --version && docker compose version
+
+# Sólo SSH y web. El 3307 de la base y el 8090 del SIFEN NO se abren: los
+# contenedores se hablan entre ellos por la red interna de Docker.
+ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp
+ufw enable && ufw status
 ```
 
-Escribe `peluqueria_bd(base)_servidor.sql` con los **84 definidores** reemplazados y
-`SQL SECURITY DEFINER` pasado a `INVOKER`, que no depende de que el definidor exista.
+> **El 80 no es opcional aunque todo vaya por HTTPS**: Let's Encrypt valida por ahí, así que
+> sin el 80 abierto el certificado no se emite ni se renueva.
 
-**Antes de importar**, el usuario necesita el permiso (esto se corre como root):
-
-```sql
-GRANT CREATE ROUTINE, ALTER ROUTINE, TRIGGER, EXECUTE ON peluqueria_bd.* TO 'spg_peluqueria'@'localhost';
-SET GLOBAL log_bin_trust_function_creators = 1;   -- si el servidor tiene binlog activo
-```
-
-Sin `log_bin_trust_function_creators = 1`, **las funciones no se crean** y el import no falla:
-termina «bien» y el sistema revienta al primer uso.
-
-Recién ahí:
+Y la zona horaria del host, que no cuesta nada y evita confundirse leyendo los logs:
 
 ```bash
-mysql -u spg_peluqueria -p peluqueria_bd < "peluqueria_bd(base)_servidor.sql"
+timedatectl set-timezone America/Asuncion
 ```
 
 ---
 
-## 3. La carpeta pública apunta a `public/`, no a la raíz
-
-En el panel, el *document root* del subdominio va a `…/spg-laravel/public`.
-
-Si apunta a la raíz del proyecto, **el `.env` con la contraseña de la base queda descargable
-por HTTP**. Es lo mismo que ya se cuida al publicar en `htdocs`, pero acá el descuido se paga
-con la base de un salón real.
-
----
-
-## 4. Los 4 GB de RAM son de todos los grupos
-
-**Nada de procesos residentes.** La cola de correos se despacha por cron, nunca con un worker
-permanente ni con Supervisor:
-
-```
-* * * * * cd /home/spg/web/peluqueria.proyectosfacultad.com/spg-laravel && php artisan schedule:run >> /dev/null 2>&1
-```
-
-El scheduler ya tiene declarado `spg:notificaciones` cada diez minutos con
-`withoutOverlapping()`, así que dos corridas no se pisan.
-
-Y en producción, siempre:
+## 3. Subir el proyecto
 
 ```bash
-php artisan optimize        # config, rutas y vistas en caché — también ahorra memoria
+mkdir -p /opt/spg && cd /opt/spg
+# …subir acá el contenido del proyecto (clonar el repositorio, o descomprimir el ZIP)
 ```
+
+**Lo que tiene que estar sí o sí**, porque el arranque depende de ello:
+
+- `basededatos/` — de ahí importa MariaDB en el primer arranque;
+- `docker/` entero;
+- `docker-compose.produccion.yml`.
+
+No hace falta excluir nada por seguridad: **la raíz que sirve Caddy es `public/`**, así que
+todo lo demás —el `.env`, los `.sql`, `CLAUDE.md`, `tests/`— no es alcanzable por HTTP.
 
 ---
 
-## 5. En el servidor no se compila nada
-
-No hay Node ni hace falta: Bootstrap viene por CDN y `app.css` es un archivo propio. Se sube
-el código y las dependencias se resuelven con:
+## 4. Las credenciales
 
 ```bash
-composer install --no-dev --optimize-autoloader
+cp docker/php/secretos.env.example docker/php/secretos.env
 ```
 
----
-
-## 6. El `.env` de producción
+Y completar. Las tres que **si faltan el contenedor se apaga a propósito**, en vez de arrancar
+a medias con la configuración equivocada:
 
 ```dotenv
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://peluqueria.proyectosfacultad.com
-APP_TIMEZONE=America/Asuncion
-
-DB_DATABASE=peluqueria_bd
-DB_USERNAME=spg_peluqueria
-DB_PASSWORD=…
-
-MAIL_MAILER=smtp
-MAIL_HOST=…
-MAIL_PORT=587
-MAIL_ENCRYPTION=tls
+APP_KEY=                 # se genera abajo
+MYSQL_ROOT_PASSWORD=     # una larga y al azar
+DB_PASSWORD=             # LA MISMA que la de arriba
+SPG_DOMINIO=spg.columbiatcc.online
+SPG_EMAIL_TLS=           # a dónde avisa Let's Encrypt si un certificado no se renueva
+MAIL_USERNAME=           # la cuenta de Gmail
+MAIL_PASSWORD=           # la contraseña de aplicación NUEVA
+MAIL_FROM_ADDRESS=       # la MISMA cuenta que se autentica, o Gmail rechaza
 ```
 
-Tres que se olvidan y se pagan:
+La `APP_KEY` se genera una vez y se pega ahí:
 
-- **`APP_URL` con el subdominio real.** De ahí salen los enlaces de los correos (reprogramar,
-  cancelar, agregar al calendario). Con el valor de desarrollo, a la clienta le llega un enlace
-  a `localhost`, que abre en su propia computadora y no lleva a ningún lado.
-- **`APP_DEBUG=false`.** Con `true`, cualquier error le muestra al visitante la traza completa,
-  con la contraseña de la base adentro.
-- **`APP_KEY`**: si es una instalación nueva, `php artisan key:generate`.
+```bash
+docker compose -f docker-compose.produccion.yml run --rm app php artisan key:generate --show
+```
 
-**WebAuthn** toma el dominio como `rpId` de la propia petición, así que no hay nada que
-configurar — pero las credenciales registradas en desarrollo **no sirven** en producción: cada
-persona vuelve a registrar su huella la primera vez.
+> **Se genera UNA vez y no se cambia.** Si cambia, las sesiones abiertas y todo lo cifrado
+> dejan de leerse.
+
+> **`secretos.env` no está en el repositorio y tiene que llegar al servidor igual.** Se copia
+> a mano, con `scp` o pegándolo por SSH. Es el mismo archivo que viaja adentro del ZIP para
+> quien sólo quiere probar el sistema — ver *«El ZIP y el repositorio son dos canales
+> distintos»* en `CLAUDE.md`.
 
 ---
 
-## 7. Comprobarlo, no darlo por bueno
+## 5. Levantar
 
 ```bash
-php artisan spg:diagnostico --produccion
+cd /opt/spg
+docker compose -f docker-compose.produccion.yml up -d --build
+docker compose -f docker-compose.produccion.yml logs -f
 ```
 
-Revisa la conexión, los dos relojes, que estén las 20 rutinas / 30 funciones / 17 triggers /
-17 vistas / 54 CHECK, que las funciones **respondan de verdad** (ahí sale el 1449 si quedó),
-que los definidores existan, que no haya tablas de Laravel dentro de la base del TCC,
-`APP_DEBUG`, `APP_ENV`, `APP_URL`, la zona horaria, que no haya `.env` ni `.sql` dentro de
-`public/`, que la configuración esté cacheada y que el SMTP esté configurado.
+La primera vez tarda: construye la imagen, instala las dependencias con Composer e **importa
+las dos bases**. En el log de `bd` tiene que decir «listo: 60 rutinas» por base.
 
-Tiene que terminar en **«Todo en orden.»** Si algo falla, el mensaje dice qué hacer.
-
-Después, a mano:
-
-1. Entrar con `admin` y con `cliente` (las dos cuentas que trae la base).
-2. Agendar una cita y ver que la agenda ofrezca horarios.
-3. Fichar una entrada de asistencia y **mirar la hora que quedó** contra el reloj de pared.
-4. Emitir un comprobante y ver el desglose del IVA.
-5. Pedir un código por correo (recuperar contraseña) y comprobar que llega.
+Se instala **`peluqueria_bd`**, la base que se entrega: catálogo, un local y las dos cuentas
+del instalador, con **cero operación**. No `peluqueria_test`, que es el mes simulado del QA —
+son clientas y facturas inventadas, y ese volcado lleva adentro **dos correos reales** que
+recibirían recordatorios de citas que no existen.
 
 ---
 
-## 8. La base que se sube está vacía a propósito
-
-`Referencias/peluqueria_bd(base).sql` es **la base que se entrega con el programa**: esquema
-completo, catálogos del sistema, la sucursal 1 y las dos cuentas del instalador — y **cero
-operación**. Un salón que instala el sistema no puede encontrarse con las citas, las facturas
-ni las clientas de otro.
-
-Si se toca la base —una tabla, una columna, un `CHECK`, una función, un trigger—, ese archivo
-se regenera **en la misma tanda**:
+## 6. Comprobarlo, no darlo por bueno
 
 ```bash
-/c/xampp/mysql/bin/mysqldump.exe -u root --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd > "Referencias/peluqueria_bd(base).sql"
+docker compose -f docker-compose.produccion.yml exec app php artisan spg:diagnostico --produccion
 ```
 
-Siempre con `mysqldump`, **nunca exportando desde phpMyAdmin**, que se come las 54
-restricciones `CHECK` sin avisar.
+Revisa la conexión, los dos relojes, que estén los 21 procedimientos / 39 funciones / 17
+disparadores / 17 vistas / 78 `CHECK`, que las funciones **respondan de verdad**, que la base
+coincida con el `.sql` que se entrega, `APP_DEBUG`, `APP_ENV`, `APP_URL`, la zona horaria, que
+no haya `.env` ni `.sql` dentro de `public/`, que la configuración esté cacheada y que el SMTP
+tenga con qué autenticarse.
 
-Para probar con datos está `1mes_simulacion.sql`, que es el mes simulado del QA.
+Tiene que terminar en **«Todo en orden.»**
+
+Después, a mano, y esto no se puede saltear:
+
+1. Abrir `https://spg.columbiatcc.online` y ver que **el candado esté** (sin HTTPS no hay
+   ingreso con huella).
+2. Entrar con `admin` y con `cliente`.
+3. Agendar una cita y ver que la agenda ofrezca horarios.
+4. **Fichar una entrada de asistencia y mirar la hora que quedó contra el reloj de pared.**
+   Es la comprobación que más veces salvó a este proyecto.
+5. Emitir un comprobante y ver el desglose del IVA.
+6. Pedir un código por correo (recuperar contraseña), comprobar **que llega** y que el enlace
+   del correo diga `https://spg.columbiatcc.online`, no `localhost`.
+
+Y lo que le falta CARGAR al salón —que es otra pregunta— lo contesta:
+
+```bash
+docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendientes
+```
+
+---
+
+## 7. El planificador y el respaldo
+
+**El planificador ya está**: es el servicio `cron` del compose, que corre `schedule:run` cada
+minuto. Sin él no salen los recordatorios, las citas vencidas no se cierran y las señas sin
+confirmar no se sueltan nunca. Se comprueba que esté vivo:
+
+```bash
+docker compose -f docker-compose.produccion.yml logs cron | tail
+```
+
+**El respaldo hay que agendarlo**, y es lo único que se agenda en el host:
+
+```bash
+chmod +x docker/respaldo.sh
+crontab -e
+```
+
+```
+0 3 * * * /opt/spg/docker/respaldo.sh >> /opt/spg/respaldos/respaldo.log 2>&1
+```
+
+> **El volumen de Docker NO es un respaldo: es el mismo disco.** Un `docker compose down -v`
+> mal tipeado borra la base sin preguntar. Y un archivo guardado en el mismo servidor tampoco
+> alcanza — hay que **bajarlo a otra máquina**, una vez por semana como mínimo:
+>
+> ```bash
+> scp root@<IP>:/opt/spg/respaldos/*.gz .
+> ```
+>
+> Un respaldo que nunca se restauró es una suposición, no un respaldo.
+
+---
+
+## 8. Antes de publicar: las cuatro cosas que este proyecto venía postergando
+
+`CLAUDE.md` dice que estas se avisan **al desplegar y no antes**, para no repetirlas en cada
+tanda de desarrollo. Éste es el momento.
+
+| Qué | Quién |
+|---|---|
+| **Rotar la contraseña de aplicación de Gmail.** La que está en uso quedó en el historial de git (commits `0de5fb6` y `e18367b`) y **sacarla de un archivo no la borra del historial**: cualquiera con el repositorio la lee con `git show`. Se genera una nueva en `myaccount.google.com/apppasswords`, se revoca la vieja y se pone la nueva en `secretos.env` | **El usuario** |
+| **La base que se instala es `peluqueria_bd`**, la limpia. Comprobado: cero correos reales adentro | hecho |
+| **`APP_DEBUG=false`, `APP_URL` con el subdominio, `LOG_LEVEL=warning`** | hecho en `env.produccion` |
+| **Qué no se sube**: con Docker no aplica, porque la raíz servida es `public/`. Lo que sí importa es que `secretos.env` **nunca** entre al repositorio | hecho (`.gitignore`) |
+
+Dos consecuencias que conviene tener presentes el día uno:
+
+- **Las credenciales de huella registradas en desarrollo no sirven acá.** WebAuthn toma el
+  dominio como `rpId`, así que cada persona vuelve a registrar la suya la primera vez. No es
+  un error: es cómo funciona.
+- **La facturación electrónica sale apagada** (`SIFEN_ACTIVO=false`). Se enciende recién
+  cuando el salón declare de verdad ante la DNIT, y para eso el Automatizador necesita sus
+  certificados, que no están en el repositorio a propósito.
+
+---
+
+## 9. Actualizar el sistema, después
+
+```bash
+cd /opt/spg
+git pull                                    # o subir los archivos nuevos
+docker compose -f docker-compose.produccion.yml up -d --build
+```
+
+**El `--build` no es opcional y el reinicio tampoco**: en el servidor OPcache corre con
+`validate_timestamps=0`, así que no vuelve a mirar el disco nunca. Sin reiniciar el
+contenedor, se sigue sirviendo el código viejo **sin que nada avise** — que es exactamente la
+clase de error que este proyecto documenta una y otra vez.
+
+**Si el cambio tocó el esquema de la base**, el guion de importación no lo va a aplicar: corre
+una sola vez, con el volumen vacío. Hay que aplicar el cambio a mano sobre la base andando
+(nunca `down -v`, que borraría la operación del salón), y `spg:diagnostico` es el que dice si
+la base quedó atrás:
+
+```bash
+docker compose -f docker-compose.produccion.yml exec app php artisan spg:diagnostico --produccion
+```
+
+---
+
+## Lo que Docker se llevó puesto
+
+Queda anotado porque el motivo de cada uno sigue valiendo, y porque si algún día hay que
+desplegar sin contenedores vuelven a hacer falta:
+
+- **Los 84 `DEFINER`.** Las rutinas se crearon con ``DEFINER=`root`@`localhost` ``. Importadas
+  con el usuario limitado de un panel, MySQL contesta **error 1449** la primera vez que algo
+  llame a una función — o sea en la pantalla de ingreso. Lo resuelve
+  `php artisan spg:preparar-sql <archivo> <usuario>`, que reescribe los definidores y pasa
+  `SQL SECURITY DEFINER` a `INVOKER`. **Adentro del contenedor no hace falta porque se conecta
+  como root**, y eso no compra inseguridad: la base no publica ningún puerto.
+- **`log_bin_trust_function_creators = 1`.** Sin esto, con el binlog activo **las funciones no
+  se crean y el import no falla**: termina «bien» y el sistema revienta al primer uso. En el
+  compose está puesto.
+- **La zona horaria.** Un VPS recién instalado corre en **UTC**. `ahora_bd()` sella el fichaje
+  con la hora de la **base**, así que quedaría tres o cuatro horas corrido, y no se nota hasta
+  ver una entrada marcada a medianoche.
+- **La carpeta pública apuntando a `public/`.** Si apunta a la raíz, el `.env` con la
+  contraseña de la base queda descargable por HTTP.
 
 ---
 
