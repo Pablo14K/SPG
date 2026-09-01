@@ -405,6 +405,16 @@ docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendien
 
 ## 8. El planificador y el respaldo
 
+> **Ojo con la ruta del proyecto, que depende de por dónde desplegaste:**
+>
+> | Camino | El proyecto queda en |
+> |---|---|
+> | Administrador de Docker (punto 2) | **`/docker/spg`** — el panel clona a `/tmp/hstgr-…` y copia ahí |
+> | Consola web (puntos 4 a 6) | donde lo clonaste, en este documento `/opt/spg` |
+>
+> Los comandos de abajo usan `/docker/spg`. Si desplegaste por consola, cambiá esa parte.
+> Para salir de dudas: `ls -d /docker/spg /opt/spg 2>/dev/null`.
+
 **El planificador ya está**: es el servicio `cron` del compose, que corre `schedule:run` cada
 minuto. Sin él no salen los recordatorios, las citas vencidas no se cierran y las señas sin
 confirmar no se sueltan nunca. Se comprueba que esté vivo:
@@ -421,7 +431,7 @@ crontab -e
 ```
 
 ```
-0 3 * * * /opt/spg/docker/respaldo.sh >> /opt/spg/respaldos/respaldo.log 2>&1
+0 3 * * * /docker/spg/docker/respaldo.sh >> /var/log/spg-respaldo.log 2>&1
 ```
 
 > **El volumen de Docker NO es un respaldo: es el mismo disco.** Un `docker compose down -v`
@@ -429,7 +439,7 @@ crontab -e
 > alcanza — hay que **bajarlo a otra máquina**, una vez por semana como mínimo:
 >
 > ```bash
-> scp root@<IP>:/opt/spg/respaldos/*.gz .
+> scp root@<IP>:/var/respaldos/spg/*.gz .
 > ```
 >
 > Un respaldo que nunca se restauró es una suposición, no un respaldo.
@@ -524,7 +534,7 @@ También sale en el log del contenedor en cada arranque. Si aparece algo como «
 **1. Respaldo antes de tocar nada.** Es la única red que hay:
 
 ```bash
-/opt/spg/docker/respaldo.sh
+/docker/spg/docker/respaldo.sh
 ```
 
 **2. Aplicar el guion de esa versión.** Vive en `basededatos/actualizaciones/`, con la fecha y
