@@ -527,11 +527,27 @@ También sale en el log del contenedor en cada arranque. Si aparece algo como «
 /opt/spg/docker/respaldo.sh
 ```
 
-**2. Aplicar el cambio a mano**, con el mismo SQL que se corrió en desarrollo:
+**2. Aplicar el guion de esa versión.** Vive en `basededatos/actualizaciones/`, con la fecha y
+la versión en el nombre, y viaja en el repositorio como cualquier otro archivo:
 
 ```bash
-docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < cambio.sql
+docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < basededatos/actualizaciones/2026-09-01_7.88.0.sql
 ```
+
+> **Los guiones de `actualizaciones/` no tocan datos y se pueden volver a correr.** Una rutina
+> —función, procedimiento, disparador, vista— se reemplaza entera con `DROP … IF EXISTS` +
+> `CREATE`, así que aplicar dos veces el mismo archivo deja exactamente lo mismo. Comprobado:
+> corrido sobre una base que ya lo tenía, las 182 citas, las 64 facturas y las 63 rutinas
+> quedaron idénticas.
+>
+> **Una columna o una tabla nueva es otra cosa** y va con `ALTER TABLE` en ese mismo archivo,
+> pero ahí sí conviene mirar el guion antes de correrlo dos veces.
+
+> **`docker/bd/` ya NO sirve para esto, y conviene saberlo porque es el consejo que da todo el
+> mundo.** MariaDB corre lo que haya ahí **una sola vez, con el volumen vacío**: sobre una base
+> con datos no se ejecuta nunca. Desde la 7.87.2 este proyecto ni siquiera lo usa — el
+> importador vive en el arranque de la aplicación. Poner ahí una columna nueva es escribirla
+> para nadie.
 
 **3. Volver a comprobar.** El diagnóstico tiene que terminar en «Todo en orden».
 
