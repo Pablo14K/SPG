@@ -81,29 +81,58 @@ certificado hasta la semana siguiente.
 
 ## 2. El panel de Hostinger: por dónde SÍ y por dónde NO
 
-El VPS trae el **Administrador de Docker**, y ahí hay una pantalla que parece hecha para
-esto y no lo es: **Compuesto → URL**, la que pide «pega aquí la URL de tu archivo Docker
-Compose». Baja **solamente ese archivo** y lo levanta. Para este proyecto se rompen tres
-cosas, y ninguna avisa:
+El VPS trae el **Administrador de Docker**, con una pantalla —**Compuesto → URL**— que pide
+la dirección de un compose y lo levanta sola. Se probó de verdad, con
+`https://raw.githubusercontent.com/…/docker-compose.produccion.yml`, y **hace más de lo que
+su texto promete**: detecta que la URL es de GitHub y **clona el repositorio entero** en un
+temporal antes de construir.
 
-| Qué falta | Qué pasa |
-|---|---|
-| `basededatos/` | MariaDB importa desde ahí en el primer arranque. Sin la carpeta arranca **una base sin una sola tabla** |
-| El código y el `Caddyfile` | los montajes quedan como carpetas vacías: Caddy sirve la nada y php-fpm no encuentra `artisan` |
-| `docker/php/secretos.env` | habría que escribir las contraseñas **dentro del compose**, o sea dentro del repositorio publicado |
+```
+Detected GIT platform: github-raw
+Trying HTTPS clone: https://github.com/Pablo14K/SPG.git
+Cloning into '/tmp/hstgr-5yp5r5qf-dckr-mgr'...
+Image spg-app Built · Image spg-cron Built
+```
 
-La tercera es la que decide: el trabajo de la 7.85.1 fue justamente sacar las credenciales
-del archivo versionado, y esa pantalla obliga a volver a meterlas.
+Así que `basededatos/`, el código y el `Caddyfile` **sí llegan**, y los dos `build` del
+compose funcionan. Lo que la pantalla **no puede** es lo único que hace falta además:
+
+> **`docker/php/secretos.env` no está en el repositorio y no puede estarlo.** Ahí viven la
+> contraseña de la base, la `APP_KEY` y las credenciales del correo. Y cada despliegue clona
+> a un `/tmp/hstgr-…` nuevo, así que tampoco sirve dejarlo puesto a mano una vez.
+
+Sin ese archivo, MariaDB arranca **sin `MYSQL_ROOT_PASSWORD`** y se apaga en el acto. Lo que
+el panel muestra es esto, que no dice nada:
+
+```
+Container spg_bd Error dependency bd failed to start
+dependency failed to start: container spg_bd is unhealthy
+```
+
+**El error de verdad está en el log del contenedor**, no en el panel:
+
+```bash
+docker logs spg_bd
+```
+
+Ahí se lee `database is uninitialized and password option is not specified`, que sí dice qué
+pasa. Es el patrón de siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
 
 **La puerta correcta es «Consola web»**, arriba a la derecha en esa misma pantalla: es una
-terminal en el navegador, con root. Todo lo de abajo se hace ahí.
+terminal en el navegador, con root, y ahí el archivo de secretos se crea una vez y se queda.
+Todo lo de abajo se hace ahí.
 
-> Si algún día se quisiera usar el Administrador de Docker igual, habría que **hornear** el
-> código, los `.sql` y el `Caddyfile` dentro de imágenes propias y publicarlas en un
-> registro. Es más trabajo y deja las credenciales en peor lugar; se anota por si aparece
-> el caso, no como recomendación.
+> **Ojo con lo que recomienda el asistente del panel.** Ante ese error contesta «creá
+> `docker/php/secretos.env` en el repositorio», y eso es exactamente lo que no hay que
+> hacer: pone la contraseña de la base, la `APP_KEY` y la clave del correo dentro de algo
+> que queda publicado y que **no se puede borrar del historial**. Es el trabajo de la 7.85.1
+> deshecho. También dice que no se borren los volúmenes «porque MariaDB está inicializando»,
+> y es al revés: ese arranque **no importó nada** —murió antes—, y un volumen a medio
+> inicializar hace que el guion de importación, que corre una sola vez con el volumen
+> vacío, **no vuelva a correr nunca**.
 
 ---
+
 
 ## 3. El servidor: Docker, cortafuegos y hora
 
@@ -200,6 +229,25 @@ docker compose -f docker-compose.produccion.yml run --rm app php artisan key:gen
 ---
 
 ## 6. Levantar
+
+**Si antes se intentó desde el Administrador de Docker, hay que limpiar primero.** Los
+contenedores llevan nombre fijo (`spg_bd`, `spg_app`…), así que los que quedaron del intento
+fallido chocan con éstos. Y el volumen de la base **tiene que salir**: MariaDB corre el guion
+de importación **una sola vez, con el volumen vacío**, así que uno a medio inicializar deja
+el sistema andando contra una base sin tablas y sin decir nada.
+
+```bash
+docker rm -f spg_bd spg_app spg_web spg_cron spg_sifen
+```
+
+```bash
+docker volume ls -q | grep -E 'datos_bd|vendor_app|caddy_' | xargs -r docker volume rm
+```
+
+> **No hay nada que perder ahí.** Ese arranque murió antes de importar: la base nunca llegó a
+> existir. Borrar el volumen es lo único que garantiza que el `.sql` se cargue.
+
+Y ahora sí:
 
 ```bash
 cd /opt/spg

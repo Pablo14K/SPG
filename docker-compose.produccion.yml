@@ -42,6 +42,13 @@ services:
       TZ: America/Asuncion
     env_file:
       # De acá sale MYSQL_ROOT_PASSWORD.
+      #
+      # **Si falta, Compose aborta con un mensaje claro que nombra el archivo.
+      # Si está pero VACÍO, sigue adelante en silencio** y MariaDB se apaga
+      # apenas arranca. Ese es el caso feo, porque lo que se ve arriba es
+      # «container spg_bd is unhealthy», que no dice nada. El error de verdad
+      # está en `docker logs spg_bd`: «database is uninitialized and password
+      # option is not specified».
       - ./docker/php/secretos.env
     command:
       - --character-set-server=utf8mb4
