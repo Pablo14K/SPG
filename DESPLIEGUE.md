@@ -47,12 +47,24 @@ Lo que sigue siendo trabajo, y es de lo que trata este documento:
 
 ## 1. El DNS: que el subdominio llegue al VPS
 
-En el panel donde se administra `columbiatcc.online`, un registro **A**:
+Un registro **A**, en el panel donde se administre `columbiatcc.online`:
 
 ```
 Tipo   Nombre   Valor              TTL
 A      spg      <IP del VPS>       3600
 ```
+
+**Dónde se carga depende de dónde apunten los nameservers del dominio**, y no de quién lo
+pagó:
+
+| Si los nameservers están en… | Se carga en |
+|---|---|
+| Hostinger | el propio panel: **Administrador de DNS** |
+| el registrador donde se compró (Namecheap, GoDaddy…) | ahí, no en Hostinger |
+
+> **El dominio se compró en grupo, así que este paso puede no ser tuyo.** Es lo primero que
+> hay que pedir, porque todo lo demás depende de que resuelva — y es lo único de esta lista
+> que no se arregla desde el servidor.
 
 Y comprobarlo **antes de seguir**, porque el certificado depende de esto:
 
@@ -67,21 +79,56 @@ certificado hasta la semana siguiente.
 
 ---
 
-## 2. El servidor: Docker y el cortafuegos
+## 2. El panel de Hostinger: por dónde SÍ y por dónde NO
 
-Hostinger entrega el VPS con Docker instalado. Se comprueba y se cierra todo lo demás:
+El VPS trae el **Administrador de Docker**, y ahí hay una pantalla que parece hecha para
+esto y no lo es: **Compuesto → URL**, la que pide «pega aquí la URL de tu archivo Docker
+Compose». Baja **solamente ese archivo** y lo levanta. Para este proyecto se rompen tres
+cosas, y ninguna avisa:
+
+| Qué falta | Qué pasa |
+|---|---|
+| `basededatos/` | MariaDB importa desde ahí en el primer arranque. Sin la carpeta arranca **una base sin una sola tabla** |
+| El código y el `Caddyfile` | los montajes quedan como carpetas vacías: Caddy sirve la nada y php-fpm no encuentra `artisan` |
+| `docker/php/secretos.env` | habría que escribir las contraseñas **dentro del compose**, o sea dentro del repositorio publicado |
+
+La tercera es la que decide: el trabajo de la 7.85.1 fue justamente sacar las credenciales
+del archivo versionado, y esa pantalla obliga a volver a meterlas.
+
+**La puerta correcta es «Consola web»**, arriba a la derecha en esa misma pantalla: es una
+terminal en el navegador, con root. Todo lo de abajo se hace ahí.
+
+> Si algún día se quisiera usar el Administrador de Docker igual, habría que **hornear** el
+> código, los `.sql` y el `Caddyfile` dentro de imágenes propias y publicarlas en un
+> registro. Es más trabajo y deja las credenciales en peor lugar; se anota por si aparece
+> el caso, no como recomendación.
+
+---
+
+## 3. El servidor: Docker, cortafuegos y hora
+
+En la consola web, comprobar que Docker esté:
 
 ```bash
 docker --version && docker compose version
-
-# Sólo SSH y web. El 3307 de la base y el 8090 del SIFEN NO se abren: los
-# contenedores se hablan entre ellos por la red interna de Docker.
-ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp
-ufw enable && ufw status
 ```
+
+**El cortafuegos se administra desde el panel** —*Seguridad → Firewall*—, no con `ufw`.
+Hostinger aplica sus reglas por fuera del sistema operativo, así que las dos capas juntas
+confunden: se abre un puerto adentro, sigue cerrado afuera, y se pierde media tarde
+buscándolo en el lugar equivocado.
+
+Las reglas son tres: **22 (SSH), 80 y 443**. Nada más.
+
+> **El 3307 de la base y el 8090 del SIFEN no se abren nunca.** Los contenedores se hablan
+> por la red interna de Docker, y `docker-compose.produccion.yml` no publica esos puertos
+> justamente para que no dependa de que el cortafuegos esté bien puesto.
 
 > **El 80 no es opcional aunque todo vaya por HTTPS**: Let's Encrypt valida por ahí, así que
 > sin el 80 abierto el certificado no se emite ni se renueva.
+
+> **Ojo con `ufw enable` si igual se lo usa**: sin una regla para el 22 puesta **antes**, el
+> comando corta la propia sesión SSH y se entra sólo por la consola web del panel.
 
 Y la zona horaria del host, que no cuesta nada y evita confundirse leyendo los logs:
 
@@ -89,14 +136,21 @@ Y la zona horaria del host, que no cuesta nada y evita confundirse leyendo los l
 timedatectl set-timezone America/Asuncion
 ```
 
+
 ---
 
-## 3. Subir el proyecto
+## 4. Subir el proyecto
+
+Desde la consola web, con git —que es lo que hace que actualizar después sea un `git pull`
+y no volver a subir un ZIP entero:
 
 ```bash
-mkdir -p /opt/spg && cd /opt/spg
-# …subir acá el contenido del proyecto (clonar el repositorio, o descomprimir el ZIP)
+git clone https://github.com/Pablo14K/SPG.git /opt/spg && cd /opt/spg
 ```
+
+Si el repositorio es **privado**, git va a pedir usuario y contraseña, y GitHub ya no acepta
+la contraseña de la cuenta: hay que darle un **token personal** (`Settings → Developer
+settings → Personal access tokens`, permiso `repo`) como si fuera la contraseña.
 
 **Lo que tiene que estar sí o sí**, porque el arranque depende de ello:
 
@@ -109,7 +163,7 @@ todo lo demás —el `.env`, los `.sql`, `CLAUDE.md`, `tests/`— no es alcanzab
 
 ---
 
-## 4. Las credenciales
+## 5. Las credenciales
 
 ```bash
 cp docker/php/secretos.env.example docker/php/secretos.env
@@ -145,7 +199,7 @@ docker compose -f docker-compose.produccion.yml run --rm app php artisan key:gen
 
 ---
 
-## 5. Levantar
+## 6. Levantar
 
 ```bash
 cd /opt/spg
@@ -163,7 +217,7 @@ recibirían recordatorios de citas que no existen.
 
 ---
 
-## 6. Comprobarlo, no darlo por bueno
+## 7. Comprobarlo, no darlo por bueno
 
 ```bash
 docker compose -f docker-compose.produccion.yml exec app php artisan spg:diagnostico --produccion
@@ -197,7 +251,7 @@ docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendien
 
 ---
 
-## 7. El planificador y el respaldo
+## 8. El planificador y el respaldo
 
 **El planificador ya está**: es el servicio `cron` del compose, que corre `schedule:run` cada
 minuto. Sin él no salen los recordatorios, las citas vencidas no se cierran y las señas sin
@@ -230,7 +284,7 @@ crontab -e
 
 ---
 
-## 8. Antes de publicar: las cuatro cosas que este proyecto venía postergando
+## 9. Antes de publicar: las cuatro cosas que este proyecto venía postergando
 
 `CLAUDE.md` dice que estas se avisan **al desplegar y no antes**, para no repetirlas en cada
 tanda de desarrollo. Éste es el momento.
@@ -253,7 +307,7 @@ Dos consecuencias que conviene tener presentes el día uno:
 
 ---
 
-## 9. Actualizar el sistema, después
+## 10. Actualizar el sistema, después
 
 ```bash
 cd /opt/spg
