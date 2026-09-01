@@ -17,6 +17,7 @@ use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
 use App\Servicios\CitasVencidas;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -4852,5 +4853,160 @@ class ReglasDeNegocioTest extends TestCase
             DB::delete('DELETE FROM caja WHERE id_caja = ?', [$ids[$letra]['caja']]);
             DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$ids[$letra]['cajon']]);
         }
+    }
+
+    /**
+     * El mismo servicio se repite en el día si la cita es para OTRA persona.
+     *
+     * `trg_citaserv_bi` comparaba «el mismo cliente», y eso rechazaba un caso
+     * legítimo y frecuente: la clienta reserva un corte para su hija a las 10 y
+     * otro para ella a las 15. Son dos personas y las dos citas cuelgan de la
+     * misma cuenta, así que el disparador las veía como una repetición.
+     *
+     * La regla pasa a comparar **destinatarios**. Se comprueba en las tres
+     * direcciones, porque con sólo la del medio un disparador borrado pasaría
+     * igual.
+     */
+    #[Test]
+    public function el_mismo_servicio_se_repite_el_dia_si_la_cita_es_para_otra_persona(): void
+    {
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 1');
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente ORDER BY id_cliente LIMIT 1');
+        if (! $prof || ! $servicio || ! $cliente) {
+            $this->markTestSkipped('Falta catálogo para armar la prueba.');
+        }
+
+        // **Un día que esa clienta tenga libre.** Con uno fijo, la prueba mide
+        // lo que haya cargado ese día en vez de la regla.
+        $dia = null;
+        for ($i = 200; $i < 400; $i++) {
+            $d = date('Y-m-d', strtotime("+$i days"));
+            if (! DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ? AND DATE(fecha_hora) = ?', [$cliente, $d])) {
+                $dia = $d;
+                break;
+            }
+        }
+        $this->assertNotNull($dia, 'No encontré un día libre para armar la prueba.');
+
+        $crear = function (string $hora, int $otra, ?string $para) use ($cliente, $prof, $dia): int {
+            DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal,
+                                          para_otra_persona,nombre_para)
+                        VALUES (?,?,1,?,1,?,?)', [$cliente, $prof, "$dia $hora", $otra, $para]);
+
+            return (int) DB::getPdo()->lastInsertId();
+        };
+        $poner = fn (int $idCita) => DB::insert(
+            'INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?)', [$idCita, $servicio]);
+
+        // 1) Las dos para ELLA: sigue rechazando, que es la regla original.
+        $poner($a = $crear('10:00', 0, null));
+        $b = $crear('15:00', 0, null);
+        try {
+            $poner($b);
+            $this->fail('Dos veces el mismo servicio para la misma persona en el día tiene que rechazarse.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('mismo servicio', $e->getMessage());
+        }
+
+        // 2) Una para ella y otra para su hija: ENTRA. Es el caso reportado.
+        $c = $crear('17:00', 1, 'Josefina');
+        $poner($c);
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ?', [$c]),
+            'Una cita para otra persona no repite nada: son dos personas distintas.');
+
+        // 3) Dos para la MISMA hija: se rechaza igual, o la regla no serviría
+        //    para nada — alcanzaría con marcar la casilla para saltearla.
+        $d = $crear('19:00', 1, 'Josefina');
+        try {
+            $poner($d);
+            $this->fail('Dos veces el mismo servicio para la misma tercera persona tiene que rechazarse.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('Josefina', $e->getMessage());
+        }
+    }
+
+    /**
+     * Dos promociones sobre servicios distintos se SUMAN, no compiten.
+     *
+     * Antes se elegía una sola promoción para toda la cita —la que más
+     * descontara— y se la comparaba contra el descuento del nivel: ganaba la
+     * mayor y la otra se perdía. Con una promo del 5 % en el corte y otra del
+     * 3 % en el lavado eso está mal, porque no son ofertas que compitan: cada
+     * una es sobre otra cosa.
+     *
+     * Se comprueba en las dos direcciones: que dos promos sobre servicios
+     * distintos sumen, y que dos sobre el MISMO servicio sigan compitiendo — sin
+     * la segunda mitad, apilar tres promos daría el 100 %.
+     */
+    #[Test]
+    public function los_descuentos_de_servicios_distintos_se_suman(): void
+    {
+        $srv = DB::select('SELECT id_servicio, precio FROM servicio WHERE activo = 1 AND precio > 0
+                            ORDER BY id_servicio LIMIT 2');
+        $cliente = (int) DB::scalar('SELECT id_cliente FROM cliente ORDER BY id_cliente LIMIT 1');
+        $prof = (int) DB::scalar('SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                                   WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 1');
+        if (count($srv) < 2 || ! $cliente || ! $prof) {
+            $this->markTestSkipped('Falta catálogo para armar la prueba.');
+        }
+        [$a, $b] = $srv;
+
+        // Un día libre, para no chocar con lo que haya cargado.
+        $dia = null;
+        for ($i = 400; $i < 600; $i++) {
+            $d = date('Y-m-d', strtotime("+$i days"));
+            if (! DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ? AND DATE(fecha_hora) = ?', [$cliente, $d])) {
+                $dia = $d;
+                break;
+            }
+        }
+        $this->assertNotNull($dia);
+
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal)
+                    VALUES (?,?,1,?,1)', [$cliente, $prof, "$dia 10:00:00"]);
+        $idCita = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio) VALUES (?,?),(?,?)',
+            [$idCita, $a->id_servicio, $idCita, $b->id_servicio]);
+
+        $promo = function (string $nombre, float $pct, int $servicio) {
+            DB::insert("INSERT INTO descuento (nombre, tipo, valor, activo) VALUES (?, 'PORCENTAJE', ?, 1)",
+                [$nombre, $pct]);
+            $id = (int) DB::getPdo()->lastInsertId();
+            DB::insert('INSERT INTO servicio_descuento (id_descuento, id_servicio) VALUES (?,?)', [$id, $servicio]);
+
+            return $id;
+        };
+
+        $nivel = (int) DB::scalar('SELECT fn_cliente_descuento(?)', [$cliente]);
+        $sinPromos = (float) DB::scalar('SELECT fn_cita_descuento_total(?, ?)', [$idCita, $nivel]);
+
+        // 1) Una promo por servicio: el descuento es la SUMA de las dos.
+        $promo('PRUEBA uno', 10, (int) $a->id_servicio);
+        $promo('PRUEBA dos', 4, (int) $b->id_servicio);
+
+        $esperado = round((float) $a->precio * 0.10, 2) + round((float) $b->precio * 0.04, 2);
+        $total = (float) DB::scalar('SELECT fn_cita_descuento_total(?, ?)', [$idCita, $nivel]);
+
+        $this->assertEqualsWithDelta(max($esperado, $sinPromos), $total, 0.01,
+            'Dos promociones sobre servicios distintos tienen que sumarse: no compiten entre sí.');
+
+        // 2) Una TERCERA sobre el primer servicio, peor que la que ya tenía: no
+        //    cambia nada. Dos promos sobre lo mismo siguen compitiendo.
+        $promo('PRUEBA tres peor', 2, (int) $a->id_servicio);
+        $this->assertEqualsWithDelta($total,
+            (float) DB::scalar('SELECT fn_cita_descuento_total(?, ?)', [$idCita, $nivel]), 0.01,
+            'Dos promociones sobre el MISMO servicio compiten: gana la mejor, no se apilan.');
+
+        // 3) Y una mejor sobre ese mismo servicio sí lo mejora, pero reemplaza
+        //    a la anterior en vez de sumarse.
+        $promo('PRUEBA cuatro mejor', 20, (int) $a->id_servicio);
+        $conMejor = (float) DB::scalar('SELECT fn_cita_descuento_total(?, ?)', [$idCita, $nivel]);
+        $this->assertEqualsWithDelta(
+            round((float) $a->precio * 0.20, 2) + round((float) $b->precio * 0.04, 2), $conMejor, 0.01,
+            'Sobre el mismo servicio gana la mejor y reemplaza, no se acumula.');
     }
 }

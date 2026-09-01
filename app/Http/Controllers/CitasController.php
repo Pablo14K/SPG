@@ -235,6 +235,18 @@ class CitasController extends Controller
                     -- Cuánta seña pide el salón por esta cita: sale de
                     -- `servicio.sena_porcentaje`, no de lo que se tipee.
                     fn_cita_sena_requerida(v.id_cita) AS sena_requerida,
+                    -- **¿La persona para la que es la cita ya tiene ficha?** Si la
+                    -- tiene, lo que hace falta desde acá es abrirle SU historial —
+                    -- qué le hicieron la vez pasada, qué color usa— y no ofrecer
+                    -- crearla de nuevo, que dejaría dos fichas de la misma persona
+                    -- y el historial partido en dos.
+                    (SELECT cl.id_cliente
+                       FROM cliente cl
+                       JOIN persona pe ON pe.id_persona = cl.id_persona
+                      WHERE c.para_otra_persona = 1
+                        AND LOWER(TRIM(CONCAT(pe.nombre, ' ', COALESCE(pe.apellido, ''))))
+                            = LOWER(TRIM(c.nombre_para))
+                      ORDER BY cl.id_cliente LIMIT 1) AS id_cliente_para,
                     CASE WHEN f.id_factura IS NULL THEN NULL
                          ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
                     CASE WHEN f.id_factura IS NULL THEN NULL

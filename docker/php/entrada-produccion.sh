@@ -57,7 +57,13 @@ fi
 # viejo puede no tener una subcarpeta agregada después. Sin esto, la primera
 # sesión o la primera foto que se sube fallan con «Permission denied», que en
 # pantalla se ve como un 500 sin explicación.
-mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache \
+# **`framework/cache/data` tiene que existir, y es la que se olvida.** El
+# limitador de intentos del ingreso (`throttle:10,1`) escribe con `Cache::add()`,
+# que a diferencia de `put()` **no crea la carpeta**: sin ella, el POST de
+# ingreso muere con «fopen(...cache/data/...): No such file or directory» — un
+# 500 en cada intento, con credenciales correctas o no.
+mkdir -p storage/framework/sessions storage/framework/views \
+         storage/framework/cache/data \
          storage/logs storage/app/sifen bootstrap/cache \
          public/assets/servicios public/assets/logo
 chown -R www-data:www-data storage bootstrap/cache \
@@ -143,7 +149,7 @@ if [ "${tablas:-0}" -lt 10 ]; then
     # deja el sistema andando y fallando de a poco, que es lo peor que puede
     # pasar acá. Se avisa fuerte, pero no se frena: con las tablas puestas se
     # puede entrar a mirar qué pasó.
-    [ "${rutinas:-0}" -ge 60 ] || echo "== SPG: OJO, esperaba 60 rutinas y hay $rutinas: el import quedó a medias =="
+    [ "${rutinas:-0}" -ge 63 ] || echo "== SPG: OJO, esperaba 63 rutinas y hay $rutinas: el import quedó a medias =="
 fi
 
 # ---------------------------------------------------------------------------

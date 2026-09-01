@@ -23,7 +23,7 @@ class Diagnostico extends Command
     protected $description = 'Revisa la conexión, la hora, las rutinas de la base y los permisos';
 
     /** Cuántas rutinas tiene que haber, según el esquema del TCC */
-    private const ESPERADO = ['PROCEDURE' => 21, 'FUNCTION' => 39, 'trigger' => 17, 'vista' => 17];
+    private const ESPERADO = ['PROCEDURE' => 22, 'FUNCTION' => 41, 'trigger' => 17, 'vista' => 17];
 
     /**
      * Las restricciones CHECK, que un export de phpMyAdmin se come.

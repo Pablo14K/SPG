@@ -361,18 +361,35 @@
                                                  ficha propia no hay dónde anotarle las
                                                  preferencias ni queda su historial. El nombre va
                                                  precargado; el resto lo completa quien atiende. --}}
-                                            @if ($c->para_otra_persona && $c->nombre_para && Permisos::puede('clientes.registro'))
-                                                @php
-                                                    $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2);
-                                                @endphp
-                                                <a class="btn btn-sm btn-rapido"
-                                                   href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
-                                                                                    'apellido' => $partes[1] ?? '']) }}">
-                                                    <i class="bi bi-person-plus"></i>
-                                                    Crear la ficha de {{ $c->nombre_para }}</a>
-                                                <div class="text-muted-warm mt-2" style="font-size:.8rem">
-                                                    Para guardarle sus preferencias y que tenga su propio historial.
-                                                </div>
+                                            @if ($c->para_otra_persona && $c->nombre_para)
+                                                @if ($c->id_cliente_para)
+                                                    {{-- **Ya tiene ficha: lo que hace falta es su
+                                                         HISTORIAL.** Quien la atiende necesita saber
+                                                         qué le hicieron la vez pasada y con qué
+                                                         color, y eso vive en su ficha, no en la de
+                                                         quien reservó. Ofrecer «crear» otra vez
+                                                         dejaría dos fichas de la misma persona y el
+                                                         historial partido al medio. --}}
+                                                    <a class="btn btn-sm btn-rapido"
+                                                       href="{{ route('clientes.historial', $c->id_cliente_para) }}">
+                                                        <i class="bi bi-clock-history"></i>
+                                                        Ver el historial de {{ $c->nombre_para }}</a>
+                                                    <div class="text-muted-warm mt-2" style="font-size:.8rem">
+                                                        Qué se le hizo antes y qué prefiere.
+                                                    </div>
+                                                @elseif (Permisos::puede('clientes.registro'))
+                                                    @php
+                                                        $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2);
+                                                    @endphp
+                                                    <a class="btn btn-sm btn-rapido"
+                                                       href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
+                                                                                        'apellido' => $partes[1] ?? '']) }}">
+                                                        <i class="bi bi-person-plus"></i>
+                                                        Crear la ficha de {{ $c->nombre_para }}</a>
+                                                    <div class="text-muted-warm mt-2" style="font-size:.8rem">
+                                                        Para guardarle sus preferencias y que tenga su propio historial.
+                                                    </div>
+                                                @endif
                                             @endif
                                         </div>
                                         <div class="modal-footer">

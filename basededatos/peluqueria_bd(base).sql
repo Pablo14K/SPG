@@ -517,11 +517,11 @@ UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = cp850 */ ;
-/*!50003 SET character_set_results = cp850 */ ;
-/*!50003 SET collation_connection  = cp850_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg_citaserv_bi
 BEFORE INSERT ON cita_servicio FOR EACH ROW
@@ -529,32 +529,47 @@ BEGIN
   DECLARE v_usuario  INT UNSIGNED DEFAULT NULL;
   DECLARE v_cliente  INT UNSIGNED DEFAULT NULL;
   DECLARE v_dia      DATE DEFAULT NULL;
+  DECLARE v_otra     TINYINT DEFAULT 0;
+  DECLARE v_para     VARCHAR(120) DEFAULT '';
+  
+  
+  DECLARE v_para_txt VARCHAR(120) DEFAULT '';
   DECLARE v_repetido INT DEFAULT 0;
   DECLARE v_nombre   VARCHAR(100) DEFAULT '';
   DECLARE v_msg      VARCHAR(255);
 
-  SELECT c.id_usuario, c.id_cliente, DATE(c.fecha_hora)
-    INTO v_usuario, v_cliente, v_dia
+  SELECT c.id_usuario, c.id_cliente, DATE(c.fecha_hora),
+         COALESCE(c.para_otra_persona, 0), LOWER(COALESCE(TRIM(c.nombre_para), '')),
+         COALESCE(TRIM(c.nombre_para), '')
+    INTO v_usuario, v_cliente, v_dia, v_otra, v_para, v_para_txt
     FROM cita c WHERE c.id_cita = NEW.id_cita;
 
   IF fn_puede_realizar(v_usuario, NEW.id_servicio) = 0 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional de la cita no esta habilitado para ese servicio.';
   END IF;
 
+  
+  
+  
   SELECT COUNT(*) INTO v_repetido
     FROM cita_servicio cs
     JOIN cita c        ON c.id_cita = cs.id_cita
     JOIN estado_cita e ON e.id_estado_cita = c.id_estado_cita
    WHERE cs.id_servicio = NEW.id_servicio
      AND c.id_cliente   = v_cliente
+     AND c.id_cita     <> NEW.id_cita
      AND DATE(c.fecha_hora) = v_dia
-     AND e.bloquea_agenda = 1;
+     AND e.bloquea_agenda = 1
+     AND COALESCE(c.para_otra_persona, 0) = v_otra
+     AND (v_otra = 0
+          OR LOWER(COALESCE(TRIM(c.nombre_para), '')) = v_para);
 
   IF v_repetido > 0 THEN
     SELECT s.nombre INTO v_nombre FROM servicio s WHERE s.id_servicio = NEW.id_servicio;
-    SET v_msg = CONCAT('Esa clienta ya tiene "', v_nombre,
-                       '" agendado para ese mismo dia. No se repite el mismo servicio en el dia: ',
-                       'cambia la fecha, o cancela la otra cita primero.');
+    SET v_msg = CONCAT('Ya hay "', v_nombre, '" agendado para ',
+                       IF(v_otra = 1, CONCAT('"', v_para_txt, '"'), 'esa clienta'),
+                       ' ese mismo dia. No se repite el mismo servicio en el dia para la misma ',
+                       'persona: cambia la fecha, o cancela la otra cita primero.');
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_msg;
   END IF;
 END */;;
@@ -3655,6 +3670,70 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cita_descuento_total` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_descuento_total`(p_id_cita INT UNSIGNED, p_id_nivel INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  DECLARE v DECIMAL(14,2) DEFAULT 0;
+
+  SELECT COALESCE(SUM(
+    (SELECT COALESCE(MAX(fn_descuento_monto(d.id_descuento, s.precio)), 0)
+       FROM descuento d
+      WHERE d.activo = 1
+        
+        
+        AND (d.id_descuento = p_id_nivel
+             OR NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento))
+        
+        
+        AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd
+                          WHERE sd.id_descuento = d.id_descuento)
+             OR EXISTS (SELECT 1 FROM servicio_descuento sd
+                         WHERE sd.id_descuento = d.id_descuento
+                           AND sd.id_servicio = cs.id_servicio))
+        
+        
+        
+        
+        
+        AND (d.tipo = 'PORCENTAJE'
+             OR cs.id_cita_servicio = (
+                  SELECT cs2.id_cita_servicio
+                    FROM cita_servicio cs2
+                    JOIN servicio s2 ON s2.id_servicio = cs2.id_servicio
+                   WHERE cs2.id_cita = p_id_cita
+                     AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                       WHERE sd2.id_descuento = d.id_descuento)
+                          OR EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                      WHERE sd2.id_descuento = d.id_descuento
+                                        AND sd2.id_servicio = cs2.id_servicio))
+                   ORDER BY s2.precio DESC, cs2.id_cita_servicio ASC
+                   LIMIT 1)))
+  ), 0) INTO v
+  FROM cita_servicio cs
+  JOIN servicio s ON s.id_servicio = cs.id_servicio
+  WHERE cs.id_cita = p_id_cita
+    
+    
+    AND NOT EXISTS (SELECT 1 FROM canje cj
+                     WHERE cj.id_cita = cs.id_cita AND cj.id_servicio = cs.id_servicio);
+
+  RETURN v;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_duracion` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3873,7 +3952,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cita_total` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -3909,12 +3988,12 @@ BEGIN
     JOIN servicio s ON s.id_servicio = ca.id_servicio
    WHERE ca.id_cita = p_id_cita;
 
+  
+  
+  
+  
   SET v_nivel = fn_cliente_descuento(v_cliente);
-  SET v_promo = fn_cita_promo_vigente(p_id_cita);
-  SET v_m_nivel = fn_cita_descuento_monto(p_id_cita, v_nivel);
-  SET v_m_promo = fn_cita_descuento_monto(p_id_cita, v_promo);
-
-  SET v_desc = IF(v_m_promo > v_m_nivel, v_m_promo, v_m_nivel);
+  SET v_desc = fn_cita_descuento_total(p_id_cita, v_nivel);
 
   RETURN GREATEST(v_bruto - v_canjeado - v_desc, 0);
 END ;;
@@ -4302,6 +4381,60 @@ BEGIN
   DECLARE v DECIMAL(14,2) DEFAULT 0;
   SELECT COALESCE(SUM(monto_aplicado), 0) INTO v
   FROM factura_descuento WHERE id_factura = p_id_factura;
+  RETURN v;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_factura_descuento_total` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_factura_descuento_total`(p_id_factura INT UNSIGNED, p_id_nivel INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  DECLARE v DECIMAL(14,2) DEFAULT 0;
+
+  SELECT COALESCE(SUM(
+    (SELECT COALESCE(MAX(fn_descuento_monto(d.id_descuento,
+                                            ROUND(df.cantidad * df.precio_unitario, 2))), 0)
+       FROM descuento d
+      WHERE d.activo = 1
+        AND (d.id_descuento = p_id_nivel
+             OR NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento))
+        AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd
+                          WHERE sd.id_descuento = d.id_descuento)
+             OR EXISTS (SELECT 1 FROM servicio_descuento sd
+                         WHERE sd.id_descuento = d.id_descuento
+                           AND sd.id_servicio = df.id_servicio))
+        
+        AND (d.tipo = 'PORCENTAJE'
+             OR df.id_detalle_factura = (
+                  SELECT df2.id_detalle_factura
+                    FROM detalle_factura df2
+                   WHERE df2.id_factura = p_id_factura
+                     AND df2.id_servicio IS NOT NULL
+                     AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                       WHERE sd2.id_descuento = d.id_descuento)
+                          OR EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                      WHERE sd2.id_descuento = d.id_descuento
+                                        AND sd2.id_servicio = df2.id_servicio))
+                   ORDER BY ROUND(df2.cantidad * df2.precio_unitario, 2) DESC,
+                            df2.id_detalle_factura ASC
+                   LIMIT 1)))
+  ), 0) INTO v
+  FROM detalle_factura df
+  WHERE df.id_factura = p_id_factura
+    AND df.id_servicio IS NOT NULL;
+
   RETURN v;
 END ;;
 DELIMITER ;
@@ -5080,6 +5213,71 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_aplicar_descuentos` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_aplicar_descuentos`(IN p_id_factura INT UNSIGNED, IN p_id_nivel INT UNSIGNED)
+BEGIN
+  
+  DELETE FROM factura_descuento WHERE id_factura = p_id_factura;
+
+  INSERT INTO factura_descuento (id_factura, id_descuento, monto_aplicado)
+  WITH candidatos AS (
+    SELECT df.id_detalle_factura,
+           d.id_descuento,
+           fn_descuento_monto(d.id_descuento, ROUND(df.cantidad * df.precio_unitario, 2)) AS monto,
+           ROW_NUMBER() OVER (
+             PARTITION BY df.id_detalle_factura
+             ORDER BY fn_descuento_monto(d.id_descuento,
+                                         ROUND(df.cantidad * df.precio_unitario, 2)) DESC,
+                      d.id_descuento ASC) AS puesto
+      FROM detalle_factura df
+      JOIN descuento d ON d.activo = 1
+     WHERE df.id_factura = p_id_factura
+       AND df.id_servicio IS NOT NULL
+       
+       AND (d.id_descuento = p_id_nivel
+            OR NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento))
+       
+       AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd
+                         WHERE sd.id_descuento = d.id_descuento)
+            OR EXISTS (SELECT 1 FROM servicio_descuento sd
+                        WHERE sd.id_descuento = d.id_descuento
+                          AND sd.id_servicio = df.id_servicio))
+       
+       
+       AND (d.tipo = 'PORCENTAJE'
+            OR df.id_detalle_factura = (
+                 SELECT df2.id_detalle_factura
+                   FROM detalle_factura df2
+                  WHERE df2.id_factura = p_id_factura
+                    AND df2.id_servicio IS NOT NULL
+                    AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                      WHERE sd2.id_descuento = d.id_descuento)
+                         OR EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                     WHERE sd2.id_descuento = d.id_descuento
+                                       AND sd2.id_servicio = df2.id_servicio))
+                  ORDER BY ROUND(df2.cantidad * df2.precio_unitario, 2) DESC,
+                           df2.id_detalle_factura ASC
+                  LIMIT 1))
+  )
+  SELECT p_id_factura, c.id_descuento, SUM(c.monto)
+    FROM candidatos c
+   WHERE c.puesto = 1 AND c.monto > 0
+   GROUP BY c.id_descuento;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `sp_cancelar_cita` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -5342,16 +5540,15 @@ BEGIN
      WHERE sr.id_cita = p_id_cita AND sr.id_detalle_factura IS NULL;
   END IF;
 
+  
+  
+  
+  
+  
+  
+  
   SET v_nivel = fn_cliente_descuento(p_id_cliente);
-  SET v_promo = fn_promo_vigente(p_id_factura);
-  SET v_m_nivel = fn_descuento_monto_factura(p_id_factura, v_nivel);
-  SET v_m_promo = fn_descuento_monto_factura(p_id_factura, v_promo);
-
-  IF v_m_promo > v_m_nivel THEN
-    CALL sp_aplicar_descuento(p_id_factura, v_promo);
-  ELSEIF v_m_nivel > 0 THEN
-    CALL sp_aplicar_descuento(p_id_factura, v_nivel);
-  END IF;
+  CALL sp_aplicar_descuentos(p_id_factura, v_nivel);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -6264,4 +6461,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-28 14:50:11
+-- Dump completed on 2026-09-01 17:01:20

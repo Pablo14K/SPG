@@ -62,37 +62,79 @@ class Sena
             $lista += (float) $f->precio;
         }
 
-        // **De dónde sale el descuento.** Un total más bajo sin explicación se
-        // lee como un error de la pantalla, y quien cobra no puede defenderlo
-        // si la clienta pregunta. Se aplica UNO SOLO —el mejor entre el del
-        // nivel y la promoción vigente—, así que decir cuál es alcanza.
-        $d = DB::selectOne(
-            'SELECT fn_cita_descuento_monto(c.id_cita, fn_cliente_descuento(c.id_cliente)) AS por_nivel,
-                    fn_cita_promo_vigente(c.id_cita) AS id_promo,
-                    (SELECT n.nombre FROM cliente cl2
-                       JOIN nivel n ON n.id_nivel = fn_cliente_nivel(cl2.id_cliente)
-                      WHERE cl2.id_cliente = c.id_cliente) AS nivel
-               FROM cita c WHERE c.id_cita = ?', [$idCita]
+        // El descuento del nivel de esta clienta: es el único de los de nivel
+        // que le corresponde, los otros son de niveles que no tiene.
+        $idNivel = (int) DB::scalar(
+            'SELECT fn_cliente_descuento(c.id_cliente) FROM cita c WHERE c.id_cita = ?', [$idCita]);
+
+        // **De dónde sale el descuento, y ahora pueden ser VARIOS.** Un total
+        // más bajo sin explicación se lee como un error de la pantalla, y quien
+        // cobra no puede defenderlo si la clienta pregunta.
+        //
+        // Desde que el descuento se calcula por servicio, nombrar uno solo sería
+        // mentir por omisión: con una promo del 5 % en el corte y otra del 3 %
+        // en el lavado, el número sale de las dos. Se listan las que de verdad
+        // aportaron — la que gana en cada renglón.
+        $aporta = DB::select(
+            "SELECT d.nombre,
+                    (SELECT COUNT(*) FROM nivel n WHERE n.id_descuento = d.id_descuento) AS es_nivel
+               FROM descuento d
+              WHERE d.activo = 1
+                AND EXISTS (
+                    SELECT 1 FROM cita_servicio cs
+                      JOIN servicio s ON s.id_servicio = cs.id_servicio
+                     WHERE cs.id_cita = :c1
+                       AND NOT EXISTS (SELECT 1 FROM canje cj
+                                        WHERE cj.id_cita = cs.id_cita
+                                          AND cj.id_servicio = cs.id_servicio)
+                       -- Este descuento le aplica a ese servicio…
+                       AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd
+                                         WHERE sd.id_descuento = d.id_descuento)
+                            OR EXISTS (SELECT 1 FROM servicio_descuento sd
+                                        WHERE sd.id_descuento = d.id_descuento
+                                          AND sd.id_servicio = cs.id_servicio))
+                       AND fn_descuento_monto(d.id_descuento, s.precio) > 0
+                       -- …y es el mejor que le aplica: si no, no aportó nada.
+                       AND fn_descuento_monto(d.id_descuento, s.precio) >= ALL (
+                             SELECT fn_descuento_monto(d2.id_descuento, s.precio)
+                               FROM descuento d2
+                              WHERE d2.activo = 1
+                                AND (d2.id_descuento = :niv2
+                                     OR NOT EXISTS (SELECT 1 FROM nivel n2
+                                                     WHERE n2.id_descuento = d2.id_descuento))
+                                AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                                  WHERE sd2.id_descuento = d2.id_descuento)
+                                     OR EXISTS (SELECT 1 FROM servicio_descuento sd2
+                                                 WHERE sd2.id_descuento = d2.id_descuento
+                                                   AND sd2.id_servicio = cs.id_servicio))))
+                AND (d.id_descuento = :niv1
+                     OR NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento))
+              ORDER BY d.nombre",
+            ['c1' => $idCita, 'niv1' => $idNivel, 'niv2' => $idNivel]
         );
 
-        $porPromo = $d && $d->id_promo
-            ? (float) DB::scalar('SELECT fn_cita_descuento_monto(?, ?)', [$idCita, (int) $d->id_promo])
-            : 0.0;
-        $porNivel = (float) ($d->por_nivel ?? 0);
+        $nombreNivel = (string) DB::scalar(
+            'SELECT n.nombre FROM cita c JOIN cliente cl ON cl.id_cliente = c.id_cliente
+               JOIN nivel n ON n.id_nivel = fn_cliente_nivel(cl.id_cliente)
+              WHERE c.id_cita = ?', [$idCita]);
 
-        $promo = $porPromo > $porNivel && $d && $d->id_promo
-            ? (string) DB::scalar('SELECT nombre FROM descuento WHERE id_descuento = ?', [(int) $d->id_promo])
-            : null;
+        $promos = [];
+        $porNivel = false;
+        foreach ($aporta as $a) {
+            if ((int) $a->es_nivel > 0) {
+                $porNivel = true;
+            } else {
+                $promos[] = (string) $a->nombre;
+            }
+        }
 
         return [
             'filas' => $filas,
             'total' => $total,
             'lista' => $lista,
-            'descuento' => max($porNivel, $porPromo),
-            'promo' => $promo,
-            // El nivel sólo se nombra si es el que ganó: decir «Oro» cuando el
-            // descuento vino de una promoción sería explicar mal el número.
-            'nivel' => $promo === null && $porNivel > 0 ? (string) ($d->nivel ?? '') : null,
+            'descuento' => (float) DB::scalar('SELECT fn_cita_descuento_total(?, ?)', [$idCita, $idNivel]),
+            'promo' => $promos ? implode('» y «', $promos) : null,
+            'nivel' => $porNivel ? $nombreNivel : null,
         ];
     }
 }
