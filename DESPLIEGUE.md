@@ -79,60 +79,72 @@ certificado hasta la semana siguiente.
 
 ---
 
-## 2. El panel de Hostinger: por dónde SÍ y por dónde NO
+## 2. Desplegar desde el panel — el camino elegido
 
-El VPS trae el **Administrador de Docker**, con una pantalla —**Compuesto → URL**— que pide
-la dirección de un compose y lo levanta sola. Se probó de verdad, con
-`https://raw.githubusercontent.com/…/docker-compose.produccion.yml`, y **hace más de lo que
-su texto promete**: detecta que la URL es de GitHub y **clona el repositorio entero** en un
-temporal antes de construir.
+El VPS trae el **Administrador de Docker**, y su pantalla **Compuesto → URL** hace más de lo
+que su texto promete: detecta que la dirección es de GitHub y **clona el repositorio entero**
+antes de construir.
 
 ```
 Detected GIT platform: github-raw
 Trying HTTPS clone: https://github.com/Pablo14K/SPG.git
-Cloning into '/tmp/hstgr-5yp5r5qf-dckr-mgr'...
+Cloning into '/tmp/hstgr-…'...
 Image spg-app Built · Image spg-cron Built
 ```
 
-Así que `basededatos/`, el código y el `Caddyfile` **sí llegan**, y los dos `build` del
-compose funcionan. Lo que la pantalla **no puede** es lo único que hace falta además:
+Así que `basededatos/`, el código y el `Caddyfile` llegan, y los dos `build` funcionan. Se
+pega esta URL y se le pone nombre al proyecto:
 
-> **`docker/php/secretos.env` no está en el repositorio y no puede estarlo.** Ahí viven la
-> contraseña de la base, la `APP_KEY` y las credenciales del correo. Y cada despliegue clona
-> a un `/tmp/hstgr-…` nuevo, así que tampoco sirve dejarlo puesto a mano una vez.
+```
+https://raw.githubusercontent.com/Pablo14K/SPG/refs/heads/master/docker-compose.produccion.yml
+```
 
-Sin ese archivo, MariaDB arranca **sin `MYSQL_ROOT_PASSWORD`** y se apaga en el acto. Lo que
-el panel muestra es esto, que no dice nada:
+### El precio, escrito para que nadie lo descubra tarde
+
+**`docker/php/secretos.env` está versionado**, y es la única forma de que el panel lo vea:
+cada despliegue clona a un `/tmp/hstgr-…` **nuevo**, así que un archivo dejado a mano en el
+servidor no sobrevive al siguiente.
+
+Eso significa que la contraseña de la base, la `APP_KEY`, la clave del correo y el token del
+SIFEN **quedan legibles para cualquiera que abra el repositorio**, y no se pueden borrar del
+historial. Con el repositorio **público**, los rastreadores automáticos lo indexan en
+segundos: no alcanza con que esté publicado «un rato».
+
+| Si el repositorio es… | Qué significa |
+|---|---|
+| **Público** | asumir las credenciales como comprometidas y **rotarlas después de desplegar** |
+| **Privado** | mismo mecanismo, exposición mucho menor — sólo hay que comprobar que el panel pueda clonar con credenciales |
+
+> **La alternativa sin ese precio es la «Consola web»** —el botón de arriba a la derecha en
+> esa misma pantalla—: ahí el archivo se crea una vez en el servidor y no viaja nunca. Está
+> escrita completa en los puntos 4 a 6.
+
+### Cuando falla, el panel no dice por qué
+
+Si a `secretos.env` le falta alguna variable, MariaDB arranca sin contraseña y se apaga. Lo
+que se ve arriba es esto, que no sirve de nada:
 
 ```
 Container spg_bd Error dependency bd failed to start
 dependency failed to start: container spg_bd is unhealthy
 ```
 
-**El error de verdad está en el log del contenedor**, no en el panel:
+**El error de verdad está en el log del contenedor:**
 
 ```bash
 docker logs spg_bd
 ```
 
-Ahí se lee `database is uninitialized and password option is not specified`, que sí dice qué
-pasa. Es el patrón de siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
+Ahí se lee `database is uninitialized and password option is not specified`. Es el patrón de
+siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
 
-**La puerta correcta es «Consola web»**, arriba a la derecha en esa misma pantalla: es una
-terminal en el navegador, con root, y ahí el archivo de secretos se crea una vez y se queda.
-Todo lo de abajo se hace ahí.
-
-> **Ojo con lo que recomienda el asistente del panel.** Ante ese error contesta «creá
-> `docker/php/secretos.env` en el repositorio», y eso es exactamente lo que no hay que
-> hacer: pone la contraseña de la base, la `APP_KEY` y la clave del correo dentro de algo
-> que queda publicado y que **no se puede borrar del historial**. Es el trabajo de la 7.85.1
-> deshecho. También dice que no se borren los volúmenes «porque MariaDB está inicializando»,
-> y es al revés: ese arranque **no importó nada** —murió antes—, y un volumen a medio
-> inicializar hace que el guion de importación, que corre una sola vez con el volumen
-> vacío, **no vuelva a correr nunca**.
+> **Y ojo con lo que aconseja el asistente del panel ante ese error.** Dice que no se borren
+> los volúmenes «porque MariaDB está inicializando», y es al revés: ese arranque **no importó
+> nada** —murió antes— y un volumen a medio inicializar hace que el guion de importación, que
+> corre **una sola vez con el volumen vacío**, no vuelva a correr nunca. Con un intento
+> fallido encima hay que sacar el volumen antes de reintentar.
 
 ---
-
 
 ## 3. El servidor: Docker, cortafuegos y hora
 
@@ -168,7 +180,11 @@ timedatectl set-timezone America/Asuncion
 
 ---
 
-## 4. Subir el proyecto
+## 4. Subir el proyecto — *sólo para el camino de la consola web*
+
+> Los puntos 4, 5 y 6 son **la alternativa** al panel: el archivo de secretos se crea una
+> vez en el servidor y no viaja en el repositorio. Si desplegás desde el Administrador de
+> Docker (punto 2), saltá directo al **punto 7**.
 
 Desde la consola web, con git —que es lo que hace que actualizar después sea un `git pull`
 y no volver a subir un ZIP entero:

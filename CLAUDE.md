@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.87.0 | 01/09/2026 | **El sistema se despliega desde el panel de Hostinger, y para eso `secretos.env` pasa a versionarse — con su precio escrito al lado.** El despliegue fallaba con `container spg_bd is unhealthy`, que no dice nada; el error de verdad estaba en `docker logs spg_bd` —«database is uninitialized and password option is not specified»—. **La causa era una sola**: `docker/php/secretos.env` sí llegaba al clon, pero traía únicamente las cuatro claves de correo y el token del SIFEN, y **le faltaban las cinco que el servidor necesita** — `MYSQL_ROOT_PASSWORD`, `DB_PASSWORD`, `APP_KEY`, `SPG_DOMINIO` y `SPG_EMAIL_TLS`—. Sin la primera MariaDB no inicializa y todo lo demás cae por `depends_on`. **Por qué el archivo tiene que estar versionado**: el Administrador de Docker **clona el repositorio en un temporal NUEVO en cada despliegue**, así que uno dejado a mano en el servidor no sobrevive al siguiente — o está en el repositorio, o no hay contraseña. **Y el precio se dice, no se esconde**: la contraseña de la base, la `APP_KEY`, la del correo y el token quedan legibles para cualquiera que abra el repositorio y **no se pueden borrar del historial**; con el repositorio público los rastreadores lo indexan en segundos, así que hay que **darlas por comprometidas y rotarlas después de desplegar**. La alternativa que conserva la regla vieja —la consola web, donde el archivo se crea una vez en el servidor— queda escrita entera en los puntos 4 a 6 de `DESPLIEGUE.md`, y la línea del `.gitignore` está comentada para volver a ponerla. **Se ensayó acá la pila entera antes de tocar el VPS**, con el repositorio tal cual lo clona el panel: `bd` **healthy** y las dos bases importadas con **60 rutinas** cada una, `spg:diagnostico --produccion` terminando en «Todo en orden» **con el correo incluido**, ingreso real como `admin` por HTTPS hasta el panel, el CSS servido por Caddy, las cuatro cabeceras de seguridad, el 80 redirigiendo 308 al 443, el planificador corriendo y —lo que importa— **sólo el proxy publicando puerto**. Con `SPG_DOMINIO=localhost` a propósito, que Let's Encrypt admite cinco intentos fallidos por semana y por dominio |
 | 7.86.3 | 01/09/2026 | **El comando que yo mismo puse para generar la `APP_KEY` no podía funcionar.** Decía `docker compose run --rm app php artisan key:generate --show`, y eso se muerde la cola: `run` ejecuta el entrypoint, y **el entrypoint se apaga a propósito cuando la `APP_KEY` está vacía** — o sea justo en el único momento en que hace falta generarla. Encima, en el primer arranque `vendor/` todavía no existe, así que `artisan` tampoco arrancaría. Pasa a **`openssl rand -base64 32`**, que es exactamente lo que hace `key:generate` —32 bytes al azar en base64— y no necesita ni contenedor ni dependencias. Comprobado: da los 44 caracteres que espera Laravel. Se corrige en los tres lugares donde estaba escrito, incluido **el propio mensaje de error del entrypoint**, que es el que alguien va a leer cuando le pase |
 | 7.86.2 | 01/09/2026 | **El despliegue se intentó de verdad, y lo que yo había escrito del panel era falso en dos de tres puntos.** La 7.86.1 decía que **Administrador de Docker → Compuesto → URL** baja «sólo el archivo compose»; el log del intento real dice otra cosa: detecta que la URL es de GitHub, **clona el repositorio entero** en un temporal y construye las dos imágenes sin un problema. O sea que `basededatos/`, el código y el `Caddyfile` **sí llegan**. Lo que no llega —y es lo único que hacía falta— es **`docker/php/secretos.env`**, que no está en el repositorio a propósito; y como cada despliegue clona a un `/tmp/hstgr-…` nuevo, tampoco sirve dejarlo puesto a mano una vez. **Sin él MariaDB arranca sin `MYSQL_ROOT_PASSWORD` y se apaga en el acto**, y el panel muestra «container spg_bd is unhealthy», que no dice nada: el error de verdad está en `docker logs spg_bd` —«database is uninitialized and password option is not specified»—. Es el patrón de siempre acá, algo falta y el mensaje apunta a otro lado, así que queda escrito dónde mirar. **Y el asistente del panel aconseja mal las dos veces**: dice «creá `secretos.env` en el repositorio», que es la 7.85.1 deshecha —la contraseña de la base, la `APP_KEY` y la del correo dentro de algo publicado que no se puede borrar del historial—; y dice que no se borren los volúmenes «porque MariaDB está inicializando», cuando es al revés: ese arranque **no importó nada**, murió antes, y un volumen a medio inicializar hace que el guion de importación —que corre una sola vez con el volumen vacío— **no vuelva a correr nunca**. Comprobado en el banco: con el archivo ausente Compose aborta con un mensaje claro, y **con el archivo presente pero vacío sigue adelante en silencio**, que es el caso peligroso. Entra además el paso de limpiar un intento fallido antes de levantar, porque los contenedores llevan nombre fijo y chocan |
 | 7.86.1 | 01/09/2026 | **El despliegue se escribe contra el panel de Hostinger, y de paso se auditó qué credenciales quedaron en el historial.** La pantalla **Administrador de Docker → Compuesto → URL** no sirve para este proyecto, y la 7.86.2 corrigió el porqué: **no es que baje sólo el compose** —clona el repositorio entero y construye bien—, es que `docker/php/secretos.env` no está ahí ni puede estarlo, así que MariaDB arranca sin contraseña. La puerta correcta es **«Consola web»**, la terminal del navegador. **El cortafuegos se administra desde el panel, no con `ufw`**: Hostinger aplica sus reglas por fuera del sistema operativo, así que las dos capas juntas hacen perder media tarde —se abre un puerto adentro y sigue cerrado afuera— y queda anotado que `ufw enable` sin una regla para el 22 **corta la propia sesión SSH**. El DNS gana su tabla: **dónde se carga el registro A depende de a dónde apunten los nameservers, no de quién pagó el dominio**, que con un dominio comprado en grupo es la confusión obvia. **Y el barrido del historial encontró dos credenciales de verdad**, las dos en `docker/php/env.docker` antes de que la 7.85.1 las mudara: la contraseña de aplicación de Gmail (`0de5fb6`) y el token del Automatizador (`f6963b5`). El resto de los avisos eran falsos —plantillas `.example` vacías y líneas de documentación con comentarios al lado, que un `grep` por `CLAVE=.+` cuenta como valor—. **Sacarlas de un archivo no las borra del historial**: siguen siendo legibles con `git show`, y lo que las neutraliza es rotarlas, no reescribir 155 commits. Queda pendiente y es del usuario |
@@ -3167,8 +3168,23 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 | `.env` | el real de esta computadora | **no** (está en `.gitignore`) |
 | `.env.example` | plantilla para desarrollar. `cp .env.example .env` y andar | sí |
 | `docker/php/env.docker` | el `.env` de **adentro** del contenedor, montado encima del otro | **sí** |
-| `docker/php/secretos.env` | las contraseñas y tokens del contenedor | **no** (`.gitignore`) — su plantilla es `secretos.env.example` |
+| `docker/php/secretos.env` | las contraseñas y tokens | **sí, desde la 7.87.0** — ver el aviso de abajo |
+| `docker/php/env.produccion` | el `.env` de adentro del contenedor **del servidor** | **sí** |
 | `.env.produccion.example` | plantilla del servidor | sí |
+
+> **`secretos.env` pasó a versionarse en la 7.87.0, y es una decisión con precio, no una
+> mejora.** El VPS se despliega desde el Administrador de Docker de Hostinger, que **clona el
+> repositorio en un temporal nuevo en cada despliegue**: un archivo dejado a mano en el
+> servidor no sobrevive al siguiente. O está versionado, o MariaDB arranca sin contraseña y se
+> apaga.
+>
+> Lo que cuesta: la contraseña de la base, la `APP_KEY`, la clave del correo y el token del
+> SIFEN **quedan legibles para cualquiera que abra el repositorio y no se pueden borrar del
+> historial**. Con el repositorio público hay que **darlas por comprometidas y rotarlas**.
+>
+> **La alternativa sin ese precio existe y está escrita**: desplegar por la «Consola web» del
+> panel, donde el archivo se crea una vez en el servidor. Si algún día se vuelve a eso, la
+> línea del `.gitignore` vuelve. Ver `DESPLIEGUE.md`, puntos 2 y 4-6.
 
 > **Las credenciales viven en `docker/php/secretos.env`, y por eso `env.docker` se
 > versiona normal.** Hasta la 7.85.1 la contraseña de Gmail estaba dentro de `env.docker`,
@@ -3200,19 +3216,24 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 > Una contraseña de aplicación de Google se revoca en `myaccount.google.com/apppasswords`
 > sin tocar la cuenta.
 
-#### El ZIP y el repositorio son dos canales distintos
+#### El ZIP y el repositorio: la regla que la 7.87.0 tuvo que ceder
 
-**`secretos.env` NO va al repositorio y SÍ va al ZIP.** No es una contradicción: son dos
-cosas con destinatarios distintos.
+Hasta la 7.87.0 esto decía **«`secretos.env` NO va al repositorio y SÍ va al ZIP»**, con dos
+destinatarios distintos: al repositorio no, porque es el respaldo del TCC y queda publicado y
+lo que entra al historial no sale nunca más; al ZIP sí, porque quien lo recibe tiene que
+descomprimir y probar, no armar un servidor de correo para ver si el registro de clientas anda.
 
-| | Qué lleva | Por qué |
-|---|---|---|
-| **El repositorio** | sin credenciales | es el respaldo del TCC y queda publicado; lo que entra al historial **no sale nunca más** — la contraseña que hay hoy sigue siendo legible en dos commits viejos |
-| **El ZIP** | con credenciales | quien lo recibe tiene que **descomprimir y probar**, no configurar un servidor de correo para ver si el registro de clientas anda |
+**La mitad del ZIP sigue valiendo igual.** Se arma comprimiendo la carpeta y eso lo resuelve
+solo: `secretos.env` es un archivo más ahí adentro. Lo que **no** hay que hacer es armarlo con
+`git archive` ni con una herramienta que respete el `.gitignore` — eso deja el sistema sin
+correo, y sin decirlo.
 
-**Se arma comprimiendo la carpeta, y eso lo resuelve solo**: `secretos.env` es un archivo
-más ahí adentro. Lo que **no** hay que hacer es armarlo con `git archive` ni con una
-herramienta que respete el `.gitignore` — eso deja el sistema sin correo, y sin decirlo.
+**La mitad del repositorio se cedió, y conviene saber a cambio de qué.** El despliegue en el
+VPS se hace desde el panel de Hostinger, que clona el repositorio en un temporal nuevo cada
+vez: no hay dónde poner el archivo si no está versionado. Se eligió eso sabiendo el precio —
+credenciales legibles y para siempre en el historial— y con la contrapartida obligatoria de
+**rotarlas después de desplegar**. La alternativa que conserva la regla es la consola web, y
+está escrita en `DESPLIEGUE.md`.
 
 > **Y si igual se cuela, ahora se nota.** `spg:diagnostico` distingue «el driver dice smtp»
 > de «hay con qué autenticarse»: con las credenciales vacías avisa que **no va a salir ni un
