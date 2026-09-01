@@ -39,7 +39,13 @@
                     <label class="form-label" for="valor">Valor *</label>
                     <input class="form-control input-miles" id="valor" name="valor" data-decimales="2"
                            data-min="1" required
-                           value="{{ old('valor', $d->valor ?? '') }}">
+                           {{-- **`cant()` y no el valor crudo.** El campo lo dibuja
+                                `input-miles`, que habla en formato español: la coma es el
+                                decimal y el punto agrupa de a tres. Un `DECIMAL` de SQL
+                                llega como «10.00», y `formatear()` le saca el punto y lo
+                                convierte en 1.000 — **cada edición multiplicaba el valor
+                                por cien**. --}}
+                           value="{{ old('valor', isset($d) ? cant($d->valor) : '') }}">
                     {{-- **Cero no es un descuento, es no tener descuento**, y una
                          promoción al 0 % ocupa lugar en la lista sin hacer nada.
                          El tope del 100 % lo comprueba el servidor: en porcentaje

@@ -96,7 +96,9 @@
                     <label class="form-label" for="contenido">Contenido de cada unidad</label>
                     <input class="form-control input-miles" id="contenido" name="contenido" data-decimales="2"
                            data-min="0" placeholder="1000"
-                           value="{{ old('contenido', $p->contenido ?? '') }}">
+                           {{-- Mismo caso que el valor del descuento: sin `cant()`, el
+                                «1000.0000» del DECIMAL se vuelve 10.000.000 al reeditar. --}}
+                           value="{{ old('contenido', isset($p) && $p->contenido !== null ? cant($p->contenido) : '') }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="unidad_consumo">Se gasta en</label>
@@ -113,7 +115,7 @@
                     <label class="form-label" for="stock_minimo">Stock mínimo</label>
                     <input class="form-control input-miles" id="stock_minimo" name="stock_minimo"
                            data-decimales="2" data-min="0"
-                           value="{{ old('stock_minimo', $p->stock_minimo ?? 0) }}">
+                           value="{{ old('stock_minimo', cant($p->stock_minimo ?? 0)) }}">
                     <div class="form-text">Por debajo de esto, aparece el aviso de reposición.</div>
                 </div>
                 <div class="col-md-3">

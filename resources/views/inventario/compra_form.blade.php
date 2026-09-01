@@ -144,18 +144,22 @@
                     @endif
                     {{-- Los rótulos de las columnas: con cinco campos por fila
                          y sólo placeholders, hay que adivinar cuál es cuál. --}}
+                    {{-- **El subtotal necesita su propia columna.** Con `col-md-1`
+                         compartía lugar con el botón de quitar, así que el número se
+                         derramaba sobre el combo de categoría y los dos se leían como
+                         uno solo. 4+2+2+2+2 = 12. --}}
                     <div class="row g-2 mb-1 text-muted-warm d-none d-md-flex" style="font-size:.78rem">
-                        <div class="col-md-5">Producto</div>
+                        <div class="col-md-4">Producto</div>
                         <div class="col-md-2">Cantidad</div>
                         <div class="col-md-2">Precio unitario</div>
                         <div class="col-md-2">Categoría</div>
-                        <div class="col-md-1 text-end">Subtotal</div>
+                        <div class="col-md-2 text-end">Subtotal</div>
                     </div>
 
                     <div id="filasCompra">
                         @for ($i = 0; $i < $cuantas; $i++)
                             <div class="row g-2 mb-2 filaCompra">
-                                <div class="col-md-5">
+                                <div class="col-md-4">
                                     {{-- **La lupa abre el catálogo con el stock a la
                                          vista.** El `datalist` sugiere por nombre, que
                                          sirve cuando ya se sabe qué se busca; para
@@ -200,8 +204,8 @@
                                      multiplicar de cabeza para saber si un
                                      renglón está bien cargado, y el error
                                      aparece recién en el total. --}}
-                                <div class="col-md-1 d-flex align-items-center justify-content-end gap-2">
-                                    <span class="subtotalFila text-muted-warm" style="font-size:.85rem">—</span>
+                                <div class="col-md-2 d-flex align-items-center justify-content-end gap-2">
+                                    <span class="subtotalFila text-muted-warm text-nowrap" style="font-size:.85rem">—</span>
                                     {{-- **Quitar la fila.** Sin esto, una fila cargada
                                          por error sólo se podía «borrar» vaciando sus
                                          tres campos a mano — y si quedaba algo, el

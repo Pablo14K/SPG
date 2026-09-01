@@ -293,6 +293,21 @@
                             </td>
                         </tr>
 
+                    @empty
+                        <tr>
+                            <td colspan="{{ $verTodo ? 7 : 6 }}">
+                                <div class="spg-vacio">
+                                    <i class="bi bi-calendar-week"></i>
+                                    <div class="t">No hay citas para el {{ fecha($dia, 'd/m/Y') }}.</div>
+                                    <div class="d">Agendá una con el botón «Nueva cita».</div>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+        @foreach ($rows as $c)
                         {{-- **Lo que la clienta dejó dicho al reservar.** Se guardaba
                              desde el portal y no se mostraba en ninguna pantalla: quien
                              atiende no sabía que la cita era para la hija, ni cuánta
@@ -300,9 +315,14 @@
 
                              Va en un modal y no en la fila porque es lo que se mira
                              una vez, al preparar el turno; la fila tiene que seguir
-                             leyéndose de un vistazo. --}}
+                             leyéndose de un vistazo.
+
+                             **Y va FUERA de la tabla, que es lo que lo tenía roto.**
+                             Estaba dentro de un `<tr class="d-none">`, y un ancestro
+                             con `display:none` gana siempre: el modal no podía hacerse
+                             visible ni con Bootstrap haciendo su trabajo. Se veía el
+                             fondo gris y nada más. --}}
                         @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
-                            <tr class="d-none"><td colspan="{{ $verTodo ? 7 : 6 }}">
                             <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content">
@@ -362,21 +382,8 @@
                                     </div>
                                 </div>
                             </div>
-                            </td></tr>
                         @endif
-                    @empty
-                        <tr>
-                            <td colspan="{{ $verTodo ? 7 : 6 }}">
-                                <div class="spg-vacio">
-                                    <i class="bi bi-calendar-week"></i>
-                                    <div class="t">No hay citas para el {{ fecha($dia, 'd/m/Y') }}.</div>
-                                    <div class="d">Agendá una con el botón «Nueva cita».</div>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        @endforeach
         </div>
     </div>
 

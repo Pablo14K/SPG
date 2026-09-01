@@ -73,6 +73,14 @@ services:
         condition: service_healthy
     environment:
       TZ: America/Asuncion
+      # **Lo de acá le gana a `secretos.env`**, y hace falta: ese archivo lo
+      # comparten los dos compose, y desde la 7.87.0 lleva las credenciales del
+      # SERVIDOR. Sin fijarlas, el contenedor de desarrollo intenta entrar a su
+      # MariaDB local con la contraseña de producción y contesta
+      # «Access denied for user 'root'» — con la base andando perfecto al lado.
+      DB_PASSWORD: root
+      DB_DATABASE: peluqueria_test
+      APP_KEY: base64:WC2cA7RMPZWmnYlFgJDE+Y8FZ3Cg+NA31/xPTUtF0dU=
     # **Las credenciales entran por acá, no por el `.env` montado.**
     #
     # Con la contraseña dentro de `env.docker`, ese archivo tenía que ir con
