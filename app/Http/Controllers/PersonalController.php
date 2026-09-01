@@ -1210,6 +1210,20 @@ class PersonalController extends Controller
 
                     return $volver;
                 }
+                // **La observación es opcional, pero si se escribe tiene que
+                // decir algo.** Marcar una falta no obliga a inventar un motivo
+                // —muchas veces todavía no se sabe— y por eso vacío pasa. Lo que
+                // no sirve es «ok» o un punto: ocupan el lugar de una
+                // explicación sin serlo, y esto es lo que va a leer quien revise
+                // la planilla dentro de tres meses. La pantalla lo pide con
+                // `minlength`; acá se vuelve a comprobar, que esconder el campo
+                // nunca es el control.
+                if ($motivo !== null && mb_strlen($motivo) < 10) {
+                    flash('La observación quedó en ' . mb_strlen($motivo) . ' caracteres: '
+                        . 'escribí al menos 10, o dejala vacía.', 'error');
+
+                    return $volver;
+                }
                 $this->asistenciaGuardar($idQuien, $idTurno, $fecha, [
                     'hora_entrada' => null, 'hora_salida' => null, 'horas_extras' => 0,
                     'justificada' => $justificada,

@@ -65,10 +65,21 @@
                 @endif
             @endforeach
 
+            {{-- **La acción puede abrir un modal en vez de navegar.** Hay altas
+                 de una sola pantalla —un proveedor, una categoría— donde irse a
+                 otra vista para cargar cinco campos y volver hace perder el
+                 lugar en la lista. Se declara con `'modal' => '#idDelModal'` en
+                 lugar de `'ruta'`. --}}
+            @if ($accion && ! empty($accion['modal']))
+                <button type="button" class="btn btn-oro"
+                        data-bs-toggle="modal" data-bs-target="{{ $accion['modal'] }}">
+                    @if (! empty($accion['ic']))<i class="bi bi-{{ $accion['ic'] }}"></i>@endif {{ $accion['t'] }}</button>
+            @endif
+
             {{-- `q` son los parámetros que el botón arrastra: la ficha del
                  equipo los usa para saber si se entró por Usuarios o por
                  Personal, que abren la misma pantalla en pestañas distintas. --}}
-            @if ($accion && ($url = Navegacion::url($accion['ruta'])))
+            @if ($accion && empty($accion['modal']) && ($url = Navegacion::url($accion['ruta'])))
                 @php
                     if (! empty($accion['q'])) {
                         $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($accion['q']);

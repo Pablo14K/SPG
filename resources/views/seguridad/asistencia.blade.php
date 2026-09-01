@@ -128,9 +128,13 @@
                                     @endif
 
                                     @if ($porOtros)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Marcar falta"
+                                        {{-- **Con nombre, no sólo el ícono.** Eran dos
+                                             botones neutros seguidos —un monigote y una
+                                             goma— y había que pasar el mouse por encima
+                                             para saber cuál borraba. --}}
+                                        <button class="btn btn-sm btn-outline-neutro" title="Registrar que no vino"
                                                 data-bs-toggle="modal" data-bs-target="#modalFalta{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                            <i class="bi bi-person-x"></i></button>
+                                            <i class="bi bi-person-x"></i> Falta</button>
 
                                         @if ($f->id_asistencia)
                                             <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
@@ -139,16 +143,16 @@
                                                 <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
                                                 <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
                                                 <input type="hidden" name="fecha" value="{{ $fecha }}">
-                                                <button class="btn btn-sm btn-outline-neutro" title="Borrar el registro"
+                                                <button class="btn btn-sm btn-outline-neutro" title="Borrar lo registrado y dejar el turno como si nada"
                                                         data-confirmar="¿Borrar lo registrado de {{ $f->profesional }} para ese turno?">
-                                                    <i class="bi bi-eraser"></i></button>
+                                                    <i class="bi bi-eraser txt-no"></i> Borrar</button>
                                             </form>
                                         @endif
                                     @endif
 
                                     @if (! $f->hora_entrada && $f->id_asistencia
                                          && (int) ($f->justificada ?? -1) === 0)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Justificar llegada tardía"
+                                        <button class="btn btn-sm btn-outline-neutro" title="Darle el permiso y registrar por qué"
                                                 data-bs-toggle="modal" data-bs-target="#modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}">
                                             <i class="bi bi-chat-square-text"></i> Justificar</button>
                                     @endif
@@ -174,7 +178,7 @@
         </div>
     </div>
 
-    {{-- Marcar falta: con permiso pide el motivo, que es lo que la justifica --}}
+    {{-- Marcar falta: constatar que no vino. El permiso se da después. --}}
     @if ($porOtros)
         @foreach ($filas as $f)
             <div class="modal fade" id="modalFalta{{ $f->id_usuario }}_{{ $f->id_turno }}" tabindex="-1">
@@ -191,15 +195,36 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
+                                {{-- **Marcar es constatar, no decidir.** El servidor ya
+                                     trabaja así desde la 7.81.0 y la pantalla se había
+                                     quedado con los dos botones viejos: obligaban a
+                                     resolver si hubo permiso **en el momento de marcar**,
+                                     que es justo cuando todavía no se sabe por qué no
+                                     vino. Entra como falta sin aviso, y el permiso se da
+                                     después con «Justificar», cuando la persona explica. --}}
+                                <p class="text-muted-warm" style="font-size:.84rem">
+                                    Se registra que <strong>{{ $f->profesional }}</strong> no vino
+                                    a ese turno. Entra como <strong>falta sin aviso</strong>: si después
+                                    explica el motivo y corresponde darle el permiso, se hace con el botón
+                                    <em>Justificar</em> de esa misma fila.
+                                </p>
                                 <label class="form-label" for="mot{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                    Motivo (obligatorio si es con permiso)</label>
-                                <input class="form-control" id="mot{{ $f->id_usuario }}_{{ $f->id_turno }}"
-                                       name="motivo_ausencia" maxlength="150">
+                                    Observación <span class="text-muted-warm">(opcional)</span></label>
+                                <textarea class="form-control" id="mot{{ $f->id_usuario }}_{{ $f->id_turno }}"
+                                          name="motivo_ausencia" maxlength="150" rows="2"
+                                          minlength="10"
+                                          placeholder="Lo que se sepa hasta ahora — se puede dejar vacío"></textarea>
+                                {{-- **Si se escribe, que diga algo.** «ok» o un punto ocupan
+                                     el lugar de una explicación sin serlo, y esto es lo que
+                                     va a leer quien revise la planilla dentro de tres meses.
+                                     Vacío se admite: marcar una falta no obliga a inventar
+                                     un motivo. El servidor lo vuelve a comprobar. --}}
+                                <div class="form-text">Si escribís algo, que sean al menos 10 caracteres.</div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                                <button class="btn btn-outline-neutro" name="accion" value="falta_sin">Sin aviso</button>
-                                <button class="btn btn-oro" name="accion" value="falta_con">Con permiso</button>
+                                <button class="btn btn-oro" name="accion" value="falta_sin">
+                                    <i class="bi bi-person-x"></i> Marcar la falta</button>
                             </div>
                         </form>
                     </div>
@@ -222,13 +247,14 @@
                             <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
                             <input type="hidden" name="fecha" value="{{ $fecha }}">
                             <div class="modal-header">
-                                <h5 class="modal-title" style="font-size:1rem">Justificar llegada tardía</h5>
+                                <h5 class="modal-title" style="font-size:1rem">Justificar la falta de {{ $f->profesional }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.84rem">
-                                    {{ $f->profesional }} puede marcar la entrada después de la tolerancia,
-                                    pero el motivo queda registrado para administración.
+                                    Queda como falta <strong>con permiso</strong>, así que no se le
+                                    descuenta. {{ $f->profesional }} puede además marcar la entrada
+                                    después de la tolerancia. El motivo queda registrado.
                                 </p>
                                 {{-- **Al menos diez caracteres.** «ok», «sí» o un
                                      punto no explican nada, y esto es lo único que
