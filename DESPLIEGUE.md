@@ -214,20 +214,20 @@ Lo que aparezca como directorio (`d` al principio) se borra:
 rm -rf /docker/spg/docker/php/env.produccion /docker/spg/docker/caddy/Caddyfile
 ```
 
-**2. El volumen de la base, si quedó inicializado y vacío.** Es el peor caso,
-porque el guion de importación corre **una sola vez, con el volumen vacío**:
-sobre uno ya inicializado no vuelve a correr nunca y el sistema arranca contra
-una base sin una sola tabla. Se comprueba sin borrar nada:
+**2. El volumen de la base ya NO hace falta tocarlo.** Desde la 7.87.2 el arranque de la
+aplicación comprueba la base y **la importa sola si está vacía**, así que un volumen que quedó
+inicializado a medias se arregla en el despliegue siguiente sin entrar por consola. En el log
+del contenedor `spg_app` se ve:
 
-```bash
-docker exec spg_bd sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"peluqueria_bd\";"'
+```
+== SPG: la base 'peluqueria_bd' está vacía (0 tablas): importando ==
+== SPG: importada · 97 tablas y vistas · 60 rutinas ==
 ```
 
-Si devuelve **0**, hay que sacarlo antes de volver a desplegar:
-
-```bash
-docker rm -f spg_bd spg_app spg_web spg_cron spg_sifen; docker volume rm spg_datos_bd
-```
+Con la base ya cargada no dice nada de eso y **no toca un solo dato**: sólo importa si hay
+menos de 10 tablas. Y si no puede ni conectarse, **se apaga diciéndolo** en vez de confundir
+«no pude preguntar» con «no hay nada» — que era lo peligroso, porque el `.sql` empieza con
+`DROP TABLE IF EXISTS`.
 
 ---
 

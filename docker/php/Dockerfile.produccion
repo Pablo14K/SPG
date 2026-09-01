@@ -63,7 +63,7 @@ COPY docker/php/env.produccion /app/.env
 
 RUN composer dump-autoload --optimize --no-dev \
     && mkdir -p storage/framework/sessions storage/framework/views \
-                storage/framework/cache storage/logs storage/app/sifen \
+                storage/framework/cache/data storage/logs storage/app/sifen \
                 bootstrap/cache public/assets/servicios public/assets/logo \
     && chown -R www-data:www-data storage bootstrap/cache public/assets
 
