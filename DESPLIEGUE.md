@@ -215,8 +215,10 @@ MAIL_FROM_ADDRESS=       # la MISMA cuenta que se autentica, o Gmail rechaza
 La `APP_KEY` se genera una vez y se pega ahí:
 
 ```bash
-docker compose -f docker-compose.produccion.yml run --rm app php artisan key:generate --show
+echo "APP_KEY=base64:$(openssl rand -base64 32)"
 ```
+
+> **Se genera con `openssl` y no con `artisan key:generate`, y no es capricho.** Ese comando necesita el contenedor levantado, y el contenedor **se apaga a propósito cuando la `APP_KEY` está vacía** — que es justo el momento en que uno la necesita. Además, en el primer arranque `vendor/` todavía no existe. Lo que `artisan` hace es exactamente esto: 32 bytes al azar en base64.
 
 > **Se genera UNA vez y no se cambia.** Si cambia, las sesiones abiertas y todo lo cifrado
 > dejan de leerse.

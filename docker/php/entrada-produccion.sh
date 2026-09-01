@@ -23,10 +23,10 @@ falta() {
 [ -f .env ] || falta "no hay .env montado (docker/php/env.produccion)."
 
 # La APP_KEY va en `secretos.env`, no en el .env versionado. Se genera UNA vez
-# con `php artisan key:generate --show` y se pega ahí; si se cambia después,
+# con `openssl rand -base64 32` y se pega ahí; si se cambia después,
 # las sesiones abiertas y todo lo cifrado dejan de leerse.
 [ -n "$APP_KEY" ] || falta "APP_KEY vacía. Generala con:
-       docker compose -f docker-compose.produccion.yml run --rm app php artisan key:generate --show
+       echo \"APP_KEY=base64:\$(openssl rand -base64 32)\"
    y pegala en docker/php/secretos.env"
 
 [ -n "$DB_PASSWORD" ] || falta "DB_PASSWORD vacía. Está en docker/php/secretos.env."
