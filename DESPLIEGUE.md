@@ -140,9 +140,10 @@ siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
 
 > **Y ojo con lo que aconseja el asistente del panel ante ese error.** Dice que no se borren
 > los volúmenes «porque MariaDB está inicializando», y es al revés: ese arranque **no importó
-> nada** —murió antes— y un volumen a medio inicializar hace que el guion de importación, que
-> corre **una sola vez con el volumen vacío**, no vuelva a correr nunca. Con un intento
-> fallido encima hay que sacar el volumen antes de reintentar.
+> nada** —murió antes—. Desde la 7.87.2 eso ya no obliga a nada: **el arranque de la
+> aplicación importa la base si la encuentra vacía**, así que un volumen que quedó a medias se
+> arregla en el despliegue siguiente. Lo que sí hay que limpiar son las carpetas fantasma de
+> `/docker/spg` — ver más abajo.
 
 ### Por qué el compose de producción no tiene NI UN montaje de host
 
@@ -458,27 +459,106 @@ Dos consecuencias que conviene tener presentes el día uno:
 
 ---
 
-## 10. Actualizar el sistema, después
+## 10. Actualizar el sistema con el salón andando
+
+**Son dos casos y conviene saber en cuál estás antes de tocar nada**, porque uno es apretar
+un botón y el otro toca la base de un salón con datos reales.
+
+La pregunta que los separa: **¿el cambio tocó el esquema de la base?** Y tiene una respuesta
+mecánica, porque la regla del proyecto es que al tocar una tabla, una columna, un `CHECK`, una
+vista, una función o un disparador se regenera `basededatos/peluqueria_bd(base).sql` **en la
+misma tanda**. Así que alcanza con mirar si ese archivo cambió:
 
 ```bash
-cd /opt/spg
-git pull                                    # o subir los archivos nuevos
-docker compose -f docker-compose.produccion.yml up -d --build
+git log --name-only --oneline -5 | grep -c "peluqueria_bd(base).sql"
 ```
 
-**El `--build` no es opcional y el reinicio tampoco**: en el servidor OPcache corre con
-`validate_timestamps=0`, así que no vuelve a mirar el disco nunca. Sin reiniciar el
-contenedor, se sigue sirviendo el código viejo **sin que nada avise** — que es exactamente la
-clase de error que este proyecto documenta una y otra vez.
+**0** → sólo código, caso A. **Más de 0** → tocó la base, caso B.
 
-**Si el cambio tocó el esquema de la base**, el guion de importación no lo va a aplicar: corre
-una sola vez, con el volumen vacío. Hay que aplicar el cambio a mano sobre la base andando
-(nunca `down -v`, que borraría la operación del salón), y `spg:diagnostico` es el que dice si
-la base quedó atrás:
+---
+
+### Caso A · Sólo código (la mayoría de las correcciones)
+
+Un arreglo de PHP, de una vista, del CSS o del JavaScript. Son dos pasos:
+
+1. Subir el cambio: `git push origin master`.
+2. En el panel, **Administrador de Docker → tu proyecto → Implementar** (la misma URL del
+   compose de siempre).
+
+El panel vuelve a clonar, **reconstruye las imágenes** —el código viaja adentro— y recrea los
+contenedores. Eso es todo: la base no se toca, y el arranque no la va a importar porque no
+está vacía.
+
+> **El rebuild no es opcional.** En el servidor OPcache corre con `validate_timestamps=0`, o
+> sea que **no vuelve a mirar el disco nunca**: sin reconstruir y recrear el contenedor se
+> sigue sirviendo el código viejo **sin que nada avise**. Es la forma exacta en que este
+> proyecto se rompe siempre, y el panel lo hace solo en cada despliegue.
+
+**Comprobar que la versión nueva es la que está corriendo** — se lee de adentro de la imagen,
+que es lo que de verdad se está sirviendo:
 
 ```bash
-docker compose -f docker-compose.produccion.yml exec app php artisan spg:diagnostico --produccion
+docker exec spg_app grep -m1 "'version'" config/spg.php
 ```
+
+Tiene que decir la que acabás de subir. Si dice la anterior, el despliegue no reconstruyó.
+
+---
+
+### Caso B · El cambio tocó la base
+
+**Acá el despliegue NO alcanza, y hay que saberlo de antemano.** El importador del arranque
+sólo actúa con la base vacía —es a propósito: sobre una cargada, importar sería borrar la
+operación del salón— así que una columna nueva **no se aplica sola**.
+
+El sistema te lo dice, y ése es el punto: `spg:diagnostico` compara la base contra el `.sql`
+que se entrega y nombra lo que falta.
+
+```bash
+docker exec spg_app php artisan spg:diagnostico --produccion
+```
+
+También sale en el log del contenedor en cada arranque. Si aparece algo como «faltan
+`preferencia_usuario.tema`», el orden es este y **el primer paso no se saltea**:
+
+**1. Respaldo antes de tocar nada.** Es la única red que hay:
+
+```bash
+/opt/spg/docker/respaldo.sh
+```
+
+**2. Aplicar el cambio a mano**, con el mismo SQL que se corrió en desarrollo:
+
+```bash
+docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < cambio.sql
+```
+
+**3. Volver a comprobar.** El diagnóstico tiene que terminar en «Todo en orden».
+
+> **Nunca `docker compose down -v` en el servidor.** El `-v` borra el volumen, y ahí vive la
+> operación del salón: las citas, las facturas, los cobros. En desarrollo es lo que se hace
+> para reimportar de cero; acá es perder el año. Si hiciera falta empezar de cero, se restaura
+> desde el respaldo.
+
+> **Y si el cambio es de rutinas** —una función, un procedimiento, un disparador— acordate de
+> que el `.sql` las trae con `DROP ... IF EXISTS` adelante, así que reaplicar sólo esa parte es
+> seguro. Lo que no se puede reaplicar entero es el volcado completo, que empieza tirando las
+> tablas.
+
+---
+
+### Volver atrás
+
+Como el código viaja en la imagen y la imagen se construye desde un commit, deshacer es
+volver el repositorio y redesplegar:
+
+```bash
+git revert <commit> && git push origin master
+```
+
+Y otra vez **Implementar** en el panel. La base no se toca, así que un revert de código es
+inocuo. **Si el cambio había tocado el esquema, el revert del código no revierte la base** —
+eso se hace con SQL, o restaurando el respaldo del paso 1.
 
 ---
 
