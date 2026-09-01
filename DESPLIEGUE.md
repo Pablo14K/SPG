@@ -144,6 +144,91 @@ siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
 > corre **una sola vez con el volumen vacío**, no vuelva a correr nunca. Con un intento
 > fallido encima hay que sacar el volumen antes de reintentar.
 
+### Por qué el compose de producción no tiene NI UN montaje de host
+
+El panel clona el repositorio en `/tmp/hstgr-…`, lo copia a **`/docker/spg`** y
+corre el compose con **ese** como directorio de proyecto. Las tres cosas que
+miran al disco —el contexto de build, el `env_file` y los volúmenes con ruta—
+se resuelven ahí.
+
+**La diferencia no es dónde buscan, es qué hacen cuando no encuentran:**
+
+| Qué | Si la ruta falta |
+|---|---|
+| `build.context` | **falla ruidosamente** — el despliegue se detiene |
+| `env_file` | **falla ruidosamente**, nombrando el archivo |
+| `volumes` con ruta | **Docker la crea como CARPETA, en silencio** |
+
+Esa tercera fila es la que costó la tarde. Con `/docker/spg` a medias, en el
+primer intento Docker inventó carpetas donde tenía que haber archivos, y de ahí
+salieron los dos síntomas:
+
+- `./basededatos:/sql` y `./docker/bd:/docker-entrypoint-initdb.d` quedaron
+  vacíos, así que **el guion de importación nunca corrió** y MariaDB llegó a
+  **`healthy` con las bases vacías** — peor que fallar, porque no lo dice nadie;
+- `./docker/php/env.produccion:/app/.env` se creó como **carpeta**, y una carpeta
+  inventada **bloquea la copia del proyecto para siempre**: el despliegue
+  siguiente reventó con *«not a directory: Are you trying to mount a directory
+  onto a file?»*.
+
+Por eso todo lo que antes se montaba ahora **se hornea en la imagen**, con cuatro
+Dockerfile que usan la raíz del proyecto como contexto:
+
+| Imagen | Qué lleva adentro |
+|---|---|
+| `docker/php/Dockerfile.produccion` | el código, `vendor/` ya instalado con `--no-dev`, y `env.produccion` como `/app/.env` |
+| `docker/bd/Dockerfile` | los `.sql` en `/sql` y el guion en `/docker-entrypoint-initdb.d` |
+| `docker/caddy/Dockerfile` | el `Caddyfile` y `public/` |
+| `docker/sifen/Dockerfile` | el Automatizador |
+
+**Lo que se gana no es que deje de depender del disco** —el contexto de build
+sigue saliendo de `/docker/spg`— sino que **ya no hay ningún fallo silencioso**:
+si el proyecto no llegó, el build se detiene y lo dice, en vez de servir una
+base vacía.
+
+Lo único que queda del host es `docker/php/secretos.env`, por `env_file`, que
+también falla ruidosamente. Es la razón por la que ese archivo está versionado.
+
+Lo que persiste vive en **volúmenes con nombre**, que no dependen de ninguna
+ruta: `datos_bd`, `almacenamiento` —las sesiones, los logs y las copias de los
+comprobantes electrónicos—, `imagenes_servicios` e `imagenes_logo` —compartidos
+entre PHP, que las escribe, y Caddy, que las sirve— y los tres de Caddy.
+
+> **Consecuencia al actualizar**: el código viaja en la imagen, así que un
+> `git pull` no alcanza — hay que **reconstruir**. El panel lo hace en cada
+> despliegue; por SSH es `up -d --build`.
+
+### Si un despliegue anterior falló, hay dos cosas que limpiar
+
+**1. Las carpetas fantasma en `/docker/spg`.** Una carpeta llamada
+`env.produccion` donde tenía que haber un archivo bloquea la copia del proyecto
+en cada despliegue siguiente:
+
+```bash
+find /docker/spg -name env.produccion -o -name Caddyfile | xargs -r ls -ld
+```
+
+Lo que aparezca como directorio (`d` al principio) se borra:
+
+```bash
+rm -rf /docker/spg/docker/php/env.produccion /docker/spg/docker/caddy/Caddyfile
+```
+
+**2. El volumen de la base, si quedó inicializado y vacío.** Es el peor caso,
+porque el guion de importación corre **una sola vez, con el volumen vacío**:
+sobre uno ya inicializado no vuelve a correr nunca y el sistema arranca contra
+una base sin una sola tabla. Se comprueba sin borrar nada:
+
+```bash
+docker exec spg_bd sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"peluqueria_bd\";"'
+```
+
+Si devuelve **0**, hay que sacarlo antes de volver a desplegar:
+
+```bash
+docker rm -f spg_bd spg_app spg_web spg_cron spg_sifen; docker volume rm spg_datos_bd
+```
+
 ---
 
 ## 3. El servidor: Docker, cortafuegos y hora

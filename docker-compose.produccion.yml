@@ -1,38 +1,49 @@
 # El SPG en el VPS. El de desarrollo es `docker-compose.yml`, y son archivos
-# distintos a propósito: el de desarrollo publica la base en el 3307 y sirve
-# con `artisan serve`, dos cosas que en un servidor con IP pública van de
-# aceptables a peligrosas.
+# distintos a propósito: aquél publica la base en el 3307 y sirve con
+# `artisan serve`, dos cosas que en un servidor con IP pública van de aceptables
+# a peligrosas.
 #
 #   docker compose -f docker-compose.produccion.yml up -d --build
 #   docker compose -f docker-compose.produccion.yml logs -f
 #   docker compose -f docker-compose.produccion.yml down        (conserva los datos)
 #
-# Las cuatro diferencias con el de desarrollo, en orden de importancia:
+# ===========================================================================
+#  **NO HAY UN SOLO MONTAJE DE HOST, Y ESO ES LO MÁS IMPORTANTE DE ESTE ARCHIVO**
 #
-#   1. **Ningún puerto de la base ni del SIFEN sale a internet.** En desarrollo
-#      la base se publica en el 3307 para poder mirarla desde el host; en un VPS
-#      eso es la base de un salón real escuchando en una IP pública. Acá sólo
-#      Caddy abre puertos, el 80 y el 443.
-#   2. **Sirve php-fpm detrás de Caddy**, no `artisan serve`, que atiende una
-#      petición por vez.
-#   3. **Las contraseñas vienen de `docker/php/secretos.env`**, que no se
-#      versiona. En desarrollo el compose las trae escritas (`root`/`root`).
+#  El panel de Hostinger clona el repositorio en `/tmp/hstgr-…` pero corre el
+#  compose con el directorio de proyecto en `/docker/spg`, que está VACÍO. Y
+#  Compose resuelve cada cosa contra un lugar distinto:
+#
+#    · `build.context`  → contra el archivo compose  → el clon      ✔ funciona
+#    · `env_file`       → contra el archivo compose  → el clon      ✔ funciona
+#    · `volumes` (ruta) → contra el DIRECTORIO del proyecto → vacío ✘ se rompe
+#
+#  Un montaje de host ahí no falla de frente: Docker **crea la ruta que falta
+#  como carpeta**, así que `./basededatos:/sql` quedaba vacío y MariaDB arrancaba
+#  **healthy con las bases vacías** —peor que fallar, porque no lo dice nadie— y
+#  `./docker/php/env.produccion:/app/.env` reventaba con «not a directory».
+#
+#  Por eso todo lo que antes se montaba ahora se **hornea en la imagen**, y lo
+#  único que queda son volúmenes con nombre, que no dependen de ninguna ruta del
+#  host. Si algún día se despliega por SSH, esto sigue funcionando igual.
+# ===========================================================================
+#
+# Las cuatro diferencias con el compose de desarrollo:
+#
+#   1. **Ningún puerto de la base ni del SIFEN sale a internet.** Acá sólo Caddy
+#      abre puertos, el 80 y el 443.
+#   2. **Sirve php-fpm detrás de Caddy**, no `artisan serve`.
+#   3. **Las contraseñas vienen de `docker/php/secretos.env`**, que Compose lee
+#      del clon.
 #   4. **Hay un servicio que corre el planificador.** Sin él no salen los
-#      recordatorios, las citas vencidas no se cierran y las señas sin
-#      confirmar no se sueltan nunca.
-#
-# > **Ojo si lo levantás en la computadora de desarrollo para ensayarlo.**
-# > `bootstrap/cache` y `storage/` viven en el bind mount, así que el
-# > `php artisan optimize` de este compose —hecho con `--no-dev`— deja al
-# > contenedor de desarrollo con las rutas y los paquetes cacheados SIN las
-# > dependencias de desarrollo: `php artisan test` contesta «Command "test" is
-# > not defined» y parece que se rompió Composer. Se arregla con
-# > `docker compose exec app php artisan optimize:clear`. En el servidor no
-# > pasa, porque ahí corre un solo compose.
+#      recordatorios, las citas vencidas no se cierran y las señas no se sueltan.
 
 services:
   bd:
-    image: mariadb:10.4
+    build:
+      context: .
+      dockerfile: docker/bd/Dockerfile
+    image: spg-bd
     container_name: spg_bd
     restart: unless-stopped
     # **Sin `ports:`.** No es un olvido: así a la base sólo se llega desde la
@@ -47,8 +58,7 @@ services:
       # Si está pero VACÍO, sigue adelante en silencio** y MariaDB se apaga
       # apenas arranca. Ese es el caso feo, porque lo que se ve arriba es
       # «container spg_bd is unhealthy», que no dice nada. El error de verdad
-      # está en `docker logs spg_bd`: «database is uninitialized and password
-      # option is not specified».
+      # está en `docker logs spg_bd`.
       - ./docker/php/secretos.env
     command:
       - --character-set-server=utf8mb4
@@ -63,11 +73,6 @@ services:
       - --log-bin-trust-function-creators=1
     volumes:
       - datos_bd:/var/lib/mysql
-      # MariaDB corre estos guiones UNA sola vez, con el volumen vacío.
-      - ./docker/bd:/docker-entrypoint-initdb.d:ro
-      - ./basededatos:/sql:ro
-      # Donde caen los respaldos, para poder sacarlos del servidor.
-      - ./respaldos:/respaldos
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
@@ -77,8 +82,9 @@ services:
 
   app:
     build:
-      context: ./docker/php
-      dockerfile: Dockerfile.produccion
+      context: .
+      dockerfile: docker/php/Dockerfile.produccion
+    image: spg-app
     container_name: spg_app
     restart: unless-stopped
     depends_on:
@@ -88,22 +94,28 @@ services:
       TZ: America/Asuncion
     env_file:
       # APP_KEY, DB_PASSWORD, las credenciales del correo y el token del SIFEN.
-      #
-      # **Acá va `required: true`, al revés que en desarrollo.** Allá se podía
-      # levantar sin correo —el sistema arranca y el diagnóstico lo dice—; acá,
-      # sin este archivo no hay APP_KEY ni contraseña de base, así que arrancar
-      # sería arrancar roto.
+      # Sin este archivo el contenedor se apaga a propósito en vez de arrancar
+      # a medias: en el servidor, un sistema andando con la configuración
+      # equivocada es peor que uno que no arrancó.
       - ./docker/php/secretos.env
     volumes:
-      - .:/app
-      # El `.env` del servidor, montado encima del de la computadora.
-      - ./docker/php/env.produccion:/app/.env:ro
-      # `vendor` en un volumen propio: acá se instala con --no-dev, distinto de
-      # lo que tenga la computadora de quien desarrolla.
-      - vendor_app:/app/vendor
+      # Lo que la aplicación ESCRIBE y tiene que sobrevivir a un despliegue.
+      # El código no está acá: viaja dentro de la imagen.
+      #
+      # `storage` lleva las sesiones, los logs y las copias de los comprobantes
+      # electrónicos (`storage/app/sifen`): perderlo en cada redespliegue sería
+      # perder documentos con valor fiscal.
+      - almacenamiento:/app/storage
+      # Las imágenes que sube el salón. Se comparten con Caddy, que es quien las
+      # sirve.
+      - imagenes_servicios:/app/public/assets/servicios
+      - imagenes_logo:/app/public/assets/logo
 
   web:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: docker/caddy/Dockerfile
+    image: spg-web
     container_name: spg_web
     restart: unless-stopped
     depends_on:
@@ -120,34 +132,31 @@ services:
       # De acá salen SPG_DOMINIO y SPG_EMAIL_TLS.
       - ./docker/php/secretos.env
     volumes:
-      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      # Caddy sólo LEE: sirve el CSS, el JS y las fotos de los servicios. Quien
-      # escribe ahí es php-fpm, que tiene su propio montaje.
-      - .:/app:ro
       # Los certificados. **Este volumen es el que no hay que perder**: sin él,
       # cada `up` pide certificados de nuevo y Let's Encrypt tiene un tope de
-      # cinco por semana por dominio.
+      # cinco intentos fallidos por semana y por dominio.
       - caddy_datos:/data
       - caddy_config:/config
-      # El registro de accesos, en su propio volumen: `respaldos/` es para
-      # respaldos y nada más. Para leerlo:
-      #   docker compose -f docker-compose.produccion.yml exec web tail -f /var/log/caddy/spg.log
       - caddy_log:/var/log/caddy
+      # Las mismas dos carpetas que escribe la aplicación, en sólo lectura:
+      # Caddy las sirve, no las toca.
+      - imagenes_servicios:/app/public/assets/servicios:ro
+      - imagenes_logo:/app/public/assets/logo:ro
 
   # El planificador. En un VPS con panel esto sería una línea de cron; con
   # contenedores es un servicio más, y así se apaga y se prende con el resto.
   #
-  # Es la misma imagen que `app` —comparte el código y el `vendor`— pero en vez
-  # de servir HTTP corre `schedule:run` cada minuto, que es lo que Laravel
-  # espera. El scheduler ya declara `spg:notificaciones` cada diez minutos con
+  # Es la misma imagen que `app` y comparte su `storage`, pero en vez de servir
+  # HTTP corre `schedule:run` cada minuto, que es lo que Laravel espera. El
+  # scheduler ya declara `spg:notificaciones` cada diez minutos con
   # `withoutOverlapping()`, así que dos corridas no se pisan.
   cron:
-    build:
-      context: ./docker/php
-      dockerfile: Dockerfile.produccion
+    image: spg-app
     container_name: spg_cron
     restart: unless-stopped
     depends_on:
+      app:
+        condition: service_started
       bd:
         condition: service_healthy
     environment:
@@ -155,11 +164,9 @@ services:
     env_file:
       - ./docker/php/secretos.env
     volumes:
-      - .:/app
-      - ./docker/php/env.produccion:/app/.env:ro
-      - vendor_app:/app/vendor
-    # Se saltea el entrypoint: no tiene que instalar dependencias ni cachear
-    # nada —de eso ya se ocupó `app`— ni levantar php-fpm.
+      - almacenamiento:/app/storage
+    # Se saltea el entrypoint: no tiene que cachear nada —de eso ya se ocupó
+    # `app`— ni levantar php-fpm.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -170,34 +177,25 @@ services:
         done
 
   # El Automatizador SIFEN. Sólo hace falta si el salón declara ante la DNIT
-  # (`SIFEN_ACTIVO=true`); con `false` el módulo no existe en la interfaz y
-  # este contenedor no molesta a nadie.
+  # (`SIFEN_ACTIVO=true`); con `false` el módulo no existe en la interfaz y este
+  # contenedor no molesta a nadie.
   #
-  # **Sin `ports:`**: el SPG le habla por la red interna, así que no tiene por
-  # qué escuchar desde afuera.
+  # **Sin `ports:`**: el SPG le habla por la red interna.
   sifen:
-    image: php:8.3-cli
+    build:
+      context: .
+      dockerfile: docker/sifen/Dockerfile
+    image: spg-sifen
     container_name: spg_sifen
-    restart: on-failure
-    working_dir: /automatizador
+    restart: unless-stopped
     environment:
       TZ: America/Asuncion
-    volumes:
-      - ${SPG_SIFEN_PATH:-./_sifen}:/automatizador
-    command:
-      - sh
-      - -c
-      - |
-        if [ ! -f /automatizador/public/index.php ]; then
-          echo "El Automatizador SIFEN no está en la ruta esperada."
-          echo "El SPG funciona igual: las facturas electrónicas quedan PENDIENTE."
-          exit 0
-        fi
-        exec php -S 0.0.0.0:8090 -t /automatizador/public
 
 volumes:
   datos_bd:
-  vendor_app:
+  almacenamiento:
+  imagenes_servicios:
+  imagenes_logo:
   caddy_datos:
   caddy_config:
   caddy_log:

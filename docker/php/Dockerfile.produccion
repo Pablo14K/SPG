@@ -1,20 +1,21 @@
 # PHP 8.3 para el SERVIDOR. El de desarrollo es `Dockerfile`, al lado.
 #
-# La diferencia que importa es una sola y es la razón de que este archivo
-# exista: en desarrollo el servidor lo levanta `php artisan serve`, que
-# **atiende una petición por vez**. En la computadora de uno no se nota; en un
-# servidor con tres personas usando el sistema, una pantalla lenta —el
-# calendario de 60 días, un informe— deja a las otras dos esperando, y desde
-# afuera se lee como que el sistema se colgó.
+# **El contexto de build es la RAÍZ del proyecto, no esta carpeta**, y el código
+# se COPIA adentro en vez de montarse. No es una preferencia: el panel de
+# Hostinger corre el compose desde el clon pero resuelve los volúmenes contra
+# `/docker/spg`, que está vacío, así que un montaje de host queda apuntando a la
+# nada —o peor, Docker crea una CARPETA donde tenía que haber un archivo—. El
+# contexto de build, en cambio, sí sale del clon. Ver DESPLIEGUE.md, punto 2.
 #
-# Por eso acá va `php-fpm`, que mantiene varios procesos hijos, y quien atiende
-# el HTTP es Caddy (ver docker/caddy/Caddyfile).
+# La otra diferencia con desarrollo: allá el servidor lo levanta
+# `php artisan serve`, que **atiende una petición por vez**. En un servidor con
+# tres personas usando el sistema, una pantalla lenta deja a las otras dos
+# esperando. Acá va `php-fpm`, y quien atiende el HTTP es Caddy.
 FROM php:8.3-fpm
 
 # Las mismas extensiones que en desarrollo, más OPcache: guarda el bytecode ya
 # compilado en memoria, así PHP no vuelve a leer y parsear las mismas ~600
-# clases en cada petición. En desarrollo estorba —hay que reiniciar para ver un
-# cambio—, en el servidor es lo que más rinde por lo poco que cuesta.
+# clases en cada petición.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libzip-dev unzip mariadb-client \
     && docker-php-ext-install pdo_mysql zip opcache \
@@ -23,10 +24,10 @@ RUN apt-get update \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# `validate_timestamps=0` es lo que hace que OPcache no vuelva a mirar el disco
-# nunca. Es correcto en el servidor **y** es la trampa que va con esto: después
-# de subir código nuevo hay que reiniciar el contenedor, o se sigue sirviendo el
-# viejo sin que nada avise. El guion de despliegue lo hace.
+# `validate_timestamps=0` hace que OPcache no vuelva a mirar el disco nunca. Es
+# correcto acá **y** es la trampa que va con esto: después de subir código nuevo
+# hay que reconstruir la imagen, o se sigue sirviendo el viejo sin que nada
+# avise. El panel reconstruye en cada despliegue, así que queda cubierto.
 RUN { \
       echo 'opcache.enable=1'; \
       echo 'opcache.memory_consumption=128'; \
@@ -37,13 +38,36 @@ RUN { \
       echo 'post_max_size=10M'; \
     } > /usr/local/etc/php/conf.d/spg.ini
 
-# La zona horaria del contenedor, para que PHP y la base cuenten lo mismo.
 ENV TZ=America/Asuncion
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
 
-COPY entrada-produccion.sh /usr/local/bin/entrada
+# Primero sólo lo que define las dependencias: mientras `composer.json` y
+# `composer.lock` no cambien, Docker reusa esta capa y el build siguiente no
+# vuelve a bajar 83 paquetes.
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --prefer-dist --no-dev \
+        --optimize-autoloader --no-scripts --no-autoloader
+
+# Y ahora el proyecto. Lo que NO entra está en `.dockerignore`, empezando por el
+# `.env` de la computadora de quien desarrolla.
+COPY . /app
+
+# El `.env` del servidor. Se copia con nombre distinto a propósito: así el del
+# repositorio sigue siendo legible como lo que es —la configuración del
+# servidor— y no se confunde con el de desarrollo. **Las credenciales NO están
+# acá adentro**: entran como variables del contenedor desde `secretos.env`, que
+# Compose lee del clon.
+COPY docker/php/env.produccion /app/.env
+
+RUN composer dump-autoload --optimize --no-dev \
+    && mkdir -p storage/framework/sessions storage/framework/views \
+                storage/framework/cache storage/logs storage/app/sifen \
+                bootstrap/cache public/assets/servicios public/assets/logo \
+    && chown -R www-data:www-data storage bootstrap/cache public/assets
+
+COPY docker/php/entrada-produccion.sh /usr/local/bin/entrada
 # Si el archivo viajó desde Windows con fin de línea CRLF, el contenedor
 # contesta «bad interpreter» y no hay forma de adivinar por qué.
 RUN sed -i 's/\r$//' /usr/local/bin/entrada && chmod +x /usr/local/bin/entrada

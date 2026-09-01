@@ -1,0 +1,40 @@
+# Qué NO entra a las imágenes de producción.
+#
+# Los cuatro Dockerfile de producción usan la RAÍZ del proyecto como contexto
+# —es la única forma de que el panel de Hostinger les pase los archivos, ver
+# DESPLIEGUE.md punto 2— así que sin esto se mandarían 200 MB al build.
+
+# El .env de ESTA computadora, con credenciales de desarrollo. **Nunca al
+# contenedor**: el del servidor es docker/php/env.produccion, que se copia
+# explícitamente en el Dockerfile.
+.env
+
+# Se instala adentro con `composer install --no-dev`. El de acá es de Windows y
+# trae las dependencias de desarrollo.
+vendor/
+
+# Historia, no código.
+.git/
+.gitignore
+.gitattributes
+
+# Los bancos de prueba y sus corridas: son del TCC, no del sistema.
+_sim/
+_sim30/
+_sim60/
+_qa/
+tests/
+phpunit.xml
+respaldos/
+
+# Documentación interna y referencias del TCC.
+CLAUDE.md
+Referencias/
+
+# Lo que la aplicación genera y no tiene por qué viajar en la imagen: se crea
+# solo, y en el servidor vive en un volumen.
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*

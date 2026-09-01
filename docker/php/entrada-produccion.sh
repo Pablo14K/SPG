@@ -20,7 +20,11 @@ falta() {
 # ---------------------------------------------------------------------------
 # 1. La configuración tiene que estar, no se genera sola.
 # ---------------------------------------------------------------------------
-[ -f .env ] || falta "no hay .env montado (docker/php/env.produccion)."
+# El `.env` viaja DENTRO de la imagen (docker/php/env.produccion, copiado en
+# el Dockerfile). Antes se montaba del host, y en el panel de Hostinger eso
+# resolvía a una ruta vacía: Docker la creaba como carpeta y el contenedor no
+# arrancaba con «not a directory».
+[ -f .env ] || falta "falta /app/.env — la imagen se construyó mal."
 
 # La APP_KEY va en `secretos.env`, no en el .env versionado. Se genera UNA vez
 # con `openssl rand -base64 32` y se pega ahí; si se cambia después,
@@ -37,8 +41,11 @@ falta() {
 # `--no-dev` deja afuera PHPUnit y compañía, que en el servidor no hacen falta
 # y son código de más expuesto. `--optimize-autoloader` arma el mapa de clases
 # de una vez en lugar de resolverlas por convención en cada petición.
-if [ ! -f vendor/autoload.php ] || [ ! -d vendor/dompdf/dompdf ]; then
-    echo "== SPG: instalando dependencias de producción (la primera vez tarda) =="
+# Normalmente ya está: el Dockerfile las instala al construir, así que el
+# arranque no depende de que Packagist conteste. Esto es la red por si la
+# imagen se armó a mano.
+if [ ! -f vendor/autoload.php ]; then
+    echo "== SPG: vendor/ no está en la imagen, instalando (esto no debería pasar) =="
     composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader
 fi
 
