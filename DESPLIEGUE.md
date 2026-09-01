@@ -147,10 +147,21 @@ siempre de este proyecto: algo falta y el mensaje apunta a otro lado.
 
 ### Por qué el compose de producción no tiene NI UN montaje de host
 
-El panel clona el repositorio en `/tmp/hstgr-…`, lo copia a **`/docker/spg`** y
-corre el compose con **ese** como directorio de proyecto. Las tres cosas que
-miran al disco —el contexto de build, el `env_file` y los volúmenes con ruta—
-se resuelven ahí.
+El panel **construye desde el clon y despliega desde otro lado**, y esa
+separación es la que hay que entender:
+
+| Fase | Dónde ocurre |
+|---|---|
+| Clonar y **construir** las imágenes | `/tmp/hstgr-…`, con el repositorio entero |
+| **Levantar** los contenedores | `/docker/spg`, que tiene **sólo el compose** |
+
+Comprobado mirando la carpeta en el servidor: `/docker/spg` tiene el compose
+—renombrado `docker-compose.yml`—, un `.env` que arma el panel, `docker/`, y
+**carpetas vacías** con los nombres de los montajes del compose viejo. No hay
+`app/`, ni `config/`, ni `composer.json`: **el proyecto no se copia ahí**.
+
+Por eso los `build.context` funcionan (salen del clon) y los volúmenes con ruta
+no (se resuelven contra `/docker/spg`).
 
 **La diferencia no es dónde buscan, es qué hacen cuando no encuentran:**
 
@@ -407,13 +418,14 @@ docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendien
 
 > **Ojo con la ruta del proyecto, que depende de por dónde desplegaste:**
 >
-> | Camino | El proyecto queda en |
+> | Camino | Dónde está el proyecto |
 > |---|---|
-> | Administrador de Docker (punto 2) | **`/docker/spg`** — el panel clona a `/tmp/hstgr-…` y copia ahí |
+> | Administrador de Docker (punto 2) | **en ninguna carpeta del host**: viaja dentro de las imágenes. En `/docker/spg` está sólo el compose |
 > | Consola web (puntos 4 a 6) | donde lo clonaste, en este documento `/opt/spg` |
 >
-> Los comandos de abajo usan `/docker/spg`. Si desplegaste por consola, cambiá esa parte.
-> Para salir de dudas: `ls -d /docker/spg /opt/spg 2>/dev/null`.
+> Por eso los comandos que necesitan un archivo del proyecto —el guion de actualización, por
+> ejemplo— lo sacan **de adentro del contenedor** con `docker exec spg_app cat …`. Para salir
+> de dudas: `ls -d /docker/spg /opt/spg 2>/dev/null`.
 
 **El planificador ya está**: es el servicio `cron` del compose, que corre `schedule:run` cada
 minuto. Sin él no salen los recordatorios, las citas vencidas no se cierran y las señas sin
@@ -541,8 +553,14 @@ También sale en el log del contenedor en cada arranque. Si aparece algo como «
 la versión en el nombre, y viaja en el repositorio como cualquier otro archivo:
 
 ```bash
-docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < basededatos/actualizaciones/2026-09-01_7.88.0.sql
+docker exec spg_app cat /app/basededatos/actualizaciones/2026-09-01_7.88.0.sql | docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd'
 ```
+
+> **El guion se lee de DENTRO del contenedor de la aplicación, no del disco del servidor.**
+> Desplegando por el panel, el proyecto no queda en ninguna carpeta del host —ver el punto 2—:
+> lo único que hay es el compose. El código, y con él `basededatos/`, viaja **dentro de la
+> imagen**, así que ahí es donde está el archivo. `docker exec spg_app cat …` lo saca y se lo
+> pasa a MariaDB por la tubería.
 
 > **Los guiones de `actualizaciones/` no tocan datos y se pueden volver a correr.** Una rutina
 > —función, procedimiento, disparador, vista— se reemplaza entera con `DROP … IF EXISTS` +
