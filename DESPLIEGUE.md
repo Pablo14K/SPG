@@ -72,10 +72,62 @@ Y comprobarlo **antes de seguir**, porque el certificado depende de esto:
 dig +short spg.columbiatcc.online
 ```
 
-Tiene que devolver la IP del VPS. **Si todavía no propagó, no sigas**: Caddy le pide el
-certificado a Let's Encrypt apenas arranca, y Let's Encrypt admite **cinco intentos fallidos
-por semana y por dominio**. Cinco arranques con el DNS a medias dejan el subdominio sin
+Tiene que devolver la IP del VPS. **Si todavía no propagó, no sigas**: Traefik le pide el
+certificado a Let's Encrypt apenas ve el proyecto, y Let's Encrypt admite **cinco intentos
+fallidos por semana y por dominio**. Cinco intentos con el DNS a medias dejan el subdominio sin
 certificado hasta la semana siguiente.
+
+---
+
+## 1b. Traefik: el proxy que reparte los dominios
+
+**El SPG no publica ningún puerto.** Quien escucha el 80 y el 443 del VPS es **Traefik**, que
+se despliega una vez desde el panel —está entre las plantillas de proyecto— y reparte cada
+pedido al contenedor que corresponde según el dominio. Así conviven varios proyectos de la
+facultad en el mismo servidor sin pelearse por los puertos web.
+
+Lo que hay que saber antes de desplegar el SPG:
+
+| Qué | Detalle |
+|---|---|
+| La red | **`traefik-proxy`**, y la crea la plantilla de Traefik |
+| Entrypoint | `websecure` |
+| Resolvedor de certificados | `letsencrypt` |
+| Quién saca el certificado | Traefik, solo, al ver las etiquetas del contenedor |
+
+> **`traefik-proxy` está declarada como `external` en el compose del SPG.** Eso significa que
+> este proyecto **no la crea**: si Traefik no está desplegado todavía, el `up` falla diciendo
+> que la red no existe. Es lo correcto — sin proxy el sistema no sería alcanzable desde
+> afuera, y más vale enterarse ahí que buscándolo en el navegador.
+
+### Por qué sigue habiendo un Caddy adentro
+
+Es la pregunta obvia al ver dos servidores web. **Traefik habla HTTP y php-fpm habla
+FastCGI**: no se pueden conectar directamente. Hace falta algo que traduzca, y de paso sirva
+los archivos estáticos —el CSS, el JS, las fotos de los servicios— sin molestar a PHP.
+
+```
+navegador --HTTPS--> Traefik --HTTP--> Caddy --FastCGI--> php-fpm
+```
+
+Caddy ya no saca certificados ni escucha el 443: sólo el 80 de su propia red interna.
+
+### Las dos piezas sin las cuales los correos salen con enlaces rotos
+
+Con el TLS terminando en Traefik, **php-fpm ve una conexión HTTP en claro**. Si nadie le dice
+lo contrario, Laravel arma los enlaces con `http://` — y eso se paga donde más duele: los
+correos de reprogramar, cancelar y agregar la cita al calendario le llegan a la clienta
+apuntando a HTTP, que con HSTS puesto el navegador ni abre.
+
+Hacen falta **las dos**, y con una sola no alcanza:
+
+1. **`trusted_proxies` en el Caddyfile.** Traefik manda `X-Forwarded-Proto: https`, pero Caddy
+   la **reescribe** con el esquema de la conexión que él recibió. Comprobado: la cabecera
+   llegaba a PHP como `http` aunque el proxy mandara `https`.
+2. **`trustProxies` en `bootstrap/app.php`**, para que Laravel le crea a esa cabecera.
+
+Las dos confían **sólo en rangos privados**: confiar en cualquier origen dejaría que un
+visitante mintiera sobre el esquema y sobre su propia IP.
 
 ---
 
@@ -263,7 +315,8 @@ Las reglas son tres: **22 (SSH), 80 y 443**. Nada más.
 > justamente para que no dependa de que el cortafuegos esté bien puesto.
 
 > **El 80 no es opcional aunque todo vaya por HTTPS**: Let's Encrypt valida por ahí, así que
-> sin el 80 abierto el certificado no se emite ni se renueva.
+> sin el 80 abierto el certificado no se emite ni se renueva. Los dos puertos los usa
+> **Traefik**, no el SPG — este proyecto no publica ninguno.
 
 > **Ojo con `ufw enable` si igual se lo usa**: sin una regla para el 22 puesta **antes**, el
 > comando corta la propia sesión SSH y se entra sólo por la consola web del panel.
@@ -319,7 +372,7 @@ APP_KEY=                 # se genera abajo
 MYSQL_ROOT_PASSWORD=     # una larga y al azar
 DB_PASSWORD=             # LA MISMA que la de arriba
 SPG_DOMINIO=spg.columbiatcc.online
-SPG_EMAIL_TLS=           # a dónde avisa Let's Encrypt si un certificado no se renueva
+SPG_EMAIL_TLS=           # heredado de cuando Caddy sacaba el certificado; hoy lo hace Traefik
 MAIL_USERNAME=           # la cuenta de Gmail
 MAIL_PASSWORD=           # la contraseña de aplicación NUEVA
 MAIL_FROM_ADDRESS=       # la MISMA cuenta que se autentica, o Gmail rechaza

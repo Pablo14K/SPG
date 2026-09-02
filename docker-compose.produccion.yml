@@ -120,28 +120,48 @@ services:
     restart: unless-stopped
     depends_on:
       - app
-    # **Los únicos puertos que salen a internet.** El 80 no es opcional aunque
-    # todo vaya por HTTPS: Let's Encrypt valida por ahí, y sin el 80 abierto el
-    # certificado no se emite ni se renueva.
-    ports:
-      - "80:80"
-      - "443:443"
+    # **Sin `ports:`, y eso es todo el punto de Traefik.** El 80 y el 443 del
+    # VPS los usa Traefik, que reparte por dominio: así conviven varios
+    # proyectos en el mismo servidor sin pelearse por los puertos web.
     environment:
       TZ: America/Asuncion
     env_file:
-      # De acá salen SPG_DOMINIO y SPG_EMAIL_TLS.
       - ./docker/php/secretos.env
     volumes:
-      # Los certificados. **Este volumen es el que no hay que perder**: sin él,
-      # cada `up` pide certificados de nuevo y Let's Encrypt tiene un tope de
-      # cinco intentos fallidos por semana y por dominio.
-      - caddy_datos:/data
-      - caddy_config:/config
       - caddy_log:/var/log/caddy
       # Las mismas dos carpetas que escribe la aplicación, en sólo lectura:
       # Caddy las sirve, no las toca.
       - imagenes_servicios:/app/public/assets/servicios:ro
       - imagenes_logo:/app/public/assets/logo:ro
+    networks:
+      # `default` para hablarle a php-fpm; `traefik-proxy` para que Traefik lo
+      # encuentre. Estando en dos redes hay que decirle por cuál entrar, o
+      # Traefik elige la IP equivocada y contesta 504 sin explicar nada — es la
+      # trampa clásica de esta configuración.
+      - default
+      - traefik-proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-proxy
+      # **El dominio va ESCRITO, no interpolado, y es a propósito.** Las
+      # etiquetas las resuelve COMPOSE, que lee el shell o un `.env` del
+      # directorio del proyecto — nunca el `env_file`. Un `${SPG_DOMINIO}` acá
+      # habría quedado en `Host(``)`: vacío, sin coincidir con nada, y Traefik
+      # no rutearía jamás sin dar un solo error. Es la misma trampa que dejó los
+      # correos sin nombre de remitente en la 7.87.1.
+      #
+      # La plantilla de Hostinger propone `${COMPOSE_PROJECT_NAME}.${TRAEFIK_HOST}`;
+      # eso funciona, pero ata la dirección publicada a cómo se llame el proyecto
+      # en el panel — renombrarlo cambiaría el dominio del salón.
+      #
+      # **Si cambia el subdominio hay que tocarlo en DOS lugares**: acá y en
+      # `APP_URL` de `docker/php/env.produccion`.
+      - traefik.http.routers.spg.rule=Host(`spg.columbiatcc.online`)
+      - traefik.http.routers.spg.entrypoints=websecure
+      - traefik.http.routers.spg.tls.certresolver=letsencrypt
+      # El puerto de Caddy adentro del contenedor. Traefik habla HTTP con él;
+      # el TLS ya lo terminó afuera.
+      - traefik.http.services.spg.loadbalancer.server.port=80
 
   # El planificador. En un VPS con panel esto sería una línea de cron; con
   # contenedores es un servicio más, y así se apaga y se prende con el resto.
@@ -191,11 +211,19 @@ services:
     environment:
       TZ: America/Asuncion
 
+networks:
+  # La red del proxy, que crea la plantilla de Traefik del panel. **`external`
+  # significa que este compose NO la crea**: si Traefik no está desplegado, el
+  # `up` falla diciendo que la red no existe — que es lo correcto, porque sin
+  # proxy el sistema no sería alcanzable desde afuera y más vale enterarse ahí
+  # que buscándolo en el navegador.
+  traefik-proxy:
+    external: true
+  default:
+
 volumes:
   datos_bd:
   almacenamiento:
   imagenes_servicios:
   imagenes_logo:
-  caddy_datos:
-  caddy_config:
   caddy_log:
