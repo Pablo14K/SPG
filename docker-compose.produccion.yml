@@ -133,16 +133,21 @@ services:
       # Caddy las sirve, no las toca.
       - imagenes_servicios:/app/public/assets/servicios:ro
       - imagenes_logo:/app/public/assets/logo:ro
-    networks:
-      # `default` para hablarle a php-fpm; `traefik-proxy` para que Traefik lo
-      # encuentre. Estando en dos redes hay que decirle por cuál entrar, o
-      # Traefik elige la IP equivocada y contesta 504 sin explicar nada — es la
-      # trampa clásica de esta configuración.
-      - default
-      - traefik-proxy
+    # **Sin red compartida, y eso es deliberado.** La documentación de Hostinger
+    # propone una red `traefik-proxy` externa, pero la plantilla del panel
+    # levanta Traefik en **`network_mode: host`** — comprobado en el servidor— y
+    # un contenedor en modo host **no puede estar en otra red de Docker a la
+    # vez**: Docker lo prohíbe.
+    #
+    # No hace falta: compartiendo la red del servidor, Traefik alcanza las IP
+    # `172.x` de los contenedores directamente, porque el host tiene ruta hacia
+    # los puentes de Docker. Descubre este contenedor por el socket, lee las
+    # etiquetas de abajo y le habla a su IP en el puerto 80.
+    #
+    # Y por eso tampoco va `traefik.docker.network`: esa etiqueta sirve para
+    # desempatar cuando el contenedor está en varias redes, y acá está en una.
     labels:
       - traefik.enable=true
-      - traefik.docker.network=traefik-proxy
       # **El dominio va ESCRITO, no interpolado, y es a propósito.** Las
       # etiquetas las resuelve COMPOSE, que lee el shell o un `.env` del
       # directorio del proyecto — nunca el `env_file`. Un `${SPG_DOMINIO}` acá
@@ -210,16 +215,6 @@ services:
     restart: unless-stopped
     environment:
       TZ: America/Asuncion
-
-networks:
-  # La red del proxy, que crea la plantilla de Traefik del panel. **`external`
-  # significa que este compose NO la crea**: si Traefik no está desplegado, el
-  # `up` falla diciendo que la red no existe — que es lo correcto, porque sin
-  # proxy el sistema no sería alcanzable desde afuera y más vale enterarse ahí
-  # que buscándolo en el navegador.
-  traefik-proxy:
-    external: true
-  default:
 
 volumes:
   datos_bd:

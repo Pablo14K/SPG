@@ -90,15 +90,33 @@ Lo que hay que saber antes de desplegar el SPG:
 
 | Qué | Detalle |
 |---|---|
-| La red | **`traefik-proxy`**, y la crea la plantilla de Traefik |
+| Cómo corre | **`network_mode: host`** — comparte la red del servidor |
+| Cómo descubre los contenedores | el socket de Docker (`--providers.docker=true`) |
 | Entrypoint | `websecure` |
-| Resolvedor de certificados | `letsencrypt` |
+| Resolvedor de certificados | `letsencrypt`, por desafío HTTP sobre el 80 |
 | Quién saca el certificado | Traefik, solo, al ver las etiquetas del contenedor |
+| Redirección 80 → 443 | la hace Traefik, ya viene puesta en la plantilla |
 
-> **`traefik-proxy` está declarada como `external` en el compose del SPG.** Eso significa que
-> este proyecto **no la crea**: si Traefik no está desplegado todavía, el `up` falla diciendo
-> que la red no existe. Es lo correcto — sin proxy el sistema no sería alcanzable desde
-> afuera, y más vale enterarse ahí que buscándolo en el navegador.
+> **NO hace falta una red compartida, aunque la documentación de Hostinger diga que sí.**
+> Su página propone declarar una red `traefik-proxy` externa; la plantilla del panel, en
+> cambio, levanta Traefik en **`network_mode: host`** — comprobado en el VPS, donde
+> `docker network ls` no muestra ninguna red creada y el contenedor de Traefik está en `host`.
+>
+> Y un contenedor en modo host **no puede estar en otra red de Docker a la vez**: Docker lo
+> prohíbe. Así que declararla no es que sobre, es que **rompe el despliegue**: el `up` aborta
+> con *«network traefik-proxy declared as external, but could not be found»* y el proyecto
+> queda con cero contenedores, con las imágenes construidas y todo.
+>
+> **Por qué funciona igual**: compartiendo la red del servidor, Traefik alcanza las IP `172.x`
+> de los contenedores directamente, porque el host tiene ruta hacia los puentes de Docker.
+> Descubre `spg_web` por el socket, lee sus etiquetas y le habla a su IP en el 80. Lo único
+> que hace falta es que Traefik esté levantado —es otro proyecto del panel— y que el
+> contenedor esté en **una sola** red, que es el caso.
+
+> **Si algún día Traefik pasa a modo bridge**, hay que hacer las dos cosas: volver a poner la
+> red compartida como `external` en el compose del SPG **y** agregarle la etiqueta
+> `traefik.docker.network` con su nombre. Sin la segunda, estando en dos redes Traefik puede
+> elegir la IP equivocada y contestar 504 sin explicar por qué.
 
 ### Por qué sigue habiendo un Caddy adentro
 

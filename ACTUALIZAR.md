@@ -126,6 +126,22 @@ columnas, el guion del paso 3 no corrió.
 | El sitio da 500 | terminal de `spg_app`: `tail -30 storage/logs/laravel-$(date +%F).log` |
 | El sitio no responde | ¿está Traefik levantado? Es otro proyecto en el panel |
 | Sigue el código viejo | no se reconstruyó: repetí con **Componer → URL** |
+| Despliega con **0 contenedores** | mirá el final del `.build.log` — ver abajo |
+
+### «Project build failed» con las imágenes ya construidas
+
+Si el log termina en algo como *«network X declared as external, but could not
+be found»*, las imágenes se construyeron bien y lo que falló es el `up`: Compose
+esperaba una red que no existe.
+
+```bash
+docker network ls
+```
+
+**Este proyecto no necesita ninguna red creada a mano.** Traefik corre en modo
+`host` y alcanza los contenedores por su IP, así que el compose del SPG usa sólo
+su red propia. Si volviera a aparecer una red `external`, es que alguien la
+agregó — se saca y listo.
 
 ### Volver atrás
 
