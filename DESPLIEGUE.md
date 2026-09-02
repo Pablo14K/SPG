@@ -118,6 +118,133 @@ Lo que hay que saber antes de desplegar el SPG:
 > `traefik.docker.network` con su nombre. Sin la segunda, estando en dos redes Traefik puede
 > elegir la IP equivocada y contestar 504 sin explicar por qué.
 
+### Levantar Traefik: se hace UNA vez, y va ANTES que el SPG
+
+El orden importa. Si el SPG sube primero, queda corriendo y **inalcanzable desde afuera** —no
+publica ningún puerto—, así que parece roto cuando en realidad falta el portero.
+
+**1 · Desplegarlo desde el panel.** hPanel → VPS → **Administrador de Docker** → **Proyectos**
+→ **Crear proyecto**, y elegir **Traefik** entre las plantillas. Pide dos cosas:
+
+| Campo | Qué poner |
+|---|---|
+| Dominio | cualquiera que apunte al VPS — se usa para el dashboard, no para rutear el SPG |
+| Correo | a donde Let's Encrypt avisa si un certificado está por vencer |
+
+**2 · Comprobar que quedó andando**, desde la **Consola web**:
+
+```bash
+docker ps --filter name=traefik --format 'table {{.Names}}\t{{.Status}}'
+ss -lntp | grep -E ':(80|443)\s'
+```
+
+Tiene que aparecer el contenedor arriba y **algo escuchando el 80 y el 443**. Si esos puertos
+los tiene tomados otra cosa —un Apache o un nginx del sistema—, Traefik no arranca y hay que
+apagar al otro primero.
+
+**3 · Recién ahora, desplegar el SPG.** El resto de esta guía, desde el punto 2.
+
+#### El compose que levanta la plantilla
+
+No hace falta escribirlo —lo pone el panel— pero conviene tenerlo, porque si algún día hay que
+rehacerlo a mano esto es **lo que de verdad está corriendo en el VPS**, sacado del contenedor
+con `docker inspect`:
+
+```yaml
+services:
+  traefik:
+    image: traefik:v3
+    container_name: traefik
+    restart: unless-stopped
+    # Comparte la red del servidor: por eso escucha el 80 y el 443 sin `ports:`
+    # y alcanza las IP 172.x de los demás contenedores.
+    network_mode: host
+    command:
+      - --api.dashboard=false
+      - --api.insecure=false
+      - --log.level=INFO
+      # Lee las etiquetas de los contenedores por el socket. `exposedbydefault`
+      # en false es lo que hace falta la etiqueta `traefik.enable=true`: sin eso
+      # publicaría TODO lo que corra en el servidor.
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # El 80 queda abierto aunque todo vaya por HTTPS: Let's Encrypt valida por
+      # ahí. Sin el 80 no se emite ni se renueva ningún certificado.
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=TU-CORREO
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      # Todo lo que entre por el 80 se manda al 443.
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+    volumes:
+      # De sólo lectura: Traefik necesita LEER los contenedores, no tocarlos.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Los certificados, que tienen que sobrevivir a un redespliegue: Let's
+      # Encrypt admite cinco intentos fallidos por semana y por dominio.
+      - letsencrypt:/letsencrypt
+
+volumes:
+  letsencrypt:
+```
+
+#### Lo único que el SPG le pide
+
+Cinco etiquetas en el servicio `web` de `docker-compose.produccion.yml`, y nada más:
+
+```yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.spg.rule=Host(`spg.columbiatcc.online`)
+      - traefik.http.routers.spg.entrypoints=websecure
+      - traefik.http.routers.spg.tls.certresolver=letsencrypt
+      - traefik.http.services.spg.loadbalancer.server.port=80
+```
+
+| Etiqueta | Qué dice |
+|---|---|
+| `traefik.enable` | publicá este contenedor — sin esto Traefik lo ignora |
+| `…routers.spg.rule` | **con qué dominio** se le entra |
+| `…routers.spg.entrypoints` | por el 443; del 80 se ocupa la redirección |
+| `…tls.certresolver` | sacale el certificado con `letsencrypt` |
+| `…loadbalancer.server.port` | el puerto **de adentro** del contenedor, el de Caddy |
+
+Tres cosas que se pagan caro si se cambian sin pensarlas:
+
+- **`spg` es el nombre del router y del servicio**, y tiene que ser único en todo el VPS. Si
+  otro proyecto usa el mismo, uno de los dos deja de rutear.
+- **El dominio va escrito, no interpolado.** Las etiquetas las resuelve **Compose**, que lee
+  el shell o un `.env` del directorio del proyecto — **nunca el `env_file`**. Un
+  `${SPG_DOMINIO}` habría quedado en `` Host(``) ``: vacío, sin coincidir con nada, y sin dar
+  un solo error. Es la misma trampa que dejó los correos sin nombre de remitente en la 7.87.1.
+- **Si cambia el subdominio hay que tocarlo en DOS lugares**: acá y en `APP_URL` de
+  `docker/php/env.produccion`. Con uno solo, el sitio abre y los correos salen con enlaces a
+  la dirección vieja.
+
+#### Comprobar que el ruteo quedó armado
+
+Desde la **Consola web**, sin depender del navegador ni del DNS:
+
+```bash
+curl -sI -H 'Host: spg.columbiatcc.online' http://127.0.0.1/ | head -3
+```
+
+Tiene que contestar **308** hacia `https://`. Y después, ya con el certificado:
+
+```bash
+curl -sI https://spg.columbiatcc.online/ | head -3
+```
+
+**302 hacia `/entrar`** es lo correcto: el sistema manda al ingreso.
+
+| Lo que contesta | Qué significa |
+|---|---|
+| **404 page not found** | Traefik está, pero ninguna etiqueta coincide con ese dominio |
+| **502 / 504** | encontró el contenedor y no puede hablarle: mirá el puerto de la etiqueta |
+| **No conecta** | Traefik no está levantado, o el DNS todavía no propagó |
+
 ### Por qué sigue habiendo un Caddy adentro
 
 Es la pregunta obvia al ver dos servidores web. **Traefik habla HTTP y php-fpm habla
