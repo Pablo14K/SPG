@@ -220,6 +220,7 @@ app/
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
 tests/Feature/             las 148 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS
+ACTUALIZAR.md              guía de bolsillo: cómo actualizarlo después
 ```
 
 ---

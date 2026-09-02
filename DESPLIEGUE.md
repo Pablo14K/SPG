@@ -536,6 +536,9 @@ Dos consecuencias que conviene tener presentes el día uno:
 
 ## 10. Actualizar el sistema con el salón andando
 
+> **Para el día a día está `ACTUALIZAR.md`**, que son los mismos pasos sin los porqués — dos
+> páginas para tener al lado. Esta sección explica *por qué* cada cosa es así.
+
 **Son dos casos y conviene saber en cuál estás antes de tocar nada**, porque uno es apretar
 un botón y el otro toca la base de un salón con datos reales.
 
