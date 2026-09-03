@@ -217,7 +217,7 @@
                                      va a leer quien revise la planilla dentro de tres meses.
                                      Vacío se admite: marcar una falta no obliga a inventar
                                      un motivo. El servidor lo vuelve a comprobar. --}}
-                                <div class="form-text">Si escribís algo, que sean al menos 10 caracteres.</div>
+                                <x-ayuda>Si escribís algo, que sean al menos 10 caracteres.</x-ayuda>
 
                                 {{-- **Escribir el motivo NO da el permiso, y eso hay que
                                      decirlo acá.** El campo se llama «Observación» y se lee
@@ -295,12 +295,11 @@
                                      descuenta: el que lo lea dentro de tres meses
                                      tiene que poder entenderlo. El servidor lo
                                      vuelve a comprobar. --}}
-                                <label class="form-label" for="just{{ $f->id_usuario }}_{{ $f->id_turno }}">Motivo *</label>
+                                <label class="form-label" for="just{{ $f->id_usuario }}_{{ $f->id_turno }}">Motivo *</label><x-ayuda>Al menos 10 caracteres: es lo único que explica la falta.</x-ayuda>
                                 <textarea class="form-control" id="just{{ $f->id_usuario }}_{{ $f->id_turno }}"
                                           name="motivo_ausencia" maxlength="200" rows="2"
                                           minlength="10" required
                                           placeholder="Por qué se le da el permiso"></textarea>
-                                <div class="form-text">Al menos 10 caracteres: es lo único que explica la falta.</div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

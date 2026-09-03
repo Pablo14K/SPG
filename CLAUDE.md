@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.94.0 | 03/09/2026 | **Entra la ayuda contextual: la explicación se guarda detrás de un ícono y aparece al tocarlo.** Es el patrón de Moodle, pedido por el usuario y traído a la paleta del salón. El sistema tenía la explicación **siempre a la vista** —el subtítulo bajo cada título de pantalla, la línea de ayuda bajo cada campo— y con quince campos eso es un párrafo por renglón: quien ya sabe lo que hace tiene que saltearlo cada vez que entra. **La información no se saca, se guarda**: entra `<x-ayuda>`, aplicado a los **45 encabezados** —el subtítulo pasa al lado del título y libera su renglón— y a **28 líneas de ayuda de formulario**, 23 de ellas junto a la etiqueta de su campo. **Tres cosas se aprendieron probándolo en el navegador, no leyendo la documentación.** El disparador tiene que ser **`focus` y no `click`**: es el único de los cuatro de Bootstrap que **cierra al tocar afuera**, que es lo que se pidió — con `click` queda abierto hasta el segundo toque. El ícono va **FUERA del `<label>`**, nunca adentro: adentro no recibe el clic, la etiqueta lo reenvía al campo y el globo no abre jamás — se vio con el foco terminando en el `input`. Y los popovers de Bootstrap son **opt-in**, así que sin instanciarlos el ícono se dibuja y no hace nada; de paso `app.js` **saca el `title`**, que con Bootstrap presente dibujaría el tooltip nativo encima del globo. **Sin Bootstrap el texto no se pierde**: queda en ese `title`, así que el navegador lo muestra al pasar el mouse — la regla de siempre, lo que adorna puede faltar. **Y queda escrito cuándo NO usarlo**: esto es para lo que *explica*; lo que *advierte* —que la seña no se devuelve, que un local no tiene timbrado propio— se queda a la vista, porque esconder un aviso detrás de un ícono es apagarlo en silencio. **155 pruebas · 1199 aserciones**, la nueva comprueba que el texto escondido **siga estando** en el marcado: el riesgo de guardar algo es perderlo |
 | 7.93.1 | 03/09/2026 | **Se comprobó que un despliegue no borra las fotos que subió el salón, y ahora el sistema avisa si alguna vez se pierden.** Las fotos de los servicios y el logo **no están en el repositorio** —están ignoradas por git a propósito, son de este salón y no del programa— así que en el servidor viven **sólo** en dos volúmenes de Docker; la base guarda el nombre del archivo y el volumen guarda el archivo. Se verificó de verdad, no por deducción: se dejaron dos archivos marcados en `imagenes_servicios` e `imagenes_logo`, se corrió `up -d --build --force-recreate` —reconstruir **y** recrear los contenedores, que es más de lo que hace un despliegue normal— y los dos seguían ahí, también vistos por Caddy en sólo lectura. **Lo que sí las borra queda escrito**: `down -v`, «Delete» del proyecto en el panel, y sobre todo **desplegar con otro nombre de proyecto** — los volúmenes se llaman `<proyecto>_imagenes_servicios`, así que con otro `-p` se crean vacíos, los viejos quedan huérfanos y las fotos «desaparecen» sin que nada dé error. **Y si pasara, no se nota**: `Imagen::url()` devuelve null y la tarjeta dibuja «sin imagen de referencia», o sea que el salón perdería sus fotos y la pantalla se vería normal — la misma pérdida silenciosa que costó cara con el correo. Por eso `spg:diagnostico` gana la sección **«Las fotos del salón»**, que compara cada nombre guardado contra el disco y, si falta alguno, lo **cuenta como problema** y dice la causa probable y cómo recuperarlas. Comprobada en las dos direcciones: con todo en su lugar dice «todas en su lugar», y con un nombre apuntando a un archivo inexistente el diagnóstico termina en «1 cosa para revisar». **154 pruebas · 1195 aserciones** |
 | 7.93.0 | 03/09/2026 | **Tres cosas de pantalla: entrar con otra cuenta, el turno al lado del profesional, y las fotos en el celular.** **El panel de la huella sólo ofrecía «Usar contraseña»**, y ese enlace dejaba el formulario en blanco: había que volver a escribir el correo que la pantalla acababa de mostrar. Ahora precarga el usuario, vacía la contraseña y pone el foco ahí, que es lo único que falta. Y entra **«Iniciar sesión con otra cuenta»**, que es lo contrario y por eso es otro enlace: limpia los dos campos **y olvida lo que el navegador recordaba** — si no, el panel volvería a ofrecer la cuenta anterior en la próxima visita y el campo vendría con el correo de quien usó la computadora antes, que en el mostrador es justo el caso a evitar. **El combo de profesional decía sólo «con Lucía»**, así que la clienta no tenía cómo acordarse del horario de cada una: elegía a alguien de la mañana para un servicio y a alguien de la tarde para otro, y **recién al buscar horarios** descubría que no hay ninguno donde las dos estén. El sistema hacía lo correcto y lo decía tarde, cuando ya había elegido todo y sin saber cuál de sus decisiones fallaba. Ahora cada opción lleva su turno —«con Lucía · Turno Mañana 08:00-12:30»— sacado de `Agenda::profesionales()`, o sea **una sola fuente para el portal y para Nueva cita**, y con los turnos DE ESE LOCAL como manda el criterio de quién aparece. Va además un renglón que explica la restricción **antes** de chocar con ella, y no como error rojo: todavía no hizo nada mal. **Y las tarjetas de servicio eran enormes en el celular**: con `minmax(170px,1fr)` en una pantalla de 375 px no entran dos columnas —el gap deja 165 y el mínimo pide 170— así que la grilla caía a **una sola** y cada foto quedaba de **239 px de alto**; con quince servicios, varias pantallas de scroll para elegir. Medido: pasa a **dos columnas y 103 px**, con la foto en 3/2 en vez de 4/3. **En escritorio no cambia nada**, comprobado a 1000 px: cuatro columnas y 4/3. **154 pruebas · 1195 aserciones** |
 | 7.92.1 | 03/09/2026 | **Las guías de actualización pasan a describir el camino que de verdad funciona.** Decían «`git push origin master` y ⋮ → Update en el panel», y las dos mitades estaban mal: `master` **ya no existe** —el repositorio quedó con una sola rama, `main`, para que el clon por defecto traiga el código— y el botón del panel **falla en este VPS**, con un `python3: can't open file '/.hstgr-….list.py'` que es de la herramienta de Hostinger. Falla además de la peor manera: **deja los contenedores como estaban**, así que el panel avisa que no se pudo y el sistema sigue sirviendo la versión anterior sin que nada más lo indique — se reconoce por el tiempo de actividad, un `Up 2 days` justo después de desplegar. El camino comprobado es **una línea en la Consola web** que clona, reconstruye y recrea; queda escrito **por qué `-p spg` no es opcional**, que es lo que más caro se paga: de ese nombre salen los de los volúmenes, así que sin la bandera Compose deduce el del directorio y **levanta con volúmenes vacíos**, como una instalación de cero con la base del salón ahí al lado pero desconectada. Se corrigen además dos comandos que apuntaban a rutas inexistentes: **el respaldo agendado** llamaba a `/docker/spg/docker/respaldo.sh` —el proyecto no se copia a ninguna carpeta del servidor— y ahora el guion se saca de la imagen a `/usr/local/bin` una vez; y **el guion de la base** pasa a la forma corta, comprobada acá: `docker exec spg_app sh -c 'mysql … < basededatos/actualizaciones/…'`, que funciona porque el directorio de trabajo del contenedor es `/app` y `DB_PASSWORD` ya está en su entorno |
@@ -517,6 +518,7 @@ resources/views/
   layout/app.blade.php     Encabezado, barra de módulos y pie: envuelve todo
   components/              <x-encabezado> <x-filtros> <x-paginacion> <x-landing>
                            <x-cobro-lineas>  las líneas del cobro, en Facturas y en la agenda
+                           <x-ayuda>          el ícono que guarda la explicación hasta que la piden
                            <x-servicio-tarjeta> el servicio al reservar, con su imagen
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
   <modulo>/                Una carpeta por módulo
@@ -541,7 +543,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 154 pruebas
+tests/Feature/             Las 155 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -975,6 +977,47 @@ guardado su contacto: el enlace entero, un usuario o canal, o el número.
 - **Solo se aceptan `http` y `https`.** El valor termina en un `href` del pie de todas las
   pantallas: sin esa comprobación, alguien con acceso a Configuración podría guardar un
   `javascript:` y dejarlo inyectado en todo el sistema.
+
+
+### La ayuda contextual: `<x-ayuda>`
+
+El sistema tenía la explicación **siempre a la vista** —el subtítulo bajo cada
+título, la línea de ayuda bajo cada campo—, y con quince campos en pantalla eso
+es un párrafo por renglón: quien ya sabe lo que hace tiene que saltearlo cada
+vez que entra. **La información no se saca, se guarda** detrás de un ícono, que
+es el patrón de Moodle y lo que se pidió.
+
+```blade
+<label class="form-label" for="email">Email *</label><x-ayuda>Ahí te mandamos el código.</x-ayuda>
+<x-ayuda titulo="El timbrado" lado="right">…</x-ayuda>
+```
+
+| | |
+|---|---|
+| Dónde vive | `resources/views/components/ayuda.blade.php` |
+| Cómo abre | clic en el ícono |
+| Cómo cierra | **tocando afuera** — el disparador es `focus`, no `click` |
+| Sin Bootstrap | el texto queda en el `title`, así que se ve al pasar el mouse |
+
+Cuatro cosas que conviene no romper:
+
+- **`data-bs-trigger="focus"` es lo que da el comportamiento pedido.** Con
+  `click` el globo queda abierto hasta que se vuelva a tocar el ícono; con
+  `focus`, Bootstrap lo cierra solo al perder el foco.
+- **El ícono va FUERA del `<label>`, nunca adentro.** Adentro no recibe el clic:
+  la etiqueta lo reenvía al campo y el globo no abre nunca. Comprobado en el
+  navegador — el foco terminaba en el `input`.
+- **Los popovers de Bootstrap son opt-in**: hay que instanciarlos. Lo hace
+  `app.js` al cargar, y de paso **saca el `title`** — con Bootstrap presente
+  sobra, y si se deja aparece el tooltip nativo encima del globo.
+- **El texto se aplana** (`strip_tags` + espacios): el globo lo recibe por
+  atributo, así que el marcado que traiga adentro no llegaría igual.
+
+> **Esto es para lo que EXPLICA; lo que ADVIERTE se queda a la vista.** Un aviso
+> que dice que la seña no se devuelve, que el Automatizador manda con otra
+> cuenta o que un local no tiene timbrado propio tiene que leerse sin que nadie
+> lo busque. Esconderlo detrás de un ícono es apagarlo en silencio, que es
+> exactamente lo que este proyecto ya pagó caro con el correo.
 
 ### La espera tiene que verse
 

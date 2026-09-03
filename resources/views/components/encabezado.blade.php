@@ -52,8 +52,15 @@
 
 <div class="spg-page-head spg-head-flex">
     <div class="spg-head-txt">
-        <h1>{{ $tituloFinal }}</h1>
-        @if ($sub)<div class="sub">{!! $sub !!}</div>@endif
+        {{-- **La explicación se guarda detrás del ícono.** Estaba siempre a la
+             vista, debajo del título de cada pantalla: para quien ya sabe qué
+             hace ahí es un párrafo que hay que saltear cada vez que entra. No se
+             saca, se guarda — se toca el ícono y aparece, se toca afuera y se va.
+
+             Va al lado del título y no debajo: es ayuda SOBRE el título, y
+             puesta abajo volvería a ocupar su propio renglón, que es lo que se
+             quería evitar. --}}
+        <h1>{{ $tituloFinal }}@if ($sub)<x-ayuda lado="bottom">{!! $sub !!}</x-ayuda>@endif</h1>
     </div>
 
     @if ($accion || $acciones)

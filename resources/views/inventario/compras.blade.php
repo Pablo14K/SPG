@@ -107,10 +107,9 @@
                         <div class="spg-suma-fila spg-suma-total"><span>Total</span>
                             <strong class="val oro" id="facCompraTotal">—</strong></div>
                     </div>
-                    <label class="form-label" for="facCompraNro">Número de la factura</label>
+                    <label class="form-label" for="facCompraNro">Número de la factura</label><x-ayuda>Como viene impreso en el papel del proveedor.</x-ayuda>
                     <input class="form-control" id="facCompraNro" name="nro_factura_proveedor"
                            placeholder="001-001-0000001" maxlength="20" required autocomplete="off">
-                    <div class="form-text">Como viene impreso en el papel del proveedor.</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

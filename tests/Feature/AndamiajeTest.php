@@ -381,4 +381,36 @@ class AndamiajeTest extends TestCase
             );
         }
     }
+
+    /**
+     * **La ayuda contextual guarda el texto, no lo tira.**
+     *
+     * `<x-ayuda>` esconde la explicación detrás de un ícono para que la pantalla
+     * no la muestre toda de golpe. El riesgo es obvio: que al esconderla se
+     * pierda. Por eso se comprueba que el texto siga estando **en el marcado**,
+     * dentro del `data-bs-content` que Bootstrap lee para el globo.
+     *
+     * Y se comprueba que el ícono lleve el disparador `focus`, que es lo único
+     * de los cuatro de Bootstrap que da el comportamiento pedido: abre al
+     * tocarlo y **cierra al tocar afuera**.
+     */
+    #[Test]
+    public function la_ayuda_contextual_conserva_el_texto_que_esconde(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+
+        $html = (string) $this->get(route('citas.agenda'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('class="spg-ayuda"', $html,
+            'La pantalla tendría que dibujar el ícono de ayuda del subtítulo.');
+        $this->assertStringContainsString('data-bs-trigger="focus"', $html,
+            'Sin el disparador `focus` el globo no se cierra al tocar afuera.');
+
+        // El texto del subtítulo sigue estando, guardado en el globo.
+        $this->assertMatchesRegularExpression(
+            '/data-bs-content="[^"]*Citas del d[ií]a/u', $html,
+            'El subtítulo se escondió y no quedó en el globo: se perdió, que es '
+            . 'lo contrario de lo que hace este componente.'
+        );
+    }
 }

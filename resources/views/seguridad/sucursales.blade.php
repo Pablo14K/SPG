@@ -36,10 +36,9 @@
                            maxlength="60" value="{{ old('nombre_salon', $nombreSalon) }}">
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label" for="logo">Logo</label>
+                    <label class="form-label" for="logo">Logo</label><x-ayuda>PNG, JPG o WEBP, hasta 512 KB. Si no subís nada, queda el que está.</x-ayuda>
                     <input type="file" class="form-control" id="logo" name="logo"
                            accept="image/png,image/jpeg,image/webp">
-                    <div class="form-text">PNG, JPG o WEBP, hasta 512 KB. Si no subís nada, queda el que está.</div>
                 </div>
                 <div class="col-md-2">
                     <button class="btn btn-oro w-100"><i class="bi bi-check-lg"></i> Guardar</button>
@@ -60,10 +59,9 @@
                     </span>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="actividad_cod">Código de actividad</label>
+                    <label class="form-label" for="actividad_cod">Código de actividad</label><x-ayuda>El de la DNIT, el mismo del RUC.</x-ayuda>
                     <input class="form-control" id="actividad_cod" name="actividad_cod" data-solo="numeros" inputmode="numeric" maxlength="10"
                            value="{{ old('actividad_cod', $actividad['cod']) }}" placeholder="96021">
-                    <div class="form-text">El de la DNIT, el mismo del RUC.</div>
                 </div>
                 <div class="col-md-5">
                     <label class="form-label" for="actividad_desc">Actividad económica</label>
@@ -72,10 +70,9 @@
                            placeholder="PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="email_fiscal">Correo con el que facturás</label>
+                    <label class="form-label" for="email_fiscal">Correo con el que facturás</label><x-ayuda>Va impreso; no es a donde llegan los avisos del sistema.</x-ayuda>
                     <input class="form-control" id="email_fiscal" name="email_fiscal" type="email"
                            maxlength="120" value="{{ old('email_fiscal', $emailFiscal) }}">
-                    <div class="form-text">Va impreso; no es a donde llegan los avisos del sistema.</div>
                 </div>
             </div>
         </form>

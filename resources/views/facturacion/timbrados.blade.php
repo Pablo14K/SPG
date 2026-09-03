@@ -59,7 +59,7 @@
                                     {{ $t->nombre }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Las notas de crédito usan su propio timbrado.</div>
+                        <x-ayuda>Las notas de crédito usan su propio timbrado.</x-ayuda>
                     </div>
 
                     <div class="row g-2 mb-2">

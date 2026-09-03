@@ -25,15 +25,13 @@
                 <input class="form-control" id="apellido" name="apellido" required value="{{ old('apellido') }}">
             </div>
             <div class="col-12">
-                <label class="form-label" for="email">Email *</label>
+                <label class="form-label" for="email">Email *</label><x-ayuda>Ahí te mandamos el código para activar la cuenta.</x-ayuda>
                 <input type="email" class="form-control" id="email" name="email" required value="{{ old('email') }}">
-                <div class="form-text">Ahí te mandamos el código para activar la cuenta.</div>
             </div>
             <div class="col-12">
-                <label class="form-label" for="telefono">Celular</label>
+                <label class="form-label" for="telefono">Celular</label><x-ayuda>Opcional. Nos sirve para avisarte de tus citas.</x-ayuda>
                 <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel" value="{{ old('telefono') }}"
                        placeholder="0981123456">
-                <div class="form-text">Opcional. Nos sirve para avisarte de tus citas.</div>
             </div>
             <div class="col-12">
                 <label class="form-label" for="username">Usuario *</label>

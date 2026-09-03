@@ -128,7 +128,7 @@
                         </label>
                     </div>
                     <button class="btn btn-rapido"><i class="bi bi-plus-lg"></i> Crear rol</button>
-                    <div class="form-text">Los permisos se marcan arriba, después de crearlo.</div>
+                    <x-ayuda>Los permisos se marcan arriba, después de crearlo.</x-ayuda>
                 </form>
             </div>
         </div>

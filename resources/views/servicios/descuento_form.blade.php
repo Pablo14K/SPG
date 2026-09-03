@@ -63,10 +63,9 @@
                            value="{{ old('fecha_inicio', $d->fecha_inicio ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="fecha_fin">Vigente hasta</label>
+                    <label class="form-label" for="fecha_fin">Vigente hasta</label><x-ayuda>Dejalas vacías si la promoción no vence.</x-ayuda>
                     <input type="date" class="form-control" id="fecha_fin" name="fecha_fin"
                            value="{{ old('fecha_fin', $d->fecha_fin ?? '') }}">
-                    <div class="form-text">Dejalas vacías si la promoción no vence.</div>
                 </div>
 
                 <div class="col-12">

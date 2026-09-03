@@ -33,11 +33,10 @@
             </p>
 
             <div class="mb-3">
-                <label class="form-label" for="mail_usuario">Cuenta de correo (Gmail)</label>
+                <label class="form-label" for="mail_usuario">Cuenta de correo (Gmail)</label><x-ayuda>Es la que Gmail autentica para poder enviar.</x-ayuda>
                 <input type="email" class="form-control" id="mail_usuario" name="mail_usuario"
                        value="{{ old('mail_usuario', $personalizado ? $usuarioActual : '') }}"
                        placeholder="peluqueria.avisos@gmail.com" autocomplete="off">
-                <div class="form-text">Es la que Gmail autentica para poder enviar.</div>
             </div>
 
             <div class="mb-3">

@@ -1444,3 +1444,28 @@ window.SPGCarga = (function () {
   casillas.forEach(function (c) { c.addEventListener('change', sumar); });
   sumar();
 })();
+
+/* ------------------------------------------------------------------
+   Ayuda contextual: los globos de `<x-ayuda>`.
+
+   Los popovers de Bootstrap son opt-in —hay que instanciarlos— así que
+   sin esto el ícono se dibuja y no abre nada. Se hace una sola vez, al
+   cargar, sobre todo lo que declare el atributo.
+
+   `trigger: focus` es lo que da el comportamiento pedido: abre al tocar
+   el ícono y **cierra al tocar afuera**, sin necesidad de volver a
+   tocarlo. Con `click` quedaría abierto hasta el segundo toque.
+
+   Si Bootstrap no cargó no se hace nada y no se rompe nada: el texto
+   sigue estando en el `title` del botón, así que el navegador lo muestra
+   al pasar el mouse. Es la regla de siempre — lo que adorna puede faltar.
+   ------------------------------------------------------------------ */
+(function () {
+  if (!window.bootstrap || !bootstrap.Popover) { return; }
+  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+    // El `title` está para cuando no hay Bootstrap; con Bootstrap sobra,
+    // y si se deja aparece el tooltip nativo ENCIMA del globo.
+    el.removeAttribute('title');
+    new bootstrap.Popover(el, { container: 'body' });
+  });
+})();

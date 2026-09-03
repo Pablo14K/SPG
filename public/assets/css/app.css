@@ -743,6 +743,48 @@ html,body{max-width:100%;overflow-x:hidden;}
   .spg-srv-desc{-webkit-line-clamp:1;}
 }
 
+/* ---------------------------------------------------------------
+   AYUDA CONTEXTUAL (`<x-ayuda>`)
+
+   El ícono que guarda la explicación hasta que alguien la pide. Es el
+   patrón de Moodle, traído a la paleta del salón: la información no se
+   saca de la pantalla, se guarda — con quince campos a la vista, un
+   párrafo por renglón obliga a leer por encima de todo cada vez.
+
+   **El oro va acá porque es acción, no adorno**: se toca y pasa algo.
+   En reposo va en `--oro-texto` sobre transparente, para que no compita
+   con el botón principal de la pantalla; recién al pasar el mouse o al
+   abrirse toma el oro suave de fondo.
+   --------------------------------------------------------------- */
+.spg-ayuda{display:inline-flex;align-items:center;justify-content:center;
+  width:1.15rem;height:1.15rem;padding:0;margin-left:.3rem;vertical-align:-.15em;
+  border:0;border-radius:50%;background:transparent;color:var(--oro-texto);
+  font-size:.92rem;line-height:1;cursor:pointer;
+  transition:background-color .15s,color .15s;}
+.spg-ayuda:hover,.spg-ayuda:focus{background:var(--oro-suave);color:var(--oro-texto);outline:0;}
+.spg-ayuda:focus-visible{box-shadow:0 0 0 2px var(--oro);}
+.spg-ayuda i{display:block;}
+
+/* El globo, con los mismos neutros cálidos que el resto. Bootstrap lo
+   dibuja con sus propias variables, así que se pisan las de él y no se
+   escriben reglas nuevas: así el tema oscuro lo da vuelta solo. */
+.popover{--bs-popover-bg:var(--blanco);
+  --bs-popover-border-color:var(--gris-calido);
+  --bs-popover-header-bg:var(--oro-tinte);
+  --bs-popover-header-color:var(--oro-texto);
+  --bs-popover-body-color:var(--carbon);
+  --bs-popover-max-width:280px;
+  --bs-popover-font-size:.83rem;
+  --bs-popover-border-radius:10px;
+  box-shadow:0 6px 18px rgba(0,0,0,.12);}
+.popover .popover-header{font-weight:600;font-size:.84rem;}
+
+/* En el celular el globo se acota al ancho de la pantalla: con 280 px
+   fijos se sale del borde cuando el ícono está a la derecha. */
+@media (max-width:575.98px){
+  .popover{--bs-popover-max-width:min(280px,calc(100vw - 2rem));}
+}
+
 /* La miniatura de la ficha del servicio, donde se sube la imagen. */
 .spg-srv-mini{width:120px;height:90px;object-fit:cover;border-radius:8px;
   border:1px solid var(--gris-calido);}

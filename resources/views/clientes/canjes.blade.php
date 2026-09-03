@@ -60,11 +60,10 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="sucursales[]"
                                        value="{{ $s->id_sucursal }}" id="suc{{ $s->id_sucursal }}" checked>
-                                <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label>
+                                <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label><x-ayuda>Si no marcás ninguna, vale en todas.</x-ayuda>
                             </div>
                         @endforeach
                     </div>
-                    <div class="form-text">Si no marcás ninguna, vale en todas.</div>
                 </div>
             @endif
             <div class="col-12">

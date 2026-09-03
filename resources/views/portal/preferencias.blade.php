@@ -19,13 +19,12 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="dias_antes">Avisarme con</label>
+                <label class="form-label" for="dias_antes">Avisarme con</label><x-ayuda>Con 0 te avisamos el mismo día.</x-ayuda>
                 <div class="input-group" style="max-width:220px">
                     <input type="number" class="form-control" id="dias_antes" name="dias_antes"
                            min="0" max="15" value="{{ (int) $pref->dias_antes }}">
                     <span class="input-group-text">día(s) antes</span>
                 </div>
-                <div class="form-text">Con 0 te avisamos el mismo día.</div>
             </div>
 
             <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>

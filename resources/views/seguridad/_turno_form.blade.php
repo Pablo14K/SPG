@@ -32,11 +32,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="flexibilidad_entrada_min">Flexibilidad de entrada (minutos) *</label>
+                        <label class="form-label" for="flexibilidad_entrada_min">Flexibilidad de entrada (minutos) *</label><x-ayuda>Después de este margen sin entrada marcada, el sistema lo pasa automáticamente a «Falta sin aviso». Ejemplo: 15 minutos.</x-ayuda>
                         <input type="number" class="form-control" id="flexibilidad_entrada_min"
                                name="flexibilidad_entrada_min" min="0" max="180" step="1" required
                                value="{{ old('flexibilidad_entrada_min', $t->flexibilidad_entrada_min ?? 15) }}">
-                        <div class="form-text">Después de este margen sin entrada marcada, el sistema lo pasa automáticamente a «Falta sin aviso». Ejemplo: 15 minutos.</div>
                     </div>
 
                     <div class="mb-2">

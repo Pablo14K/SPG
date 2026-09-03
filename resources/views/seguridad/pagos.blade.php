@@ -168,10 +168,9 @@
                 </div>
 
                 <div class="mb-2" data-medio-campo="documento">
-                    <label class="form-label" for="documento">CI o RUC del titular</label>
+                    <label class="form-label" for="documento">CI o RUC del titular</label><x-ayuda>Varios bancos lo piden al transferir sin alias.</x-ayuda>
                     <input class="form-control" id="documento" name="documento" maxlength="20"
                            data-solo="ruc" value="{{ old('documento', $editar->documento ?? '') }}">
-                    <div class="form-text">Varios bancos lo piden al transferir sin alias.</div>
                 </div>
 
                 <div class="mb-2">

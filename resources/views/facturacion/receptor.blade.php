@@ -51,7 +51,7 @@
                                 RUC
                             </option>
                         </select>
-                        <div class="form-text">Si no pide la factura a su nombre, dejalo como está.</div>
+                        <x-ayuda>Si no pide la factura a su nombre, dejalo como está.</x-ayuda>
                     </div>
 
                     {{-- El bloque del documento se oculta con «consumidor final»,
@@ -67,10 +67,9 @@
                     </div>
 
                     <div class="mb-3 @if (old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueNombre">
-                        <label class="form-label" for="nombre">Nombre o razón social <span class="txt-no">*</span></label>
+                        <label class="form-label" for="nombre">Nombre o razón social <span class="txt-no">*</span></label><x-ayuda>Con RUC tiene que decir lo mismo que figura en el RUC.</x-ayuda>
                         <input class="form-control" id="nombre" name="nombre"
                                value="{{ old('nombre', trim(($per->nombre ?? '') . ' ' . ($per->apellido ?? ''))) }}">
-                        <div class="form-text">Con RUC tiene que decir lo mismo que figura en el RUC.</div>
                     </div>
                 </div>
 
@@ -82,24 +81,21 @@
                     </p>
 
                     <div class="mb-3">
-                        <label class="form-label" for="email">Correo electrónico</label>
+                        <label class="form-label" for="email">Correo electrónico</label><x-ayuda>Es a donde le llega la factura.</x-ayuda>
                         <input class="form-control" id="email" name="email" type="email"
                                value="{{ old('email', $per->email ?? '') }}" placeholder="clienta@correo.com">
-                        <div class="form-text">Es a donde le llega la factura.</div>
                     </div>
 
                     <div class="row g-2">
                         <div class="col-md-7">
-                            <label class="form-label" for="direccion">Dirección</label>
+                            <label class="form-label" for="direccion">Dirección</label><x-ayuda>Opcional.</x-ayuda>
                             <input class="form-control" id="direccion" name="direccion"
                                    value="{{ old('direccion', $per->direccion ?? '') }}">
-                            <div class="form-text">Opcional.</div>
                         </div>
                         <div class="col-md-5">
-                            <label class="form-label" for="telefono">Teléfono</label>
+                            <label class="form-label" for="telefono">Teléfono</label><x-ayuda>Opcional.</x-ayuda>
                             <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                                    value="{{ old('telefono', $per->telefono ?? '') }}">
-                            <div class="form-text">Opcional.</div>
                         </div>
                     </div>
 

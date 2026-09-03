@@ -111,20 +111,18 @@
                          separa del precio el día que el servicio sube —queda una
                          seña de 50.000 sobre un servicio de 400.000— y hay que
                          acordarse de tocar los dos. --}}
-                    <label class="form-label" for="sena_porcentaje">Seña que se pide</label>
+                    <label class="form-label" for="sena_porcentaje">Seña que se pide</label><x-ayuda>Vacío = no pide seña. Ej: 50 para media reserva.</x-ayuda>
                     <div class="input-group">
                         <input class="form-control" id="sena_porcentaje" name="sena_porcentaje"
                                data-solo="numeros" inputmode="numeric" maxlength="3" placeholder="sin seña"
                                value="{{ old('sena_porcentaje', $s->sena_porcentaje ?? '') }}">
                         <span class="input-group-text">%</span>
                     </div>
-                    <div class="form-text">Vacío = no pide seña. Ej: 50 para media reserva.</div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="duracion_min">Duración (minutos)</label>
+                    <label class="form-label" for="duracion_min">Duración (minutos)</label><x-ayuda>Es la que usa la agenda para calcular los huecos.</x-ayuda>
                     <input type="number" class="form-control" id="duracion_min" name="duracion_min"
                            min="5" max="600" step="5" value="{{ old('duracion_min', $s->duracion_min ?? 30) }}">
-                    <div class="form-text">Es la que usa la agenda para calcular los huecos.</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="tasa_iva">IVA</label>

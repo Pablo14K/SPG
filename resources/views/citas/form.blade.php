@@ -179,11 +179,10 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label" for="personas">¿Cuántas personas van?</label>
+                    <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda>Entre 1 y 20.</x-ayuda>
                     <input class="form-control" id="personas" name="personas"
                            value="{{ old('personas', 1) }}" style="max-width:140px"
                            data-solo="numeros" inputmode="numeric" maxlength="2">
-                    <div class="form-text">Entre 1 y 20.</div>
                 </div>
 
                 <div class="col-12">

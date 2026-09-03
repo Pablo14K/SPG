@@ -51,7 +51,7 @@
             @endforeach
         </select>
         @if (! empty($ayuda))
-            <div class="form-text">{{ $ayuda }}</div>
+            <x-ayuda>{{ $ayuda }}</x-ayuda>
         @endif
     </div>
 @elseif (count($lista) === 1)
