@@ -5,7 +5,7 @@
 @section('formulario')
     <form class="spg-login" method="post" action="{{ route('registro') }}">
         @csrf
-        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <div class="logo-big">@include('layout._marca', ['modo' => 'grande'])</div>
         <h1 class="text-center" style="font-size:1.2rem;font-weight:500;margin-bottom:.2rem;">Crear tu cuenta</h1>
         <p class="text-center text-muted-warm" style="font-size:.85rem;margin-bottom:1.1rem;">
             Para reservar tus citas desde el celular

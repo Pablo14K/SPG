@@ -372,7 +372,7 @@
     <div class="spg-footer-in">
 
         <div class="spg-footer-col spg-footer-marca">
-            <div class="spg-footer-logo"><i class="bi bi-scissors"></i> {{ config('app.name') }}</div>
+            <div class="spg-footer-logo">@include('layout._marca') {{ config('app.name') }}</div>
             <p class="spg-footer-tcc">Trabajo de Conclusión de Curso · Ingeniería en Informática</p>
         </div>
 

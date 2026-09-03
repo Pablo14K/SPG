@@ -22,7 +22,7 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.91.0',
+    'version' => '7.92.0',
     'version_fecha' => '2026-09-03',
 
     'moneda' => 'Gs.',
@@ -81,5 +81,24 @@ return [
     'fichaje' => [
         'gracia_antes_min' => 60,
         'gracia_despues_min' => 120,
+    ],
+
+    /*
+     * Cuántos minutos sin actividad cierran la sesión.
+     *
+     * **Se comprueba en `ExigeSesion`, no se deja en manos de Laravel**, y esa
+     * es la diferencia que importa: cuando el framework descarta la sesión por
+     * vencida no queda nada, así que la persona cae en el ingreso **sin saber
+     * por qué** — y eso se lee como que el sistema la echó. Comprobándolo acá,
+     * la sesión todavía existe cuando se decide cerrarla y se puede decir el
+     * motivo.
+     *
+     * Por eso `SESSION_LIFETIME` del `.env` va MÁS ALTO que esto: es la red de
+     * atrás, para que el archivo de sesión siga estando cuando este control
+     * tiene que hablar. Si se lo pusiera igual, el que llegaría primero sería
+     * el del framework y volveríamos al ingreso mudo.
+     */
+    'sesion' => [
+        'inactividad_min' => 30,
     ],
 ];

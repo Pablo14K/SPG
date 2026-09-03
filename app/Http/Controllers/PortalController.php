@@ -52,7 +52,7 @@ class PortalController extends Controller
         $idc = $this->cliente();
 
         $proxima = DB::selectOne(
-            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, ec.nombre AS estado_nombre
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita

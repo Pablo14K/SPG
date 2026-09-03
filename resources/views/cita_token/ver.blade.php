@@ -16,7 +16,7 @@
 <div class="container py-4" style="max-width:620px">
 
     <div class="text-center mb-3">
-        <div class="logo-big"><i class="bi bi-scissors"></i></div>
+        <div class="logo-big">@include('layout._marca', ['modo' => 'grande'])</div>
         <h1 style="font-size:1.2rem;font-weight:500">{{ config('app.name') }}</h1>
     </div>
 

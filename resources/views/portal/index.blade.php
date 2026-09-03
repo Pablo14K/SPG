@@ -13,12 +13,30 @@
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Tu próxima cita</h2>
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
-                    <div style="font-size:1.1rem"><strong>{{ fecha($proxima->fecha_hora) }}</strong></div>
+                    <div style="font-size:1.1rem">
+                        <strong>{{ fecha($proxima->fecha_hora) }}</strong>
+                        {{-- **El estado va acá, y no es un adorno.** Sin él la
+                             tarjeta anunciaba «Tu próxima cita» igual para una
+                             cita normal y para una que se pasó de hora, así que
+                             el inicio y «Mis citas» parecían decir cosas
+                             distintas de la misma cita. Sale del MISMO estado
+                             que la lista, así que no se pueden desfasar. --}}
+                        {!! estado_badge($proxima->estado_nombre ?? '') !!}
+                    </div>
                     <div class="text-muted-warm">
                         {{ $proxima->servicios ?: 'Sin servicios cargados' }}
                         · con {{ $proxima->profesional }}
                         · {{ (int) $proxima->duracion_min }} min
                     </div>
+                    @if (($proxima->estado_nombre ?? '') === 'Atrasada')
+                        {{-- Atrasada quiere decir que la hora pasó y nadie la
+                             tocó todavía. La clienta necesita ver eso —es la
+                             que va a reclamar—, pero anunciada a secas como
+                             «próxima» parece que todo está bien. --}}
+                        <div class="txt-no mt-1" style="font-size:.85rem">
+                            Te esperábamos a esta hora. Si ya no vas a poder venir, avisanos.
+                        </div>
+                    @endif
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
                     @if ($enCurso)

@@ -5214,4 +5214,39 @@ class ReglasDeNegocioTest extends TestCase
             'Sin decodificar, el base64 no es JSON: tiene que dar un motivo.'
         );
     }
+
+    /**
+     * **A los 30 minutos sin actividad la sesión se cierra, y se dice por qué.**
+     *
+     * Laravel ya vence la sesión con `SESSION_LIFETIME`, pero cuando lo hace no
+     * queda nada: la persona cae en el ingreso **sin ninguna explicación**, y
+     * eso se lee como que el sistema la echó o como que se rompió algo. Por eso
+     * el plazo se comprueba en `ExigeSesion`, con la sesión todavía viva, que es
+     * lo único que permite contar el motivo.
+     *
+     * Se mide en las dos direcciones: recién usado sigue adentro, y pasado el
+     * plazo sale **con el aviso**. Sin la segunda mitad, un middleware que no
+     * cerrara nada pasaría igual.
+     */
+    public function test_la_sesion_se_cierra_por_inactividad_y_lo_dice(): void
+    {
+        $minutos = (int) config('spg.sesion.inactividad_min', 30);
+        $this->assertGreaterThan(0, $minutos, 'Tiene que haber un plazo configurado.');
+
+        $this->entrarComo('admin', 'admin123');
+        $this->get(route('panel'))->assertOk();
+
+        // Recién usado: sigue adentro.
+        session(['spg_ultima_actividad' => time() - 60]);
+        $this->get(route('panel'))->assertOk();
+
+        // Pasado el plazo: afuera, y con el motivo.
+        session(['spg_ultima_actividad' => time() - ($minutos * 60 + 60)]);
+        $this->get(route('panel'))->assertRedirect(route('login'));
+
+        $avisos = array_column((array) session('spg_flash', []), 'msg');
+        $this->assertNotEmpty($avisos, 'El cierre por inactividad tiene que dejar un aviso.');
+        $this->assertStringContainsString('sin que se usara el sistema', implode(' ', $avisos),
+            'El aviso tiene que decir el motivo: sin eso, caer en el ingreso parece una falla.');
+    }
 }

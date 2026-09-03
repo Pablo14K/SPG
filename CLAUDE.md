@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.92.0 | 03/09/2026 | **La sesión se cierra sola a los 30 minutos diciendo por qué, la marca del salón deja de escribirse a mano, y el portal muestra el estado de la cita.** **El cierre por inactividad lo hace `ExigeSesion` y no Laravel**, y la diferencia es todo: cuando el framework descarta una sesión vencida **no queda nada**, así que la persona cae en el ingreso **sin ninguna explicación** —y eso se lee como que el sistema la echó o como que algo se rompió—. Comprobándolo en el middleware la sesión todavía existe cuando se decide cerrarla, que es lo único que permite contar el motivo. Por eso `SESSION_LIFETIME` va **más alto** que el plazo (45 contra 30): es la red de atrás, para que el archivo de sesión siga estando cuando este control tiene que hablar — puestos iguales ganaría el del framework y volveríamos al ingreso mudo. **Y el refresco automático del portal no cuenta como actividad**: esa pantalla se consulta sola cada 20 segundos, así que una pestaña abierta y olvidada mantendría la sesión viva para siempre. Cerrar el navegador ya cerraba desde la 7.58.0. **El logo del salón se dibujaba en cinco lugares y tres lo tenían escrito a mano**: el ingreso ya mostraba el cargado y el formulario de crear cuenta, la pantalla del enlace de la cita y **el pie —donde va la versión—** seguían con la tijera fija, así que el salón cargaba su logo y la mitad del sistema seguía mostrando el genérico. Entra `layout/_marca` con dos modos. **No todas las pantallas de acceso la llevan**: recuperar (llave), el código (escudo), verificar (sobre) y la huella (dedo) usan el **ícono de la tarea**, que dice qué se está haciendo y no de quién es el sistema. **Y la tarjeta del portal muestra el estado de la cita**: anunciaba «Tu próxima cita» igual para una normal y para una **Atrasada** —la que se pasó de hora y nadie tocó—, así que el inicio y «Mis citas» parecían decir cosas distintas de la misma cita. Sale del **mismo** estado que la lista, con un renglón que explica qué significa Atrasada. **Se comprobó que una cita Ausente NO sale como próxima**: el criterio pide `bloquea_agenda = 1` y Ausente no lo cumple — corrido contra la base, la consulta vuelve vacía. **154 pruebas · 1195 aserciones**, una nueva comprobada en las dos direcciones · el docx de herramientas al día, con Caddy y Traefik agregados |
 | 7.91.0 | 03/09/2026 | **El comprobante lo manda UNO SOLO —el SPG—, así la cuenta de correo no puede desincronizarse.** Se pidió que la cuenta del sistema y la del Automatizador SIFEN coincidieran y que cambiar una cambiara la otra; mirando el código, la respuesta buena no era sincronizarlas sino **que hubiera una sola**. Los dos saben mandarle el comprobante a la clienta y **los dos adjuntan el KuDE y el XML** —el SPG desde la copia local que guarda al declarar (`guardarCopias`)—, así que con los dos prendidos le llegaba **el mismo comprobante dos veces, desde direcciones distintas**, y cambiar la cuenta en la pantalla arreglaba la mitad. **Manda el SPG**, que es el que tiene la cuenta configurable, y ya lo hacía solo al emitir desde la 7.64.0; el Automatizador se calla dejando su `MAIL_FROM_EMAIL` **vacío**, con lo cual su `construirMail()` devuelve null y **saltea el envío sin romper la declaración** — el CDC, el KuDE y el XML se generan igual, que es lo único que se le pide. **Lo que se descartó y por qué**: pasarle las credenciales en el TXT, como el emisor (`EMI|`), dejaría la contraseña **en texto plano en un archivo por cada factura**, porque ese TXT se guarda como prueba de lo enviado. **Y si igual se la cargan, se detecta**: el Automatizador contesta `mail_enviado`, así que `Sifen::avisoCorreo()` lo dice en pantalla y lo deja en el log en vez de que la clienta reciba dos correos sin que nadie se entere. Entra además una **guardia de andamiaje** —la forma de romper esto es llenar una línea de un archivo de ejemplo, que alguien copia al servidor de buena fe—, comprobada en las dos direcciones. **153 pruebas · 1188 aserciones** |
 | 7.90.2 | 03/09/2026 | **Cambiar la cuenta de correo del sistema NO cambia la de la factura electrónica, y ahora se dice.** Lo preguntó el usuario y la respuesta era que no: son **dos remitentes independientes**. El SPG manda el código de verificación, la recuperación, el segundo factor, los recordatorios y el botón «Enviar comprobante»; el **KuDE en PDF** lo manda el **Automatizador SIFEN**, que es otro programa y lee su propio `.env`. El SPG le pasa en el TXT el correo **del receptor** (la línea `CLI|`), nunca el del emisor — así que la clienta seguiría recibiendo la factura desde la cuenta vieja. **Y hay una segunda mitad peor**: `_sifen/.env` no se versiona a propósito —lleva la clave y el token—, así que en un servidor recién armado el Automatizador no tiene ninguna configuración de correo y su `MailService` lanza «MAIL_FROM_EMAIL no está configurado»: **el PDF no le llega a nadie y el salón no se entera**. Es la misma función apagada en silencio que costó cara entre la 6.4.0 y la 7.8.0. **Lo que NO se hizo, y por qué**: pasarle las credenciales en el TXT, como ya se hace con el emisor (`EMI|`), dejaría **la contraseña del correo en texto plano en un archivo por cada factura** — el TXT se guarda en disco como prueba de lo enviado (`storage/app/sifen/<factura>/`), así que el arreglo sería peor que el problema. Se aplica entonces la regla del proyecto —*si algo queda apagado, tiene que notarse*—: la pantalla lo dice en un bloque aparte y `spg:diagnostico` gana un nivel **OJO**, para lo que hay que saber y **no** es una falla —no suma a los problemas, así que el diagnóstico puede terminar en «Todo en orden» y haberlo dicho igual—. Sólo aparece con `SIFEN_ACTIVO=true`: apagado, el módulo no existe y el aviso sería ruido. Comprobado en las dos direcciones. **152 pruebas · 1185 aserciones** |
 | 7.90.1 | 03/09/2026 | **La huella nunca funcionó, y el mensaje nuevo de la 7.90.0 fue el que lo destapó.** Al registrarla en el servidor, Windows Hello completaba la ceremonia y el sistema contestaba «El navegador no mandó los datos de la ceremonia» — uno de los cuatro motivos que la versión anterior separó. Con eso el defecto quedó señalado: el navegador manda `bufToB64url(cred.response.clientDataJSON)`, o sea **texto base64url**, y el servidor le hacía `json_decode` **directamente**, que sobre base64 nunca devuelve un arreglo. De ahí salía el «Datos del cliente inválidos» que no se podía diagnosticar: la ceremonia estaba perfecta y lo que fallaba era la lectura. **Y en el login rompía algo peor que un mensaje**: la firma se verifica sobre `authenticatorData || SHA256(clientDataJSON)` con los **bytes** originales, así que hasheando el base64 el resultado no coincidía nunca — ninguna huella podía validar, ni aunque el registro hubiera entrado. Entra `WebAuthn::clientData()`, que decodifica antes de mirar y es tolerante a propósito: si algún cliente mandara el JSON en claro se usa tal cual, en vez de destrozarlo con un base64_decode que no corresponde. **152 pruebas · 1185 aserciones**, la nueva comprobada en las dos direcciones — con el decodificador sacado, falla |
@@ -537,7 +538,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 148 pruebas
+tests/Feature/             Las 154 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -848,6 +849,53 @@ Tres reglas al tocarlo:
 - El **pie** tiene cuatro bloques: identidad, **Secciones** (los módulos del rol, en tres columnas),
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
+
+
+### La sesión se cierra sola a los 30 minutos, y dice por qué
+
+| Cuándo | Qué pasa |
+|---|---|
+| **30 min sin actividad** | se cierra y la pantalla de ingreso explica el motivo |
+| **Al cerrar el navegador** | se cierra — `expire_on_close`, salvo «mantener activo en este dispositivo» |
+| **Alguien entra con la misma cuenta** | ésta queda desplazada, con su propio aviso |
+
+El plazo vive en **`spg.sesion.inactividad_min`** y lo hace cumplir
+`ExigeSesion`, **no Laravel**. La diferencia es la que importa: cuando el
+framework descarta una sesión vencida **no queda nada**, así que la persona cae
+en el ingreso sin ninguna explicación —y eso se lee como que el sistema la echó
+o como que algo se rompió—. Comprobándolo en el middleware la sesión todavía
+existe cuando se decide cerrarla, que es lo único que permite contar el motivo.
+
+> **Por eso `SESSION_LIFETIME` del `.env` va MÁS ALTO que el plazo** (45 contra
+> 30). Es la red de atrás, para que el archivo de sesión siga estando cuando
+> este control tiene que hablar. Puestos iguales, el que llegaría primero sería
+> el del framework y volveríamos al ingreso mudo.
+
+> **El refresco automático del portal NO cuenta como actividad.** La pantalla de
+> la atención se consulta sola cada 20 segundos: si contara, una pestaña abierta
+> y olvidada mantendría la sesión viva para siempre, que es justo lo que este
+> control evita.
+
+### La marca del salón se dibuja en UN solo lugar
+
+El logo que cargó el salón —o la tijera de la identidad si no cargó ninguno— se
+muestra en cinco pantallas, y sale de **`layout/_marca`**:
+
+| Dónde | Modo |
+|---|---|
+| Ingreso (dos veces, según el ancho) | `grande` |
+| Crear cuenta | `grande` |
+| La pantalla del enlace de la cita | `grande` |
+| El pie, al lado de la versión | `linea` |
+
+> **Escrito a mano en cada uno se desfasa, y se desfasó.** El ingreso ya
+> mostraba el logo y los otros tres seguían con la tijera fija, así que el salón
+> cargaba su logo y la mitad del sistema seguía mostrando el genérico.
+>
+> **No todas las pantallas de acceso llevan la marca**: recuperar contraseña
+> (llave), el código (escudo), verificar (sobre) y la huella (dedo) usan el
+> **ícono de la tarea**, que es lo correcto — dicen qué se está haciendo, no de
+> quién es el sistema.
 
 ### Centro de Ayuda y Soporte
 
