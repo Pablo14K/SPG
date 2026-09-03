@@ -180,6 +180,26 @@ class Diagnostico extends Command
             $this->bien('Enlaces de los correos: ' . $enlace);
         }
 
+        // **La factura electrónica la manda OTRO programa, con OTRA cuenta.**
+        //
+        // El Automatizador SIFEN envía el KuDE en PDF leyendo su propio `.env`,
+        // que no se versiona a propósito —lleva la clave y el token—. O sea que
+        // la cuenta que se carga en «Seguridad → Correo del sistema» NO lo toca,
+        // y en un servidor recién armado ese archivo puede directamente no
+        // existir: ahí su MailService lanza «MAIL_FROM_EMAIL no está
+        // configurado» y el PDF no le llega a nadie, **sin que el salón se
+        // entere** — que es la clase de función apagada en silencio que este
+        // proyecto ya se hizo a sí mismo con el correo entre la 6.4.0 y la 7.8.0.
+        //
+        // Sólo se dice cuando SIFEN está encendido: con `SIFEN_ACTIVO=false` el
+        // módulo no existe en la interfaz y el aviso sería ruido.
+        if ((bool) config('sifen.activo')) {
+            $this->aviso('El KuDE de la factura lo manda el Automatizador SIFEN con SU propia '
+                . 'cuenta de correo (la de su `.env`), no con la de acá. Si cambiaste la del '
+                . 'sistema, esa se cambia aparte — y si su `.env` no está cargado, el PDF no le '
+                . 'llega a la clienta.');
+        }
+
         // ---- ¿La base coincide con el .sql que se entrega? ------------------
         $problemas += $this->revisarEsquema();
 
@@ -578,5 +598,18 @@ class Diagnostico extends Command
     private function linea(string $k, string $v): void
     {
         $this->line('       ' . $k . ': <fg=gray>' . $v . '</>');
+    }
+
+    /**
+     * Algo que hay que saber y que NO es una falla.
+     *
+     * No suma a `$problemas`: el diagnostico puede terminar en «Todo en orden»
+     * y aun asi haber dicho esto. Es para lo que el sistema no puede comprobar
+     * por su cuenta —lo que vive en otro contenedor, por ejemplo— pero de lo que
+     * conviene enterarse antes y no cuando una clienta no recibe nada.
+     */
+    private function aviso(string $t): void
+    {
+        $this->line('  <fg=yellow>OJO</>  ' . $t);
     }
 }

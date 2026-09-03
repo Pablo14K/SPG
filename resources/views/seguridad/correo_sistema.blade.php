@@ -90,4 +90,25 @@
             </p>
         </form>
     </div>
+
+    {{-- **Esto NO cambia el remitente de la factura electrónica.**
+         Son dos remitentes independientes y es fácil suponer que es uno solo:
+         el SPG manda los avisos con la cuenta de arriba, y el Automatizador
+         SIFEN manda el KuDE en PDF con la SUYA, que vive en su propio `.env`.
+         Callarlo dejaría a la clienta recibiendo la factura desde una cuenta
+         que el salón cree haber cambiado. --}}
+    <div class="spg-panel mt-3" style="max-width:640px">
+        <h2 class="h6"><i class="bi bi-receipt"></i> La factura electrónica se manda aparte</h2>
+        <p class="text-muted-warm mb-2" style="font-size:.84rem">
+            Lo de arriba vale para el <strong>código de verificación, la recuperación de
+            contraseña, el segundo factor, los recordatorios</strong> y el botón «Enviar
+            comprobante» de Facturación.
+        </p>
+        <p class="text-muted-warm mb-0" style="font-size:.84rem">
+            El <strong>KuDE en PDF</strong> que se manda al declarar una factura ante la DNIT
+            lo envía el <strong>Automatizador SIFEN</strong>, que es otro programa y tiene su
+            propia cuenta de correo. <strong>Cambiarla acá no lo toca</strong>: eso se configura
+            en el archivo de entorno del Automatizador, en el servidor.
+        </p>
+    </div>
 @endsection
