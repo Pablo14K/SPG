@@ -152,6 +152,32 @@ class WebAuthn
      *   · **otra ceremonia**: llegó una respuesta de login a la ruta de registro
      *     o al revés.
      */
+    /**
+     * El `clientDataJSON` viaja en **base64url**, y hay que decodificarlo antes
+     * de mirarlo.
+     *
+     * Es el defecto que tenía rota la huella desde que existe: el navegador
+     * manda `bufToB64url(cred.response.clientDataJSON)` —o sea texto base64— y
+     * el servidor le hacía `json_decode` directamente, que sobre base64 nunca
+     * devuelve un arreglo. De ahí salía el «Datos del cliente inválidos» que no
+     * se podía diagnosticar: la ceremonia del navegador estaba perfecta y lo
+     * que fallaba era la lectura.
+     *
+     * **Y en el login rompe algo peor que un mensaje**: la firma se calcula
+     * sobre `authenticatorData || SHA256(clientDataJSON)`, con los BYTES
+     * originales. Hasheando el base64 el resultado no coincide nunca, así que
+     * ninguna huella podía validar.
+     *
+     * Es tolerante a propósito: si algún cliente mandara el JSON en claro se usa
+     * tal cual, en vez de destrozarlo con un base64_decode que no corresponde.
+     */
+    public static function clientData(string $recibido): string
+    {
+        $txt = trim($recibido);
+
+        return str_starts_with($txt, '{') ? $txt : self::b64urlDecode($txt);
+    }
+
     public static function motivoClientData(string $clientDataJSON, string $tipoEsperado): ?string
     {
         $cd = json_decode($clientDataJSON, true);
@@ -189,7 +215,9 @@ class WebAuthn
      */
     public static function verificarRegistro(string $clientDataJSON, string $attestationObjectB64): array
     {
-        $motivo = self::motivoClientData($clientDataJSON, 'webauthn.create');
+        $cd = self::clientData($clientDataJSON);
+
+        $motivo = self::motivoClientData($cd, 'webauthn.create');
         if ($motivo !== null) {
             throw new RuntimeException($motivo);
         }
@@ -219,7 +247,9 @@ class WebAuthn
         // visitante POR QUÉ no validó le da información sobre credenciales que
         // no son suyas. Pero queda en el log, que es donde hace falta para
         // arreglarlo.
-        $motivo = self::motivoClientData($clientDataJSON, 'webauthn.get');
+        $cd = self::clientData($clientDataJSON);
+
+        $motivo = self::motivoClientData($cd, 'webauthn.get');
         if ($motivo !== null) {
             Log::warning('SPG: la huella no validó — ' . $motivo);
 
@@ -237,7 +267,7 @@ class WebAuthn
             return false;
         }
 
-        $firmado = $authData . hash('sha256', $clientDataJSON, true);
+        $firmado = $authData . hash('sha256', $cd, true);
 
         return openssl_verify($firmado, self::b64urlDecode($signatureB64), $publicKeyPem, OPENSSL_ALGO_SHA256) === 1;
     }

@@ -5173,4 +5173,45 @@ class ReglasDeNegocioTest extends TestCase
 
         $this->get(route('seguridad.correo_sistema'))->assertStatus(403);
     }
+
+    /**
+     * **El `clientDataJSON` de la huella llega en base64url y hay que
+     * decodificarlo.**
+     *
+     * Es el defecto que tenía la huella rota desde que existe: el navegador
+     * manda `bufToB64url(cred.response.clientDataJSON)` y el servidor le hacía
+     * `json_decode` directamente, que sobre base64 nunca devuelve un arreglo.
+     * El síntoma era «Datos del cliente inválidos» con la ceremonia del
+     * navegador perfectamente completada.
+     *
+     * Se comprueba con el mismo dato en las dos formas: como lo manda el
+     * navegador (base64url) tiene que pasar, y el base64 crudo —lo que se
+     * miraba antes— tiene que ser rechazado.
+     */
+    public function test_la_huella_decodifica_el_client_data_del_navegador(): void
+    {
+        $desafio = WebAuthn::nuevoDesafio();
+
+        $cd = json_encode([
+            'type' => 'webauthn.create',
+            'challenge' => $desafio,
+            'origin' => WebAuthn::origin(),
+        ], JSON_UNESCAPED_SLASHES);
+
+        // Como lo manda el navegador.
+        $comoLoManda = WebAuthn::b64urlEncode($cd);
+
+        $this->assertNull(
+            WebAuthn::motivoClientData(WebAuthn::clientData($comoLoManda), 'webauthn.create'),
+            'El clientDataJSON que manda el navegador tiene que aceptarse una vez decodificado.'
+        );
+
+        // Y la mitad que faltaba: sin decodificar, no se entiende. Si esta
+        // aserción dejara de fallar, es que alguien sacó el `clientData()` y la
+        // prueba de arriba pasaría igual sin medir nada.
+        $this->assertNotNull(
+            WebAuthn::motivoClientData($comoLoManda, 'webauthn.create'),
+            'Sin decodificar, el base64 no es JSON: tiene que dar un motivo.'
+        );
+    }
 }
