@@ -722,6 +722,27 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-srv-precio{font-size:1rem;font-weight:600;color:var(--oro-texto);}
 .spg-srv-dur{font-size:.73rem;color:var(--gris-oscuro);}
 
+/* **En el celular la tarjeta se achica, y sobre todo la foto.**
+
+   Con `minmax(170px,1fr)` y una pantalla de 360 px no entran dos columnas
+   —360 menos el gap da 174 por columna, apenas por debajo del mínimo— así que
+   la grilla cae a UNA sola: cada tarjeta ocupa el ancho entero y su imagen 4/3
+   queda de unos 260 px de alto. Con quince servicios eso son varias pantallas
+   de scroll para elegir, que es justo lo contrario de lo que las tarjetas
+   vinieron a resolver.
+
+   Se baja el mínimo para que entren dos, y la foto pasa a 3/2 —más apaisada,
+   así la tarjeta es más baja sin recortar de más—. En el escritorio no cambia
+   nada. */
+@media (max-width:575.98px){
+  .spg-srv-grid{gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));}
+  .spg-srv-img{aspect-ratio:3/2;}
+  .spg-srv-cuerpo{padding:.4rem .45rem .5rem;}
+  .spg-srv-nombre{font-size:.8rem;}
+  .spg-srv-precio{font-size:.9rem;}
+  .spg-srv-desc{-webkit-line-clamp:1;}
+}
+
 /* La miniatura de la ficha del servicio, donde se sube la imagen. */
 .spg-srv-mini{width:120px;height:90px;object-fit:cover;border-radius:8px;
   border:1px solid var(--gris-calido);}

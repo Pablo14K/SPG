@@ -47,8 +47,22 @@
                 style="width:74px;height:74px;border-radius:50%;font-size:2rem">
             <i class="bi bi-fingerprint"></i></button>
         <div id="bioMsg" class="text-muted-warm mt-2" style="font-size:.8rem">Tocá para entrar</div>
-        <p class="mt-3 mb-0">
+        {{-- **Dos salidas distintas, y conviene no confundirlas.**
+
+             «Usar contraseña» es la MISMA persona que prefiere tipearla, así
+             que el usuario ya está: se precarga y sólo queda la contraseña.
+             Volver a escribir el correo que la pantalla acaba de mostrar es
+             pedir un dato que el sistema ya tiene a la vista.
+
+             «Iniciar sesión con otra cuenta» es OTRA persona, así que se limpia
+             todo —incluido lo que este navegador recordaba— o el campo vendría
+             con el correo de quien usó la computadora antes. --}}
+        <p class="mt-3 mb-1">
             <a href="#" id="usarClave" class="link-oro" style="font-size:.85rem">Usar contraseña</a>
+        </p>
+        <p class="mb-0">
+            <a href="#" id="otraCuenta" class="text-muted-warm" style="font-size:.82rem">
+                Iniciar sesión con otra cuenta</a>
         </p>
     </div>
 
@@ -175,7 +189,24 @@
         suelto = document.getElementById('bioSuelto'),
         msg = document.getElementById('bioMsg');
 
-    function mostrarClave() { panel.style.display = 'none'; formL.style.display = 'block'; }
+    var campoUsuario = document.getElementById('usuario'),
+        campoClave = document.getElementById('pass');
+
+    /**
+     * Pasa al formulario. Con `conCuenta` deja el usuario puesto —es la misma
+     * persona, que sólo prefiere la contraseña— y el foco va derecho a la
+     * contraseña, que es lo único que falta.
+     */
+    function mostrarClave(conCuenta) {
+        panel.style.display = 'none';
+        formL.style.display = 'block';
+
+        if (conCuenta && guardado && guardado.login) {
+            campoUsuario.value = guardado.email || guardado.login;
+            campoClave.value = '';
+            campoClave.focus();
+        }
+    }
 
     // **Se ofrece siempre que el equipo tenga sensor, no sólo si este
     // navegador recuerda una cuenta.** Antes dependía de `localStorage`, así
@@ -188,7 +219,7 @@
     // porque puede que en este equipo nadie la haya activado. En los dos casos
     // el navegador es el que resuelve de quién es la credencial.
     SPGBio.available().then(function (ok) {
-        if (!ok) { mostrarClave(); return; }
+        if (!ok) { mostrarClave(false); return; }
         if (guardado && guardado.login) {
             document.getElementById('bioEmail').textContent = guardado.email || guardado.login;
             formL.style.display = 'none';
@@ -199,7 +230,22 @@
     });
 
     document.getElementById('usarClave').addEventListener('click', function (e) {
-        e.preventDefault(); mostrarClave();
+        e.preventDefault(); mostrarClave(true);
+    });
+
+    // **Otra cuenta: se limpia todo, y también lo recordado.** Si no se
+    // olvidara, el panel de la huella volvería a ofrecer la cuenta anterior en
+    // la próxima visita y el campo vendría con el correo de otra persona —que
+    // en la computadora del mostrador es exactamente el caso que hay que
+    // evitar.
+    document.getElementById('otraCuenta').addEventListener('click', function (e) {
+        e.preventDefault();
+        SPGBio.olvidar();
+        guardado = null;
+        campoUsuario.value = '';
+        campoClave.value = '';
+        mostrarClave(false);
+        campoUsuario.focus();
     });
 
     function entrarConHuella() {

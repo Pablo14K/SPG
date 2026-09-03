@@ -106,7 +106,26 @@ class Agenda
         }
 
         return DB::select(
-            "SELECT u.id_usuario, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS nombre
+            "SELECT u.id_usuario, CONCAT(pe_u.nombre,' ',pe_u.apellido) AS nombre,
+                    -- **En qué turno atiende, corto y al lado del nombre.**
+                    -- El combo decía sólo «con Lucía», así que la clienta no
+                    -- tenía cómo acordarse del horario de cada una: elegía a
+                    -- alguien de la mañana para un servicio y a alguien de la
+                    -- tarde para otro, y recién al buscar horarios descubría
+                    -- que no hay ninguno donde las dos estén. El sistema hacía
+                    -- lo correcto y lo decía tarde.
+                    --
+                    -- Son los turnos DE ESTE LOCAL, el mismo criterio con el
+                    -- que se decide quién aparece.
+                    COALESCE((SELECT GROUP_CONCAT(DISTINCT
+                                        CONCAT(t2.nombre, ' ',
+                                               TIME_FORMAT(t2.hora_inicio, '%H:%i'), '-',
+                                               TIME_FORMAT(t2.hora_fin, '%H:%i'))
+                                        ORDER BY t2.hora_inicio SEPARATOR ' · ')
+                                FROM usuario_turno ut2
+                                JOIN turno_laboral t2 ON t2.id_turno = ut2.id_turno AND t2.activo = 1
+                               WHERE ut2.id_usuario = u.id_usuario
+                                 AND ($suc = 0 OR t2.id_sucursal = $suc)), '') AS turnos
                FROM usuario u
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN rol r ON r.id_rol = u.id_rol

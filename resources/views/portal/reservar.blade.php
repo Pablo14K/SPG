@@ -61,6 +61,24 @@
                 <a class="btn btn-sm btn-outline-neutro mb-2" href="{{ route('portal.profesionales', ['sucursal' => $sucursal]) }}">
                     <i class="bi bi-people"></i> ¿Quién hace cada cosa?</a>
 
+                {{-- **La restricción se explica ANTES, no en el rechazo.**
+                     Eligiendo a alguien de la mañana para un servicio y a
+                     alguien de la tarde para otro no hay ningún horario donde
+                     las dos estén, así que el selector no ofrece ni un día. El
+                     sistema hace lo correcto y lo dice tarde: para entonces la
+                     clienta ya eligió todo y no sabe cuál de sus decisiones es
+                     la que falla.
+
+                     Va acá y no como un aviso rojo: es una ayuda para elegir
+                     bien, no un error — todavía no hizo nada mal. --}}
+                <p class="text-muted-warm mb-2" style="font-size:.82rem">
+                    <i class="bi bi-info-circle"></i>
+                    Podés dejar <strong>«quien me atienda»</strong> y el salón acomoda todo en el
+                    mismo turno. Si elegís a alguien en particular, mirá el horario que aparece
+                    al lado del nombre: <strong>pidiendo una persona de la mañana y otra de la
+                    tarde no va a haber ningún horario libre</strong>, porque tu cita es una sola.
+                </p>
+
                 {{-- **Tarjetas con la imagen de referencia.** La clienta
                      elige mirando el resultado y no una lista de nombres:
                      «mechas» es una palabra, la foto es lo que va a recibir.
@@ -99,8 +117,16 @@
                                         ? collect($profs)->filter(fn ($p) => in_array((int) $p->id_usuario, $suyos, true))
                                         : collect($profs);
                                 @endphp
+                                {{-- **El turno va al lado del nombre.** Decía sólo
+                                     «con Lucía», así que la clienta no tenía cómo
+                                     acordarse del horario de cada una: elegía a
+                                     alguien de la mañana para un servicio y a
+                                     alguien de la tarde para otro, y recién al
+                                     buscar horarios descubría que no hay ninguno
+                                     donde las dos estén. El sistema hacía lo
+                                     correcto y lo decía tarde. --}}
                                 @foreach ($ofrecer as $p)
-                                    <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}</option>
+                                    <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
                                 @endforeach
                             </select>
                         </x-servicio-tarjeta>

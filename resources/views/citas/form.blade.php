@@ -78,9 +78,13 @@
                                         name="prof_servicio[{{ $s->id_servicio }}]"
                                         data-prof-de="#srv{{ $s->id_servicio }}">
                                     <option value="0">quien esté libre</option>
+                                    {{-- Con su turno al lado: quien atiende también
+                                         necesita ver de un vistazo si esa persona
+                                         está a la mañana o a la tarde antes de
+                                         repartir los servicios. --}}
                                     @foreach ($profs as $p)
                                         <option value="{{ $p->id_usuario }}"
-                                            @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}</option>
+                                            @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
                                     @endforeach
                                 </select>
                             </x-servicio-tarjeta>
