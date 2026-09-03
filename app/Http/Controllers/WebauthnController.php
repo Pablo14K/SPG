@@ -96,14 +96,37 @@ class WebauthnController extends Controller
             'authenticatorSelection' => [
                 'authenticatorAttachment' => 'platform',   // el sensor del propio equipo
                 'userVerification' => 'required',
-                'residentKey' => 'preferred',
+                // **`required` y no `preferred`, y de eso depende entrar sin
+                // tipear el usuario.** Una credencial descubrible («resident
+                // key») la guarda el propio autenticador junto con a quién
+                // pertenece, así que el navegador la puede ofrecer sin que
+                // nadie diga primero de quién es. Con `preferred` queda a
+                // criterio del dispositivo, y si decide no guardarla el botón
+                // de huella de la pantalla de ingreso no encuentra nada.
+                //
+                // Windows Hello, Touch ID y la huella de Android las admiten,
+                // que son los autenticadores para los que está pensado esto
+                // (`authenticatorAttachment: platform`).
+                'residentKey' => 'required',
+                'requireResidentKey' => true,
             ],
             'timeout' => 60000,
             'attestation' => 'none',
             'excludeCredentials' => array_map(
                 fn ($r) => ['type' => 'public-key', 'id' => $r->credential_id], $existentes
             ),
-        ]]);
+        ],
+            // **A quién se le va a sacar, ANTES de registrar.** La huella es de
+            // una cuenta por vez, así que registrarla acá desactiva la de quien
+            // la tenía. Eso no puede pasar en silencio: la otra persona se
+            // encontraría con que su huella dejó de andar sin haber tocado nada.
+            'quitaA' => DB::select(
+                'SELECT DISTINCT u.username
+                   FROM credencial_webauthn c
+                   JOIN usuario u ON u.id_usuario = c.id_usuario
+                  WHERE c.id_usuario <> ?', [$uid]
+            ),
+        ]);
     }
 
     public function registrar(Request $request): JsonResponse
@@ -116,6 +139,15 @@ class WebauthnController extends Controller
                 (string) ($p['clientDataJSON'] ?? ''),
                 (string) ($p['attestationObject'] ?? '')
             );
+
+            // **La huella pertenece a UNA cuenta por vez.** Si alguien la
+            // activó en su cuenta y después entra con otra y la registra ahí,
+            // las credenciales anteriores se van: con dos cuentas activas, el
+            // navegador ofrece elegir entre las dos al entrar y la huella deja
+            // de identificar a una persona — que es justamente lo que se le
+            // pide. Queda en la auditoría a nombre de las dos cuentas, porque
+            // la de antes perdió una función sin haber apretado nada.
+            $quitadas = WebAuthn::dejarSoloA($uid);
 
             DB::insert('INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta) VALUES (?,?,?,?)',
                 [$uid, $credId, $pem, 'Dispositivo']);
@@ -132,7 +164,10 @@ class WebauthnController extends Controller
                   WHERE u.id_usuario = ?', [$uid]
             );
 
-            return response()->json(['ok' => true, 'email' => $u->email, 'username' => $u->username]);
+            return response()->json([
+                'ok' => true, 'email' => $u->email, 'username' => $u->username,
+                'desactivadas' => $quitadas,
+            ]);
         } catch (Throwable $ex) {
             return response()->json(['ok' => false, 'error' => $ex->getMessage()]);
         }
@@ -161,8 +196,32 @@ class WebauthnController extends Controller
         $p = $this->payload($request);
         $login = trim((string) ($p['login'] ?? ''));
 
+        // **Sin usuario también se puede entrar, y era lo que faltaba.** Antes
+        // el botón de huella sólo aparecía si ESTE navegador recordaba una
+        // cuenta en `localStorage`: en otra computadora, con los datos del sitio
+        // borrados o en una ventana privada, había que tipear usuario y
+        // contraseña otra vez — o sea que la huella servía justo cuando ya no
+        // hacía falta.
+        //
+        // Con la lista de credenciales vacía, el navegador ofrece las que el
+        // autenticador tenga guardadas para este sitio y la persona elige. El
+        // sistema no necesita saber de quién es: la credencial que vuelve trae
+        // su id, y `login()` la resuelve contra `credencial_webauthn`. Por eso
+        // **sólo se entra a la cuenta que la registró** — el id apunta a una
+        // sola fila y a un solo `id_usuario`.
         if ($login === '') {
-            return response()->json(['ok' => false, 'error' => 'Falta el usuario.']);
+            if (! WebAuthn::hayAlguna()) {
+                return response()->json(['ok' => false, 'error' => 'Sin credenciales.']);
+            }
+
+            return response()->json(['ok' => true, 'publicKey' => [
+                'challenge' => WebAuthn::nuevoDesafio(),
+                'timeout' => 60000,
+                'rpId' => WebAuthn::rpId(),
+                'userVerification' => 'required',
+                // Vacía a propósito: que el autenticador ofrezca las suyas.
+                'allowCredentials' => [],
+            ]]);
         }
 
         $u = DB::selectOne(

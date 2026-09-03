@@ -298,6 +298,15 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
         });
 
+        // **La cuenta que envía los avisos: SÓLO el Administrador.** Cambiarla
+        // toca cómo se comunica el salón entero, y una cuenta mal cargada deja
+        // al sistema mudo. El middleware `admin` lo hace cumplir; esconder el
+        // enlace no es el control.
+        Route::middleware('admin')->group(function () {
+            Route::get('correo-sistema', [ConfiguracionController::class, 'correoSistema'])->name('correo_sistema');
+            Route::post('correo-sistema', [ConfiguracionController::class, 'correoSistemaGuardar'])->name('correo_sistema.guardar');
+        });
+
         Route::middleware('modulo:seguridad.roles')->group(function () {
             Route::get('roles', [ConfiguracionController::class, 'roles'])->name('roles');
             Route::post('roles/crear', [ConfiguracionController::class, 'rolCrear'])->name('rol.crear');

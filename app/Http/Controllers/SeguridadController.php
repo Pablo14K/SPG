@@ -76,14 +76,24 @@ class SeguridadController extends Controller
             // **Mi cuenta NO va acá.** Ya vive en el desplegable del nombre,
             // arriba a la derecha, que es donde la busca cualquiera: repetirla
             // acá agrega un renglón que no lleva a ningún lado nuevo.
-            'subs' => Permisos::tarjetasPermitidas([
-                ['p' => 'configuracion.sucursales', 'ruta' => 'seguridad.sucursales', 'ic' => 'shop',
-                 't' => 'Sucursales', 'd' => 'Locales del salón, nombre y logo'],
-                ['p' => 'configuracion.contacto', 'ruta' => 'seguridad.contacto', 'ic' => 'headset',
-                 't' => 'Contacto', 'd' => 'Los medios que salen en el pie'],
-                ['p' => 'configuracion.pagos', 'ruta' => 'seguridad.pagos', 'ic' => 'bank',
-                 't' => 'Datos de pago', 'd' => 'A qué cuenta transfiere la clienta la seña'],
-            ]),
+            'subs' => array_merge(
+                Permisos::tarjetasPermitidas([
+                    ['p' => 'configuracion.sucursales', 'ruta' => 'seguridad.sucursales', 'ic' => 'shop',
+                     't' => 'Sucursales', 'd' => 'Locales del salón, nombre y logo'],
+                    ['p' => 'configuracion.contacto', 'ruta' => 'seguridad.contacto', 'ic' => 'headset',
+                     't' => 'Contacto', 'd' => 'Los medios que salen en el pie'],
+                    ['p' => 'configuracion.pagos', 'ruta' => 'seguridad.pagos', 'ic' => 'bank',
+                     't' => 'Datos de pago', 'd' => 'A qué cuenta transfiere la clienta la seña'],
+                ]),
+                // **Correo del sistema: SÓLO el Administrador.** No tiene un
+                // submódulo propio —lo guarda el middleware `admin`—, así que la
+                // tarjeta se agrega a mano cuando corresponde. Esconderla no es
+                // el control; el control es la ruta.
+                Permisos::esAdmin() ? [[
+                    'ruta' => 'seguridad.correo_sistema', 'ic' => 'envelope-at',
+                    't' => 'Correo del sistema', 'd' => 'La cuenta que envía los avisos',
+                ]] : []
+            ),
         ]);
     }
 

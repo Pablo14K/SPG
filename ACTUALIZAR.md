@@ -89,7 +89,7 @@ Igual que el caso 1: `git push origin master`, y **⋮ → Update** en el panel.
 Terminal de **`spg_app`** (ahí está el proyecto y el cliente de MariaDB):
 
 ```bash
-mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-01_7.88.0.sql
+mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql
 ```
 
 Cambiá el nombre del archivo por el de la versión que estés aplicando. Los

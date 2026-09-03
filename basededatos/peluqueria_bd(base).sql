@@ -946,6 +946,9 @@ CREATE TABLE `configuracion` (
   `actividad_cod` varchar(10) DEFAULT NULL,
   `actividad_desc` varchar(120) DEFAULT NULL,
   `email` varchar(120) DEFAULT NULL,
+  `mail_usuario` varchar(120) DEFAULT NULL,
+  `mail_clave` text DEFAULT NULL,
+  `mail_desde` varchar(120) DEFAULT NULL,
   `puntos_cada_gs` int(10) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY (`id_configuracion`),
   CONSTRAINT `chk_config_unica` CHECK (`id_configuracion` = 1),
@@ -960,7 +963,7 @@ CREATE TABLE `configuracion` (
 
 LOCK TABLES `configuracion` WRITE;
 /*!40000 ALTER TABLE `configuracion` DISABLE KEYS */;
-INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,'96021','PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA',NULL,10000);
+INSERT INTO `configuracion` VALUES (1,'Peluquería Luque',NULL,'96021','PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA',NULL,NULL,NULL,NULL,10000);
 /*!40000 ALTER TABLE `configuracion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -6461,4 +6464,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-01 17:01:20
+-- Dump completed on 2026-09-03 10:37:24

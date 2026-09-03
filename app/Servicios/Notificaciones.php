@@ -395,8 +395,8 @@ class Notificaciones
             }
 
             $url = self::CLAVE_POR_TIPO[$tipo] === 'inventario.stock'
-                ? rtrim((string) config('app.url'), '/') . '/inventario/stock'
-                : rtrim((string) config('app.url'), '/') . '/panel';
+                ? self::base() . '/inventario/stock'
+                : self::base() . '/panel';
 
             $mandados = 0;
             foreach ($porTipo[$tipo] as $d) {
@@ -510,8 +510,54 @@ class Notificaciones
         }
     }
 
+    /**
+     * El enlace que viaja en el correo.
+     *
+     * **Sale de `app.url`, NO del pedido que se está atendiendo**, y eso es lo
+     * que arregla el defecto de los enlaces a `localhost`. `route()` arma la
+     * dirección con la raíz de la petición en curso: sirve mientras el correo se
+     * mande desde la web, pero acá se manda desde **dos** lados que no son lo
+     * mismo:
+     *
+     *   · `spg:notificaciones`, que corre en el contenedor del planificador y
+     *     **no tiene petición ninguna**. Ahí Laravel cae en `app.url` — bien si
+     *     está cargada, y en `http://localhost` si no;
+     *   · una acción de pantalla —dar de baja a alguien, cargar una ausencia—,
+     *     donde la raíz es **el host que tipeó quien está usando el sistema**.
+     *     Entrando por `localhost:8000` o por la IP de la red, el enlace sale con
+     *     esa dirección y le llega así a la clienta, que no la puede abrir.
+     *
+     * La dirección del salón es una sola y está configurada. Que un correo
+     * dependa de por dónde entró quien apretó el botón es un accidente, no una
+     * función: por eso se arma con la base fija.
+     */
     public static function urlReprogramar(string $codigo): string
     {
-        return route('cita.token', ['t' => $codigo]);
+        // El tercer parámetro en `false` devuelve sólo la ruta, sin raíz: así
+        // el nombre y los parámetros los sigue resolviendo Laravel —cambiar la
+        // URL de la ruta no rompe esto— y la raíz la ponemos nosotros.
+        return self::base() . route('cita.token', ['t' => $codigo], false);
+    }
+
+    /**
+     * La dirección pública del salón, sin la barra final.
+     *
+     * Si `APP_URL` no está cargada, Laravel devuelve `http://localhost` y **el
+     * correo sale con un enlace que no lleva a ningún lado**. No se puede
+     * inventar la dirección buena, así que al menos queda registrado: es la
+     * diferencia entre un correo roto que alguien reporta dentro de un mes y uno
+     * que dejó una línea en el log el mismo día. `spg:diagnostico` lo comprueba
+     * antes, que es donde de verdad hay que enterarse.
+     */
+    private static function base(): string
+    {
+        $url = rtrim((string) config('app.url'), '/');
+
+        if ($url === '' || str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
+            Log::warning('SPG: APP_URL apunta a «' . ($url ?: 'nada')
+                . '», así que los enlaces de los correos no van a servir fuera de esta máquina.');
+        }
+
+        return $url;
     }
 }

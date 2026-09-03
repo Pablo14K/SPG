@@ -648,6 +648,101 @@ class ConfiguracionController extends Controller
         return $volver;
     }
 
+    // ---------- El correo que envía los avisos (solo Administrador) ----------
+
+    /**
+     * La cuenta desde la que salen el código de verificación, la recuperación
+     * de contraseña, el segundo factor y los recordatorios.
+     *
+     * Sólo el Administrador, porque cambiarla toca cómo se comunica el salón
+     * entero — y una cuenta mal cargada deja al sistema mudo sin que nadie lo
+     * note hasta que una clienta no recibe su código.
+     */
+    public function correoSistema(): View
+    {
+        $c = Config::correoSistema();
+
+        return view('seguridad.correo_sistema', [
+            // **La del `.env` es el respaldo**, y se muestra para que se vea qué
+            // cuenta usa hoy el sistema si no se cargó ninguna acá.
+            'usuarioActual' => $c['usuario'] ?: (string) config('mail.mailers.smtp.username'),
+            'desdeActual' => $c['desde'] ?: (string) config('mail.from.address'),
+            'personalizado' => $c['usuario'] !== '',
+            'tieneClave' => $c['clave'] !== '',
+        ]);
+    }
+
+    public function correoSistemaGuardar(Request $request): RedirectResponse
+    {
+        $volver = redirect()->route('seguridad.correo_sistema');
+        $usuario = trim((string) $request->input('mail_usuario', ''));
+        $clave = (string) $request->input('mail_clave', '');
+        $desde = trim((string) $request->input('mail_desde', ''));
+
+        // **Restaurar la del `.env`**: vaciar el usuario borra la cuenta cargada
+        // y el sistema vuelve a la del entorno. Es una opción explícita, no un
+        // descuido — por eso pide confirmarlo con la casilla.
+        if ($usuario === '' && $request->boolean('restaurar')) {
+            if (! Config::guardarCorreoSistema('', '', '')) {
+                flash('No se pudo restaurar la cuenta del sistema.', 'error');
+
+                return $volver;
+            }
+            Auditoria::registrar('MODIFICACION', 'Configuracion', 'configuracion', 1,
+                'Se restauró la cuenta de correo del entorno');
+            flash('Listo. El sistema vuelve a enviar desde la cuenta configurada en el servidor.');
+
+            return $volver;
+        }
+
+        if ($usuario === '') {
+            flash('Escribí la cuenta de correo desde la que se envían los avisos.', 'error');
+
+            return $volver;
+        }
+        if (! filter_var($usuario, FILTER_VALIDATE_EMAIL)) {
+            flash('«' . $usuario . '» no es una dirección de correo válida.', 'error');
+
+            return $volver;
+        }
+        if ($desde !== '' && ! filter_var($desde, FILTER_VALIDATE_EMAIL)) {
+            flash('El remitente «' . $desde . '» no es una dirección de correo válida.', 'error');
+
+            return $volver;
+        }
+        // **Gmail rechaza un remitente de otro dominio.** Si se carga un `desde`
+        // que no es del mismo dominio que la cuenta, el correo se cae del lado
+        // de Gmail sin que el sistema lo sepa. Se avisa antes.
+        if ($desde !== '' && ! str_ends_with($desde, '@' . (explode('@', $usuario)[1] ?? ''))) {
+            flash('El remitente tiene que ser del mismo dominio que la cuenta (' . $usuario . '), '
+                . 'o el proveedor de correo lo rechaza. Dejá el remitente vacío para usar la cuenta.', 'error');
+
+            return $volver;
+        }
+        // **Una cuenta nueva sin clave no sirve.** Si se cambia el usuario y no
+        // se escribe la clave, el sistema intentaría autenticarse con la clave
+        // vieja (o ninguna) y el correo dejaría de salir en silencio.
+        if ($clave === '' && ! Config::correoSistema()['clave']
+            && (string) config('mail.mailers.smtp.password') === '') {
+            flash('Cargá también la contraseña de aplicación de esa cuenta: sin ella el correo no sale.', 'error');
+
+            return $volver;
+        }
+
+        if (! Config::guardarCorreoSistema($usuario, $clave, $desde)) {
+            flash('No se pudo guardar la cuenta de correo.', 'error');
+
+            return $volver;
+        }
+
+        Auditoria::registrar('MODIFICACION', 'Configuracion', 'configuracion', 1,
+            'Cuenta de correo del sistema: ' . $usuario . ($clave !== '' ? ' (con contraseña nueva)' : ''));
+        flash('Cuenta de correo guardada. Desde ahora los avisos salen desde ' . ($desde ?: $usuario)
+            . '. Probala creando una cuenta de clienta y viendo si le llega el código.');
+
+        return $volver;
+    }
+
     // ---------- Roles y permisos ----------
 
     public function roles(): View

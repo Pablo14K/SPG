@@ -1054,6 +1054,32 @@ class Agenda
      *
      * Devuelve `true` si la movió y `false` si el destino no estaba libre.
      */
+    /**
+     * Los servicios de la cita que esa persona NO hace, por su nombre.
+     *
+     * Arreglo vacío es que los hace todos. Se devuelven los **nombres** y no un
+     * booleano a propósito: quien reasigna necesita saber cuál es el que traba
+     * —«no hace Coloración completa»— para elegir a otra persona o repartir la
+     * cita, y un «no se puede» a secas lo deja probando de a uno.
+     *
+     * Usa `fn_usuario_hace_servicio`, que es la misma autoridad que valida el
+     * reparto al agendar, con su **criterio permisivo**: quien no tiene ningún
+     * servicio cargado los hace todos. Así un salón que no administra esto
+     * sigue reasignando como siempre.
+     */
+    public static function serviciosQueNoHace(int $idCita, int $idUsuario): array
+    {
+        $filas = DB::select(
+            'SELECT DISTINCT s.nombre
+               FROM cita_servicio cs
+               JOIN servicio s ON s.id_servicio = cs.id_servicio
+              WHERE cs.id_cita = ? AND fn_usuario_hace_servicio(?, cs.id_servicio) = 0
+              ORDER BY s.nombre', [$idCita, $idUsuario]
+        );
+
+        return array_map(static fn ($f) => (string) $f->nombre, $filas);
+    }
+
     public static function reasignar(int $idCita, int $nuevoProfesional): bool
     {
         return (bool) Bd::enTransaccion(function () use ($idCita, $nuevoProfesional) {
@@ -1067,6 +1093,15 @@ class Agenda
             }
 
             DB::selectOne('SELECT id_usuario FROM usuario WHERE id_usuario = ? FOR UPDATE', [$nuevoProfesional]);
+
+            // **Que sepa hacer lo que la cita pide.** El hueco libre no alcanza:
+            // reasignar una coloración a la manicurista deja la agenda coherente
+            // y el salón sin poder dar el servicio, y la clienta se entera el día
+            // de la cita. Es la misma regla que `validarReparto()` hace cumplir
+            // al agendar, y acá faltaba.
+            if (self::serviciosQueNoHace($idCita, $nuevoProfesional)) {
+                return false;
+            }
 
             // La duración que le va a tocar A ÉL: la cita entera si se la lleva
             // toda, o sólo su bloque si el resto queda repartido.

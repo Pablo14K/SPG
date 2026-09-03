@@ -198,7 +198,25 @@ class CitasController extends Controller
         // Se mira sólo el comprobante NO anulado (estado 1). `nro_comprobante`
         // NO es una columna de `factura`: lo arma `fn_factura_nro()`.
         $rows = DB::select(
-            "SELECT v.*, fn_cita_sena(v.id_cita) AS sena,
+            "SELECT v.*,
+                    -- **La seña es lo que se cobró POR ADELANTADO, no todo lo
+                    -- que entró contra la cita.** `fn_cita_sena` suma cada cobro
+                    -- sin factura, y desde la 7.19.0 el cobro de la atención
+                    -- también va contra la cita: así que una atención cobrada
+                    -- entera aparecía en la agenda rotulada «seña Gs. 280.000»,
+                    -- o sea el total de la cita presentado como adelanto.
+                    --
+                    -- Es el mismo defecto que la 7.41.0 corrigió en el
+                    -- comprobante y en Cobros, y que acá había quedado sin
+                    -- tocar: se distingue por la observación, que
+                    -- `sp_registrar_sena` deja en «Sena de reserva» y el
+                    -- controlador pisa con «Cobro de la atencion».
+                    (SELECT COALESCE(SUM(co.monto), 0) FROM cobro co
+                      WHERE co.id_cita = v.id_cita AND co.id_estado_cobro = 1
+                        AND COALESCE(co.observaciones, '') NOT LIKE 'Cobro de la atencion%') AS sena,
+                    -- Todo lo que entró contra la cita, seña incluida: es contra
+                    -- esto que se calcula lo que falta cobrar.
+                    fn_cita_sena(v.id_cita) AS cobrado_cita,
                     -- **Lo que la clienta dejó dicho al reservar.** `observaciones`,
                     -- para quién es y cuántas van se guardaban desde el portal y
                     -- **no se mostraban en ninguna pantalla**: quien atiende no
@@ -272,6 +290,7 @@ class CitasController extends Controller
 
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
         $puedeCobrar = Permisos::puede('facturacion.cobros');
+        $puedeReasignar = Permisos::esAdmin() || Permisos::puede('personal.turnos');
 
         // La agenda necesita saber si «En proceso» va a ser aceptado por el
         // servidor. Se calcula una vez por fila y se vuelve a comprobar al
@@ -310,8 +329,18 @@ class CitasController extends Controller
             // debería poder moverse citas entre sí. Lo tienen el Administrador
             // y quien administra los turnos, que son los que saben quién
             // trabaja cuándo. `reasignarUna()` lo vuelve a comprobar.
-            'puedeReasignar' => Permisos::esAdmin() || Permisos::puede('personal.turnos'),
-            'profs' => Permisos::esAdmin() ? Agenda::profesionales() : [],
+            'puedeReasignar' => $puedeReasignar,
+            // **Se cargan si puede reasignar, no sólo si es Administrador.**
+            // Con `esAdmin()` a secas, quien tiene `personal.turnos` veía el
+            // modal con el combo VACÍO: una pantalla que ofrece una acción que
+            // no se puede completar.
+            'profs' => $puedeReasignar ? Agenda::profesionales() : [],
+            // **Quién puede tomar cada cita.** No alcanza con listar al equipo:
+            // reasignar una coloración a la manicurista deja la agenda coherente
+            // y el salón sin poder dar el servicio, y la clienta se entera el día
+            // de la cita. El servidor lo rechaza igual, pero un combo que ofrece
+            // a alguien que va a ser rechazado promete algo que no cumple.
+            'profsPorCita' => $puedeReasignar ? $this->profesionalesPorCita($rows) : [],
 
             // **El mismo desglose que ve la clienta en el portal.** Quien
             // confirma el pago tiene que poder comprobar el número: con un
@@ -321,6 +350,48 @@ class CitasController extends Controller
             'desglosesSena' => $this->desglosesDeSena($rows),
             'f' => $f,
         ]);
+    }
+
+    /**
+     * Para cada cita, qué profesionales pueden hacer TODOS sus servicios.
+     *
+     * Se resuelve en una consulta y no una por cita: son las citas del día
+     * contra el equipo del salón —treinta por siete en el peor caso— y con una
+     * consulta por fila la agenda de un día cargado haría treinta viajes.
+     *
+     * `fn_usuario_hace_servicio` es la misma autoridad que valida el reparto al
+     * agendar, con su criterio permisivo: quien no tiene ningún servicio
+     * cargado los hace todos.
+     *
+     * @param  array<int,object>  $rows
+     * @return array<int,array<int,bool>>  [id_cita => [id_usuario => true]]
+     */
+    private function profesionalesPorCita(array $rows): array
+    {
+        $ids = array_values(array_unique(array_map(static fn ($r) => (int) $r->id_cita, $rows)));
+        if (! $ids) {
+            return [];
+        }
+
+        $marcas = implode(',', array_fill(0, count($ids), '?'));
+        $filas = DB::select(
+            "SELECT c.id_cita, u.id_usuario
+               FROM cita c
+               CROSS JOIN usuario u
+               JOIN rol r ON r.id_rol = u.id_rol AND r.es_personal = 1
+              WHERE c.id_cita IN ($marcas) AND u.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = c.id_cita
+                                   AND fn_usuario_hace_servicio(u.id_usuario, cs.id_servicio) = 0)",
+            $ids
+        );
+
+        $por = [];
+        foreach ($filas as $f) {
+            $por[(int) $f->id_cita][(int) $f->id_usuario] = true;
+        }
+
+        return $por;
     }
 
     /**
@@ -931,6 +1002,11 @@ class CitasController extends Controller
         // horario del que las recibe.
         $movidas = 0;
         $ocupadas = [];
+        // **Las que no puede hacer se cuentan aparte**, porque no es lo mismo:
+        // «no está libre» se arregla cambiando el horario y «no hace ese
+        // servicio» no se arregla nunca con esa persona. Metidas en la misma
+        // bolsa, quien reasigna busca un hueco que no es el problema.
+        $noSabe = [];
         foreach ($elegidas as $idCita) {
             $suya = (int) DB::scalar(
                 'SELECT COUNT(*) FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
@@ -939,6 +1015,13 @@ class CitasController extends Controller
             );
             if (! $suya) {
                 continue;   // un id inventado en el POST no hace nada
+            }
+
+            $noHace = Agenda::serviciosQueNoHace($idCita, $a);
+            if ($noHace) {
+                $noSabe = array_unique(array_merge($noSabe, $noHace));
+
+                continue;
             }
 
             try {
@@ -960,6 +1043,10 @@ class CitasController extends Controller
         if ($movidas) {
             flash($movidas . ' cita(s) pasaron a ' . $nombre . '. El horario no cambió, '
                 . 'así que la clienta no tiene que hacer nada.');
+        }
+        if ($noSabe) {
+            flash($nombre . ' no hace ' . implode(', ', $noSabe)
+                . ', así que esas citas quedaron como estaban. Elegí a alguien que sí lo haga.', 'warning');
         }
         if ($ocupadas) {
             flash($nombre . ' no está libre en ' . count($ocupadas) . ' de esos horarios ('
@@ -1027,6 +1114,19 @@ class CitasController extends Controller
         }
         if ((string) $cita->fecha_hora < ahora_bd()) {
             flash('La cita ya empezó o quedó atrás; no se puede reasignar desde la agenda.', 'warning');
+
+            return $volver;
+        }
+
+        // **Que haga los servicios de la cita.** Se comprueba ACÁ y no sólo
+        // dentro de `Agenda::reasignar()` para poder decir cuál es el que traba:
+        // el procedimiento sólo puede contestar que no, y con eso quien reasigna
+        // queda probando profesional por profesional. Nombrarlo deja elegir a
+        // otra persona o repartir la cita.
+        $noHace = Agenda::serviciosQueNoHace($id, $a);
+        if ($noHace) {
+            flash('Esa persona no hace ' . implode(', ', $noHace)
+                . '. Elegí a alguien que sí lo haga, o repartí la cita desde «Editar».', 'warning');
 
             return $volver;
         }

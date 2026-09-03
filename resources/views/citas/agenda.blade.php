@@ -94,8 +94,17 @@
                             <td class="text-end">{{ (int) $c->duracion_min }} min</td>
                             <td>
                                 {!! estado_badge($c->estado) !!}
+                                {{-- **Seña y cobro de la atención son dos badges, no uno.**
+                                     `fn_cita_sena` suma todo lo que entró contra la cita, y
+                                     desde la 7.19.0 eso incluye el cobro de la atención: una
+                                     atención cobrada entera salía acá como «seña Gs. 280.000»,
+                                     o sea el TOTAL de la cita presentado como adelanto. --}}
                                 @if ((float) $c->sena > 0)
                                     <span class="badge-estado e-ok" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
+                                @endif
+                                @if ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0)
+                                    <span class="badge-estado e-ok" title="Se cobró contra la cita, sin comprobante todavía">
+                                        cobrado {{ money((float) $c->cobrado_cita - (float) $c->sena) }}</span>
                                 @endif
                                 {{-- Lo que la clienta registró desde el portal y todavía nadie
                                      confirmó. NO es plata que entró: no toca la caja hasta que
@@ -237,7 +246,7 @@
                                          botón ofrece cobrarla de nuevo. Lo que falte se cobra al
                                          terminar, desde «Cobrar». --}}
                                     @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
-                                         && ! $enCurso && (float) $c->sena <= 0)
+                                         && ! $enCurso && (float) ($c->cobrado_cita ?? 0) <= 0)
                                         <button class="btn btn-sm btn-outline-neutro" title="Cobrar una seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
@@ -467,15 +476,38 @@
                                     Se conservarán los servicios y el horario.
                                 </p>
                                 <label class="form-label" for="reas{{ $c->id_cita }}">Atenderá *</label>
+                                @php
+                                    // **Sólo quien hace TODOS los servicios de esta cita.**
+                                    // El combo listaba al equipo entero, así que se podía
+                                    // pasar una coloración a la manicurista: el servidor lo
+                                    // rechaza, pero el rechazo llegaba después del clic. Sale
+                                    // de `fn_usuario_hace_servicio`, la misma autoridad que
+                                    // valida el reparto al agendar.
+                                    $aptos = $profsPorCita[$c->id_cita] ?? null;
+                                    $ofrecidos = collect($profs)->filter(
+                                        fn ($p) => (int) $p->id_usuario !== (int) $c->id_usuario
+                                            && ($aptos === null || isset($aptos[(int) $p->id_usuario]))
+                                    );
+                                @endphp
                                 <select class="form-select" id="reas{{ $c->id_cita }}" name="a" required>
                                     <option value="">— Elegí un profesional —</option>
-                                    @foreach ($profs as $p)
-                                        @if ((int) $p->id_usuario !== (int) $c->id_usuario)
-                                            <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
-                                        @endif
+                                    @foreach ($ofrecidos as $p)
+                                        <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
                                     @endforeach
                                 </select>
-                                <div class="form-text">Sólo se podrá guardar si trabaja ese día y queda libre para todos los servicios.</div>
+                                @if ($ofrecidos->isEmpty())
+                                    {{-- **Se dice, no se deja el combo vacío.** Un desplegable
+                                         con una sola opción vacía se lee como que el sistema se
+                                         rompió; lo que pasa es que nadie más hace eso. --}}
+                                    <div class="form-text txt-no">
+                                        Nadie más del equipo hace todos los servicios de esta cita.
+                                        Se puede repartir desde «Editar», dándole a cada servicio
+                                        su profesional.
+                                    </div>
+                                @else
+                                    <div class="form-text">Se ofrecen sólo los que hacen estos servicios.
+                                        Igual tiene que trabajar ese día y quedar libre en ese horario.</div>
+                                @endif
 
                                 {{-- **El motivo se le manda a la clienta.** No es
                                      burocracia: va en el correo que le avisa el
@@ -528,10 +560,21 @@
                             <div class="modal-header">
                                 <h5 class="modal-title" style="font-size:1rem">
                                     <i class="bi bi-cash-coin"></i>
+                                    {{-- **No se llama «seña» si el salón no pide ninguna.**
+                                         Con los servicios sin `sena_porcentaje` cargado el
+                                         modal proponía el TOTAL de la cita bajo el título
+                                         «Seña de …», así que lo que se cobraba entero
+                                         quedaba rotulado como adelanto. Una seña es un
+                                         porcentaje que el salón decide; si no decidió
+                                         ninguno, esto es un cobro. --}}
                                     @if ($c->estado === 'Atendida')
                                         Cobrar la atención de {{ $c->cliente }}
+                                    @elseif ($c->id_solicitud)
+                                        Confirmar la seña de {{ $c->cliente }}
+                                    @elseif ((float) ($c->sena_requerida ?? 0) > 0)
+                                        Seña de {{ $c->cliente }}
                                     @else
-                                        {{ $c->id_solicitud ? 'Confirmar la seña de' : 'Seña de' }} {{ $c->cliente }}
+                                        Cobrar la cita de {{ $c->cliente }}
                                     @endif
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -543,7 +586,12 @@
                                 // enterarse del número era mandar uno de más y leer el
                                 // rechazo. Se calcula acá con la misma cuenta.
                                 $totalCita = (float) ($c->total_cita ?? 0);
-                                $falta = max(0, $totalCita - (float) $c->sena);
+                                // **Contra todo lo cobrado, no sólo contra la seña.**
+                                // Con la atención cobrada en parte, restando sólo la seña
+                                // el saldo salía de más y el modal proponía cobrar dos
+                                // veces lo mismo.
+                                $cobrado = (float) ($c->cobrado_cita ?? $c->sena);
+                                $falta = max(0, $totalCita - $cobrado);
 
                                 // **Lo que se propone es la SEÑA, no la cita entera.**
                                 // El modal venía con el total y con eso se cobraba de
@@ -573,7 +621,11 @@
                                 <p class="text-muted-warm" style="font-size:.85rem">
                                     Cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
                                     @if ((float) $c->sena > 0)
-                                        Ya dejó <strong>{{ money($c->sena) }}</strong>.
+                                        Ya dejó <strong>{{ money($c->sena) }}</strong> de seña.
+                                    @endif
+                                    @if ($cobrado - (float) $c->sena > 0)
+                                        Ya se cobró <strong>{{ money($cobrado - (float) $c->sena) }}</strong>
+                                        de la atención.
                                     @endif
                                     @if ($c->id_solicitud)
                                         La clienta registró <strong>{{ money($c->sena_pedida) }}</strong>
@@ -655,6 +707,13 @@
                                                 <tr>
                                                     <td class="text-muted-warm">Ya cobrado (seña)</td>
                                                     <td class="text-end text-muted-warm">− {{ money($c->sena) }}</td>
+                                                </tr>
+                                            @endif
+                                            @if ($cobrado - (float) $c->sena > 0)
+                                                <tr>
+                                                    <td class="text-muted-warm">Ya cobrado (de la atención)</td>
+                                                    <td class="text-end text-muted-warm">
+                                                        − {{ money($cobrado - (float) $c->sena) }}</td>
                                                 </tr>
                                             @endif
                                             <tr>
@@ -767,8 +826,12 @@
                                 <button class="btn btn-oro">
                                     @if ($c->estado === 'Atendida')
                                         Cobrar
+                                    @elseif ($c->id_solicitud)
+                                        Confirmar la seña
+                                    @elseif ((float) ($c->sena_requerida ?? 0) > 0)
+                                        Cobrar la seña
                                     @else
-                                        {{ $c->id_solicitud ? 'Confirmar la seña' : 'Cobrar la seña' }}
+                                        Cobrar
                                     @endif
                                 </button>
                             </div>

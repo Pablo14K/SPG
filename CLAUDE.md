@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.90.0 | 03/09/2026 | **Siete cosas reportadas usando el sistema en el servidor, y la nueva es que el Administrador cambia la cuenta de correo desde adentro.** **Los enlaces de los correos apuntaban a `localhost`**: `route()` los arma con la raíz de la petición en curso, y los avisos salen de dos lados que no la tienen bien — el planificador, que corre sin ninguna petición y cae en `app.url`, y una acción de pantalla, donde la raíz es el host que tipeó quien entró. Ahora salen todos de **`app.url`** con la ruta resuelta aparte, y `spg:diagnostico` muestra el enlace armado de verdad, no la variable. **Marcar una falta escribiendo el motivo la dejaba «sin permiso»**: el campo se llama «Observación» y se lee como el motivo, así que quien escribía «avisó que estaba con fiebre» leía después «sin aviso» y el motivo parecía ignorado. Entra una casilla **«esta falta tiene permiso»** —sólo para el Admin, que dar el permiso es una decisión sobre el sueldo de alguien— que en un paso hace lo que antes obligaba a marcar y volver a justificar; sin marcarla sigue entrando sin aviso, que es lo normal. **La huella tenía tres cosas.** Registrarla decía «Datos del cliente inválidos» para cuatro causas que no se parecen en nada —origen distinto, desafío vencido, cookie que no volvió, otra ceremonia—: ahora cada una **dice lo suyo** y la del login queda en el log, porque decírselo al visitante daría información sobre credenciales ajenas. **Se puede entrar con la huella sin tipear el usuario**: antes el botón sólo aparecía si ESE navegador recordaba una cuenta, así que en otra computadora la huella desaparecía; ahora el navegador ofrece las guardadas y **se entra a la cuenta que registró la que se elija** —la credencial apunta a una sola—. Y **la huella pertenece a una cuenta por vez**: registrarla en otra cuenta borra la anterior, con aviso a quien se le sacó, porque con dos activas la huella deja de identificar a una persona. **No se puede reasignar una cita a quien no hace ese servicio**: el combo listaba al equipo entero, así que se podía pasar una coloración a la manicurista y el rechazo llegaba después del clic; ahora sale de `fn_usuario_hace_servicio` —la misma autoridad del reparto— y con el motivo nombrado cuando nadie más lo hace. **La agenda mostraba el total como seña**: `fn_cita_sena` suma todo lo cobrado contra la cita, y desde la 7.19.0 eso incluye el cobro de la atención, así que una atención cobrada entera salía «seña Gs. 280.000» — se separan en dos badges y el modal no se llama «seña» si el salón no pide ninguna. **La factura se verificó coherente**: 11 de 62 facturas viejas dan un total distinto de `fn_cita_total`, pero es correcto —son documentos fiscales con su descuento congelado desde antes de que la regla cambiara (7.88.0)—; emitir HOY produce un total que coincide con lo que la agenda promete, y una prueba nueva lo fija re-aplicando el descuento sobre 30 facturas. **Y la cuenta que envía los avisos se carga desde el sistema**, sólo el Admin (`admin` de middleware, no un submódulo, para que no se la pueda dar a otro desde Roles): la clave viaja **cifrada con la APP_KEY** —un volcado no la deja legible—, se pisa el mailer al arrancar así vale para la web y para el planificador, y vacío cae a la del `.env`. Se avisa si el remitente no es del mismo dominio, que Gmail lo rechaza. **151 pruebas · 1183 aserciones**, cuatro nuevas comprobadas en las dos direcciones · 63 rutinas · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 | 7.89.3 | 02/09/2026 | **`DESPLIEGUE.md` explica cómo levantar Traefik, que hasta ahora daba por puesto.** La sección lo trataba como un prerrequisito que ya estaba —«se despliega una vez desde el panel»— y no decía ni cómo, ni en qué orden, ni cómo comprobar que quedó andando: justo lo que hace falta para armar el servidor de cero. **El orden importa y ahora está escrito**: si el SPG sube primero queda corriendo e **inalcanzable**, porque no publica ningún puerto, así que parece roto cuando lo que falta es el portero. Entra además **el compose que la plantilla del panel levanta de verdad** —sacado del contenedor con `docker inspect`, no de la documentación, que en esto ya se equivocó una vez—: modo host, el socket montado en sólo lectura, el volumen de los certificados y las trece banderas con las que arranca. Se explica **qué hace cada una de las cinco etiquetas** que el SPG le pide y las tres que se pagan caro al tocarlas: que el nombre del router tiene que ser único en todo el VPS, que el dominio va escrito y no interpolado —lo resuelve Compose, que no lee el `env_file`— y que cambiar el subdominio son **dos** lugares, la etiqueta y `APP_URL`, o el sitio abre y los correos siguen apuntando a la dirección vieja. Y una tabla de **qué significa lo que contesta** al comprobarlo: 404 es que ninguna etiqueta coincide con ese dominio, 502 que encontró el contenedor y no puede hablarle, y no conectar que Traefik no está o el DNS no propagó — tres fallas que desde el navegador se ven igual |
 | 7.89.2 | 02/09/2026 | **El despliegue subía con CERO contenedores, y la causa era una red que yo di por existente sin mirarla.** El panel construía las cuatro imágenes sin un problema y después abortaba con «network `traefik-proxy` declared as external, but could not be found»: el proyecto quedaba creado, con las imágenes hechas y nada corriendo. **La documentación de Hostinger dice que su plantilla de Traefik crea esa red, y en el VPS no es cierto**: `docker network ls` no muestra ninguna red creada —sólo `bridge`, `host` y `none`— y el contenedor de Traefik corre en **`network_mode: host`**. Es el mismo error de la 7.88.3 con otra ropa: escribí como hecho algo que había deducido de un documento en vez de mirarlo. **Y un contenedor en modo host no puede estar en otra red de Docker a la vez** —Docker lo prohíbe—, así que la red compartida no es que sobre: **rompe el despliegue**. Lo bueno es que tampoco hace falta: compartiendo la red del servidor, Traefik alcanza las IP `172.x` de los contenedores directamente, porque el host tiene ruta hacia los puentes de Docker; descubre `spg_web` por el socket (`--providers.docker=true`), lee sus etiquetas y le habla a su IP en el 80. Se saca la red y se saca `traefik.docker.network`, **que también sobra**: esa etiqueta existe para desempatar cuando el contenedor está en varias redes, y ahora está en una sola. **Comprobado acá con la pila entera**: cinco contenedores arriba, `spg_web` en una única red con su IP, las cinco etiquetas con el dominio escrito, **ningún puerto publicado**, `spg:diagnostico --produccion` en «Todo en orden», el CSS servido por Caddy con 200, e **ingreso real hasta el panel** llegando por la IP como llegaría Traefik —con los enlaces saliendo en `https://spg.columbiatcc.online`, o sea que el arreglo de las cabeceras de la 7.89.0 sigue en pie—. De paso queda escrito **qué mirar cuando un despliegue deja cero contenedores** —el final de `.build.log`— y qué habría que hacer si algún día Traefik pasara a modo bridge: volver a poner la red **y** la etiqueta, porque con una sola Traefik puede elegir la IP equivocada y contestar 504 sin explicar nada |
 | 7.89.1 | 01/09/2026 | **Entra `ACTUALIZAR.md`, la guía de bolsillo.** `DESPLIEGUE.md` tiene el porqué de cada cosa y son doce secciones: para actualizar un martes a la tarde eso es demasiado. La guía nueva son dos páginas con los pasos y nada más, separados en los dos casos que de verdad existen —sólo código, o también base— y con la pregunta que los distingue resuelta de forma mecánica: si el commit tocó `peluqueria_bd(base).sql`, tocó la base. **Y está escrita contra el panel de verdad, no contra lo que yo suponía**: el menú **⋮ → Update** es lo que reconstruye —«Restart» levanta la misma imagen y no sirve—, y cada contenedor tiene su propia **terminal**, así que los comandos se corren ahí en vez de encadenar `docker exec` desde la consola del servidor. Eso simplifica el paso de la base a **una sola línea**: desde la terminal de `spg_app` están el proyecto en `/app`, el cliente de MariaDB y la contraseña en el entorno. Comprobado. Queda anotado además dónde mirar cuando algo falla, que es lo que uno necesita justo cuando no se acuerda de nada |
@@ -447,7 +448,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **198 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **200 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -516,7 +517,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 198 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 200 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -1879,6 +1880,50 @@ Detalles que no hay que perder al tocar esto:
 `App\Servicios\Notificaciones` llena y despacha la cola de `notificacion`, que antes se
 llenaba y no la vaciaba nadie. Los correos se arman con Mailables (`App\Mail\AvisoCita` y
 `CodigoSeguridad`) y sus plantillas Blade de `resources/views/correo/`.
+
+
+> **Los enlaces de los correos salen de `app.url`, no de `route()` a secas.**
+> `route()` arma la URL con la raíz de la petición en curso, y los avisos salen de dos lados
+> que no la tienen bien: el **planificador**, que corre sin ninguna petición —ahí Laravel cae
+> en `app.url`, o en `http://localhost` si no está cargada—, y una **acción de pantalla**,
+> donde la raíz es el host que tipeó quien entró (por `localhost:8000`, por la IP de la red).
+> `Notificaciones::urlReprogramar()` los arma con `app.url` fija + la ruta resuelta aparte, y
+> `Notificaciones::base()` deja un aviso en el log si `app.url` apunta a `localhost`.
+> `spg:diagnostico` muestra el enlace **armado de verdad**, que es la única forma de ver de
+> una que le va a llegar a la clienta.
+
+### La cuenta que ENVÍA los avisos se cambia desde el sistema
+
+El código de verificación, la recuperación de contraseña, el segundo factor y los
+recordatorios salen por SMTP, y la cuenta que los manda vivía en `docker/php/secretos.env`:
+cambiarla era editar un archivo y volver a desplegar. Es el mismo caso que el nombre del
+salón (7.35.0) o los puntos (7.27.0), un dato del negocio detrás de un despliegue.
+
+| | |
+|---|---|
+| Dónde se carga | **Seguridad → Correo del sistema** |
+| Quién | **SÓLO el Administrador** — middleware `admin`, no un submódulo |
+| Dónde vive | `configuracion.mail_usuario` · `mail_clave` · `mail_desde` |
+| Cómo se aplica | `Config::aplicarAlMailer()` en `AppServiceProvider::boot()` |
+
+Cuatro decisiones que conviene no revertir:
+
+- **Es del `admin` del middleware, no un submódulo.** Un submódulo se puede conceder a otro
+  rol desde Roles, y el pedido era que **sólo el Administrador** la cambie. Por eso la tarjeta
+  se agrega a mano en la landing con `Permisos::esAdmin()` y no está en el catálogo de
+  navegación —el menú no la muestra, la card sí—.
+- **La clave se guarda CIFRADA con la APP_KEY** (`Crypt::encryptString`), así que un volcado de
+  la base no la deja legible. Si la APP_KEY cambió desde que se guardó, no se puede descifrar:
+  se cae al `.env` y se deja un aviso en el log, en vez de reventar.
+- **Vacío cae al `.env`.** Sin cuenta cargada, `aplicarAlMailer()` no toca nada y sigue lo del
+  entorno, que es lo que hay en la base de instalación. Vaciar el usuario y marcar «restaurar»
+  la borra a propósito.
+- **El remitente tiene que ser del mismo dominio que la cuenta**, o Gmail lo rechaza sin que el
+  sistema lo sepa. Se comprueba antes de guardar; vacío usa la propia cuenta.
+
+> **La clave nunca vuelve al navegador.** El campo de contraseña sale vacío y «vacío» significa
+> «no la cambies» — el mismo criterio que la contraseña de una cuenta de usuario. Es distinta
+> de `Config::email()`, que es el correo **fiscal** que va en el KuDE y no manda nada.
 
 - **El profesional no va a estar** (ausencia cargada o baja del personal): se avisa a cada
   cliente con cita en ese rango, con un enlace para reprogramar o cambiar de profesional.

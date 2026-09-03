@@ -86,8 +86,11 @@ window.SPGBio = (function () {
   }
 
   // Login con huella. urls = {options, verify}
+  // `loginId` es opcional: sin el, el servidor manda `allowCredentials` vacia y
+  // el navegador ofrece las credenciales que el autenticador tenga guardadas
+  // para este sitio. Asi se entra sin tipear el usuario.
   async function login(urls, loginId, csrf) {
-    var r = await fetch(urls.options, form(csrf, { login: loginId }));
+    var r = await fetch(urls.options, form(csrf, { login: loginId || '' }));
     var opt = await r.json();
     if (!opt.ok) throw new Error(opt.error || 'Sin credenciales.');
     var pk = opt.publicKey;

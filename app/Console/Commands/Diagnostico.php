@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Servicios\Config;
+use App\Servicios\Notificaciones;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -120,6 +122,13 @@ class Diagnostico extends Command
         // está. Se avisa acá porque es lo primero que se prueba al registrar
         // una clienta nueva.
         $this->titulo('El correo');
+        // **De donde sale la cuenta que envia.** Desde la 7.90.0 el
+        // Administrador la puede cargar desde el sistema, y eso pisa la del
+        // `.env` al arrancar. Se dice para que no haya que adivinar cual esta
+        // activa.
+        if (Config::correoSistema()['usuario'] !== '') {
+            $this->linea('Cuenta', 'cargada desde el sistema (Seguridad -> Correo del sistema)');
+        }
         $driver = (string) config('mail.default');
         if ($driver === 'log') {
             $this->linea('Driver', 'log — los correos NO se envían');
@@ -154,6 +163,21 @@ class Diagnostico extends Command
                 // Gmail y la mayoría rechazan un From de otro dominio.
                 $this->linea('Ojo', 'el remitente (' . $desde . ') no es del dominio de ' . $usuario);
             }
+        }
+
+        // **A dónde apuntan los enlaces que viajan en los correos.**
+        //
+        // Se muestra el enlace armado de verdad, no la variable: es la única
+        // forma de ver de una que le va a llegar a la clienta. Un correo con un
+        // enlace a `localhost` se descubre cuando alguien intenta abrirlo desde
+        // el celular, o sea tarde y del lado de la clienta.
+        $enlace = Notificaciones::urlReprogramar('EJEMPLO');
+        if (str_contains($enlace, 'localhost') || str_contains($enlace, '127.0.0.1')) {
+            $this->linea('Enlaces de los correos', $enlace);
+            $this->linea('Ojo', 'sólo abren en esta computadora. En el servidor tiene que ser el '
+                . 'subdominio real, y sale de APP_URL');
+        } else {
+            $this->bien('Enlaces de los correos: ' . $enlace);
         }
 
         // ---- ¿La base coincide con el .sql que se entrega? ------------------

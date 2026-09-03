@@ -1201,12 +1201,33 @@ class PersonalController extends Controller
                 // Marcar es constatar; justificar es otra cosa y pasa después.
                 // `falta_con` se sigue aceptando por si quedó algún formulario
                 // viejo abierto, pero la pantalla ya no lo manda.
-                $justificada = $accion === 'falta_con' ? 1 : 0;
+                // **Escribir un motivo NO justifica la falta por sí solo, y el
+                // sistema tiene que decir cuál de las dos cosas está haciendo.**
+                // Antes marcar dejaba la falta SIN AVISO siempre, así que quien
+                // escribía «avisó que estaba con fiebre» en el campo de
+                // observación leía después «se marcó como ausente sin permiso»:
+                // el motivo parecía ignorado. Y el campo se llamaba
+                // «Observación», que se lee como el motivo de la falta.
+                //
+                // Siguen siendo dos cosas distintas —constatar y justificar— y
+                // el camino de dos pasos se conserva: por defecto entra sin
+                // aviso y el permiso se da después con «Justificar», cuando la
+                // persona explica. Lo que cambia es que **quien ya lo sabe en el
+                // momento lo puede decir en un paso**, marcándolo, en vez de
+                // marcar y volver a entrar.
+                $justificada = ($accion === 'falta_con' || $request->boolean('con_permiso')) ? 1 : 0;
+                // **Dar el permiso es del Administrador**, que es una decisión
+                // sobre el sueldo de alguien y no una tarea del mostrador. Si no
+                // lo es, la casilla no cambia nada — y se lo dice, en vez de
+                // guardarla sin permiso en silencio.
                 if ($justificada && ! Permisos::esAdmin()) {
+                    flash('Sólo el Administrador puede dar el permiso. La falta quedó registrada '
+                        . 'sin aviso; el permiso se da después con «Justificar».', 'warning');
                     $justificada = 0;
                 }
-                if ($justificada && ! $motivo) {
-                    flash('Escribí el motivo del permiso: es lo que justifica la falta.', 'error');
+                if ($justificada && mb_strlen($motivo) < 10) {
+                    flash('Escribí el motivo del permiso, con al menos 10 caracteres: es lo único '
+                        . 'que queda escrito de por qué esa falta no se descuenta.', 'error');
 
                     return $volver;
                 }

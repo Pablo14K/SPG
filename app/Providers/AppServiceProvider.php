@@ -35,5 +35,18 @@ class AppServiceProvider extends ServiceProvider
         // están —una base que todavía no se reimportó— devuelve el valor del
         // `.env` y acá no cambia nada.
         config(['app.name' => Config::nombreSalon()]);
+
+        // **La cuenta que envía los avisos sale de la base, no sólo del `.env`.**
+        //
+        // El código de verificación, la recuperación de contraseña, el segundo
+        // factor y los recordatorios salen por SMTP, y hasta ahora la cuenta
+        // que los manda vivía en `secretos.env`: cambiarla era editar un archivo
+        // y volver a desplegar. Ahora el Administrador la carga desde una
+        // pantalla y se pisa acá, al arrancar, así que vale para la web **y**
+        // para el planificador —que es de donde salen los recordatorios—.
+        //
+        // Se defiende sola: sin cuenta cargada no toca nada y queda lo del
+        // `.env`, que es lo que hay en la base de instalación.
+        Config::aplicarAlMailer();
     }
 }

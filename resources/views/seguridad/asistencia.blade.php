@@ -204,9 +204,7 @@
                                      después con «Justificar», cuando la persona explica. --}}
                                 <p class="text-muted-warm" style="font-size:.84rem">
                                     Se registra que <strong>{{ $f->profesional }}</strong> no vino
-                                    a ese turno. Entra como <strong>falta sin aviso</strong>: si después
-                                    explica el motivo y corresponde darle el permiso, se hace con el botón
-                                    <em>Justificar</em> de esa misma fila.
+                                    a ese turno.
                                 </p>
                                 <label class="form-label" for="mot{{ $f->id_usuario }}_{{ $f->id_turno }}">
                                     Observación <span class="text-muted-warm">(opcional)</span></label>
@@ -220,6 +218,41 @@
                                      Vacío se admite: marcar una falta no obliga a inventar
                                      un motivo. El servidor lo vuelve a comprobar. --}}
                                 <div class="form-text">Si escribís algo, que sean al menos 10 caracteres.</div>
+
+                                {{-- **Escribir el motivo NO da el permiso, y eso hay que
+                                     decirlo acá.** El campo se llama «Observación» y se lee
+                                     como el motivo de la falta, así que quien escribía
+                                     «avisó que estaba con fiebre» esperaba una falta
+                                     justificada y leía después «sin permiso»: el motivo
+                                     parecía ignorado.
+
+                                     Siguen siendo dos cosas —constatar y justificar— y el
+                                     camino de dos pasos se conserva: por defecto entra sin
+                                     aviso. Lo que se agrega es que quien YA lo sabe lo pueda
+                                     decir de una, en vez de marcar y volver a entrar. --}}
+                                @if (\App\Servicios\Permisos::esAdmin())
+                                    <div class="form-check mt-3">
+                                        <input class="form-check-input" type="checkbox" value="1"
+                                               name="con_permiso"
+                                               id="perm{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                        <label class="form-check-label"
+                                               for="perm{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                            Esta falta <strong>tiene permiso</strong>
+                                        </label>
+                                        <div class="form-text">
+                                            Sin marcar entra como <strong>falta sin aviso</strong>, que es lo
+                                            normal: recién cuando la persona explica se decide si corresponde
+                                            el permiso, y eso se hace después con «Justificar».
+                                            Marcándola, el motivo pasa a ser obligatorio.
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="form-text mt-3">
+                                        Entra como <strong>falta sin aviso</strong>. Dar el permiso es una
+                                        decisión sobre el sueldo de alguien, así que lo hace el
+                                        Administrador desde «Justificar».
+                                    </div>
+                                @endif
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

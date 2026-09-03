@@ -16,6 +16,7 @@ use App\Servicios\Config;
 use App\Servicios\Permisos;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
+use App\Servicios\WebAuthn;
 use App\Servicios\CitasVencidas;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -5008,5 +5009,168 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertEqualsWithDelta(
             round((float) $a->precio * 0.20, 2) + round((float) $b->precio * 0.04, 2), $conMejor, 0.01,
             'Sobre el mismo servicio gana la mejor y reemplaza, no se acumula.');
+    }
+
+    /**
+     * **La huella pertenece a UNA cuenta por vez.**
+     *
+     * Con dos activas, el navegador ofrece elegir entre las dos al entrar y la
+     * huella deja de identificar a una persona — que es exactamente lo que se le
+     * pide, porque es la que dice quién cobró y quién anuló un comprobante.
+     *
+     * Se comprueba en las dos direcciones: que la credencial de la otra cuenta
+     * DESAPAREZCA (no que quede marcada inactiva, que sería dejar la puerta
+     * abierta con un cartel de cerrada) y que la propia siga en su lugar.
+     */
+    public function test_la_huella_pertenece_a_una_sola_cuenta(): void
+    {
+        $dos = DB::select(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol AND r.es_personal = 1
+              WHERE u.activo = 1 ORDER BY u.id_usuario LIMIT 2'
+        );
+        if (count($dos) < 2) {
+            $this->markTestSkipped('Hacen falta dos cuentas de personal.');
+        }
+        [$a, $b] = [(int) $dos[0]->id_usuario, (int) $dos[1]->id_usuario];
+
+        // Se parte de cero para que la prueba mida la regla y no lo que haya
+        // quedado cargado de una corrida anterior.
+        DB::delete('DELETE FROM credencial_webauthn WHERE id_usuario IN (?,?)', [$a, $b]);
+        foreach ([$a => 'PRUEBA-A', $b => 'PRUEBA-B'] as $uid => $cid) {
+            DB::insert('INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta)
+                        VALUES (?,?,?,?)', [$uid, $cid, '-----PEM-----', 'Prueba']);
+        }
+
+        $this->assertSame(2, (int) DB::scalar(
+            'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario IN (?,?)', [$a, $b]),
+            'Premisa: las dos cuentas arrancan con su credencial.');
+
+        $quitadas = WebAuthn::dejarSoloA($b);
+
+        $this->assertNotEmpty($quitadas, 'Tiene que decir a quién se le sacó: la otra persona '
+            . 'se encontraría con que su huella dejó de andar sin haber tocado nada.');
+        $this->assertSame(0, (int) DB::scalar(
+            'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$a]),
+            'La credencial de la otra cuenta se BORRA: mientras la fila exista, se puede entrar con ella.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$b]),
+            'La de la cuenta que la registró queda.');
+        $this->assertSame(0, (int) DB::scalar(
+            'SELECT COALESCE(biometrico_activo,0) FROM preferencia_usuario WHERE id_usuario = ?', [$a]),
+            'Y la cuenta que la perdió tiene que ver el botón de activar, no el de desactivar.');
+    }
+
+    /**
+     * **Se puede entrar con la huella sin tipear el usuario.**
+     *
+     * Antes el botón sólo aparecía si ESTE navegador recordaba una cuenta en
+     * `localStorage`: en otra computadora o con los datos del sitio borrados
+     * había que tipear usuario y contraseña otra vez, o sea que la huella servía
+     * justo cuando ya no hacía falta.
+     *
+     * Con la lista de credenciales vacía el navegador ofrece las que el
+     * autenticador tenga guardadas. Lo que se mide acá es que el servidor
+     * conteste esas opciones **sin** que se le diga de quién es.
+     */
+    public function test_la_huella_entra_sin_tipear_el_usuario(): void
+    {
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol AND r.es_personal = 1
+              WHERE u.activo = 1 ORDER BY u.id_usuario LIMIT 1'
+        );
+        DB::delete('DELETE FROM credencial_webauthn WHERE credential_id = ?', ['PRUEBA-SIN-USUARIO']);
+        DB::insert('INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta)
+                    VALUES (?,?,?,?)', [$uid, 'PRUEBA-SIN-USUARIO', '-----PEM-----', 'Prueba']);
+
+        $r = $this->post(route('webauthn.auth_options'), ['payload' => json_encode(['login' => ''])]);
+
+        $r->assertOk();
+        $j = $r->json();
+        $this->assertTrue((bool) ($j['ok'] ?? false),
+            'Sin usuario tiene que contestar las opciones igual: es lo que deja entrar sin tipear nada.');
+        $this->assertSame([], $j['publicKey']['allowCredentials'] ?? null,
+            'La lista va VACÍA: si el servidor la llena, el navegador sólo ofrece esas y '
+            . 'volvemos a necesitar saber de quién es la huella antes de pedirla.');
+        $this->assertSame('required', $j['publicKey']['userVerification'] ?? null,
+            'Y con verificación obligatoria, que si no entraría cualquiera que tenga el equipo.');
+    }
+
+    /**
+     * **La factura le cobra a la clienta lo mismo que la agenda le prometió.**
+     *
+     * Son dos caminos que calculan el descuento por separado —`fn_cita_total`
+     * sobre la cita para el modal de cobro, y `sp_aplicar_descuentos` sobre el
+     * detalle al emitir— y son la clase de par que se desincroniza sin avisar:
+     * si uno cambia y el otro no, el mostrador propone un total y el comprobante
+     * sale con otro. Fue justo lo que se reportó, «precio base 235.000 cuando
+     * debía ser 245.000».
+     *
+     * Se comprueba re-aplicando el descuento con las reglas de HOY sobre cada
+     * factura ya emitida y exigiendo que el total dé igual al de su cita. Las
+     * facturas viejas guardan su descuento congelado —son documentos fiscales y
+     * no se recalculan solos—, así que lo que se mide es la coherencia de la
+     * lógica, no lo que quedó grabado: por eso el re-aplicar va dentro de la
+     * transacción que `DatabaseTransactions` revierte.
+     */
+    public function test_la_factura_cobra_lo_que_la_agenda_promete(): void
+    {
+        $facturas = DB::select(
+            'SELECT f.id_factura, f.id_cita, f.id_cliente
+               FROM factura f
+              WHERE f.id_estado_factura = 1 AND f.id_cita IS NOT NULL
+              ORDER BY f.id_factura DESC LIMIT 30'
+        );
+        if (! $facturas) {
+            $this->markTestSkipped('No hay facturas de cita para comprobar.');
+        }
+
+        foreach ($facturas as $f) {
+            $nivel = (int) DB::scalar('SELECT fn_cliente_descuento(?)', [(int) $f->id_cliente]);
+            // Con las reglas de hoy, sobre este mismo detalle.
+            DB::statement('CALL sp_aplicar_descuentos(?, ?)', [(int) $f->id_factura, $nivel]);
+
+            $factura = (float) DB::scalar('SELECT fn_factura_total(?)', [(int) $f->id_factura]);
+            $cita = (float) DB::scalar('SELECT fn_cita_total(?)', [(int) $f->id_cita]);
+
+            $this->assertEqualsWithDelta($cita, $factura, 0.01,
+                "La factura #{$f->id_factura} cobraría {$factura} y la agenda promete {$cita} "
+                . 'para la misma cita: el descuento de la emisión y el del cobro se separaron.');
+        }
+    }
+
+    /**
+     * **La cuenta de correo del sistema la cambia SÓLO el Administrador**, y la
+     * pantalla se dibuja.
+     *
+     * Es la que envía el código de verificación, la recuperación y los
+     * recordatorios: cambiarla toca cómo se comunica el salón entero. El
+     * `admin` del middleware es el control —esconder el enlace no lo es—, así
+     * que se comprueba en las dos direcciones: el Administrador entra, y un
+     * rol de personal que no sea Administrador recibe 403.
+     */
+    public function test_el_correo_del_sistema_es_solo_del_admin(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $this->get(route('seguridad.correo_sistema'))
+            ->assertOk()
+            ->assertSee('Correo del sistema');
+
+        $u = DB::selectOne(
+            "SELECT u.id_usuario, u.id_rol FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND r.id_rol <> ? AND u.activo = 1 LIMIT 1",
+            [(int) config('permisos.rol_admin', 1)]
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay un rol de personal no administrador para comprobar el 403.');
+        }
+
+        session(['uid' => (int) $u->id_usuario, 'rol' => (int) $u->id_rol]);
+        $this->conMarcaDeSesion();
+        $this->conSucursal();
+
+        $this->get(route('seguridad.correo_sistema'))->assertStatus(403);
     }
 }

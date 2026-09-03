@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Servicios;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -56,6 +58,54 @@ class WebAuthn
         return request()->getSchemeAndHttpHost();
     }
 
+    /**
+     * Deja la huella activa **sólo** en esta cuenta y devuelve los usuarios a
+     * los que se la sacó.
+     *
+     * La huella pertenece a una cuenta por vez. Con dos activas el navegador
+     * ofrece elegir entre las dos al entrar, y ahí la huella deja de identificar
+     * a una persona — que es exactamente lo que se le pide: en el mostrador es
+     * la que dice quién cobró y quién anuló un comprobante.
+     *
+     * Se **borra** la credencial y no se marca inactiva: lo que hace posible
+     * entrar es la fila de `credencial_webauthn`, así que dejarla con un
+     * interruptor en cero sería dejar la puerta abierta con un cartel de
+     * cerrada. `preferencia_usuario.biometrico_activo` se baja también, para que
+     * la otra cuenta vea el botón de activar y no el de desactivar.
+     *
+     * @return array<int,string>  los `username` que perdieron la huella
+     */
+    public static function dejarSoloA(int $idUsuario): array
+    {
+        $otras = DB::select(
+            'SELECT DISTINCT c.id_usuario, u.username
+               FROM credencial_webauthn c
+               JOIN usuario u ON u.id_usuario = c.id_usuario
+              WHERE c.id_usuario <> ?', [$idUsuario]
+        );
+
+        $quitadas = [];
+        foreach ($otras as $o) {
+            DB::delete('DELETE FROM credencial_webauthn WHERE id_usuario = ?', [(int) $o->id_usuario]);
+            DB::statement(
+                'INSERT INTO preferencia_usuario (id_usuario, biometrico_activo, biometrico_pregunt)
+                 VALUES (?,0,1) ON DUPLICATE KEY UPDATE biometrico_activo = 0', [(int) $o->id_usuario]
+            );
+            Auditoria::registrar('BIOMETRICO_BAJA', 'Seguridad', 'credencial_webauthn',
+                (int) $o->id_usuario,
+                'Se desactivó la huella porque otra cuenta la registró en este equipo');
+            $quitadas[] = (string) $o->username;
+        }
+
+        return $quitadas;
+    }
+
+    /** ¿Hay alguna huella registrada en el sistema? */
+    public static function hayAlguna(): bool
+    {
+        return (bool) DB::scalar('SELECT COUNT(*) FROM credencial_webauthn');
+    }
+
     // -----------------------------------------------------------------
     //  Ceremonias
     // -----------------------------------------------------------------
@@ -76,18 +126,61 @@ class WebAuthn
      */
     public static function verificarClientData(string $clientDataJSON, string $tipoEsperado): bool
     {
+        return self::motivoClientData($clientDataJSON, $tipoEsperado) === null;
+    }
+
+    /**
+     * Lo mismo, pero diciendo **cuál** de las cuatro comprobaciones falló.
+     * Devuelve null si pasó todo.
+     *
+     * Las cuatro fallaban con el mismo «Datos del cliente inválidos», y eso es
+     * exactamente el error que este proyecto tiene anotado como propio: un
+     * mensaje que no distingue manda a mirar el lugar equivocado. Las causas no
+     * se parecen en nada —una es de configuración, otra de sesión, otra es un
+     * intento de reusar una firma— y cada una se arregla en otro lado:
+     *
+     *   · **origen distinto**: se entró por una dirección que no es la
+     *     configurada (la IP de la red, otro subdominio), o el proxy no manda
+     *     `X-Forwarded-Proto` y el sistema se cree en `http` mientras el
+     *     navegador está en `https`;
+     *   · **desafío que no coincide**: la sesión cambió entre pedir las opciones
+     *     y mandar la respuesta — se abrió el registro, se dejó la pantalla
+     *     abierta y la sesión venció, o hay dos pestañas peleando;
+     *   · **sin desafío en la sesión**: la cookie no volvió. Con
+     *     `SESSION_SECURE_COOKIE=true` sobre una conexión que el sistema ve en
+     *     claro, no vuelve nunca;
+     *   · **otra ceremonia**: llegó una respuesta de login a la ruta de registro
+     *     o al revés.
+     */
+    public static function motivoClientData(string $clientDataJSON, string $tipoEsperado): ?string
+    {
         $cd = json_decode($clientDataJSON, true);
         if (! is_array($cd)) {
-            return false;
+            return 'El navegador no mandó los datos de la ceremonia.';
         }
         if (($cd['type'] ?? '') !== $tipoEsperado) {
-            return false;
-        }
-        if (! hash_equals((string) session('webauthn_challenge', ''), (string) ($cd['challenge'] ?? ''))) {
-            return false;
+            return 'Llegó una respuesta de otra ceremonia («' . (string) ($cd['type'] ?? 'nada')
+                . '» en vez de «' . $tipoEsperado . '»).';
         }
 
-        return ($cd['origin'] ?? '') === self::origin();
+        $esperado = (string) session('webauthn_challenge', '');
+        if ($esperado === '') {
+            return 'Se perdió el desafío de la sesión: volvé a cargar la pantalla e intentá otra vez. '
+                . 'Si vuelve a pasar, la cookie de sesión no está volviendo al servidor.';
+        }
+        if (! hash_equals($esperado, (string) ($cd['challenge'] ?? ''))) {
+            return 'El desafío no es el que mandamos: la pantalla quedó abierta demasiado tiempo '
+                . 'o hay otra pestaña registrando al mismo tiempo. Recargá e intentá de nuevo.';
+        }
+
+        $origen = (string) ($cd['origin'] ?? '');
+        if ($origen !== self::origin()) {
+            return 'El navegador dice que está en «' . ($origen ?: 'nada') . '» y el sistema se ve '
+                . 'a sí mismo en «' . self::origin() . '». Entrá por la dirección configurada '
+                . '(la de APP_URL); una IP de la red local no sirve para la huella.';
+        }
+
+        return null;
     }
 
     /**
@@ -96,8 +189,9 @@ class WebAuthn
      */
     public static function verificarRegistro(string $clientDataJSON, string $attestationObjectB64): array
     {
-        if (! self::verificarClientData($clientDataJSON, 'webauthn.create')) {
-            throw new RuntimeException('Datos del cliente inválidos.');
+        $motivo = self::motivoClientData($clientDataJSON, 'webauthn.create');
+        if ($motivo !== null) {
+            throw new RuntimeException($motivo);
         }
 
         $att = self::cborDecode(self::b64urlDecode($attestationObjectB64));
@@ -121,7 +215,14 @@ class WebAuthn
     /** Aserción (login): verifica la firma con la clave guardada. */
     public static function verificarAsercion(string $clientDataJSON, string $authenticatorDataB64, string $signatureB64, string $publicKeyPem): bool
     {
-        if (! self::verificarClientData($clientDataJSON, 'webauthn.get')) {
+        // Acá se devuelve un booleano a propósito: al entrar, decirle al
+        // visitante POR QUÉ no validó le da información sobre credenciales que
+        // no son suyas. Pero queda en el log, que es donde hace falta para
+        // arreglarlo.
+        $motivo = self::motivoClientData($clientDataJSON, 'webauthn.get');
+        if ($motivo !== null) {
+            Log::warning('SPG: la huella no validó — ' . $motivo);
+
             return false;
         }
 
