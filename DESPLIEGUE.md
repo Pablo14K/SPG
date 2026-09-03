@@ -633,16 +633,28 @@ confirmar no se sueltan nunca. Se comprueba que esté vivo:
 docker compose -f docker-compose.produccion.yml logs cron | tail
 ```
 
-**El respaldo hay que agendarlo**, y es lo único que se agenda en el host:
+**El respaldo hay que agendarlo**, y es lo único que se agenda en el host. El guion viaja
+**dentro de la imagen** —el proyecto no se copia a ninguna carpeta del servidor— así que
+primero se lo saca de ahí, una sola vez:
 
 ```bash
-chmod +x docker/respaldo.sh
+docker exec spg_app cat docker/respaldo.sh > /usr/local/bin/spg-respaldo.sh && chmod +x /usr/local/bin/spg-respaldo.sh
+```
+
+Y se agenda:
+
+```bash
 crontab -e
 ```
 
 ```
-0 3 * * * /docker/spg/docker/respaldo.sh >> /var/log/spg-respaldo.log 2>&1
+0 3 * * * /usr/local/bin/spg-respaldo.sh >> /var/log/spg-respaldo.log 2>&1
 ```
+
+> **Va a `/usr/local/bin` y no a la carpeta del proyecto** por el mismo motivo de siempre: ahí
+> no hay proyecto. Y el guion le habla al contenedor por su nombre fijo (`spg_bd`), así que no
+> depende de desde dónde se lo corra. Al probarlo, `bash /usr/local/bin/spg-respaldo.sh` tiene
+> que dejar un archivo con peso en `/var/respaldos/spg`.
 
 > **El volumen de Docker NO es un respaldo: es el mismo disco.** Un `docker compose down -v`
 > mal tipeado borra la base sin preguntar. Y un archivo guardado en el mismo servidor tampoco
@@ -704,18 +716,47 @@ git log --name-only --oneline -5 | grep -c "peluqueria_bd(base).sql"
 
 Un arreglo de PHP, de una vista, del CSS o del JavaScript. Son dos pasos:
 
-1. Subir el cambio: `git push origin master`.
-2. En el panel, **Administrador de Docker → tu proyecto → Implementar** (la misma URL del
-   compose de siempre).
+1. Subir el cambio: `git push origin main`.
+2. En la **Consola web** del VPS, una sola línea:
 
-El panel vuelve a clonar, **reconstruye las imágenes** —el código viaja adentro— y recrea los
-contenedores. Eso es todo: la base no se toca, y el arranque no la va a importar porque no
-está vacía.
+```bash
+cd /tmp && rm -rf spg-deploy && git clone https://github.com/Pablo14K/SPG.git spg-deploy && cd spg-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
+```
+
+Clona, **reconstruye las imágenes** —el código viaja adentro— y recrea los contenedores. La
+base no se toca, y el arranque no la va a importar porque no está vacía.
+
+> **`-p spg` no es opcional, y es lo que más caro se paga si se olvida.** Es el nombre del
+> proyecto de Compose, y de él salen los nombres de los volúmenes: con `-p spg` se reusan
+> `spg_datos_bd`, `spg_almacenamiento` y los de las imágenes, así que **los datos del salón
+> quedan intactos**. Sin la bandera, Compose deduce el nombre del **directorio**
+> (`spg-deploy`) y crea volúmenes nuevos y vacíos: el sistema levantaría como si fuera una
+> instalación de cero, con la base del salón todavía ahí pero desconectada.
 
 > **El rebuild no es opcional.** En el servidor OPcache corre con `validate_timestamps=0`, o
 > sea que **no vuelve a mirar el disco nunca**: sin reconstruir y recrear el contenedor se
 > sigue sirviendo el código viejo **sin que nada avise**. Es la forma exacta en que este
-> proyecto se rompe siempre, y el panel lo hace solo en cada despliegue.
+> proyecto se rompe siempre.
+
+#### Por qué no se usa el botón «Update» del panel
+
+Sería más cómodo y **en este VPS no funciona**: aborta con
+`python3: can't open file '/.hstgr-….list.py'`, que es de la propia herramienta de Hostinger.
+Falla además de la peor manera —**deja los contenedores como estaban**—, así que el panel
+avisa que no se pudo implementar y el sistema sigue sirviendo la versión anterior sin que nada
+más lo indique. Se reconoce mirando el tiempo de actividad:
+
+```bash
+docker ps --format 'table {{.Names}}	{{.Status}}'
+```
+
+Un `Up 2 days` justo después de un despliegue quiere decir que no se recreó nada.
+
+> **Y el panel tiene guardada la URL con `master`, la rama que se borró.** El repositorio pasó
+> a tener **una sola rama, `main`**, para que el clon por defecto traiga el código — antes
+> `git clone` caía en un `main` vacío y dejaba sólo un README de 5 bytes. Si algún día se
+> quiere volver al botón, hay que rehacer el proyecto con **Componer → URL** apuntando a
+> `.../blob/main/docker-compose.produccion.yml`, con el mismo nombre `spg`.
 
 **Comprobar que la versión nueva es la que está corriendo** — se lee de adentro de la imagen,
 que es lo que de verdad se está sirviendo:
@@ -747,21 +788,38 @@ También sale en el log del contenedor en cada arranque. Si aparece algo como «
 **1. Respaldo antes de tocar nada.** Es la única red que hay:
 
 ```bash
-/docker/spg/docker/respaldo.sh
+mkdir -p /var/respaldos/spg && docker exec spg_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/spg/peluqueria_bd_$(date +%F_%H%M).sql
 ```
+
+Y comprobar que pesó algo, que un archivo de 0 bytes es lo mismo que no tener nada:
+
+```bash
+ls -lh /var/respaldos/spg/
+```
+
+> **Se escribe entero y no se llama a `docker/respaldo.sh`.** Ese guion existe en el
+> repositorio y **no está en el disco del servidor**: desplegando por el panel el proyecto no
+> se copia a ninguna carpeta —ver el punto 2—, así que la ruta no existe. Sirve para agendarlo
+> en el cron de un servidor donde sí se lo haya copiado.
 
 **2. Aplicar el guion de esa versión.** Vive en `basededatos/actualizaciones/`, con la fecha y
 la versión en el nombre, y viaja en el repositorio como cualquier otro archivo:
 
 ```bash
-docker exec spg_app cat /app/basededatos/actualizaciones/2026-09-01_7.88.0.sql | docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd'
+docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql'
 ```
 
-> **El guion se lee de DENTRO del contenedor de la aplicación, no del disco del servidor.**
-> Desplegando por el panel, el proyecto no queda en ninguna carpeta del host —ver el punto 2—:
-> lo único que hay es el compose. El código, y con él `basededatos/`, viaja **dentro de la
-> imagen**, así que ahí es donde está el archivo. `docker exec spg_app cat …` lo saca y se lo
-> pasa a MariaDB por la tubería.
+Para ver cuáles hay:
+
+```bash
+docker exec spg_app ls basededatos/actualizaciones/
+```
+
+> **Todo pasa DENTRO del contenedor de la aplicación, no en el disco del servidor.** El
+> proyecto no queda en ninguna carpeta del host —ver el punto 2—: lo único que hay es el
+> compose. El código, y con él `basededatos/`, viaja **dentro de la imagen**. Por eso el
+> comando corre en `spg_app`, cuyo directorio de trabajo es `/app`, y le habla a MariaDB por
+> el nombre del servicio (`-hbd`) con la contraseña que ya tiene en el entorno.
 
 > **Los guiones de `actualizaciones/` no tocan datos y se pueden volver a correr.** Una rutina
 > —función, procedimiento, disparador, vista— se reemplaza entera con `DROP … IF EXISTS` +
@@ -798,12 +856,12 @@ Como el código viaja en la imagen y la imagen se construye desde un commit, des
 volver el repositorio y redesplegar:
 
 ```bash
-git revert <commit> && git push origin master
+git revert <commit> && git push origin main
 ```
 
-Y otra vez **Implementar** en el panel. La base no se toca, así que un revert de código es
-inocuo. **Si el cambio había tocado el esquema, el revert del código no revierte la base** —
-eso se hace con SQL, o restaurando el respaldo del paso 1.
+Y otra vez la línea del despliegue en la Consola web. La base no se toca, así que un revert
+de código es inocuo. **Si el cambio había tocado el esquema, el revert del código no revierte
+la base** — eso se hace con SQL, o restaurando el respaldo del paso 1.
 
 ---
 
