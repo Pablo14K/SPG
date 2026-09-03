@@ -453,7 +453,7 @@ class Sifen
                 'track_id' => (string) ($d['track_id'] ?? ''),
                 'kude_url' => (string) ($d['kude_url'] ?? ''),
                 'xml_url' => (string) ($d['xml_url'] ?? ''),
-                'mensaje' => 'Declarado. CDC ' . $d['cdc'] . '. ' . self::avisoCorreo($correo, $d['mail_enviado'] ?? null),
+                'mensaje' => trim('Declarado. CDC ' . $d['cdc'] . '. ' . self::avisoCorreo($correo, $d['mail_enviado'] ?? null)),
             ];
         }
 
@@ -496,21 +496,44 @@ class Sifen
     /**
      * Qué contar sobre el correo del comprobante.
      *
-     * El Automatizador devuelve `mail_enviado`, y ese dato importa tanto como
-     * el CDC: para la clienta, «facturado» significa que le llegó el PDF. Si
-     * el comprobante se declaró pero el correo no salió, hay que decirlo — si
-     * no, el salón da por hecho que la clienta lo tiene.
+     * **El que le manda el comprobante a la clienta es el SPG, no el
+     * Automatizador**, y eso es una decisión, no un accidente. Las dos cosas
+     * saben mandarlo —el Automatizador adjunta el KuDE y el XML, y el SPG
+     * también, desde la copia local que guarda al declarar— pero cada uno lo
+     * haría **con su propia cuenta de correo**: la del salón, que el
+     * Administrador cambia desde «Seguridad → Correo del sistema», y la del
+     * `.env` del Automatizador, que nadie toca desde el sistema.
+     *
+     * Con los dos prendidos la clienta recibe **el mismo comprobante dos veces,
+     * desde dos direcciones distintas**, y cambiar la cuenta en la pantalla
+     * arregla sólo la mitad. Por eso hay un único remitente: el SPG, que es el
+     * que tiene la cuenta configurable.
+     *
+     * El Automatizador se calla dejando su `MAIL_FROM_EMAIL` **vacío** — su
+     * `construirMail()` devuelve null y saltea el envío sin romper la
+     * declaración. Si aun así contesta `mail_enviado: true`, alguien se la
+     * cargó: se avisa, porque un correo duplicado desde una dirección que el
+     * salón no reconoce es peor que ninguno.
      */
     private static function avisoCorreo(string $correo, ?bool $enviado): string
     {
-        if ($correo === '') {
-            return 'No se le mandó el PDF: la clienta no tiene correo cargado.';
-        }
-        if ($enviado === false) {
-            return 'El PDF NO salió por correo a ' . $correo . ': mandaselo a mano desde el comprobante.';
+        if ($enviado === true) {
+            Log::warning('SPG: el Automatizador SIFEN también mandó el comprobante por correo, '
+                . 'con SU cuenta. La clienta lo va a recibir dos veces desde direcciones '
+                . 'distintas. Dejá MAIL_FROM_EMAIL vacío en el .env del Automatizador: el que '
+                . 'manda es el SPG, con la cuenta de «Seguridad → Correo del sistema».');
+
+            return 'Ojo: el Automatizador también le mandó el comprobante, con otra cuenta. '
+                 . 'Le va a llegar dos veces — quedó anotado en el registro del sistema.';
         }
 
-        return 'El PDF le fue enviado a ' . $correo . '.';
+        if ($correo === '') {
+            return 'La clienta no tiene correo cargado, así que no se le va a poder mandar.';
+        }
+
+        // El envío lo hace el controlador **después** de declarar, y su propio
+        // aviso dice si salió y a dónde. Acá no se promete nada todavía.
+        return '';
     }
 
     // -----------------------------------------------------------------

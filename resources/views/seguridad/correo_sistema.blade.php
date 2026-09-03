@@ -91,24 +91,28 @@
         </form>
     </div>
 
-    {{-- **Esto NO cambia el remitente de la factura electrónica.**
-         Son dos remitentes independientes y es fácil suponer que es uno solo:
-         el SPG manda los avisos con la cuenta de arriba, y el Automatizador
-         SIFEN manda el KuDE en PDF con la SUYA, que vive en su propio `.env`.
-         Callarlo dejaría a la clienta recibiendo la factura desde una cuenta
-         que el salón cree haber cambiado. --}}
+    {{-- **Esta cuenta cubre TODO, incluida la factura electrónica.**
+         Las dos cosas saben mandar el comprobante —el SPG y el Automatizador
+         SIFEN, y las dos adjuntan el KuDE y el XML— pero cada una lo haría con
+         su propia cuenta, y con las dos prendidas la clienta lo recibe dos
+         veces desde direcciones distintas. Por eso el que manda es uno solo: el
+         SPG, que es el que tiene la cuenta configurable. --}}
     <div class="spg-panel mt-3" style="max-width:640px">
-        <h2 class="h6"><i class="bi bi-receipt"></i> La factura electrónica se manda aparte</h2>
-        <p class="text-muted-warm mb-2" style="font-size:.84rem">
-            Lo de arriba vale para el <strong>código de verificación, la recuperación de
-            contraseña, el segundo factor, los recordatorios</strong> y el botón «Enviar
-            comprobante» de Facturación.
-        </p>
-        <p class="text-muted-warm mb-0" style="font-size:.84rem">
-            El <strong>KuDE en PDF</strong> que se manda al declarar una factura ante la DNIT
-            lo envía el <strong>Automatizador SIFEN</strong>, que es otro programa y tiene su
-            propia cuenta de correo. <strong>Cambiarla acá no lo toca</strong>: eso se configura
-            en el archivo de entorno del Automatizador, en el servidor.
+        <h2 class="h6"><i class="bi bi-check2-circle"></i> Qué sale con esta cuenta</h2>
+        <ul class="text-muted-warm mb-2" style="font-size:.84rem">
+            <li>El <strong>código de verificación</strong> al crear una cuenta.</li>
+            <li>La <strong>recuperación de contraseña</strong> y el <strong>segundo factor</strong>.</li>
+            <li>Los <strong>recordatorios de cita</strong> y los avisos de reprogramación.</li>
+            <li>El <strong>comprobante</strong>, con el <strong>KuDE en PDF y el XML</strong> adjuntos
+                cuando la factura se declaró ante la DNIT.</li>
+        </ul>
+        <p class="text-muted-warm mb-0" style="font-size:.82rem">
+            <i class="bi bi-info-circle"></i>
+            El Automatizador SIFEN <strong>no manda correos</strong>: genera el comprobante y el
+            SPG se baja el PDF y el XML para adjuntarlos. Es a propósito — si los dos mandaran,
+            la clienta recibiría lo mismo dos veces desde direcciones distintas, y cambiar la
+            cuenta acá arreglaría sólo la mitad. Si alguna vez vuelve a mandar, el sistema lo
+            avisa al emitir.
         </p>
     </div>
 @endsection

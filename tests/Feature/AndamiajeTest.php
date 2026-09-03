@@ -344,4 +344,41 @@ class AndamiajeTest extends TestCase
             }
         }
     }
+
+    /**
+     * **El Automatizador SIFEN no manda correos: manda el SPG.**
+     *
+     * Los dos saben mandarle el comprobante a la clienta y los dos adjuntan el
+     * KuDE y el XML, pero cada uno lo haría **con su propia cuenta**: el SPG con
+     * la del salón —que el Administrador cambia desde «Seguridad → Correo del
+     * sistema»— y el Automatizador con la de su `.env`, que no se toca desde el
+     * sistema. Con los dos prendidos la clienta recibe lo mismo dos veces desde
+     * direcciones distintas, y cambiar la cuenta en la pantalla arregla la mitad.
+     *
+     * Por eso hay un único remitente, y esta guardia existe porque la forma de
+     * romperlo es **llenar una línea de un archivo de ejemplo**: alguien copia
+     * `.env.example` al servidor, ve `MAIL_USERNAME=tucorreo@gmail.com` y lo
+     * completa de buena fe. Con `MAIL_FROM_EMAIL` vacío, `construirMail()`
+     * devuelve null y el envío se saltea sin romper la declaración.
+     */
+    #[Test]
+    public function el_automatizador_no_manda_correo_por_su_cuenta(): void
+    {
+        $env = base_path('_sifen/.env.example');
+        if (! is_file($env)) {
+            $this->markTestSkipped('El Automatizador no está en esta copia.');
+        }
+
+        $txt = (string) file_get_contents($env);
+
+        foreach (['MAIL_FROM_EMAIL', 'MAIL_USERNAME', 'MAIL_PASSWORD'] as $clave) {
+            $this->assertMatchesRegularExpression(
+                '/^' . $clave . '=\s*$/m', $txt,
+                $clave . ' del Automatizador tiene que quedar VACÍO en el .env.example: '
+                . 'el que le manda el comprobante a la clienta es el SPG, con la cuenta de '
+                . '«Seguridad → Correo del sistema». Con los dos mandando, le llega dos veces '
+                . 'desde direcciones distintas.'
+            );
+        }
+    }
 }

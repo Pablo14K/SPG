@@ -180,24 +180,23 @@ class Diagnostico extends Command
             $this->bien('Enlaces de los correos: ' . $enlace);
         }
 
-        // **La factura electrónica la manda OTRO programa, con OTRA cuenta.**
+        // **Un solo remitente, y conviene decir cuál.**
         //
-        // El Automatizador SIFEN envía el KuDE en PDF leyendo su propio `.env`,
-        // que no se versiona a propósito —lleva la clave y el token—. O sea que
-        // la cuenta que se carga en «Seguridad → Correo del sistema» NO lo toca,
-        // y en un servidor recién armado ese archivo puede directamente no
-        // existir: ahí su MailService lanza «MAIL_FROM_EMAIL no está
-        // configurado» y el PDF no le llega a nadie, **sin que el salón se
-        // entere** — que es la clase de función apagada en silencio que este
-        // proyecto ya se hizo a sí mismo con el correo entre la 6.4.0 y la 7.8.0.
+        // El SPG y el Automatizador SIFEN saben los dos mandarle el comprobante
+        // a la clienta —los dos adjuntan el KuDE y el XML— pero cada uno lo
+        // haría con SU cuenta, y con los dos prendidos le llega dos veces desde
+        // direcciones distintas. Manda el SPG, que es el que tiene la cuenta
+        // configurable; el Automatizador se calla con su `MAIL_FROM_EMAIL`
+        // vacío. Si igual mandara, `Sifen::avisoCorreo()` lo detecta por
+        // `mail_enviado` y lo dice al emitir.
         //
-        // Sólo se dice cuando SIFEN está encendido: con `SIFEN_ACTIVO=false` el
-        // módulo no existe en la interfaz y el aviso sería ruido.
+        // Sólo se muestra con SIFEN encendido: apagado, el módulo no existe en
+        // la interfaz y esto sería ruido.
         if ((bool) config('sifen.activo')) {
-            $this->aviso('El KuDE de la factura lo manda el Automatizador SIFEN con SU propia '
-                . 'cuenta de correo (la de su `.env`), no con la de acá. Si cambiaste la del '
-                . 'sistema, esa se cambia aparte — y si su `.env` no está cargado, el PDF no le '
-                . 'llega a la clienta.');
+            $this->linea('La factura electrónica', 'la manda el SPG con esta misma cuenta, '
+                . 'adjuntando el KuDE y el XML');
+            $this->linea('El Automatizador', 'no tiene que mandar nada: su MAIL_FROM_EMAIL va '
+                . 'VACÍO, o la clienta recibe el comprobante dos veces');
         }
 
         // ---- ¿La base coincide con el .sql que se entrega? ------------------
