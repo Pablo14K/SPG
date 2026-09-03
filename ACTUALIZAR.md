@@ -51,7 +51,15 @@ cambió.
 > (`spg-deploy`) y crearía volúmenes nuevos y vacíos: el sistema levantaría
 > **como si fuera una instalación de cero**.
 
-> **Y nunca `down -v`.** En desarrollo es lo normal; acá borra la base del salón.
+> **Y nunca `down -v`.** En desarrollo es lo normal; acá borra la base del salón
+> **y las fotos que subiste a los servicios**, que también viven en un volumen.
+
+> **Las fotos de los servicios y el logo NO están en el repositorio**: son del
+> salón, así que viven sólo en los volúmenes `spg_imagenes_servicios` y
+> `spg_imagenes_logo`. El despliegue de arriba **no las toca** —comprobado
+> reconstruyendo y recreando los contenedores—, y si alguna vez se perdieran,
+> `spg:diagnostico` lo dice en «Las fotos del salón»: sin eso la pantalla se
+> vería normal, sólo que con el hueco de «sin imagen de referencia».
 
 ### Comprobar que salió
 

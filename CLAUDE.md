@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.93.1 | 03/09/2026 | **Se comprobó que un despliegue no borra las fotos que subió el salón, y ahora el sistema avisa si alguna vez se pierden.** Las fotos de los servicios y el logo **no están en el repositorio** —están ignoradas por git a propósito, son de este salón y no del programa— así que en el servidor viven **sólo** en dos volúmenes de Docker; la base guarda el nombre del archivo y el volumen guarda el archivo. Se verificó de verdad, no por deducción: se dejaron dos archivos marcados en `imagenes_servicios` e `imagenes_logo`, se corrió `up -d --build --force-recreate` —reconstruir **y** recrear los contenedores, que es más de lo que hace un despliegue normal— y los dos seguían ahí, también vistos por Caddy en sólo lectura. **Lo que sí las borra queda escrito**: `down -v`, «Delete» del proyecto en el panel, y sobre todo **desplegar con otro nombre de proyecto** — los volúmenes se llaman `<proyecto>_imagenes_servicios`, así que con otro `-p` se crean vacíos, los viejos quedan huérfanos y las fotos «desaparecen» sin que nada dé error. **Y si pasara, no se nota**: `Imagen::url()` devuelve null y la tarjeta dibuja «sin imagen de referencia», o sea que el salón perdería sus fotos y la pantalla se vería normal — la misma pérdida silenciosa que costó cara con el correo. Por eso `spg:diagnostico` gana la sección **«Las fotos del salón»**, que compara cada nombre guardado contra el disco y, si falta alguno, lo **cuenta como problema** y dice la causa probable y cómo recuperarlas. Comprobada en las dos direcciones: con todo en su lugar dice «todas en su lugar», y con un nombre apuntando a un archivo inexistente el diagnóstico termina en «1 cosa para revisar». **154 pruebas · 1195 aserciones** |
 | 7.93.0 | 03/09/2026 | **Tres cosas de pantalla: entrar con otra cuenta, el turno al lado del profesional, y las fotos en el celular.** **El panel de la huella sólo ofrecía «Usar contraseña»**, y ese enlace dejaba el formulario en blanco: había que volver a escribir el correo que la pantalla acababa de mostrar. Ahora precarga el usuario, vacía la contraseña y pone el foco ahí, que es lo único que falta. Y entra **«Iniciar sesión con otra cuenta»**, que es lo contrario y por eso es otro enlace: limpia los dos campos **y olvida lo que el navegador recordaba** — si no, el panel volvería a ofrecer la cuenta anterior en la próxima visita y el campo vendría con el correo de quien usó la computadora antes, que en el mostrador es justo el caso a evitar. **El combo de profesional decía sólo «con Lucía»**, así que la clienta no tenía cómo acordarse del horario de cada una: elegía a alguien de la mañana para un servicio y a alguien de la tarde para otro, y **recién al buscar horarios** descubría que no hay ninguno donde las dos estén. El sistema hacía lo correcto y lo decía tarde, cuando ya había elegido todo y sin saber cuál de sus decisiones fallaba. Ahora cada opción lleva su turno —«con Lucía · Turno Mañana 08:00-12:30»— sacado de `Agenda::profesionales()`, o sea **una sola fuente para el portal y para Nueva cita**, y con los turnos DE ESE LOCAL como manda el criterio de quién aparece. Va además un renglón que explica la restricción **antes** de chocar con ella, y no como error rojo: todavía no hizo nada mal. **Y las tarjetas de servicio eran enormes en el celular**: con `minmax(170px,1fr)` en una pantalla de 375 px no entran dos columnas —el gap deja 165 y el mínimo pide 170— así que la grilla caía a **una sola** y cada foto quedaba de **239 px de alto**; con quince servicios, varias pantallas de scroll para elegir. Medido: pasa a **dos columnas y 103 px**, con la foto en 3/2 en vez de 4/3. **En escritorio no cambia nada**, comprobado a 1000 px: cuatro columnas y 4/3. **154 pruebas · 1195 aserciones** |
 | 7.92.1 | 03/09/2026 | **Las guías de actualización pasan a describir el camino que de verdad funciona.** Decían «`git push origin master` y ⋮ → Update en el panel», y las dos mitades estaban mal: `master` **ya no existe** —el repositorio quedó con una sola rama, `main`, para que el clon por defecto traiga el código— y el botón del panel **falla en este VPS**, con un `python3: can't open file '/.hstgr-….list.py'` que es de la herramienta de Hostinger. Falla además de la peor manera: **deja los contenedores como estaban**, así que el panel avisa que no se pudo y el sistema sigue sirviendo la versión anterior sin que nada más lo indique — se reconoce por el tiempo de actividad, un `Up 2 days` justo después de desplegar. El camino comprobado es **una línea en la Consola web** que clona, reconstruye y recrea; queda escrito **por qué `-p spg` no es opcional**, que es lo que más caro se paga: de ese nombre salen los de los volúmenes, así que sin la bandera Compose deduce el del directorio y **levanta con volúmenes vacíos**, como una instalación de cero con la base del salón ahí al lado pero desconectada. Se corrigen además dos comandos que apuntaban a rutas inexistentes: **el respaldo agendado** llamaba a `/docker/spg/docker/respaldo.sh` —el proyecto no se copia a ninguna carpeta del servidor— y ahora el guion se saca de la imagen a `/usr/local/bin` una vez; y **el guion de la base** pasa a la forma corta, comprobada acá: `docker exec spg_app sh -c 'mysql … < basededatos/actualizaciones/…'`, que funciona porque el directorio de trabajo del contenedor es `/app` y `DB_PASSWORD` ya está en su entorno |
 | 7.92.0 | 03/09/2026 | **La sesión se cierra sola a los 30 minutos diciendo por qué, la marca del salón deja de escribirse a mano, y el portal muestra el estado de la cita.** **El cierre por inactividad lo hace `ExigeSesion` y no Laravel**, y la diferencia es todo: cuando el framework descarta una sesión vencida **no queda nada**, así que la persona cae en el ingreso **sin ninguna explicación** —y eso se lee como que el sistema la echó o como que algo se rompió—. Comprobándolo en el middleware la sesión todavía existe cuando se decide cerrarla, que es lo único que permite contar el motivo. Por eso `SESSION_LIFETIME` va **más alto** que el plazo (45 contra 30): es la red de atrás, para que el archivo de sesión siga estando cuando este control tiene que hablar — puestos iguales ganaría el del framework y volveríamos al ingreso mudo. **Y el refresco automático del portal no cuenta como actividad**: esa pantalla se consulta sola cada 20 segundos, así que una pestaña abierta y olvidada mantendría la sesión viva para siempre. Cerrar el navegador ya cerraba desde la 7.58.0. **El logo del salón se dibujaba en cinco lugares y tres lo tenían escrito a mano**: el ingreso ya mostraba el cargado y el formulario de crear cuenta, la pantalla del enlace de la cita y **el pie —donde va la versión—** seguían con la tijera fija, así que el salón cargaba su logo y la mitad del sistema seguía mostrando el genérico. Entra `layout/_marca` con dos modos. **No todas las pantallas de acceso la llevan**: recuperar (llave), el código (escudo), verificar (sobre) y la huella (dedo) usan el **ícono de la tarea**, que dice qué se está haciendo y no de quién es el sistema. **Y la tarjeta del portal muestra el estado de la cita**: anunciaba «Tu próxima cita» igual para una normal y para una **Atrasada** —la que se pasó de hora y nadie tocó—, así que el inicio y «Mis citas» parecían decir cosas distintas de la misma cita. Sale del **mismo** estado que la lista, con un renglón que explica qué significa Atrasada. **Se comprobó que una cita Ausente NO sale como próxima**: el criterio pide `bloquea_agenda = 1` y Ausente no lo cumple — corrido contra la base, la consulta vuelve vacía. **154 pruebas · 1195 aserciones**, una nueva comprobada en las dos direcciones · el docx de herramientas al día, con Caddy y Traefik agregados |
@@ -779,6 +780,46 @@ Tres reglas al tocarlo:
 
 `color-scheme:dark` va declarado porque si no los campos nativos de fecha y hora salen blancos.
 **Las dos vistas de impresión no llevan el atributo**: el papel siempre va en claro.
+
+
+## Las fotos que sube el salón
+
+**No están en el repositorio y no viajan en el ZIP**: están ignoradas por git a
+propósito —son de este salón, no del programa—. En el servidor viven **sólo** en
+un volumen de Docker.
+
+| Qué | Dónde vive el archivo | Qué guarda la base |
+|---|---|---|
+| Fotos de los servicios | volumen `imagenes_servicios` | `servicio.imagen`, el nombre |
+| Logo del salón | volumen `imagenes_logo` | `configuracion.logo`, el nombre |
+
+### Qué las conserva y qué las borra
+
+| Acción | ¿Sobreviven? |
+|---|---|
+| `up -d --build` (el despliegue normal) | **sí** |
+| `up --build --force-recreate` | **sí** — comprobado |
+| `docker compose down` (sin `-v`) | **sí** |
+| **`down -v`** | **NO** |
+| **Desplegar con otro nombre de proyecto** | **NO** — ver abajo |
+| «Delete» del proyecto en el panel | **NO** |
+
+> **El nombre del proyecto es lo que más fácil se rompe.** Los volúmenes se
+> llaman `<proyecto>_imagenes_servicios`, así que un despliegue con otro `-p`
+> **crea volúmenes nuevos y vacíos**: los viejos siguen ahí, huérfanos, y las
+> fotos «desaparecen» sin que nada dé error. Por eso el comando del despliegue
+> lleva **`-p spg`** — ver `ACTUALIZAR.md`.
+
+### Y si se pierden, el sistema lo dice
+
+Que la base nombre un archivo que no está **no rompe nada de frente**:
+`Imagen::url()` devuelve null y la tarjeta dibuja «sin imagen de referencia». O
+sea que el salón perdería sus fotos y la pantalla se vería **normal** — la clase
+de pérdida silenciosa que este proyecto ya se hizo a sí mismo con el correo.
+
+Por eso `spg:diagnostico` tiene la sección **«Las fotos del salón»**: compara
+cada nombre guardado contra el disco y, si falta alguno, lo cuenta como problema
+y dice la causa probable y cómo recuperarlas. Comprobado en las dos direcciones.
 
 ## Interfaz
 

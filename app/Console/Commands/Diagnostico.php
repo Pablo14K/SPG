@@ -259,6 +259,26 @@ class Diagnostico extends Command
         }
         $this->linea('Conectado como', $usuario);
 
+        // ---- Las fotos que subió el salón siguen estando --------------------
+        //
+        // **Las sube el salón y NO viajan en el repositorio**: están ignoradas
+        // por git a propósito —son de este salón, no del programa— así que en
+        // el servidor viven **sólo** en un volumen de Docker
+        // (`imagenes_servicios`, `imagenes_logo`). La base guarda el nombre del
+        // archivo; el archivo, el volumen.
+        //
+        // Que se separen no rompe nada de frente: `Imagen::url()` devuelve null
+        // y la tarjeta dibuja el hueco de «sin imagen de referencia». O sea que
+        // el salón perdería sus fotos y la pantalla se vería **normal**, que es
+        // exactamente la clase de pérdida silenciosa que este comando existe
+        // para gritar.
+        //
+        // Pasa si un despliegue usa otro nombre de proyecto —los volúmenes se
+        // llaman `<proyecto>_imagenes_servicios`, así que con otro nombre se
+        // crean vacíos— o si alguien corre `down -v`.
+        $this->titulo('Las fotos del salón');
+        $problemas += $this->revisarImagenes();
+
         // ---- Que Laravel no haya ensuciado la base -------------------------
         $this->titulo('La base sigue limpia');
         $intrusas = DB::select("SELECT table_name AS t FROM information_schema.tables
@@ -574,6 +594,59 @@ class Diagnostico extends Command
         $this->linea('Último despachado', $ultima ? (string) $ultima : 'nunca');
         $this->linea('El cron del panel tiene que correr',
             '* * * * * cd ' . $raiz . ' && php artisan schedule:run >> /dev/null 2>&1');
+
+        return $problemas;
+    }
+
+    /**
+     * Que cada nombre de archivo guardado en la base tenga su archivo.
+     *
+     * Devuelve cuántos problemas encontró.
+     */
+    private function revisarImagenes(): int
+    {
+        $problemas = 0;
+
+        foreach ([
+            ['servicios', "SELECT imagen FROM servicio WHERE imagen IS NOT NULL AND imagen <> ''", 'de servicios'],
+            ['logo', "SELECT logo AS imagen FROM configuracion WHERE logo IS NOT NULL AND logo <> ''", 'del salón (logo)'],
+        ] as [$carpeta, $sql, $que]) {
+            try {
+                $filas = DB::select($sql);
+            } catch (Throwable) {
+                continue;   // base sin actualizar: no es asunto de este bloque
+            }
+
+            if (! $filas) {
+                $this->linea('Imágenes ' . $que, 'ninguna cargada todavía');
+
+                continue;
+            }
+
+            $faltan = [];
+            foreach ($filas as $f) {
+                if (! is_file(public_path('assets/' . $carpeta . '/' . $f->imagen))) {
+                    $faltan[] = (string) $f->imagen;
+                }
+            }
+
+            if (! $faltan) {
+                $this->bien(count($filas) . ' imagen(es) ' . $que . ', todas en su lugar.');
+
+                continue;
+            }
+
+            $this->mal(count($faltan) . ' de ' . count($filas) . ' imagen(es) ' . $que
+                . ' NO están en el disco: ' . implode(', ', array_slice($faltan, 0, 3))
+                . (count($faltan) > 3 ? '…' : ''));
+            $this->linea('Qué pasó', 'la base las nombra y el archivo no está. Las fotos viven en un '
+                . 'volumen de Docker, no en el repositorio');
+            $this->linea('Causa más probable', 'un despliegue con OTRO nombre de proyecto '
+                . '(los volúmenes se llaman <proyecto>_imagenes_servicios) o un `down -v`');
+            $this->linea('Cómo se recupera', 'volviendo a subirlas desde la ficha de cada servicio, '
+                . 'o restaurando el volumen si hay copia');
+            $problemas++;
+        }
 
         return $problemas;
     }
