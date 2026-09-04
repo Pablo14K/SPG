@@ -81,7 +81,7 @@
 
                 <div id="bioEstado" class="mb-2" style="font-size:.85rem">
                     @if ($bioActivo)
-                        <span class="badge-estado e-ok">activo en {{ $bioActivo }} dispositivo(s)</span>
+                        <span class="badge-estado e-ok">activo para esta cuenta</span>
                     @else
                         <span class="badge-estado e-muted">no activado</span>
                     @endif
@@ -90,11 +90,11 @@
                 <div id="bioAviso" class="alert alert-warning d-none" style="font-size:.85rem"></div>
 
                 <button class="btn btn-rapido" id="btnBioActivar"
-                        data-confirmar="La huella pertenece a una cuenta por vez: si otra la tiene activada, se le va a desactivar. ¿Seguimos?">
+                        data-confirmar="Vas a activar la huella para esta cuenta. Si ya tenías una, se reemplaza. ¿Seguimos?">
                     <i class="bi bi-fingerprint"></i> Activar en este equipo</button>
                 @if ($bioActivo)
                     <button class="btn btn-outline-neutro" id="btnBioDesactivar"
-                            data-confirmar="¿Desactivar el ingreso con huella en todos tus dispositivos?">
+                            data-confirmar="¿Desactivar el ingreso con huella para esta cuenta?">
                         Desactivar</button>
                 @endif
             </div>
@@ -164,30 +164,14 @@
         SPGBio.register(urls, csrf).then(function (res) {
             if (!res.ok) { decir(res.error || 'No se pudo activar.'); return; }
             SPGBio.recordar(res.username, res.email);
-            // **Si se le sacó a otra cuenta, se dice.** La huella pertenece a una
-            // cuenta por vez, así que activarla acá desactiva la de quien la
-            // tenía — y esa persona se encontraría con que dejó de andar sin
-            // haber tocado nada. Va antes de recargar, con el aviso puesto para
-            // que quede a la vista.
-            var q = res.desactivadas || [];
-            if (q.length) {
-                sessionStorage.setItem('spg_bio_quito', q.join(', '));
-            }
+            // **Cada cuenta tiene la suya.** Activarla acá no toca la de nadie
+            // más: la credencial apunta a esta cuenta, y al entrar el navegador
+            // ofrece las guardadas y se entra a la que registró la elegida.
             window.location.reload();
         }).catch(function () {
             decir('No se pudo activar la huella. Podés seguir entrando con tu contraseña.');
         });
     });
-
-    // El aviso de la recarga anterior, si hubo.
-    try {
-        var quito = sessionStorage.getItem('spg_bio_quito');
-        if (quito) {
-            sessionStorage.removeItem('spg_bio_quito');
-            decir('Listo. Se desactivó la huella de ' + quito
-                + ': pertenece a una cuenta por vez, así que esa persona vuelve a entrar con su contraseña.');
-        }
-    } catch (e) {}
 
     var btnOff = document.getElementById('btnBioDesactivar');
     if (btnOff) {

@@ -58,52 +58,31 @@ class WebAuthn
         return request()->getSchemeAndHttpHost();
     }
 
-    /**
-     * Deja la huella activa **sólo** en esta cuenta y devuelve los usuarios a
-     * los que se la sacó.
-     *
-     * La huella pertenece a una cuenta por vez. Con dos activas el navegador
-     * ofrece elegir entre las dos al entrar, y ahí la huella deja de identificar
-     * a una persona — que es exactamente lo que se le pide: en el mostrador es
-     * la que dice quién cobró y quién anuló un comprobante.
-     *
-     * Se **borra** la credencial y no se marca inactiva: lo que hace posible
-     * entrar es la fila de `credencial_webauthn`, así que dejarla con un
-     * interruptor en cero sería dejar la puerta abierta con un cartel de
-     * cerrada. `preferencia_usuario.biometrico_activo` se baja también, para que
-     * la otra cuenta vea el botón de activar y no el de desactivar.
-     *
-     * @return array<int,string>  los `username` que perdieron la huella
-     */
-    public static function dejarSoloA(int $idUsuario): array
-    {
-        $otras = DB::select(
-            'SELECT DISTINCT c.id_usuario, u.username
-               FROM credencial_webauthn c
-               JOIN usuario u ON u.id_usuario = c.id_usuario
-              WHERE c.id_usuario <> ?', [$idUsuario]
-        );
-
-        $quitadas = [];
-        foreach ($otras as $o) {
-            DB::delete('DELETE FROM credencial_webauthn WHERE id_usuario = ?', [(int) $o->id_usuario]);
-            DB::statement(
-                'INSERT INTO preferencia_usuario (id_usuario, biometrico_activo, biometrico_pregunt)
-                 VALUES (?,0,1) ON DUPLICATE KEY UPDATE biometrico_activo = 0', [(int) $o->id_usuario]
-            );
-            Auditoria::registrar('BIOMETRICO_BAJA', 'Seguridad', 'credencial_webauthn',
-                (int) $o->id_usuario,
-                'Se desactivó la huella porque otra cuenta la registró en este equipo');
-            $quitadas[] = (string) $o->username;
-        }
-
-        return $quitadas;
-    }
-
     /** ¿Hay alguna huella registrada en el sistema? */
     public static function hayAlguna(): bool
     {
         return (bool) DB::scalar('SELECT COUNT(*) FROM credencial_webauthn');
+    }
+
+    /**
+     * Guarda la credencial de una cuenta, reemplazando sólo la que esa misma
+     * cuenta ya tenía. El bloqueo evita que dos registros simultáneos de la
+     * misma cuenta terminen acumulando credenciales.
+     */
+    public static function guardarCredencial(int $idUsuario, string $credentialId, string $publicKey): void
+    {
+        DB::transaction(function () use ($idUsuario, $credentialId, $publicKey): void {
+            DB::selectOne('SELECT id_usuario FROM usuario WHERE id_usuario = ? FOR UPDATE', [$idUsuario]);
+            DB::delete('DELETE FROM credencial_webauthn WHERE id_usuario = ?', [$idUsuario]);
+            DB::insert(
+                'INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta) VALUES (?,?,?,?)',
+                [$idUsuario, $credentialId, $publicKey, 'Dispositivo']
+            );
+            DB::statement(
+                'INSERT INTO preferencia_usuario (id_usuario, biometrico_activo, biometrico_pregunt) VALUES (?,1,1)
+                 ON DUPLICATE KEY UPDATE biometrico_activo = 1, biometrico_pregunt = 1', [$idUsuario]
+            );
+        });
     }
 
     // -----------------------------------------------------------------

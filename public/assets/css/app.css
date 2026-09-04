@@ -581,26 +581,25 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
 .spg-horas{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
 
-/* ---- Selector de agenda: que el día no se confunda con la hora ----
-   Eran dos listas de fichas idénticas, una debajo de la otra, y no se
-   distinguía cuál se estaba tocando. Ahora cada lista lleva su rótulo
-   numerado y las horas van en contorno en vez de relleno — el nivel
-   terciario de la escala del oro, que ya existe para «información con
-   jerarquía, no acción». El oro no cambia: cambia el peso. */
-.spg-agenda-rotulo{
-  flex-basis:100%;
+/* ---- Selector de agenda: el día y la hora se eligen con COMBOS ----
+   Antes eran fichas: con dos meses de agenda, cincuenta botones que hay que
+   recorrer con la vista, y en el celular varias pantallas de scroll. Tres
+   combos —mes, día y hora— dicen lo mismo en dos renglones, y el navegador
+   ya sabe abrirlos en cualquier dispositivo.
+
+   No hay oro acá y es a propósito: elegir la fecha no es la acción principal
+   de la pantalla, es un paso para llegar a ella. El oro se lo lleva el botón
+   de reservar, que es lo que la regla del oro pide. */
+.spg-agenda-fila{
+  display:flex;flex-wrap:wrap;gap:.6rem;width:100%;
+}
+.spg-agenda-campo{flex:1 1 9rem;min-width:8rem;}
+.spg-agenda-campo .form-label{
   font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--gris-oscuro);margin-bottom:.1rem;
+  color:var(--gris-oscuro);margin-bottom:.15rem;
 }
-.spg-chip-hora{
-  background:transparent;border-color:var(--oro-oscuro);color:var(--oro-texto);
-  font-variant-numeric:tabular-nums;
-}
-/* Al elegirla se llena, igual que el día: es la confirmación de qué quedó
-   tocado, y sin eso las dos listas vuelven a parecerse. */
-.spg-chip-hora:hover,.spg-chip-hora:focus-visible,.spg-chip-hora.activo{
-  background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);
-}
+/* Las horas en cifras tabulares: alineadas, la lista se recorre más rápido. */
+.spg-agenda-campo select{font-variant-numeric:tabular-nums;}
 .spg-dia{cursor:pointer;user-select:none;}
 .spg-dia input{position:absolute;opacity:0;width:0;height:0;}
 .spg-dia span{

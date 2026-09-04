@@ -116,16 +116,6 @@ class WebauthnController extends Controller
                 fn ($r) => ['type' => 'public-key', 'id' => $r->credential_id], $existentes
             ),
         ],
-            // **A quién se le va a sacar, ANTES de registrar.** La huella es de
-            // una cuenta por vez, así que registrarla acá desactiva la de quien
-            // la tenía. Eso no puede pasar en silencio: la otra persona se
-            // encontraría con que su huella dejó de andar sin haber tocado nada.
-            'quitaA' => DB::select(
-                'SELECT DISTINCT u.username
-                   FROM credencial_webauthn c
-                   JOIN usuario u ON u.id_usuario = c.id_usuario
-                  WHERE c.id_usuario <> ?', [$uid]
-            ),
         ]);
     }
 
@@ -140,21 +130,21 @@ class WebauthnController extends Controller
                 (string) ($p['attestationObject'] ?? '')
             );
 
-            // **La huella pertenece a UNA cuenta por vez.** Si alguien la
-            // activó en su cuenta y después entra con otra y la registra ahí,
-            // las credenciales anteriores se van: con dos cuentas activas, el
-            // navegador ofrece elegir entre las dos al entrar y la huella deja
-            // de identificar a una persona — que es justamente lo que se le
-            // pide. Queda en la auditoría a nombre de las dos cuentas, porque
-            // la de antes perdió una función sin haber apretado nada.
-            $quitadas = WebAuthn::dejarSoloA($uid);
-
-            DB::insert('INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta) VALUES (?,?,?,?)',
-                [$uid, $credId, $pem, 'Dispositivo']);
-            DB::statement(
-                'INSERT INTO preferencia_usuario (id_usuario, biometrico_activo, biometrico_pregunt) VALUES (?,1,1)
-                 ON DUPLICATE KEY UPDATE biometrico_activo = 1, biometrico_pregunt = 1', [$uid]
-            );
+            // **Cada cuenta tiene la suya, y no se pisan entre sí.**
+            //
+            // Antes esto borraba las credenciales de TODAS las demás cuentas,
+            // así que Pablo registraba su huella y la de la clienta anterior
+            // desaparecía: una persona le revocaba el acceso a otra sin
+            // enterarse. Es el modelo equivocado — una credencial WebAuthn
+            // apunta a una cuenta, y el navegador sabe cuál es cuál: al entrar
+            // ofrece las guardadas y se entra a la que registró la elegida.
+            //
+            // Lo único que se reemplaza es lo que YA tenía ESTA cuenta, para
+            // que quede una por cuenta: registrarla de nuevo es cambiar la
+            // suya, no acumular. La transacción y el bloqueo de la cuenta hacen
+            // que un registro concurrente tampoco deje dos credenciales o una
+            // cuenta sin acceso si la inserción falla.
+            WebAuthn::guardarCredencial($uid, $credId, $pem);
 
             Auditoria::registrar('BIOMETRICO_ALTA', 'Seguridad', 'credencial_webauthn', $uid,
                 'Registró el ingreso con huella');
@@ -166,7 +156,6 @@ class WebauthnController extends Controller
 
             return response()->json([
                 'ok' => true, 'email' => $u->email, 'username' => $u->username,
-                'desactivadas' => $quitadas,
             ]);
         } catch (Throwable $ex) {
             return response()->json(['ok' => false, 'error' => $ex->getMessage()]);

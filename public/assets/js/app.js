@@ -231,6 +231,11 @@ window.SPGCarga = (function () {
   // dibuja además un modal por cita para cambiar el dia, y ahi son tantos como
   // citas tenga. Con `querySelector` los demas quedaban sin selector y su campo
   // de fecha era una caja vacia donde habia que adivinar el horario.
+  // El portal puede dibujar varios modales de reprogramación en la misma
+  // página. Las etiquetas apuntan a los combos por id, así que el contador
+  // debe ser compartido entre instancias para no repetir ids.
+  var agendaSelectId = 0;
+
   document.querySelectorAll('[data-agenda]').forEach(iniciarAgenda);
 
   function iniciarAgenda(cont) {
@@ -337,39 +342,13 @@ window.SPGCarga = (function () {
     if (btn) btn.disabled = true;
   }
 
-  function chip(texto, alTocar, clase) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'spg-chip' + (clase ? ' ' + clase : '');
-    b.textContent = texto;
-    b.addEventListener('click', function () { alTocar(b); });
-
-    return b;
-  }
-
-  // Los días y las horas son dos listas de fichas iguales, una debajo de la
-  // otra, y se confundían: no se sabía cuál se estaba tocando. Cada una lleva
-  // ahora su rótulo numerado, y las horas además se dibujan distinto (ver
-  // `.spg-chip-hora` en app.css).
-  function rotulo(caja, texto) {
-    var r = document.createElement('span');
-    r.className = 'spg-agenda-rotulo';
-    r.textContent = texto;
-    caja.appendChild(r);
-  }
-
-  function marcarUno(caja, boton) {
-    Array.prototype.forEach.call(caja.children, function (c) { c.classList.remove('activo'); });
-    boton.classList.add('activo');
-  }
-
   // **Cada consulta lleva su número de orden.** Marcar dos servicios seguidos
   // dispara dos búsquedas, y las respuestas no vuelven necesariamente en el
   // mismo orden: la vieja llegaba después del `limpiar()` de la nueva y
-  // dibujaba SU rótulo, así que quedaban dos «1. Elegí el día» y dos listas de
-  // días — una de ellas con los días de la consulta anterior, que es peor que
-  // el renglón repetido.
+  // dibujaba SUS combos, así que el mes y el día quedaban con las fechas de la
+  // consulta anterior — peor que el renglón repetido, porque no se nota.
   var consulta = 0;
+  var eleccion = 0;
 
   function cargarDias() {
     var mia = ++consulta;
@@ -400,52 +379,171 @@ window.SPGCarga = (function () {
         return;
       }
       aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos.';
-      rotulo(diasEl, '1. Elegí el día');
-      d.dias.forEach(function (f) {
-        var b = chip(f.split('-').reverse().slice(0, 2).join('/'), function (boton) {
-          elegirDia(f, boton);
-        });
-        b.title = f;
-        diasEl.appendChild(b);
-      });
+      dibujarDias(d.dias);
     }).catch(function () { aviso.textContent = 'No se pudo consultar la agenda.'; });
   }
 
-  function elegirDia(f, boton) {
+  // -------------------------------------------------------------------
+  //  Los días y las horas se eligen con COMBOS, no con fichas.
+  //
+  //  Con dos meses de agenda las fichas eran cincuenta botones en pantalla:
+  //  hay que recorrerlos con la vista para encontrar un día, y en el celular
+  //  ocupan varias pantallas de scroll. Dos combos —el mes y el día— dicen lo
+  //  mismo en dos renglones, y el navegador ya sabe abrirlos en cualquier
+  //  dispositivo.
+  //
+  //  **Lo que se ofrece no cambia**: son exactamente los mismos días y las
+  //  mismas horas que devuelve el servidor, con los mismos filtros de turno,
+  //  profesional y servicios. Cambia como se muestran.
+  // -------------------------------------------------------------------
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+               'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var DIAS_SEM = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+  // **Se llama `campoCombo` y no `combo` a proposito.** Mas abajo hay un
+  // `var combo = document.querySelector('[name="id_usuario"]')`, y un `var`
+  // del mismo nombre PISA la funcion declarada arriba: cuando la respuesta
+  // del servidor volvia, `combo` ya era un elemento del DOM y la pantalla
+  // contestaba «No se pudo consultar la agenda» sin decir nada mas.
+  function campoCombo(id, etiqueta) {
+    var caja = document.createElement('div');
+    caja.className = 'spg-agenda-campo';
+    var lab = document.createElement('label');
+    lab.className = 'form-label';
+    lab.setAttribute('for', id);
+    lab.textContent = etiqueta;
+    var sel = document.createElement('select');
+    sel.className = 'form-select form-select-sm';
+    sel.id = id;
+    caja.appendChild(lab);
+    caja.appendChild(sel);
+
+    return { caja: caja, sel: sel };
+  }
+
+  function opcion(sel, valor, texto) {
+    var o = document.createElement('option');
+    o.value = valor;
+    o.textContent = texto;
+    sel.appendChild(o);
+  }
+
+  // `2026-09-04` sin pasar por `new Date(cadena)`, que en algunos navegadores
+  // la lee como UTC y corre el día uno para atrás.
+  function fechaLocal(f) {
+    var p = f.split('-');
+
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  function limpiarHoras() {
+    horasEl.innerHTML = '';
+    if (campo) campo.value = '';
+    if (btn) btn.disabled = true;
+  }
+
+  function dibujarDias(dias) {
+    diasEl.innerHTML = '';
+    agendaSelectId++;
+
+    var fila = document.createElement('div');
+    fila.className = 'spg-agenda-fila';
+    var mes = campoCombo('agMes' + agendaSelectId, '1. Mes');
+    var dia = campoCombo('agDia' + agendaSelectId, '2. Día');
+    fila.appendChild(mes.caja);
+    fila.appendChild(dia.caja);
+    diasEl.appendChild(fila);
+
+    // Sólo los meses que de verdad tienen algún día libre.
+    var meses = [];
+    dias.forEach(function (f) {
+      var m = f.slice(0, 7);
+      if (meses.indexOf(m) === -1) { meses.push(m); }
+    });
+    meses.forEach(function (m) {
+      var p = m.split('-');
+      opcion(mes.sel, m, MESES[+p[1] - 1] + ' de ' + p[0]);
+    });
+
+    function llenarDias() {
+      dia.sel.innerHTML = '';
+      opcion(dia.sel, '', 'Elegí el día…');
+      dias.filter(function (f) { return f.slice(0, 7) === mes.sel.value; })
+        .forEach(function (f) {
+          opcion(dia.sel, f, DIAS_SEM[fechaLocal(f).getDay()] + ' ' + f.slice(8, 10));
+        });
+    }
+
+    mes.sel.addEventListener('change', function () {
+      llenarDias();
+      // Invalida una consulta de horas que todavía esté llegando.
+      eleccion++;
+      limpiarHoras();
+    });
+    dia.sel.addEventListener('change', function () {
+      if (dia.sel.value) { elegirDia(dia.sel.value); }
+      else {
+        eleccion++;
+        limpiarHoras();
+      }
+    });
+
+    // Lo que ya venía elegido vuelve elegido: tras un rechazo el formulario
+    // conserva todo menos esto, y desde afuera se lee como que el sistema
+    // borró lo cargado.
+    var quiero = previo ? previo.slice(0, 10) : '';
+    if (quiero && dias.indexOf(quiero) !== -1) { mes.sel.value = quiero.slice(0, 7); }
+    llenarDias();
+    if (quiero && dias.indexOf(quiero) !== -1) {
+      dia.sel.value = quiero;
+      elegirDia(quiero);
+    }
+  }
+
+  function elegirDia(f) {
     diaElegido = f;
-    marcarUno(diasEl, boton);
+    var miEleccion = ++eleccion;
     cargando(horasEl, 'Buscando horarios…');
     if (campo) campo.value = '';
     if (btn) btn.disabled = true;
 
     var mia = consulta;
     pedir({ fecha: f }, horasEl).then(function (d) {
-      if (mia !== consulta) { return; }   // cambiaron los servicios mientras tanto
+      if (mia !== consulta || miEleccion !== eleccion) { return; }
       horasEl.innerHTML = '';
       if (!d.ok || !d.horas || !d.horas.length) {
         horasEl.textContent = 'Ese día ya no tiene horarios libres.';
         return;
       }
-      var p = f.split('-');
-      rotulo(horasEl, '2. Elegí la hora del ' + p[2] + '/' + p[1]);
-      d.horas.forEach(function (h) {
-        var ch = chip(h.hora, function (b) {
-          marcarUno(horasEl, b);
-          if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
-          if (btn) btn.disabled = false;
-        }, 'spg-chip-hora');
-        horasEl.appendChild(ch);
 
-        // La hora que ya venia elegida vuelve marcada, igual que el dia: tras
-        // un rechazo el formulario conserva todo menos esto, y desde afuera se
-        // lee como que el sistema borro lo que se habia cargado.
-        if (previo && previo.slice(11, 16) === h.hora && previo.slice(0, 10) === diaElegido) {
-          marcarUno(horasEl, ch);
-          if (campo) campo.value = diaElegido + ' ' + h.hora + ':00';
-          if (btn) btn.disabled = false;
-          previo = '';
+      var fila = document.createElement('div');
+      fila.className = 'spg-agenda-fila';
+      var hora = campoCombo('agHora' + agendaSelectId, '3. Hora');
+      fila.appendChild(hora.caja);
+      horasEl.appendChild(fila);
+
+      opcion(hora.sel, '', 'Elegí la hora…');
+      d.horas.forEach(function (h) { opcion(hora.sel, h.hora, h.hora); });
+
+      hora.sel.addEventListener('change', function () {
+        if (!hora.sel.value) {
+          if (campo) campo.value = '';
+          if (btn) btn.disabled = true;
+
+          return;
         }
+        if (campo) campo.value = diaElegido + ' ' + hora.sel.value + ':00';
+        if (btn) btn.disabled = false;
       });
+
+      if (previo && previo.slice(0, 10) === diaElegido) {
+        var h = previo.slice(11, 16);
+        if (Array.prototype.some.call(hora.sel.options, function (o) { return o.value === h; })) {
+          hora.sel.value = h;
+          if (campo) campo.value = diaElegido + ' ' + h + ':00';
+          if (btn) btn.disabled = false;
+        }
+        previo = '';
+      }
     }).catch(function () { horasEl.textContent = 'No se pudo consultar la agenda.'; });
   }
 

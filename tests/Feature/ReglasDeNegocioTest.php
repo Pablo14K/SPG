@@ -5018,17 +5018,19 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
-     * **La huella pertenece a UNA cuenta por vez.**
+     * **Cada cuenta tiene su propia huella, y registrar una no borra la de otro.**
      *
-     * Con dos activas, el navegador ofrece elegir entre las dos al entrar y la
-     * huella deja de identificar a una persona — que es exactamente lo que se le
-     * pide, porque es la que dice quién cobró y quién anuló un comprobante.
+     * Antes el registro borraba las credenciales de TODAS las demas cuentas, asi
+     * que una persona le revocaba el acceso a otra sin enterarse: se registraba
+     * la huella y la de la clienta anterior dejaba de andar. Es el modelo
+     * equivocado — una credencial WebAuthn apunta a una cuenta, y el navegador
+     * sabe cual es cual: al entrar ofrece las guardadas y se entra a la que
+     * registro la elegida.
      *
-     * Se comprueba en las dos direcciones: que la credencial de la otra cuenta
-     * DESAPAREZCA (no que quede marcada inactiva, que sería dejar la puerta
-     * abierta con un cartel de cerrada) y que la propia siga en su lugar.
+     * Lo que si se reemplaza es lo que ya tenia ESA misma cuenta, para que quede
+     * una por cuenta: volver a registrarla es cambiar la suya, no acumular.
      */
-    public function test_la_huella_pertenece_a_una_sola_cuenta(): void
+    public function test_cada_cuenta_conserva_su_propia_huella(): void
     {
         $dos = DB::select(
             'SELECT u.id_usuario FROM usuario u
@@ -5040,31 +5042,31 @@ class ReglasDeNegocioTest extends TestCase
         }
         [$a, $b] = [(int) $dos[0]->id_usuario, (int) $dos[1]->id_usuario];
 
-        // Se parte de cero para que la prueba mida la regla y no lo que haya
-        // quedado cargado de una corrida anterior.
         DB::delete('DELETE FROM credencial_webauthn WHERE id_usuario IN (?,?)', [$a, $b]);
         foreach ([$a => 'PRUEBA-A', $b => 'PRUEBA-B'] as $uid => $cid) {
             DB::insert('INSERT INTO credencial_webauthn (id_usuario, credential_id, public_key, etiqueta)
                         VALUES (?,?,?,?)', [$uid, $cid, '-----PEM-----', 'Prueba']);
         }
-
         $this->assertSame(2, (int) DB::scalar(
             'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario IN (?,?)', [$a, $b]),
             'Premisa: las dos cuentas arrancan con su credencial.');
 
-        $quitadas = WebAuthn::dejarSoloA($b);
+        // Lo que hace el registro hoy: reemplaza SOLO la de esa cuenta.
+        WebAuthn::guardarCredencial($b, 'PRUEBA-B2', '-----PEM-----');
 
-        $this->assertNotEmpty($quitadas, 'Tiene que decir a quién se le sacó: la otra persona '
-            . 'se encontraría con que su huella dejó de andar sin haber tocado nada.');
-        $this->assertSame(0, (int) DB::scalar(
+        $this->assertSame(1, (int) DB::scalar(
             'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$a]),
-            'La credencial de la otra cuenta se BORRA: mientras la fila exista, se puede entrar con ella.');
+            'La huella de la otra cuenta NO se toca: nadie le revoca el acceso a nadie.');
         $this->assertSame(1, (int) DB::scalar(
             'SELECT COUNT(*) FROM credencial_webauthn WHERE id_usuario = ?', [$b]),
-            'La de la cuenta que la registró queda.');
-        $this->assertSame(0, (int) DB::scalar(
-            'SELECT COALESCE(biometrico_activo,0) FROM preferencia_usuario WHERE id_usuario = ?', [$a]),
-            'Y la cuenta que la perdió tiene que ver el botón de activar, no el de desactivar.');
+            'Y la cuenta que la registro queda con UNA, no con dos.');
+
+        // Y cada credencial sigue apuntando a su cuenta: es lo que hace que
+        // entrar con la huella entre a la cuenta correcta y no a otra.
+        $this->assertSame($a, (int) DB::scalar(
+            'SELECT id_usuario FROM credencial_webauthn WHERE credential_id = ?', ['PRUEBA-A']));
+        $this->assertSame($b, (int) DB::scalar(
+            'SELECT id_usuario FROM credencial_webauthn WHERE credential_id = ?', ['PRUEBA-B2']));
     }
 
     /**
