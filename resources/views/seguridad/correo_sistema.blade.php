@@ -64,9 +64,7 @@
                        placeholder="Igual que la cuenta" autocomplete="off">
                 {{-- Gmail rechaza un remitente de otro dominio, así que si se
                      deja vacío se usa la propia cuenta. --}}
-                <div class="form-text">
-                    La dirección que ve la clienta. Vacío = la misma cuenta. Tiene que ser del mismo dominio.
-                </div>
+                <x-ayuda>La dirección que ve la clienta. Vacío = la misma cuenta. Tiene que ser del mismo dominio.</x-ayuda>
             </div>
 
             <div class="d-flex gap-2 align-items-center flex-wrap">

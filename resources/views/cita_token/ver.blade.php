@@ -86,16 +86,13 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" for="id_usuario">¿Con quién?</label>
+                    <label class="form-label" for="id_usuario">¿Con quién?</label><x-ayuda>Si tu profesional no está disponible, podés elegir a otra persona del equipo.</x-ayuda>
                     <select class="form-select" id="id_usuario" name="id_usuario">
                         <option value="0">Con quien me atendía</option>
                         @foreach ($profs as $p)
                             <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
                         @endforeach
                     </select>
-                    <div class="form-text">
-                        Si tu profesional no está disponible, podés elegir a otra persona del equipo.
-                    </div>
                 </div>
 
                 <button class="btn btn-oro w-100">Reprogramar mi cita</button>

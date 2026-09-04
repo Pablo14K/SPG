@@ -39,11 +39,7 @@
                                         @selected((int) old('id_sucursal') === (int) $s->id_sucursal)>{{ $s->nombre }}</option>
                                 @endforeach
                             </select>
-                            <div class="form-text">
-                                Un feriado del salón va en todas. La licencia de una persona
-                                que trabaja en varios locales, también — si no, sigue
-                                apareciendo disponible en los otros.
-                            </div>
+                            <x-ayuda>Un feriado del salón va en todas. La licencia de una persona que trabaja en varios locales, también — si no, sigue apareciendo disponible en los otros.</x-ayuda>
                         </div>
                     @endif
 

@@ -12,11 +12,7 @@
          copia nada: agrega la fila que dice que aca tambien se maneja. --}}
     @if (! empty($ajenos))
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en el catalogo</h2>
-            <p class="text-muted-warm mb-2" style="font-size:.82rem">
-                Estos productos ya estan cargados en otro local. Traelos aca en vez de
-                escribirlos de nuevo: es el mismo producto, con su unidad y su contenido.
-            </p>
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en el catalogo<x-ayuda>Estos productos ya estan cargados en otro local. Traelos aca en vez de escribirlos de nuevo: es el mismo producto, con su unidad y su contenido.</x-ayuda></h2>
             <div class="row g-2 align-items-end">
                 <div class="col-md-8">
                     <label class="form-label" for="traer">Producto</label>
@@ -77,13 +73,7 @@
             <hr class="my-4">
 
             {{-- El frasco y el mililitro --}}
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-rulers"></i> Cómo se compra y cómo se gasta</h2>
-            <p class="text-muted-warm mb-3" style="font-size:.8rem">
-                El shampoo se compra por frasco de 1 litro y se usa de a 30 ml. Si cargás las dos casillas
-                de abajo, quien registre la atención va a poder anotar <strong>30 ml</strong> y el sistema
-                descuenta la fracción de frasco que corresponde. El stock siempre se guarda en la unidad
-                de compra, que es la que factura el proveedor.
-            </p>
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-rulers"></i> Cómo se compra y cómo se gasta<x-ayuda titulo="Envases que se gastan de a poco">Se compra por frasco de 1 litro y se usa de a 30 ml. Cargando el contenido y la unidad, quien registre la atención anota «30 ml» y el sistema descuenta la parte que corresponde del frasco. Sin eso, lo más chico que se puede descontar es un frasco entero.</x-ayuda></h2>
 
             <div class="row g-3">
                 <div class="col-md-4">
@@ -154,12 +144,9 @@
 
                 @unless ($id)
                     <div class="col-md-4">
-                        <label class="form-label" for="stock_inicial">Stock inicial</label>
+                        <label class="form-label" for="stock_inicial">Stock inicial</label><x-ayuda>Lo que ya tenés en el depósito. Queda registrado como un movimiento de entrada.</x-ayuda>
                         <input class="form-control input-miles" id="stock_inicial" name="stock_inicial"
                                data-decimales="2" data-min="0" value="0">
-                        <div class="form-text">
-                            Lo que ya tenés en el depósito. Queda registrado como un movimiento de entrada.
-                        </div>
                     </div>
                 @endunless
             </div>

@@ -80,13 +80,9 @@
                                 <input class="form-check-input" type="checkbox" name="servicios[]"
                                        value="{{ $sv->id_servicio }}" id="sv{{ $sv->id_servicio }}"
                                        @checked(in_array((int) $sv->id_servicio, old('servicios', $misServicios), false))>
-                                <label class="form-check-label" for="sv{{ $sv->id_servicio }}">{{ $sv->nombre }}</label>
+                                <label class="form-check-label" for="sv{{ $sv->id_servicio }}">{{ $sv->nombre }}</label><x-ayuda>Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique a lo suyo: la agenda deja de ofrecerlo para el resto.</x-ayuda>
                             </div>
                         @endforeach
-                    </div>
-                    <div class="form-text">
-                        Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique
-                        a lo suyo: la agenda deja de ofrecerlo para el resto.
                     </div>
                 </div>
 

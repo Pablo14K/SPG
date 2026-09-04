@@ -35,9 +35,7 @@
                     data-confirmar="¿Descartar el cambio? Tu contraseña va a seguir siendo la de antes.">
                 Cancelar el cambio
             </button>
-            <div class="form-text">
-                Mientras no confirmes, tu contraseña sigue siendo la de siempre.
-            </div>
+            <x-ayuda>Mientras no confirmes, tu contraseña sigue siendo la de siempre.</x-ayuda>
         </form>
     </div>
 @endsection

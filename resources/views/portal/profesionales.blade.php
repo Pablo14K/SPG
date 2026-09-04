@@ -6,8 +6,7 @@
     <div class="spg-page-head">
         <a class="spg-back" href="{{ route('portal.reservar') }}">
             <i class="bi bi-arrow-left"></i> Reservar</a>
-        <h1 class="mt-1">Nuestro equipo</h1>
-        <div class="sub">Quién te puede atender y qué hace cada una.</div>
+        <h1 class="mt-1">Nuestro equipo<x-ayuda lado="bottom">Qué hace cada una y en qué horario atiende. Sirve para elegir antes de reservar: de nada vale que haga mechas si trabaja cuando no podés venir.</x-ayuda></h1>
     </div>
 
     {{-- **Vive acá y no en la pantalla de reservar.** Ahí ya hay que elegir

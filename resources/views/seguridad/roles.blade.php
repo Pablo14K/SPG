@@ -135,11 +135,7 @@
 
         <div class="col-lg-6">
             <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-pencil"></i> Roles del salón</h2>
-                <p class="text-muted-warm" style="font-size:.82rem">
-                    Acá se le cambia el nombre y la descripción a un rol. No se puede eliminar uno que
-                    tenga usuarios, ni el Administrador ni el Cliente: esos dos los referencia el código.
-                </p>
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-pencil"></i> Roles del salón<x-ayuda>Acá se le cambia el nombre y la descripción a un rol. No se puede eliminar uno que tenga usuarios, ni el Administrador ni el Cliente: esos dos los referencia el código.</x-ayuda></h2>
                 @foreach ($roles as $rol)
                     <div class="d-flex justify-content-between align-items-center py-1">
                         <span>{{ $rol->nombre }}

@@ -28,31 +28,24 @@
                  un solo local. Solo se dibuja con mas de una sucursal. --}}
             @if (count($sucursales) > 1)
                 <div class="mb-3">
-                    <label class="form-label" for="id_sucursal">Sucursal</label>
+                    <label class="form-label" for="id_sucursal">Sucursal</label><x-ayuda>La del local le gana a la que vale en todas, y se aplica segun donde se haya prestado el servicio.</x-ayuda>
                     <select class="form-select" id="id_sucursal" name="id_sucursal">
                         <option value="0">Todas las sucursales</option>
                         @foreach ($sucursales as $su)
                             <option value="{{ $su->id_sucursal }}">{{ $su->nombre }}</option>
                         @endforeach
                     </select>
-                    <div class="form-text">
-                        La del local le gana a la que vale en todas, y se aplica segun donde
-                        se haya prestado el servicio.
-                    </div>
                 </div>
             @endif
 
             <div class="mb-3">
-                <label class="form-label" for="id_servicio">Servicio</label>
+                <label class="form-label" for="id_servicio">Servicio</label><x-ayuda>Dejalo en «todos» para una comisión general, o elegí uno para una comisión especial.</x-ayuda>
                 <select class="form-select" id="id_servicio" name="id_servicio">
                     <option value="0">Todos los servicios</option>
                     @foreach ($servicios as $s)
                         <option value="{{ $s->id_servicio }}">{{ $s->nombre }}</option>
                     @endforeach
                 </select>
-                <div class="form-text">
-                    Dejalo en «todos» para una comisión general, o elegí uno para una comisión especial.
-                </div>
             </div>
 
             <div class="row g-2 mb-3">

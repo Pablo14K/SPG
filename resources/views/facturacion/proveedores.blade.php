@@ -131,15 +131,10 @@
                             <p class="text-muted-warm" style="font-size:.86rem">
                                 {{ $p->proveedor }} · {{ $p->compras }}
                             </p>
-                            <label class="form-label" for="nf{{ $p->compra_sin_factura }}">Número</label>
+                            <label class="form-label" for="nf{{ $p->compra_sin_factura }}">Número</label><x-ayuda>Es el número del papel que entregó el proveedor. Queda pegado a la compra, así que el pago y la factura se pueden rastrear juntos.</x-ayuda>
                             <input class="form-control" id="nf{{ $p->compra_sin_factura }}"
                                    name="nro_factura_proveedor" required maxlength="30"
                                    placeholder="001-001-0001234">
-                            <div class="form-text">
-                                Es el número del papel que entregó el proveedor. Queda
-                                pegado a la compra, así que el pago y la factura se
-                                pueden rastrear juntos.
-                            </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
@@ -179,10 +174,7 @@
                                         <input class="form-control" id="nfp{{ $c->id_compra }}"
                                                name="nro_factura_proveedor" maxlength="30"
                                                placeholder="001-001-0001234">
-                                        <div class="form-text">
-                                            Si el papel vino con el pago, cargalo ahora: después
-                                            la compra sale de esta lista.
-                                        </div>
+                                        <x-ayuda>Si el papel vino con el pago, cargalo ahora: después la compra sale de esta lista.</x-ayuda>
                                     </div>
                                 @endunless
 
@@ -239,10 +231,7 @@
                                         <input class="form-control" id="refp{{ $c->id_compra }}"
                                                name="referencia" maxlength="60"
                                                placeholder="Nº de transferencia, recibo…">
-                                        <div class="form-text">
-                                            Es el respaldo de la salida de plata, no la factura del
-                                            proveedor: esa es la de arriba y se carga una sola vez.
-                                        </div>
+                                        <x-ayuda>Es el respaldo de la salida de plata, no la factura del proveedor: esa es la de arriba y se carga una sola vez.</x-ayuda>
                                     </div>
                                 </div>
                             </div>

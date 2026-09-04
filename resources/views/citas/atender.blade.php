@@ -111,12 +111,7 @@
 
         {{-- 1. Servicios realizados --}}
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿Qué se le hizo?</h2>
-            <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                Vienen marcados los que se habían agendado. <strong>Lo que quede sin marcar y no se
-                haya realizado antes se saca de la cita</strong>, así no se le cobra a la clienta un
-                servicio que no recibió.
-            </p>
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿Qué se le hizo?<x-ayuda>Vienen marcados los que se habían agendado. Lo que quede sin marcar y no se haya realizado antes se saca de la cita, así no se le cobra a la clienta un servicio que no recibió.</x-ayuda></h2>
 
             <input class="form-control form-control-sm mb-2" data-filtra="#listaServiciosAt"
                    placeholder="Buscar un servicio…" autocomplete="off">
@@ -189,12 +184,7 @@
 
         {{-- 2. Productos usados --}}
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?</h2>
-            <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                Cargá <strong>lo que realmente se usó</strong>: no es una cantidad fija por servicio, cambia
-                según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo
-                —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.
-            </p>
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?<x-ayuda>Cargá lo que realmente se usó: no es una cantidad fija por servicio, cambia según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.</x-ayuda></h2>
 
             {{-- **Un local que no maneja ningún producto tiene que decirlo.** El
                  catálogo es único desde la 7.33.0 y `producto_sucursal` dice qué

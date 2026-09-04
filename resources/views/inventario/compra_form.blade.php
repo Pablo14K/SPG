@@ -51,11 +51,7 @@
                          y el salón no tenía cómo saber cuánto le vence la semana
                          que viene. --}}
                     <div id="bloqueCuotas" class="d-none mb-3 p-3 rounded" style="border:1px solid var(--gris-calido)">
-                        <h2 class="spg-form-titulo mb-1"><i class="bi bi-calendar2-week"></i> ¿En cuántas cuotas?</h2>
-                        <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                            Se reparte el total en partes iguales y se propone una fecha por mes.
-                            <strong>Cambiá lo que haga falta</strong>: no todos los proveedores cobran igual.
-                        </p>
+                        <h2 class="spg-form-titulo mb-1"><i class="bi bi-calendar2-week"></i> ¿En cuántas cuotas?<x-ayuda>Se reparte el total en partes iguales y se propone una fecha por mes. Cambiá lo que haga falta: no todos los proveedores cobran igual.</x-ayuda></h2>
 
                         <div class="row g-2 align-items-end mb-2">
                             <div class="col-auto">
@@ -97,12 +93,7 @@
                         </template>
                     </div>
 
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-list-ul"></i> Productos</h2>
-                    <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                        Elegí el producto de la lista siempre que exista. Si escribís el nombre a mano y ya
-                        estaba cargado —aunque sea con un espacio de más—, el sistema lo reconoce y le suma
-                        el stock en vez de crear un duplicado.
-                    </p>
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-list-ul"></i> Productos<x-ayuda>Elegí el producto de la lista siempre que exista. Si escribís el nombre a mano y ya estaba cargado —aunque sea con un espacio de más—, el sistema lo reconoce y le suma el stock en vez de crear un duplicado.</x-ayuda></h2>
 
                     {{-- Las filas se redibujan con lo que había cargado: al crear
                          un proveedor desde el costado se vuelve acá, y perder la
@@ -318,10 +309,7 @@
         <div class="col-lg-4">
             @if (Permisos::puede('inventario.proveedores'))
                 <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-truck"></i> ¿El proveedor no está cargado?</h2>
-                    <p class="text-muted-warm" style="font-size:.82rem">
-                        Crealo acá mismo, sin perder las líneas que ya escribiste.
-                    </p>
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-truck"></i> ¿El proveedor no está cargado?<x-ayuda>Crealo acá mismo, sin perder las líneas que ya escribiste.</x-ayuda></h2>
                     {{-- data-borrador: las filas de la compra ya cargadas
                          vuelven con el redirect. --}}
                     <form method="post" action="{{ route('inventario.proveedor.rapido') }}"

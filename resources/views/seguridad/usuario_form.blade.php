@@ -31,11 +31,9 @@
                 {{ $id ? 'Editar usuario' : 'Nuevo usuario' }}
             @endif
         </h1>
-        <div class="sub">
-            {{ $desdePersonal
-                ? 'Los datos de la persona, qué servicios hace y en qué turnos trabaja.'
-                : 'La cuenta con la que entra al sistema: usuario, contraseña y rol.' }}
-        </div>
+        <x-ayuda lado="bottom">{{ $desdePersonal
+            ? 'Los datos de la persona, qué servicios hace y en qué turnos trabaja.'
+            : 'La cuenta con la que entra al sistema: usuario, contraseña y rol.' }}</x-ayuda>
     </div>
 
     <div class="row g-3">
@@ -207,11 +205,7 @@
                          Lo que queda acá es lo que de verdad cuelga de la cuenta:
                          sucursales a las que entra y turnos que trabaja. --}}
 
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja</h2>
-                    <p class="text-muted-warm mb-2" style="font-size:.8rem">
-                        <strong>Sin turno asignado no aparece en la agenda</strong>: el sistema no sabría
-                        cuándo atiende. El mismo turno lo puede compartir todo el equipo.
-                    </p>
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja<x-ayuda>Sin turno asignado no aparece en la agenda: el sistema no sabría cuándo atiende. El mismo turno lo puede compartir todo el equipo.</x-ayuda></h2>
                     <div class="mb-3">
                         @if (count($turnos) > 1)
                             <div class="form-check mb-1">

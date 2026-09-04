@@ -111,10 +111,7 @@
         <div class="col-lg-5">
             @if (Permisos::puede('inventario.productos'))
                 <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> ¿El producto todavía no existe?</h2>
-                    <p class="text-muted-warm" style="font-size:.82rem">
-                        Crealo acá mismo con su stock inicial, sin perder lo que ya cargaste.
-                    </p>
+                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> ¿El producto todavía no existe?<x-ayuda>Crealo acá mismo con su stock inicial, sin perder lo que ya cargaste.</x-ayuda></h2>
                     {{-- data-borrador: lo cargado en el ajuste vuelve con el
                          redirect en vez de perderse al crear el producto. --}}
                     <form method="post" action="{{ route('inventario.producto.rapido') }}"

@@ -67,11 +67,7 @@
 
     @if ($enCurso)
         <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-chat-dots"></i> ¿Querés agregar algo?</h2>
-            <p class="text-muted-warm" style="font-size:.85rem">
-                Pedilo acá y quien te está atendiendo lo va a ver. Te lo confirma en el momento,
-                porque depende de si hay tiempo y producto.
-            </p>
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-chat-dots"></i> ¿Querés agregar algo?<x-ayuda>Pedilo acá y quien te está atendiendo lo va a ver. Te lo confirma en el momento, porque depende de si hay tiempo y producto.</x-ayuda></h2>
             <button class="btn btn-oro" data-bs-toggle="modal" data-bs-target="#modalPedir">
                 <i class="bi bi-plus-lg"></i> Pedir algo más</button>
 

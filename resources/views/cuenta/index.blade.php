@@ -4,8 +4,7 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <h1>Mi cuenta</h1>
-        <div class="sub">Tus datos y tu contraseña.</div>
+        <h1>Mi cuenta<x-ayuda lado="bottom">Tus datos, tu contraseña, el ingreso con huella y cómo se ve el sistema.</x-ayuda></h1>
     </div>
 
     @if ($pendiente)
@@ -40,11 +39,7 @@
                  que elegir, y un selector de una opción es ruido. --}}
             @if (count($misSucursales) > 1)
                 <div class="spg-panel mt-3">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal</h2>
-                    <p class="text-muted-warm mb-3" style="font-size:.82rem">
-                        La agenda, la caja y el stock que ves son los de este local. Al cambiar,
-                        cambia todo el sistema — no hace falta cerrar sesión.
-                    </p>
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal<x-ayuda>La agenda, la caja y el stock que ves son los de este local. Al cambiar, cambia todo el sistema — no hace falta cerrar sesión.</x-ayuda></h2>
                     <div class="d-flex flex-wrap gap-2">
                         @foreach ($misSucursales as $s)
                             <form method="post" action="{{ route('sucursal.entrar') }}">
@@ -64,11 +59,7 @@
                  salón: dos que comparten la computadora pueden tener uno cada
                  una, porque va atada a la cuenta y no al navegador. --}}
             <div class="spg-panel mt-3">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-circle-half"></i> Apariencia</h2>
-                <p class="text-muted-warm mb-3" style="font-size:.82rem">
-                    El tema oscuro usa los mismos colores del salón, con los fondos al revés.
-                    Se aplica en todas las pantallas y queda guardado para la próxima vez.
-                </p>
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-circle-half"></i> Apariencia<x-ayuda>El tema oscuro usa los mismos colores del salón, con los fondos al revés. Se aplica en todas las pantallas y queda guardado para la próxima vez.</x-ayuda></h2>
 
                 <form method="post" action="{{ route('cuenta.tema') }}" class="d-flex gap-2 flex-wrap">
                     @csrf
@@ -86,12 +77,7 @@
 
         <div class="col-lg-6">
             <div class="spg-panel mb-3">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-fingerprint"></i> Ingreso con huella</h2>
-                <p class="text-muted-warm mb-2" style="font-size:.82rem">
-                    Entrar apoyando el dedo, sin escribir la contraseña. La huella
-                    <strong>no sale de tu equipo</strong>: el sistema solo guarda una clave pública
-                    para comprobar que sos vos.
-                </p>
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-fingerprint"></i> Ingreso con huella<x-ayuda>Entrar apoyando el dedo, sin escribir la contraseña. La huella no sale de tu equipo: el sistema solo guarda una clave pública para comprobar que sos vos.</x-ayuda></h2>
 
                 <div id="bioEstado" class="mb-2" style="font-size:.85rem">
                     @if ($bioActivo)
@@ -114,12 +100,7 @@
             </div>
 
             <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-shield-lock"></i> Cambiar la contraseña</h2>
-                <p class="text-muted-warm mb-3" style="font-size:.82rem">
-                    Después de cargarla te mandamos un <strong>código al correo</strong> para confirmar.
-                    Saber la contraseña actual no alcanza: si alguien se sienta en una computadora con
-                    tu sesión abierta, el código es lo que le impide dejarte afuera de tu propia cuenta.
-                </p>
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-shield-lock"></i> Cambiar la contraseña<x-ayuda>Después de cargarla te mandamos un código al correo para confirmar. Saber la contraseña actual no alcanza: si alguien se sienta en una computadora con tu sesión abierta, el código es lo que le impide dejarte afuera de tu propia cuenta.</x-ayuda></h2>
 
                 @if (! $perfil->email)
                     {{-- Al Administrador no se le dice «pedile al Administrador»:

@@ -168,13 +168,10 @@
                     {{-- Arranca visible y lo esconde el JS: sin `app.js` se ven
                          los dos campos y se agenda igual. --}}
                     <div id="bloqueParaQuien" class="mt-2">
-                        <label class="form-label" for="nombre_para">¿Para quién?</label>
+                        <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda>Con el nombre completo: es lo que ve quien atiende ese día.</x-ayuda>
                         <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
                                placeholder="Nombre y apellido de quien se atiende"
                                value="{{ old('nombre_para') }}">
-                        <div class="form-text">
-                            Con el nombre completo: es lo que ve quien atiende ese día.
-                        </div>
                     </div>
                 </div>
 

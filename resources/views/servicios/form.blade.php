@@ -33,11 +33,7 @@
          copia nada: agrega la fila que dice que este local también lo ofrece. --}}
     @if (! empty($ajenos))
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en otra sucursal</h2>
-            <p class="text-muted-warm mb-2" style="font-size:.82rem">
-                Estos servicios ya están cargados en otro local. Traelos acá en vez de
-                escribirlos de nuevo: es el mismo servicio, con su precio y su duración.
-            </p>
+            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en otra sucursal<x-ayuda>Estos servicios ya están cargados en otro local. Traelos acá en vez de escribirlos de nuevo: es el mismo servicio, con su precio y su duración.</x-ayuda></h2>
             <div class="row g-2 align-items-end">
                 <div class="col-md-8">
                     <label class="form-label" for="traer">Servicio</label>
@@ -156,10 +152,7 @@
                         <div class="flex-grow-1" style="min-width:240px">
                             <input class="form-control" type="file" id="imagen" name="imagen"
                                    accept="image/png,image/jpeg,image/webp">
-                            <div class="form-text">
-                                PNG, JPG o WEBP, hasta 512 KB. Se ve al reservar, así que
-                                conviene una foto del resultado y no del producto.
-                            </div>
+                            <x-ayuda>PNG, JPG o WEBP, hasta 512 KB. Se ve al reservar, así que conviene una foto del resultado y no del producto.</x-ayuda>
                             @if ($imagenUrl ?? null)
                                 <div class="form-check mt-1">
                                     <input class="form-check-input" type="checkbox"
@@ -190,12 +183,7 @@
                                     {{ $z->nombre }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">
-                            Dos servicios de la <strong>misma</strong> parte se hacen uno después del
-                            otro y los tiempos se suman; de partes distintas se hacen a la vez y la
-                            cita dura lo del más largo. Sin especificar, se puede hacer junto con
-                            cualquier cosa.
-                        </div>
+                        <x-ayuda>Dos servicios de la <strong>misma</strong> parte se hacen uno después del otro y los tiempos se suman; de partes distintas se hacen a la vez y la cita dura lo del más largo. Sin especificar, se puede hacer junto con cualquier cosa.</x-ayuda>
                     </div>
                 </div>
 

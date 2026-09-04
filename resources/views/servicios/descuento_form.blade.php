@@ -51,10 +51,7 @@
                          El tope del 100 % lo comprueba el servidor: en porcentaje
                          no puede pasarse, y en monto fijo la base ya topea al
                          total de la factura. --}}
-                    <div class="form-text">
-                        En porcentaje, entre 1 y 100. En monto fijo, lo que se descuenta
-                        en guaraníes.
-                    </div>
+                    <x-ayuda>En porcentaje, entre 1 y 100. En monto fijo, lo que se descuenta en guaraníes.</x-ayuda>
                 </div>
 
                 <div class="col-md-6">
@@ -78,11 +75,7 @@
             @unless ($nivel)
                 <hr class="my-4">
 
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿A qué servicios aplica?</h2>
-                <p class="text-muted-warm" style="font-size:.8rem">
-                    Si no marcás ninguno, el descuento se aplica al <strong>total de la factura</strong>.
-                    Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.
-                </p>
+                <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿A qué servicios aplica?<x-ayuda>Si no marcás ninguno, el descuento se aplica al total de la factura. Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.</x-ayuda></h2>
 
                 <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
                     <input class="form-control form-control-sm" data-filtra="#listaServicios"

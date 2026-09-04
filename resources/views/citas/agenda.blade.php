@@ -513,14 +513,10 @@
                                      burocracia: va en el correo que le avisa el
                                      cambio, y es lo único que queda en la auditoría
                                      para saber por qué esa cita cambió de manos. --}}
-                                <label class="form-label mt-3" for="motReas{{ $c->id_cita }}">¿Por qué se cambia? *</label>
+                                <label class="form-label mt-3" for="motReas{{ $c->id_cita }}">¿Por qué se cambia? *</label><x-ayuda>Al menos 10 caracteres. Se le avisa por correo a la clienta, con este motivo.</x-ayuda>
                                 <textarea class="form-control" id="motReas{{ $c->id_cita }}" name="motivo"
                                           rows="2" maxlength="200" minlength="10" required
                                           placeholder="Se lo vamos a contar a la clienta"></textarea>
-                                <div class="form-text">
-                                    Al menos 10 caracteres. Se le avisa por correo a la clienta,
-                                    con este motivo.
-                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

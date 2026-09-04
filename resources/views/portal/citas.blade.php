@@ -5,8 +5,7 @@
 @section('contenido')
     <div class="spg-page-head spg-head-flex">
         <div class="spg-head-txt">
-            <h1>Mis citas</h1>
-            <div class="sub">Las que vienen y las que ya pasaron.</div>
+            <h1>Mis citas<x-ayuda lado="bottom">Arriba las que todavía no ocurrieron; abajo, el historial.</x-ayuda></h1>
         </div>
         <div class="spg-head-acciones">
             <a class="btn btn-oro" href="{{ route('portal.reservar') }}">
@@ -329,10 +328,7 @@
                                      210.000 la cita queda igual de sin confirmar, pero
                                      con un aviso que alguien tiene que ir a rechazar. El
                                      servidor lo vuelve a comprobar. --}}
-                                <div class="form-text">
-                                    El mínimo es {{ money($c->sena_requerida) }}: con menos,
-                                    el horario no queda confirmado.
-                                </div>
+                                <x-ayuda>El mínimo es {{ money($c->sena_requerida) }}: con menos, el horario no queda confirmado.</x-ayuda>
                             @endif
 
                             {{-- **El comprobante de la transferencia.** La cita se
@@ -346,9 +342,7 @@
                             </label>
                             <input class="form-control" id="pc{{ $c->id_cita }}" type="file"
                                    name="comprobante" accept="image/*,application/pdf">
-                            <div class="form-text">
-                                Una foto de la pantalla alcanza. Hasta 3 MB.
-                            </div>
+                            <x-ayuda>Una foto de la pantalla alcanza. Hasta 3 MB.</x-ayuda>
 
                             {{-- Que quede clarísimo que acá no se paga: la clienta
                                  no tiene que quedarse esperando un cobro que no

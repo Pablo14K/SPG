@@ -4,8 +4,7 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <h1>Promociones</h1>
-        <div class="sub">Se aplica <strong>una sola</strong> por comprobante: la que más te convenga entre tu nivel y las promos vigentes.</div>
+        <h1>Promociones<x-ayuda lado="bottom">El descuento se calcula por servicio: cada uno se lleva el mejor que le aplique, entre tu nivel y las promociones vigentes, y después se suman. Sobre un mismo servicio no se acumulan.</x-ayuda></h1>
     </div>
 
     @if ($fid)

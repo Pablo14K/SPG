@@ -4,8 +4,7 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <h1>Valoraciones</h1>
-        <div class="sub">Contanos cómo te fue: nos sirve para mejorar.</div>
+        <h1>Valoraciones<x-ayuda lado="bottom">Contanos cómo te fue en cada cita. Lo lee el salón para mejorar.</x-ayuda></h1>
     </div>
 
     @if ($pendientes)

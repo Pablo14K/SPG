@@ -4,8 +4,7 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <h1>Mis recordatorios</h1>
-        <div class="sub">Con cuánta anticipación querés que te avisemos de tu cita.</div>
+        <h1>Mis recordatorios<x-ayuda lado="bottom">Elegí con cuánta anticipación querés que te avisemos por correo. También decide la alarma que se guarda en el calendario de tu teléfono.</x-ayuda></h1>
     </div>
 
     <div class="spg-panel" style="max-width:520px">

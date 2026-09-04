@@ -189,11 +189,7 @@
     {{-- **Abrir es la única acción posible acá**, así que va sola y sin ruido:
          sin caja abierta no se cobra, no se factura y no se paga. --}}
     <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir esta caja</h2>
-        <p class="text-muted-warm" style="font-size:.85rem">
-            El monto inicial es el efectivo con el que arranca el cajón. Al cerrar se
-            cuenta lo que hay y el sistema dice si cuadra.
-        </p>
+        <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir esta caja<x-ayuda>El monto inicial es el efectivo con el que arranca el cajón. Al cerrar se cuenta lo que hay y el sistema dice si cuadra.</x-ayuda></h2>
 
         <form method="post" action="{{ route('facturacion.caja.abrir') }}"
               class="d-flex gap-2 align-items-end flex-wrap">

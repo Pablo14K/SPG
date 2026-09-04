@@ -239,12 +239,7 @@
                                                for="perm{{ $f->id_usuario }}_{{ $f->id_turno }}">
                                             Esta falta <strong>tiene permiso</strong>
                                         </label>
-                                        <div class="form-text">
-                                            Sin marcar entra como <strong>falta sin aviso</strong>, que es lo
-                                            normal: recién cuando la persona explica se decide si corresponde
-                                            el permiso, y eso se hace después con «Justificar».
-                                            Marcándola, el motivo pasa a ser obligatorio.
-                                        </div>
+                                        <x-ayuda>Sin marcar entra como <strong>falta sin aviso</strong>, que es lo normal: recién cuando la persona explica se decide si corresponde el permiso, y eso se hace después con «Justificar». Marcándola, el motivo pasa a ser obligatorio.</x-ayuda>
                                     </div>
                                 @else
                                     <div class="form-text mt-3">

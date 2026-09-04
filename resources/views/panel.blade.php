@@ -6,8 +6,8 @@
     @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 
     <div class="spg-page-head">
-        <h1>Panel principal</h1>
-        <div class="sub">Hola, {{ session('nombre') }}. Elegí un módulo para entrar a sus submódulos.</div>
+        <h1>Panel principal<x-ayuda lado="bottom">Cada tarjeta es un módulo. Entrá al que necesites y adentro vas a encontrar sus pantallas.</x-ayuda></h1>
+        <div class="sub">Hola, {{ session('nombre') }}.</div>
     </div>
 
     @if ($verCaja)

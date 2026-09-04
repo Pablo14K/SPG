@@ -6,12 +6,7 @@
     <x-encabezado sub="Qué servicios puede llevarse una clienta a cambio de sus puntos." />
 
     <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-1"><i class="bi bi-gift"></i> Sumar un servicio a los canjes</h2>
-        <p class="text-muted-warm" style="font-size:.82rem">
-            La clienta ve estos servicios en su portal y los canjea sola. Al canjearlo se le
-            descuentan los puntos y le queda <strong>guardado para usar en una cita</strong>,
-            hasta la fecha que fije la vigencia.
-        </p>
+        <h2 class="spg-form-titulo mb-1"><i class="bi bi-gift"></i> Sumar un servicio a los canjes<x-ayuda>La clienta ve estos servicios en su portal y los canjea sola. Al canjearlo se le descuentan los puntos y le queda guardado para usar en una cita, hasta la fecha que fije la vigencia.</x-ayuda></h2>
 
         <form method="post" action="{{ route('clientes.canje.guardar') }}" class="row g-2 align-items-end">
             @csrf

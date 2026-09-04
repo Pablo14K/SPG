@@ -5,8 +5,7 @@
 @section('contenido')
     <div class="spg-page-head">
         <a class="spg-back" href="{{ route('portal.index') }}"><i class="bi bi-arrow-left"></i> Mi portal</a>
-        <h1 class="mt-1">Reservar una cita</h1>
-        <div class="sub">Elegí los servicios y te mostramos los horarios que quedan libres de verdad.</div>
+        <h1 class="mt-1">Reservar una cita<x-ayuda lado="bottom">Elegí los servicios y te mostramos sólo los horarios que quedan libres de verdad, con el tiempo que lleva todo junto.</x-ayuda></h1>
     </div>
 
     {{-- **Primero el local.** Los servicios, los horarios y los profesionales
@@ -71,13 +70,7 @@
 
                      Va acá y no como un aviso rojo: es una ayuda para elegir
                      bien, no un error — todavía no hizo nada mal. --}}
-                <p class="text-muted-warm mb-2" style="font-size:.82rem">
-                    <i class="bi bi-info-circle"></i>
-                    Podés dejar <strong>«quien me atienda»</strong> y el salón acomoda todo en el
-                    mismo turno. Si elegís a alguien en particular, mirá el horario que aparece
-                    al lado del nombre: <strong>pidiendo una persona de la mañana y otra de la
-                    tarde no va a haber ningún horario libre</strong>, porque tu cita es una sola.
-                </p>
+                <x-ayuda titulo="Elegir profesional">Podés dejar «quien me atienda» y el salón acomoda todo en el mismo turno. Si elegís a alguien en particular, mirá el horario que aparece al lado del nombre: pidiendo una persona de la mañana y otra de la tarde no va a quedar ningún horario libre, porque tu cita es una sola.</x-ayuda>
 
                 {{-- **Tarjetas con la imagen de referencia.** La clienta
                      elige mirando el resultado y no una lista de nombres:

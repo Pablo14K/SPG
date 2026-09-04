@@ -4,8 +4,7 @@
 
 @section('contenido')
     <div class="spg-page-head">
-        <h1>Hola, {{ session('nombre') }}</h1>
-        <div class="sub">Reservá tu cita, mirá tus turnos y dejanos tu opinión.</div>
+        <h1>Hola, {{ session('nombre') }}<x-ayuda lado="bottom">Desde acá reservás una cita, mirás las que tenés y nos contás cómo te fue.</x-ayuda></h1>
     </div>
 
     @if ($proxima)

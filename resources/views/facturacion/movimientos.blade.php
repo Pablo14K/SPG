@@ -26,12 +26,7 @@
         </div>
     @else
         <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja</h2>
-            <p class="text-muted-warm" style="font-size:.85rem">
-                Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi,
-                la plata que se saca para el cambio, un retiro. <strong>Queda en el arqueo</strong>, así
-                que el cierre cuadra con lo que hay de verdad.
-            </p>
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja<x-ayuda>Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi, la plata que se saca para el cambio, un retiro. Queda en el arqueo, así que el cierre cuadra con lo que hay de verdad.</x-ayuda></h2>
 
             <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
                   class="row g-2 align-items-end" enctype="multipart/form-data">
@@ -227,14 +222,10 @@
                                     <p class="text-muted-warm" style="font-size:.86rem">
                                         {{ $m->detalle }} · {{ money($m->monto) }}
                                     </p>
-                                    <label class="form-label" for="mot{{ $m->id_ref }}">¿Por qué se anula?</label>
+                                    <label class="form-label" for="mot{{ $m->id_ref }}">¿Por qué se anula?</label><x-ayuda>No se borra: queda anulado y con el motivo, para que el arqueo pueda explicar qué pasó.</x-ayuda>
                                     <input class="form-control" id="mot{{ $m->id_ref }}" name="motivo"
                                            required maxlength="255"
                                            placeholder="Se cargó dos veces, el monto estaba mal…">
-                                    <div class="form-text">
-                                        No se borra: queda anulado y con el motivo, para que el arqueo
-                                        pueda explicar qué pasó.
-                                    </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-outline-neutro"
