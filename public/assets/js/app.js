@@ -1498,3 +1498,74 @@ window.SPGCarga = (function () {
     new bootstrap.Popover(el, { container: 'body' });
   });
 })();
+
+/* ------------------------------------------------------------------
+   Quiénes vienen con la clienta.
+
+   `¿Cuántas personas van?` decía cuántas y nada más, así que el salón
+   sabía que llegaban tres y no a quiénes esperar. Al escribir el número
+   aparecen los campos de nombre y apellido de cada acompañante.
+
+   **La primera no se pide**: es la clienta que está reservando, y su
+   nombre ya lo tiene el sistema. Por eso con 1 no se dibuja nada y los
+   campos arrancan en el 2.
+
+   Lo que ya estaba cargado se conserva: tras un rechazo el formulario
+   vuelve con los nombres puestos, y subir o bajar el número no borra los
+   que ya se habían escrito.
+
+     <input id="personas" name="personas" data-acomp="#bloqueAcomp">
+     <div id="bloqueAcomp"></div>
+   ------------------------------------------------------------------ */
+(function () {
+  'use strict';
+  document.querySelectorAll('[data-acomp]').forEach(function (campo) {
+    var caja = document.querySelector(campo.getAttribute('data-acomp'));
+    if (!caja) return;
+
+    var previos = {};
+    try { previos = JSON.parse(caja.getAttribute('data-acomp-previos') || '{}'); } catch (e) { previos = {}; }
+
+    function dibujar() {
+      var n = parseInt(campo.value, 10);
+      if (isNaN(n) || n < 2) { n = 1; }
+      if (n > 20) { n = 20; }
+
+      // Lo escrito hasta ahora no se pierde al mover el número.
+      caja.querySelectorAll('[data-acomp-orden]').forEach(function (f) {
+        var o = f.getAttribute('data-acomp-orden');
+        previos[o] = {
+          nombre: f.querySelector('[name^="acomp_nombre"]').value,
+          apellido: f.querySelector('[name^="acomp_apellido"]').value
+        };
+      });
+
+      caja.innerHTML = '';
+      if (n < 2) { return; }
+
+      var titulo = document.createElement('div');
+      titulo.className = 'form-label';
+      titulo.textContent = n === 2 ? '¿Quién viene con vos?' : '¿Quiénes vienen con vos?';
+      caja.appendChild(titulo);
+
+      for (var i = 2; i <= n; i++) {
+        var p = previos[i] || { nombre: '', apellido: '' };
+        var fila = document.createElement('div');
+        fila.className = 'row g-2 mb-2';
+        fila.setAttribute('data-acomp-orden', i);
+        fila.innerHTML =
+          '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
+          ' name="acomp_nombre[' + i + ']" placeholder="Nombre" value=""></div>' +
+          '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
+          ' name="acomp_apellido[' + i + ']" placeholder="Apellido" value=""></div>';
+        fila.querySelector('[name^="acomp_nombre"]').value = p.nombre || '';
+        fila.querySelector('[name^="acomp_apellido"]').value = p.apellido || '';
+        caja.appendChild(fila);
+      }
+    }
+
+    campo.addEventListener('input', dibujar);
+    campo.addEventListener('change', dibujar);
+    dibujar();
+  });
+})();

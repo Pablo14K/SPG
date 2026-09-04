@@ -188,8 +188,19 @@ class AndamiajeTest extends TestCase
 
         preg_match_all("/\\[data-([a-z-]+)[\\]=]/", $js, $m);
 
+        // **Los que el propio JS ESCRIBE no cuentan.** Un atributo que el
+        // script pone con `setAttribute` y despues vuelve a leer no tiene por
+        // que estar en ninguna vista: es su marca interna sobre lo que el mismo
+        // dibujo. Buscarlo en el marcado daria un falso positivo, y silenciar
+        // la guardia entera por eso seria peor — se afina, no se apaga.
+        preg_match_all("/setAttribute\\(\\s*'data-([a-z-]+)'/", $js, $propios);
+        $escritos = array_unique($propios[1]);
+
         $sinUso = [];
         foreach (array_unique($m[1]) as $attr) {
+            if (in_array($attr, $escritos, true)) {
+                continue;
+            }
             if (! str_contains($marcado, 'data-' . $attr)) {
                 $sinUso[] = 'data-' . $attr;
             }

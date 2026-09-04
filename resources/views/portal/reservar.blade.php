@@ -82,6 +82,7 @@
                 <div class="spg-srv-grid" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
                         <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
+                            :marcado="in_array((string) $s->id_servicio, (array) old('servicios', []), true)"
                             {{-- **Que pide seña se avisa ANTES de reservar**, no
                                  después: es plata que hay que adelantar para que
                                  la cita quede confirmada, y enterarse al final
@@ -119,7 +120,8 @@
                                      donde las dos estén. El sistema hacía lo
                                      correcto y lo decía tarde. --}}
                                 @foreach ($ofrecer as $p)
-                                    <option value="{{ $p->id_usuario }}">con {{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
+                                    <option value="{{ $p->id_usuario }}"
+                                        @selected((int) old('prof_servicio.' . $s->id_servicio) === (int) $p->id_usuario)>con {{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
                                 @endforeach
                             </select>
                         </x-servicio-tarjeta>
@@ -185,7 +187,9 @@
                     <div data-agenda-dias class="spg-dias mt-2"></div>
                     <div data-agenda-horas class="spg-horas mt-2"></div>
                 </div>
-                <input type="hidden" name="fecha_hora" id="fecha_hora">
+                {{-- Con valor: el selector lo lee al arrancar y devuelve marcados
+                     el día y la hora que ya estaban elegidos. --}}
+                <input type="hidden" name="fecha_hora" id="fecha_hora" value="{{ old('fecha_hora') }}">
             </div>
 
             {{-- **La cita puede ser para otra persona.** Una clienta reserva
@@ -198,7 +202,7 @@
             <div class="mb-3">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
-                           id="paraOtro">
+                           id="paraOtro" @checked(old('para_otra_persona'))>
                     <label class="form-check-label" for="paraOtro">
                         La cita es para otra persona
                     </label>
@@ -206,19 +210,31 @@
                 <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
                     <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
                     <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
-                           placeholder="Nombre de quien se atiende">
+                           value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
                 </div>
             </div>
 
             <div class="mb-3" style="max-width:180px">
                 <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda campo="personas" />
-                <input class="form-control" id="personas" name="personas" value="1"
-                       data-solo="numeros" inputmode="numeric" maxlength="2">
+                <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}"
+                       data-solo="numeros" inputmode="numeric" maxlength="2"
+                       data-acomp="#bloqueAcomp">
             </div>
+
+            {{-- **Quiénes vienen, no sólo cuántas.** El número decía que iban a
+                 llegar tres y el salón no sabía a quiénes esperar. Los campos
+                 los dibuja `app.js` según el número: la primera persona NO se
+                 pide, porque es la clienta que está reservando y su nombre ya
+                 lo tiene el sistema. --}}
+            <div class="mb-3" id="bloqueAcomp" style="max-width:420px"
+                 data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
+                     'nombre' => $v,
+                     'apellido' => old('acomp_apellido.' . $k, ''),
+                 ]])) }}"></div>
 
             <div class="mb-3">
                 <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label><x-ayuda campo="observaciones" />
-                <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300"></textarea>
+                <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
             </div>
 
             {{-- El total de seña de lo que va marcando, para que no tenga que

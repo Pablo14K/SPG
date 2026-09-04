@@ -74,30 +74,56 @@
             </div>
         </div>
 
+        {{-- **Un solo cambio, también desde el correo.** El enlace sigue
+             llegando en cada recordatorio, así que sin esto la clienta podía
+             reprogramar la misma cita todas las veces que quisiera — el portal
+             lo topaba desde la 7.66.0 y este camino se había quedado afuera.
+             El servidor lo rechaza igual; acá se deja de ofrecer, porque un
+             formulario que va a contestar que no promete lo que no cumple. --}}
+        @if ($yaCambio)
+            <div class="spg-panel mb-3">
+                <h2 class="spg-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
+                <p class="text-muted-warm mb-0" style="font-size:.88rem">
+                    Ya cambiaste el día de esta cita una vez, que es el único cambio que se puede
+                    hacer desde acá. Si necesitás moverla otra vez, escribinos y lo vemos.
+                </p>
+            </div>
+        @else
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
             <form method="post" action="{{ route('cita.token.guardar') }}">
                 @csrf
                 <input type="hidden" name="t" value="{{ $codigo }}">
 
+                {{-- **Los días y las horas se eligen de lo que hay libre.** Era
+                     un `datetime-local` suelto: había que adivinar un horario,
+                     mandarlo y esperar el rechazo. Es la misma corrección que el
+                     modal del portal, y este camino —el del correo, que es por
+                     donde entra la mayoría— se había quedado afuera. --}}
                 <div class="mb-2">
-                    <label class="form-label" for="fecha_hora">Nueva fecha y hora</label><x-ayuda campo="fecha_hora" />
-                    <input type="datetime-local" class="form-control" id="fecha_hora" name="fecha_hora" required>
+                    <label class="form-label">Nueva fecha y hora</label><x-ayuda campo="fecha_hora" />
+                    <input type="hidden" name="fecha_hora" required>
+                    <div data-agenda="{{ route('portal.disponibilidad') }}"
+                         data-agenda-sujeto="Tu cita"
+                         data-agenda-servicios="{{ $ctx->servicios_ids ?? '' }}"
+                         data-agenda-profesional="{{ (int) ($ctx->id_usuario ?? 0) }}"
+                         data-agenda-sucursal="{{ (int) ($ctx->id_sucursal ?? 0) }}"
+                         data-agenda-boton="#btnReprog">
+                        <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
+                        <div data-agenda-dias class="spg-dias mt-2"></div>
+                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                    </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label" for="id_usuario">¿Con quién?</label><x-ayuda>Si tu profesional no está disponible, podés elegir a otra persona del equipo.</x-ayuda>
-                    <select class="form-select" id="id_usuario" name="id_usuario">
-                        <option value="0">Con quien me atendía</option>
-                        @foreach ($profs as $p)
-                            <option value="{{ $p->id_usuario }}">{{ $p->nombre }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <button class="btn btn-oro w-100">Reprogramar mi cita</button>
+                {{-- **Seguís con tu profesional.** El combo ofrecía cambiarlo, y
+                     con eso los horarios que muestra el selector —calculados
+                     para quien te atiende— dejarían de valer. Si esa persona no
+                     está, el salón lo resuelve: es una conversación, no un
+                     desplegable. --}}
+                <button class="btn btn-oro w-100" id="btnReprog" disabled>Reprogramar mi cita</button>
             </form>
         </div>
+        @endif
 
         <div class="spg-panel">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-x-circle"></i> ¿No vas a poder venir?</h2>

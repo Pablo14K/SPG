@@ -179,8 +179,17 @@
                     <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda>Entre 1 y 20.</x-ayuda>
                     <input class="form-control" id="personas" name="personas"
                            value="{{ old('personas', 1) }}" style="max-width:140px"
-                           data-solo="numeros" inputmode="numeric" maxlength="2">
+                           data-solo="numeros" inputmode="numeric" maxlength="2"
+                           data-acomp="#bloqueAcompCita">
                 </div>
+
+                {{-- Quiénes vienen, no sólo cuántas. La primera no se pide: es
+                     la clienta de la cita, que ya está elegida arriba. --}}
+                <div class="col-12" id="bloqueAcompCita"
+                     data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
+                         'nombre' => $v,
+                         'apellido' => old('acomp_apellido.' . $k, ''),
+                     ]])) }}"></div>
 
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />

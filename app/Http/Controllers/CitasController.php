@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
 use App\Servicios\Asistencia;
 use App\Servicios\Auditoria;
@@ -348,6 +349,9 @@ class CitasController extends Controller
             // Sólo de las que piden algo — para el resto el bloque no se
             // dibuja, así que traerlo sería una consulta al pedo por fila.
             'desglosesSena' => $this->desglosesDeSena($rows),
+            // Quiénes vienen con la clienta. Se piden para TODAS las filas de
+            // una vez: una consulta por renglón sería una por cada cita del día.
+            'acompanantes' => Acompanantes::deCitas(array_map(fn ($r) => (int) $r->id_cita, $rows)),
             'f' => $f,
         ]);
     }
@@ -608,6 +612,13 @@ class CitasController extends Controller
                 'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
                 [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
             );
+
+            // Quiénes vienen, no sólo cuántas: quien atiende necesita saber a
+            // quién esperar. La primera no se guarda — es la clienta.
+            Acompanantes::guardar($idCita,
+                (array) $request->input('acomp_nombre', []),
+                (array) $request->input('acomp_apellido', []),
+                $personas);
             Auditoria::registrar('ALTA', 'Citas', 'cita', $idCita,
                 'Cita agendada para ' . $fecha . ($equipo ? ' con varios profesionales' : ''));
 

@@ -37,12 +37,22 @@ class CitaTokenController extends Controller
 
         if (! $cita) {
             return view('cita_token.ver', ['cita' => null, 'codigo' => '', 'profs' => [], 'servicios' => [],
-                'cal' => null, 'urlGoogle' => null]);
+                'cal' => null, 'urlGoogle' => null, 'ctx' => null, 'yaCambio' => false]);
         }
 
         $cal = DB::selectOne(
             'SELECT id_cita, fecha_hora, duracion_min, servicios, profesional
                FROM vw_agenda_citas WHERE id_cita = ?', [$cita->id_cita]
+        );
+
+        // Lo que el selector de horarios necesita para preguntar por ESTA cita:
+        // sus servicios, su profesional y su local. Reprogramar no pregunta nada
+        // de eso —ya está decidido—, sólo cuándo.
+        $ctx = DB::selectOne(
+            'SELECT c.id_usuario, c.id_sucursal,
+                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
+                      WHERE cs.id_cita = c.id_cita) AS servicios_ids
+               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
         );
 
         return view('cita_token.ver', [
@@ -55,6 +65,11 @@ class CitaTokenController extends Controller
                   WHERE cs.id_cita = ?', [$cita->id_cita]
             ),
             'cal' => $cal,
+            'ctx' => $ctx,
+            // **Ya usó su único cambio.** Se decide acá y no en la vista: el
+            // servidor lo rechaza igual, pero ofrecer un formulario que va a
+            // contestar que no es prometer algo que no se puede cumplir.
+            'yaCambio' => (int) $cita->id_estado_cita === 2,
             // El .ics no alcanza en el celular: Android lo baja como archivo y
             // no lo abre. Se ofrecen las dos vías.
             'urlGoogle' => $cal ? Calendario::urlGoogle($cal, Calendario::lugar()) : null,
@@ -108,6 +123,15 @@ class CitaTokenController extends Controller
         $error = null;
         if (in_array((int) $cita->id_estado_cita, [3, 4], true)) {
             $error = 'Esa cita ya está cerrada: hablá con el salón.';
+        // **Un solo cambio, también desde el correo.** El portal lo hacía
+        // cumplir desde la 7.66.0 y este camino se quedó afuera: el enlace
+        // sigue llegando en cada recordatorio, así que la clienta podía
+        // reprogramar la misma cita todas las veces que quisiera. `Reprogramada`
+        // (estado 2) ES la marca de que el cambio ya se usó — `sp_reprogramar_cita`
+        // la deja ahí desde siempre.
+        } elseif ((int) $cita->id_estado_cita === 2) {
+            $error = 'Ya cambiaste el día de esta cita una vez, que es el único cambio '
+                   . 'que se puede hacer desde acá. Si necesitás moverla otra vez, escribinos.';
         } elseif ($nueva === '' || ! strtotime($nueva)) {
             $error = 'Elegí la nueva fecha y hora.';
         } elseif (strtotime($nueva) < time()) {

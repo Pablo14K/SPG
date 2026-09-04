@@ -14,6 +14,7 @@ use App\Servicios\Navegacion;
 use App\Servicios\Notificaciones;
 use App\Servicios\Config;
 use App\Servicios\Permisos;
+use App\Servicios\Notificaciones as NotificacionesSPG;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
 use App\Servicios\WebAuthn;
@@ -2537,7 +2538,12 @@ class ReglasDeNegocioTest extends TestCase
         //    esta mitad, la clienta reserva con alguien que ese día está en el
         //    otro local: horario vendido y nadie para atenderla.
         $antes = (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_sucursal = ?', [$otra]);
-        $reservar()->assertRedirect(route('portal.reservar'));
+        // El rechazo vuelve a Reservar **con la sucursal puesta**: desde la
+        // 7.97.0 el formulario conserva lo que ya estaba cargado, y volver sin
+        // el local haría empezar de cero justo lo que se quiso evitar. Se mide
+        // la ruta, no la cadena exacta.
+        $r = $reservar();
+        $r->assertRedirectContains(route('portal.reservar'));
         $this->assertSame($antes, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_sucursal = ?', [$otra]),
             'Un profesional que no atiende en esa sucursal no puede quedar reservado ahí.');
 
@@ -5248,5 +5254,51 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNotEmpty($avisos, 'El cierre por inactividad tiene que dejar un aviso.');
         $this->assertStringContainsString('sin que se usara el sistema', implode(' ', $avisos),
             'El aviso tiene que decir el motivo: sin eso, caer en el ingreso parece una falla.');
+    }
+
+    /**
+     * **El enlace del correo NO deja reprogramar dos veces.**
+     *
+     * El portal lo topaba desde la 7.66.0 y este camino se habia quedado
+     * afuera: el enlace sigue llegando en cada recordatorio, asi que la clienta
+     * podia mover la misma cita todas las veces que quisiera -- y con un enlace
+     * VIEJO tambien, porque el token no vence al reprogramar.
+     *
+     * La comprobacion es sobre el ESTADO de la cita y no sobre el token, que es
+     * lo que hace que un enlace de hace un mes tampoco sirva: `Reprogramada`
+     * (estado 2) es la marca de que el cambio ya se uso.
+     */
+    public function test_el_enlace_del_correo_no_deja_reprogramar_dos_veces(): void
+    {
+        $cita = DB::selectOne(
+            "SELECT c.id_cita FROM cita c
+              WHERE c.id_estado_cita = 1 AND c.fecha_hora > NOW()
+                AND EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
+              ORDER BY c.id_cita DESC LIMIT 1"
+        );
+        if (! $cita) {
+            $this->markTestSkipped('No hay una cita programada a futuro para comprobarlo.');
+        }
+
+        $token = NotificacionesSPG::tokenDeCita((int) $cita->id_cita);
+        $this->assertNotSame('', (string) $token, 'Hace falta un token para entrar por el enlace.');
+
+        // La cita ya uso su unico cambio.
+        DB::update('UPDATE cita SET id_estado_cita = 2 WHERE id_cita = ?', [(int) $cita->id_cita]);
+        $antes = DB::scalar('SELECT fecha_hora FROM cita WHERE id_cita = ?', [(int) $cita->id_cita]);
+
+        $this->post(route('cita.token.guardar'), [
+            't' => $token,
+            'fecha_hora' => date('Y-m-d H:i:s', strtotime('+9 days 10:00')),
+        ]);
+
+        $despues = DB::scalar('SELECT fecha_hora FROM cita WHERE id_cita = ?', [(int) $cita->id_cita]);
+        $this->assertSame((string) $antes, (string) $despues,
+            'La cita se movio desde el enlace del correo pese a que ya habia usado su unico cambio.');
+
+        // Y la pantalla deja de ofrecer el formulario.
+        $this->get(route('cita.token', ['t' => $token]))
+            ->assertOk()
+            ->assertSee('Ya cambiaste el', false);
     }
 }

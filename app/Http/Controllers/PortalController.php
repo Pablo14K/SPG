@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
@@ -217,7 +218,14 @@ class PortalController extends Controller
             array_map('intval', (array) $request->input('servicios', []))
         )));
         $obs = trim((string) $request->input('observaciones', '')) ?: null;
-        $volver = redirect()->route('portal.reservar');
+
+        // **Un rechazo devuelve el formulario con lo que ya estaba cargado.**
+        // Sin `withInput()` la clienta que elegía dos profesionales de turnos
+        // opuestos —o que perdía el horario por unos segundos— volvía a una
+        // pantalla en blanco y tenía que marcar los servicios, el profesional y
+        // el día otra vez. El rechazo es correcto; hacerla empezar de cero es
+        // el castigo de más.
+        $volver = redirect()->route('portal.reservar', ['sucursal' => $idSucursal])->withInput();
 
         $error = null;
         if ($fecha === '' || ! $servicios) {
@@ -326,6 +334,13 @@ class PortalController extends Controller
                 'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
                 [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
             );
+
+            // Quiénes vienen, no sólo cuántas: el salón necesita saber a quién
+            // esperar. La primera no se guarda — es la clienta que reservó.
+            Acompanantes::guardar($idCita,
+                (array) $request->input('acomp_nombre', []),
+                (array) $request->input('acomp_apellido', []),
+                $personas);
 
             $usados = Canje::aplicarACita((array) $request->input('canjes', []), $idCita, $idc);
 

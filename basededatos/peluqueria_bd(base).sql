@@ -456,6 +456,36 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
+-- Table structure for table `cita_acompanante`
+--
+
+DROP TABLE IF EXISTS `cita_acompanante`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cita_acompanante` (
+  `id_acompanante` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_cita` int(10) unsigned NOT NULL,
+  `orden` tinyint(3) unsigned NOT NULL,
+  `nombre` varchar(60) NOT NULL,
+  `apellido` varchar(60) DEFAULT NULL,
+  PRIMARY KEY (`id_acompanante`),
+  UNIQUE KEY `uq_acomp_cita_orden` (`id_cita`,`orden`),
+  CONSTRAINT `fk_acomp_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE,
+  CONSTRAINT `chk_acomp_orden` CHECK (`orden` between 2 and 20),
+  CONSTRAINT `chk_acomp_nombre` CHECK (char_length(trim(`nombre`)) >= 2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cita_acompanante`
+--
+
+LOCK TABLES `cita_acompanante` WRITE;
+/*!40000 ALTER TABLE `cita_acompanante` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cita_acompanante` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `cita_pedido`
 --
 
@@ -6464,4 +6494,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-03 10:37:24
+-- Dump completed on 2026-09-03 21:42:13

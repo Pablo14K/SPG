@@ -355,7 +355,19 @@
                                                 @endif
                                                 @if ((int) $c->personas > 1)
                                                     <dt>Van</dt>
-                                                    <dd>{{ (int) $c->personas }} personas</dd>
+                                                    <dd>
+                                                        {{ (int) $c->personas }} personas
+                                                        {{-- **Quiénes, no sólo cuántas.** El número decía
+                                                             que iban a llegar tres y quien atiende no sabía
+                                                             a quién esperar. La primera es la clienta, así
+                                                             que acá van las otras. --}}
+                                                        @if (! empty($acompanantes[$c->id_cita]))
+                                                            <div class="text-muted-warm" style="font-size:.85rem">
+                                                                Con {{ $c->cliente }} vienen:
+                                                                {{ implode(', ', $acompanantes[$c->id_cita]) }}
+                                                            </div>
+                                                        @endif
+                                                    </dd>
                                                 @endif
                                                 @if ($c->observaciones)
                                                     <dt>Dejó dicho</dt>
