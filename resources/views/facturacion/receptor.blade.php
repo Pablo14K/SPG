@@ -36,7 +36,7 @@
                     <h2 class="spg-form-titulo mb-1"><i class="bi bi-person-vcard"></i> ¿A nombre de quién?<x-ayuda>Si no pide la factura a su nombre, dejalo en consumidor final.</x-ayuda></h2>
 
                     <div class="mb-3">
-                        <label class="form-label" for="tipo_doc">Se identifica con <span class="txt-no">*</span></label>
+                        <label class="form-label" for="tipo_doc">Se identifica con <span class="txt-no">*</span></label><x-ayuda campo="tipo_doc" />
                         <select class="form-select" id="tipo_doc" name="tipo_doc">
                             <option value="CF" @selected(old('tipo_doc', $tipoSugerido) === 'CF')>
                                 Consumidor final (sin documento)
@@ -56,7 +56,7 @@
                          formulario: si se quitara el input, `old()` perdería lo
                          escrito al volver con un error. --}}
                     <div class="mb-3 @if (old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueDoc">
-                        <label class="form-label" for="documento">Número <span class="txt-no">*</span></label>
+                        <label class="form-label" for="documento">Número <span class="txt-no">*</span></label><x-ayuda campo="documento" />
                         <input class="form-control" id="documento" name="documento"
                                value="{{ old('documento', $docSugerido) }}"
                                placeholder="4200000">

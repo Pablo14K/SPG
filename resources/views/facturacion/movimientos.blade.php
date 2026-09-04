@@ -83,7 +83,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label" for="mc_monto">Monto</label>
+                    <label class="form-label" for="mc_monto">Monto</label><x-ayuda campo="mc_monto" />
                     <div class="input-group">
                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                         <input class="form-control input-miles" id="mc_monto" name="monto"
@@ -126,7 +126,7 @@
                                        placeholder="001-001-0001234">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label" for="mc_ruc">RUC o cédula</label>
+                                <label class="form-label" for="mc_ruc">RUC o cédula</label><x-ayuda campo="mc_ruc" />
                                 <input class="form-control" id="mc_ruc" name="ruc_emisor" data-solo="ruc" inputmode="text"
                                        maxlength="20" value="{{ old('ruc_emisor') }}"
                                        placeholder="80012345-0">

@@ -40,7 +40,7 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="mail_clave">Contraseña de aplicación</label>
+                <label class="form-label" for="mail_clave">Contraseña de aplicación</label><x-ayuda campo="mail_clave" />
                 <input type="password" class="form-control" id="mail_clave" name="mail_clave"
                        autocomplete="new-password" placeholder="{{ $tieneClave ? 'Dejala vacía para no cambiarla' : '16 caracteres, sin espacios' }}">
                 {{-- **Vacío es «no la cambies».** El campo nunca trae la que hay

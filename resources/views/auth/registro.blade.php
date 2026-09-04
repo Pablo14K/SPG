@@ -17,11 +17,11 @@
 
         <div class="row g-2">
             <div class="col-6">
-                <label class="form-label" for="nombre">Nombre *</label>
+                <label class="form-label" for="nombre">Nombre *</label><x-ayuda campo="nombre" />
                 <input class="form-control" id="nombre" name="nombre" required value="{{ old('nombre') }}">
             </div>
             <div class="col-6">
-                <label class="form-label" for="apellido">Apellido *</label>
+                <label class="form-label" for="apellido">Apellido *</label><x-ayuda campo="apellido" />
                 <input class="form-control" id="apellido" name="apellido" required value="{{ old('apellido') }}">
             </div>
             <div class="col-12">
@@ -34,15 +34,15 @@
                        placeholder="0981123456">
             </div>
             <div class="col-12">
-                <label class="form-label" for="username">Usuario *</label>
+                <label class="form-label" for="username">Usuario *</label><x-ayuda campo="username" />
                 <input class="form-control" id="username" name="username" required value="{{ old('username') }}">
             </div>
             <div class="col-6">
-                <label class="form-label" for="password">Contraseña *</label>
+                <label class="form-label" for="password">Contraseña *</label><x-ayuda campo="password" />
                 <input type="password" class="form-control" id="password" name="password" required minlength="6">
             </div>
             <div class="col-6">
-                <label class="form-label" for="password2">Repetila *</label>
+                <label class="form-label" for="password2">Repetila *</label><x-ayuda campo="password2" />
                 <input type="password" class="form-control" id="password2" name="password2" required minlength="6">
             </div>
         </div>

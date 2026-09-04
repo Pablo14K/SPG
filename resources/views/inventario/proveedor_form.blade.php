@@ -18,31 +18,31 @@
 
             <div class="row g-3">
                 <div class="col-md-8">
-                    <label class="form-label" for="nombre">Nombre o razón social *</label>
+                    <label class="form-label" for="nombre">Nombre o razón social *</label><x-ayuda campo="nombre" />
                     <input class="form-control" id="nombre" name="nombre" required
                            value="{{ old('nombre', $p->nombre ?? '') }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="ruc">RUC</label>
+                    <label class="form-label" for="ruc">RUC</label><x-ayuda campo="ruc" />
                     <input class="form-control" id="ruc" name="ruc" data-solo="ruc" inputmode="text" value="{{ old('ruc', $p->ruc ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="contacto">Persona de contacto</label>
+                    <label class="form-label" for="contacto">Persona de contacto</label><x-ayuda campo="contacto" />
                     <input class="form-control" id="contacto" name="contacto"
                            value="{{ old('contacto', $p->contacto ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="telefono">Teléfono</label>
+                    <label class="form-label" for="telefono">Teléfono</label><x-ayuda campo="telefono" />
                     <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                            value="{{ old('telefono', $p->telefono ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="email">Email</label>
+                    <label class="form-label" for="email">Email</label><x-ayuda campo="email" />
                     <input type="email" class="form-control" id="email" name="email"
                            value="{{ old('email', $p->email ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="direccion">Dirección</label>
+                    <label class="form-label" for="direccion">Dirección</label><x-ayuda campo="direccion" />
                     <input class="form-control" id="direccion" name="direccion"
                            value="{{ old('direccion', $p->direccion ?? '') }}">
                 </div>

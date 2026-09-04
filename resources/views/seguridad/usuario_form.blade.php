@@ -86,7 +86,7 @@
                          tienen cuenta: una persona, una cuenta. --}}
                     <div class="row g-3 mb-3">
                         <div class="col-md-8">
-                            <label class="form-label" for="id_persona">Persona *</label>
+                            <label class="form-label" for="id_persona">Persona *</label><x-ayuda campo="id_persona" />
                             @if ($personas)
                                 <input class="form-control mb-1" data-filtra="#id_persona"
                                        placeholder="Buscar por nombre o cédula...">
@@ -122,7 +122,7 @@
                     <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta y acceso</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label" for="username">Usuario *</label>
+                            <label class="form-label" for="username">Usuario *</label><x-ayuda campo="username" />
                             <input class="form-control" id="username" name="username" required
                                    value="{{ old('username', $u->username ?? '') }}">
                         </div>
@@ -149,7 +149,7 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="id_rol">Rol *</label>
+                            <label class="form-label" for="id_rol">Rol *</label><x-ayuda campo="id_rol" />
                             <select class="form-select" id="id_rol" name="id_rol" required>
                                 @foreach ($roles as $r)
                                     <option value="{{ $r->id_rol }}"
@@ -279,7 +279,7 @@
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">
-                        <label class="form-label" for="tr_nombre">Nombre *</label>
+                        <label class="form-label" for="tr_nombre">Nombre *</label><x-ayuda campo="tr_nombre" />
                         <input class="form-control form-control-sm" id="tr_nombre" name="nombre" required maxlength="60">
                     </div>
                     <div class="row g-2 mb-2">
@@ -295,7 +295,7 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label" for="tr_flex">Flexibilidad de entrada (minutos)</label>
+                        <label class="form-label" for="tr_flex">Flexibilidad de entrada (minutos)</label><x-ayuda campo="tr_flex" />
                         <input type="number" class="form-control form-control-sm" id="tr_flex"
                                name="flexibilidad_entrada_min" value="15" min="0" max="180" required>
                     </div>
@@ -355,11 +355,11 @@
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
                     <div class="mb-2">
-                        <label class="form-label" for="sr_nombre">Nombre *</label>
+                        <label class="form-label" for="sr_nombre">Nombre *</label><x-ayuda campo="sr_nombre" />
                         <input class="form-control form-control-sm" id="sr_nombre" name="nombre" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="sr_ciudad">Ciudad</label>
+                        <label class="form-label" for="sr_ciudad">Ciudad</label><x-ayuda campo="sr_ciudad" />
                         <input class="form-control form-control-sm" id="sr_ciudad" name="ciudad" value="Luque" list="ciudadesPy">
                     </div>
                     <button class="btn btn-rapido w-100"><i class="bi bi-plus-lg"></i> Crear sucursal</button>

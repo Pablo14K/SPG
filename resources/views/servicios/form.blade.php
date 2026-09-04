@@ -72,12 +72,12 @@
 
             <div class="row g-3">
                 <div class="col-md-8">
-                    <label class="form-label" for="nombre">Nombre *</label>
+                    <label class="form-label" for="nombre">Nombre *</label><x-ayuda campo="nombre" />
                     <input class="form-control" id="nombre" name="nombre" required
                            value="{{ old('nombre', $s->nombre ?? '') }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="id_categoria_servicio">Categoría *</label>
+                    <label class="form-label" for="id_categoria_servicio">Categoría *</label><x-ayuda campo="id_categoria_servicio" />
                     <select class="form-select" id="id_categoria_servicio" name="id_categoria_servicio" required>
                         @foreach ($cats as $c)
                             <option value="{{ $c->id_categoria_servicio }}"
@@ -88,7 +88,7 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label" for="precio">Precio</label>
+                    <label class="form-label" for="precio">Precio</label><x-ayuda campo="precio" />
                     <div class="input-group">
                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                         {{-- input-miles: el JS le pone el separador al escribir y
@@ -121,7 +121,7 @@
                            min="5" max="600" step="5" value="{{ old('duracion_min', $s->duracion_min ?? 30) }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="tasa_iva">IVA</label>
+                    <label class="form-label" for="tasa_iva">IVA</label><x-ayuda campo="tasa_iva" />
                     <select class="form-select" id="tasa_iva" name="tasa_iva">
                         @foreach ([10 => '10 %', 5 => '5 %', 0 => 'Exento'] as $v => $t)
                             <option value="{{ $v }}" @selected((int) old('tasa_iva', $s->tasa_iva ?? 10) === $v)>{{ $t }}</option>
@@ -130,7 +130,7 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label" for="descripcion">Descripción</label>
+                    <label class="form-label" for="descripcion">Descripción</label><x-ayuda campo="descripcion" />
                     <textarea class="form-control" id="descripcion" name="descripcion"
                               rows="2">{{ old('descripcion', $s->descripcion ?? '') }}</textarea>
                 </div>
@@ -144,7 +144,7 @@
                      referencia», que es honesto — mejor que una foto genérica
                      que no es de este salón. --}}
                 <div class="col-12">
-                    <label class="form-label" for="imagen">Imagen de referencia</label>
+                    <label class="form-label" for="imagen">Imagen de referencia</label><x-ayuda campo="imagen" />
                     <div class="d-flex gap-3 align-items-start flex-wrap">
                         @if ($imagenUrl ?? null)
                             <img src="{{ $imagenUrl }}" alt="" class="spg-srv-mini">
@@ -174,7 +174,7 @@
                          son partes distintas. Lo que impide el paralelo no es una
                          propiedad del servicio: es que compartan la parte del cuerpo. --}}
                     <div class="col-md-6">
-                        <label class="form-label" for="id_zona">¿Sobre qué parte trabaja?</label>
+                        <label class="form-label" for="id_zona">¿Sobre qué parte trabaja?</label><x-ayuda campo="id_zona" />
                         <select class="form-select" id="id_zona" name="id_zona">
                             <option value="">— sin especificar —</option>
                             @foreach ($zonas as $z)

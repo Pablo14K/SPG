@@ -57,12 +57,12 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="valor">Valor</label>
+                    <label class="form-label" for="valor">Valor</label><x-ayuda campo="valor" />
                     <input class="form-control input-miles" id="valor" name="valor" data-decimales="2"
                            data-min="0" required value="{{ old('valor') }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="vigente_desde">Vigente desde</label>
+                    <label class="form-label" for="vigente_desde">Vigente desde</label><x-ayuda campo="vigente_desde" />
                     <input type="date" class="form-control" id="vigente_desde" name="vigente_desde"
                            value="{{ old('vigente_desde', date('Y-m-d')) }}">
                 </div>

@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.96.0 | 03/09/2026 | **Cada campo dice qué se carga en él, con un ejemplo — y el modal de reprogramar deja de pedir una fecha a ciegas.** **El defecto primero**: el campo «Nueva fecha y hora» del portal era un `datetime-local` suelto, así que la clienta tenía que **adivinar un horario, mandarlo y esperar el rechazo** — y en el celular ni siquiera se lee como un campo de fecha, es una caja vacía. Es la regla del proyecto —*las pantallas no dejan escribir una fecha a mano*— que valía para reservar desde siempre y acá se había quedado afuera. Ahora usa el **mismo selector**, que hubo que generalizar en dos puntos: tomaba **un solo** `[data-agenda]` por página —y el portal dibuja uno por cita— y buscaba el campo con `document.querySelector`, así que con varios modales todos escribían en el del primero. Los servicios y el profesional van **fijos** en el contenedor: reprogramar no pregunta qué se hace, eso ya está decidido. **Los íconos repetidos se van**: el script de la 7.95.0 había metido la explicación del grupo **dentro del `@foreach`**, así que los quince servicios de un profesional mostraban el mismo texto quince veces; queda uno en el título del grupo. **Y entra el diccionario de campos** (`config/ayudas.php`, 77 entradas, 138 íconos puestos): está en un solo archivo y no escrito en cada vista porque `nombre` aparece en nueve pantallas y `email` en cuatro, y copiados terminan diciendo cosas distintas del mismo dato. `Ayuda::de()` resuelve los prefijos de las altas rápidas —`cr_nombre`, `pv_nombre` y `provNombre` son el mismo «nombre»— así que el texto se escribe una vez. **Con ejemplo donde el formato importa**: la cédula sin puntos, el RUC con su dígito verificador, el teléfono con el 0 adelante — es lo que ahorra el rechazo del servidor. **156 pruebas · 1200 aserciones**, la nueva impide que una entrada del diccionario quede huérfana: si un campo se renombra su texto no da error, deja de aparecer |
 | 7.95.0 | 03/09/2026 | **La ayuda contextual se extiende a todo el sistema: 84 explicaciones guardadas detrás de su ícono.** La 7.94.0 llegó a los encabezados y a las líneas de ayuda simples; faltaba el resto, y era donde más pesaba — la pantalla de reservar del portal abría con **cuatro renglones de texto antes del primer servicio**. Entran ahora los **subtítulos escritos a mano** de las pantallas que no usan `<x-encabezado>` (las siete del portal, el panel y Mi cuenta), los **27 `form-text` que faltaban** y los **22 párrafos explicativos que colgaban de un título de sección**. **Y se distinguió lo que NO se guarda**, que es la mitad del trabajo: los seis subtítulos que muestran **datos** —el teléfono y el correo en el historial de la clienta, la fecha y el número de la compra, quién abrió la caja y cuándo, el profesional y la hora de la atención en curso— se quedan a la vista, porque no son explicaciones sino el contenido de la pantalla; y los siete `form-text` con Blade adentro también, que aplanarlos los rompería. **De paso salió una explicación desactualizada**: el portal decía que el descuento se aplica «una sola por comprobante», que dejó de ser cierto en la 7.88.0 —desde entonces cada servicio se lleva el mejor que le aplique y después se suman— así que la clienta leía una regla que el sistema ya no seguía. Se reescribieron además las de Promociones, Nuestro equipo, Mis recordatorios, Mis citas, Panel y la de envases fraccionados, que era la más larga de todas. **155 pruebas · 1199 aserciones** |
 | 7.94.0 | 03/09/2026 | **Entra la ayuda contextual: la explicación se guarda detrás de un ícono y aparece al tocarlo.** Es el patrón de Moodle, pedido por el usuario y traído a la paleta del salón. El sistema tenía la explicación **siempre a la vista** —el subtítulo bajo cada título de pantalla, la línea de ayuda bajo cada campo— y con quince campos eso es un párrafo por renglón: quien ya sabe lo que hace tiene que saltearlo cada vez que entra. **La información no se saca, se guarda**: entra `<x-ayuda>`, aplicado a los **45 encabezados** —el subtítulo pasa al lado del título y libera su renglón— y a **28 líneas de ayuda de formulario**, 23 de ellas junto a la etiqueta de su campo. **Tres cosas se aprendieron probándolo en el navegador, no leyendo la documentación.** El disparador tiene que ser **`focus` y no `click`**: es el único de los cuatro de Bootstrap que **cierra al tocar afuera**, que es lo que se pidió — con `click` queda abierto hasta el segundo toque. El ícono va **FUERA del `<label>`**, nunca adentro: adentro no recibe el clic, la etiqueta lo reenvía al campo y el globo no abre jamás — se vio con el foco terminando en el `input`. Y los popovers de Bootstrap son **opt-in**, así que sin instanciarlos el ícono se dibuja y no hace nada; de paso `app.js` **saca el `title`**, que con Bootstrap presente dibujaría el tooltip nativo encima del globo. **Sin Bootstrap el texto no se pierde**: queda en ese `title`, así que el navegador lo muestra al pasar el mouse — la regla de siempre, lo que adorna puede faltar. **Y queda escrito cuándo NO usarlo**: esto es para lo que *explica*; lo que *advierte* —que la seña no se devuelve, que un local no tiene timbrado propio— se queda a la vista, porque esconder un aviso detrás de un ícono es apagarlo en silencio. **155 pruebas · 1199 aserciones**, la nueva comprueba que el texto escondido **siga estando** en el marcado: el riesgo de guardar algo es perderlo |
 | 7.93.1 | 03/09/2026 | **Se comprobó que un despliegue no borra las fotos que subió el salón, y ahora el sistema avisa si alguna vez se pierden.** Las fotos de los servicios y el logo **no están en el repositorio** —están ignoradas por git a propósito, son de este salón y no del programa— así que en el servidor viven **sólo** en dos volúmenes de Docker; la base guarda el nombre del archivo y el volumen guarda el archivo. Se verificó de verdad, no por deducción: se dejaron dos archivos marcados en `imagenes_servicios` e `imagenes_logo`, se corrió `up -d --build --force-recreate` —reconstruir **y** recrear los contenedores, que es más de lo que hace un despliegue normal— y los dos seguían ahí, también vistos por Caddy en sólo lectura. **Lo que sí las borra queda escrito**: `down -v`, «Delete» del proyecto en el panel, y sobre todo **desplegar con otro nombre de proyecto** — los volúmenes se llaman `<proyecto>_imagenes_servicios`, así que con otro `-p` se crean vacíos, los viejos quedan huérfanos y las fotos «desaparecen» sin que nada dé error. **Y si pasara, no se nota**: `Imagen::url()` devuelve null y la tarjeta dibuja «sin imagen de referencia», o sea que el salón perdería sus fotos y la pantalla se vería normal — la misma pérdida silenciosa que costó cara con el correo. Por eso `spg:diagnostico` gana la sección **«Las fotos del salón»**, que compara cada nombre guardado contra el disco y, si falta alguno, lo **cuenta como problema** y dice la causa probable y cómo recuperarlas. Comprobada en las dos direcciones: con todo en su lugar dice «todas en su lugar», y con un nombre apuntando a un archivo inexistente el diagnóstico termina en «1 cosa para revisar». **154 pruebas · 1195 aserciones** |
@@ -544,7 +545,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 155 pruebas
+tests/Feature/             Las 156 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1032,6 +1033,37 @@ Cuatro cosas que conviene no romper:
 - **Los `form-text` con Blade adentro.** El componente aplana el texto para
   meterlo en un atributo, así que una directiva o una variable ahí se rompería.
   Son siete y se dejaron como estaban.
+
+
+#### Qué se carga en cada campo: `config/ayudas.php`
+
+Además del texto suelto, `<x-ayuda>` puede sacarlo de un **diccionario por
+campo**, que es como está aplicado en los formularios:
+
+```blade
+<label class="form-label" for="cedula">Cédula</label><x-ayuda campo="cedula" />
+```
+
+**Está en un solo archivo y no escrito en cada vista** por el motivo de siempre:
+`nombre` aparece en nueve pantallas y `email` en cuatro, y copiados terminan
+diciendo cosas distintas del mismo dato.
+
+Dos reglas al escribir una entrada:
+
+- **Con ejemplo cuando el formato importa.** «Cédula» no necesita explicación,
+  pero sí necesita que se sepa que va **sin puntos**: el ejemplo ahorra el
+  rechazo del servidor.
+- **Decir la CONSECUENCIA, no repetir el rótulo.** «Nombre: el nombre» no ayuda
+  a nadie; lo que ayuda es «así lo va a ver la clienta en el comprobante».
+
+**`Ayuda::de()` resuelve los prefijos de las altas rápidas.** `cr_nombre`,
+`pv_nombre` y `provNombre` son el mismo «nombre» escrito distinto porque el
+formulario rápido no puede chocar con el grande —los dos tienen un campo
+`nombre`—, así que se busca la entrada base y el texto se escribe una sola vez.
+
+> **`AndamiajeTest` no deja que una entrada quede huérfana.** Si un campo se
+> renombra, su texto no da error: deja de aparecer, y nadie lo nota. La guardia
+> exige que toda clave del diccionario la pida alguna vista.
 
 > **Esto es para lo que EXPLICA; lo que ADVIERTE se queda a la vista.** Un aviso
 > que dice que la seña no se devuelve, que el Automatizador manda con otra

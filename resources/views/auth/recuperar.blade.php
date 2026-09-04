@@ -13,7 +13,7 @@
         </p>
 
         <div class="mb-3">
-            <label class="form-label" for="email">Email</label>
+            <label class="form-label" for="email">Email</label><x-ayuda campo="email" />
             <input type="email" class="form-control" id="email" name="email" required autofocus>
         </div>
 

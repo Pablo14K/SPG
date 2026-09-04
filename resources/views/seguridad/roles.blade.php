@@ -113,7 +113,7 @@
                 <form method="post" action="{{ route('seguridad.rol.crear') }}">
                     @csrf
                     <div class="mb-2">
-                        <label class="form-label" for="rn_nombre">Nombre *</label>
+                        <label class="form-label" for="rn_nombre">Nombre *</label><x-ayuda campo="rn_nombre" />
                         <input class="form-control form-control-sm" id="rn_nombre" name="nombre" required maxlength="60">
                     </div>
                     <div class="mb-2">

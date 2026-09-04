@@ -150,7 +150,7 @@
                 </p>
             @endif
 
-            <label class="form-label" for="monto_contado">Dinero contado en el cajón *</label>
+            <label class="form-label" for="monto_contado">Dinero contado en el cajón *</label><x-ayuda campo="monto_contado" />
             <div class="input-group">
                 <span class="input-group-text">{{ config('spg.moneda') }}</span>
                 <input class="form-control input-miles" id="monto_contado" name="monto_contado"
@@ -196,7 +196,7 @@
             @csrf
             <input type="hidden" name="id_caja_fisica" value="{{ $cajon->id_caja_fisica }}">
             <div>
-                <label class="form-label" for="monto_inicial">Monto inicial en efectivo</label>
+                <label class="form-label" for="monto_inicial">Monto inicial en efectivo</label><x-ayuda campo="monto_inicial" />
                 <div class="input-group">
                     <span class="input-group-text">Gs.</span>
                     <input class="form-control input-miles" id="monto_inicial" name="monto_inicial"

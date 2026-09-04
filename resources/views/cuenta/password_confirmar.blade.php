@@ -15,7 +15,7 @@
         <form method="post" action="{{ route('cuenta.password_confirmar') }}">
             @csrf
             <div class="mb-3">
-                <label class="form-label" for="codigo">Código de 6 dígitos</label>
+                <label class="form-label" for="codigo">Código de 6 dígitos</label><x-ayuda campo="codigo" />
                 <input class="form-control text-center" id="codigo" name="codigo" required autofocus
                        inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                        style="font-size:1.4rem;letter-spacing:.4rem">

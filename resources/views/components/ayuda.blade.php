@@ -28,12 +28,19 @@
 @props([
     'titulo' => null,          // encabezado del globo; sin él va sólo el texto
     'etiqueta' => 'Más información',
+    'campo' => null,           // toma el texto de `config/ayudas.php`
 ])
 
 @php
+    // **Con `campo` el texto sale del diccionario**, no de la vista. Los mismos
+    // campos aparecen en varias pantallas —`nombre` en nueve, `email` en
+    // cuatro— y escritos en cada una terminan diciendo cosas distintas del
+    // mismo dato. El diccionario es `config/ayudas.php`.
+    $texto = $campo ? \App\Servicios\Ayuda::de($campo) : $slot;
+
     // El slot puede traer saltos de línea y sangría del Blade que lo llama: se
     // normalizan, o el globo sale con huecos raros en el medio de una frase.
-    $texto = trim(preg_replace('/\s+/u', ' ', strip_tags($slot)));
+    $texto = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $texto)));
 @endphp
 
 @if ($texto !== '')

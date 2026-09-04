@@ -17,7 +17,7 @@
         @endif
 
         <div class="mb-3">
-            <label class="form-label" for="codigo">Código</label>
+            <label class="form-label" for="codigo">Código</label><x-ayuda campo="codigo" />
             <input class="form-control text-center" id="codigo" name="codigo" required
                    inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                    style="font-size:1.4rem;letter-spacing:.4rem">

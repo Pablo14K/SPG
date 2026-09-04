@@ -48,12 +48,12 @@
 
             <div class="row g-3">
                 <div class="col-md-8">
-                    <label class="form-label" for="nombre">Nombre *</label>
+                    <label class="form-label" for="nombre">Nombre *</label><x-ayuda campo="nombre" />
                     <input class="form-control" id="nombre" name="nombre" required
                            value="{{ old('nombre', $p->nombre ?? '') }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="id_categoria">Categoría *</label>
+                    <label class="form-label" for="id_categoria">Categoría *</label><x-ayuda campo="id_categoria" />
                     <select class="form-select" id="id_categoria" name="id_categoria" required>
                         @foreach ($cats as $c)
                             <option value="{{ $c->id_categoria }}"
@@ -64,7 +64,7 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label" for="descripcion">Descripción</label>
+                    <label class="form-label" for="descripcion">Descripción</label><x-ayuda campo="descripcion" />
                     <input class="form-control" id="descripcion" name="descripcion"
                            value="{{ old('descripcion', $p->descripcion ?? '') }}">
                 </div>
@@ -77,13 +77,13 @@
 
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label" for="unidad_medida">Unidad de compra</label>
+                    <label class="form-label" for="unidad_medida">Unidad de compra</label><x-ayuda campo="unidad_medida" />
                     <input class="form-control" id="unidad_medida" name="unidad_medida"
                            placeholder="frasco, unidad, caja…"
                            value="{{ old('unidad_medida', $p->unidad_medida ?? 'unidad') }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="contenido">Contenido de cada unidad</label>
+                    <label class="form-label" for="contenido">Contenido de cada unidad</label><x-ayuda campo="contenido" />
                     <input class="form-control input-miles" id="contenido" name="contenido" data-decimales="2"
                            data-min="0" placeholder="1000"
                            {{-- Mismo caso que el valor del descuento: sin `cant()`, el
@@ -107,7 +107,7 @@
                            value="{{ old('stock_minimo', cant($p->stock_minimo ?? 0)) }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="precio_costo">Precio de costo</label>
+                    <label class="form-label" for="precio_costo">Precio de costo</label><x-ayuda campo="precio_costo" />
                     <div class="input-group">
                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                         <input class="form-control input-miles" id="precio_costo" name="precio_costo" data-min="0"
@@ -125,7 +125,7 @@
                      línea de `InventarioController::productoGuardar` que lo lee. La columna
                      `producto.precio_venta` sigue en la base, en NOT NULL DEFAULT 0.
                 <div class="col-md-3">
-                    <label class="form-label" for="precio_venta">Precio de venta</label>
+                    <label class="form-label" for="precio_venta">Precio de venta</label><x-ayuda campo="precio_venta" />
                     <div class="input-group">
                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                         <input class="form-control input-miles" id="precio_venta" name="precio_venta" data-min="0"
@@ -134,7 +134,7 @@
                 </div>
                 --}}
                 <div class="col-md-3">
-                    <label class="form-label" for="tasa_iva">IVA</label>
+                    <label class="form-label" for="tasa_iva">IVA</label><x-ayuda campo="tasa_iva" />
                     <select class="form-select" id="tasa_iva" name="tasa_iva">
                         @foreach ([10 => '10 %', 5 => '5 %', 0 => 'Exento'] as $v => $t)
                             <option value="{{ $v }}" @selected((int) old('tasa_iva', $p->tasa_iva ?? 10) === $v)>{{ $t }}</option>

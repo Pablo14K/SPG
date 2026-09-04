@@ -83,7 +83,7 @@
         @endif
 
         <div class="mb-3">
-            <label class="form-label" for="usuario">Usuario o email</label>
+            <label class="form-label" for="usuario">Usuario o email</label><x-ayuda campo="usuario" />
             <input type="text" name="usuario" id="usuario" class="form-control" autofocus required
                    value="{{ old('usuario') }}">
         </div>

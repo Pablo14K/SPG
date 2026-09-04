@@ -106,28 +106,28 @@
                     <div class="modal-body">
                         <div class="row g-3">
                             <div class="col-md-8">
-                                <label class="form-label" for="provNombre">Nombre o razón social *</label>
+                                <label class="form-label" for="provNombre">Nombre o razón social *</label><x-ayuda campo="provNombre" />
                                 <input class="form-control" id="provNombre" name="nombre" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label" for="provRuc">RUC</label>
+                                <label class="form-label" for="provRuc">RUC</label><x-ayuda campo="provRuc" />
                                 <input class="form-control" id="provRuc" name="ruc" data-solo="ruc" inputmode="text">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="provContacto">Persona de contacto</label>
+                                <label class="form-label" for="provContacto">Persona de contacto</label><x-ayuda campo="provContacto" />
                                 <input class="form-control" id="provContacto" name="contacto">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="provTelefono">Teléfono</label>
+                                <label class="form-label" for="provTelefono">Teléfono</label><x-ayuda campo="provTelefono" />
                                 <input class="form-control" id="provTelefono" name="telefono"
                                        data-solo="telefono" inputmode="tel">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="provEmail">Email</label>
+                                <label class="form-label" for="provEmail">Email</label><x-ayuda campo="provEmail" />
                                 <input type="email" class="form-control" id="provEmail" name="email">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="provDireccion">Dirección</label>
+                                <label class="form-label" for="provDireccion">Dirección</label><x-ayuda campo="provDireccion" />
                                 <input class="form-control" id="provDireccion" name="direccion">
                             </div>
                         </div>

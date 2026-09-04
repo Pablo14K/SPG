@@ -60,7 +60,7 @@
 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="form-label" for="medio">Cómo se paga</label>
+                        <label class="form-label" for="medio">Cómo se paga</label><x-ayuda campo="medio" />
                         <select class="form-select" id="medio" name="id_metodo_pago" required>
                             @foreach ($medios as $m)
                                 <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
@@ -70,7 +70,7 @@
                         </select>
                     </div>
                     <div class="col-6">
-                        <label class="form-label" for="entidad" data-medio-label="entidad">Banco o billetera</label>
+                        <label class="form-label" for="entidad" data-medio-label="entidad">Banco o billetera</label><x-ayuda campo="entidad" />
                         <input class="form-control" id="entidad" name="entidad" required maxlength="80"
                                value="{{ old('entidad', $editar->entidad ?? '') }}"
                                placeholder="Itaú, Ueno, Tigo Money…">
@@ -100,7 +100,7 @@
                      los datos de siempre, que están abajo. --}}
                 <div class="row g-2 mb-1">
                     <div class="col-5">
-                        <label class="form-label" for="alias_tipo">Tipo de alias</label>
+                        <label class="form-label" for="alias_tipo">Tipo de alias</label><x-ayuda campo="alias_tipo" />
                         {{-- Los cuatro que habilita el BCP. Es un combo y no
                              texto libre porque son exactamente esos: escrito a
                              mano, el sistema no podría validarlo ni decirle a la
@@ -117,7 +117,7 @@
                         </select>
                     </div>
                     <div class="col-7">
-                        <label class="form-label" for="alias">Alias</label>
+                        <label class="form-label" for="alias">Alias</label><x-ayuda campo="alias" />
                         <input class="form-control" id="alias" name="alias" maxlength="60"
                                value="{{ old('alias', $editar->alias ?? '') }}"
                                placeholder="Elegí primero el tipo">
@@ -138,7 +138,7 @@
                 </div>
 
                 <div class="mb-2" data-medio-campo="titular">
-                    <label class="form-label" for="titular">A nombre de</label>
+                    <label class="form-label" for="titular">A nombre de</label><x-ayuda campo="titular" />
                     <input class="form-control" id="titular" name="titular" required maxlength="120"
                            value="{{ old('titular', $editar->titular ?? '') }}"
                            placeholder="Como figura en el banco">
@@ -146,13 +146,13 @@
 
                 <div class="row g-2 mb-2">
                     <div class="col-7" data-medio-campo="numero">
-                        <label class="form-label" for="numero_cuenta" data-medio-label="numero">Número de cuenta</label>
+                        <label class="form-label" for="numero_cuenta" data-medio-label="numero">Número de cuenta</label><x-ayuda campo="numero_cuenta" />
                         <input class="form-control" id="numero_cuenta" name="numero_cuenta" required maxlength="40"
                                value="{{ old('numero_cuenta', $editar->numero_cuenta ?? '') }}"
                                placeholder="O el celular, si es billetera">
                     </div>
                     <div class="col-5" data-medio-campo="tipo-cuenta">
-                        <label class="form-label" for="tipo_cuenta">Tipo de cuenta</label>
+                        <label class="form-label" for="tipo_cuenta">Tipo de cuenta</label><x-ayuda campo="tipo_cuenta" />
                         {{-- **Combo y no texto libre**: escrito a mano, «Caja de
                              ahorro», «caja de ahorros» y «C. de ahorro» son la
                              misma cosa tres veces, y la clienta ve lo que se
@@ -174,7 +174,7 @@
                 </div>
 
                 <div class="mb-2">
-                    <label class="form-label" for="observacion">Aclaración para la clienta</label>
+                    <label class="form-label" for="observacion">Aclaración para la clienta</label><x-ayuda campo="observacion" />
                     <input class="form-control" id="observacion" name="observacion" maxlength="200"
                            value="{{ old('observacion', $editar->observacion ?? '') }}"
                            placeholder="Mandanos el comprobante por WhatsApp">

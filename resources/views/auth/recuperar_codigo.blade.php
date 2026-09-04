@@ -13,17 +13,17 @@
         </p>
 
         <div class="mb-3">
-            <label class="form-label" for="codigo">Código</label>
+            <label class="form-label" for="codigo">Código</label><x-ayuda campo="codigo" />
             <input class="form-control text-center" id="codigo" name="codigo" required
                    inputmode="numeric" maxlength="6" autocomplete="one-time-code"
                    style="font-size:1.3rem;letter-spacing:.4rem">
         </div>
         <div class="mb-2">
-            <label class="form-label" for="nueva">Contraseña nueva</label>
+            <label class="form-label" for="nueva">Contraseña nueva</label><x-ayuda campo="nueva" />
             <input type="password" class="form-control" id="nueva" name="nueva" required minlength="6">
         </div>
         <div class="mb-3">
-            <label class="form-label" for="nueva2">Repetila</label>
+            <label class="form-label" for="nueva2">Repetila</label><x-ayuda campo="nueva2" />
             <input type="password" class="form-control" id="nueva2" name="nueva2" required minlength="6">
         </div>
 

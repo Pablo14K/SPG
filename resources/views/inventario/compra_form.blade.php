@@ -15,7 +15,7 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label" for="id_proveedor">Proveedor *</label>
+                            <label class="form-label" for="id_proveedor">Proveedor *</label><x-ayuda campo="id_proveedor" />
                             <select class="form-select" id="id_proveedor" name="id_proveedor" required>
                                 <option value="">— elegí un proveedor —</option>
                                 @foreach ($proveedores as $p)
@@ -25,7 +25,7 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label" for="id_condicion_venta">Condición *</label>
+                            <label class="form-label" for="id_condicion_venta">Condición *</label><x-ayuda campo="id_condicion_venta" />
                             <select class="form-select" id="id_condicion_venta" name="id_condicion_venta" required>
                                 @foreach ($condiciones as $cv)
                                     <option value="{{ $cv->id_condicion_venta }}"
@@ -35,7 +35,7 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label" for="nro_factura_proveedor">Nº de factura</label>
+                            <label class="form-label" for="nro_factura_proveedor">Nº de factura</label><x-ayuda campo="nro_factura_proveedor" />
                             <input class="form-control" id="nro_factura_proveedor" name="nro_factura_proveedor"
                                    maxlength="30" value="{{ old('nro_factura_proveedor') }}">
                         </div>
@@ -55,7 +55,7 @@
 
                         <div class="row g-2 align-items-end mb-2">
                             <div class="col-auto">
-                                <label class="form-label" for="cantCuotas">Cuotas</label>
+                                <label class="form-label" for="cantCuotas">Cuotas</label><x-ayuda campo="cantCuotas" />
                                 <input class="form-control form-control-sm" id="cantCuotas" type="number"
                                        min="1" max="24" value="{{ count((array) old('cuota_fecha', [])) ?: 1 }}"
                                        style="width:90px">
@@ -293,7 +293,7 @@
                     </button>
 
                     <div class="mb-3">
-                        <label class="form-label" for="observaciones">Observaciones</label>
+                        <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />
                         <input class="form-control" id="observaciones" name="observaciones" maxlength="150"
                                value="{{ old('observaciones') }}">
                     </div>
@@ -316,20 +316,20 @@
                           data-borrador="#formCompra">
                         @csrf
                         <div class="mb-2">
-                            <label class="form-label" for="pv_nombre">Nombre o razón social *</label>
+                            <label class="form-label" for="pv_nombre">Nombre o razón social *</label><x-ayuda campo="pv_nombre" />
                             <input class="form-control form-control-sm" id="pv_nombre" name="nombre" required>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label" for="pv_ruc">RUC</label>
+                            <label class="form-label" for="pv_ruc">RUC</label><x-ayuda campo="pv_ruc" />
                             <input class="form-control form-control-sm" id="pv_ruc" name="ruc" data-solo="ruc" inputmode="text">
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <label class="form-label" for="pv_contacto">Contacto</label>
+                                <label class="form-label" for="pv_contacto">Contacto</label><x-ayuda campo="pv_contacto" />
                                 <input class="form-control form-control-sm" id="pv_contacto" name="contacto">
                             </div>
                             <div class="col-6">
-                                <label class="form-label" for="pv_telefono">Teléfono</label>
+                                <label class="form-label" for="pv_telefono">Teléfono</label><x-ayuda campo="pv_telefono" />
                                 <input class="form-control form-control-sm" id="pv_telefono" name="telefono" data-solo="telefono" inputmode="tel">
                             </div>
                         </div>

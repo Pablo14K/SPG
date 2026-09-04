@@ -120,7 +120,7 @@
                             @else
                                 {{-- Sin nada que ofrecerle, el campo libre sigue siendo
                                      la salida: no se le cierra la puerta a preguntar. --}}
-                                <label class="form-label" for="pedido">¿Qué te gustaría agregar?</label>
+                                <label class="form-label" for="pedido">¿Qué te gustaría agregar?</label><x-ayuda campo="pedido" />
                                 <textarea class="form-control" id="pedido" name="pedido" rows="3" required
                                           maxlength="300" placeholder="Ej. ¿me podés hacer las uñas también?"></textarea>
                             @endif

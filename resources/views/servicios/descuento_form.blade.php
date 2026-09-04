@@ -24,7 +24,7 @@
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label" for="nombre">Nombre *</label>
+                    <label class="form-label" for="nombre">Nombre *</label><x-ayuda campo="nombre" />
                     <input class="form-control" id="nombre" name="nombre" required maxlength="80"
                            value="{{ old('nombre', $d->nombre ?? '') }}">
                 </div>
@@ -36,7 +36,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="valor">Valor *</label>
+                    <label class="form-label" for="valor">Valor *</label><x-ayuda campo="valor" />
                     <input class="form-control input-miles" id="valor" name="valor" data-decimales="2"
                            data-min="1" required
                            {{-- **`cant()` y no el valor crudo.** El campo lo dibuja
@@ -55,7 +55,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label" for="fecha_inicio">Vigente desde</label>
+                    <label class="form-label" for="fecha_inicio">Vigente desde</label><x-ayuda campo="fecha_inicio" />
                     <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio"
                            value="{{ old('fecha_inicio', $d->fecha_inicio ?? '') }}">
                 </div>
@@ -66,7 +66,7 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label" for="descripcion">Descripción</label>
+                    <label class="form-label" for="descripcion">Descripción</label><x-ayuda campo="descripcion" />
                     <input class="form-control" id="descripcion" name="descripcion" maxlength="150"
                            value="{{ old('descripcion', $d->descripcion ?? '') }}">
                 </div>

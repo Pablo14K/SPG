@@ -204,20 +204,20 @@
                     </label>
                 </div>
                 <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
-                    <label class="form-label" for="nombre_para">¿Para quién?</label>
+                    <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
                     <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
                            placeholder="Nombre de quien se atiende">
                 </div>
             </div>
 
             <div class="mb-3" style="max-width:180px">
-                <label class="form-label" for="personas">¿Cuántas personas van?</label>
+                <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda campo="personas" />
                 <input class="form-control" id="personas" name="personas" value="1"
                        data-solo="numeros" inputmode="numeric" maxlength="2">
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label>
+                <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label><x-ayuda campo="observaciones" />
                 <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300"></textarea>
             </div>
 

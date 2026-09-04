@@ -170,7 +170,7 @@
                     @csrf
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label" for="cf_nombre">Nombre</label>
+                            <label class="form-label" for="cf_nombre">Nombre</label><x-ayuda campo="cf_nombre" />
                             <input class="form-control" id="cf_nombre" name="nombre" required maxlength="60" placeholder="Caja 2, Mostrador…">
                         </div>
                         <div class="mb-2">

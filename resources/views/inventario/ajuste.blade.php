@@ -14,7 +14,7 @@
                     @csrf
 
                     <div class="mb-3">
-                        <label class="form-label" for="id_producto">Producto *</label>
+                        <label class="form-label" for="id_producto">Producto *</label><x-ayuda campo="id_producto" />
                         <input class="form-control form-control-sm mb-1" data-filtra="#id_producto"
                                placeholder="Buscar un producto…" autocomplete="off">
                         <select class="form-select" id="id_producto" name="id_producto" required>
@@ -53,7 +53,7 @@
                     </div>
 
                     <div id="bloqueFijar">
-                        <label class="form-label" for="stock_nuevo">El stock tiene que quedar en</label>
+                        <label class="form-label" for="stock_nuevo">El stock tiene que quedar en</label><x-ayuda campo="stock_nuevo" />
                         <input class="form-control input-miles" id="stock_nuevo" name="stock_nuevo"
                                data-decimales="2" data-min="0" value="{{ old('stock_nuevo') }}">
                         <div class="form-text mb-3">
@@ -75,7 +75,7 @@
                                 </select>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label" for="cantidad">Cantidad</label>
+                                <label class="form-label" for="cantidad">Cantidad</label><x-ayuda campo="cantidad" />
                                 <input class="form-control input-miles" id="cantidad" name="cantidad"
                                        data-decimales="2" data-min="0" value="{{ old('cantidad') }}">
                             </div>
@@ -84,7 +84,7 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label" for="precio_unitario">Precio unitario</label>
+                            <label class="form-label" for="precio_unitario">Precio unitario</label><x-ayuda campo="precio_unitario" />
                             <div class="input-group">
                                 <span class="input-group-text">{{ config('spg.moneda') }}</span>
                                 <input class="form-control input-miles" id="precio_unitario"
@@ -92,12 +92,12 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="referencia">Referencia</label>
+                            <label class="form-label" for="referencia">Referencia</label><x-ayuda campo="referencia" />
                             <input class="form-control" id="referencia" name="referencia" maxlength="60"
                                    value="{{ old('referencia') }}">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="observaciones">Observaciones</label>
+                            <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />
                             <input class="form-control" id="observaciones" name="observaciones" maxlength="150"
                                    value="{{ old('observaciones') }}">
                         </div>
@@ -118,7 +118,7 @@
                           data-borrador="#formAjuste">
                         @csrf
                         <div class="mb-2">
-                            <label class="form-label" for="pr_nombre">Nombre *</label>
+                            <label class="form-label" for="pr_nombre">Nombre *</label><x-ayuda campo="pr_nombre" />
                             <input class="form-control form-control-sm" id="pr_nombre" name="nombre" required>
                         </div>
                         <div class="row g-2 mb-2">

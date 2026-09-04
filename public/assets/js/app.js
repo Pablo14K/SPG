@@ -226,17 +226,36 @@ window.SPGCarga = (function () {
 // ---------------------------------------------------------------------
 (function () {
   'use strict';
-  var cont = document.querySelector('[data-agenda]');
-  if (!cont) return;
+  // **Puede haber VARIOS en la misma pantalla.** Antes se tomaba el primero y
+  // listo, que alcanzaba para reservar —hay uno solo—; el portal de la clienta
+  // dibuja además un modal por cita para cambiar el dia, y ahi son tantos como
+  // citas tenga. Con `querySelector` los demas quedaban sin selector y su campo
+  // de fecha era una caja vacia donde habia que adivinar el horario.
+  document.querySelectorAll('[data-agenda]').forEach(iniciarAgenda);
 
+  function iniciarAgenda(cont) {
   var url     = cont.getAttribute('data-agenda');
   var sujeto  = cont.getAttribute('data-agenda-sujeto') || 'La cita';
   var selBtn  = cont.getAttribute('data-agenda-boton');
   var aviso   = cont.querySelector('[data-agenda-aviso]');
   var diasEl  = cont.querySelector('[data-agenda-dias]');
   var horasEl = cont.querySelector('[data-agenda-horas]');
-  var campo   = document.querySelector('[name="fecha_hora"]');
-  var btn     = selBtn ? document.querySelector(selBtn) : null;
+  // **El campo se busca dentro del formulario del contenedor**, no en toda la
+  // pagina: con varios modales abiertos en el DOM, `document.querySelector`
+  // devolvia siempre el del primero y todos escribian ahi.
+  var ambito = cont.closest('form') || document;
+  var campo   = ambito.querySelector('[name="fecha_hora"]');
+  var btn     = selBtn ? ambito.querySelector(selBtn) || document.querySelector(selBtn) : null;
+
+  // Lo que este selector tiene FIJO. Reservar los toma de la pantalla —la
+  // clienta va marcando servicios—; reprogramar no pregunta nada de eso: la
+  // cita ya tiene sus servicios y su profesional, y lo unico que se elige es
+  // cuando. Declarados acá, no hace falta que existan las casillas.
+  var fijos = {
+    servicios: (cont.getAttribute('data-agenda-servicios') || '').split(',').filter(Boolean),
+    profesional: cont.getAttribute('data-agenda-profesional') || '',
+    sucursal: cont.getAttribute('data-agenda-sucursal') || ''
+  };
   var diaElegido = null;
   // Lo que ya venia elegido, para devolverlo marcado tras un rechazo. Se
   // guarda antes de que nada lo pise.
@@ -247,11 +266,15 @@ window.SPGCarga = (function () {
   var SPGCarga = window.SPGCarga || { envolver: function (p) { return p; } };
 
   function elegidos() {
+    if (fijos.servicios.length) { return fijos.servicios; }
+
     return Array.prototype.slice.call(document.querySelectorAll('.srv:checked'))
       .map(function (c) { return c.value; });
   }
 
   function profesional() {
+    if (fijos.profesional) { return fijos.profesional; }
+
     // Un combo de profesional para toda la cita, si la pantalla lo tiene:
     // ese manda y es el que le bloquea el bloque más largo en la agenda.
     // **Nueva cita ya no lo tiene** desde la 7.67.0 —preguntaba lo mismo que
@@ -277,7 +300,8 @@ window.SPGCarga = (function () {
     // La sucursal elegida viaja con la consulta: el turno es del local, asi
     // que sin ella el servidor contestaria con los horarios de otra sede.
     var suc = document.querySelector('[name="id_sucursal"]');
-    if (suc && suc.value) { p.append('sucursal', suc.value); }
+    if (fijos.sucursal) { p.append('sucursal', fijos.sucursal); }
+    else if (suc && suc.value) { p.append('sucursal', suc.value); }
     for (var k in (extra || {})) { p.append(k, extra[k]); }
 
     return p;
@@ -418,19 +442,24 @@ window.SPGCarga = (function () {
   // en los dos casos se vuelve a pedir la agenda. Los selectores por servicio
   // solo se escuchan cuando NO hay combo: con combo no cambian la consulta, y
   // escucharlos sería un viaje al servidor para el mismo resultado.
-  document.querySelectorAll('.srv').forEach(function (c) {
-    c.addEventListener('change', cargarDias);
-  });
-  var combo = document.querySelector('[name="id_usuario"]');
-  if (combo) {
-    combo.addEventListener('change', cargarDias);
-  } else {
-    document.querySelectorAll('[name^="prof_servicio["]').forEach(function (s) {
-      s.addEventListener('change', cargarDias);
+  // Con todo fijo no hay nada que escuchar: los servicios y el profesional no
+  // se eligen en esta pantalla, así que la agenda se pide una sola vez.
+  if (!fijos.servicios.length) {
+    document.querySelectorAll('.srv').forEach(function (c) {
+      c.addEventListener('change', cargarDias);
     });
+    var combo = document.querySelector('[name="id_usuario"]');
+    if (combo) {
+      combo.addEventListener('change', cargarDias);
+    } else {
+      document.querySelectorAll('[name^="prof_servicio["]').forEach(function (s) {
+        s.addEventListener('change', cargarDias);
+      });
+    }
   }
 
   cargarDias();
+  }
 })();
 
 (function () {

@@ -44,7 +44,7 @@
                     @endif
 
                     <div class="mb-3">
-                        <label class="form-label" for="id_tipo_ausencia">Tipo *</label>
+                        <label class="form-label" for="id_tipo_ausencia">Tipo *</label><x-ayuda campo="id_tipo_ausencia" />
                         <select class="form-select" id="id_tipo_ausencia" name="id_tipo_ausencia" required>
                             @foreach ($tipos as $t)
                                 <option value="{{ $t->id_tipo_ausencia }}"
@@ -55,19 +55,19 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label" for="fecha_inicio">Desde *</label>
+                            <label class="form-label" for="fecha_inicio">Desde *</label><x-ayuda campo="fecha_inicio" />
                             <input type="datetime-local" class="form-control" id="fecha_inicio"
                                    name="fecha_inicio" required value="{{ old('fecha_inicio') }}">
                         </div>
                         <div class="col-6">
-                            <label class="form-label" for="fecha_fin">Hasta *</label>
+                            <label class="form-label" for="fecha_fin">Hasta *</label><x-ayuda campo="fecha_fin" />
                             <input type="datetime-local" class="form-control" id="fecha_fin"
                                    name="fecha_fin" required value="{{ old('fecha_fin') }}">
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="motivo">Motivo</label>
+                        <label class="form-label" for="motivo">Motivo</label><x-ayuda campo="motivo" />
                         <input class="form-control" id="motivo" name="motivo" maxlength="150"
                                value="{{ old('motivo') }}" placeholder="Ej. Licencia médica">
                     </div>

@@ -532,7 +532,13 @@ class PortalController extends Controller
             // por algo que ya pagó con sus puntos. Si además pidió otro
             // servicio sin canje, ese sí se puede señar — por eso es una resta
             // y no un «tiene canje: no muestres nada».
-            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal,
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal, c.id_usuario,
+                    -- **Los servicios de la cita, por id.** Los necesita el
+                    -- selector de horarios del modal de reprogramar: reprogramar
+                    -- no pregunta qué se hace —eso ya está decidido— así que los
+                    -- días libres se calculan con estos, fijos.
+                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
+                      WHERE cs.id_cita = v.id_cita) AS servicios_ids,
                     fn_cita_sena(v.id_cita) AS sena,
                     -- Cuánta seña pide el salón por esta cita. Sale de
                     -- `servicio.sena_porcentaje`: hasta acá el sistema no

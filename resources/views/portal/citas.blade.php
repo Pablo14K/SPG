@@ -151,12 +151,30 @@
                                                         escribirnos.
                                                     </div>
 
-                                                    <label class="form-label" for="rp{{ $c->id_cita }}">Nueva fecha y hora</label>
-                                                    <input type="datetime-local" class="form-control"
-                                                           id="rp{{ $c->id_cita }}" name="fecha_hora" required
-                                                           min="{{ date('Y-m-d\TH:i') }}">
-                                                    <div class="form-text mb-2">
-                                                        Si ese horario no está libre te lo decimos y elegís otro.
+                                                    {{-- **Los días y las horas se eligen de lo que hay libre,
+                                                         no se escriben.** Era un `datetime-local` suelto: la
+                                                         clienta tenía que adivinar un horario, mandarlo y
+                                                         esperar el rechazo — y en el celular ni siquiera se ve
+                                                         que sea un campo de fecha, es una caja vacía. Es la
+                                                         regla del proyecto, que ya valía para reservar y acá
+                                                         se había quedado afuera.
+
+                                                         Los servicios y el profesional NO se preguntan: la cita
+                                                         ya los tiene y se conservan al reprogramar. Van fijos
+                                                         en el contenedor, así que el selector no necesita
+                                                         ninguna casilla en pantalla. --}}
+                                                    <label class="form-label">Nueva fecha y hora</label><x-ayuda>Se ofrecen sólo los días y las horas que quedan libres de verdad para esta cita, con tu profesional y los servicios que ya elegiste.</x-ayuda>
+                                                    <input type="hidden" name="fecha_hora" required>
+                                                    <div data-agenda="{{ route('portal.disponibilidad') }}"
+                                                         data-agenda-sujeto="Tu cita"
+                                                         data-agenda-servicios="{{ $c->servicios_ids }}"
+                                                         data-agenda-profesional="{{ (int) $c->id_usuario }}"
+                                                         data-agenda-sucursal="{{ (int) $c->id_sucursal }}"
+                                                         data-agenda-boton="#btnRp{{ $c->id_cita }}"
+                                                         class="mb-2">
+                                                        <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
+                                                        <div data-agenda-dias class="spg-dias mt-2"></div>
+                                                        <div data-agenda-horas class="spg-horas mt-2"></div>
                                                     </div>
 
                                                     {{-- El motivo no es burocracia: es lo que le deja al
@@ -170,7 +188,10 @@
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-outline-neutro"
                                                             data-bs-dismiss="modal">Dejarlo como está</button>
-                                                    <button class="btn btn-oro">
+                                                    {{-- Arranca apagado: se enciende cuando el selector ya
+                                                         tiene un día y una hora elegidos. Sin eso se podía
+                                                         mandar el formulario vacío. --}}
+                                                    <button class="btn btn-oro" id="btnRp{{ $c->id_cita }}" disabled>
                                                         <i class="bi bi-check2"></i> Cambiar</button>
                                                 </div>
                                             </form>

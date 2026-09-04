@@ -413,4 +413,41 @@ class AndamiajeTest extends TestCase
             . 'lo contrario de lo que hace este componente.'
         );
     }
+
+    /**
+     * **Toda clave del diccionario de campos se usa en alguna vista.**
+     *
+     * `config/ayudas.php` es la única fuente del «qué se carga acá», y su riesgo
+     * es el de siempre en este proyecto: que un campo se renombre y la entrada
+     * quede escrita para nadie —sin dar error, sólo dejando de aparecer—. Es el
+     * mismo defecto que el CSS apuntando a clases que ya no existen.
+     *
+     * Se admite el prefijo de los formularios rápidos (`cr_`, `pv_`, `prov`…),
+     * que es como el mismo dato aparece cuando se carga sin salir de otra
+     * pantalla.
+     */
+    #[Test]
+    public function toda_ayuda_de_campo_del_diccionario_se_usa(): void
+    {
+        $marcado = implode("
+", $this->archivos(['resources/views']));
+        $huerfanas = [];
+
+        foreach (array_keys((array) config('ayudas', [])) as $campo) {
+            // Tal cual, o con alguno de los prefijos de las altas rápidas.
+            $patron = '/campo="(?:prov|cr_|pr_|pv_|tr_|sr_|rn_|cf_|mc_)?'
+                . preg_quote((string) $campo, '/') . '"/i';
+            if (! preg_match($patron, $marcado)) {
+                $huerfanas[] = (string) $campo;
+            }
+        }
+
+        $this->assertSame([], $huerfanas,
+            "Hay textos en `config/ayudas.php` que ninguna vista pide:
+  "
+            . implode("
+  ", $huerfanas)
+            . "
+O el campo se renombró, o la entrada sobra.");
+    }
 }

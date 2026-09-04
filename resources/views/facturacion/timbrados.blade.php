@@ -18,7 +18,7 @@
                     <input type="hidden" name="id_timbrado" value="{{ $editar->id_timbrado ?? 0 }}">
 
                     <div class="mb-2">
-                        <label class="form-label" for="nro_timbrado">Nº de timbrado * (8 dígitos)</label>
+                        <label class="form-label" for="nro_timbrado">Nº de timbrado * (8 dígitos)</label><x-ayuda campo="nro_timbrado" />
                         <input class="form-control" id="nro_timbrado" name="nro_timbrado" required
                                inputmode="numeric" maxlength="8" pattern="\d{8}"
                                value="{{ old('nro_timbrado', $editar->nro_timbrado ?? '') }}">
@@ -26,13 +26,13 @@
 
                     <div class="row g-2 mb-2">
                         <div class="col-6">
-                            <label class="form-label" for="establecimiento">Establecimiento *</label>
+                            <label class="form-label" for="establecimiento">Establecimiento *</label><x-ayuda campo="establecimiento" />
                             <input class="form-control" id="establecimiento" name="establecimiento" data-solo="numeros" inputmode="numeric" required
                                    maxlength="3" placeholder="001"
                                    value="{{ old('establecimiento', $editar->establecimiento ?? '001') }}">
                         </div>
                         <div class="col-6">
-                            <label class="form-label" for="punto_expedicion">Punto de expedición *</label>
+                            <label class="form-label" for="punto_expedicion">Punto de expedición *</label><x-ayuda campo="punto_expedicion" />
                             <input class="form-control" id="punto_expedicion" name="punto_expedicion" data-solo="numeros" inputmode="numeric" required
                                    maxlength="3" placeholder="001"
                                    value="{{ old('punto_expedicion', $editar->punto_expedicion ?? '001') }}">
@@ -51,7 +51,7 @@
                     </div>
 
                     <div class="mb-2">
-                        <label class="form-label" for="id_tipo_comprobante">Tipo de comprobante *</label>
+                        <label class="form-label" for="id_tipo_comprobante">Tipo de comprobante *</label><x-ayuda campo="id_tipo_comprobante" />
                         <select class="form-select" id="id_tipo_comprobante" name="id_tipo_comprobante" required>
                             @foreach ($tipos as $t)
                                 <option value="{{ $t->id_tipo_comprobante }}"
@@ -64,12 +64,12 @@
 
                     <div class="row g-2 mb-2">
                         <div class="col-6">
-                            <label class="form-label" for="fecha_inicio">Vigente desde *</label>
+                            <label class="form-label" for="fecha_inicio">Vigente desde *</label><x-ayuda campo="fecha_inicio" />
                             <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" required
                                    value="{{ old('fecha_inicio', $editar->fecha_inicio ?? '') }}">
                         </div>
                         <div class="col-6">
-                            <label class="form-label" for="fecha_fin">Vigente hasta *</label>
+                            <label class="form-label" for="fecha_fin">Vigente hasta *</label><x-ayuda campo="fecha_fin" />
                             <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" required
                                    value="{{ old('fecha_fin', $editar->fecha_fin ?? '') }}">
                         </div>
@@ -77,12 +77,12 @@
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label" for="nro_desde">Desde el nº</label>
+                            <label class="form-label" for="nro_desde">Desde el nº</label><x-ayuda campo="nro_desde" />
                             <input type="number" class="form-control" id="nro_desde" name="nro_desde"
                                    min="1" max="9999999" value="{{ old('nro_desde', $editar->nro_desde ?? 1) }}">
                         </div>
                         <div class="col-6">
-                            <label class="form-label" for="nro_hasta">Hasta el nº</label>
+                            <label class="form-label" for="nro_hasta">Hasta el nº</label><x-ayuda campo="nro_hasta" />
                             <input type="number" class="form-control" id="nro_hasta" name="nro_hasta"
                                    min="1" max="9999999" value="{{ old('nro_hasta', $editar->nro_hasta ?? 9999999) }}">
                         </div>

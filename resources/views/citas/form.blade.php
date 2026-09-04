@@ -183,7 +183,7 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label" for="observaciones">Observaciones</label>
+                    <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />
                     <textarea class="form-control" id="observaciones" name="observaciones"
                               rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
                 </div>
@@ -218,23 +218,23 @@
                             </p>
                             <div class="row g-2">
                                 <div class="col-6">
-                                    <label class="form-label" for="cr_nombre">Nombre *</label>
+                                    <label class="form-label" for="cr_nombre">Nombre *</label><x-ayuda campo="cr_nombre" />
                                     <input class="form-control" id="cr_nombre" name="nombre" required>
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label" for="cr_apellido">Apellido *</label>
+                                    <label class="form-label" for="cr_apellido">Apellido *</label><x-ayuda campo="cr_apellido" />
                                     <input class="form-control" id="cr_apellido" name="apellido" required>
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label" for="cr_cedula">Cédula</label>
+                                    <label class="form-label" for="cr_cedula">Cédula</label><x-ayuda campo="cr_cedula" />
                                     <input class="form-control" id="cr_cedula" name="cedula" data-solo="documento" inputmode="numeric">
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label" for="cr_telefono">Teléfono</label>
+                                    <label class="form-label" for="cr_telefono">Teléfono</label><x-ayuda campo="cr_telefono" />
                                     <input class="form-control" id="cr_telefono" name="telefono" data-solo="telefono" inputmode="tel">
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label" for="cr_email">Email</label>
+                                    <label class="form-label" for="cr_email">Email</label><x-ayuda campo="cr_email" />
                                     <input type="email" class="form-control" id="cr_email" name="email">
                                 </div>
                             </div>

@@ -268,7 +268,7 @@
 
         {{-- 3. Observaciones --}}
         <div class="spg-panel mb-3">
-            <label class="form-label" for="observaciones">Observaciones de la atención</label>
+            <label class="form-label" for="observaciones">Observaciones de la atención</label><x-ayuda campo="observaciones" />
             <textarea class="form-control" id="observaciones" name="observaciones" rows="2"
                       @disabled((bool) $factura)></textarea>
         </div>

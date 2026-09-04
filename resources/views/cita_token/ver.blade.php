@@ -81,7 +81,7 @@
                 <input type="hidden" name="t" value="{{ $codigo }}">
 
                 <div class="mb-2">
-                    <label class="form-label" for="fecha_hora">Nueva fecha y hora</label>
+                    <label class="form-label" for="fecha_hora">Nueva fecha y hora</label><x-ayuda campo="fecha_hora" />
                     <input type="datetime-local" class="form-control" id="fecha_hora" name="fecha_hora" required>
                 </div>
 

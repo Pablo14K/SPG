@@ -120,15 +120,15 @@
                     <form method="post" action="{{ route('cuenta.password') }}">
                         @csrf
                         <div class="mb-2">
-                            <label class="form-label" for="actual">Contraseña actual</label>
+                            <label class="form-label" for="actual">Contraseña actual</label><x-ayuda campo="actual" />
                             <input type="password" class="form-control" id="actual" name="actual" required>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label" for="nueva">Contraseña nueva</label>
+                            <label class="form-label" for="nueva">Contraseña nueva</label><x-ayuda campo="nueva" />
                             <input type="password" class="form-control" id="nueva" name="nueva" required minlength="6">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" for="nueva2">Repetila</label>
+                            <label class="form-label" for="nueva2">Repetila</label><x-ayuda campo="nueva2" />
                             <input type="password" class="form-control" id="nueva2" name="nueva2" required minlength="6">
                         </div>
                         <button class="btn btn-oro"><i class="bi bi-envelope"></i> Mandarme el código</button>

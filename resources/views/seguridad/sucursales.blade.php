@@ -64,7 +64,7 @@
                            value="{{ old('actividad_cod', $actividad['cod']) }}" placeholder="96021">
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label" for="actividad_desc">Actividad económica</label>
+                    <label class="form-label" for="actividad_desc">Actividad económica</label><x-ayuda campo="actividad_desc" />
                     <input class="form-control" id="actividad_desc" name="actividad_desc" maxlength="120"
                            value="{{ old('actividad_desc', $actividad['desc']) }}"
                            placeholder="PELUQUERIA Y OTROS TRATAMIENTOS DE BELLEZA">

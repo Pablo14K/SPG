@@ -18,7 +18,7 @@
 
             <div class="row g-3">
                 <div class="col-md-8">
-                    <label class="form-label" for="nombre">Nombre *</label>
+                    <label class="form-label" for="nombre">Nombre *</label><x-ayuda campo="nombre" />
                     <input class="form-control" id="nombre" name="nombre" required
                            value="{{ old('nombre', $s->nombre ?? '') }}">
                 </div>
@@ -27,12 +27,12 @@
                     <input class="form-control" id="ruc" name="ruc" data-solo="ruc" inputmode="text" value="{{ old('ruc', $s->ruc ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="telefono">Teléfono</label>
+                    <label class="form-label" for="telefono">Teléfono</label><x-ayuda campo="telefono" />
                     <input class="form-control" id="telefono" name="telefono" data-solo="telefono" inputmode="tel"
                            value="{{ old('telefono', $s->telefono ?? '') }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="ciudad">Ciudad</label>
+                    <label class="form-label" for="ciudad">Ciudad</label><x-ayuda campo="ciudad" />
                     {{-- **Sin valor por defecto.** Venía con «Luque» escrito, así que
                          una sucursal nueva nacía con la ciudad de la casa central
                          puesta: quien no la mirara la guardaba mal, y el campo
@@ -40,7 +40,7 @@
                     <x-ciudad :valor="old('ciudad', $s->ciudad ?? '')" />
                 </div>
                 <div class="col-12">
-                    <label class="form-label" for="direccion">Dirección</label>
+                    <label class="form-label" for="direccion">Dirección</label><x-ayuda campo="direccion" />
                     <input class="form-control" id="direccion" name="direccion"
                            value="{{ old('direccion', $s->direccion ?? '') }}">
                 </div>

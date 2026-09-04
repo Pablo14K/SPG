@@ -24,12 +24,12 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label" for="puntos">Cuesta (en puntos)</label>
+                <label class="form-label" for="puntos">Cuesta (en puntos)</label><x-ayuda campo="puntos" />
                 <input class="form-control" id="puntos" name="puntos" data-solo="numeros" inputmode="numeric" data-min="1"
                        value="{{ old('puntos', 100) }}" required>
             </div>
             <div class="col-md-2">
-                <label class="form-label" for="dias_vigencia">Vigencia</label>
+                <label class="form-label" for="dias_vigencia">Vigencia</label><x-ayuda campo="dias_vigencia" />
                 <div class="input-group">
                     <input class="form-control" id="dias_vigencia" name="dias_vigencia" data-solo="numeros" inputmode="numeric"
                            data-min="1" data-max="365" value="{{ old('dias_vigencia', 30) }}" required>
@@ -45,7 +45,7 @@
                  lo que espera quien recién abre el segundo local. --}}
             @if (count($sucursales) > 1)
                 <div class="col-12">
-                    <label class="form-label">¿En qué sucursales se puede canjear?</label>
+                    <label class="form-label">¿En qué sucursales se puede canjear?</label><x-ayuda>Si no marcás ninguna, vale en todas.</x-ayuda>
                     <div class="form-check mb-1">
                         <input class="form-check-input" type="checkbox" id="gCanjeSucTodo" data-marca-todo="#gCanjeSuc">
                         <label class="form-check-label fw-semibold" for="gCanjeSucTodo">Todas</label>
@@ -55,7 +55,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="sucursales[]"
                                        value="{{ $s->id_sucursal }}" id="suc{{ $s->id_sucursal }}" checked>
-                                <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label><x-ayuda>Si no marcás ninguna, vale en todas.</x-ayuda>
+                                <label class="form-check-label" for="suc{{ $s->id_sucursal }}">{{ $s->nombre }}</label>
                             </div>
                         @endforeach
                     </div>
