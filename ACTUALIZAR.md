@@ -138,6 +138,109 @@ columnas, el guion del paso 3 no corrió.
 
 ---
 
+## 3 · Restaurar un respaldo
+
+Volver la base a como estaba. **Reemplaza todo lo que pasó desde ese archivo**,
+así que es lo último que se prueba, no lo primero.
+
+### Ver qué hay
+
+```bash
+ls -lht /var/respaldos/spg/
+```
+
+Del más nuevo al más viejo. Lo que importa no es cuántos sino el **peso**: un
+volcado completo ronda los **300 KB**, así que uno de unos pocos bytes salió
+mal.
+
+```bash
+tail -1 /var/respaldos/spg/$(ls -t /var/respaldos/spg | head -1)
+```
+
+Tiene que terminar en **`-- Dump completed`**. Si termina cortado, se
+interrumpió a la mitad y no sirve.
+
+### Antes de restaurar: mirá la FECHA contra la última versión
+
+**Si el respaldo es de antes de un cambio de base, restaurarlo también revierte
+el esquema** — y el código queda esperando una tabla o una columna que ya no
+está. Es el «código nuevo contra base vieja» de siempre: no falla al arrancar,
+falla cuando alguien abre la pantalla que lo usa.
+
+No es un problema, es un paso más: **después de restaurar se vuelven a aplicar
+los guiones de `basededatos/actualizaciones/` posteriores a esa fecha**. Para ver
+cuáles hay:
+
+```bash
+docker exec spg_app ls basededatos/actualizaciones/
+```
+
+### Los cinco pasos
+
+**1 · Respaldá lo de AHORA.** Es lo que hace reversible la restauración:
+
+```bash
+docker exec spg_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/spg/ANTES_DE_RESTAURAR_$(date +%F_%H%M).sql
+```
+
+**2 · Parar lo que escribe.** El planificador corre cada minuto y puede meter una
+fila a mitad de la carga:
+
+```bash
+docker stop spg_cron spg_app
+```
+
+> **Desde acá el salón está caído**, así que los dos pasos que siguen van
+> seguidos.
+
+**3 · Cargar el respaldo** (cambiá el nombre del archivo):
+
+```bash
+docker exec -i spg_bd sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < /var/respaldos/spg/peluqueria_bd_2026-09-04_0220.sql
+```
+
+**4 · Levantar todo:**
+
+```bash
+docker start spg_app spg_cron
+```
+
+**5 · Volver a aplicar los guiones de base posteriores** a la fecha del
+respaldo, uno por uno:
+
+```bash
+docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.97.0.sql'
+```
+
+Y comprobar:
+
+```bash
+docker exec spg_app php artisan spg:diagnostico --produccion
+```
+
+**«Todo en orden.»** Si dice que faltan columnas o rutinas, quedó un guion sin
+aplicar.
+
+### Las dos cosas que se pagan caro acá
+
+> **La contraseña va DENTRO de comillas simples, adentro de un `sh -c`.** Escrita
+> como `docker exec -i spg_bd mysql -p"$MYSQL_ROOT_PASSWORD"`, la variable la
+> expande **el shell del servidor** —donde no existe— y se manda una contraseña
+> vacía: `ERROR 1045 Access denied`. Con `sh -c '…'` la resuelve el contenedor,
+> que es el único que la tiene.
+
+> **NO hace falta vaciar la base, y NUNCA `down -v`.** El volcado lleva
+> `DROP TABLE IF EXISTS` delante de cada tabla, así que reemplaza lo que hay. El
+> `-v` borra el volumen entero: la base, las fotos y todo.
+
+> **Las fotos no vuelven con el respaldo.** Las de los servicios y el logo viven
+> en otro volumen y el `mysqldump` sólo guarda la base — restaurar a un punto
+> anterior deja las fotos de hoy, que normalmente es lo que se quiere. Si un
+> servicio nombra una foto que ya no está, `spg:diagnostico` lo dice en «Las
+> fotos del salón».
+
+---
+
 ## Por qué no se usa el botón «Update» del panel
 
 Existe, y sería más cómodo, pero **en este VPS falla**: aborta con
@@ -174,6 +277,8 @@ Si dicen `Up 2 days` justo después de un despliegue, no se recreó nada.
 | El sitio no responde | ¿está Traefik levantado? `docker ps --filter name=traefik` |
 | Sigue el código viejo | no se recreó: repetí el `up --build` y mirá el tiempo de actividad |
 | `no such file or directory` al clonar | quedó en otra rama: el repositorio tiene **sólo `main`** |
+| Hay que volver la base atrás | **3 · Restaurar un respaldo** |
+| `ERROR 1045 Access denied` con la base | la contraseña se expandió en el servidor: va dentro de `sh -c '…'` |
 
 ### Volver atrás
 
@@ -185,7 +290,7 @@ git revert <commit> && git push origin main
 
 Y la línea del despliegue otra vez. **Si el cambio había tocado la base, el
 revert del código no la revierte**: eso se arregla con SQL, o restaurando el
-respaldo del paso 1.
+respaldo — ver **3 · Restaurar un respaldo**.
 
 > **Nunca `docker compose down -v` ni «Delete» del proyecto con datos del
 > salón adentro.** Ahí viven las citas, las facturas y los cobros. Para empezar
