@@ -712,6 +712,47 @@ class Agenda
             fn ($d) => in_array((int) date('N', strtotime((string) $d)), $suyos, true)));
     }
 
+    /**
+     * Los días en que esa clienta YA tiene alguno de esos servicios agendado.
+     *
+     * **Se usa para no ofrecerlos**, y eso es mejor que explicarlo después: la
+     * regla existe desde la 7.14.0 —una clienta no repite el mismo servicio el
+     * mismo día— y la hacía cumplir `trg_citaserv_bi` al guardar, o sea con la
+     * clienta ya habiendo elegido todo. Sacando esos días de la lista, el
+     * rechazo deja de poder ocurrir: no se puede elegir lo que no se muestra.
+     *
+     * **Sólo cuentan las citas que ocupan la agenda**, así que después de
+     * cancelar una el día vuelve a ofrecerse — que es exactamente lo que dice
+     * la regla.
+     *
+     * **Y no aplica a las citas «para otra persona»**: ésas se superponen a
+     * propósito —son dos personas— y el disparador las deja pasar, así que
+     * esconder el día sería esconder algo permitido.
+     *
+     * @param  array<int>  $servicios
+     * @return array<int, string>  fechas `Y-m-d`
+     */
+    public static function diasYaTomados(int $idCliente, array $servicios): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $servicios)));
+        if (! $idCliente || ! $ids) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+
+        return array_map(fn ($r) => (string) $r->dia, DB::select(
+            "SELECT DISTINCT DATE(c.fecha_hora) AS dia
+               FROM cita c
+               JOIN cita_servicio cs ON cs.id_cita = c.id_cita
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE c.id_cliente = ?
+                AND c.para_otra_persona = 0
+                AND ec.bloquea_agenda = 1
+                AND cs.id_servicio IN ($in)",
+            array_merge([$idCliente], $ids)
+        ));
+    }
+
     /** ¿Esta persona trabaja en ese turno? */
     public static function trabajaEnTurno(int $idUsuario, int $idTurno): bool
     {

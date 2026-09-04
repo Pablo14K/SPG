@@ -102,10 +102,20 @@ class CitasController extends Controller
             ]);
         }
 
+        // **Los días en que esa clienta ya tiene esos servicios no se
+        // ofrecen.** La regla es de la 7.14.0 y la hacía cumplir el disparador
+        // al guardar, con el formulario ya completo: sacándolos de la lista, el
+        // rechazo deja de poder ocurrir. La clienta se elige en esta misma
+        // pantalla, así que viaja en la consulta.
+        $idCliente = (int) $request->query('id_cliente', 0);
+
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
             'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal),
-            'dias' => Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal),
+            'dias' => array_values(array_diff(
+                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal),
+                Agenda::diasYaTomados($idCliente, $servicios)
+            )),
         ]);
     }
 

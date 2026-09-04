@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
+use Illuminate\Database\QueryException;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
@@ -74,7 +75,7 @@ class PortalController extends Controller
 
     public function disponibilidad(Request $request): JsonResponse
     {
-        $this->cliente();
+        $idCliente = $this->cliente();
 
         $servicios = array_map('intval', (array) $request->query('servicios', []));
         $idUsuario = ((int) $request->query('id_usuario', 0)) ?: null;
@@ -113,10 +114,17 @@ class PortalController extends Controller
         }
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
-            'dias' => Agenda::diasDelTurno(
-                Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                    (int) config('spg.agenda.dias_vista', 60), $duracion, $suc),
-                $turno),
+            // **Los días en que ya tiene esos servicios no se ofrecen.** La
+            // regla es de la 7.14.0 y la hacía cumplir el disparador al
+            // guardar, o sea con la clienta habiendo elegido todo. Sacándolos
+            // de la lista, el rechazo deja de poder ocurrir.
+            'dias' => array_values(array_diff(
+                Agenda::diasDelTurno(
+                    Agenda::diasConCupo($idUsuario, date('Y-m-d'),
+                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc),
+                    $turno),
+                Agenda::diasYaTomados($idCliente, $servicios)
+            )),
             // Si el calendario sale vacío porque lo elegido no entra en ningún
             // turno, hay que decirlo: «probá con otro profesional» manda a
             // recorrer uno por uno algo que ninguno puede dar.
@@ -198,6 +206,20 @@ class PortalController extends Controller
             // libre. Lo único que cambia es que no se cobra.
             'canjes' => Canje::deCliente($this->cliente(), true),
         ]);
+    }
+
+    /**
+     * El texto que escribió el `SIGNAL` de un disparador.
+     *
+     * MariaDB lo devuelve envuelto: `SQLSTATE[45000]: <<Unknown error>>: 1644 …`.
+     * Lo que le sirve a la clienta es lo último, que está escrito para que lo
+     * lea una persona.
+     */
+    private static function mensajeDeLaBase(string $bruto): string
+    {
+        $p = strrpos($bruto, ': ');
+
+        return $p === false ? '' : trim(substr($bruto, $p + 2));
     }
 
     public function guardarReserva(Request $request): RedirectResponse
@@ -448,11 +470,42 @@ class PortalController extends Controller
                 return redirect()->route('portal.citas', ['sena' => $idCita]);
             }
         } catch (Throwable $ex) {
+            $msg = $ex->getMessage();
+
             // Llegó hasta acá y perdió: otra persona tomó el hueco justo cuando
             // esta reserva pasaba por el candado del procedimiento.
-            flash(str_contains($ex->getMessage(), 'disponible')
-                ? Agenda::motivoHuecoPerdido($idUsuario, $fecha, $dur)
-                : 'No se pudo reservar la cita. Probá con otro horario; si vuelve a pasar, '
+            if (str_contains($msg, 'disponible')) {
+                flash(Agenda::motivoHuecoPerdido($idUsuario, $fecha, $dur), 'error');
+
+                return $volver;
+            }
+
+            // **Lo que la BASE ya explicó se muestra tal cual.**
+            //
+            // Los disparadores levantan mensajes escritos para que los lea una
+            // persona —«Ya hay "Corte de dama" agendado para esa clienta ese
+            // mismo día»— y este `catch` los tapaba todos con un «No se pudo
+            // reservar la cita» que manda a probar otro horario, cuando el
+            // horario no tenía nada que ver. Es exactamente el defecto que este
+            // proyecto ya anota: un mensaje que no distingue manda a mirar el
+            // lugar equivocado.
+            //
+            // `Bd::traducir()` devuelve el texto del `SIGNAL` cuando lo hay, y
+            // el genérico sólo cuando de verdad no se sabe qué pasó.
+            $detalle = $ex instanceof QueryException
+                ? Bd::traducir($ex, [], '')
+                : (str_contains($msg, 'SQLSTATE[45000]') ? self::mensajeDeLaBase($msg) : '');
+
+            if ($detalle !== '') {
+                flash($detalle, 'warning');
+
+                return $volver;
+            }
+
+            // Recién acá el genérico, y con el detalle en el log: si nadie sabe
+            // qué pasó, al menos que quede escrito para quien lo mantiene.
+            Log::error('Reserva del portal: ' . $msg);
+            flash('No se pudo reservar la cita. Probá con otro horario; si vuelve a pasar, '
                 . 'escribinos y la agendamos nosotros.', 'error');
 
             return $volver;

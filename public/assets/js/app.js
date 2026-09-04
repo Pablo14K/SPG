@@ -307,6 +307,12 @@ window.SPGCarga = (function () {
     // dias y las horas a esa franja. Sin el, se ofrece todo.
     var turno = document.querySelector('[name="id_turno"]');
     if (turno && turno.value && turno.value !== '0') { p.append('turno', turno.value); }
+
+    // La clienta, para no ofrecerle un dia en el que ya tiene ese servicio.
+    // En el portal la sabe el servidor por la sesion; en Nueva cita se elige en
+    // la misma pantalla, asi que viaja en la consulta.
+    var cli = document.querySelector('[name="id_cliente"]');
+    if (cli && cli.value) { p.append('id_cliente', cli.value); }
     for (var k in (extra || {})) { p.append(k, extra[k]); }
 
     return p;
@@ -461,6 +467,12 @@ window.SPGCarga = (function () {
         s.addEventListener('change', cargarDias);
       });
     }
+
+    // **Cambiar de clienta cambia qué días se pueden ofrecer**, porque los que
+    // ya tiene ese servicio no se muestran. Sin esto, la lista quedaría con los
+    // días de la clienta anterior.
+    var cli = document.querySelector('[name="id_cliente"]');
+    if (cli) { cli.addEventListener('change', cargarDias); }
   }
 
   cargarDias();

@@ -5370,4 +5370,55 @@ class ReglasDeNegocioTest extends TestCase
             [$asignado, (int) $ajeno->id_servicio]),
             'A quien se le asigno tiene que hacer ese servicio.');
     }
+
+    /**
+     * **El día en que ya tiene ese servicio no se ofrece.**
+     *
+     * La regla es de la 7.14.0 —una clienta no repite el mismo servicio el
+     * mismo día— y la hacía cumplir `trg_citaserv_bi` **al guardar**, o sea con
+     * el formulario ya completo: la clienta elegía todo y recién ahí se enteraba.
+     * Sacando ese día de la lista, el rechazo deja de poder ocurrir.
+     *
+     * **Sólo cuentan las citas que ocupan agenda**, así que cancelando la otra
+     * el día vuelve a ofrecerse — que es exactamente lo que dice la regla.
+     */
+    public function test_no_se_ofrece_el_dia_en_que_ya_tiene_ese_servicio(): void
+    {
+        $cli = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 LIMIT 1');
+        $srv = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 LIMIT 1');
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 LIMIT 1'
+        );
+        if (! $cli || ! $srv || ! $prof) {
+            $this->markTestSkipped('Falta una clienta, un servicio o un profesional.');
+        }
+
+        // Un día que HOY no esté tomado, para que la prueba mida la regla y no
+        // el estado en que quedó la base.
+        $dia = null;
+        for ($i = 5; $i < 40 && $dia === null; $i++) {
+            $cand = date('Y-m-d', strtotime("+$i days"));
+            if (! in_array($cand, Agenda::diasYaTomados($cli, [$srv]), true)) {
+                $dia = $cand;
+            }
+        }
+        $this->assertNotNull($dia, 'No se encontró un día libre para medir.');
+
+        $this->assertNotContains($dia, Agenda::diasYaTomados($cli, [$srv]),
+            'La premisa: ese día tiene que estar libre antes de agendar.');
+
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?,?,1,?,1)', [$cli, $prof, $dia . ' 09:00:00']);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)', [$idCita, $srv]);
+
+        $this->assertContains($dia, Agenda::diasYaTomados($cli, [$srv]),
+            'Con la cita cargada, ese día tiene que quedar fuera de lo que se ofrece.');
+
+        // Cancelada deja de ocupar la agenda, así que el día vuelve.
+        DB::update('UPDATE cita SET id_estado_cita = 3 WHERE id_cita = ?', [$idCita]);
+        $this->assertNotContains($dia, Agenda::diasYaTomados($cli, [$srv]),
+            'Cancelando la otra cita, el día tiene que volver a ofrecerse.');
+    }
 }
