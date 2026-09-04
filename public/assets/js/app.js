@@ -302,6 +302,11 @@ window.SPGCarga = (function () {
     var suc = document.querySelector('[name="id_sucursal"]');
     if (fijos.sucursal) { p.append('sucursal', fijos.sucursal); }
     else if (suc && suc.value) { p.append('sucursal', suc.value); }
+
+    // El turno elegido —a mano o deducido del profesional pedido— acota los
+    // dias y las horas a esa franja. Sin el, se ofrece todo.
+    var turno = document.querySelector('[name="id_turno"]');
+    if (turno && turno.value && turno.value !== '0') { p.append('turno', turno.value); }
     for (var k in (extra || {})) { p.append(k, extra[k]); }
 
     return p;
@@ -1568,4 +1573,115 @@ window.SPGCarga = (function () {
     campo.addEventListener('change', dibujar);
     dibujar();
   });
+})();
+
+/* ------------------------------------------------------------------
+   El turno, y el filtro silencioso que evita el choque de horarios.
+
+   El problema: pidiendo a alguien de la mañana para un servicio y a
+   alguien de la tarde para otro no hay ningún horario donde las dos
+   estén, y la clienta lo descubría recién al buscar día — sin saber
+   cuál de sus decisiones fallaba. Explicarlo con un aviso ayuda;
+   impedirlo es mejor.
+
+   Cómo queda el turno elegido, en este orden:
+
+     1. Lo que la clienta apretó en los botones. Manda siempre.
+     2. Si no apretó nada, el turno del PRIMER profesional que pidió —
+        que es la misma decisión tomada de otra forma.
+     3. Si no pidió a nadie, ninguno: se ofrece todo.
+
+   Con un turno activo, los combos esconden a quien no trabaja en esa
+   franja y la agenda recorta los días y las horas. Volviendo todo a
+   «quien me atienda», el filtro se suelta solo: sin nadie pedido no hay
+   turno que deducir, y no corresponde esconder nada.
+
+   **Esconder no es el control.** El servidor vuelve a comprobar turno y
+   servicio al guardar; esto es para que la clienta no pueda armar una
+   combinación que después se le rechace.
+   ------------------------------------------------------------------ */
+(function () {
+  'use strict';
+  var caja = document.querySelector('[data-turnos-caja]');
+  if (!caja) return;
+
+  var campo   = document.getElementById('idTurno');
+  var botones = caja.querySelectorAll('[data-turno]');
+  var combos  = function () { return document.querySelectorAll('[name^="prof_servicio["]'); };
+  var elegido = '0';        // lo que se apretó a mano
+  var deducido = '0';       // lo que sale del profesional pedido
+
+  function turnosDe(opcion) {
+    return String(opcion.getAttribute('data-turnos') || '').split(',').filter(Boolean);
+  }
+
+  function activo() { return elegido !== '0' ? elegido : deducido; }
+
+  // El turno del primer profesional pedido. Si trabaja en dos, no deduce
+  // nada: no hay una respuesta y adivinar escondería opciones válidas.
+  function deducir() {
+    deducido = '0';
+    Array.prototype.some.call(combos(), function (sel) {
+      if (!sel.value || sel.value === '0') return false;
+      var op = sel.options[sel.selectedIndex];
+      var t = turnosDe(op);
+      if (t.length === 1) { deducido = t[0]; return true; }
+
+      return false;
+    });
+  }
+
+  function pintar() {
+    var a = activo();
+    Array.prototype.forEach.call(botones, function (b) {
+      b.classList.toggle('activo', b.getAttribute('data-turno') === a);
+    });
+  }
+
+  function filtrar() {
+    var a = activo();
+    Array.prototype.forEach.call(combos(), function (sel) {
+      Array.prototype.forEach.call(sel.options, function (op) {
+        if (!op.value || op.value === '0') { op.hidden = false; return; }
+        var t = turnosDe(op);
+        // Sin turnos cargados no se esconde: es el criterio permisivo de
+        // siempre — quien no tiene nada cargado no queda fuera por eso.
+        op.hidden = (a !== '0' && t.length > 0 && t.indexOf(a) === -1);
+      });
+      // Si lo que estaba elegido quedó escondido, se suelta: dejarlo
+      // seleccionado mandaría al servidor justo lo que se quiso evitar.
+      if (sel.selectedIndex >= 0 && sel.options[sel.selectedIndex].hidden) {
+        sel.value = '0';
+      }
+    });
+  }
+
+  function refrescar(volverAPedir) {
+    deducir();
+    if (campo) { campo.value = activo(); }
+    pintar();
+    filtrar();
+    // La agenda depende del turno, así que se vuelve a pedir. El selector
+    // escucha los combos por su cuenta; acá se fuerza cuando cambió el
+    // turno sin que ningún combo se haya tocado.
+    if (volverAPedir) {
+      var srv = document.querySelector('.srv:checked');
+      if (srv) { srv.dispatchEvent(new Event('change')); }
+    }
+  }
+
+  Array.prototype.forEach.call(botones, function (b) {
+    b.addEventListener('click', function () {
+      elegido = b.getAttribute('data-turno');
+      refrescar(true);
+    });
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.name && e.target.name.indexOf('prof_servicio[') === 0) {
+      refrescar(false);
+    }
+  });
+
+  refrescar(false);
 })();

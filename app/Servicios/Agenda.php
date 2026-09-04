@@ -125,7 +125,14 @@ class Agenda
                                 FROM usuario_turno ut2
                                 JOIN turno_laboral t2 ON t2.id_turno = ut2.id_turno AND t2.activo = 1
                                WHERE ut2.id_usuario = u.id_usuario
-                                 AND ($suc = 0 OR t2.id_sucursal = $suc)), '') AS turnos
+                                 AND ($suc = 0 OR t2.id_sucursal = $suc)), '') AS turnos,
+                    -- Los ids de esos turnos, para que la pantalla pueda
+                    -- filtrar los combos sin volver a preguntar al servidor.
+                    COALESCE((SELECT GROUP_CONCAT(DISTINCT t3.id_turno)
+                                FROM usuario_turno ut3
+                                JOIN turno_laboral t3 ON t3.id_turno = ut3.id_turno AND t3.activo = 1
+                               WHERE ut3.id_usuario = u.id_usuario
+                                 AND ($suc = 0 OR t3.id_sucursal = $suc)), '') AS turnos_ids
                FROM usuario u
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN rol r ON r.id_rol = u.id_rol
@@ -608,6 +615,164 @@ class Agenda
      * ¿Se puede armar esta cita? Devuelve el mensaje del problema, o null.
      * $asignacion es [id_servicio => id_usuario] (0 = el principal).
      */
+    /**
+     * Los turnos activos de un local, para los botones de «¿a qué hora?».
+     *
+     * Elegir uno filtra en silencio el resto de la pantalla —los combos de
+     * profesional y los días y horas— y con eso el error de pedir a alguien de
+     * la mañana y a alguien de la tarde deja de poder ocurrir: no se puede
+     * elegir lo que no se ofrece.
+     */
+    public static function turnosDe(?int $idSucursal = null): array
+    {
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+
+        return DB::select(
+            "SELECT t.id_turno, t.nombre,
+                    TIME_FORMAT(t.hora_inicio, '%H:%i') AS desde,
+                    TIME_FORMAT(t.hora_fin, '%H:%i') AS hasta
+               FROM turno_laboral t
+              WHERE t.activo = 1 AND (? = 0 OR t.id_sucursal = ?)
+              ORDER BY t.hora_inicio", [$suc, $suc]
+        );
+    }
+
+    /** Un turno del local, o null. El id viene de la URL, así que se valida. */
+    public static function turnoPorId(int $idTurno, ?int $idSucursal = null): ?object
+    {
+        if ($idTurno <= 0) {
+            return null;
+        }
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+
+        return DB::selectOne(
+            "SELECT t.id_turno, t.nombre,
+                    TIME_FORMAT(t.hora_inicio, '%H:%i') AS desde,
+                    TIME_FORMAT(t.hora_fin, '%H:%i') AS hasta
+               FROM turno_laboral t
+              WHERE t.id_turno = ? AND t.activo = 1 AND (? = 0 OR t.id_sucursal = ?)",
+            [$idTurno, $suc, $suc]
+        );
+    }
+
+    /**
+     * Las horas que entran ENTERAS en el turno.
+     *
+     * No alcanza con que empiece adentro: una cita de 120 minutos a las 12:00 en
+     * un turno que termina 12:30 empezaría en franja y terminaría fuera, con la
+     * clienta sentada cuando el salón ya cerró ese turno.
+     *
+     * @param  array<int, object>  $horas
+     * @return array<int, object>
+     */
+    public static function soloDelTurno(array $horas, ?object $turno, int $duracion): array
+    {
+        if (! $turno) {
+            return $horas;
+        }
+        $desde = strtotime($turno->desde);
+        $hasta = strtotime($turno->hasta);
+
+        return array_values(array_filter($horas, function ($h) use ($desde, $hasta, $duracion) {
+            // `slots()` devuelve arreglos, pero el mismo filtro se usa sobre lo
+            // que vuelve de otras consultas: se acepta cualquiera de los dos en
+            // vez de atarse a la forma de hoy.
+            $hora = is_array($h) ? ($h['hora'] ?? '') : ($h->hora ?? '');
+            $i = strtotime((string) $hora);
+            if ($i === false) {
+                return false;
+            }
+
+            return $i >= $desde && ($i + $duracion * 60) <= $hasta;
+        }));
+    }
+
+    /**
+     * Los días en que ese turno de verdad trabaja.
+     *
+     * `turno_dia` guarda una fila por día (1 = lunes … 7 = domingo), que es la
+     * convención del proyecto — no la de `DAYOFWEEK()`, que arranca en domingo y
+     * correría todo un día.
+     *
+     * @param  array<int, string>  $dias
+     * @return array<int, string>
+     */
+    public static function diasDelTurno(array $dias, ?object $turno): array
+    {
+        if (! $turno) {
+            return $dias;
+        }
+        $suyos = array_map(fn ($r) => (int) $r->dia_semana,
+            DB::select('SELECT dia_semana FROM turno_dia WHERE id_turno = ?', [(int) $turno->id_turno]));
+        if (! $suyos) {
+            return $dias;   // turno sin días cargados: no filtra nada
+        }
+
+        return array_values(array_filter($dias,
+            fn ($d) => in_array((int) date('N', strtotime((string) $d)), $suyos, true)));
+    }
+
+    /** ¿Esta persona trabaja en ese turno? */
+    public static function trabajaEnTurno(int $idUsuario, int $idTurno): bool
+    {
+        return (bool) DB::scalar(
+            'SELECT 1 FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+              WHERE ut.id_usuario = ? AND ut.id_turno = ? LIMIT 1', [$idUsuario, $idTurno]
+        );
+    }
+
+    /** ¿Esta persona hace TODOS estos servicios? Sin lista, sí. */
+    public static function haceTodos(int $idUsuario, array $servicios): bool
+    {
+        foreach (array_filter(array_map('intval', $servicios)) as $sid) {
+            if (! (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$idUsuario, $sid])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Resuelve los servicios que quedaron en «que me atienda cualquiera».
+     *
+     * **Un 0 no significa «nadie»: significa que lo hace el dueño de la cita**,
+     * porque `cita_servicio.id_usuario` en NULL se resuelve contra
+     * `cita.id_usuario`. Así que si el principal no hace ese servicio, dejarlo
+     * en 0 lo condena: `validarReparto()` lo rechaza nombrando a una persona que
+     * la clienta no eligió para eso —«Lucía no hace Brushing»— cuando lo que
+     * pidió fue justamente que lo hiciera cualquiera.
+     *
+     * Lo que corresponde no es rechazar, es **asignarlo a alguien que sí lo
+     * haga**: es lo que haría el salón. Se elige entre quienes atienden en ese
+     * local, hacen ese servicio y tienen el hueco libre.
+     *
+     * @param  array<int, int>  $asignacion  servicio => profesional (0 = cualquiera)
+     * @return array<int, int>
+     */
+    public static function completarReparto(array $asignacion, int $idPrincipal, string $fechaHora, ?int $idSucursal = null): array
+    {
+        foreach ($asignacion as $sid => $quien) {
+            if ((int) $quien !== 0) {
+                continue;
+            }
+            // Si el dueño de la cita lo hace, se queda en 0: es el caso normal
+            // y no hace falta anotar nada.
+            if ($idPrincipal && self::haceTodos($idPrincipal, [(int) $sid])) {
+                continue;
+            }
+
+            $dur = self::duracion([(int) $sid]) ?: 60;
+            $otro = self::profesionalLibre($fechaHora, $dur, $idSucursal, [(int) $sid]);
+            if ($otro) {
+                $asignacion[$sid] = $otro;
+            }
+        }
+
+        return $asignacion;
+    }
+
     public static function validarReparto(array $asignacion, int $idPrincipal, string $fechaHora, ?int $excluirCita = null): ?string
     {
         $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
@@ -840,7 +1005,10 @@ class Agenda
      *     en vez de amontonarse en la primera del alfabeto. A igualdad, decide
      *     el nombre, para que el resultado sea siempre el mismo.
      */
-    public static function profesionalLibre(string $fechaHora, int $duracion, ?int $idSucursal = null): ?int
+    /**
+     * @param  array<int>  $servicios  los que esa persona tiene que saber hacer
+     */
+    public static function profesionalLibre(string $fechaHora, int $duracion, ?int $idSucursal = null, array $servicios = []): ?int
     {
         $conTurno = self::losQueTienenTurno();
         $dia = substr($fechaHora, 0, 10);
@@ -853,6 +1021,13 @@ class Agenda
         $libres = [];
         foreach (self::profesionales($idSucursal) as $orden => $p) {
             $id = (int) $p->id_usuario;
+            // **Y que HAGA los servicios.** Elegía sólo por hueco libre, así
+            // que «que me atienda cualquiera» podía caer en alguien que no hace
+            // eso — y `validarReparto()` rechazaba después, con un mensaje que
+            // nombra a una persona que la clienta ni eligió.
+            if (! self::haceTodos($id, $servicios)) {
+                continue;
+            }
             if (self::huecoLibre($id, $fechaHora, $duracion)) {
                 $libres[] = [
                     'id' => $id,

@@ -5301,4 +5301,73 @@ class ReglasDeNegocioTest extends TestCase
             ->assertOk()
             ->assertSee('Ya cambiaste el', false);
     }
+
+    /**
+     * **«Que me atienda cualquiera» no puede terminar en «fulana no hace eso».**
+     *
+     * Un 0 en el reparto no significa «nadie»: significa que lo hace el DUENIO
+     * de la cita, porque `cita_servicio.id_usuario` en NULL se resuelve contra
+     * `cita.id_usuario`. Asi que eligiendo a Lucia para un servicio y dejando
+     * otro en «cualquiera», el segundo caia sobre Lucia — y si ella no lo hace,
+     * la reserva se rechazaba nombrando a una persona que la clienta NO habia
+     * elegido para eso. Desde afuera parecia que el sistema se contradecia: el
+     * combo de ese servicio ni siquiera la ofrecia.
+     *
+     * Lo que corresponde no es rechazar sino **asignarlo a alguien que si lo
+     * haga**, que es lo que haria el salon. Se mide con el caso exacto que se
+     * reporto.
+     */
+    public function test_lo_que_queda_en_cualquiera_va_a_alguien_que_lo_haga(): void
+    {
+        // Alguien con servicios cargados, y un servicio que NO hace.
+        // **La prueba garantiza su premisa.** Tomando «el primero con servicios
+        // cargados» caía en alguien que los hace todos, y entonces no hay caso
+        // que medir: hace falta uno que tenga al menos un servicio ajeno.
+        $prof = DB::selectOne(
+            "SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1
+                AND EXISTS (SELECT 1 FROM persona_servicio ps WHERE ps.id_persona = u.id_persona)
+                AND EXISTS (SELECT 1 FROM servicio s
+                             WHERE s.activo = 1 AND fn_usuario_hace_servicio(u.id_usuario, s.id_servicio) = 0)
+              LIMIT 1"
+        );
+        if (! $prof) {
+            $this->markTestSkipped('Nadie tiene servicios cargados: el criterio permisivo hace todo.');
+        }
+        $id = (int) $prof->id_usuario;
+
+        $suyo = DB::selectOne(
+            "SELECT ps.id_servicio FROM persona_servicio ps
+               JOIN usuario u ON u.id_persona = ps.id_persona
+               JOIN servicio s ON s.id_servicio = ps.id_servicio AND s.activo = 1
+              WHERE u.id_usuario = ? LIMIT 1", [$id]
+        );
+        $ajeno = DB::selectOne(
+            "SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1 AND fn_usuario_hace_servicio(?, s.id_servicio) = 0 LIMIT 1", [$id]
+        );
+        if (! $suyo || ! $ajeno) {
+            $this->markTestSkipped('Hace todos los servicios: no hay caso que medir.');
+        }
+
+        $fecha = date('Y-m-d 10:00:00', strtotime('+8 days'));
+        $asignacion = [(int) $suyo->id_servicio => $id, (int) $ajeno->id_servicio => 0];
+
+        // Sin completar, el reparto culpa al principal por un servicio que la
+        // clienta dejo a criterio del salon.
+        $this->assertStringContainsString('no hace',
+            (string) Agenda::validarReparto($asignacion, $id, $fecha),
+            'Esta es la mitad que falla: sin completar, el 0 cae sobre el principal.');
+
+        // Completado, ese servicio queda en manos de alguien que si lo hace.
+        $comp = Agenda::completarReparto($asignacion, $id, $fecha, 1);
+        $asignado = (int) ($comp[(int) $ajeno->id_servicio] ?? 0);
+
+        $this->assertNotSame(0, $asignado,
+            'El servicio que el principal no hace tiene que quedar asignado a otra persona.');
+        $this->assertSame(1, (int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)',
+            [$asignado, (int) $ajeno->id_servicio]),
+            'A quien se le asigno tiene que hacer ese servicio.');
+    }
 }

@@ -526,7 +526,11 @@ class CitasController extends Controller
                 // La cita queda a nombre de quien más trabajo tiene adentro.
                 $idUsuario = Agenda::principalDelReparto($asignacion);
             } else {
-                $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal) ?? 0;
+                // Con los servicios: sin eso podía tocar alguien que no los
+                // hace, y el rechazo llegaba después nombrando a una persona
+                // que nadie había elegido para eso.
+                $sinDuenio = array_keys(array_filter($asignacion, fn ($p) => (int) $p === 0));
+                $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal, null, $sinDuenio) ?? 0;
             }
 
             if (! $idUsuario) {
@@ -541,6 +545,12 @@ class CitasController extends Controller
         // llegar al procedimiento, para que el formulario nunca confirme una
         // cita fuera de su jornada y el mensaje explique qué debe corregirse.
         $idSucursal = Sucursales::activa();
+
+        // Lo que quedó en «quien esté libre» se resuelve acá: un 0 quiere decir
+        // que lo hace el dueño de la cita, así que si él no lo hace hay que
+        // darle otra persona en vez de rechazar.
+        $asignacion = Agenda::completarReparto($asignacion, $idUsuario, $fecha, $idSucursal);
+
         $aRevisar = array_values(array_unique(array_filter(
             array_merge([$idUsuario], array_map('intval', array_values($asignacion)))
         )));

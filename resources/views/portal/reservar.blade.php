@@ -60,6 +60,40 @@
                 <a class="btn btn-sm btn-outline-neutro mb-2" href="{{ route('portal.profesionales', ['sucursal' => $sucursal]) }}">
                     <i class="bi bi-people"></i> ¿Quién hace cada cosa?</a>
 
+                {{-- **Los botones de turno, y el filtro silencioso.**
+
+                     El problema que resuelven: eligiendo a alguien de la mañana
+                     para un servicio y a alguien de la tarde para otro no hay
+                     ningún horario donde las dos estén, y la clienta lo
+                     descubría al final, sin saber cuál de sus decisiones
+                     fallaba. Explicarlo con un aviso ayudaba; impedirlo es
+                     mejor.
+
+                     Elegir un turno acota **todo lo demás**: los combos sólo
+                     ofrecen a quien trabaja en esa franja, y los días y las
+                     horas se recortan a ella. Y si no se elige ninguno, el
+                     turno se deduce del primer profesional que se pida — que es
+                     la misma decisión tomada de otra forma.
+
+                     **Volviendo todo a «quien me atienda» el filtro se suelta
+                     solo**: si no hay nadie pedido, no hay turno que deducir y
+                     no corresponde esconderle nada. --}}
+                @if (count($turnos) > 1)
+                    <div class="mb-2" data-turnos-caja>
+                        <div class="form-label mb-1">
+                            ¿A qué hora te queda mejor?<x-ayuda>Elegí un turno y te mostramos sólo los profesionales y los horarios de esa franja. Si no elegís ninguno, se toma el del primer profesional que pidas.</x-ayuda>
+                        </div>
+                        <input type="hidden" name="id_turno" id="idTurno" value="{{ old('id_turno') }}">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="spg-chip" data-turno="0">Cualquier hora</button>
+                            @foreach ($turnos as $t)
+                                <button type="button" class="spg-chip" data-turno="{{ $t->id_turno }}">
+                                    {{ $t->nombre }} · {{ $t->desde }}-{{ $t->hasta }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 {{-- **La restricción se explica ANTES, no en el rechazo.**
                      Eligiendo a alguien de la mañana para un servicio y a
                      alguien de la tarde para otro no hay ningún horario donde
@@ -121,6 +155,7 @@
                                      correcto y lo decía tarde. --}}
                                 @foreach ($ofrecer as $p)
                                     <option value="{{ $p->id_usuario }}"
+                                        data-turnos="{{ $p->turnos_ids ?? '' }}"
                                         @selected((int) old('prof_servicio.' . $s->id_servicio) === (int) $p->id_usuario)>con {{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
                                 @endforeach
                             </select>
