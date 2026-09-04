@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    <div class="spg-panel mb-3">
+    <div class="spg-panel mb-3 spg-portal-citas-grid">
         <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Próximas</h2>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
@@ -218,7 +218,7 @@
     </div>
 
     @if ($pasadas)
-        <div class="spg-panel">
+        <div class="spg-panel spg-portal-citas-grid">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Anteriores</h2>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">

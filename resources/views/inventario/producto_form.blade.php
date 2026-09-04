@@ -111,7 +111,11 @@
                     <div class="input-group">
                         <span class="input-group-text">{{ config('spg.moneda') }}</span>
                         <input class="form-control input-miles" id="precio_costo" name="precio_costo" data-min="0"
-                               value="{{ monto_input(old('precio_costo', $p->precio_costo ?? 0)) }}">
+                               {{-- **`monto_input()` va DENTRO del `old()`, no envolviéndolo.**
+                                    Envolviéndolo, el valor que vuelve de un rechazo —«15.000», ya
+                                    formateado— pasa por `(float)` y queda en **15**: el costo se
+                                    ve cambiado sin que nadie lo tocara. --}}
+                               value="{{ old('precio_costo', monto_input($p->precio_costo ?? 0)) }}">
                     </div>
                 </div>
                 {{-- **Precio de venta: fuera de alcance desde la 7.24.0.**

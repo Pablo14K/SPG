@@ -75,7 +75,9 @@ class PersonalController extends Controller
         // quien fue cargado acá y todavía no la tiene. Lo segundo se sabe
         // porque no es cliente ni proveedor — no hace falta columna nueva.
         $w = ["(EXISTS (SELECT 1 FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
-                         WHERE u.id_persona = pe.id_persona AND r.es_personal = 1)
+                         WHERE u.id_persona = pe.id_persona AND r.es_personal = 1
+                           AND (u.id_rol <> " . (int) config('permisos.rol_admin', 1) . "
+                                OR EXISTS (SELECT 1 FROM persona_servicio psa WHERE psa.id_persona = pe.id_persona)))
                OR (NOT EXISTS (SELECT 1 FROM cliente c WHERE c.id_persona = pe.id_persona)
                AND NOT EXISTS (SELECT 1 FROM proveedor pr WHERE pr.id_persona = pe.id_persona)
                AND NOT EXISTS (SELECT 1 FROM usuario u2 WHERE u2.id_persona = pe.id_persona)
@@ -318,6 +320,8 @@ class PersonalController extends Controller
             // persona ya elegida: si no, hay que buscarla de nuevo en el combo.
             'personaSug' => (int) $request->query('persona', 0),
             'roles' => DB::select('SELECT * FROM rol WHERE es_personal = 1 AND activo = 1 ORDER BY id_rol'),
+            'misRoles' => $id ? array_map(fn ($r) => (int) $r->id_rol,
+                DB::select('SELECT id_rol FROM usuario_rol WHERE id_usuario = ?', [$id])) : [],
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             'misSuc' => $id ? array_map(fn ($r) => (int) $r->id_sucursal,
                 DB::select('SELECT id_sucursal FROM usuario_sucursal WHERE id_usuario = ?', [$id])) : [],
@@ -331,8 +335,12 @@ class PersonalController extends Controller
     public function usuarioGuardar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_usuario', 0);
+        $rolesElegidos = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('roles', [])))));
+        if (! $rolesElegidos && $request->filled('id_rol')) {
+            $rolesElegidos = [(int) $request->input('id_rol')];
+        }
         $d = [
-            'id_rol' => (int) $request->input('id_rol', 0),
+            'id_rol' => $rolesElegidos[0] ?? 0,
             // `id_sucursal` ya NO se pregunta: sale de la primera sucursal
             // marcada, más abajo. Ver el comentario del formulario.
             'id_sucursal' => null,
@@ -358,8 +366,11 @@ class PersonalController extends Controller
             $error = 'El nombre de usuario es obligatorio.';
         } elseif (! preg_match('/^[a-zA-Z0-9._-]{3,60}$/', $d['username'])) {
             $error = 'El nombre de usuario debe tener entre 3 y 60 caracteres (letras, números, punto, guion o guion bajo).';
-        } elseif (! $d['id_rol'] || ! DB::scalar('SELECT COUNT(*) FROM rol WHERE id_rol = ? AND es_personal = 1 AND activo = 1', [$d['id_rol']])) {
-            $error = 'Elegí un rol de personal válido.';
+        } elseif (! $rolesElegidos || (int) DB::scalar(
+            'SELECT COUNT(*) FROM rol WHERE es_personal = 1 AND activo = 1 AND id_rol IN ('
+            . implode(',', array_fill(0, count($rolesElegidos), '?')) . ')', $rolesElegidos
+        ) !== count($rolesElegidos)) {
+            $error = 'Elegí al menos un rol de personal válido.';
         } elseif ($pass !== '' && strlen($pass) < 6) {
             $error = 'La contraseña debe tener al menos 6 caracteres.';
         } elseif (! $id && $pass === '') {
@@ -369,7 +380,7 @@ class PersonalController extends Controller
         } elseif (DB::scalar('SELECT COUNT(*) FROM usuario WHERE id_persona = ? AND id_usuario <> ?',
                              [$per->id_persona, $id])) {
             $error = 'Esa persona ya tiene una cuenta en el sistema.';
-        } elseif ($id === (int) session('uid') && $d['id_rol'] !== (int) config('permisos.rol_admin', 1)) {
+        } elseif ($id === (int) session('uid') && ! in_array((int) config('permisos.rol_admin', 1), $rolesElegidos, true)) {
             $error = 'No podés quitarte a vos mismo el rol de Administrador: pedile a otro Administrador que lo haga.';
         } elseif (! $sucs) {
             // **Ahora es obligatorio, y antes no lo era.** Mientras existía el
@@ -398,7 +409,7 @@ class PersonalController extends Controller
         $d['id_sucursal'] = $sucs[0] ?? null;
 
         try {
-            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $turnos, $per) {
+            $r = DB::transaction(function () use ($id, $d, $pass, $sucs, $turnos, $per, $rolesElegidos) {
                 // **`persona` NO se toca desde acá.** Sus datos se editan en
                 // Personal -> Profesionales; esta pantalla administra la cuenta.
                 if ($id) {
@@ -422,6 +433,11 @@ class PersonalController extends Controller
                         [$per->id_persona, $d['id_rol'], $d['id_sucursal'], $d['username'], Hash::make($pass)]
                     );
                     $idUsuario = (int) DB::getPdo()->lastInsertId();
+                }
+
+                DB::delete('DELETE FROM usuario_rol WHERE id_usuario = ?', [$idUsuario]);
+                foreach ($rolesElegidos as $idRol) {
+                    DB::insert('INSERT IGNORE INTO usuario_rol (id_usuario,id_rol) VALUES (?,?)', [$idUsuario, $idRol]);
                 }
 
                 // Quien tiene cuenta de personal es personal: así sigue
@@ -773,9 +789,19 @@ class PersonalController extends Controller
         ]);
     }
 
-    public function comisionForm(): View
+    /**
+     * El alta y la edición son el MISMO formulario.
+     *
+     * Dos iguales se desfasan, que es un error que este proyecto ya se hizo
+     * varias veces —el de turnos, sin ir más lejos—.
+     */
+    public function comisionForm(Request $request): View
     {
+        $id = (int) $request->query('id', 0);
+
         return view('seguridad.comision_form', [
+            'editar' => $id ? DB::selectOne(
+                'SELECT * FROM comision WHERE id_comision = ? AND activo = 1', [$id]) : null,
             'profs' => DB::select(
                 "SELECT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
                    FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
@@ -800,7 +826,8 @@ class PersonalController extends Controller
             'valor' => num($request->input('valor')),
             'vigente_desde' => (string) $request->input('vigente_desde', date('Y-m-d')) ?: date('Y-m-d'),
         ];
-        $volver = redirect()->route('seguridad.comision_form');
+        $id = (int) $request->input('id_comision', 0);
+        $volver = redirect()->route('seguridad.comision_form', $id ? ['id' => $id] : []);
 
         $error = null;
         if (! $d['id_usuario'] || ! DB::scalar(
@@ -826,18 +853,68 @@ class PersonalController extends Controller
         }
 
         try {
-            DB::insert(
-                'INSERT INTO comision (id_usuario,id_sucursal,id_servicio,tipo,valor,vigente_desde)
-                 VALUES (:id_usuario,:id_sucursal,:id_servicio,:tipo,:valor,:vigente_desde)', $d
-            );
-            Auditoria::registrar('ALTA', 'Personal', 'comision', (int) DB::getPdo()->lastInsertId(),
-                'Comisión ' . $d['tipo'] . ' ' . $d['valor']);
-            flash('Comisión registrada.');
-        } catch (Throwable) {
+            if ($id) {
+                // **Queda anotado de cuánto a cuánto**, que es lo que sirve
+                // dentro de tres meses: «se editó la comisión» no explica nada.
+                $antes = DB::selectOne('SELECT tipo, valor FROM comision WHERE id_comision = ? AND activo = 1', [$id]);
+                if (! $antes) {
+                    flash('Esa comisión ya no está.', 'error');
+
+                    return redirect()->route('seguridad.comisiones');
+                }
+
+                DB::update(
+                    'UPDATE comision
+                        SET id_usuario = :id_usuario, id_sucursal = :id_sucursal, id_servicio = :id_servicio,
+                            tipo = :tipo, valor = :valor, vigente_desde = :vigente_desde
+                      WHERE id_comision = :id', $d + ['id' => $id]
+                );
+                Auditoria::registrar('EDICION', 'Personal', 'comision', $id,
+                    'Comisión: de ' . $antes->tipo . ' ' . cant($antes->valor)
+                    . ' a ' . $d['tipo'] . ' ' . cant($d['valor']));
+                flash('Comisión actualizada.');
+            } else {
+                DB::insert(
+                    'INSERT INTO comision (id_usuario,id_sucursal,id_servicio,tipo,valor,vigente_desde)
+                     VALUES (:id_usuario,:id_sucursal,:id_servicio,:tipo,:valor,:vigente_desde)', $d
+                );
+                Auditoria::registrar('ALTA', 'Personal', 'comision', (int) DB::getPdo()->lastInsertId(),
+                    'Comisión ' . $d['tipo'] . ' ' . $d['valor']);
+                flash('Comisión registrada.');
+            }
+        } catch (Throwable $e) {
+            report($e);
             flash('Ya existe una comisión para ese profesional/servicio en esa fecha.', 'error');
 
             return $volver->withInput();
         }
+
+        return redirect()->route('seguridad.comisiones');
+    }
+
+    /**
+     * Una comisión se da de BAJA, no se borra.
+     *
+     * `fn_comision_servicio` toma la vigente a la fecha del servicio, así que
+     * borrar la fila cambiaría lo que dicen los informes de atenciones que ya
+     * ocurrieron — es la regla de siempre: lo que la historia nombra no se
+     * quita.
+     */
+    public function comisionBaja(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_comision', 0);
+        $c = $id ? DB::selectOne('SELECT * FROM comision WHERE id_comision = ? AND activo = 1', [$id]) : null;
+
+        if (! $c) {
+            flash('Esa comisión ya no está.', 'error');
+
+            return redirect()->route('seguridad.comisiones');
+        }
+
+        DB::update('UPDATE comision SET activo = 0 WHERE id_comision = ?', [$id]);
+        Auditoria::registrar('BAJA', 'Personal', 'comision', $id,
+            'Comisión ' . $c->tipo . ' ' . cant($c->valor) . ' dada de baja');
+        flash('Comisión dada de baja. Desde ahora, esas atenciones se liquidan con la que quede vigente.');
 
         return redirect()->route('seguridad.comisiones');
     }

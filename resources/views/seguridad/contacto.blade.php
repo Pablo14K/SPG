@@ -31,9 +31,16 @@
                             <input class="form-control form-control-sm" name="valor[]" maxlength="160"
                                    placeholder="Número, usuario o enlace" value="{{ $c->valor ?? '' }}">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <input class="form-control form-control-sm" name="etiqueta[]" maxlength="40"
                                    placeholder="Etiqueta (opcional)" value="{{ $c->etiqueta ?? '' }}">
+                        </div>
+                        {{-- **Se podían agregar filas y no sacarlas.** Una cargada por
+                             error sólo se «borraba» vaciándola a mano, y con el canal
+                             puesto no siempre se entiende que eso alcanza. --}}
+                        <div class="col-md-1 d-flex align-items-center">
+                            <button type="button" class="btn btn-sm btn-outline-neutro quitaContacto w-100"
+                                    title="Quitar este contacto"><i class="bi bi-x-lg"></i></button>
                         </div>
                     </div>
                 @endforeach
@@ -61,11 +68,22 @@
 
 @push('scripts')
 <script>
+var cont = document.getElementById('filasContacto');
+
 document.getElementById('masContactos').addEventListener('click', function () {
-    var cont = document.getElementById('filasContacto');
     var copia = cont.querySelector('.filaContacto').cloneNode(true);
     copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
     cont.appendChild(copia);
+});
+
+// **Nunca se queda sin ninguna fila**: con cero, «Otra fila» clona algo que ya
+// no existe y el botón deja de funcionar. La última se vacía en vez de irse.
+cont.addEventListener('click', function (e) {
+    var b = e.target.closest('.quitaContacto');
+    if (!b) { return; }
+    var fila = b.closest('.filaContacto');
+    if (cont.querySelectorAll('.filaContacto').length > 1) { fila.remove(); }
+    else { fila.querySelectorAll('input').forEach(function (i) { i.value = ''; }); }
 });
 </script>
 @endpush

@@ -233,7 +233,7 @@
                                 <span class="input-group-text unidadProducto">unidad</span>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
                                 {{-- **Sólo los servicios MARCADOS.** Salía el catálogo
                                      entero —quince opciones— y eso deja imputar un producto
@@ -256,6 +256,14 @@
                                         en {{ $sc->nombre }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        {{-- **Había para agregar y no para quitar.** Una fila cargada por
+                             error sólo se deshacía volviendo el combo a «sin producto» y
+                             borrando la cantidad a mano, y con la fila ya elegida eso no
+                             se lee como «borrar». --}}
+                        <div class="col-md-1 d-flex align-items-center">
+                            <button type="button" class="btn btn-sm btn-outline-neutro quitaProducto w-100"
+                                    title="Quitar este producto" @disabled((bool) $factura)><i class="bi bi-x-lg"></i></button>
                         </div>
                     </div>
                 @endfor
@@ -367,6 +375,19 @@ function spgUnidad(fila) {
 
 document.getElementById('filasProductos')?.addEventListener('change', function (e) {
     if (e.target.name === 'producto[]') { spgUnidad(e.target.closest('.filaProducto')); }
+});
+
+// **Nunca se queda sin ninguna fila**: con cero, «Otra fila» clona algo que ya
+// no existe y el botón deja de funcionar. La última se vacía en vez de irse.
+document.getElementById('filasProductos')?.addEventListener('click', function (e) {
+    var b = e.target.closest('.quitaProducto');
+    if (!b) { return; }
+    var cont = document.getElementById('filasProductos');
+    var fila = b.closest('.filaProducto');
+    if (cont.querySelectorAll('.filaProducto').length > 1) { fila.remove(); return; }
+    fila.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+    fila.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    spgUnidad(fila);
 });
 
 // Una fila más para cargar productos, clonando la última vacía

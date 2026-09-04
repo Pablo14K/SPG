@@ -7,6 +7,7 @@ namespace App\Servicios;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
+use Throwable;
 
 /**
  * Quién está usando el sistema.
@@ -174,6 +175,27 @@ class Sesion
             'tema' => self::temaDe((int) $u->id_usuario),
         ]);
 
+        // Una misma cuenta puede cambiar de perspectiva sin volver a
+        // autenticarse. Se conserva `rol` como el activo para no romper los
+        // permisos existentes y se guarda la lista completa en sesión.
+        try {
+            $roles = DB::select(
+                'SELECT r.id_rol, r.nombre, r.es_personal
+                   FROM rol r JOIN usuario_rol ur ON ur.id_rol = r.id_rol
+                  WHERE ur.id_usuario = ? AND r.activo = 1 ORDER BY r.id_rol', [$idUsuario]
+            );
+        } catch (Throwable) {
+            $roles = [];
+        }
+        if (! $roles) {
+            $roles = [(object) ['id_rol' => $u->id_rol, 'nombre' => $u->rol_nombre,
+                'es_personal' => $u->es_personal]];
+        }
+        session(['roles' => array_map(fn ($r) => [
+            'id_rol' => (int) $r->id_rol, 'nombre' => (string) $r->nombre,
+            'es_personal' => (bool) $r->es_personal,
+        ], $roles)]);
+
         if (! $u->es_personal) {
             $idc = DB::scalar('SELECT id_cliente FROM cliente WHERE id_usuario = ? LIMIT 1', [$idUsuario]);
             session(['id_cliente' => $idc ? (int) $idc : null]);
@@ -254,10 +276,19 @@ class Sesion
         if (! session('uid')) {
             return;
         }
-        $rol = DB::selectOne(
+        try {
+            $rol = DB::selectOne(
+                'SELECT r.id_rol, r.nombre, r.es_personal FROM rol r
+                   JOIN usuario_rol ur ON ur.id_rol = r.id_rol
+                  WHERE ur.id_usuario = ? AND r.activo = 1 AND r.id_rol = ?',
+                [(int) session('uid'), (int) session('rol')]
+            );
+        } catch (Throwable) {
+            $rol = null;
+        }
+        $rol ??= DB::selectOne(
             'SELECT u.id_rol, r.nombre, r.es_personal FROM usuario u
-               JOIN rol r ON r.id_rol = u.id_rol WHERE u.id_usuario = ?',
-            [(int) session('uid')]
+               JOIN rol r ON r.id_rol = u.id_rol WHERE u.id_usuario = ?', [(int) session('uid')]
         );
         if (! $rol) {
             return;
@@ -273,6 +304,26 @@ class Sesion
             'es_personal' => (bool) $rol->es_personal,
             'es_cliente' => ! (bool) $rol->es_personal,
         ]);
+    }
+
+    /** Cambia la perspectiva a otro rol ya asignado a la cuenta. */
+    public static function cambiarRol(int $idRol): bool
+    {
+        $uid = (int) session('uid', 0);
+        $rol = DB::selectOne(
+            'SELECT r.id_rol, r.nombre, r.es_personal FROM rol r
+               JOIN usuario_rol ur ON ur.id_rol = r.id_rol
+              WHERE ur.id_usuario = ? AND ur.id_rol = ? AND r.activo = 1', [$uid, $idRol]
+        );
+        if (! $rol) {
+            return false;
+        }
+        Permisos::olvidar();
+        session(['rol' => (int) $rol->id_rol, 'rol_nom' => $rol->nombre,
+            'es_personal' => (bool) $rol->es_personal, 'es_cliente' => ! (bool) $rol->es_personal,
+            'id_sucursal' => 0, 'sucursal_nom' => '']);
+
+        return true;
     }
 
     public static function activa(): bool

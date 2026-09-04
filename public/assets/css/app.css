@@ -581,6 +581,24 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
 .spg-horas{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
 
+/* En el portal «Reservar» y «Mis citas» pertenecen a Citas. En móvil el
+   grupo es un desplegable nativo (funciona aunque no cargue JavaScript) y no
+   roba ancho a la barra. */
+.spg-portal-citas > summary{list-style:none;cursor:pointer;}
+.spg-portal-citas > summary::-webkit-details-marker{display:none;}
+.spg-portal-citas > summary::marker{content:'';}
+.spg-portal-citas .spg-nav-menu{display:none;}
+.spg-portal-citas[open] .spg-nav-menu{display:block;position:static;opacity:1;visibility:visible;transform:none;min-width:0;box-shadow:none;border-top:0;border-radius:0;padding:.15rem .3rem;background:var(--sup-oscura);}
+
+@media (max-width:576px){
+  .spg-portal-citas-grid .table thead{display:none;}
+  .spg-portal-citas-grid .table tbody tr{display:block;border-bottom:1px solid var(--gris-calido);padding:.65rem 0;}
+  .spg-portal-citas-grid .table tbody tr:last-child{border-bottom:0;}
+  .spg-portal-citas-grid .table tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;border:0;padding:.18rem 0;text-align:right;white-space:normal;}
+  .spg-portal-citas-grid .table tbody td:first-child{font-weight:600;}
+  .spg-portal-citas-grid .table tbody td:last-child{justify-content:flex-end;flex-wrap:wrap;}
+}
+
 /* ---- Selector de agenda: el día y la hora se eligen con COMBOS ----
    Antes eran fichas: con dos meses de agenda, cincuenta botones que hay que
    recorrer con la vista, y en el celular varias pantallas de scroll. Tres
@@ -719,6 +737,10 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-srv-desc{font-size:.74rem;color:var(--gris-oscuro);line-height:1.3;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .spg-srv-precio{font-size:1rem;font-weight:600;color:var(--oro-texto);}
+/* El de lista tachado, en neutro: lo que se lee de una es lo que va a pagar,
+   y el tachado está para explicar por qué el otro número es más chico. */
+.spg-srv-lista{color:var(--gris-oscuro);font-weight:400;font-size:.82rem;margin-right:.25rem;}
+.spg-srv-off{font-size:.66rem;vertical-align:middle;}
 .spg-srv-dur{font-size:.73rem;color:var(--gris-oscuro);}
 
 /* **En el celular la tarjeta se achica, y sobre todo la foto.**

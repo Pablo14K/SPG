@@ -89,6 +89,7 @@ Route::middleware('sesion')->prefix('cuenta')->name('cuenta.')->group(function (
     Route::post('password/cancelar', [CuentaController::class, 'passwordCancelar'])->name('password_cancelar');
     // El tema de la interfaz: preferencia de cada persona, no del salón.
     Route::post('tema', [CuentaController::class, 'tema'])->name('tema');
+    Route::post('cambiar-rol', [CuentaController::class, 'cambiarRol'])->name('cambiar_rol');
 });
 
 // --- La cita desde el enlace del correo (SIN sesión) ----------------------
@@ -263,6 +264,7 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('comisiones', [PersonalController::class, 'comisiones'])->name('comisiones');
             Route::get('comisiones/nueva', [PersonalController::class, 'comisionForm'])->name('comision_form');
             Route::post('comisiones/guardar', [PersonalController::class, 'comisionGuardar'])->name('comision.guardar');
+            Route::post('comisiones/baja', [PersonalController::class, 'comisionBaja'])->name('comision.baja');
         });
 
         Route::middleware('modulo:personal.asistencia')->group(function () {

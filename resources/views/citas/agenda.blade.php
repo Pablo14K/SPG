@@ -89,7 +89,7 @@
                                         <i class="bi bi-info-circle"></i></button>
                                 @endif
                             </td>
-                            @if ($verTodo)<td class="text-muted-warm">{{ $c->profesional }}</td>@endif
+                            @if ($verTodo)<td class="text-muted-warm">{{ $c->profesionales ?: $c->profesional }}</td>@endif
                             <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
                             <td class="text-end">{{ (int) $c->duracion_min }} min</td>
                             <td>
@@ -362,10 +362,33 @@
                                                              a quién esperar. La primera es la clienta, así
                                                              que acá van las otras. --}}
                                                         @if (! empty($acompanantes[$c->id_cita]))
-                                                            <div class="text-muted-warm" style="font-size:.85rem">
+                                                            <div class="text-muted-warm mb-1" style="font-size:.85rem">
                                                                 Con {{ $c->cliente }} vienen:
-                                                                {{ implode(', ', $acompanantes[$c->id_cita]) }}
                                                             </div>
+                                                            {{-- **Cada acompañante puede tener su ficha.** El
+                                                                 salón la va a atender igual que a quien reservó,
+                                                                 y sin ficha propia no hay dónde anotarle sus
+                                                                 preferencias: el día que quiera abrir su cuenta
+                                                                 arranca de cero. No se le crea sola —sería
+                                                                 inventar una persona con un nombre a medias—:
+                                                                 se ofrece, con el nombre ya puesto. --}}
+                                                            <ul class="list-unstyled mb-0" style="font-size:.85rem">
+                                                                @foreach ($acompanantes[$c->id_cita] as $ac)
+                                                                    <li class="mb-1">
+                                                                        {{ $ac->completo }}
+                                                                        @if ($ac->id_cliente)
+                                                                            <a class="btn btn-sm btn-outline-neutro py-0"
+                                                                               href="{{ route('clientes.historial', $ac->id_cliente) }}">
+                                                                                <i class="bi bi-clock-history"></i> Su historial</a>
+                                                                        @elseif (Permisos::puede('clientes.registro'))
+                                                                            <a class="btn btn-sm btn-rapido py-0"
+                                                                               href="{{ route('clientes.form', ['nombre' => $ac->nombre,
+                                                                                                                'apellido' => $ac->apellido]) }}">
+                                                                                <i class="bi bi-person-plus"></i> Crear su ficha</a>
+                                                                        @endif
+                                                                    </li>
+                                                                @endforeach
+                                                            </ul>
                                                         @endif
                                                     </dd>
                                                 @endif

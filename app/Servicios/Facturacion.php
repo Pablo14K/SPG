@@ -178,10 +178,10 @@ class Facturacion
         Bd::procedimiento('sp_anular_cobro', [$idCobro, $idUsuario]);
     }
 
-    /** Acredita el total de un comprobante de venta. Devuelve el id de la nota. */
-    public static function notaCredito(int $idFacturaOrigen, int $idUsuario, string $motivo): int
+    /** Acredita todo o parte de un comprobante de venta. Devuelve el id de la nota. */
+    public static function notaCredito(int $idFacturaOrigen, int $idUsuario, string $motivo, ?float $monto = null): int
     {
-        return Bd::idDe('sp_emitir_nota_credito', [$idFacturaOrigen, $idUsuario, $motivo]);
+        return Bd::idDe('sp_emitir_nota_credito', [$idFacturaOrigen, $idUsuario, $motivo, $monto]);
     }
 
     // -----------------------------------------------------------------
@@ -225,9 +225,10 @@ class Facturacion
      * historial del cliente muestre lo que pasó. Va como AJUSTE porque el CHECK
      * de la base solo admite CANJE con puntos negativos cuando canjea el cliente.
      */
-    public static function revertirPuntos(int $idFactura, int $idCliente, string $motivo = 'Anulación'): int
+    public static function revertirPuntos(int $idFactura, int $idCliente, string $motivo = 'Anulación', float $proporcion = 1.0): int
     {
         $saldo = (int) DB::scalar('SELECT COALESCE(SUM(puntos),0) FROM movimiento_punto WHERE id_factura = ?', [$idFactura]);
+        $saldo = (int) floor($saldo * max(0, min(1, $proporcion)));
         if ($saldo <= 0) {
             return 0;
         }

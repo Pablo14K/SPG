@@ -133,6 +133,19 @@
                         @endif
                     </span></li>
                     <li><hr class="dropdown-divider"></li>
+                    @if (count((array) session('roles', [])) > 1)
+                        <li><span class="dropdown-item-text text-muted-warm" style="font-size:.75rem">Cambiar perspectiva</span></li>
+                        @foreach ((array) session('roles', []) as $spgRol)
+                            <li><form method="post" action="{{ route('cuenta.cambiar_rol') }}">
+                                @csrf
+                                <input type="hidden" name="id_rol" value="{{ $spgRol['id_rol'] }}">
+                                <button class="dropdown-item {{ (int) $spgRol['id_rol'] === (int) session('rol') ? 'active' : '' }}" @disabled((int) $spgRol['id_rol'] === (int) session('rol'))>
+                                    <i class="bi bi-person-badge"></i> {{ $spgRol['nombre'] }}
+                                </button>
+                            </form></li>
+                        @endforeach
+                        <li><hr class="dropdown-divider"></li>
+                    @endif
                     @if (Navegacion::existe('cuenta.index'))
                         <li><a class="dropdown-item" href="{{ Navegacion::url('cuenta.index') }}">
                             <i class="bi bi-gear"></i> Mi cuenta</a></li>
@@ -183,8 +196,24 @@
 @if ($spgPortal && $spgRuta !== 'portal.index')
     <nav class="spg-nav" aria-label="Secciones">
         <div class="spg-nav-in">
+            @php
+                $spgCitas = collect($spgPortal)->filter(fn ($p) => in_array($p['clave'], ['portal.reservar', 'portal.citas'], true));
+            @endphp
+            @if ($spgCitas->isNotEmpty())
+                <details class="spg-nav-grupo spg-portal-citas" @if ($spgCitas->contains(fn ($p) => $spgRuta === $p['clave'])) open @endif>
+                    <summary class="spg-nav-item {{ $spgCitas->contains(fn ($p) => $spgRuta === $p['clave']) ? 'activo' : '' }}">
+                        <i class="bi bi-calendar-event"></i><span>Citas</span><i class="bi bi-chevron-down spg-nav-flecha"></i>
+                    </summary>
+                    <div class="spg-nav-menu" role="menu" aria-label="Citas">
+                        @foreach ($spgCitas as $spgP)
+                            <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}" href="{{ $spgP['url'] }}">
+                                <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['titulo'] }}</span></a>
+                        @endforeach
+                    </div>
+                </details>
+            @endif
             @foreach ($spgPortal as $spgP)
-                @if ($spgP['barra'])
+                @if ($spgP['barra'] && ! in_array($spgP['clave'], ['portal.reservar', 'portal.citas'], true))
                     <a class="spg-nav-item {{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}"
                        href="{{ $spgP['url'] }}">
                         <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['titulo'] }}</span></a>

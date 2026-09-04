@@ -6,7 +6,7 @@
     <x-encabezado sub="Liquidación de comisiones. Se paga por los servicios realizados que todavía no se liquidaron; el monto lo calcula la base con la comisión vigente de cada servicio." />
 
     <div class="row g-3">
-        <div class="col-lg-5">
+        <div class="col-12">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-wallet2"></i> Liquidar</h2>
 
@@ -43,7 +43,7 @@
                                     <td class="text-end">
                                         @if ((int) $p->pendientes)
                                             <form method="post" action="{{ route('facturacion.pagar_personal') }}"
-                                                  class="d-flex gap-1 justify-content-end">
+                                                  class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
                                                 @csrf
                                                 <input type="hidden" name="id_usuario" value="{{ $p->id_usuario }}">
                                                 <input class="form-control form-control-sm" name="periodo"
@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        <div class="col-lg-7">
+        <div class="col-12">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Liquidaciones</h2>
                 <div class="table-responsive">

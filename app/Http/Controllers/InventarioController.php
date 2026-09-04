@@ -175,7 +175,19 @@ class InventarioController extends Controller
 
     public function productoForm(int $id = 0): View|RedirectResponse
     {
-        $p = $id ? DB::selectOne('SELECT * FROM producto WHERE id_producto = ?', [$id]) : null;
+        // **El mínimo se trae de `producto_sucursal`, no de `producto`.**
+        // Vive ahí desde la 7.33.0 —es del local, no del catálogo— y el
+        // formulario lo seguía leyendo del producto: `$p->stock_minimo` no
+        // existía, así que al editar salía en **0** y al guardar se pisaba con
+        // 0. Encima el guardado rechaza el cero (7.80.0), así que editar un
+        // producto era un rechazo seguro y el formulario volvía con los montos
+        // cambiados. Es el defecto reportado.
+        $suc = Sucursales::activa();
+        $p = $id ? DB::selectOne(
+            'SELECT p.*, COALESCE(ps.stock_minimo, 0) AS stock_minimo
+               FROM producto p
+               LEFT JOIN producto_sucursal ps ON ps.id_producto = p.id_producto AND ps.id_sucursal = ?
+              WHERE p.id_producto = ?', [$suc ?: 1, $id]) : null;
         if ($id && ! $p) {
             flash('Producto no encontrado.', 'error');
 
@@ -189,7 +201,6 @@ class InventarioController extends Controller
         // comparar el mismo frasco entre sucursales. Traerlo no copia nada:
         // agrega la fila de `producto_sucursal` que dice que aca tambien se
         // maneja, con su propio minimo.
-        $suc = Sucursales::activa();
 
         return view('inventario.producto_form', [
             'p' => $p,

@@ -164,7 +164,7 @@
                                             @endforeach
                                         </select>
                                         <button class="btn btn-sm btn-oro"
-                                                data-confirmar="Se va a emitir el comprobante de {{ $c->cliente }} por {{ money($c->total) }} (antes de descuentos). La numeración de la DNIT no se puede reusar. ¿Confirmás?">
+                                                data-confirmar="Vas a emitir el comprobante de {{ $c->cliente }} por {{ money($c->total) }} (monto final, con descuentos). La numeración de la DNIT no se puede reutilizar. Si el envío electrónico falla, el comprobante queda guardado y podés reintentarlo desde su detalle. ¿Confirmás?">
                                             <i class="bi bi-receipt-cutoff"></i> Emitir
                                         </button>
                                     </form>

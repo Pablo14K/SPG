@@ -420,9 +420,16 @@
                             </div>
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.85rem">
-                                    Acredita el total del comprobante. Se numera con el timbrado de notas
-                                    de crédito, que es distinto del de facturas. El motivo se imprime.
+                                    Por defecto acredita todo el comprobante. Si sólo querés revertir una parte,
+                                    cargá el monto; la numeración de la DNIT no se reutiliza y el motivo se imprime.
                                 </p>
+                                <label class="form-label" for="montoNC">Monto a acreditar (opcional)</label>
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">Gs.</span>
+                                    <input class="form-control" id="montoNC" name="monto" inputmode="decimal"
+                                           min="0.01" max="{{ (float) $f->total }}" placeholder="Todo: {{ money($f->total) }}">
+                                </div>
+                                <div class="form-text mb-2">Dejá vacío para cobrar por todo. Máximo: {{ money($f->total) }}.</div>
                                 <label class="form-label" for="motivoNC">Motivo *</label>
                                 <input class="form-control" id="motivoNC" name="motivo" required maxlength="200">
                             </div>

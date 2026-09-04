@@ -149,11 +149,11 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="id_rol">Rol *</label><x-ayuda campo="id_rol" />
-                            <select class="form-select" id="id_rol" name="id_rol" required>
+                            <label class="form-label" for="id_rol">Roles *</label><x-ayuda campo="id_rol" />
+                            <select class="form-select" id="id_rol" name="roles[]" multiple required size="{{ min(4, max(2, count($roles))) }}">
                                 @foreach ($roles as $r)
                                     <option value="{{ $r->id_rol }}"
-                                        @selected((int) old('id_rol', $u->id_rol ?? 0) === (int) $r->id_rol)>
+                                        @selected(in_array((int) $r->id_rol, (array) old('roles', $misRoles ?: [($u->id_rol ?? 0)]), true))>
                                         {{ $r->nombre }}</option>
                                 @endforeach
                             </select>

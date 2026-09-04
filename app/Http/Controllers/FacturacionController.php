@@ -1352,6 +1352,7 @@ class FacturacionController extends Controller
     {
         $id = (int) $request->input('id_factura', 0);
         $motivo = trim((string) $request->input('motivo', ''));
+        $montoTexto = trim((string) $request->input('monto', ''));
         $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
 
         $f = DB::selectOne(
@@ -1410,6 +1411,7 @@ class FacturacionController extends Controller
         $f = DB::selectOne(
             'SELECT f.id_factura, f.id_cliente, f.id_estado_factura, tc.signo,
                     fn_factura_nro(f.id_factura) AS nro,
+                    fn_factura_total(f.id_factura) AS total,
                     (SELECT COUNT(*) FROM factura n
                       WHERE n.id_factura_origen = f.id_factura AND n.id_estado_factura = 1) AS notas
                FROM factura f
@@ -1441,6 +1443,21 @@ class FacturacionController extends Controller
 
             return $volver;
         }
+        $monto = null;
+        if ($montoTexto !== '') {
+            $montoNormalizado = str_replace(['.', ','], ['', '.'], $montoTexto);
+            if (! is_numeric($montoNormalizado)) {
+                flash('El monto de la reversa no es válido. Dejá vacío para acreditar todo.', 'error');
+
+                return $volver;
+            }
+            $monto = round((float) $montoNormalizado, 2);
+            if ($monto <= 0 || $monto > (float) $f->total) {
+                flash('El monto debe ser mayor a cero y no superar el total de ' . money($f->total) . '.', 'error');
+
+                return $volver;
+            }
+        }
         // El timbrado de notas de crédito (tipo 5) es distinto del de facturas
         if (! Facturacion::hayTimbrado(5)) {
             flash('No hay timbrado vigente para notas de crédito. Cargalo en Facturación → Timbrados.', 'error');
@@ -1461,6 +1478,9 @@ class FacturacionController extends Controller
                      OR co.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))",
             ['f1' => $id, 'f2' => $id]
         );
+        $proporcion = $monto === null || $monto >= (float) $f->total
+            ? 1.0 : $monto / max(0.01, (float) $f->total);
+        $enEfectivo *= $proporcion;
 
         // **Emitir la nota NO necesita caja abierta, porque no mueve el cajón.**
         // Lo que lo mueve es la devolución del dinero, y esa se confirma después
@@ -1473,7 +1493,7 @@ class FacturacionController extends Controller
         // cargaba escribía otro número.
 
         try {
-            $idNota = Facturacion::notaCredito($id, (int) session('uid'), $motivo);
+            $idNota = Facturacion::notaCredito($id, (int) session('uid'), $motivo, $monto);
             $nroNota = Facturacion::numero($idNota);
             Auditoria::registrar('NOTA_CREDITO', 'Facturacion', 'factura', $idNota,
                 'Nota de crédito ' . $nroNota . ' sobre ' . $f->nro . ' — ' . $motivo);
@@ -1483,7 +1503,7 @@ class FacturacionController extends Controller
             // devolución, desde Movimiento de efectivo. Ver el comentario de
             // arriba — emitir la nota y entregar la plata son dos actos.
 
-            $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito');
+            $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito', $proporcion);
 
             // **La nota de crédito también se declara ante la DNIT**, y hasta
             // acá no se mandaba nunca. `config/sifen.php` la lista en
@@ -1505,7 +1525,8 @@ class FacturacionController extends Controller
                     . ($envio['ok'] ? '' : ' La nota es válida igual: podés reintentar el envío desde el comprobante.');
             }
 
-            flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro . '.'
+            flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro
+                . ($monto !== null && $monto < (float) $f->total ? ' por ' . money($monto) : ' por el total') . '.'
                 . ($enEfectivo > 0
                     ? ' Se descontaron ' . money($enEfectivo) . ' del efectivo de la caja.'
                     : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.')

@@ -45,7 +45,14 @@
                     {{-- **Un cierre sin su apertura no se puede juzgar.** «Cerró
                          con Gs. 40.000 de diferencia» significa una cosa si la caja
                          estuvo abierta dos horas y otra si estuvo tres días. --}}
-                    <th>Abierta</th><th>Cerrada</th><th>Caja</th><th>Sucursal</th><th>Responsable</th>
+                    <th>Abierta</th><th>Cerrada</th><th>Caja</th><th>Sucursal</th>
+                    {{-- **Quién abrió y quién cerró son DOS personas y dos
+                         responsabilidades.** La columna mostraba una sola —el
+                         que hizo el arqueo, y si no, el que abrió— así que
+                         frente a una diferencia no se sabía a quién preguntarle
+                         qué: quien dejó la caja armada no es necesariamente
+                         quien contó al final. --}}
+                    <th>Abrió</th><th>Cerró</th>
                     <th class="text-end">Esperado</th>
                     <th class="text-end">Contado</th>
                     <th class="text-end">Diferencia</th>
@@ -60,7 +67,13 @@
                         <td style="white-space:nowrap">{{ fecha($c->fecha_cierre, 'd/m/Y H:i') }}</td>
                         <td>{{ $c->caja_nombre }}</td>
                         <td class="text-muted-warm">{{ $c->sucursal_nombre }}</td>
-                        <td class="text-muted-warm">{{ $c->arqueo_por ?: ($c->responsable ?? '—') }}</td>
+                        <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
+                        <td class="text-muted-warm">
+                            {{-- Sin `arqueo_por` es una caja cerrada antes de que el
+                                 arqueo existiera: se dice, en vez de repetir a quien
+                                 abrió como si hubiera contado él. --}}
+                            {{ $c->arqueo_por ?: '—' }}
+                        </td>
                         <td class="text-end">{{ money($c->saldo ?? 0) }}</td>
                         <td class="text-end">
                             {{-- «—» y no «Gs. 0» cuando no se contó: un cero ahí
@@ -91,7 +104,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9">
+                        <td colspan="10">
                             <div class="spg-vacio">
                                 <i class="bi bi-clipboard-check"></i>
                                 <div class="t">No hay arqueos con esos filtros</div>

@@ -59,36 +59,16 @@
         @endif
     </div>
 
-    {{-- Las tarjetas son el segundo nivel de navegación: qué hay dentro de
-         cada módulo. Solo se dibujan las que el rol puede abrir. --}}
-    <div class="spg-cards">
-        @foreach (config('navegacion.modulos') as $mod)
-            @continue (! Permisos::puede($mod['mod']))
-            @php $url = Navegacion::url($mod['ruta']); @endphp
-            @if ($url)
-                <a class="spg-card {{ ! empty($mod['dark']) ? 'dark' : '' }}" href="{{ $url }}">
-                    <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
-                    <h3>{{ $mod['titulo'] }}</h3>
-                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
-                </a>
-            @else
-                {{-- Módulo todavía no migrado a Laravel: se muestra apagado en
-                     lugar de esconderlo, así se ve el avance de la migración. --}}
-                <div class="spg-card" style="opacity:.45;cursor:not-allowed" title="Todavía no migrado">
-                    <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
-                    <h3>{{ $mod['titulo'] }}</h3>
-                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
-                </div>
-            @endif
-        @endforeach
-    </div>
+    {{-- **Van ARRIBA de las tarjetas, y compactos.**
 
-    {{-- **Los dos bloques van lado a lado y compactos.** Antes eran dos tablas
-         completas apiladas —ocho filas y seis, cada una con su encabezado y su
-         párrafo— y empujaban las tarjetas de módulo fuera de la pantalla. El
-         panel contesta «¿a dónde voy?»: las tarjetas son lo principal y esto es
-         el resumen de lo que conviene mirar antes de ir. Para el detalle está
-         la agenda, que existe justamente para eso. --}}
+         Antes eran dos tablas completas apiladas —ocho filas y seis, cada una
+         con su encabezado y su párrafo— y por eso se las bajó: empujaban las
+         tarjetas fuera de la pantalla. Compactas ya no lo hacen, y en el orden
+         de lectura corresponde que vayan primero: quien entra al sistema a la
+         mañana lo primero que necesita saber es a quién atiende hoy y quién
+         quedó colgado, no a qué módulo ir. Las tarjetas siguen justo debajo.
+
+         Para el detalle está la agenda, que existe para eso. --}}
     @if ($atrasadas || $proximas)
         <div class="row g-2 mt-2">
             {{-- Atrasados primero: es lo único del panel que pide una acción
@@ -164,6 +144,31 @@
                     </div>
                 </div>
             @endif
+
+    {{-- Las tarjetas son el segundo nivel de navegación: qué hay dentro de
+         cada módulo. Solo se dibujan las que el rol puede abrir. --}}
+    <div class="spg-cards">
+        @foreach (config('navegacion.modulos') as $mod)
+            @continue (! Permisos::puede($mod['mod']))
+            @php $url = Navegacion::url($mod['ruta']); @endphp
+            @if ($url)
+                <a class="spg-card {{ ! empty($mod['dark']) ? 'dark' : '' }}" href="{{ $url }}">
+                    <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
+                    <h3>{{ $mod['titulo'] }}</h3>
+                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
+                </a>
+            @else
+                {{-- Módulo todavía no migrado a Laravel: se muestra apagado en
+                     lugar de esconderlo, así se ve el avance de la migración. --}}
+                <div class="spg-card" style="opacity:.45;cursor:not-allowed" title="Todavía no migrado">
+                    <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
+                    <h3>{{ $mod['titulo'] }}</h3>
+                    <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
+                </div>
+            @endif
+        @endforeach
+    </div>
+
         </div>
     @endif
 

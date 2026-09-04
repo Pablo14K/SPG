@@ -54,6 +54,19 @@ class CuentaController extends Controller
         ]);
     }
 
+    public function cambiarRol(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_rol', 0);
+        if (! Sesion::cambiarRol($id)) {
+            flash('Ese rol no está asignado a tu cuenta.', 'error');
+
+            return back();
+        }
+        flash('Perspectiva cambiada a ' . session('rol_nom') . '.');
+
+        return redirect()->route(Sesion::inicio());
+    }
+
     /**
      * Cambia el tema de la interfaz.
      *

@@ -110,7 +110,7 @@ class PortalController extends Controller
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             return response()->json(['ok' => true, 'duracion' => $duracion,
                 'horas' => Agenda::soloDelTurno(
-                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc), $turno, $duracion)]);
+                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios), $turno, $duracion)]);
         }
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
@@ -121,14 +121,14 @@ class PortalController extends Controller
             'dias' => array_values(array_diff(
                 Agenda::diasDelTurno(
                     Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc),
+                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios),
                     $turno),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
             // Si el calendario sale vacío porque lo elegido no entra en ningún
             // turno, hay que decirlo: «probá con otro profesional» manda a
             // recorrer uno por uno algo que ninguno puede dar.
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc)]);
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios)]);
     }
 
     public function reservar(Request $request): View
@@ -191,14 +191,18 @@ class PortalController extends Controller
             // lista de servicios ya la usan— y acá estaba al revés.
             'servicios' => $elegida ? DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
-                        s.descripcion, s.imagen, s.sena_porcentaje
+                        s.descripcion, s.imagen, s.sena_porcentaje,
+                        -- **Lo que le van a descontar a ELLA**, con su nivel y las
+                        -- promociones vigentes. Va en la consulta y no por tarjeta:
+                        -- con quince servicios serían quince consultas por carga.
+                        fn_servicio_descuento_monto(s.id_servicio, ?) AS descuento
                    FROM servicio s
                   WHERE s.activo = 1
                     AND (EXISTS (SELECT 1 FROM servicio_sucursal ss
                                   WHERE ss.id_servicio = s.id_servicio AND ss.id_sucursal = ?)
                          OR NOT EXISTS (SELECT 1 FROM servicio_sucursal ss2
                                          WHERE ss2.id_servicio = s.id_servicio))
-                  ORDER BY s.nombre', [$elegida]
+                  ORDER BY s.nombre', [$this->cliente(), $elegida]
             ) : [],
             // Lo que ya canjeó y todavía puede usar. **No cambia nada del
             // motor de la agenda**: el servicio canjeado ocupa el mismo tiempo

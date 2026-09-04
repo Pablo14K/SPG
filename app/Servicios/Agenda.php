@@ -136,7 +136,10 @@ class Agenda
                FROM usuario u
                JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                JOIN rol r ON r.id_rol = u.id_rol
-              WHERE u.activo = 1 AND r.es_personal = 1 $soloConTurno $deEsteLocal
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND (u.id_rol <> " . (int) config('permisos.rol_admin', 1) . "
+                     OR EXISTS (SELECT 1 FROM persona_servicio psoa WHERE psoa.id_persona = u.id_persona))
+                $soloConTurno $deEsteLocal
               ORDER BY pe_u.nombre, pe_u.apellido", $par
         );
     }
@@ -337,7 +340,7 @@ class Agenda
      * el sistema le asigna a quien esté libre.
      */
     public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null,
-                                ?int $idSucursal = null): array
+                                ?int $idSucursal = null, array $servicios = []): array
     {
         // La sucursal viaja por toda la cadena: sin ella, cada eslabón caería
         // en `Sucursales::activa()`, que para la clienta del portal no es la
@@ -352,8 +355,27 @@ class Agenda
         }
         ksort($porHora);
 
+        // **Y el hueco sólo sirve si cada servicio tiene ahí quién lo haga.**
+        //
+        // Sin esto, «que me atienda cualquiera» juntaba los huecos del equipo
+        // ENTERO sin mirar quién hace qué: si la coloración la hace una sola
+        // persona y esa persona está ocupada de 10 a 12, esas horas seguían
+        // ofreciéndose porque las demás estaban libres — y al guardar el
+        // sistema rechazaba, que es enterarse después de haber elegido todo.
+        //
+        // La condición es **por servicio y no «alguien que haga todos»**: la
+        // clienta puede pedir dos cosas que hacen dos personas distintas, y
+        // eso el reparto lo resuelve. Lo que no puede pasar es que un servicio
+        // se quede sin nadie.
+        $hace = $idUsuario ? [] : self::quienHace($servicios, $idSucursal);
+
         $out = [];
         foreach ($porHora as $hora => $ids) {
+            foreach ($hace as $quienes) {
+                if (! array_intersect($ids, $quienes)) {
+                    continue 2;
+                }
+            }
             $out[] = ['hora' => $hora, 'profesionales' => $ids];
         }
 
@@ -361,11 +383,64 @@ class Agenda
     }
 
     /**
+     * Quién hace cada uno de estos servicios, entre quienes atienden acá.
+     *
+     * Devuelve `[id_servicio => [ids de usuario]]`. Vale el **criterio
+     * permisivo de siempre**: quien no tiene ningún servicio cargado los hace
+     * todos, así que un salón que no administre esto sigue viendo la agenda
+     * completa.
+     *
+     * @param  array<int>  $servicios
+     * @return array<int, array<int>>
+     */
+    public static function quienHace(array $servicios, ?int $idSucursal = null): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $servicios))));
+        if (! $ids) {
+            return [];
+        }
+
+        // Una vez por petición: el calendario de sesenta días pregunta lo
+        // mismo sesenta veces, una por día.
+        $clave = (int) ($idSucursal ?? 0) . ':' . implode(',', $ids);
+        if (isset(self::$quienHaceMemo[$clave])) {
+            return self::$quienHaceMemo[$clave];
+        }
+
+        $out = array_fill_keys($ids, []);
+        foreach (self::profesionales($idSucursal) as $p) {
+            $idu = (int) $p->id_usuario;
+            foreach ($ids as $sid) {
+                if ((int) DB::scalar('SELECT fn_usuario_hace_servicio(?, ?)', [$idu, $sid])) {
+                    $out[$sid][] = $idu;
+                }
+            }
+        }
+
+        return self::$quienHaceMemo[$clave] = $out;
+    }
+
+    /** @var array<string, array<int, array<int>>> */
+    private static array $quienHaceMemo = [];
+
+    /**
+     * Olvida el cache de quién hace qué.
+     *
+     * Sólo lo necesitan las pruebas: cambian `persona_servicio` a mitad de
+     * camino y sin esto medirían el cache en vez de la regla — es el mismo
+     * caso que `Permisos::olvidar()`.
+     */
+    public static function olvidarQuienHace(): void
+    {
+        self::$quienHaceMemo = [];
+    }
+
+    /**
      * Días con al menos un hueco. Es lo que pinta el calendario: los días sin
      * cupo ni se ofrecen.
      */
     public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion,
-                                       ?int $idSucursal = null): array
+                                       ?int $idSucursal = null, array $servicios = []): array
     {
         if ($duracion <= 0) {
             return [];
@@ -385,7 +460,7 @@ class Agenda
         $out = [];
         for ($i = 0; $i < $dias; $i++) {
             $fecha = date('Y-m-d', strtotime("+$i day", $d));
-            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal)) {
+            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal, $servicios)) {
                 $out[] = $fecha;
             }
         }
@@ -409,11 +484,27 @@ class Agenda
      * Se mide contra el turno **más largo** del local, que es el techo real de
      * lo que ahí se puede atender de un tirón.
      */
-    public static function motivoSinCupo(int $duracion, ?int $idUsuario = null, ?int $idSucursal = null): ?string
+    public static function motivoSinCupo(int $duracion, ?int $idUsuario = null, ?int $idSucursal = null,
+                                        array $servicios = []): ?string
     {
         $suc = (int) ($idSucursal ?? Sucursales::activa());
         if ($duracion <= 0) {
             return null;
+        }
+
+        // **Nadie acá hace ese servicio**, que desde que el selector filtra por
+        // quién lo hace es una causa nueva de calendario vacío — y la que peor
+        // se explica sola: «no quedan días» manda a probar otro horario cuando
+        // el problema es que en este local no se ofrece.
+        if (! $idUsuario) {
+            foreach (self::quienHace($servicios, $idSucursal) as $sid => $quienes) {
+                if (! $quienes) {
+                    $nom = (string) DB::scalar('SELECT nombre FROM servicio WHERE id_servicio = ?', [$sid]);
+
+                    return 'Por ahora nadie de esta sucursal hace «' . $nom . '». '
+                        . 'Sacalo de la lista, o probá en otra sucursal.';
+                }
+            }
         }
 
         $mayor = (int) DB::scalar(

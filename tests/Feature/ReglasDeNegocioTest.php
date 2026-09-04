@@ -3817,7 +3817,7 @@ class ReglasDeNegocioTest extends TestCase
         }
 
         $idNota = (int) Bd::idDe('sp_emitir_nota_credito',
-            [(int) $f->id_factura, 1, 'la clienta no quedó conforme']);
+            [(int) $f->id_factura, 1, 'la clienta no quedó conforme', null]);
 
         $this->assertGreaterThan(0, $idNota, 'La nota de crédito tiene que emitirse.');
 
@@ -3834,6 +3834,29 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertGreaterThan(0, (int) DB::scalar(
             'SELECT COUNT(*) FROM detalle_factura WHERE id_factura = ?', [$idNota]
         ), 'La nota tiene que copiar el detalle de la factura original.');
+    }
+
+    #[Test]
+    public function una_nota_de_credito_puede_revertir_un_monto_parcial(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, fn_factura_total(f.id_factura) AS total
+               FROM factura f JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+              WHERE f.id_estado_factura = 1 AND tc.signo = 1
+                AND fn_factura_total(f.id_factura) > 2
+                AND NOT EXISTS (SELECT 1 FROM factura nc WHERE nc.id_factura_origen = f.id_factura)
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('No hay una factura apta para probar una reversa parcial.');
+        }
+
+        $monto = floor(((float) $f->total) / 2);
+        $idNota = (int) Bd::idDe('sp_emitir_nota_credito',
+            [(int) $f->id_factura, 1, 'reversa parcial', $monto]);
+
+        $this->assertEqualsWithDelta($monto, (float) DB::scalar('SELECT fn_factura_total(?)', [$idNota]), 0.01,
+            'El total de la nota tiene que coincidir con el monto pedido, incluido el redondeo.');
     }
     /**
      * El comprobante electrónico se declara con los datos del salón, no con
@@ -5422,5 +5445,86 @@ class ReglasDeNegocioTest extends TestCase
         DB::update('UPDATE cita SET id_estado_cita = 3 WHERE id_cita = ?', [$idCita]);
         $this->assertNotContains($dia, Agenda::diasYaTomados($cli, [$srv]),
             'Cancelando la otra cita, el día tiene que volver a ofrecerse.');
+    }
+
+    /**
+     * El horario que ocupa el único que hace ese servicio deja de ofrecerse.
+     *
+     * **Es el defecto reportado, y el peor de los de agenda**: con «que me
+     * atienda cualquiera», el selector juntaba los huecos del equipo ENTERO
+     * sin mirar quién hace qué. Si la coloración la hace una sola persona y
+     * esa persona está tomada de 10 a 12, esas horas seguían apareciendo
+     * porque las demás estaban libres — y la clienta lo descubría al guardar,
+     * con todo elegido.
+     *
+     * La prueba **garantiza su premisa**: deja el servicio en manos de una
+     * sola persona y le carga a las demás uno distinto, porque el criterio
+     * permisivo dice que quien no tiene ninguno cargado los hace todos.
+     *
+     * Se mide en las dos direcciones: sin pasar los servicios —que es como
+     * estaba— la hora se sigue ofreciendo.
+     */
+    #[Test]
+    public function test_no_se_ofrece_la_hora_del_unico_que_hace_ese_servicio(): void
+    {
+        $equipo = array_map(fn ($p) => (int) $p->id_usuario, Agenda::profesionales(1));
+        if (count($equipo) < 2) {
+            $this->markTestSkipped('Hace falta más de un profesional en el local.');
+        }
+
+        $srv = DB::selectOne('SELECT id_servicio, duracion_min FROM servicio WHERE activo = 1 ORDER BY duracion_min LIMIT 1');
+        $otro = DB::selectOne('SELECT id_servicio FROM servicio WHERE activo = 1 AND id_servicio <> ? LIMIT 1',
+                              [(int) $srv->id_servicio]);
+        $this->assertNotNull($otro, 'Hacen falta dos servicios en el catálogo.');
+
+        $duenio = $equipo[0];
+        $dur = (int) $srv->duracion_min;
+
+        // Sólo el primero hace ese servicio: a los demás se les carga el otro,
+        // que es lo que los saca del criterio permisivo.
+        foreach ($equipo as $id) {
+            $per = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$id]);
+            DB::delete('DELETE FROM persona_servicio WHERE id_persona = ?', [$per]);
+            DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?,?)',
+                       [$per, $id === $duenio ? (int) $srv->id_servicio : (int) $otro->id_servicio]);
+        }
+        Agenda::olvidarQuienHace();
+
+        $this->assertSame([$duenio], Agenda::quienHace([(int) $srv->id_servicio], 1)[(int) $srv->id_servicio],
+            'La premisa: ese servicio lo tiene que hacer una sola persona.');
+
+        // Un día y una hora en que ese profesional esté libre de verdad.
+        $dia = null;
+        $hora = null;
+        for ($i = 1; $i <= 30 && ! $dia; $i++) {
+            $f = date('Y-m-d', strtotime("+$i day"));
+            $libres = Agenda::slots($duenio, $f, $dur, null, 1);
+            if (count($libres) > 1) {
+                $dia = $f;
+                $hora = $libres[0]['hora'];
+            }
+        }
+        $this->assertNotNull($dia, 'No se encontró un día con huecos para medir.');
+
+        $hayHora = fn (array $slots) => in_array($hora, array_column($slots, 'hora'), true);
+
+        $this->assertTrue($hayHora(Agenda::slots(null, $dia, $dur, null, 1, [(int) $srv->id_servicio])),
+            'La premisa: antes de ocuparlo, esa hora se ofrece.');
+
+        // Se le llena esa hora al único que lo hace.
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES ((SELECT MIN(id_cliente) FROM cliente), ?, 1, ?, 1)',
+                   [$duenio, $dia . ' ' . $hora . ':00']);
+        $idCita = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)',
+                   [$idCita, (int) $srv->id_servicio]);
+
+        $this->assertFalse($hayHora(Agenda::slots(null, $dia, $dur, null, 1, [(int) $srv->id_servicio])),
+            'Ocupado el único que hace ese servicio, esa hora NO se puede seguir ofreciendo.');
+
+        // Y ésta es la mitad que falla sin el arreglo: sin los servicios, el
+        // selector junta los huecos de todos y la sigue ofreciendo.
+        $this->assertTrue($hayHora(Agenda::slots(null, $dia, $dur, null, 1)),
+            'Sin filtrar por servicio, la hora se ofrece igual: eso es lo que estaba mal.');
     }
 }

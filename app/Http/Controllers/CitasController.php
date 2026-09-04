@@ -98,7 +98,7 @@ class CitasController extends Controller
             }
             return response()->json([
                 'ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal),
+                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios),
             ]);
         }
 
@@ -111,9 +111,9 @@ class CitasController extends Controller
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal),
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios),
             'dias' => array_values(array_diff(
-                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal),
+                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
         ]);
@@ -235,6 +235,12 @@ class CitasController extends Controller
                     -- clienta, ni cuánta gente esperar.
                     c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
                     c.id_usuario, c.id_sucursal,
+                    (SELECT GROUP_CONCAT(DISTINCT CONCAT(pe_pr.nombre,' ',pe_pr.apellido)
+                                         ORDER BY pe_pr.nombre, pe_pr.apellido SEPARATOR ', ')
+                       FROM cita_servicio csp
+                       JOIN usuario up ON up.id_usuario = csp.id_usuario
+                       JOIN persona pe_pr ON pe_pr.id_persona = up.id_persona
+                      WHERE csp.id_cita = v.id_cita AND csp.id_usuario IS NOT NULL) AS profesionales,
                     (SELECT ss.id_solicitud FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,
@@ -454,7 +460,14 @@ class CitasController extends Controller
             'profs' => Agenda::profesionales(),
             'servicios' => DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
-                        s.descripcion, s.imagen, cs.nombre AS categoria
+                        s.descripcion, s.imagen, cs.nombre AS categoria,
+                        -- **Acá el descuento va SIN clienta, y es a propósito.**
+                        -- Se la elige en esta misma pantalla, así que el del
+                        -- nivel cambiaría con el combo; lo que se muestra son
+                        -- las promociones vigentes, que valen para cualquiera.
+                        -- Es el piso, no una promesa de más: si además tiene
+                        -- nivel, la factura descuenta el mejor de los dos.
+                        fn_servicio_descuento_monto(s.id_servicio, NULL) AS descuento
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'

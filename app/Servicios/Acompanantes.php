@@ -75,12 +75,23 @@ class Acompanantes
     /**
      * Los que vienen con la clienta, por cita.
      *
-     * Devuelve `[id_cita => ['Ana Villalba', 'Josefina Villalba']]`, listo para
-     * mostrar. Se pide para TODAS las citas de la pantalla de una vez: una
-     * consulta por fila sería una por cada renglón de la agenda.
+     * Devuelve `[id_cita => [ {nombre, apellido, completo, id_cliente} ]]`. Se
+     * pide para TODAS las citas de la pantalla de una vez: una consulta por
+     * fila sería una por cada renglón de la agenda.
+     *
+     * **`id_cliente` viene resuelto y es lo que hace falta para el botón.**
+     * Quien viene acompañando es una persona que el salón va a atender, y sin
+     * ficha propia no hay dónde anotarle sus preferencias ni le queda
+     * historial — el día que quiera abrir su cuenta, arranca de cero. Se busca
+     * por nombre y apellido, el mismo criterio con el que la agenda resuelve
+     * la ficha de «para otra persona».
+     *
+     * **No se le crea la ficha sola**, que es la regla de siempre: sería
+     * inventar una persona que el salón no registró, y con un nombre a medias.
+     * Lo que se hace es ofrecerla, con el nombre ya puesto.
      *
      * @param  array<int>  $idsCita
-     * @return array<int, array<int, string>>
+     * @return array<int, array<int, object>>
      */
     public static function deCitas(array $idsCita): array
     {
@@ -91,13 +102,26 @@ class Acompanantes
 
         $in = implode(',', array_fill(0, count($ids), '?'));
         $filas = DB::select(
-            "SELECT id_cita, orden, nombre, apellido
-               FROM cita_acompanante WHERE id_cita IN ($in) ORDER BY id_cita, orden", $ids
+            "SELECT a.id_cita, a.orden, a.nombre, a.apellido,
+                    (SELECT cl.id_cliente
+                       FROM cliente cl
+                       JOIN persona pe ON pe.id_persona = cl.id_persona
+                      WHERE cl.activo = 1
+                        AND LOWER(TRIM(CONCAT(pe.nombre, ' ', COALESCE(pe.apellido, ''))))
+                            = LOWER(TRIM(CONCAT(a.nombre, ' ', COALESCE(a.apellido, ''))))
+                      ORDER BY cl.id_cliente LIMIT 1) AS id_cliente
+               FROM cita_acompanante a
+              WHERE a.id_cita IN ($in) ORDER BY a.id_cita, a.orden", $ids
         );
 
         $out = [];
         foreach ($filas as $f) {
-            $out[(int) $f->id_cita][] = trim($f->nombre . ' ' . (string) $f->apellido);
+            $out[(int) $f->id_cita][] = (object) [
+                'nombre' => (string) $f->nombre,
+                'apellido' => (string) ($f->apellido ?? ''),
+                'completo' => trim($f->nombre . ' ' . (string) $f->apellido),
+                'id_cliente' => $f->id_cliente ? (int) $f->id_cliente : null,
+            ];
         }
 
         return $out;
