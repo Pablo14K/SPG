@@ -121,6 +121,7 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::post('sena', [PortalController::class, 'senaRegistrar'])->name('sena');
     Route::get('atencion', [PortalController::class, 'atencion'])->name('atencion');
     Route::get('atencion/json', [PortalController::class, 'atencionJson'])->name('atencion_json');
+    Route::get('factura/descargar', [PortalController::class, 'facturaDescargar'])->name('factura_descargar');
     Route::post('pedir', [PortalController::class, 'pedir'])->name('pedir');
     Route::get('promociones', [PortalController::class, 'promociones'])->name('promociones');
     Route::post('canjear', [PortalController::class, 'canjear'])->name('canjear');

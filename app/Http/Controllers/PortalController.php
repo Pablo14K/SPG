@@ -15,10 +15,12 @@ use App\Servicios\Sena;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Throwable;
+use Dompdf\Dompdf;
 
 /**
  * El portal de la clienta.
@@ -1345,7 +1347,7 @@ class PortalController extends Controller
             // no cuadra. El comprobante se busca por la cita: puede no existir
             // todavía, y eso también es una respuesta.
             'comprobante' => DB::selectOne(
-                'SELECT fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
+                'SELECT f.id_factura, fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
                         fn_factura_total(f.id_factura) AS total,
                         fn_factura_saldo(f.id_factura) AS saldo
                    FROM factura f
@@ -1366,5 +1368,36 @@ class PortalController extends Controller
                   WHERE id_cita = ? ORDER BY fecha_registro DESC', [$idCita]
             ),
         ];
+    }
+
+    /** Descarga el comprobante propio de la clienta en PDF. */
+    public function facturaDescargar(Request $request): Response|RedirectResponse
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
+                    fn_factura_total(f.id_factura) AS total, f.fecha_emision,
+                    (SELECT GROUP_CONCAT(CONCAT(COALESCE(s.nombre,p.nombre), " x", df.cantidad) SEPARATOR ", ")
+                       FROM detalle_factura df LEFT JOIN servicio s ON s.id_servicio = df.id_servicio
+                       LEFT JOIN producto p ON p.id_producto = df.id_producto
+                      WHERE df.id_factura = f.id_factura) AS detalle
+               FROM factura f JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+              WHERE f.id_factura = ? AND f.id_cliente = ? AND f.id_estado_factura = 1',
+            [(int) $request->query('id', 0), $this->cliente()]
+        );
+        if (! $f) {
+            abort(404);
+        }
+        $html = '<html><meta charset="utf-8"><style>body{font-family:Arial;padding:32px}h1{font-size:20px;border-bottom:1px solid #ccc;padding-bottom:10px}.total{font-size:18px;font-weight:bold;margin-top:24px}</style>'
+            . '<h1>Comprobante ' . e($f->nro) . '</h1><p>' . e($f->tipo) . ' · ' . e(fecha($f->fecha_emision)) . '</p>'
+            . '<p>' . e($f->detalle ?: 'Detalle no disponible') . '</p><p class="total">Total: ' . e(money($f->total)) . '</p></html>';
+        $pdf = new Dompdf();
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4');
+        $pdf->render();
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="comprobante-' . str_replace('/', '-', (string) $f->nro) . '.pdf"',
+        ]);
     }
 }

@@ -149,6 +149,9 @@
                         <td class="text-end"><strong>{{ $comprobante->nro }}</strong></td>
                     </tr>
                     <tr><td>Total</td><td class="text-end">{{ money($comprobante->total) }}</td></tr>
+                    <tr><td colspan="2" class="text-end"><a class="btn btn-sm btn-outline-neutro" download
+                        href="{{ route('portal.factura_descargar', ['id' => $comprobante->id_factura]) }}">
+                        <i class="bi bi-download"></i> Descargar comprobante</a></td></tr>
                 @endif
                 <tr><td>Pagado</td><td class="text-end txt-ok">{{ money($cobrado) }}</td></tr>
                 @if ($comprobante && (float) $comprobante->saldo > 0.01)
