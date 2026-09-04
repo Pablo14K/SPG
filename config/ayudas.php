@@ -47,6 +47,7 @@ return [
     // ---- Cuentas y seguridad -----------------------------------------
     'username' => 'Con esto entra al sistema. Sin espacios ni acentos. Ej.: ana.villalba.',
     'usuario' => 'Podés entrar con el nombre de usuario o con tu correo.',
+    'pass' => 'Si no te acordás, abajo está «¿Olvidaste tu contraseña?»: te mandamos un código al correo.',
     'password' => 'Al menos 8 caracteres. Mezclá letras y números.',
     'password2' => 'La misma de arriba, para descartar un error de tipeo.',
     'actual' => 'La que usás hoy. Sin ella no se puede cambiar, ni siquiera con la sesión abierta.',

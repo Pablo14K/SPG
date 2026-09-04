@@ -89,7 +89,7 @@
         </div>
 
         <div class="mb-4">
-            <label class="form-label" for="pass">Contraseña</label>
+            <label class="form-label" for="pass">Contraseña</label><x-ayuda campo="pass" />
             <div class="input-group">
                 <input type="password" name="password" id="pass" class="form-control" required>
                 <button class="btn btn-outline-neutro" type="button" id="togglePass" tabindex="-1"
