@@ -55,7 +55,16 @@
     <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
     @stack('estilos')
 </head>
-<body>
+{{-- **Las pantallas que se miran entre varios avisan si algo cambió.**
+
+     El sistema navega a la vieja usanza, así que cada pantalla es una foto del
+     momento en que se pidió: dos personas sobre la misma agenda, una registra
+     la atención y la otra la sigue viendo Programada hasta que recarga. La
+     sección la declara cada vista con `@section('vivo', 'agenda')`, y desde
+     ahí `app.js` consulta la huella; sin declararla, no se consulta nada. --}}
+@php $spgVivo = trim($__env->yieldContent('vivo')); @endphp
+<body @if ($spgVivo && $spgSesion) data-vivo="{{ $spgVivo }}"
+      data-vivo-url="{{ route('vivo', array_filter(['s' => $spgVivo, 'dia' => request()->query('dia')])) }}" @endif>
 
 {{-- **El cajón lateral se abre con CSS, no con JavaScript.**
 

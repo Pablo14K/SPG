@@ -2,6 +2,8 @@
 
 @section('titulo', 'Agenda')
 
+@section('vivo', 'agenda')
+
 @section('contenido')
     @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 
@@ -490,17 +492,42 @@
                                 Ahora está para el <strong>{{ fecha($c->fecha_hora) }}</strong>
                                 con {{ $c->profesional }}.
                             </p>
-                            <label class="form-label" for="nf{{ $c->id_cita }}">Nueva fecha y hora</label>
-                            <input type="datetime-local" class="form-control" id="nf{{ $c->id_cita }}"
-                                   name="nueva_fecha" required>
+                            {{-- **El mismo selector que usa la clienta, y ése era el
+                                 defecto.**
+
+                                 Acá había un `datetime-local` suelto: ofrecía
+                                 **domingos, días en que esa persona no trabaja y
+                                 horas fuera de su turno**, y el «no» llegaba
+                                 recién al guardar. Es la regla del proyecto —*las
+                                 pantallas no dejan escribir una fecha a mano*—
+                                 que el portal cumple desde la 7.96.0 y el panel
+                                 se había quedado sin aplicar: media corrección,
+                                 el patrón de siempre.
+
+                                 Los servicios, el profesional y la sucursal van
+                                 **fijos**: reprogramar no pregunta qué se hace ni
+                                 con quién, eso ya está decidido — lo único que se
+                                 elige es cuándo. --}}
+                            <label class="form-label">Nueva fecha y hora</label><x-ayuda campo="fecha_hora" />
+                            <input type="hidden" name="fecha_hora" required>
+                            <div data-agenda="{{ route('citas.disponibilidad') }}"
+                                 data-agenda-sujeto="La cita"
+                                 data-agenda-servicios="{{ $c->servicios_ids ?? '' }}"
+                                 data-agenda-profesional="{{ (int) $c->id_usuario }}"
+                                 data-agenda-sucursal="{{ (int) $c->id_sucursal }}"
+                                 data-agenda-boton="#btnRepro{{ $c->id_cita }}">
+                                <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
+                                <div data-agenda-dias class="spg-dias mt-2"></div>
+                                <div data-agenda-horas class="spg-horas mt-2"></div>
+                            </div>
                             <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
-                                Se comprueba la disponibilidad antes de guardar: si el horario ya
-                                está tomado, el sistema lo avisa.
+                                Sólo se ofrecen los horarios en que {{ $c->profesional }} de verdad
+                                atiende y está libre. Al guardar se vuelve a comprobar.
                             </p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                            <button class="btn btn-oro">Reprogramar</button>
+                            <button class="btn btn-oro" id="btnRepro{{ $c->id_cita }}" disabled>Reprogramar</button>
                         </div>
                     </form>
                 </div>
@@ -707,6 +734,22 @@
                                     $lista = (float) ($c->total_lista ?? $totalCita);
                                     $dg = $desglosesSena[$c->id_cita] ?? null;
                                 @endphp
+                                @php
+                                    // **Abajo va el desglose de la seña, y dice lo mismo.**
+                                    //
+                                    // `_sena_desglose` lista servicio por servicio con su
+                                    // precio y cierra en «Total de la cita», así que cuando
+                                    // se dibuja, estas dos primeras partes de acá son la
+                                    // misma información dos veces — el modal repetía los
+                                    // servicios, el precio de lista y el total, uno debajo
+                                    // del otro.
+                                    //
+                                    // Lo que **no** está abajo se queda: el descuento con su
+                                    // origen, lo ya cobrado y lo que falta cobrar. Borrar la
+                                    // tabla entera se llevaría eso puesto.
+                                    $spgHayDesglose = $c->estado !== 'Atendida'
+                                        && ! empty($desglosesSena[$c->id_cita]['filas']);
+                                @endphp
                                 @if ($totalCita > 0)
                                     {{-- **Cada número con su origen.** Antes eran cuatro
                                          cifras en una línea —lista, descuento, total,
@@ -716,21 +759,23 @@
                                          lee como un error de la pantalla. --}}
                                     <table class="table table-sm align-middle mb-2" style="font-size:.86rem">
                                         <tbody>
-                                            @foreach (($dg['filas'] ?? []) as $fl)
+                                            @unless ($spgHayDesglose)
+                                                @foreach (($dg['filas'] ?? []) as $fl)
+                                                    <tr>
+                                                        <td>
+                                                            {{ $fl->nombre }}
+                                                            @if ((int) $fl->canjeado > 0)
+                                                                <span class="badge-estado e-ok">canjeado</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="text-end text-muted-warm">{{ money($fl->precio) }}</td>
+                                                    </tr>
+                                                @endforeach
                                                 <tr>
-                                                    <td>
-                                                        {{ $fl->nombre }}
-                                                        @if ((int) $fl->canjeado > 0)
-                                                            <span class="badge-estado e-ok">canjeado</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="text-end text-muted-warm">{{ money($fl->precio) }}</td>
+                                                    <td>Precio de lista</td>
+                                                    <td class="text-end">{{ money($lista) }}</td>
                                                 </tr>
-                                            @endforeach
-                                            <tr>
-                                                <td>Precio de lista</td>
-                                                <td class="text-end">{{ money($lista) }}</td>
-                                            </tr>
+                                            @endunless
                                             @if ($lista > $totalCita)
                                                 <tr class="txt-ok">
                                                     <td>
@@ -751,10 +796,12 @@
                                                     <td class="text-end">− {{ money($lista - $totalCita) }}</td>
                                                 </tr>
                                             @endif
-                                            <tr style="border-top:2px solid var(--gris-calido)">
-                                                <th>Total de la cita</th>
-                                                <th class="text-end">{{ money($totalCita) }}</th>
-                                            </tr>
+                                            @unless ($spgHayDesglose)
+                                                <tr style="border-top:2px solid var(--gris-calido)">
+                                                    <th>Total de la cita</th>
+                                                    <th class="text-end">{{ money($totalCita) }}</th>
+                                                </tr>
+                                            @endunless
                                             @if ((float) $c->sena > 0)
                                                 <tr>
                                                     <td class="text-muted-warm">Ya cobrado (seña)</td>

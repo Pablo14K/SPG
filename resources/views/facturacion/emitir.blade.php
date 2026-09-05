@@ -5,6 +5,19 @@
 @section('contenido')
     <x-encabezado sub="Citas atendidas que todavía no tienen comprobante. El detalle sale de los servicios de la cita, y el descuento lo aplica la base: el del nivel del cliente o la mejor promoción vigente, el que más le convenga." />
 
+    {{-- **Las dos formas de la factura, dichas una vez.** Que la «sin nombre»
+         también se declara es lo que más se malinterpreta —se la llama «no
+         declarada» y eso hace creer que ese cobro queda fuera de lo informado—,
+         así que la pantalla lo dice antes de que haya que elegir. --}}
+    <p class="text-muted-warm mb-3" style="font-size:.82rem">
+        <i class="bi bi-info-circle"></i>
+        <strong>Las dos se declaran ante la DNIT y se le mandan por correo.</strong>
+        La <strong>declarada</strong> pide los datos de la clienta —documento, nombre
+        y a dónde mandársela— en la pantalla siguiente. La <strong>sin nombre</strong>
+        es la innominada: va sin esos datos, que es lo que la DNIT admite por debajo
+        de {{ money(\App\Servicios\Sifen::TOPE_INNOMINADO) }}, y sólo pregunta el correo.
+    </p>
+
     @if (! $tipos)
         <div class="alert alert-danger">
             <strong>No hay ningún timbrado vigente.</strong> Sin timbrado no se puede numerar un
@@ -152,6 +165,15 @@
                                                     {{ $t->nombre }}@if ($declarable) declarada @endif
                                                 </option>
                                                 @if ($declarable)
+                                                    {{-- **«Sin nombre», no «sin declarar».**
+                                                         Se la nombra por lo que la distingue —que
+                                                         va sin datos del receptor— y no por lo que
+                                                         NO hace, porque sí se declara: es la misma
+                                                         factura electrónica con el grupo del
+                                                         receptor vacío, que la DNIT admite por
+                                                         debajo del tope. Llamarla «no declarada»
+                                                         haría creer que ese cobro queda fuera de lo
+                                                         informado, que es justo lo contrario. --}}
                                                     <option value="{{ $t->id_tipo_comprobante }}-inn">
                                                         {{ $t->nombre }} sin nombre
                                                     </option>

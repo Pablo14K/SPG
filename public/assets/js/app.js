@@ -1859,3 +1859,108 @@ window.SPGCarga = (function () {
 
   refrescar(false);
 })();
+
+/* ------------------------------------------------------------------
+   Lo que cambió mientras mirabas
+
+   El sistema navega a la vieja usanza: cada pantalla es una foto del
+   momento en que se pidió. En un salón eso se nota — dos personas
+   sobre la misma agenda, una registra la atención y la otra sigue
+   viendo la cita como Programada hasta que se le ocurre recargar; o el
+   cajón que abrió el otro mostrador, sin el cual no se puede cobrar.
+
+   Se activa con `data-vivo="agenda"` en el `<body>`. Cada veinte
+   segundos le pide al servidor la huella de esa sección y la compara
+   con la que se llevó al dibujarse.
+
+   Cuatro decisiones que NO son adorno:
+
+   · **No recarga encima de lo que estás escribiendo.** Si hay un modal
+     abierto o un campo tocado, se muestra el aviso y la persona decide.
+     Recargar sobre un formulario a medias es la peor forma de «tiempo
+     real», y es la queja que este proyecto ya arregló dos veces con el
+     borrador de las altas rápidas.
+   · **No consulta con la pestaña en segundo plano.** No tiene sentido
+     gastarle los datos del celular a una pantalla que nadie mira; al
+     volver, pregunta enseguida.
+   · **Un error no hace nada.** Si el servidor no contesta, la pantalla
+     sigue como está: esto es un aviso, no parte del funcionamiento.
+   · **Es un adorno que puede faltar.** Sin `app.js` todo anda igual,
+     sólo que hay que recargar a mano, que es como estaba antes.
+   ------------------------------------------------------------------ */
+(function () {
+  var seccion = document.body.getAttribute('data-vivo');
+  if (!seccion || !window.fetch) { return; }
+
+  var url = document.body.getAttribute('data-vivo-url');
+  if (!url) { return; }
+
+  var huella = null;
+  var cada = 20000;
+  var timer = null;
+  var avisado = false;
+
+  // ¿Hay algo que perder si recargamos? Un modal abierto o un campo que
+  // la persona tocó. `data-spg-tocado` lo pone el primer `input`.
+  function hayAlgoQuePerder() {
+    if (document.querySelector('.modal.show')) { return true; }
+    if (document.querySelector('[data-spg-tocado]')) { return true; }
+
+    return false;
+  }
+
+  function avisar() {
+    if (avisado) { return; }
+    avisado = true;
+
+    var barra = document.createElement('div');
+    barra.className = 'spg-vivo';
+    barra.setAttribute('role', 'status');
+
+    var txt = document.createElement('span');
+    txt.textContent = 'Hay cambios nuevos en esta pantalla.';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-oro';
+    btn.textContent = 'Actualizar';
+    btn.addEventListener('click', function () { location.reload(); });
+
+    barra.appendChild(txt);
+    barra.appendChild(btn);
+    document.body.appendChild(barra);
+  }
+
+  function mirar() {
+    if (document.hidden) { return; }
+
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { return; }
+        if (d.cada) { cada = d.cada * 1000; }
+        if (huella === null) { huella = d.v; return; }
+        if (d.v === huella) { return; }
+
+        // Cambió. Si no hay nada que perder, se recarga sola —que es lo
+        // que se pidió—; si la persona está en el medio de algo, se le
+        // avisa y decide ella.
+        if (hayAlgoQuePerder()) { avisar(); return; }
+        clearInterval(timer);
+        location.reload();
+      })
+      .catch(function () { /* sin conexión: la pantalla sigue como está */ });
+  }
+
+  // El primer campo tocado marca la página como «no la pises».
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && t.form) { t.setAttribute('data-spg-tocado', '1'); }
+  }, true);
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { mirar(); }
+  });
+
+  mirar();
+  timer = setInterval(mirar, cada);
+})();

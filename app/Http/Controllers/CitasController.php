@@ -235,12 +235,26 @@ class CitasController extends Controller
                     -- clienta, ni cuánta gente esperar.
                     c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
                     c.id_usuario, c.id_sucursal,
+                    -- **Un `id_usuario` en NULL no es «nadie»: es el dueño de la
+                    -- cita.** Es como `cita_servicio` representa «lo hace quien
+                    -- la tiene», y esta subconsulta lo descartaba con un
+                    -- `IS NOT NULL`: una cita con dos servicios en manos
+                    -- distintas —uno explícito y el otro del dueño— mostraba
+                    -- **una sola profesional** en la columna, así que quien lee
+                    -- la agenda no sabía que iban a atenderla entre dos.
+                    --
+                    -- Se resuelve con el mismo `COALESCE` que usa el resto del
+                    -- sistema para leer esa columna.
                     (SELECT GROUP_CONCAT(DISTINCT CONCAT(pe_pr.nombre,' ',pe_pr.apellido)
                                          ORDER BY pe_pr.nombre, pe_pr.apellido SEPARATOR ', ')
                        FROM cita_servicio csp
-                       JOIN usuario up ON up.id_usuario = csp.id_usuario
+                       JOIN usuario up ON up.id_usuario = COALESCE(csp.id_usuario, c.id_usuario)
                        JOIN persona pe_pr ON pe_pr.id_persona = up.id_persona
-                      WHERE csp.id_cita = v.id_cita AND csp.id_usuario IS NOT NULL) AS profesionales,
+                      WHERE csp.id_cita = v.id_cita) AS profesionales,
+                    -- Los servicios de la cita, para el selector de horarios del
+                    -- modal de reprogramar: son fijos, la cita ya los tiene.
+                    (SELECT GROUP_CONCAT(csv.id_servicio)
+                       FROM cita_servicio csv WHERE csv.id_cita = v.id_cita) AS servicios_ids,
                     (SELECT ss.id_solicitud FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,
@@ -857,7 +871,12 @@ class CitasController extends Controller
     public function reprogramar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_cita', 0);
-        $nueva = str_replace('T', ' ', trim((string) $request->input('nueva_fecha', '')));
+        // **El campo lo escribe el selector de disponibilidad**, que siempre lo
+        // llama `fecha_hora` —es el mismo de reservar y el del enlace del
+        // correo—. Se sigue aceptando `nueva_fecha`, que es como se llamaba
+        // cuando el modal pedía la fecha a mano.
+        $nueva = str_replace('T', ' ', trim((string) $request->input('fecha_hora',
+            $request->input('nueva_fecha', ''))));
         $dia = (string) $request->input('dia', date('Y-m-d'));
         $volver = redirect()->route('citas.agenda', ['dia' => $dia]);
 

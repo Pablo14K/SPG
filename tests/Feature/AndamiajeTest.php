@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Servicios\Navegacion;
 use App\Servicios\Permisos;
+use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -460,5 +461,35 @@ class AndamiajeTest extends TestCase
   ", $huerfanas)
             . "
 O el campo se renombró, o la entrada sobra.");
+    }
+    /**
+     * **Las credenciales de correo llegan al proceso que atiende la web.**
+     *
+     * `php artisan serve` le reenvía al servidor de desarrollo **sólo una lista
+     * blanca** de variables y descarta el resto, así que una clave que entra por
+     * `secretos.env` la ven los comandos de consola y **no** la web. No da
+     * error: el correo simplemente no sale, con la pantalla diciendo que lo
+     * mandó — la función apagada en silencio que este proyecto ya pagó cara.
+     *
+     * Se comprueba contra `secretos.env.example`, que es la lista de lo que el
+     * salón tiene que cargar: así, agregar mañana un `MAIL_` nuevo y olvidarse
+     * de pasarlo salta acá y no cuando una clienta no recibe su factura.
+     */
+    #[Test]
+    public function las_credenciales_de_correo_llegan_al_servidor_de_desarrollo(): void
+    {
+        $ejemplo = base_path('docker/php/secretos.env.example');
+        $this->assertFileExists($ejemplo, 'Falta la plantilla de secretos.');
+
+        preg_match_all('/^(MAIL_[A-Z_]+)=/m', (string) file_get_contents($ejemplo), $m);
+        $this->assertNotEmpty($m[1], 'La plantilla de secretos no declara ninguna clave de correo.');
+
+        $sueltas = array_values(array_diff($m[1], ServeCommand::$passthroughVariables));
+
+        $this->assertSame([], $sueltas,
+            "Estas credenciales no llegan al servidor de desarrollo:\n  "
+            . implode("\n  ", $sueltas)
+            . "\nAgregalas en AppServiceProvider::pasarLosSecretosAlServidorDeDesarrollo(),"
+            . "\no la web va a verlas vacías mientras la consola las ve cargadas.");
     }
 }

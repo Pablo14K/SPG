@@ -5513,4 +5513,68 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertTrue($hayHora(Agenda::slots(null, $dia, $dur, null, 1)),
             'Sin filtrar por servicio, la hora se ofrece igual: eso es lo que estaba mal.');
     }
+
+    /**
+     * Reprogramar desde el panel no deja escribir la fecha a mano.
+     *
+     * **Es el defecto reportado**: el modal tenía un `datetime-local` suelto,
+     * así que ofrecía domingos, días en que esa persona no trabaja y horas
+     * fuera de su turno — y el «no» llegaba recién al guardar. Es la regla del
+     * proyecto —*las pantallas no dejan escribir una fecha a mano*— que el
+     * portal cumple desde la 7.96.0 y el panel se había quedado sin aplicar.
+     *
+     * Se mide lo que se ve: que no haya ningún campo de fecha libre y que el
+     * selector esté declarado con los servicios, el profesional y la sucursal
+     * de esa cita — sin ellos consultaría la agenda equivocada.
+     *
+     * **Y que la columna nombre a TODOS los profesionales**, que es el otro
+     * defecto de la misma pantalla: `cita_servicio.id_usuario` en NULL
+     * significa «lo hace el dueño de la cita», y descartarlo dejaba una cita
+     * repartida entre dos mostrando una sola persona.
+     */
+    #[Test]
+    public function test_reprogramar_desde_el_panel_usa_el_selector_de_horarios(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+
+        // Un segundo servicio a nombre de OTRA persona: el primero queda en
+        // NULL —o sea, del dueño— que es el caso que se perdía.
+        $otro = DB::selectOne(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 AND u.id_usuario <> ? LIMIT 1',
+            [$cita->id_usuario]
+        );
+        $srv2 = DB::selectOne(
+            'SELECT id_servicio FROM servicio WHERE activo = 1
+              AND id_servicio NOT IN (SELECT id_servicio FROM cita_servicio WHERE id_cita = ?) LIMIT 1',
+            [$cita->id_cita]
+        );
+        $hayReparto = $otro && $srv2;
+        if ($hayReparto) {
+            DB::update('UPDATE cita_servicio SET id_usuario = NULL WHERE id_cita = ?', [$cita->id_cita]);
+            DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario) VALUES (?,?,?)',
+                       [$cita->id_cita, (int) $srv2->id_servicio, (int) $otro->id_usuario]);
+        }
+
+        $this->entrarComoAdministrador();
+        $html = $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('type="datetime-local"', $html,
+            'El modal estaría dejando escribir la fecha a mano: ofrece días y horas que el salón no da.');
+        $this->assertStringContainsString('data-agenda-servicios', $html,
+            'El selector tiene que ir con los servicios de la cita: si no, consulta la agenda equivocada.');
+        $this->assertStringContainsString('data-agenda-profesional', $html,
+            'Y con su profesional: los horarios se calculan para quien la atiende.');
+
+        if ($hayReparto) {
+            $nombre = (string) DB::scalar(
+                "SELECT TRIM(CONCAT(pe.nombre,' ',pe.apellido)) FROM usuario u
+                   JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?",
+                [$cita->id_usuario]
+            );
+            $this->assertStringContainsString($nombre, $html,
+                'La columna tiene que nombrar también a quien tiene el servicio en NULL: '
+                . 'ese NULL es el dueño de la cita, no «nadie».');
+        }
+    }
 }

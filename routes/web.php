@@ -17,6 +17,7 @@ use App\Http\Controllers\PortalController;
 use App\Http\Controllers\SeguridadController;
 use App\Http\Controllers\ServiciosController;
 use App\Http\Controllers\SucursalController;
+use App\Http\Controllers\VivoController;
 use App\Http\Controllers\WebauthnController;
 use Illuminate\Support\Facades\Route;
 
@@ -91,6 +92,12 @@ Route::middleware('sesion')->prefix('cuenta')->name('cuenta.')->group(function (
     Route::post('tema', [CuentaController::class, 'tema'])->name('tema');
     Route::post('cambiar-rol', [CuentaController::class, 'cambiarRol'])->name('cambiar_rol');
 });
+
+// --- ¿Cambió algo de lo que estoy mirando? --------------------------------
+// Devuelve una huella de la sección, no datos: la pantalla la compara con la
+// que se llevó al dibujarse y avisa si hay novedades. Pide sesión —la huella
+// se calcula sobre la sucursal activa— y nada más: no expone ni un dato.
+Route::get('vivo', [VivoController::class, 'estado'])->middleware('sesion')->name('vivo');
 
 // --- La cita desde el enlace del correo (SIN sesión) ----------------------
 // La credencial es el token: la mayoría de las clientas que agendan en el

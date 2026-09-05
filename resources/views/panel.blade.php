@@ -2,6 +2,8 @@
 
 @section('titulo', 'Panel principal')
 
+@section('vivo', 'panel')
+
 @section('contenido')
     @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 

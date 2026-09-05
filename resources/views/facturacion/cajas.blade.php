@@ -2,6 +2,8 @@
 
 @section('titulo', 'Cajas')
 
+@section('vivo', 'cajas')
+
 @section('contenido')
 @php use App\Servicios\Permisos; @endphp
 
