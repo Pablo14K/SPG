@@ -73,9 +73,14 @@
 @endif
 
 <header class="spg-topbar">
-    @if ($spgSesion && $spgMenu && $spgRuta !== 'panel')
+    {{-- **También en el portal.** La clienta se quedaba con la barra
+         horizontal —una SEGUNDA barra bajo la cabecera, en un teléfono donde
+         el alto es lo que falta— mientras el personal ya tenía el cajón. Y el
+         botón se dibujaba igual, así que abría algo que no existía. --}}
+    @if ($spgSesion && $spgRuta !== 'panel' && $spgRuta !== 'portal.index'
+         && ($spgMenu || $spgPortal))
         <label for="spgCajon" class="spg-cajon-btn" role="button" tabindex="0"
-               aria-label="Abrir el menú de módulos">
+               aria-label="Abrir el menú">
             <i class="bi bi-list"></i>
         </label>
     @endif
@@ -194,7 +199,7 @@
      voy?»— aparece recién cuando ya está adentro de una. Es el mismo criterio
      que sacó la barra de módulos del Panel en la 7.34.1. --}}
 @if ($spgPortal && $spgRuta !== 'portal.index')
-    <nav class="spg-nav" aria-label="Secciones">
+    <nav class="spg-nav spg-nav-mod" aria-label="Secciones">
         <div class="spg-nav-in">
             @php
                 $spgCitas = collect($spgPortal)->filter(fn ($p) => in_array($p['clave'], ['portal.reservar', 'portal.citas'], true));
@@ -260,11 +265,32 @@
                      Sale del catálogo de pantallas, con el mismo filtro por
                      permiso que pide el middleware. Ver `pantallasDe()`. --}}
                 <div class="spg-nav-grupo">
+                    {{-- **En el celular el módulo DESPLIEGA, no navega.**
+
+                         En el cajón el desplegable de escritorio no existe —el
+                         hover tampoco— así que tocar «Tesorería» llevaba a su
+                         tarjeta y las ocho pantallas quedaban a dos pantallas
+                         de distancia. Ahora la fila abre el grupo ahí mismo, y
+                         el primer renglón de adentro es el módulo, para no
+                         perder el camino a la tarjeta.
+
+                         Es una casilla escondida con su etiqueta encima, como
+                         el propio cajón: **se abre con CSS**, así que funciona
+                         con `app.js` caído. En escritorio la etiqueta no se
+                         dibuja y manda el enlace de siempre. --}}
+                    @if ($spgPant)
+                        <input type="checkbox" id="spgG{{ $loop->index }}" class="spg-nav-int"
+                               aria-hidden="true" @checked($spgModulo === $spgMod['mod'])>
+                    @endif
                     <a class="spg-nav-item {{ $spgModulo === $spgMod['mod'] ? 'activo' : '' }}"
                        href="{{ $spgMod['url'] }}" title="{{ $spgMod['sub'] }}"
                        @if ($spgPant) aria-haspopup="true" @endif>
                         <i class="bi bi-{{ $spgMod['ic'] }}"></i><span>{{ $spgMod['titulo'] }}</span>
                         @if ($spgPant)<i class="bi bi-chevron-down spg-nav-flecha"></i>@endif</a>
+                    @if ($spgPant)
+                        <label for="spgG{{ $loop->index }}" class="spg-nav-tog"
+                               aria-label="Desplegar {{ $spgMod['titulo'] }}"></label>
+                    @endif
 
                     @if ($spgPant)
                         @php
@@ -286,6 +312,11 @@
                             }
                         @endphp
                         <div class="spg-nav-menu" role="menu" aria-label="{{ $spgMod['titulo'] }}">
+                            {{-- Sólo en el celular: en escritorio el nombre del
+                                 módulo ya es el enlace, y repetirlo sería un
+                                 renglón que lleva a donde acabás de tocar. --}}
+                            <a role="menuitem" class="spg-nav-todo" href="{{ $spgMod['url'] }}">
+                                <i class="bi bi-grid"></i><span>Ver {{ $spgMod['titulo'] }}</span></a>
                             @foreach ($spgGrupos as $spgNom => $spgDelGrupo)
                                 @if ($spgNom === '' || count($spgDelGrupo) === 1)
                                     @foreach ($spgDelGrupo as $spgP)

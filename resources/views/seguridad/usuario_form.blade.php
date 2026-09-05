@@ -149,14 +149,35 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label" for="id_rol">Roles *</label><x-ayuda campo="id_rol" />
-                            <select class="form-select" id="id_rol" name="roles[]" multiple required size="{{ min(4, max(2, count($roles))) }}">
+                            {{-- **Casillas y no un `<select multiple>`.**
+
+                                 El campo admitía varios roles desde que existe
+                                 `usuario_rol`, y se reportó que «sólo deja
+                                 elegir uno»: es que en un `<select multiple>`
+                                 el segundo se marca con Ctrl+clic, y sin eso
+                                 cada clic reemplaza al anterior. La lista se
+                                 veía multi-selección y se comportaba como una
+                                 sola opción.
+
+                                 El resto del sistema ya resuelve esto con
+                                 casillas —sucursales, turnos, servicios— así
+                                 que acá se usa lo mismo. --}}
+                            <label class="form-label" for="rol{{ $roles[0]->id_rol ?? 0 }}">Roles *</label><x-ayuda campo="id_rol" />
+                            @php $spgMisRoles = (array) old('roles', $misRoles ?: [($u->id_rol ?? 0)]); @endphp
+                            <div class="border rounded p-2" id="gRoles" style="max-height:9rem;overflow:auto">
                                 @foreach ($roles as $r)
-                                    <option value="{{ $r->id_rol }}"
-                                        @selected(in_array((int) $r->id_rol, (array) old('roles', $misRoles ?: [($u->id_rol ?? 0)]), true))>
-                                        {{ $r->nombre }}</option>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="roles[]"
+                                               id="rol{{ $r->id_rol }}" value="{{ $r->id_rol }}"
+                                               @checked(in_array((int) $r->id_rol, array_map('intval', $spgMisRoles), true))>
+                                        <label class="form-check-label" for="rol{{ $r->id_rol }}">{{ $r->nombre }}</label>
+                                    </div>
                                 @endforeach
-                            </select>
+                            </div>
+                            <div class="form-text">
+                                Con más de uno marcado, la persona elige con cuál trabaja
+                                desde el desplegable de su nombre.
+                            </div>
                         </div>
                     </div>
 

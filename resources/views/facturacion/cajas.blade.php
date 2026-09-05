@@ -109,9 +109,74 @@
                     <a class="btn btn-sm {{ $c->id_caja ? 'btn-outline-neutro' : 'btn-oro' }}"
                        href="{{ route('facturacion.caja_ver', $c->id_caja_fisica) }}">
                         {{ $c->id_caja ? 'Arqueo y cierre' : 'Abrir caja' }}</a>
+
+                    {{-- **Renombrar y borrar son del Administrador.**
+
+                         El nombre se cargaba una vez y quedaba para siempre: un
+                         «Caja 2» mal tipeado no tenía arreglo. Renombrar no toca
+                         ninguna historia — el arqueo cuelga del id, no del nombre.
+
+                         **Borrar sólo el que nunca se abrió.** El que ya operó
+                         tiene arqueos, cobros y egresos colgando de sus sesiones:
+                         para ése está la baja, que lo saca de la lista sin romper
+                         nada. --}}
+                    @if (Permisos::esAdmin())
+                        <button type="button" class="btn btn-sm btn-outline-neutro ms-auto"
+                                data-bs-toggle="modal" data-bs-target="#modalCajaEd{{ $c->id_caja_fisica }}"
+                                title="Cambiar el nombre"><i class="bi bi-pencil"></i></button>
+
+                        @if ((int) ($c->sesiones ?? 0) === 0)
+                            <form method="post" action="{{ route('facturacion.caja_fisica.borrar') }}" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="id_caja_fisica" value="{{ $c->id_caja_fisica }}">
+                                <button class="btn btn-sm btn-outline-neutro" title="Borrar esta caja"
+                                        data-confirmar="«{{ $c->nombre }}» nunca se abrió, así que se puede borrar del todo. ¿Seguimos?">
+                                    <i class="bi bi-trash"></i></button>
+                            </form>
+                        @else
+                            <form method="post" action="{{ route('facturacion.caja_fisica.baja') }}" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="id_caja_fisica" value="{{ $c->id_caja_fisica }}">
+                                <button class="btn btn-sm btn-outline-neutro"
+                                        title="Ya se usó {{ (int) $c->sesiones }} vez/veces: se da de baja, no se borra"
+                                        data-confirmar="«{{ $c->nombre }}» ya se usó, así que se da de baja y su historial queda. ¿Seguimos?">
+                                    <i class="bi bi-x-lg"></i></button>
+                            </form>
+                        @endif
+                    @endif
                 </div>
             </div>
         </div>
+
+        @if (Permisos::esAdmin())
+            <div class="modal fade" id="modalCajaEd{{ $c->id_caja_fisica }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post" action="{{ route('facturacion.caja_fisica.guardar') }}">
+                            @csrf
+                            <input type="hidden" name="id_caja_fisica" value="{{ $c->id_caja_fisica }}">
+                            <div class="modal-header">
+                                <h2 class="modal-title fs-5"><i class="bi bi-pencil"></i> Renombrar la caja</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <label class="form-label" for="nombreCaja{{ $c->id_caja_fisica }}">Nombre</label>
+                                <input class="form-control" id="nombreCaja{{ $c->id_caja_fisica }}"
+                                       name="nombre" required maxlength="60" value="{{ $c->nombre }}">
+                                <div class="form-text">
+                                    El local no se cambia: moverlo reescribiría de dónde salió
+                                    la plata de todas sus aperturas anteriores.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         @if ($c->id_caja && Permisos::puede('facturacion.movimientos'))
             <div class="modal fade" id="modalMovs{{ $c->id_caja_fisica }}" tabindex="-1" aria-hidden="true">

@@ -638,12 +638,24 @@ class FacturacionController extends Controller
         // que todo lo que se pueda comprobar sin salir del salón se comprueba
         // antes. El Ticket no pasa por acá: es interno y no se declara.
         //
-        // **La innominada tampoco**: no lleva datos del receptor, así que no
-        // hay nada que pedir ni que validar. Va derecho a emitirse.
-        if (Sifen::activo() && Sifen::esElectronico($idTipo) && ! $innominada) {
-            return redirect()->route('facturacion.receptor', [
+        // **La innominada TAMBIÉN pasa por acá, y ése era el defecto.**
+        //
+        // Iba derecho al `try` de abajo con el argumento de que no lleva datos
+        // del receptor, y eso se llevaba puestas las otras dos cosas que hace
+        // este camino: **declararla ante la DNIT y mandársela a la clienta**.
+        // El resultado es el que se reportó — la factura salía sin CDC, así
+        // que no había KuDE ni XML que adjuntar y lo único que llegaba era el
+        // resumen del cuerpo del correo.
+        //
+        // Y contradecía la regla escrita: la innominada **se declara**; lo que
+        // cambia es qué datos lleva, no si se informa. Lo único que de verdad
+        // no hay que pedirle es el documento y el nombre, así que la pantalla
+        // del receptor entra en modo reducido y pregunta **sólo el correo**.
+        if (Sifen::activo() && Sifen::esElectronico($idTipo)) {
+            return redirect()->route('facturacion.receptor', array_filter([
                 'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
-            ]);
+                'inn' => $innominada ? 1 : null,
+            ]));
         }
 
         try {
@@ -748,7 +760,14 @@ class FacturacionController extends Controller
             return $cita;
         }
 
-        return view('facturacion.receptor', $this->datosReceptor($idCita, $idTipo, $idCond, (int) $cita->id_cliente));
+        // **Modo reducido: la factura sin nombre.** Va sin datos del receptor
+        // —eso es lo que la hace innominada— así que lo único que queda por
+        // preguntar es a dónde mandarla, «para que el cliente lo tenga
+        // también». Es la MISMA pantalla y no una segunda: dos formularios
+        // iguales se desfasan, que es un error que este proyecto ya se hizo.
+        return view('facturacion.receptor', $this->datosReceptor(
+            $idCita, $idTipo, $idCond, (int) $cita->id_cliente
+        ) + ['inn' => (bool) $request->query('inn')]);
     }
 
     /**
@@ -771,18 +790,29 @@ class FacturacionController extends Controller
             return $cita;
         }
 
-        $volver = redirect()->route('facturacion.receptor', [
-            'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
-        ]);
+        $innominada = (bool) $request->input('inn');
 
-        $rec = [
-            'tipo_doc' => strtoupper(trim((string) $request->input('tipo_doc', 'CF'))),
-            'documento' => trim((string) $request->input('documento', '')),
-            'nombre' => trim((string) $request->input('nombre', '')),
-            'email' => trim((string) $request->input('email', '')),
-            'direccion' => trim((string) $request->input('direccion', '')),
-            'telefono' => trim((string) $request->input('telefono', '')),
-        ];
+        $volver = redirect()->route('facturacion.receptor', array_filter([
+            'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
+            'inn' => $innominada ? 1 : null,
+        ]));
+
+        // **Sin nombre: el receptor va vacío a propósito.** No se lee del
+        // formulario aunque llegue —la pantalla no lo dibuja, pero un POST
+        // armado a mano sí podría mandarlo— porque lo que distingue a esta
+        // factura de la declarada es justamente que no lleva esos datos.
+        $rec = $innominada
+            ? ['tipo_doc' => 'CF', 'documento' => '', 'nombre' => '',
+               'email' => trim((string) $request->input('email', '')),
+               'direccion' => '', 'telefono' => '']
+            : [
+                'tipo_doc' => strtoupper(trim((string) $request->input('tipo_doc', 'CF'))),
+                'documento' => trim((string) $request->input('documento', '')),
+                'nombre' => trim((string) $request->input('nombre', '')),
+                'email' => trim((string) $request->input('email', '')),
+                'direccion' => trim((string) $request->input('direccion', '')),
+                'telefono' => trim((string) $request->input('telefono', '')),
+            ];
 
         // El total se recalcula acá: es el que decide si se puede emitir a
         // consumidor final, y no puede salir de un campo del formulario.
@@ -804,7 +834,11 @@ class FacturacionController extends Controller
             'SELECT pe.id_persona, pe.nombre, pe.apellido FROM cliente c
                JOIN persona pe ON pe.id_persona = c.id_persona WHERE c.id_cliente = ?', [$cita->id_cliente]
         );
-        if ($per) {
+        // **En la sin nombre la ficha no se toca.** El correo que se escribe
+        // ahí es para ESE envío —«para que el cliente lo tenga también»— y no
+        // un dato nuevo de la persona: es el mismo criterio que el botón de
+        // «Enviar por correo» del comprobante.
+        if ($per && ! $innominada) {
             $aGuardar = ['email' => $rec['email'], 'direccion' => $rec['direccion'], 'telefono' => $rec['telefono']];
             if ($rec['tipo_doc'] === 'RUC') {
                 $aGuardar['ruc'] = $rec['documento'];
@@ -1525,13 +1559,27 @@ class FacturacionController extends Controller
                     . ($envio['ok'] ? '' : ' La nota es válida igual: podés reintentar el envío desde el comprobante.');
             }
 
+            // **Y se le manda, sin apretar nada más.** La clienta tiene la
+            // factura en el correo; la reversa le corresponde igual, y antes
+            // había que acordarse de entrar a la nota y usar «Enviar por
+            // correo». Va después de declarar —para que el KuDE y el XML ya
+            // estén bajados— y **no atada a eso**: si el correo falla, la nota
+            // sigue emitida y se reintenta desde su detalle.
+            $correo = trim((string) $request->input('email', ''));
+            $mandado = $correo !== '' && filter_var($correo, FILTER_VALIDATE_EMAIL)
+                && $this->mandarComprobante($idNota, $correo);
+
             flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro
                 . ($monto !== null && $monto < (float) $f->total ? ' por ' . money($monto) : ' por el total') . '.'
                 . ($enEfectivo > 0
                     ? ' Se descontaron ' . money($enEfectivo) . ' del efectivo de la caja.'
                     : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.')
                 . ($devueltos ? ' Se le descontaron al cliente los ' . $devueltos . ' punto(s) de esa venta.' : '')
-                . $avisoSifen);
+                . $avisoSifen
+                . ($correo !== ''
+                    ? ($mandado ? ' Se la mandamos a ' . $correo . '.'
+                                : ' No se pudo mandar a ' . $correo . ': reintentalo desde el comprobante.')
+                    : ''));
 
             return redirect()->route('facturacion.factura_ver', ['id' => $idNota]);
         } catch (Throwable $ex) {
@@ -2106,16 +2154,36 @@ class FacturacionController extends Controller
         ]);
     }
 
-    /** Alta y baja de cajones. Es del Administrador: define cómo cobra el salón. */
+    /**
+     * Alta y **edición** de cajones. Es del Administrador: define cómo cobra
+     * el salón.
+     *
+     * **El nombre se puede corregir.** Se cargaba una vez y quedaba para
+     * siempre: un «Caja 2» tipeado mal, o el cajón que pasó a llamarse «Mostrador»,
+     * no tenían arreglo desde la pantalla. Y renombrarlo no toca ninguna
+     * historia — el arqueo, los cobros y los egresos cuelgan del **id**, no
+     * del nombre.
+     *
+     * **La sucursal sí queda fija al crearlo**: moverlo de local reescribiría
+     * de dónde salió la plata de todas sus sesiones anteriores.
+     */
     public function cajaFisicaGuardar(Request $request): RedirectResponse
     {
+        $id = (int) $request->input('id_caja_fisica', 0);
         $nombre = trim((string) $request->input('nombre', ''));
         $suc = (int) $request->input('id_sucursal', 0);
         $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
 
+        $cf = $id ? DB::selectOne('SELECT * FROM caja_fisica WHERE id_caja_fisica = ?', [$id]) : null;
+        if ($id && (! $cf || ! in_array((int) $cf->id_sucursal, $suyas, true))) {
+            flash('Esa caja no existe.', 'error');
+
+            return back();
+        }
+
         $error = match (true) {
             mb_strlen($nombre) < 2 => 'Escribí un nombre para la caja.',
-            ! in_array($suc, $suyas, true) => 'Elegí una sucursal a la que tengas acceso.',
+            ! $id && ! in_array($suc, $suyas, true) => 'Elegí una sucursal a la que tengas acceso.',
             default => null,
         };
 
@@ -2126,18 +2194,71 @@ class FacturacionController extends Controller
         }
 
         try {
-            DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre]);
+            if ($cf) {
+                DB::update('UPDATE caja_fisica SET nombre = ? WHERE id_caja_fisica = ?', [$nombre, $id]);
+            } else {
+                DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre]);
+            }
         } catch (QueryException $e) {
             flash(Bd::traducir($e, [
                 'uq_caja_fisica' => 'Ya hay una caja con ese nombre en esa sucursal.',
-            ], 'No se pudo crear la caja.'), 'error');
+            ], $cf ? 'No se pudo cambiar el nombre.' : 'No se pudo crear la caja.'), 'error');
 
             return back();
+        }
+
+        if ($cf) {
+            // De cuánto a cuánto, que es lo que sirve dentro de tres meses.
+            Auditoria::registrar('EDICION', 'Facturacion', 'caja_fisica', $id,
+                'Caja renombrada: de «' . $cf->nombre . '» a «' . $nombre . '»');
+            flash('La caja ahora se llama «' . $nombre . '».');
+
+            return redirect()->route('facturacion.cajas');
         }
 
         $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
         Auditoria::registrar('ALTA', 'Facturacion', 'caja_fisica', $id, $nombre);
         flash('Caja «' . $nombre . '» creada.');
+
+        return redirect()->route('facturacion.cajas');
+    }
+
+    /**
+     * Borrar un cajón — **sólo si nunca se abrió**.
+     *
+     * La baja existe para el cajón que operó y se deja de usar: su historial
+     * lo nombra, así que quitarlo rompería el arqueo. Pero el que se creó por
+     * error hace dos minutos no tiene nada colgando, y darlo de baja lo deja
+     * ahí para siempre ocupando lugar en la lista.
+     *
+     * El corte es objetivo y no una opinión: **si tiene alguna sesión de caja,
+     * no se borra**. De ahí cuelga todo lo demás —arqueos, cobros, egresos—
+     * así que sin sesiones no hay historia que romper.
+     */
+    public function cajaFisicaBorrar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_caja_fisica');
+        $cf = DB::selectOne('SELECT * FROM caja_fisica WHERE id_caja_fisica = ?', [$id]);
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        if (! $cf || ! in_array((int) $cf->id_sucursal, $suyas, true)) {
+            flash('Esa caja no existe.', 'error');
+
+            return back();
+        }
+
+        $sesiones = (int) DB::scalar('SELECT COUNT(*) FROM caja WHERE id_caja_fisica = ?', [$id]);
+        if ($sesiones > 0) {
+            flash('Esa caja ya se usó (' . $sesiones . ' apertura(s)): su historial la nombra, '
+                . 'así que no se puede borrar. Dale de baja y queda fuera de la lista sin perder el arqueo.', 'warning');
+
+            return back();
+        }
+
+        DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$id]);
+        Auditoria::registrar('BAJA', 'Facturacion', 'caja_fisica', $id,
+            'Caja «' . $cf->nombre . '» borrada (nunca se abrió)');
+        flash('Caja «' . $cf->nombre . '» borrada.');
 
         return redirect()->route('facturacion.cajas');
     }
@@ -2681,18 +2802,71 @@ class FacturacionController extends Controller
 
     public function pagos(): View
     {
+        // **El historial paginado, como el resto de las listas del sistema.**
+        // Cortaba con `LIMIT 200` sin decirlo, que es peor que no paginar: a
+        // partir de la fila 201 las liquidaciones dejaban de existir para
+        // quien mira la pantalla.
+        $f = Listado::filtros([
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Profesional o período', 'ancho' => '220px'],
+            'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado',
+                         'opciones' => ['' => 'Todos', 'Pagado' => 'Pagado', 'Revertido' => 'Revertido']],
+            'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
+            'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
+        ]);
+
+        $w = ['1=1'];
+        $par = [];
+        if (Listado::hay($f, 'q')) {
+            $w[] = Listado::likeVarias(['v.beneficiario', 'v.periodo'], Listado::valor($f, 'q'), 'q', $par);
+        }
+        if (Listado::hay($f, 'estado')) {
+            $w[] = 'v.estado = :est';
+            $par['est'] = Listado::valor($f, 'estado');
+        }
+        if (Listado::hay($f, 'desde')) {
+            $w[] = 'DATE(v.fecha) >= :d';
+            $par['d'] = Listado::valor($f, 'desde');
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $w[] = 'DATE(v.fecha) <= :h';
+            $par['h'] = Listado::valor($f, 'hasta');
+        }
+        $desde = 'FROM vw_pago_personal_resumen v WHERE ' . implode(' AND ', $w);
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+
         return view('facturacion.pagos', [
-            'rows' => DB::select('SELECT * FROM vw_pago_personal_resumen ORDER BY fecha DESC LIMIT 200'),
+            'f' => $f,
+            'pag' => $pag,
+            'rows' => DB::select(
+                "SELECT v.* $desde ORDER BY v.fecha DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'profs' => DB::select(
+                // **Cuánto se le debe, no sólo cuántos servicios.** La tabla
+                // decía «3 pendientes» y el botón «Liquidar», así que había
+                // que apretar para enterarse del monto — o sea, decidir un
+                // pago sin ver la cifra. La comisión la calcula
+                // `fn_comision_servicio`, que es la misma autoridad con la que
+                // después se liquida: escrita de nuevo acá, las dos cuentas se
+                // separarían.
                 'SELECT u.id_usuario, pe_u.nombre, pe_u.apellido,
-                        (SELECT COUNT(*) FROM servicio_realizado sr
-                          LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
-                          WHERE sr.id_usuario = u.id_usuario AND d.id_detalle_pago IS NULL) AS pendientes
+                        COALESCE(p.pendientes, 0) AS pendientes,
+                        COALESCE(p.a_pagar, 0) AS a_pagar,
+                        p.desde_cuando
                    FROM usuario u
                    JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                    JOIN rol r ON r.id_rol = u.id_rol
+                   LEFT JOIN (
+                        SELECT sr.id_usuario,
+                               COUNT(*) AS pendientes,
+                               SUM(fn_comision_servicio(sr.id_servicio_realizado)) AS a_pagar,
+                               MIN(sr.fecha_hora) AS desde_cuando
+                          FROM servicio_realizado sr
+                          LEFT JOIN detalle_pago_personal d
+                                 ON d.id_servicio_realizado = sr.id_servicio_realizado
+                         WHERE d.id_detalle_pago IS NULL
+                         GROUP BY sr.id_usuario
+                   ) p ON p.id_usuario = u.id_usuario
                   WHERE u.activo = 1 AND r.es_personal = 1
-                  ORDER BY pe_u.nombre, pe_u.apellido'
+                  ORDER BY COALESCE(p.pendientes, 0) DESC, pe_u.nombre, pe_u.apellido'
             ),
             // Con qué se le paga: lo que sale en efectivo baja del cajón y lo
             // que sale por banco, no. Sin este dato el arqueo no cerraba.

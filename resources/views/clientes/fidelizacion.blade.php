@@ -7,31 +7,20 @@
 
     <x-encabezado sub="Nivel, visitas y puntos: los tres los calcula la base de datos, no se cargan a mano." />
 
-    @if ($niveles)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-award"></i> Los niveles y cómo se llega</h2>
-            <div class="spg-niveles">
-                @foreach ($niveles as $n)
-                    <div class="spg-nivel">
-                        <div class="spg-nivel-nombre">{{ $n->nombre }}</div>
-                        <div class="spg-nivel-req">
-                            desde {{ (int) $n->visitas_minimas }} visita{{ (int) $n->visitas_minimas === 1 ? '' : 's' }}
-                        </div>
-                        <div class="spg-nivel-desc">{{ $n->descuento ?: 'sin descuento' }}</div>
-                        <div class="spg-nivel-clientes">
-                            {{ (int) $n->clientes }} cliente{{ (int) $n->clientes === 1 ? '' : 's' }}
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-            <p class="text-muted-warm mb-0 mt-2" style="font-size:.76rem">
-                El nivel sube solo con las visitas, no se asigna a mano.
-                @if ($urlDesc = Navegacion::url('servicios.descuentos'))
-                    Los porcentajes se editan en
-                    <a class="link-oro" href="{{ $urlDesc }}">Servicios → Descuentos</a>.
-                @endif
-            </p>
-        </div>
+    {{-- **Las reglas del programa viven en Promociones.**
+
+         Acá estaban los niveles y allá el valor del punto: la misma pregunta
+         —«¿cómo funciona la fidelización?»— contestada en dos pantallas, y
+         ninguna de las dos entera. Esta pantalla contesta la otra pregunta,
+         que es del mostrador: quién tiene cuántos puntos y qué puede canjear
+         hoy. --}}
+    @if ($urlDesc = Navegacion::url('servicios.descuentos'))
+        <p class="text-muted-warm mb-3" style="font-size:.82rem">
+            <i class="bi bi-info-circle"></i>
+            Los niveles, sus descuentos y cuántos guaraníes valen un punto se
+            configuran en <a class="link-oro" href="{{ $urlDesc }}">Servicios → Promociones</a>.
+            El nivel sube solo con las visitas: no se asigna a mano.
+        </p>
     @endif
 
     <div class="spg-panel">

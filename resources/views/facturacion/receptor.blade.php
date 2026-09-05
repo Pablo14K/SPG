@@ -19,7 +19,19 @@
 @section('contenido')
     @php use App\Servicios\Permisos; @endphp
 
-    <x-encabezado sub="Los datos con los que sale la factura. Vienen cargados de la ficha de la clienta y se pueden cambiar: puede pedirla a nombre de su empresa, o que se la mandes a otro correo." />
+    {{-- **La misma pantalla en dos modos.**
+
+         La factura SIN NOMBRE es la misma factura electrónica con el grupo del
+         receptor vacío, así que se declara igual — lo único que no lleva es a
+         quién se le vendió. Antes se emitía por un camino aparte que salteaba
+         la declaración, y por eso llegaba un correo con el resumen y sin el
+         KuDE: sin CDC no hay nada que adjuntar.
+
+         Acá se pregunta lo único que queda: a dónde mandarla. Es la misma
+         vista y no una segunda porque dos formularios iguales se desfasan. --}}
+    <x-encabezado :sub="$inn
+        ? 'Esta factura va sin datos de la clienta —es la innominada, que la DNIT admite por debajo del tope—. Lo único que falta es a dónde mandársela.'
+        : 'Los datos con los que sale la factura. Vienen cargados de la ficha de la clienta y se pueden cambiar: puede pedirla a nombre de su empresa, o que se la mandes a otro correo.'" />
 
     {{-- El aviso de «modo simulado» no va acá: ocupa media pantalla justo
          arriba del formulario y repite algo que ya dice el comprobante una vez
@@ -29,13 +41,18 @@
         <input type="hidden" name="id_cita" value="{{ $idCita }}">
         <input type="hidden" name="id_tipo_comprobante" value="{{ $idTipo }}">
         <input type="hidden" name="id_condicion_venta" value="{{ $idCond }}">
+        @if ($inn)<input type="hidden" name="inn" value="1">@endif
 
         <div class="row g-3">
             <div class="col-lg-7">
                 <div class="spg-panel mb-3">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-person-vcard"></i> ¿A nombre de quién?<x-ayuda>Si no pide la factura a su nombre, dejalo en consumidor final.</x-ayuda></h2>
+                    <h2 class="spg-form-titulo mb-1">
+                        <i class="bi bi-{{ $inn ? 'envelope' : 'person-vcard' }}"></i>
+                        {{ $inn ? '¿A dónde se la mandamos?' : '¿A nombre de quién?' }}
+                        @unless ($inn)<x-ayuda>Si no pide la factura a su nombre, dejalo en consumidor final.</x-ayuda>@endunless
+                    </h2>
 
-                    <div class="mb-3">
+                    <div class="mb-3 @if ($inn) d-none @endif">
                         <label class="form-label" for="tipo_doc">Se identifica con <span class="txt-no">*</span></label><x-ayuda campo="tipo_doc" />
                         <select class="form-select" id="tipo_doc" name="tipo_doc">
                             <option value="CF" @selected(old('tipo_doc', $tipoSugerido) === 'CF')>
@@ -55,7 +72,7 @@
                          que no lleva ninguno. Se oculta con clase y NO se saca del
                          formulario: si se quitara el input, `old()` perdería lo
                          escrito al volver con un error. --}}
-                    <div class="mb-3 @if (old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueDoc">
+                    <div class="mb-3 @if ($inn || old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueDoc">
                         <label class="form-label" for="documento">Número <span class="txt-no">*</span></label><x-ayuda campo="documento" />
                         <input class="form-control" id="documento" name="documento"
                                value="{{ old('documento', $docSugerido) }}"
@@ -63,7 +80,7 @@
                         <div class="form-text" id="ayudaDoc"></div>
                     </div>
 
-                    <div class="mb-3 @if (old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueNombre">
+                    <div class="mb-3 @if ($inn || old('tipo_doc', $tipoSugerido) === 'CF') d-none @endif" id="bloqueNombre">
                         <label class="form-label" for="nombre">Nombre o razón social <span class="txt-no">*</span></label><x-ayuda>Con RUC tiene que decir lo mismo que figura en el RUC.</x-ayuda>
                         <input class="form-control" id="nombre" name="nombre"
                                value="{{ old('nombre', trim(($per->nombre ?? '') . ' ' . ($per->apellido ?? ''))) }}">
@@ -79,7 +96,7 @@
                                value="{{ old('email', $per->email ?? '') }}" placeholder="clienta@correo.com">
                     </div>
 
-                    <div class="row g-2">
+                    <div class="row g-2 @if ($inn) d-none @endif">
                         <div class="col-md-7">
                             <label class="form-label" for="direccion">Dirección</label><x-ayuda>Opcional.</x-ayuda>
                             <input class="form-control" id="direccion" name="direccion"
@@ -94,7 +111,13 @@
 
                     <p class="text-muted-warm mb-0 mt-3" style="font-size:.78rem">
                         <i class="bi bi-info-circle"></i>
-                        Lo que corrijas acá queda guardado en su ficha, así la próxima vez ya sale bien.
+                        @if ($inn)
+                            El correo es sólo para este envío: no le toca la ficha. Podés
+                            dejarlo vacío — la factura se emite y se declara igual, y
+                            después se la podés mandar desde el comprobante.
+                        @else
+                            Lo que corrijas acá queda guardado en su ficha, así la próxima vez ya sale bien.
+                        @endif
                     </p>
                 </div>
             </div>
@@ -163,6 +186,12 @@
 // Qué campos hacen falta según con qué se identifica. Consumidor final no
 // lleva documento ni nombre: la DNIT los quiere vacíos, no en blanco.
 (function () {
+    // **En la factura sin nombre este bloque no corre.** No hay tipo que
+    // elegir —va sin datos del receptor— y al arrancar volvía a mostrar los
+    // campos que el servidor había escondido: la pantalla terminaba pidiendo
+    // cédula justo en el comprobante que no la lleva.
+    if (document.querySelector('[name="inn"]')) { return; }
+
     // Lo que la ficha tiene de cada tipo: cambiar de tipo trae SU número.
     var DOCS = {
         CI:  @json($cedulaFicha ?? ''),

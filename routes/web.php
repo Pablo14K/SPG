@@ -428,6 +428,11 @@ Route::middleware(['sesion', 'personal'])->group(function () {
                 ->middleware('admin')->name('caja_fisica.guardar');
             Route::post('cajas/baja', [FacturacionController::class, 'cajaFisicaBaja'])
                 ->middleware('admin')->name('caja_fisica.baja');
+            // Borrar es distinto de dar de baja, y por eso es otra ruta: sólo
+            // vale para el cajón que nunca se abrió — el que operó tiene
+            // historial que lo nombra.
+            Route::post('cajas/borrar', [FacturacionController::class, 'cajaFisicaBorrar'])
+                ->middleware('admin')->name('caja_fisica.borrar');
             // El arqueo es su propia pantalla: abrir y cerrar se hace dos veces
             // por día, y mirar cómo cerraron las cajas de la semana es otra cosa.
             Route::get('arqueos', [FacturacionController::class, 'arqueo'])->name('arqueo');

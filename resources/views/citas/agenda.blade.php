@@ -82,11 +82,32 @@
                                         <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
                                     @endif
                                 @endif
-                                @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
-                                    <button type="button" class="btn btn-sm btn-outline-neutro spg-btn-mini"
-                                            data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}"
-                                            title="Ver lo que dejó dicho">
-                                        <i class="bi bi-info-circle"></i></button>
+                                {{-- **El botón dice QUÉ hay adentro.**
+
+                                     Era una «i» gris de doce píxeles, sin
+                                     rótulo y del mismo color que el resto de la
+                                     fila: se reportó como «el tesoro
+                                     escondido», y con razón — quien no sabe que
+                                     está no lo busca, así que lo que la clienta
+                                     dejó dicho no lo leía nadie.
+
+                                     Ahora nombra su contenido —«dejó dicho»,
+                                     «vienen 3»— y va en el oro secundario, que
+                                     es el nivel de los atajos. No aparece
+                                     cuando no hay nada que mostrar: un botón
+                                     que abre una ventana vacía es peor que
+                                     ninguno. --}}
+                                @php
+                                    $spgDet = [];
+                                    if (trim((string) $c->observaciones) !== '') { $spgDet[] = 'dejó dicho'; }
+                                    if ($c->para_otra_persona) { $spgDet[] = 'para otra persona'; }
+                                    if ((int) $c->personas > 1) { $spgDet[] = 'vienen ' . (int) $c->personas; }
+                                @endphp
+                                @if ($spgDet)
+                                    <button type="button" class="btn btn-sm btn-rapido spg-btn-det"
+                                            data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}">
+                                        <i class="bi bi-chat-left-text"></i>
+                                        {{ ucfirst(implode(' · ', $spgDet)) }}</button>
                                 @endif
                             </td>
                             @if ($verTodo)<td class="text-muted-warm">{{ $c->profesionales ?: $c->profesional }}</td>@endif

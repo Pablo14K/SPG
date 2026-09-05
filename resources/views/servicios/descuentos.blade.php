@@ -8,6 +8,46 @@
         sub="Promociones del salón. Se aplica <strong>una sola</strong> por factura: la que más le convenga al cliente entre su nivel de fidelización y la mejor promoción vigente, nunca las dos sumadas."
         :accion="['ruta' => 'servicios.descuento_form', 't' => 'Nuevo descuento', 'ic' => 'plus-lg']" />
 
+    {{-- **Los niveles, primero: son la regla que se aplica sola.**
+
+         Se mudaron desde Clientes → Fidelización, donde convivían con el
+         listado de quién tiene cuántos puntos. Van arriba porque el resto de
+         la pantalla —el valor del punto y las promociones— son las otras dos
+         formas de descontar, y las tres juntas son «cuánto le devuelve el
+         salón al cliente».
+
+         **No se administran acá**: el nivel lo calcula `fn_cliente_nivel` por
+         cantidad de visitas. Se muestran para poder decidir los porcentajes
+         con la foto de hoy delante. --}}
+    @if ($niveles)
+        <div class="spg-panel mb-3">
+            <h2 class="spg-form-titulo mb-2"><i class="bi bi-award"></i> Niveles de fidelización</h2>
+            <div class="spg-niveles">
+                @foreach ($niveles as $n)
+                    <div class="spg-nivel">
+                        <div class="spg-nivel-nombre">{{ $n->nombre }}</div>
+                        <div class="spg-nivel-req">
+                            desde {{ (int) $n->visitas_minimas }} visita{{ (int) $n->visitas_minimas === 1 ? '' : 's' }}
+                        </div>
+                        <div class="spg-nivel-desc">{{ $n->descuento ?: 'sin descuento' }}</div>
+                        <div class="spg-nivel-clientes">
+                            {{ (int) $n->clientes }} cliente{{ (int) $n->clientes === 1 ? '' : 's' }}
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <p class="text-muted-warm mb-0 mt-2" style="font-size:.76rem">
+                El nivel sube solo con las visitas, no se asigna a mano. Quién está
+                en cuál se mira en
+                @if ($urlFid = \App\Servicios\Navegacion::url('clientes.fidelizacion'))
+                    <a class="link-oro" href="{{ $urlFid }}">Clientes → Fidelización</a>.
+                @else
+                    Clientes → Fidelización.
+                @endif
+            </p>
+        </div>
+    @endif
+
     {{-- Cuánto vale un punto. Va acá y no en un archivo de configuración porque
          contesta la misma pregunta que los descuentos —cuánto le devuelve el
          salón al cliente por comprar acá— y porque lo decide el salón, no quien

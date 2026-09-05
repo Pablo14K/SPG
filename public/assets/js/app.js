@@ -1526,26 +1526,90 @@ window.SPGCarga = (function () {
   reflejar();
 })();
 
-// Cuánta seña pide lo que la clienta va marcando. Se avisa ANTES de reservar:
-// es plata que hay que adelantar, y enterarse al final cambia la decisión.
-(function () {
-  var aviso = document.getElementById('avisoSena');
-  if (!aviso) return;
-  var monto = document.getElementById('montoSena');
+/* ------------------------------------------------------------------
+   Reservar: la tarjeta elegida se marca, y el resumen dice cuánto sale
 
-  function reflejar() {
-    var t = 0;
-    document.querySelectorAll('.srv:checked').forEach(function (c) {
-      var b = c.closest('div').querySelector('.badge-estado.e-warn');
-      if (!b) return;
-      var n = parseFloat((b.textContent || '').replace(/[^0-9]/g, '')) || 0;
-      t += n;
-    });
-    aviso.style.display = t > 0 ? '' : 'none';
-    if (monto) { monto.textContent = 'Gs. ' + t.toLocaleString('es-PY', { maximumFractionDigits: 0 }); }
+   Dos cosas que la pantalla no hacía. **La tarjeta no se resaltaba al
+   marcarla**: la clase `elegida` la ponía el servidor al dibujar, así
+   que el borde de oro aparecía recién al recargar — o sea nunca,
+   porque la clienta marca y sigue. Y **no había un total**: cada
+   tarjeta mostraba su precio y sumarlos era trabajo de la clienta.
+
+   Los dos salen de los `data-` que la tarjeta ya trae, así que no se
+   consulta al servidor. Es un adorno que puede faltar: sin `app.js` se
+   sigue pudiendo reservar y cada tarjeta muestra su precio.
+   ------------------------------------------------------------------ */
+(function () {
+  var casillas = document.querySelectorAll('.srv');
+  if (!casillas.length) return;
+
+  var caja = document.getElementById('resumenCita');
+  var lista = caja && caja.querySelector('[data-resumen="lista"]');
+  var elTot = caja && caja.querySelector('[data-resumen="total"]');
+  var elDur = caja && caja.querySelector('[data-resumen="dur"]');
+  var elSena = caja && caja.querySelector('[data-resumen="sena"]');
+  var cajaSena = caja && caja.querySelector('[data-resumen="sena-caja"]');
+
+  function gs(n) {
+    return 'Gs. ' + Math.round(n).toLocaleString('es-PY', { maximumFractionDigits: 0 });
   }
 
-  document.querySelectorAll('.srv').forEach(function (c) { c.addEventListener('change', reflejar); });
+  // **La seña de un servicio sale de su badge, y el badge vive en el
+  // cuerpo de la tarjeta.** Buscarlo con `closest('div')` desde la
+  // casilla daba el contenedor de la IMAGEN, donde no está: el aviso de
+  // seña no se mostraba nunca.
+  function senaDe(tarjeta) {
+    var b = tarjeta && tarjeta.querySelector('.spg-srv-dur .badge-estado.e-warn');
+    if (!b) return 0;
+
+    return parseFloat((b.textContent || '').replace(/[^0-9]/g, '')) || 0;
+  }
+
+  function reflejar() {
+    var total = 0, sena = 0, min = 0, cuantos = 0;
+
+    casillas.forEach(function (c) {
+      var tarjeta = c.closest('.spg-srv-card');
+      // El borde de oro se pone al marcar, no al recargar.
+      if (tarjeta) { tarjeta.classList.toggle('elegida', c.checked); }
+      if (!c.checked) { return; }
+
+      var precio = parseFloat(c.getAttribute('data-precio')) || 0;
+      var nombre = tarjeta ? (tarjeta.querySelector('.spg-srv-nombre') || {}).textContent : '';
+      total += precio;
+      min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
+      sena += senaDe(tarjeta);
+      cuantos++;
+    });
+
+    if (!caja) { return; }
+    caja.style.display = cuantos > 0 ? '' : 'none';
+
+    // Se arma con nodos y no con innerHTML: el nombre del servicio lo
+    // escribe el salón, y concatenarlo dentro de una cadena de HTML es
+    // la puerta por la que entra el marcado ajeno.
+    if (lista) {
+      lista.textContent = '';
+      casillas.forEach(function (c) {
+        if (!c.checked) { return; }
+        var tarjeta = c.closest('.spg-srv-card');
+        var li = document.createElement('li');
+        var n = document.createElement('span');
+        n.textContent = tarjeta ? (tarjeta.querySelector('.spg-srv-nombre') || {}).textContent : '';
+        var v = document.createElement('b');
+        v.textContent = gs(parseFloat(c.getAttribute('data-precio')) || 0);
+        li.appendChild(n);
+        li.appendChild(v);
+        lista.appendChild(li);
+      });
+    }
+    if (elTot) { elTot.textContent = gs(total); }
+    if (elDur) { elDur.textContent = min > 0 ? ('· ' + min + ' min') : ''; }
+    if (cajaSena) { cajaSena.style.display = sena > 0 ? '' : 'none'; }
+    if (elSena) { elSena.textContent = gs(sena); }
+  }
+
+  casillas.forEach(function (c) { c.addEventListener('change', reflejar); });
   reflejar();
 })();
 

@@ -37,7 +37,20 @@
     $conDesc = max(0, (float) $s->precio - $desc);
 @endphp
 
-<label class="spg-srv-card {{ $marcado ? 'elegida' : '' }}" for="{{ $id }}">
+{{-- **La tarjeta ya NO es un `<label>` entero, y ése era el defecto.**
+
+     El combo de profesional vivía adentro de la etiqueta, y aunque la
+     especificación dice que un clic sobre contenido interactivo no activa el
+     control asociado, en la práctica **el desplegable del navegador no abre**
+     en varios celulares: la etiqueta se queda con el toque y lo reenvía al
+     checkbox. Es exactamente la misma trampa que el ícono de ayuda ya había
+     pagado en la 7.94.0 — «va FUERA del `<label>`, nunca adentro».
+
+     Ahora el `<label>` cubre sólo la foto y el texto —que es lo que hay que
+     tocar para elegir el servicio— y lo que cada pantalla agrega queda como
+     hermano, fuera de la etiqueta. Se sigue marcando sin JavaScript. --}}
+<div class="spg-srv-card {{ $marcado ? 'elegida' : '' }}" data-srv-card="{{ $id }}">
+    <label class="spg-srv-toque" for="{{ $id }}">
     <div class="spg-srv-img">
         @if ($img)
             <img src="{{ $img }}" alt="Imagen de referencia de {{ $s->nombre }}" loading="lazy">
@@ -83,8 +96,13 @@
             @endif
         </div>
 
-        {{-- Lo que cada pantalla suma: el combo de profesional en las dos, y el
-             aviso de seña en el portal. --}}
-        {{ $slot }}
     </div>
-</label>
+    </label>
+
+    {{-- Lo que cada pantalla suma: el combo de profesional en las dos, y el
+         aviso de seña en el portal. **Va fuera del `<label>`** — ver el
+         comentario de arriba. --}}
+    @if (trim($slot) !== '')
+        <div class="spg-srv-extra">{{ $slot }}</div>
+    @endif
+</div>

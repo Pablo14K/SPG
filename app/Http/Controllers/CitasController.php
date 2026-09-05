@@ -424,7 +424,20 @@ class CitasController extends Controller
     {
         $out = [];
         foreach ($citas as $c) {
-            if ((float) ($c->sena_requerida ?? 0) > 0) {
+            // **También para las que no piden seña, y ése era el defecto.**
+            //
+            // El desglose se armaba sólo con `sena_requerida > 0`, y de ahí
+            // sale además **de dónde viene el descuento** —«por su nivel Oro»,
+            // «por la promoción X»—. O sea que en la mayoría de las citas, que
+            // no piden seña, el modal mostraba el renglón «Descuento» con un
+            // número y sin decir cuál de los dos lo puso: exactamente lo que
+            // este proyecto se propuso evitar, porque quien cobra no puede
+            // defender un número que no puede explicar.
+            //
+            // La cita ya está en memoria y son dos consultas por fila; el
+            // modal las necesita todas, así que no hay nada que ahorrar
+            // saltándose la mitad.
+            if ((float) ($c->sena_requerida ?? 0) > 0 || ! $c->nro_comprobante) {
                 $out[(int) $c->id_cita] = Sena::desglose((int) $c->id_cita);
             }
         }

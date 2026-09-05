@@ -432,6 +432,20 @@
                                 <div class="form-text mb-2">Dejá vacío para cobrar por todo. Máximo: {{ money($f->total) }}.</div>
                                 <label class="form-label" for="motivoNC">Motivo *</label>
                                 <input class="form-control" id="motivoNC" name="motivo" required maxlength="200">
+
+                                {{-- **A dónde mandarle la nota.** La clienta tiene la
+                                     factura en su correo; la reversa también le
+                                     corresponde, y hasta ahora había que acordarse de
+                                     abrir la nota y apretar «Enviar por correo». Viene
+                                     con el de su ficha y se puede cambiar: es para este
+                                     envío, así que no le toca la ficha. --}}
+                                <label class="form-label mt-3" for="emailNC">Mandársela a</label>
+                                <input class="form-control" id="emailNC" name="email" type="email"
+                                       value="{{ $cli->email ?? '' }}" placeholder="clienta@correo.com">
+                                <div class="form-text">
+                                    Vacío no manda nada: la nota queda emitida igual y se
+                                    la podés mandar después desde su detalle.
+                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>

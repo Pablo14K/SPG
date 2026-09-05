@@ -28,14 +28,40 @@
 
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Profesional</th><th class="text-end">Pendientes</th><th></th></tr></thead>
+                        {{-- **Cuánto se le debe, no sólo cuántos servicios.**
+                             La tabla decía «3 pendientes» y ofrecía Liquidar:
+                             había que apretar para enterarse del monto, o sea
+                             decidir un pago sin ver la cifra. --}}
+                        <thead><tr><th>Profesional</th><th class="text-end">Pendientes</th>
+                            <th class="text-end">A pagar</th><th></th></tr></thead>
                         <tbody>
                             @forelse ($profs as $p)
                                 <tr>
-                                    <td>{{ $p->nombre }} {{ $p->apellido }}</td>
+                                    <td>
+                                        {{ $p->nombre }} {{ $p->apellido }}
+                                        @if ($p->desde_cuando)
+                                            <div class="text-muted-warm" style="font-size:.75rem">
+                                                sin liquidar desde el {{ fecha($p->desde_cuando, 'd/m/Y') }}</div>
+                                        @endif
+                                    </td>
                                     <td class="text-end">
                                         @if ((int) $p->pendientes)
                                             <strong>{{ (int) $p->pendientes }}</strong>
+                                        @else
+                                            <span class="text-muted-warm">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        @if ((int) $p->pendientes)
+                                            {{-- **«Gs. 0» acá casi nunca significa que ganó
+                                                 cero**: significa que nadie le cargó una
+                                                 comisión. `fn_comision_servicio` devuelve 0
+                                                 en los dos casos y son indistinguibles. --}}
+                                            @if ((float) $p->a_pagar > 0)
+                                                <strong class="txt-oro">{{ money($p->a_pagar) }}</strong>
+                                            @else
+                                                <span class="text-muted-warm" title="Cargale la comisión en Personal → Comisiones">sin comisión cargada</span>
+                                            @endif
                                         @else
                                             <span class="text-muted-warm">—</span>
                                         @endif
@@ -72,7 +98,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3" class="text-center text-muted-warm py-3">No hay personal activo.</td></tr>
+                                <tr><td colspan="4" class="text-center text-muted-warm py-3">No hay personal activo.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -83,6 +109,10 @@
         <div class="col-12">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Liquidaciones</h2>
+                {{-- Cortaba con `LIMIT 200` sin decirlo: a partir de la fila 201
+                     las liquidaciones dejaban de existir para quien mira. --}}
+                <x-filtros :f="$f" />
+                <x-paginacion :pag="$pag" :f="$f" />
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>

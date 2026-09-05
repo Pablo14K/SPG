@@ -5376,7 +5376,25 @@ class ReglasDeNegocioTest extends TestCase
             $this->markTestSkipped('Hace todos los servicios: no hay caso que medir.');
         }
 
-        $fecha = date('Y-m-d 10:00:00', strtotime('+8 days'));
+        // **La prueba garantiza su premisa: un momento en que ALGUIEN que hace
+        // ese servicio esté de verdad libre.** Con un `+8 days` fijo, el día
+        // que eso caía en domingo —el salón cerrado— no había a quién
+        // asignarle nada y la prueba se ponía roja sin que el sistema hubiera
+        // cambiado. Es el mismo defecto que este proyecto ya tiene anotado
+        // varias veces.
+        $dur = (int) DB::scalar('SELECT duracion_min FROM servicio WHERE id_servicio = ?',
+                                [(int) $ajeno->id_servicio]);
+        $fecha = null;
+        for ($i = 1; $i <= 30 && $fecha === null; $i++) {
+            $dia = date('Y-m-d', strtotime("+$i day"));
+            foreach (Agenda::slots(null, $dia, $dur, null, 1, [(int) $ajeno->id_servicio]) as $h) {
+                $fecha = $dia . ' ' . $h['hora'] . ':00';
+                break;
+            }
+        }
+        $this->assertNotNull($fecha,
+            'La premisa: hace falta un horario en que alguien que hace ese servicio esté libre.');
+
         $asignacion = [(int) $suyo->id_servicio => $id, (int) $ajeno->id_servicio => 0];
 
         // Sin completar, el reparto culpa al principal por un servicio que la

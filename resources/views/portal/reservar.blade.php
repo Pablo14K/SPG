@@ -272,14 +272,35 @@
                 <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
             </div>
 
-            {{-- El total de seña de lo que va marcando, para que no tenga que
-                 sumarlo de cabeza. Lo calcula `app.js`; sin él, cada servicio ya
-                 muestra el suyo al lado. --}}
-            <div class="alert alert-warning py-2 mb-3" id="avisoSena" style="display:none;font-size:.86rem">
-                <i class="bi bi-cash-coin"></i>
-                Para confirmar esta cita hace falta una seña de
-                <strong id="montoSena">Gs. 0</strong>. Después de reservar te
-                mostramos dónde registrar el comprobante.
+            {{-- **Lo que va a costar, antes de reservar.**
+
+                 La pantalla mostraba el precio de cada servicio y no sumaba
+                 ninguno: con tres marcados, la clienta tenía que hacer la
+                 cuenta de cabeza para saber con cuánto venir. Y la seña es
+                 parte de la misma pregunta —cuánto hay que adelantar—, así que
+                 va en el mismo bloque y no en una franja aparte.
+
+                 Lo arma `app.js` con los `data-precio` y `data-duracion` que
+                 cada tarjeta ya trae, así que no hace falta consultar al
+                 servidor. **Sin JavaScript no se dibuja**, y cada tarjeta
+                 sigue mostrando su propio precio: es un resumen, no la única
+                 forma de saber cuánto sale. --}}
+            <div class="spg-resumen mb-3" id="resumenCita" style="display:none">
+                <div class="spg-resumen-tit">
+                    <i class="bi bi-receipt"></i> Tu cita
+                    <span class="spg-resumen-dur" data-resumen="dur"></span>
+                </div>
+                <ul class="spg-resumen-lista" data-resumen="lista"></ul>
+                <div class="spg-resumen-total">
+                    <span>Total</span>
+                    <strong data-resumen="total">Gs. 0</strong>
+                </div>
+                <div class="spg-resumen-sena" data-resumen="sena-caja" style="display:none">
+                    <i class="bi bi-cash-coin"></i>
+                    Para confirmarla hace falta una seña de
+                    <strong data-resumen="sena">Gs. 0</strong>.
+                    Después de reservar te mostramos dónde registrar el comprobante.
+                </div>
             </div>
 
             <button class="btn btn-oro" id="btnReservar" disabled>

@@ -150,7 +150,13 @@ class Caja
         $sql = "SELECT cf.id_caja_fisica, cf.nombre, cf.id_sucursal, su.nombre AS sucursal,
                        c.id_caja, c.fecha_apertura, c.monto_inicial,
                        TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS responsable,
-                       fn_caja_saldo(c.id_caja) AS saldo
+                       fn_caja_saldo(c.id_caja) AS saldo,
+                       -- **Cuántas veces se abrió.** Es lo que decide si el
+                       -- cajón se puede BORRAR: uno recién creado no tiene
+                       -- historial que romper, y uno que ya operó sí — sus
+                       -- arqueos, cobros y egresos cuelgan de esas sesiones.
+                       (SELECT COUNT(*) FROM caja cx
+                         WHERE cx.id_caja_fisica = cf.id_caja_fisica) AS sesiones
                   FROM caja_fisica cf
                   JOIN sucursal su ON su.id_sucursal = cf.id_sucursal
                   LEFT JOIN caja c ON c.id_caja_fisica = cf.id_caja_fisica AND c.id_estado_caja = 1
@@ -166,7 +172,11 @@ class Caja
             $sql .= ' AND c.id_caja IS NULL';
         }
 
-        return DB::select($sql . ' ORDER BY su.nombre, cf.nombre', $par);
+        // **Por orden de creación.** Antes iba por nombre, así que «Caja 10»
+        // se metía entre la 1 y la 2 y el cajón nuevo aparecía en cualquier
+        // lado. El id autoincremental ES el orden en que se crearon: no hace
+        // falta guardar una fecha que se deduce de él.
+        return DB::select($sql . ' ORDER BY su.nombre, cf.id_caja_fisica', $par);
     }
 
     /**

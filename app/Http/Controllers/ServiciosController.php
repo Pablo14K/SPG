@@ -598,6 +598,18 @@ class ServiciosController extends Controller
             // Cuánto hay que facturar para dar un punto. Es una decisión
             // comercial del salón, así que se edita acá y no en un archivo.
             'puntosCadaGs' => Config::puntosCadaGs(),
+            // **Los niveles se mudaron desde Clientes → Fidelización.** Allá
+            // convivían con el listado de quién tiene cuántos puntos, así que
+            // la pantalla contestaba dos preguntas —cómo funciona el programa
+            // y quién está dónde— y ésta ya contestaba media primera con el
+            // valor del punto. Las reglas quedan juntas acá; el listado, allá.
+            'niveles' => DB::select(
+                'SELECT n.nombre, n.visitas_minimas, d.nombre AS descuento,
+                        (SELECT COUNT(*) FROM cliente cl
+                          WHERE cl.activo = 1 AND fn_cliente_nivel(cl.id_cliente) = n.id_nivel) AS clientes
+                   FROM nivel n LEFT JOIN descuento d ON d.id_descuento = n.id_descuento
+                  ORDER BY n.visitas_minimas'
+            ),
         ]);
     }
 

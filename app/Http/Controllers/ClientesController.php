@@ -478,15 +478,12 @@ class ClientesController extends Controller
             'rows' => DB::select("SELECT * $desde $orden LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
-            // Los niveles estaban escondidos en Configuración, lejos de donde
-            // se usan. Van acá, con cuánta gente hay hoy en cada uno.
-            'niveles' => DB::select(
-                'SELECT n.nombre, n.visitas_minimas, d.nombre AS descuento,
-                        (SELECT COUNT(*) FROM cliente cl
-                          WHERE cl.activo = 1 AND fn_cliente_nivel(cl.id_cliente) = n.id_nivel) AS clientes
-                   FROM nivel n LEFT JOIN descuento d ON d.id_descuento = n.id_descuento
-                  ORDER BY n.visitas_minimas'
-            ),
+            // **Los niveles se mudaron a Promociones.** Acá se contestaba
+            // «¿cómo funciona el programa?» y también «¿quién tiene cuántos
+            // puntos?», y la primera ya la contestaba Promociones con el valor
+            // del punto: la misma información en dos pantallas, que es lo que
+            // se reportó. Esta queda con lo operativo —el listado y el canje
+            // desde el mostrador— y aquélla con las reglas.
             // Para canjear desde el mostrador: la clienta que viene al local y
             // pide gastar sus puntos no tiene por qué entrar al portal —la
             // mayoría ni siquiera tiene cuenta—.
