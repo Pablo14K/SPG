@@ -154,24 +154,14 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function un_horario_ya_tomado_deja_de_estar_disponible(): void
     {
-        // La cita elegida no puede estar tapada por una ausencia ni caer fuera
-        // del turno del profesional: en esos dos casos `fn_verificar_disponibilidad`
-        // contesta «no» con razón, y la segunda parte de la prueba fallaría por
-        // un motivo que no es el que se está probando. Pasó de verdad — bastó
-        // cargar una licencia sobre la primera cita futura para tumbarla.
-        $cita = DB::selectOne(
-            'SELECT c.id_cita, c.id_usuario, c.fecha_hora, fn_cita_duracion(c.id_cita) AS dur
-               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
-                AND fn_cita_duracion(c.id_cita) > 0
-                AND fn_verificar_disponibilidad(c.id_usuario, c.fecha_hora,
-                                                fn_cita_duracion(c.id_cita), c.id_cita,
-                                                c.id_sucursal) = 1
-              ORDER BY c.fecha_hora LIMIT 1'
-        );
-        if (! $cita) {
-            $this->markTestSkipped('No hay ninguna cita futura cuyo horario siga siendo válido para su profesional.');
-        }
+        // **La prueba crea la cita que necesita.** Antes la buscaba en la base
+        // y se salteaba si no la encontraba: el día que el mes simulado se
+        // quedó sin citas futuras dejó de medir nada, en silencio. El horario
+        // sale de `Agenda::slots()`, así que cae en un hueco de verdad libre
+        // —ni tapado por una ausencia, ni fuera del turno—, que son los dos
+        // casos en que `fn_verificar_disponibilidad` diría «no» con razón y la
+        // segunda mitad fallaría por un motivo que no es el que se prueba.
+        $cita = $this->citaFuturaAgendada();
 
         // Sobre su propio horario, el profesional NO está disponible…
         $this->assertFalse(
@@ -189,15 +179,9 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function agendar_sobre_un_horario_ocupado_lo_rechaza_la_base(): void
     {
-        $cita = DB::selectOne(
-            'SELECT c.id_cita, c.id_cliente, c.id_usuario, c.fecha_hora, fn_cita_duracion(c.id_cita) AS dur
-               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
-              ORDER BY c.fecha_hora LIMIT 1'
-        );
-        if (! $cita) {
-            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
-        }
+        // La cita la crea la prueba: buscarla en la base la dejaba salteada el
+        // día que el mes simulado se quedó sin citas futuras.
+        $cita = $this->citaFuturaAgendada();
 
         // El procedimiento tiene que negarse, aunque se lo pida directo: la
         // validación no vive en la pantalla.
@@ -2295,15 +2279,9 @@ class ReglasDeNegocioTest extends TestCase
         // ahí: la agenda mostraba el badge «seña» y el aviso de caja cerrada,
         // y no había forma de cobrarla. Se comprueba la pantalla, que es lo
         // que faltaba.
-        $cita = DB::selectOne(
-            'SELECT c.id_cita, DATE(c.fecha_hora) AS dia
-               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
-              ORDER BY c.fecha_hora LIMIT 1'
-        );
-        if (! $cita) {
-            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
-        }
+        // La cita la crea la prueba: buscarla la dejaba salteada el día que el
+        // mes simulado se quedó sin citas futuras.
+        $cita = $this->citaFuturaAgendada();
         if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1')) {
             $this->markTestSkipped('No hay ninguna caja abierta en la base de prueba.');
         }
@@ -2323,15 +2301,9 @@ class ReglasDeNegocioTest extends TestCase
         // El aviso existía escrito desde la 6.0.0 y no lo llamaba nadie: la
         // clienta se enteraba de que su profesional no iba a estar cuando
         // llegaba al salón.
-        $cita = DB::selectOne(
-            'SELECT c.id_cita, c.id_usuario, c.fecha_hora
-               FROM cita c JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE ec.bloquea_agenda = 1 AND c.fecha_hora > NOW()
-              ORDER BY c.fecha_hora LIMIT 1'
-        );
-        if (! $cita) {
-            $this->markTestSkipped('No hay citas futuras en la base de prueba.');
-        }
+        // La cita la crea la prueba: buscarla la dejaba salteada el día que el
+        // mes simulado se quedó sin citas futuras.
+        $cita = $this->citaFuturaAgendada();
 
         $desde = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora . ' -1 hour'));
         $hasta = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora . ' +1 hour'));
@@ -5295,15 +5267,11 @@ class ReglasDeNegocioTest extends TestCase
      */
     public function test_el_enlace_del_correo_no_deja_reprogramar_dos_veces(): void
     {
-        $cita = DB::selectOne(
-            "SELECT c.id_cita FROM cita c
-              WHERE c.id_estado_cita = 1 AND c.fecha_hora > NOW()
-                AND EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
-              ORDER BY c.id_cita DESC LIMIT 1"
-        );
-        if (! $cita) {
-            $this->markTestSkipped('No hay una cita programada a futuro para comprobarlo.');
-        }
+        // La cita la crea la prueba —programada, futura y con servicios—: antes
+        // la buscaba y se salteaba, así que el día que el mes simulado se quedó
+        // sin citas futuras esta regla dejó de comprobarse sin que nada lo
+        // dijera.
+        $cita = $this->citaFuturaAgendada();
 
         $token = NotificacionesSPG::tokenDeCita((int) $cita->id_cita);
         $this->assertNotSame('', (string) $token, 'Hace falta un token para entrar por el enlace.');

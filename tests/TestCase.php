@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Servicios\Agenda;
 use App\Servicios\Sucursales;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +109,89 @@ abstract class TestCase extends BaseTestCase
                                    AND DATE(ci.fecha_hora) = CURDATE())
               ORDER BY c.id_cliente LIMIT 1'
         );
+    }
+
+    /**
+     * Una cita futura que ocupa la agenda, **creada por la prueba**.
+     *
+     * **Media docena de pruebas la buscaban en la base y se salteaban si no
+     * la encontraban**, y el día que el mes simulado se quedó sin citas
+     * futuras —que llega solo, con el calendario— cinco dejaron de medir
+     * nada. Se saltean, así que ni siquiera se ven: la batería informa
+     * «157 passed» y la cobertura se adelgaza en silencio.
+     *
+     * Es el defecto que este proyecto ya tiene anotado —*una prueba tiene que
+     * GARANTIZAR su premisa, no esperar a encontrarla*— aplicado al caso que
+     * más veces lo dispara.
+     *
+     * El horario NO se inventa: sale de `Agenda::slots()`, que es el mismo
+     * motor que dibuja la pantalla, así que la cita cae en un hueco que de
+     * verdad está libre para alguien que trabaja ese día. Si se eligiera una
+     * fecha fija, la prueba mediría el calendario en vez de la regla.
+     *
+     * Devuelve la fila con `id_cita`, `id_cliente`, `id_usuario`,
+     * `fecha_hora`, `id_sucursal` y `dur`. Vive dentro de la transacción de
+     * `DatabaseTransactions`, así que no queda nada en la base.
+     */
+    protected function citaFuturaAgendada(?int $idSucursal = null): object
+    {
+        $suc = $idSucursal ?: (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+
+        $srv = DB::selectOne(
+            'SELECT id_servicio, duracion_min FROM servicio
+              WHERE activo = 1 AND duracion_min > 0 ORDER BY duracion_min LIMIT 1'
+        );
+        $this->assertNotNull($srv, 'La premisa: hace falta al menos un servicio en el catálogo.');
+        $dur = (int) $srv->duracion_min;
+
+        // El primer hueco de verdad libre, mirando desde mañana: hoy puede
+        // haber pasado ya la última hora del turno.
+        $cuando = null;
+        $quien = 0;
+        for ($i = 1; $i <= 45 && $cuando === null; $i++) {
+            $dia = date('Y-m-d', strtotime("+$i day"));
+            foreach (Agenda::slots(null, $dia, $dur, null, $suc, [(int) $srv->id_servicio]) as $h) {
+                if (! empty($h['profesionales'])) {
+                    $cuando = $dia . ' ' . $h['hora'] . ':00';
+                    $quien = (int) $h['profesionales'][0];
+                    break;
+                }
+            }
+        }
+        $this->assertNotNull($cuando,
+            'La premisa: hace falta un horario libre en los próximos 45 días para armar la cita.');
+
+        // La clienta no puede ser una que ya tenga ese servicio ese día:
+        // `trg_citaserv_bi` lo rechaza, y la prueba moriría por otra regla.
+        $cliente = (int) DB::scalar(
+            'SELECT c.id_cliente FROM cliente c
+              WHERE c.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cita ci
+                                  JOIN cita_servicio cs ON cs.id_cita = ci.id_cita
+                                  JOIN estado_cita ec ON ec.id_estado_cita = ci.id_estado_cita
+                                 WHERE ci.id_cliente = c.id_cliente
+                                   AND ec.bloquea_agenda = 1
+                                   AND DATE(ci.fecha_hora) = DATE(?)
+                                   AND cs.id_servicio = ?)
+              ORDER BY c.id_cliente LIMIT 1', [$cuando, (int) $srv->id_servicio]
+        );
+        $this->assertNotSame(0, $cliente, 'La premisa: hace falta una clienta libre ese día.');
+
+        DB::insert('INSERT INTO cita (id_cliente, id_usuario, id_sucursal, fecha_hora, id_estado_cita)
+                    VALUES (?,?,?,?,1)', [$cliente, $quien, $suc, $cuando]);
+        $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio) VALUES (?,?)',
+                   [$id, (int) $srv->id_servicio]);
+
+        return (object) [
+            'id_cita' => $id,
+            'id_cliente' => $cliente,
+            'id_usuario' => $quien,
+            'id_sucursal' => $suc,
+            'fecha_hora' => $cuando,
+            'dia' => substr($cuando, 0, 10),
+            'dur' => (int) DB::scalar('SELECT fn_cita_duracion(?)', [$id]),
+        ];
     }
 
     /**
