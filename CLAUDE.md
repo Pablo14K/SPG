@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.106.0 | 05/09/2026 | **La factura electrónica estaba APAGADA en el servidor, y el sistema no lo decía en ningún lado.** Se reportó como «los correos de facturación llegan vacíos», y el correo no tenía nada de malo: `docker/php/env.produccion` viajaba con `SIFEN_ACTIVO=false` —el valor de la plantilla, el que corresponde a un salón que no factura electrónicamente— así que en el servidor **no pasaba ninguna de las tres cosas que la clienta espera**: la pantalla de emitir no pedía los datos del receptor, el comprobante no se declaraba, y sin CDC no hay KuDE ni XML que adjuntar. El correo salía igual, con su detalle, **y sin los documentos** — que es exactamente lo que se ve como un correo vacío. **Medido en el servidor y acá**, que es lo que lo cerró: la misma consulta dio `cuerpo 2866 chars | adjuntos 0` allá y `4548 chars | adjuntos 2` acá, con el Automatizador comprobadamente callado de los dos lados. **Lo que se arregla de fondo no es la línea sino el silencio**: con el módulo apagado el diagnóstico no decía una palabra —terminaba en «Todo en orden» mientras el salón creía estar declarando— y ahora lo dice como **OJO**, con qué significa y cómo se enciende. Va como aviso y no como falla porque un salón puede legítimamente no facturar electrónicamente; lo que no puede pasar es que no se sepa. Es la regla del proyecto —*si algo queda apagado, tiene que notarse*— aplicada al interruptor que ya estaba nombrado en ella y no tenía quién lo mirara. Comprobado en las dos direcciones. **Y de paso, el Automatizador deja de levantar sin configurar.** Sube con el sistema desde siempre, pero su `bootstrap.php` busca un `.env` propio y **cuando no lo encuentra cae en su `.env.example`**: en el servidor corría con los valores de demostración sin decirlo. Crearle ese archivo a mano adentro del contenedor no sirve —la imagen se reconstruye desde un clon nuevo en cada despliegue, que es el problema de la 7.87.0 un contenedor más allá— así que la configuración pasa al compose, donde **las variables del contenedor le ganan al archivo**: su cargador sólo escribe la clave `if (getenv($k) === false)`. Comprobado con su `.env` cargado a propósito con una cuenta de correo: el contenedor lo sigue viendo vacío. Van `SIFEN_MODE` explícito —`mock` es lo que se puede hacer sin certificado, y en silencio se confunde con estar declarando—, `APP_URL`, y `MAIL_FROM_EMAIL` vacío, que pasa a ser **el tercer candado del remitente único** y el único que nadie va a llenar de buena fe. Entran además dos volúmenes con nombre: `sifen_certs`, para que el certificado sobreviva al despliegue —no está en el repositorio, un `.pem` versionado es un `.pem` publicado— y `sifen_salida`, con el XML firmado y el KuDE originales. **167 pruebas · 1258 aserciones** |
 | 7.105.0 | 05/09/2026 | **El correo del salón pasa a vivir SÓLO en el sistema: se carga en una pantalla, no en un archivo, y de ahí sale todo — el comprobante electrónico incluido.** Eran dos mitades del mismo problema. **La primera**: la regla de que manda uno solo —el SPG, con la cuenta de «Seguridad → Correo del sistema»— estaba escrita desde la 7.91.0 y **la garantía era floja**. El Automatizador se callaba únicamente si su `.env` dejaba `MAIL_FROM_EMAIL` vacío, o sea si nadie lo completaba de buena fe; y ese archivo no se versiona, así que **cuando no existe el Automatizador lee su propio `.env.example`**: basta con que alguien lo copie y lo llene una vez para que la clienta reciba el mismo comprobante **dos veces, desde dos direcciones**, y cambiar la cuenta en la pantalla arregle la mitad. Ahora **lo decide el SPG en cada emisión** —manda `X-SPG-Correo: no` y `construirMail()` lo respeta antes de mirar su configuración—, así que quedan dos candados y el que manda es el primero, porque el segundo vive donde el sistema no llega. Comprobado contra el servicio corriendo, con su `.env` cargado a propósito: **sin** la cabecera contesta `mail_enviado: true` y escribe el `.eml`; **con** la cabecera, `false` y ninguno. Y si del otro lado corre una versión vieja que la ignora, el SPG lo dice en pantalla y en el log. **La segunda mitad, por decisión del usuario**: `secretos.env` deja de llevar la cuenta. `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS` van vacíos —y de paso `SPG_EMAIL_TLS`, que tenía la misma dirección y no lo usa nadie desde que el certificado lo saca Traefik—, así que el **formulario es la única fuente**: se cambia sin volver a desplegar, la clave queda cifrada con la APP_KEY y **no vuelve a quedar publicada en el repositorio**, que es lo que pasaba desde la 7.87.0. **El precio se dice y se hace visible**, que es la condición para apagar algo: una instalación recién levantada no manda un solo correo hasta que alguien complete esa pantalla. `spg:diagnostico` lo cuenta como **problema**, el panel lo lista en **IMPIDE TRABAJAR** con el enlace —renglón nuevo de `Pendientes`, marcado como sólo-Administrador para no ofrecerle a otro rol algo que le va a contestar 403— y la pantalla abre diciéndolo. **De paso salió el correo IMPRESO en el KuDE, que es otra cosa y se confunde con ésta**: es el **fiscal**, el de «Seguridad → Sucursales», y viaja en `EMI|`. Vacío, el Automatizador cae en el `EMISOR_EMAIL` de su archivo de ejemplo —`facturacion@miempresa.com`— así que **el comprobante fiscal de la clienta salía con el correo de otra empresa impreso**: es el defecto de la 7.52.0 por otra puerta, con el correo en lugar de la razón social. Ahora cae a la cuenta que envía, que es una dirección real y del salón. **167 pruebas · 1256 aserciones**, tres nuevas comprobadas en las dos direcciones. Dos son de andamiaje y nacen del mismo patrón: la cabecera la escriben **dos proyectos distintos** —renombrarla de un lado no da error, sólo vuelve a mandar el correo con la cuenta que no corresponde— y la credencial se vuelve a colar **llenando una línea de un archivo de ejemplo**, que es como este proyecto ya se rompió el correo una vez |
 | 7.104.0 | 05/09/2026 | **La reprogramación del panel ofrecía domingos, y las pantallas que se miran entre varios avisan cuando algo cambió.** **El peor de los cinco**: el modal de reprogramar del panel tenía un `datetime-local` suelto, así que dejaba mover una cita a un **domingo**, a un día en que esa persona no trabaja o a una hora fuera de su turno — el «no» llegaba recién al guardar. Es la regla del proyecto —*las pantallas no dejan escribir una fecha a mano*— que el portal cumple desde la 7.96.0 y acá se había quedado sin aplicar: media corrección, el patrón de siempre. Ahora usa **el mismo selector que la clienta**, con los servicios, el profesional y la sucursal fijos —reprogramar no pregunta qué se hace ni con quién— y el botón arranca deshabilitado hasta que haya un horario elegido. **La columna «Profesional» mostraba una sola.** Descartaba las filas con `cita_servicio.id_usuario` en NULL con un `IS NOT NULL`, y **un NULL ahí no es «nadie»: es el dueño de la cita** — así se representa «lo hace quien la tiene» desde siempre. Una cita con dos servicios en manos distintas —una elegida y la otra la dueña— salía a nombre de una sola, y quien lee la agenda no sabía que iban a atenderla entre dos. Se resuelve con el mismo `COALESCE` que usa el resto del sistema. **El desglose estaba dos veces**: la tabla de abajo ya lo abre servicio por servicio, así que el listado de «Precio de lista» decía lo mismo más arriba. **Y la factura dice que las dos se declaran**: se la llamaba «sin declarar», y eso hace creer que ese cobro queda fuera de lo informado — la innominada **sí** se declara, es la misma factura electrónica con el grupo del receptor vacío. **Entran las actualizaciones en vivo**, que es lo nuevo: el sistema navega a la vieja usanza, así que cada pantalla es una foto del momento en que se pidió, y con dos personas sobre la misma agenda una registra la atención y la otra la sigue viendo Programada. `VivoController` contesta **una huella** de lo que la pantalla mira —conteo, último id y suma de estados— y no datos, así que no hay nada que filtrar por permiso; la vista se anota con `@section('vivo', 'agenda')` y sin eso no consulta nada. **No recarga encima de algo escrito**: si hay un modal abierto o un campo tocado, aparece un aviso con «Actualizar» en vez de tirar el trabajo a la basura — que es la queja que este proyecto ya arregló dos veces con el borrador de las altas rápidas. Comprobado en las dos direcciones en el navegador: con el modal abierto sale el aviso y la página no se mueve; sin nada abierto, se recarga sola. **De paso, el correo del comprobante no salía por una trampa que este documento ya tenía anotada para otra clave**: `php artisan serve` le reenvía al proceso que atiende la web **sólo una lista blanca** de variables, así que las de `secretos.env` las veía la consola y **no** la web — `MAIL_FROM_ADDRESS` llegaba vacío y declarar la factura terminaba con «An email must have a "From" or a "Sender" header» en el log y nada en pantalla. Se verificó emitiendo de punta a punta: **SIFEN corre y funciona** —factura 001-001-0000065 declarada, con su CDC, su KuDE y su XML guardados— y lo único que faltaba era el remitente. **La contraseña de aplicación de Gmail está vencida** (`535-5.7.8`), y rotarla es del usuario. **164 pruebas · 1250 aserciones**, dos nuevas comprobadas en las dos direcciones — con el arreglo sacado, las dos fallan |
 | 7.103.1 | 05/09/2026 | **Cinco pruebas habían dejado de medir, y se saltearon en silencio.** El mes simulado se quedó sin citas futuras —cero desde hoy, con el calendario avanzando solo— y las cinco que buscaban una en la base pasaron a `markTestSkipped`: la batería informaba **«157 passed»** y la cobertura se adelgazaba sin que nada lo dijera. Es el defecto que este documento ya tiene anotado —*una prueba tiene que GARANTIZAR su premisa, no esperar a encontrarla*— aplicado al caso que más veces lo dispara, y **la forma de fallar es la peor**: una prueba salteada no se ve, así que un cambio que rompiera el horario ocupado, el aviso de ausencia o el tope de reprogramación habría pasado en verde. Entra `TestCase::citaFuturaAgendada()`, que la **crea**: elige el servicio más corto, busca el primer hueco de verdad libre con **`Agenda::slots()`** —el mismo motor que dibuja la pantalla, así que la cita no cae ni sobre una ausencia ni fuera del turno, que son los dos casos en que `fn_verificar_disponibilidad` diría «no» con razón y la prueba fallaría por otro motivo— y toma una clienta que no tenga ese servicio ese día, que si no la rechaza `trg_citaserv_bi`. Vive dentro de `DatabaseTransactions`, así que no deja nada. **De 157 a 162 pruebas y de 1211 a 1239 aserciones**; las 2 que siguen salteadas son las legítimas, las del criterio permisivo —«todos tienen turno», «hace todos los servicios»— donde de verdad no hay caso que medir |
@@ -2977,6 +2978,81 @@ que lo tiene. Sin correo cargado también avisa, en vez de quedarse callado.
 
 **Con `SIFEN_ACTIVO=false`, que es como se entrega, el módulo no existe**: ni botón, ni bloque,
 ni columnas. Un salón que no factura electrónicamente no tiene por qué ver nada de esto.
+
+> **Y eso es justo lo que lo vuelve peligroso, así que el diagnóstico lo dice.** Apagado no se ve
+> por ningún lado, pero **se caen tres cosas de una**: la pantalla de emitir deja de pedir los
+> datos del receptor, el comprobante no se declara, y sin CDC no hay KuDE ni XML — así que el
+> correo le llega a la clienta **con el detalle y sin los documentos**. Desde afuera eso se ve
+> como «manda un correo vacío», y se reportó con esas palabras después de buscarlo un buen rato
+> en el correo, que no tenía nada.
+>
+> El servidor arrastraba el `false` de la plantilla, y `spg:diagnostico --produccion` terminaba
+> en «Todo en orden» sin nombrarlo. Ahora lo avisa como **OJO** —no como falla, que un salón
+> puede legítimamente no facturar electrónicamente— diciendo qué significa y cómo se enciende.
+> Es la regla de siempre: *si algo queda apagado, tiene que notarse*.
+>
+> **`SIFEN_ACTIVO` vive en el `.env` del entorno y NO en `secretos.env`**, así que se cambia en
+> `docker/php/env.produccion` y hay que **volver a desplegar**: un `restart` no lo toma.
+
+### El Automatizador levanta con el sistema, y CONFIGURADO
+
+Sube solo con el resto —es un servicio más de los dos compose— pero hasta la
+7.106.0 **subía sin configuración**: su `bootstrap.php` busca un `.env` propio
+y, cuando no lo encuentra, **cae en su `.env.example`**. O sea que en el servidor
+corría con los valores de demostración y no lo decía nadie.
+
+**Y crear ese `.env` a mano adentro del contenedor no sirve**: la imagen se
+reconstruye desde un clon nuevo en cada despliegue, así que lo que se escriba ahí
+dura hasta la próxima actualización. Es el mismo problema que la 7.87.0 tuvo con
+`secretos.env`, un contenedor más allá.
+
+**Por eso la configuración viaja en el compose.** Su cargador escribe la clave
+del archivo sólo `if (getenv($k) === false)`, así que **las variables del
+contenedor le ganan al archivo** — comprobado con su `.env` cargado a propósito:
+el contenedor sigue viendo `MAIL_FROM_EMAIL` vacío.
+
+| Variable | Valor | Por qué |
+|---|---|---|
+| `SIFEN_MODE` | `mock` | es lo que se puede hacer sin certificado, y **explícito se ve**. Antes lo heredaba del ejemplo en silencio |
+| `APP_URL` | `http://sifen:8090` | de ahí salen las `xml_url` y `kude_url` que devuelve. Vacío daba rutas relativas |
+| `MAIL_FROM_EMAIL` | **vacío** | el tercer candado del remitente único — ver abajo |
+
+Y dos volúmenes con nombre, para que **el despliegue no se lleve puesto lo que
+importa**:
+
+| Volumen | Qué guarda |
+|---|---|
+| `sifen_certs` | el certificado y la clave privada. **No están en el repositorio** —un `.pem` versionado es un `.pem` publicado— así que se copian una vez ahí y sobreviven a los despliegues |
+| `sifen_salida` | el XML firmado y el KuDE que genera. El SPG se baja su copia a `storage/app/sifen/<factura>/`, así que esto es el original |
+
+> **Con el certificado puesto, `SIFEN_MODE` pasa a `prod` y recién ahí se
+> declara de verdad.** En `mock` el circuito entero funciona —CDC, KuDE, XML y
+> el correo con los dos adjuntos— pero **la DNIT no se entera**. Es la
+> distinción que hay que tener clarísima antes de decirle al salón que está
+> facturando electrónicamente.
+>
+> Lo que hace falta además del archivo, y sale de su `bootstrap.php`:
+> `SIFEN_CERT_P12_PATH` y `SIFEN_CERT_P12_PASSWORD` (o el par `SIFEN_CERT_PEM_PATH`
+> + `SIFEN_PRIVATE_KEY_PEM_PATH`), el `SIFEN_CSC` con su `SIFEN_ID_CSC`, y las
+> tres URL del web service. **Van por el compose como el resto**, no por un
+> `.env` adentro del contenedor: ése no sobrevive al despliegue siguiente.
+
+#### Los tres candados del remitente único
+
+El comprobante lo manda **uno solo**: el SPG, con la cuenta de «Seguridad →
+Correo del sistema». El Automatizador sabe mandarlo también, con **su** cuenta,
+y con los dos prendidos la clienta lo recibe dos veces desde direcciones
+distintas.
+
+| Candado | Dónde | Fuerza |
+|---|---|---|
+| `X-SPG-Correo: no` | el SPG, en cada emisión | **el que manda**: no depende de nada del otro lado |
+| `MAIL_FROM_EMAIL: ""` | el compose | le gana al `.env` del Automatizador, pase lo que pase |
+| `MAIL_FROM_EMAIL=` | su `.env.example` | una convención: es justo el archivo que alguien copia y completa |
+
+`AndamiajeTest` cuida los tres, porque los escriben **tres archivos de proyectos
+distintos** y renombrar cualquiera no da error: sólo vuelve a mandar el correo
+con la cuenta que no corresponde.
 
 ### Mandarle el comprobante a la clienta
 

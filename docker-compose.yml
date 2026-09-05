@@ -143,6 +143,15 @@ services:
     working_dir: /automatizador
     environment:
       TZ: America/Asuncion
+      # Lo mismo que en el compose del servidor, para que los dos entornos se
+      # comporten igual. **Las variables del contenedor le ganan a su `.env`**:
+      # su cargador sólo escribe la clave `if getenv($k) === false`.
+      SIFEN_MODE: mock
+      APP_URL: http://sifen:8090
+      # El tercer candado del remitente único: el comprobante lo manda el SPG,
+      # con la cuenta de «Seguridad → Correo del sistema». El SPG además le
+      # manda `X-SPG-Correo: no` en cada emisión.
+      MAIL_FROM_EMAIL: ""
     ports:
       - "8090:8090"
     volumes:

@@ -201,6 +201,23 @@ class Diagnostico extends Command
                 . 'adjuntando el KuDE y el XML');
             $this->linea('El Automatizador', 'no manda: el SPG se lo dice en cada emisión '
                 . '(X-SPG-Correo). Su MAIL_FROM_EMAIL vacío queda de segundo candado');
+        } else {
+            // **Apagado en silencio, que es lo que este comando existe para
+            // destapar.** Con `SIFEN_ACTIVO=false` no hay ni una señal en la
+            // interfaz: la pantalla de emitir no pide los datos del receptor,
+            // el comprobante no se declara, no hay CDC —y sin CDC no hay KuDE
+            // ni XML— así que el correo le llega a la clienta **sin los
+            // documentos**. Desde afuera se ve como «manda un correo vacío», y
+            // se reportó exactamente con esas palabras.
+            //
+            // Va como OJO y no como falla: un salón puede legítimamente no
+            // facturar electrónicamente, y ahí esto sería ruido. Lo que no
+            // puede pasar es que no se diga.
+            $this->aviso('La factura electrónica está APAGADA (SIFEN_ACTIVO=false).');
+            $this->linea('Qué significa', 'no se pide el receptor, no se declara ante la DNIT y '
+                . 'no se generan el KuDE ni el XML: el correo del comprobante sale sin adjuntos');
+            $this->linea('Si el salón sí factura', 'SIFEN_ACTIVO=true en el .env del entorno '
+                . '(docker/php/env.produccion en el servidor) y volver a desplegar');
         }
 
         // ---- ¿La base coincide con el .sql que se entrega? ------------------

@@ -385,12 +385,27 @@ class AndamiajeTest extends TestCase
 
         foreach (['MAIL_FROM_EMAIL', 'MAIL_USERNAME', 'MAIL_PASSWORD'] as $clave) {
             $this->assertMatchesRegularExpression(
-                '/^' . $clave . '=\s*$/m', $txt,
+                '/^' . $clave . '=[ 	]*$/m', $txt,
                 $clave . ' del Automatizador tiene que quedar VACÍO en el .env.example: '
                 . 'el que le manda el comprobante a la clienta es el SPG, con la cuenta de '
                 . '«Seguridad → Correo del sistema». Con los dos mandando, le llega dos veces '
                 . 'desde direcciones distintas.'
             );
+        }
+
+        // **El tercer candado, y el único que nadie va a llenar de buena fe.**
+        // El `.env.example` es justamente el archivo que alguien copia y
+        // completa —y encima es el que el Automatizador lee cuando no hay
+        // `.env`—, así que la línea vacía de arriba es una convención. Desde el
+        // compose, en cambio, la variable del contenedor **le gana al archivo**
+        // pase lo que pase: su cargador sólo escribe la clave cuando
+        // `getenv()` devuelve false.
+        foreach (['docker-compose.yml', 'docker-compose.produccion.yml'] as $yml) {
+            $this->assertStringContainsString('MAIL_FROM_EMAIL: ""',
+                (string) file_get_contents(base_path($yml)),
+                $yml . ' dejó de vaciarle el remitente al Automatizador. Sin eso, un `.env` '
+                . 'suyo con la cuenta cargada vuelve a mandarle el comprobante a la clienta '
+                . 'desde una dirección que el salón no puede cambiar.');
         }
     }
 

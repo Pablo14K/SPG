@@ -201,9 +201,21 @@ services:
           sleep 60
         done
 
-  # El Automatizador SIFEN. Sólo hace falta si el salón declara ante la DNIT
-  # (`SIFEN_ACTIVO=true`); con `false` el módulo no existe en la interfaz y este
-  # contenedor no molesta a nadie.
+  # El Automatizador SIFEN, que **levanta con el sistema y ya configurado**.
+  #
+  # Sube solo con el resto —está acá y lleva `restart: unless-stopped`— pero
+  # hasta la 7.106.0 subía **sin configuración**: su `bootstrap.php` busca un
+  # `.env` propio y, cuando no lo encuentra, **cae en su `.env.example`**. O sea
+  # que en el servidor corría con los valores de demostración sin decirlo.
+  #
+  # **Y crear ese `.env` a mano adentro del contenedor no sirve**: la imagen se
+  # reconstruye desde un clon nuevo en cada despliegue, así que lo que se
+  # escriba ahí dura hasta la próxima actualización. Es exactamente el problema
+  # que la 7.87.0 tuvo con `secretos.env`.
+  #
+  # Por eso la configuración viaja acá: **las variables del contenedor le ganan
+  # al archivo**, porque su cargador sólo escribe la clave `if getenv($k) ===
+  # false`. Lo que no está acá lo sigue tomando del ejemplo.
   #
   # **Sin `ports:`**: el SPG le habla por la red interna.
   sifen:
@@ -216,9 +228,41 @@ services:
     environment:
       TZ: America/Asuncion
 
+      # **`mock` es lo que se puede hacer hoy, y decirlo es la mitad del
+      # asunto.** Genera el CDC, el KuDE y el XML —el circuito entero anda y la
+      # clienta recibe los documentos— pero **no declara ante la DNIT**. Para
+      # eso hace falta el certificado en `certs/`, que no está en el
+      # repositorio: se copia una vez al volumen `sifen_certs` y **sobrevive a
+      # los despliegues**. Con el certificado puesto, esto pasa a `prod`.
+      SIFEN_MODE: mock
+
+      # De acá salen las `xml_url` y `kude_url` que devuelve. El SPG no las usa
+      # —se baja las copias armando la dirección desde `SIFEN_URL`, que es la
+      # que de verdad está usando— pero vacío devolvía rutas relativas que no
+      # llevan a ningún lado.
+      APP_URL: http://sifen:8090
+
+      # **El tercer candado del remitente único.** El SPG ya le manda
+      # `X-SPG-Correo: no` en cada emisión (7.105.0) y el ejemplo lo trae
+      # vacío; esto lo deja vacío **desde el compose**, que es lo único que
+      # nadie va a llenar de buena fe. El comprobante lo manda el SPG, con la
+      # cuenta de «Seguridad → Correo del sistema».
+      MAIL_FROM_EMAIL: ""
+    volumes:
+      # El certificado y la clave privada, que NO están en el repositorio: un
+      # `.pem` versionado es un `.pem` publicado. En un volumen sobreviven al
+      # despliegue, que reconstruye la imagen entera.
+      - sifen_certs:/automatizador/certs
+      # Lo que genera: el XML firmado y el KuDE. El SPG se baja su copia y la
+      # guarda en `storage/app/sifen/<factura>/`, así que esto es el original —
+      # y en un volumen no se pierde al redesplegar.
+      - sifen_salida:/automatizador/salida
+
 volumes:
   datos_bd:
   almacenamiento:
   imagenes_servicios:
   imagenes_logo:
   caddy_log:
+  sifen_certs:
+  sifen_salida:
