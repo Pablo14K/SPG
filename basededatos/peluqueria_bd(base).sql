@@ -211,6 +211,7 @@ CREATE TABLE `caja_fisica` (
   `id_caja_fisica` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
   `nombre` varchar(60) NOT NULL,
+  `creado_en` datetime DEFAULT current_timestamp() COMMENT 'Cuándo se creó el cajón. NULL en los anteriores a la 7.103.0 que nunca se abrieron.',
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_caja_fisica`),
   UNIQUE KEY `uq_caja_fisica` (`id_sucursal`,`nombre`),
@@ -226,7 +227,7 @@ CREATE TABLE `caja_fisica` (
 
 LOCK TABLES `caja_fisica` WRITE;
 /*!40000 ALTER TABLE `caja_fisica` DISABLE KEYS */;
-INSERT INTO `caja_fisica` VALUES (1,1,'Caja 1',1);
+INSERT INTO `caja_fisica` VALUES (1,1,'Caja 1','2026-09-05 13:29:22',1);
 /*!40000 ALTER TABLE `caja_fisica` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -4765,6 +4766,65 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_servicio_descuento_monto` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_servicio_descuento_monto`(p_id_servicio INT UNSIGNED,
+    p_id_cliente  INT UNSIGNED
+) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  DECLARE v_precio DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_nivel  INT UNSIGNED DEFAULT NULL;
+  DECLARE v_mejor  DECIMAL(14,2) DEFAULT 0;
+
+  SELECT precio INTO v_precio
+    FROM servicio WHERE id_servicio = p_id_servicio AND activo = 1;
+
+  IF v_precio IS NULL OR v_precio <= 0 THEN
+    RETURN 0;
+  END IF;
+
+  
+  
+  IF p_id_cliente IS NOT NULL THEN
+    SET v_nivel = fn_cliente_descuento(p_id_cliente);
+  END IF;
+
+  SELECT COALESCE(MAX(fn_descuento_monto(d.id_descuento, v_precio)), 0)
+    INTO v_mejor
+    FROM descuento d
+   WHERE d.activo = 1
+     AND d.tipo = 'PORCENTAJE'
+     
+     
+     AND (d.id_descuento = v_nivel
+          OR NOT EXISTS (SELECT 1 FROM nivel n WHERE n.id_descuento = d.id_descuento))
+     
+     AND (NOT EXISTS (SELECT 1 FROM servicio_descuento sd
+                       WHERE sd.id_descuento = d.id_descuento)
+          OR EXISTS (SELECT 1 FROM servicio_descuento sd
+                      WHERE sd.id_descuento = d.id_descuento
+                        AND sd.id_servicio = p_id_servicio));
+
+  IF v_mejor > v_precio THEN
+    SET v_mejor = v_precio;
+  END IF;
+
+  RETURN v_mejor;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_siguiente_correlativo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -5594,22 +5654,28 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_nota_credito`(
     IN  p_id_factura_origen INT UNSIGNED,
     IN  p_id_usuario        INT UNSIGNED,
     IN  p_motivo            VARCHAR(300),
+    IN  p_monto             DECIMAL(14,2),
     OUT p_id_nota           INT UNSIGNED)
 BEGIN
-  DECLARE v_suc INT UNSIGNED DEFAULT NULL;
+  DECLARE v_suc       INT UNSIGNED DEFAULT NULL;
   DECLARE v_cliente   INT UNSIGNED DEFAULT NULL;
   DECLARE v_signo     TINYINT DEFAULT 0;
   DECLARE v_condicion INT UNSIGNED DEFAULT 1;
   DECLARE v_timbrado  INT UNSIGNED DEFAULT NULL;
   DECLARE v_nro       INT UNSIGNED DEFAULT 0;
+  DECLARE v_total     DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_factor    DECIMAL(18,8) DEFAULT 1;
+  DECLARE v_dif       DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_detalle   INT UNSIGNED DEFAULT NULL;
+  DECLARE v_cant      DECIMAL(12,4) DEFAULT 1;
 
   SELECT f.id_cliente, f.id_condicion_venta, tc.signo
     INTO v_cliente, v_condicion, v_signo
@@ -5627,11 +5693,6 @@ BEGIN
 
   
   
-  
-  
-  
-  
-  
   SELECT COALESCE(f.id_sucursal, t.id_sucursal) INTO v_suc
     FROM factura f LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
    WHERE f.id_factura = p_id_factura_origen;
@@ -5639,6 +5700,18 @@ BEGIN
   SET v_timbrado = fn_timbrado_vigente(5, CURRENT_DATE, v_suc);
   IF v_timbrado IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para notas de credito.';
+  END IF;
+
+  
+  SET v_total = fn_factura_total(p_id_factura_origen);
+  IF p_monto IS NULL OR p_monto >= v_total THEN
+    SET v_factor = 1;
+  ELSEIF p_monto <= 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El monto a acreditar tiene que ser mayor a cero.';
+  ELSEIF v_total <= 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ese comprobante no tiene monto que acreditar.';
+  ELSE
+    SET v_factor = p_monto / v_total;
   END IF;
 
   SET v_nro = fn_siguiente_correlativo(v_timbrado);
@@ -5650,14 +5723,37 @@ BEGIN
   SET p_id_nota = LAST_INSERT_ID();
 
   INSERT INTO detalle_factura (id_factura, id_servicio, id_producto, cantidad, precio_unitario, tasa_iva)
-  SELECT p_id_nota, df.id_servicio, df.id_producto, df.cantidad, df.precio_unitario, df.tasa_iva
+  SELECT p_id_nota, df.id_servicio, df.id_producto, df.cantidad,
+         ROUND(df.precio_unitario * v_factor, 2), df.tasa_iva
   FROM detalle_factura df
   WHERE df.id_factura = p_id_factura_origen;
 
   INSERT INTO factura_descuento (id_factura, id_descuento, monto_aplicado)
-  SELECT p_id_nota, fd.id_descuento, fd.monto_aplicado
+  SELECT p_id_nota, fd.id_descuento, ROUND(fd.monto_aplicado * v_factor, 2)
   FROM factura_descuento fd
   WHERE fd.id_factura = p_id_factura_origen;
+
+  
+  
+  
+  IF v_factor < 1 THEN
+    SET v_dif = p_monto - fn_factura_total(p_id_nota);
+
+    IF v_dif <> 0 THEN
+      SELECT df.id_detalle_factura, df.cantidad
+        INTO v_detalle, v_cant
+        FROM detalle_factura df
+       WHERE df.id_factura = p_id_nota
+       ORDER BY df.cantidad * df.precio_unitario DESC, df.id_detalle_factura ASC
+       LIMIT 1;
+
+      IF v_detalle IS NOT NULL AND v_cant > 0 THEN
+        UPDATE detalle_factura
+           SET precio_unitario = GREATEST(0, precio_unitario + (v_dif / v_cant))
+         WHERE id_detalle_factura = v_detalle;
+      END IF;
+    END IF;
+  END IF;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -6494,4 +6590,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-03 21:42:13
+-- Dump completed on 2026-09-05 12:32:47

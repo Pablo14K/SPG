@@ -147,7 +147,7 @@ class Caja
             $par['q2'] = '%' . $filtros['q'] . '%';
         }
 
-        $sql = "SELECT cf.id_caja_fisica, cf.nombre, cf.id_sucursal, su.nombre AS sucursal,
+        $sql = "SELECT cf.id_caja_fisica, cf.nombre, cf.id_sucursal, cf.creado_en, su.nombre AS sucursal,
                        c.id_caja, c.fecha_apertura, c.monto_inicial,
                        TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS responsable,
                        fn_caja_saldo(c.id_caja) AS saldo,
@@ -172,10 +172,16 @@ class Caja
             $sql .= ' AND c.id_caja IS NULL';
         }
 
-        // **Por orden de creación.** Antes iba por nombre, así que «Caja 10»
-        // se metía entre la 1 y la 2 y el cajón nuevo aparecía en cualquier
-        // lado. El id autoincremental ES el orden en que se crearon: no hace
-        // falta guardar una fecha que se deduce de él.
+        // **Por orden de creación, y el id es el que lo dice exacto.** Antes
+        // iba por nombre, así que «Caja 10» se metía entre la 1 y la 2 y el
+        // cajón nuevo aparecía en cualquier lado.
+        //
+        // Se ordena por el **id** y no por `creado_en` a propósito: el id es
+        // el orden real, y la fecha de los cajones anteriores a la 7.103.0
+        // está **reconstruida** desde su primera apertura —una cota, no el
+        // instante— así que ordenar por ella podría dar vuelta dos que se
+        // crearon al revés. La fecha se muestra; el orden lo sigue dando el
+        // id, que no puede equivocarse.
         return DB::select($sql . ' ORDER BY su.nombre, cf.id_caja_fisica', $par);
     }
 

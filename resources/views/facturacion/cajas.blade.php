@@ -82,6 +82,22 @@
                         {{ fecha($c->fecha_apertura, 'd/m/Y') }} a las
                         {{ fecha($c->fecha_apertura, 'H:i') }}
                     </div>
+                    {{-- **Toda fecha lleva su rótulo**, que es la regla de estas
+                         pantallas: una suelta al lado de otra se lee como la
+                         misma cosa. Ésta es de cuándo existe el cajón, no de la
+                         sesión de hoy.
+
+                         Dice «en uso desde» y no «creada el» cuando la fecha
+                         está reconstruida desde su primera apertura: el cajón
+                         existía desde antes, y afirmar el día exacto sería
+                         inventarlo. --}}
+                    @if ($c->creado_en)
+                        <div class="text-muted-warm" style="font-size:.82rem">
+                            <i class="bi bi-calendar-plus"></i>
+                            {{ (int) ($c->sesiones ?? 0) ? 'En uso desde el' : 'Creada el' }}
+                            {{ fecha($c->creado_en, 'd/m/Y') }}
+                        </div>
+                    @endif
 
                     @if (Permisos::puede('facturacion.movimientos'))
                         <div class="text-muted-warm mt-2" style="font-size:.82rem">
@@ -98,6 +114,17 @@
                     <div class="text-muted-warm mt-3" style="font-size:.85rem">
                         Sin caja abierta. Mientras esté cerrada no se puede cobrar desde este cajón.
                     </div>
+                    {{-- **Cuándo se creó**, para el cajón que todavía no abrió:
+                         es lo único que lo distingue de otro con el mismo estado.
+                         En los que están abiertos se dice arriba, junto a la
+                         apertura. --}}
+                    @if ($c->creado_en)
+                        <div class="text-muted-warm mt-1" style="font-size:.8rem">
+                            <i class="bi bi-calendar-plus"></i>
+                            {{ (int) ($c->sesiones ?? 0) ? 'En uso desde el' : 'Creada el' }}
+                            {{ fecha($c->creado_en, 'd/m/Y') }}
+                        </div>
+                    @endif
                 @endif
 
                 <div class="d-flex gap-2 flex-wrap mt-3 pt-3 border-top">
