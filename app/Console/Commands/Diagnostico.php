@@ -154,8 +154,9 @@ class Diagnostico extends Command
             if ($usuario === '' || $clave === '') {
                 $this->mal('El driver dice smtp pero faltan las credenciales: NO va a salir '
                     . 'ningún correo, y la pantalla igual va a decir que lo mandó.');
-                $this->linea('Casi seguro', 'falta docker/php/secretos.env — no se versiona, '
-                    . 'así que si el ZIP se armó sin él, hay que copiarlo del .example');
+                $this->linea('Dónde se carga', 'Seguridad → Correo del sistema. Desde la '
+                    . '7.105.0 la cuenta sale SÓLO de ahí: los archivos de entorno van vacíos a '
+                    . 'propósito, así que se cambia sin volver a desplegar');
                 $this->linea('Qué se pierde', 'código de verificación, recuperación de contraseña, '
                     . 'segundo factor y recordatorios de cita');
                 $problemas++;
@@ -187,16 +188,19 @@ class Diagnostico extends Command
         // haría con SU cuenta, y con los dos prendidos le llega dos veces desde
         // direcciones distintas. Manda el SPG, que es el que tiene la cuenta
         // configurable; el Automatizador se calla con su `MAIL_FROM_EMAIL`
-        // vacío. Si igual mandara, `Sifen::avisoCorreo()` lo detecta por
-        // `mail_enviado` y lo dice al emitir.
+        // vacío — y desde la 7.105.0, sobre todo, porque el SPG le manda
+        // `X-SPG-Correo: no` en cada emisión: la línea vacía dejó de ser la
+        // garantía y pasó a ser el respaldo. Si igual mandara,
+        // `Sifen::avisoCorreo()` lo detecta por `mail_enviado` y lo dice al
+        // emitir.
         //
         // Sólo se muestra con SIFEN encendido: apagado, el módulo no existe en
         // la interfaz y esto sería ruido.
         if ((bool) config('sifen.activo')) {
             $this->linea('La factura electrónica', 'la manda el SPG con esta misma cuenta, '
                 . 'adjuntando el KuDE y el XML');
-            $this->linea('El Automatizador', 'no tiene que mandar nada: su MAIL_FROM_EMAIL va '
-                . 'VACÍO, o la clienta recibe el comprobante dos veces');
+            $this->linea('El Automatizador', 'no manda: el SPG se lo dice en cada emisión '
+                . '(X-SPG-Correo). Su MAIL_FROM_EMAIL vacío queda de segundo candado');
         }
 
         // ---- ¿La base coincide con el .sql que se entrega? ------------------

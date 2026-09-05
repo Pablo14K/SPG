@@ -395,6 +395,83 @@ class AndamiajeTest extends TestCase
     }
 
     /**
+     * **La cuenta de correo se carga en la pantalla, no en un archivo.**
+     *
+     * Los archivos de entorno van SIN credenciales desde la 7.105.0: la cuenta
+     * del salón vive en «Seguridad → Correo del sistema», donde se cambia sin
+     * volver a desplegar y la contraseña queda cifrada.
+     *
+     * La forma de romperlo es la de siempre acá: **alguien completa una línea
+     * de un archivo de ejemplo**. Y no se notaría, porque el sistema mandaría
+     * correos igual — desde una cuenta que el salón no cargó y que nadie puede
+     * cambiar desde el sistema. Es, además, una credencial versionada.
+     *
+     * `secretos.env` sí se versiona desde la 7.87.0, así que esta guardia lo
+     * alcanza.
+     */
+    #[Test]
+    public function la_cuenta_de_correo_no_vive_en_ningun_archivo(): void
+    {
+        $malos = [];
+
+        foreach (['docker/php/secretos.env', 'docker/php/secretos.env.example',
+                  'docker/php/env.docker', 'docker/php/env.produccion'] as $rel) {
+            $f = base_path($rel);
+            if (! is_file($f)) {
+                continue;
+            }
+            $txt = (string) file_get_contents($f);
+
+            foreach (['MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_FROM_ADDRESS'] as $clave) {
+                // `[ \t]*\S` y no `\s*(.+)`: `\s` incluye el salto de línea, así
+                // que la versión obvia se come el fin de renglón y encuentra la
+                // clave de ABAJO — daba positivo con las tres líneas vacías.
+                if (preg_match('/^' . $clave . '=[ \t]*\S/m', $txt)) {
+                    $malos[] = $rel . ' → ' . $clave;
+                }
+            }
+        }
+
+        $this->assertSame([], $malos,
+            "Hay credenciales de correo escritas en un archivo:\n  " . implode("\n  ", $malos)
+            . "\nLa cuenta del salón se carga en «Seguridad → Correo del sistema»: ahí se cambia "
+            . "sin desplegar y la contraseña queda cifrada. En un archivo versionado, además, "
+            . "queda publicada.");
+    }
+
+    /**
+     * **La cabecera que apaga el correo del Automatizador sigue enganchada.**
+     *
+     * El silencio del Automatizador ya no depende de un `.env` que nadie
+     * administra desde el sistema: el SPG le manda `X-SPG-Correo: no` en cada
+     * emisión. Son **dos archivos de proyectos distintos** que tienen que
+     * nombrar lo mismo, y si uno se renombra no da error — el Automatizador
+     * vuelve a mandar el comprobante con SU cuenta y la clienta lo recibe dos
+     * veces desde direcciones que el salón no cargó.
+     *
+     * Es el patrón de siempre acá: algo apunta a algo, se renombra, y nada
+     * avisa.
+     */
+    #[Test]
+    public function la_cabecera_que_calla_al_automatizador_sigue_enganchada(): void
+    {
+        $spg = (string) file_get_contents(base_path('app/Servicios/Sifen.php'));
+        $this->assertStringContainsString("'X-SPG-Correo' => 'no'", $spg,
+            'El SPG dejó de decirle al Automatizador que no mande el correo: '
+            . 'la clienta va a recibir el comprobante dos veces, desde dos cuentas.');
+
+        $auto = base_path('_sifen/public/index.php');
+        if (! is_file($auto)) {
+            $this->markTestSkipped('El Automatizador no está en esta copia.');
+        }
+
+        // PHP entrega las cabeceras en $_SERVER con ese nombre: X-SPG-Correo
+        // llega como HTTP_X_SPG_CORREO.
+        $this->assertStringContainsString('HTTP_X_SPG_CORREO', (string) file_get_contents($auto),
+            'El Automatizador dejó de leer la cabecera con la que el SPG lo calla.');
+    }
+
+    /**
      * **La ayuda contextual guarda el texto, no lo tira.**
      *
      * `<x-ayuda>` esconde la explicación detrás de un ícono para que la pantalla

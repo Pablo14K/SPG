@@ -112,6 +112,34 @@ class Config
         return trim((string) (self::identidad()->email ?? ''));
     }
 
+    /**
+     * El correo del salón que va IMPRESO en el comprobante electrónico.
+     *
+     * Primero el fiscal —el que se carga en «Seguridad → Sucursales», que es
+     * el que el salón declara— y **si no está, el que envía los correos**, que
+     * es una dirección real y del salón.
+     *
+     * El respaldo no es un adorno: sin él, `EMI|` viaja con ese campo vacío y
+     * el Automatizador cae en el `EMISOR_EMAIL` de su archivo de ejemplo,
+     * `facturacion@miempresa.com`. O sea que **el KuDE de la clienta sale con
+     * el correo de otra empresa impreso**, que es exactamente el defecto que
+     * la 7.52.0 corrigió con la razón social y el RUC.
+     *
+     * Es sólo para mostrarlo: el que autentica contra Gmail sigue saliendo de
+     * `correoSistema()`.
+     */
+    public static function correoDelSalon(): string
+    {
+        $fiscal = self::email();
+        if ($fiscal !== '') {
+            return $fiscal;
+        }
+
+        $c = self::correoSistema();
+
+        return $c['desde'] !== '' ? $c['desde'] : $c['usuario'];
+    }
+
     public static function nombreSalon(): string
     {
         $n = trim((string) (self::identidad()->nombre_salon ?? ''));
@@ -212,8 +240,15 @@ class Config
      *
      * Se llama una vez al arrancar (`AppServiceProvider::boot`), así que vale
      * para la web **y** para el planificador —que es de donde salen los
-     * recordatorios—. Si no hay usuario cargado no toca nada: queda lo del
-     * `.env`.
+     * recordatorios—. Si no hay usuario cargado no toca nada.
+     *
+     * **Y desde la 7.105.0 «no tocar nada» significa que no sale ningún
+     * correo**: las credenciales salieron de `secretos.env`, así que el
+     * formulario dejó de ser una comodidad para pasar a ser la única fuente.
+     * Es a propósito —una cuenta que se cambia desde una pantalla es mejor que
+     * una que se cambia editando un archivo y volviendo a desplegar— y **no
+     * queda en silencio**: `spg:diagnostico` lo cuenta como problema y el panel
+     * lo lista en lo que falta cargar.
      *
      * **Gmail rechaza un remitente que no sea la cuenta autenticada**, así que
      * el `From` se fija al usuario salvo que se haya cargado uno explícito.

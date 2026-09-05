@@ -15,10 +15,22 @@
                 <i class="bi bi-check-circle"></i>
                 Ahora los avisos salen desde <strong>{{ $desdeActual }}</strong>,
                 cargada acá en el sistema.
-            @else
+            @elseif ($usuarioActual)
                 <i class="bi bi-info-circle"></i>
-                Ahora los avisos salen desde <strong>{{ $usuarioActual ?: 'ninguna cuenta' }}</strong>,
+                Ahora los avisos salen desde <strong>{{ $usuarioActual }}</strong>,
                 que es la configurada en el servidor. Podés reemplazarla acá sin volver a desplegar.
+            @else
+                {{-- **El caso normal de una instalación nueva.** Los archivos de
+                     entorno van sin credenciales desde la 7.105.0, así que hasta
+                     que alguien complete esto el sistema no manda un solo correo
+                     — y la pantalla del registro igual dice «te enviamos un
+                     código», que es lo que hace que no se note. --}}
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Todavía no hay ninguna cuenta cargada, así que el sistema no está
+                mandando correos.</strong>
+                Sin esto no salen el código de verificación, la recuperación de contraseña,
+                el segundo factor, los recordatorios ni el comprobante electrónico — y la
+                pantalla igual le dice a la clienta que se los mandó.
             @endif
         </div>
 
@@ -74,7 +86,8 @@
                     <div class="form-check ms-2">
                         <input class="form-check-input" type="checkbox" value="1" name="restaurar" id="restaurar">
                         <label class="form-check-label text-muted-warm" for="restaurar" style="font-size:.82rem">
-                            Volver a la cuenta del servidor (dejá los campos vacíos y marcá esto)
+                            Borrar la cuenta y dejar de mandar correos
+                            (dejá los campos vacíos y marcá esto)
                         </label>
                     </div>
                 @endif

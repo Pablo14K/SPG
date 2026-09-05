@@ -14,6 +14,8 @@ declare(strict_types=1);
  *   { ok: false, error: "mensaje" }
  *
  * Autenticación: token en header  X-API-Token: <SIFEN_API_TOKEN del .env>
+ * Correo:         X-SPG-Correo: no  → no manda el comprobante por correo, lo
+ *                 hace quien emite. Sin la cabecera, se comporta como siempre.
  * Si SIFEN_API_TOKEN está vacío en .env, el endpoint es público (solo usar en red privada).
  */
 
@@ -137,6 +139,16 @@ try {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function construirMail(array $auto): ?\App\Service\MailService {
+    // Quien pide la emisión puede decir que NO mande el correo, y manda eso.
+    //
+    // El comprobante lo manda UN SOLO sistema —el SPG, con la cuenta que el
+    // salón carga en su pantalla—, porque con los dos prendidos la clienta lo
+    // recibe dos veces desde direcciones distintas y cambiar la cuenta en un
+    // lado arregla la mitad. Antes eso dependía de dejar MAIL_FROM_EMAIL vacío
+    // acá; ahora lo decide quien emite, en cada petición.
+    $pedido = strtolower(trim((string)($_SERVER['HTTP_X_SPG_CORREO'] ?? '')));
+    if (in_array($pedido, ['no', '0', 'false'], true)) return null;
+
     if (empty($auto['mail']['from_email'])) return null;
     $emailDir = $auto['rutas']['logs'] . '/emails';
     return new \App\Service\MailService(array_merge($auto['mail'], ['email_dir' => $emailDir]));

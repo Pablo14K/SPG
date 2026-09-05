@@ -35,6 +35,16 @@ class Pendientes
     /** Ni impide ni confunde: falta para que algo sirva del todo. */
     public const CONVIENE = 'CONVIENE';
 
+    /**
+     * Lo que sólo el Administrador puede resolver.
+     *
+     * No es una clave de permiso: la pantalla del correo la protege el
+     * middleware `admin` y **no tiene submódulo a propósito**, para que no se
+     * la pueda conceder desde Roles. Mostrarle este renglón a otro rol sería
+     * ofrecerle un enlace que le va a contestar 403.
+     */
+    public const SOLO_ADMIN = 'admin';
+
     /** @var list<array{nivel:string,que:string,donde:string,ruta:?string,permiso:string}> */
     private static array $puntos = [];
 
@@ -53,6 +63,7 @@ class Pendientes
             self::profesionales();
             self::comisiones();
             self::fiscales();
+            self::correo();
         } catch (Throwable) {
             // Una consulta que falle no puede dejar el panel sin dibujarse:
             // esto es un aviso, no la pantalla.
@@ -75,7 +86,10 @@ class Pendientes
     public static function mios(): array
     {
         return array_values(array_filter(
-            self::todo(), fn (array $p) => Permisos::puede($p['permiso'])
+            self::todo(),
+            fn (array $p) => $p['permiso'] === self::SOLO_ADMIN
+                ? Permisos::esAdmin()
+                : Permisos::puede($p['permiso'])
         ));
     }
 
@@ -277,6 +291,30 @@ class Pendientes
     }
 
     /** Lo que sale impreso en el comprobante electrónico. */
+    /**
+     * **Sin cuenta de correo cargada el sistema no manda NADA, y eso no se ve.**
+     *
+     * Es el caso que este comando existe para destapar: la pantalla igual dice
+     * «te enviamos un código», así que una clienta nueva no puede terminar de
+     * registrarse y nadie se entera hasta que alguien lo reporta. Pasó de
+     * verdad entre la 6.4.0 y la 7.8.0, con meses de por medio.
+     *
+     * Va como IMPIDE y no como CONVIENE: sin esto no se puede crear una cuenta
+     * de clienta, ni recuperar una contraseña, ni mandarle el comprobante.
+     */
+    private static function correo(): void
+    {
+        if (Config::correoSistema()['usuario'] !== '') {
+            return;
+        }
+
+        self::anotar(self::IMPIDE,
+            'Sin cuenta de correo cargada. El sistema no manda el código de verificación, la '
+            . 'recuperación de contraseña, el segundo factor, los recordatorios ni el '
+            . 'comprobante electrónico — y la pantalla igual dice que los mandó.',
+            'Seguridad → Correo del sistema', 'seguridad.correo_sistema', self::SOLO_ADMIN);
+    }
+
     private static function fiscales(): void
     {
         $c = DB::selectOne(

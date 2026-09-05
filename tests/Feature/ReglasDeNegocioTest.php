@@ -5156,9 +5156,20 @@ class ReglasDeNegocioTest extends TestCase
     public function test_el_correo_del_sistema_es_solo_del_admin(): void
     {
         $this->entrarComo('admin', 'admin123');
-        $this->get(route('seguridad.correo_sistema'))
+        $r = $this->get(route('seguridad.correo_sistema'))
             ->assertOk()
             ->assertSee('Correo del sistema');
+
+        // **Sin cuenta cargada, la pantalla tiene que DECIRLO.** Desde la
+        // 7.105.0 este formulario es la única fuente —las credenciales salieron
+        // de los archivos de entorno— así que vacío significa que el sistema no
+        // manda un solo correo. Callárselo sería la función apagada en silencio
+        // de siempre: la pantalla del registro igual dice «te enviamos un
+        // código».
+        if (\App\Servicios\Config::correoSistema()['usuario'] === ''
+            && (string) config('mail.mailers.smtp.username') === '') {
+            $r->assertSee('no hay ninguna cuenta cargada', false);
+        }
 
         $u = DB::selectOne(
             "SELECT u.id_usuario, u.id_rol FROM usuario u
@@ -5576,5 +5587,50 @@ class ReglasDeNegocioTest extends TestCase
                 'La columna tiene que nombrar también a quien tiene el servicio en NULL: '
                 . 'ese NULL es el dueño de la cita, no «nadie».');
         }
+    }
+    /**
+     * **El comprobante sale con el correo del salón, nunca con uno ajeno.**
+     *
+     * `EMI|` lleva el correo que se imprime en el KuDE. Si va vacío, el
+     * Automatizador cae en el `EMISOR_EMAIL` de su archivo de ejemplo
+     * —`facturacion@miempresa.com`— y la clienta recibe un comprobante fiscal
+     * con el correo de otra empresa: el mismo defecto que la 7.52.0 corrigió
+     * con la razón social y el RUC, por otra puerta.
+     *
+     * El orden es fiscal primero —es el que el salón declara— y la cuenta que
+     * envía como respaldo, porque es una dirección real y suya.
+     */
+    #[Test]
+    public function el_comprobante_electronico_lleva_el_correo_del_salon(): void
+    {
+        $factura = DB::scalar('SELECT MAX(id_factura) FROM factura');
+        if (! $factura) {
+            $this->markTestSkipped('No hay ninguna factura emitida para armar el TXT.');
+        }
+
+        $linea = function (): string {
+            Config::olvidar();
+            foreach (explode("\n", Sifen::armarTxt((int) DB::scalar('SELECT MAX(id_factura) FROM factura'))) as $l) {
+                if (str_starts_with($l, 'EMI|')) {
+                    return $l;
+                }
+            }
+
+            return '';
+        };
+
+        // 1. Sin correo fiscal, manda el de la cuenta que envía.
+        DB::update("UPDATE configuracion SET email = NULL, mail_usuario = 'salon@ejemplo.com',
+                    mail_desde = NULL WHERE id_configuracion = 1");
+        $this->assertStringContainsString('|salon@ejemplo.com|', $linea(),
+            'Sin correo fiscal cargado, el comprobante tiene que salir con la cuenta que envía: '
+            . 'vacío, el Automatizador imprime el de su archivo de ejemplo.');
+
+        // 2. Con correo fiscal, manda ése: es el que el salón declara.
+        DB::update("UPDATE configuracion SET email = 'fiscal@ejemplo.com' WHERE id_configuracion = 1");
+        $this->assertStringContainsString('|fiscal@ejemplo.com|', $linea(),
+            'El correo fiscal cargado es el que tiene que ir impreso.');
+
+        Config::olvidar();
     }
 }

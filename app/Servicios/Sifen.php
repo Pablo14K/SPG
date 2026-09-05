@@ -304,7 +304,9 @@ class Sifen
             $limpiar($f->suc_direccion ?? ''),
             $limpiar($f->suc_ciudad ?? ''),
             $limpiar($f->suc_telefono ?? ''),
-            $limpiar(Config::email()),
+            // El fiscal, o el del sistema si el salón no cargó ninguno: vacío,
+            // el Automatizador imprime el de su archivo de ejemplo.
+            $limpiar(Config::correoDelSalon()),
             $limpiar($act['cod']),
             $limpiar($act['desc']),
             $limpiar($f->nro_timbrado ?? ''),
@@ -420,6 +422,31 @@ class Sifen
         return '';
     }
 
+    /**
+     * Cabeceras de toda petición al Automatizador.
+     *
+     * **`X-SPG-Correo: no` es lo que garantiza que haya UN solo remitente.**
+     * La cuenta que manda los correos del salón se carga en «Seguridad →
+     * Correo del sistema», y de ahí salen el código de verificación, la
+     * recuperación, el segundo factor, los recordatorios **y el comprobante
+     * electrónico**. El Automatizador sabe mandarlo también, con la cuenta de
+     * SU `.env` — un archivo que no se versiona, que nadie administra desde el
+     * sistema y que en el servidor puede tener cualquier cosa.
+     *
+     * Hasta la 7.105.0 su silencio dependía de que ese `.env` dejara
+     * `MAIL_FROM_EMAIL` vacío, o sea de que nadie lo completara de buena fe.
+     * Eso no es una garantía: es una convención escrita en un archivo de
+     * ejemplo. Ahora **lo decide el SPG en cada envío**, así que la clienta no
+     * puede recibir el comprobante desde una dirección que el salón no cargó.
+     */
+    private static function cabeceras(): array
+    {
+        return [
+            'X-API-Token' => (string) config('sifen.token'),
+            'X-SPG-Correo' => 'no',
+        ];
+    }
+
     /** El envío de verdad, contra el Automatizador. */
     private static function porHttp(string $txt, string $correo = ''): array
     {
@@ -430,7 +457,7 @@ class Sifen
         }
 
         try {
-            $resp = Http::withHeaders(['X-API-Token' => (string) config('sifen.token')])
+            $resp = Http::withHeaders(self::cabeceras())
                 ->withBody($txt, 'text/plain; charset=utf-8')
                 ->timeout((int) config('sifen.timeout', 60))
                 ->post($url);
@@ -509,19 +536,24 @@ class Sifen
      * arregla sólo la mitad. Por eso hay un único remitente: el SPG, que es el
      * que tiene la cuenta configurable.
      *
-     * El Automatizador se calla dejando su `MAIL_FROM_EMAIL` **vacío** — su
-     * `construirMail()` devuelve null y saltea el envío sin romper la
-     * declaración. Si aun así contesta `mail_enviado: true`, alguien se la
-     * cargó: se avisa, porque un correo duplicado desde una dirección que el
-     * salón no reconoce es peor que ninguno.
+     * El Automatizador se calla porque **el SPG se lo dice en cada envío**
+     * (`X-SPG-Correo: no`, ver `cabeceras()`), y además su `construirMail()`
+     * devuelve null con `MAIL_FROM_EMAIL` vacío. Son dos candados y el que
+     * manda es el primero: el segundo vive en un archivo que nadie administra
+     * desde el sistema.
+     *
+     * Si aun así contesta `mail_enviado: true`, del otro lado hay una versión
+     * vieja que no entiende la cabecera: se avisa, porque un correo duplicado
+     * desde una dirección que el salón no reconoce es peor que ninguno.
      */
     private static function avisoCorreo(string $correo, ?bool $enviado): string
     {
         if ($enviado === true) {
             Log::warning('SPG: el Automatizador SIFEN también mandó el comprobante por correo, '
-                . 'con SU cuenta. La clienta lo va a recibir dos veces desde direcciones '
-                . 'distintas. Dejá MAIL_FROM_EMAIL vacío en el .env del Automatizador: el que '
-                . 'manda es el SPG, con la cuenta de «Seguridad → Correo del sistema».');
+                . 'con SU cuenta, ignorando la cabecera X-SPG-Correo. Del otro lado hay una '
+                . 'versión anterior a la 7.105.0: actualizala, o dejá MAIL_FROM_EMAIL vacío en '
+                . 'su .env. El que manda es el SPG, con la cuenta de «Seguridad → Correo del '
+                . 'sistema».');
 
             return 'Ojo: el Automatizador también le mandó el comprobante, con otra cuenta. '
                  . 'Le va a llegar dos veces — quedó anotado en el registro del sistema.';
@@ -588,7 +620,7 @@ class Sifen
                 // Se arma desde SIFEN_URL y no desde la `kude_url` que vuelve:
                 // esa apunta al dominio publicado del Automatizador, que puede
                 // no ser el que estamos usando.
-                $resp = Http::withHeaders(['X-API-Token' => (string) config('sifen.token')])
+                $resp = Http::withHeaders(self::cabeceras())
                     ->timeout((int) config('sifen.timeout', 60))
                     ->get(rtrim((string) config('sifen.url'), '/') . '/descargar.php', ['f' => $cdc . '.' . $ext]);
 

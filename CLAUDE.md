@@ -135,7 +135,7 @@ El objetivo es que quien reciba el ZIP **descomprima y pruebe**, sin configurar 
 |---|---|
 | `DB_DATABASE=peluqueria_test` en `docker/php/env.docker` | es la copia cargada; con `peluqueria_bd` la aplicación arranca sin operación aunque el ZIP traiga las dos |
 | `basededatos/1mes_simulacion.sql` regenerado **desde la base que se quiere transportar** | el volcado no se actualiza solo: lo cargado desde el último dump no viaja |
-| **`docker/php/secretos.env` adentro** | no está en git, así que una herramienta que respete el `.gitignore` lo deja afuera — y el sistema llega sin correo |
+| La cuenta de correo cargada en **Seguridad → Correo del sistema** | ya no viaja en ningún archivo (7.105.0): sin ella el sistema llega **sin correo**, y una clienta nueva no puede terminar de registrarse. `spg:diagnostico` y el panel lo dicen, pero conviene dejarla puesta antes de comprimir |
 | `docker compose down -v && docker compose up` y contar | es lo único que prueba que lo que se entrega **carga**: el importador corre una sola vez, con el volumen vacío |
 
 Para instalar un salón vacío en vez de mostrar la demo, cambiar explícitamente a
@@ -274,6 +274,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.105.0 | 05/09/2026 | **El correo del salón pasa a vivir SÓLO en el sistema: se carga en una pantalla, no en un archivo, y de ahí sale todo — el comprobante electrónico incluido.** Eran dos mitades del mismo problema. **La primera**: la regla de que manda uno solo —el SPG, con la cuenta de «Seguridad → Correo del sistema»— estaba escrita desde la 7.91.0 y **la garantía era floja**. El Automatizador se callaba únicamente si su `.env` dejaba `MAIL_FROM_EMAIL` vacío, o sea si nadie lo completaba de buena fe; y ese archivo no se versiona, así que **cuando no existe el Automatizador lee su propio `.env.example`**: basta con que alguien lo copie y lo llene una vez para que la clienta reciba el mismo comprobante **dos veces, desde dos direcciones**, y cambiar la cuenta en la pantalla arregle la mitad. Ahora **lo decide el SPG en cada emisión** —manda `X-SPG-Correo: no` y `construirMail()` lo respeta antes de mirar su configuración—, así que quedan dos candados y el que manda es el primero, porque el segundo vive donde el sistema no llega. Comprobado contra el servicio corriendo, con su `.env` cargado a propósito: **sin** la cabecera contesta `mail_enviado: true` y escribe el `.eml`; **con** la cabecera, `false` y ninguno. Y si del otro lado corre una versión vieja que la ignora, el SPG lo dice en pantalla y en el log. **La segunda mitad, por decisión del usuario**: `secretos.env` deja de llevar la cuenta. `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS` van vacíos —y de paso `SPG_EMAIL_TLS`, que tenía la misma dirección y no lo usa nadie desde que el certificado lo saca Traefik—, así que el **formulario es la única fuente**: se cambia sin volver a desplegar, la clave queda cifrada con la APP_KEY y **no vuelve a quedar publicada en el repositorio**, que es lo que pasaba desde la 7.87.0. **El precio se dice y se hace visible**, que es la condición para apagar algo: una instalación recién levantada no manda un solo correo hasta que alguien complete esa pantalla. `spg:diagnostico` lo cuenta como **problema**, el panel lo lista en **IMPIDE TRABAJAR** con el enlace —renglón nuevo de `Pendientes`, marcado como sólo-Administrador para no ofrecerle a otro rol algo que le va a contestar 403— y la pantalla abre diciéndolo. **De paso salió el correo IMPRESO en el KuDE, que es otra cosa y se confunde con ésta**: es el **fiscal**, el de «Seguridad → Sucursales», y viaja en `EMI|`. Vacío, el Automatizador cae en el `EMISOR_EMAIL` de su archivo de ejemplo —`facturacion@miempresa.com`— así que **el comprobante fiscal de la clienta salía con el correo de otra empresa impreso**: es el defecto de la 7.52.0 por otra puerta, con el correo en lugar de la razón social. Ahora cae a la cuenta que envía, que es una dirección real y del salón. **167 pruebas · 1256 aserciones**, tres nuevas comprobadas en las dos direcciones. Dos son de andamiaje y nacen del mismo patrón: la cabecera la escriben **dos proyectos distintos** —renombrarla de un lado no da error, sólo vuelve a mandar el correo con la cuenta que no corresponde— y la credencial se vuelve a colar **llenando una línea de un archivo de ejemplo**, que es como este proyecto ya se rompió el correo una vez |
 | 7.104.0 | 05/09/2026 | **La reprogramación del panel ofrecía domingos, y las pantallas que se miran entre varios avisan cuando algo cambió.** **El peor de los cinco**: el modal de reprogramar del panel tenía un `datetime-local` suelto, así que dejaba mover una cita a un **domingo**, a un día en que esa persona no trabaja o a una hora fuera de su turno — el «no» llegaba recién al guardar. Es la regla del proyecto —*las pantallas no dejan escribir una fecha a mano*— que el portal cumple desde la 7.96.0 y acá se había quedado sin aplicar: media corrección, el patrón de siempre. Ahora usa **el mismo selector que la clienta**, con los servicios, el profesional y la sucursal fijos —reprogramar no pregunta qué se hace ni con quién— y el botón arranca deshabilitado hasta que haya un horario elegido. **La columna «Profesional» mostraba una sola.** Descartaba las filas con `cita_servicio.id_usuario` en NULL con un `IS NOT NULL`, y **un NULL ahí no es «nadie»: es el dueño de la cita** — así se representa «lo hace quien la tiene» desde siempre. Una cita con dos servicios en manos distintas —una elegida y la otra la dueña— salía a nombre de una sola, y quien lee la agenda no sabía que iban a atenderla entre dos. Se resuelve con el mismo `COALESCE` que usa el resto del sistema. **El desglose estaba dos veces**: la tabla de abajo ya lo abre servicio por servicio, así que el listado de «Precio de lista» decía lo mismo más arriba. **Y la factura dice que las dos se declaran**: se la llamaba «sin declarar», y eso hace creer que ese cobro queda fuera de lo informado — la innominada **sí** se declara, es la misma factura electrónica con el grupo del receptor vacío. **Entran las actualizaciones en vivo**, que es lo nuevo: el sistema navega a la vieja usanza, así que cada pantalla es una foto del momento en que se pidió, y con dos personas sobre la misma agenda una registra la atención y la otra la sigue viendo Programada. `VivoController` contesta **una huella** de lo que la pantalla mira —conteo, último id y suma de estados— y no datos, así que no hay nada que filtrar por permiso; la vista se anota con `@section('vivo', 'agenda')` y sin eso no consulta nada. **No recarga encima de algo escrito**: si hay un modal abierto o un campo tocado, aparece un aviso con «Actualizar» en vez de tirar el trabajo a la basura — que es la queja que este proyecto ya arregló dos veces con el borrador de las altas rápidas. Comprobado en las dos direcciones en el navegador: con el modal abierto sale el aviso y la página no se mueve; sin nada abierto, se recarga sola. **De paso, el correo del comprobante no salía por una trampa que este documento ya tenía anotada para otra clave**: `php artisan serve` le reenvía al proceso que atiende la web **sólo una lista blanca** de variables, así que las de `secretos.env` las veía la consola y **no** la web — `MAIL_FROM_ADDRESS` llegaba vacío y declarar la factura terminaba con «An email must have a "From" or a "Sender" header» en el log y nada en pantalla. Se verificó emitiendo de punta a punta: **SIFEN corre y funciona** —factura 001-001-0000065 declarada, con su CDC, su KuDE y su XML guardados— y lo único que faltaba era el remitente. **La contraseña de aplicación de Gmail está vencida** (`535-5.7.8`), y rotarla es del usuario. **164 pruebas · 1250 aserciones**, dos nuevas comprobadas en las dos direcciones — con el arreglo sacado, las dos fallan |
 | 7.103.1 | 05/09/2026 | **Cinco pruebas habían dejado de medir, y se saltearon en silencio.** El mes simulado se quedó sin citas futuras —cero desde hoy, con el calendario avanzando solo— y las cinco que buscaban una en la base pasaron a `markTestSkipped`: la batería informaba **«157 passed»** y la cobertura se adelgazaba sin que nada lo dijera. Es el defecto que este documento ya tiene anotado —*una prueba tiene que GARANTIZAR su premisa, no esperar a encontrarla*— aplicado al caso que más veces lo dispara, y **la forma de fallar es la peor**: una prueba salteada no se ve, así que un cambio que rompiera el horario ocupado, el aviso de ausencia o el tope de reprogramación habría pasado en verde. Entra `TestCase::citaFuturaAgendada()`, que la **crea**: elige el servicio más corto, busca el primer hueco de verdad libre con **`Agenda::slots()`** —el mismo motor que dibuja la pantalla, así que la cita no cae ni sobre una ausencia ni fuera del turno, que son los dos casos en que `fn_verificar_disponibilidad` diría «no» con razón y la prueba fallaría por otro motivo— y toma una clienta que no tenga ese servicio ese día, que si no la rechaza `trg_citaserv_bi`. Vive dentro de `DatabaseTransactions`, así que no deja nada. **De 157 a 162 pruebas y de 1211 a 1239 aserciones**; las 2 que siguen salteadas son las legítimas, las del criterio permisivo —«todos tienen turno», «hace todos los servicios»— donde de verdad no hay caso que medir |
 | 7.103.0 | 05/09/2026 | **El cajón guarda cuándo se creó.** La lista ya se ordenaba por `id_caja_fisica` —que **es** el orden en que se crearon— pero un id no es una fecha: no había forma de contestar *cuándo*. Entra `caja_fisica.creado_en`, y **no rompe la 3FN**: el instante no se deduce de ninguna otra columna ni está guardado en otro lado, es un dato nuevo y no una copia — el mismo criterio por el que `caja.monto_contado` sí se guarda y `fn_caja_diferencia` no. **Admite NULL a propósito**, igual que ese conteo: de los cajones anteriores no se sabe cuándo se crearon, así que se rellena con **su primera apertura** —lo más temprano que el sistema puede probar que ya existían— y la pantalla lo dice como «en uso desde», no «creada el», porque afirmar el día exacto sería inventarlo; el que nunca se abrió queda en NULL y se muestra sin fecha. **Y el orden lo sigue dando el id, no la fecha**: la de los cajones viejos está reconstruida, así que ordenar por ella podría dar vuelta dos que se crearon al revés. **El guion de actualización son TRES pasos y el orden es lo que importa**: escrito como un solo `ADD COLUMN … DEFAULT CURRENT_TIMESTAMP`, MariaDB **rellena las filas que ya están con la hora del ALTER** —los dos cajones del salón pasaron a declarar que se crearon el día de la actualización, y el `UPDATE` de relleno no tocaba ninguna porque ya no quedaba ningún NULL: un dato falso y sin nada que lo delate—. La columna entra **sin** defecto, se rellena, y recién al final se le pone el defecto para las que vengan. Es re-ejecutable, y la segunda condición del `UPDATE` **repara una corrida mal hecha**: un cajón no puede haberse creado DESPUÉS de su primera apertura, así que ese estado imposible es la marca de que la fecha se inventó. Comprobado de punta a punta: los dos cajones existentes quedaron en su primera apertura real (04/08 y 28/08), uno nuevo dice «Creada el 05/09» y ofrece **Borrar** —nunca se abrió— mientras los usados ofrecen **Baja**. Los dos `.sql` regenerados, con la base de entrega en 0 citas y sin un solo correo real adentro. **157 pruebas · 1211 aserciones**, y **7 salteadas: el mes simulado se quedó sin citas futuras** —cero desde hoy— así que cinco pruebas de agenda dejaron de encontrar su premisa. No es un defecto del sistema y no se toca en esta tanda, pero **hay que resolverlo**: o se regeneran las citas del volcado, o esas cinco pasan a crear la cita que necesitan en vez de saltearse, que es lo que este documento ya pide |
@@ -2161,9 +2162,14 @@ Cuatro decisiones que conviene no revertir:
 - **La clave se guarda CIFRADA con la APP_KEY** (`Crypt::encryptString`), así que un volcado de
   la base no la deja legible. Si la APP_KEY cambió desde que se guardó, no se puede descifrar:
   se cae al `.env` y se deja un aviso en el log, en vez de reventar.
-- **Vacío cae al `.env`.** Sin cuenta cargada, `aplicarAlMailer()` no toca nada y sigue lo del
-  entorno, que es lo que hay en la base de instalación. Vaciar el usuario y marcar «restaurar»
-  la borra a propósito.
+- **Vacío es que NO sale ningún correo**, y desde la 7.105.0 eso es la regla y no un
+  accidente: las credenciales salieron de `secretos.env`, así que este formulario es la
+  **única** fuente. Se decidió así porque una cuenta que se cambia desde una pantalla es
+  mejor que una que se cambia editando un archivo y volviendo a desplegar — y porque la que
+  estaba escrita ahí quedaba publicada en el repositorio.
+  **No queda en silencio**, que es la condición: `spg:diagnostico` lo cuenta como problema, el
+  panel lo lista en «lo que falta cargar» con el enlace a la pantalla, y la pantalla lo dice
+  arriba de todo. Vaciar el usuario y marcar la casilla apaga el correo a propósito.
 - **El remitente tiene que ser del mismo dominio que la cuenta**, o Gmail lo rechaza sin que el
   sistema lo sepa. Se comprueba antes de guardar; vacío usa la propia cuenta.
 
@@ -2937,7 +2943,7 @@ empieza con `0` para que se note. Sirve para ver el circuito entero sin depender
 |---|---|
 | El Automatizador corriendo | **es un servicio más del `docker-compose.yml`**, así que sube con `docker compose up`. No necesita Composer: no tiene dependencias ni `composer.json` |
 | El SPG apuntándole | `SIFEN_MODO=http` y `SIFEN_URL=http://sifen:8090/`, que es el **nombre del servicio** y se resuelve solo en la red de los contenedores, igual que `bd`. El `SIFEN_TOKEN` tiene que ser el `SIFEN_API_TOKEN` de *su* `.env`, o contesta 401 — y el SPG lee un 401 como RECHAZADO |
-| El correo configurado del otro lado | `MAIL_*` en el `.env` **del Automatizador**, no en el del SPG. Con `MAIL_FROM_EMAIL` vacío se saltea el envío en silencio. `MAIL_TRANSPORT=file` escribe el `.eml` en `logs/emails/` en vez de mandarlo: es la forma de probar el circuito sin mandar correo de verdad |
+| El correo, **del lado del SPG** | la cuenta de «Seguridad → Correo del sistema». El Automatizador **no manda**: el SPG le dice que no en cada emisión —ver abajo—, y su `MAIL_*` queda vacío. Para probar el circuito de aquel lado sin mandar correo de verdad está `MAIL_TRANSPORT=file`, que escribe el `.eml` en `logs/emails/` |
 
 **El Automatizador vive fuera del repositorio**, así que el compose lo monta por ruta: lo busca
 como carpeta hermana del proyecto, y si está en otro lado se le dice con `SPG_SIFEN_PATH`. Dos
@@ -3009,6 +3015,53 @@ a nadie — se lo busca donde se cobró.
 >
 > Ese cartel se sacó, además, porque **el cliente de correo ya muestra los adjuntos** —con su
 > nombre, su ícono y la vista previa del PDF—: anunciarlos otra vez no agregaba nada.
+
+### El correo lo manda UNO SOLO: la cuenta cargada en el sistema
+
+**Todo lo que el sistema manda por correo sale de la misma cuenta** —la de
+«Seguridad → Correo del sistema»—: el código de verificación, la recuperación
+de contraseña, el segundo factor, los recordatorios **y el comprobante
+electrónico**. La pisa `Config::aplicarAlMailer()` al arrancar, así que vale
+para la web y para el planificador.
+
+**El Automatizador también sabe mandarlo, y ahí está el problema**: lo haría
+con la cuenta de su propio `.env`, un archivo que no se versiona y que **no se
+administra desde el sistema**. Con los dos prendidos la clienta recibe el mismo
+comprobante **dos veces, desde direcciones distintas**, y cambiar la cuenta en
+la pantalla arregla la mitad.
+
+| Quién manda | Con qué cuenta |
+|---|---|
+| **El SPG** | la de «Seguridad → Correo del sistema» — con el KuDE y el XML adjuntos, desde la copia local |
+| El Automatizador | **nadie: no manda** |
+
+**Cómo se garantiza, que es lo que cambió en la 7.105.0.** Antes dependía de
+que el `.env` del Automatizador dejara `MAIL_FROM_EMAIL` vacío — o sea, de que
+nadie lo completara de buena fe. Eso no es una garantía: es una convención
+escrita en un archivo de ejemplo, y el archivo de ejemplo **es el que el
+Automatizador lee cuando no hay `.env`**, así que basta con que alguien lo
+complete una vez.
+
+Ahora **lo decide el SPG en cada emisión**: manda `X-SPG-Correo: no`
+(`Sifen::cabeceras()`) y `construirMail()` lo respeta **antes** de mirar su
+configuración. Son dos candados y el que manda es el primero.
+
+Comprobado en las dos direcciones, con el `.env` del Automatizador cargado a
+propósito: **sin** la cabecera contesta `mail_enviado: true` y escribe el
+`.eml`; **con** la cabecera contesta `false` y no escribe ninguno.
+
+> **Si aun así contesta `mail_enviado: true`**, del otro lado corre una versión
+> anterior a la 7.105.0 que no entiende la cabecera. El SPG lo dice en pantalla
+> y en el log — un correo duplicado desde una dirección que el salón no
+> reconoce es peor que ninguno.
+
+> **El correo IMPRESO en el KuDE es otra cosa**, y conviene no confundirlos: es
+> el correo **fiscal** del salón, el que se carga en «Seguridad → Sucursales»,
+> y viaja en `EMI|`. No autentica nada. **Si está vacío se manda el de la
+> cuenta que envía** (`Config::correoDelSalon()`), porque vacío el Automatizador
+> cae en el `EMISOR_EMAIL` de su archivo de ejemplo —`facturacion@miempresa.com`—
+> y el comprobante fiscal de la clienta sale con el correo de otra empresa
+> impreso. Es el defecto de la 7.52.0 por otra puerta.
 
 ### El comprobante se ve DESDE EL SISTEMA, no desde el Automatizador
 
@@ -3513,9 +3566,14 @@ que no se pueden factorizar en uno común: lo compartido se repite, y eso es inh
 > arrancar — y sobre todo mejor que arrancar con el correo muerto **en silencio**, que es
 > lo que pasó entre la 6.4.0 y la 7.8.0.
 >
-> Qué hay adentro: `MAIL_*` —el código de verificación, la recuperación de contraseña, el
-> segundo factor y los recordatorios dependen de eso— y `SIFEN_TOKEN`, que tiene que
+> Qué hay adentro: la contraseña de la base, la `APP_KEY` y `SIFEN_TOKEN`, que tiene que
 > coincidir con el `SIFEN_API_TOKEN` del Automatizador.
+>
+> **La cuenta de correo NO está más acá.** `MAIL_USERNAME`, `MAIL_PASSWORD` y
+> `MAIL_FROM_ADDRESS` van **vacíos a propósito** desde la 7.105.0: el salón la carga en
+> «Seguridad → Correo del sistema», donde se cambia sin desplegar y la clave queda cifrada
+> con la APP_KEY. Lo que queda acá es el transporte —`MAIL_HOST`, `MAIL_PORT`, el driver—,
+> que no son credenciales. `AndamiajeTest` no deja que vuelvan a llenarse.
 >
 > Una contraseña de aplicación de Google se revoca en `myaccount.google.com/apppasswords`
 > sin tocar la cuenta.
@@ -3545,9 +3603,16 @@ está escrita en `DESPLIEGUE.md`.
 > esto se rompió entre la 6.4.0 y la 7.8.0. Comprobado en las dos direcciones — sacando el
 > archivo, salta.
 
-Qué se pierde si falta: el código de verificación, la recuperación de contraseña, el segundo
-factor y los recordatorios de cita. O sea, **una clienta nueva no puede terminar de
-registrarse**.
+Qué se pierde si falta el archivo: la contraseña de la base y la `APP_KEY`, o sea que el
+sistema no arranca.
+
+**El correo dejó de depender de él en la 7.105.0**, y con eso la mitad de esta discusión se
+apagó sola: la cuenta se carga en «Seguridad → Correo del sistema», así que no viaja en
+ningún archivo, no queda en el historial de git y no hay que acordarse de meterla en el ZIP.
+Lo que sí hay que saber es que **una instalación recién levantada no manda un solo correo
+hasta que alguien complete ese formulario** — ni el código de verificación, ni la
+recuperación, ni el segundo factor, ni los recordatorios, ni el comprobante electrónico. No
+es en silencio: el diagnóstico lo marca como problema y el panel lo lista con su enlace.
 
 > **La contraseña que está puesta hoy YA ESTÁ EN EL HISTORIAL DE GIT, y conviene cambiarla.**
 > Es la misma que se commiteó en la 6.1.3 y se sacó en la 6.4.0 — pero *sacarla de un archivo
