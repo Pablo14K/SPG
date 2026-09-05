@@ -320,8 +320,28 @@ class Sesion
         }
         Permisos::olvidar();
         session(['rol' => (int) $rol->id_rol, 'rol_nom' => $rol->nombre,
-            'es_personal' => (bool) $rol->es_personal, 'es_cliente' => ! (bool) $rol->es_personal,
-            'id_sucursal' => 0, 'sucursal_nom' => '']);
+            'es_personal' => (bool) $rol->es_personal, 'es_cliente' => ! (bool) $rol->es_personal]);
+
+        // **La sucursal NO se suelta siempre, y soltarla siempre era el
+        // defecto.** Cambiar de perspectiva mandaba a «Elegí la sucursal» en
+        // todos los casos, así que la dueña que pasa a Profesional para ver su
+        // agenda tenía que volver a elegir el local en el que ya estaba
+        // trabajando — un paso de más en algo que se hace varias veces por día.
+        //
+        // Pero tampoco se puede conservar a ciegas: **qué locales ve una cuenta
+        // depende del rol**. El Administrador los ve todos y los demás sólo los
+        // suyos (`Sucursales::delUsuario()`), así que pasando de Administrador
+        // a Profesional la sucursal activa puede dejar de estar permitida.
+        //
+        // Se comprueba contra el rol NUEVO —se le pasa explícito, no se confía
+        // en el orden en que se escribió la sesión— y sólo se suelta si de
+        // verdad dejó de valer. La clienta no trabaja en ningún local: elige
+        // al agendar, así que ahí se suelta siempre.
+        $suc = (int) session('id_sucursal', 0);
+        if ($suc && (! $rol->es_personal
+                     || ! Sucursales::puedeEntrar($suc, $uid, (int) $rol->id_rol))) {
+            session(['id_sucursal' => 0, 'sucursal_nom' => '']);
+        }
 
         return true;
     }

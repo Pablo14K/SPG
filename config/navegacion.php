@@ -54,7 +54,20 @@ return [
         'clientes.lista'            => ['Clientes',              'people',             'clientes.registro'],
         'clientes.form'             => ['Nuevo cliente',         'person-plus',        'clientes.registro', false],
         'clientes.historial'        => ['Historial',             'clock-history',      'clientes.registro', false],
-        'clientes.fidelizacion'     => ['Fidelización',          'award',              'clientes.fidelizacion'],
+        // **Fidelización vive en Promociones, no en Clientes** (pedido del
+        // usuario). Las dos pantallas contestaban la misma pregunta —cuánto le
+        // devuelve el salón a la clienta por venir— y separadas obligaban a
+        // saltar de una a la otra: los niveles y el valor del punto se
+        // administran en Promociones desde la 7.102.0, y quién junta cuántos se
+        // miraba en otro módulo.
+        //
+        // **La URL no se muda** —es la regla del proyecto: mover una pantalla
+        // de módulo no la muda de ruta— y **el permiso tampoco**, que
+        // renombrarlo dejaría huérfanas las filas de `rol_modulo` de las bases
+        // andando. Lo que cambia es de dónde se llega: el `false` la saca del
+        // menú de Clientes y `tambien.servicios` la ofrece desde Promociones,
+        // con el nombre con el que se la busca ahí.
+        'clientes.fidelizacion'     => ['Visitas y puntos',      'award',              'clientes.fidelizacion', false],
         'clientes.canjes'           => ['Canjes por puntos',     'gift',               'clientes.canjes'],
         'clientes.valoraciones'     => ['Valoraciones',          'star',               'clientes.valoraciones'],
         'servicios.lista'           => ['Servicios',             'scissors',           'servicios.catalogo'],
@@ -111,7 +124,10 @@ return [
     //  permiso, así que no hay nada que prestar. El arreglo queda vacío en
     //  vez de borrarse: el mecanismo sigue siendo correcto y la próxima
     //  pantalla compartida lo va a necesitar.
-    'tambien' => [],
+    'tambien' => [
+        // Fidelización se administra desde Promociones: ver arriba.
+        'servicios' => ['clientes.fidelizacion' => 'Visitas y puntos'],
+    ],
 
     // -----------------------------------------------------------------
     //  Pantallas relacionadas: lo que uno suele necesitar después de esto.
@@ -123,10 +139,10 @@ return [
         'citas.atender'           => ['citas.agenda', 'inventario.stock', 'facturacion.emitir'],
         'citas.ausencias'         => ['citas.agenda', 'seguridad.turnos'],
         'citas.reasignar'         => ['citas.agenda', 'citas.ausencias', 'seguridad.usuarios'],
-        'clientes.lista'          => ['clientes.form', 'citas.form', 'clientes.fidelizacion', 'clientes.valoraciones'],
+        'clientes.lista'          => ['clientes.form', 'citas.form', 'clientes.valoraciones'],
         'clientes.form'           => ['clientes.lista', 'citas.form'],
         'clientes.historial'      => ['clientes.lista', 'citas.form', 'facturacion.facturas'],
-        'clientes.fidelizacion'   => ['clientes.lista', 'clientes.canjes', 'servicios.descuentos', 'clientes.valoraciones'],
+        'clientes.fidelizacion'   => ['servicios.descuentos', 'clientes.canjes', 'clientes.lista'],
         'clientes.canjes'         => ['clientes.fidelizacion', 'servicios.lista', 'clientes.lista'],
         'clientes.valoraciones'   => ['clientes.lista', 'clientes.fidelizacion'],
         'servicios.lista'         => ['servicios.categorias', 'servicios.descuentos', 'citas.form'],

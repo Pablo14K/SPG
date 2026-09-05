@@ -325,19 +325,31 @@ class AccesoTest extends TestCase
         );
 
         // 3) **Y con la caja ABIERTA la pantalla también se dibuja entera.**
-        //    Es un camino distinto —otra rama del `@if`— y ahí vive el modal
-        //    de los movimientos del día: una variable que la vista lee y el
-        //    controlador no manda no es error de sintaxis, revienta al abrir.
+        //    Es un camino distinto —otra rama del `@if`— y una variable que la
+        //    vista lee y el controlador no manda no es error de sintaxis:
+        //    revienta al abrir.
         $suc = (int) DB::scalar('SELECT id_sucursal FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
         DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
                     VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
 
         $abierta = (string) $this->get(route('facturacion.caja_ver', $cajon))->assertOk()->getContent();
 
-        $this->assertStringContainsString('modalMovsDia', $abierta,
-            'Con la caja abierta tiene que estar el modal de los movimientos del día.');
         $this->assertStringContainsString(route('facturacion.caja.cerrar'), $abierta,
             'Con la caja abierta, su pantalla tiene que ofrecer el arqueo.');
+
+        // **Y lleva a SU arqueo, no a otro modal de movimientos.**
+        //
+        // Antes acá se dibujaba de nuevo el modal de «movimientos de hoy», que
+        // es el mismo que abre la tarjeta de la lista — el mismo botón dos
+        // veces, y desde la tarjeta se entra justamente a esta pantalla. Lo que
+        // falta desde acá es el arqueo de este cajón, que es a lo que el botón
+        // de la lista dice llevar.
+        $this->assertStringContainsString(
+            route('facturacion.arqueo', ['caja' => $cajon]), $abierta,
+            'La pantalla del arqueo tiene que llevar a los arqueos de ESA caja, ya filtrados.'
+        );
+        $this->assertStringNotContainsString('modalMovsDia', $abierta,
+            'El modal de movimientos ya lo abre la tarjeta de la lista: acá estaba repetido.');
     }
 
     /** Las doce listas que ofrecen el botón de bajar. */

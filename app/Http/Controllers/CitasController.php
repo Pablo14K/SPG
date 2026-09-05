@@ -76,7 +76,14 @@ class CitasController extends Controller
         $servicios = array_map('intval', (array) $request->query('servicios', []));
         $idUsuario = ((int) $request->query('id_usuario', 0)) ?: null;
         $idSucursal = ((int) $request->query('sucursal', 0)) ?: Sucursales::activa();
-        $duracion = Agenda::duracion($servicios);
+
+        // **Cuántas personas vienen cambia cuánto dura la cita.** Dos servicios
+        // sobre la cabeza van en serie sobre UNA clienta; sobre dos, con dos
+        // peluqueras, van a la vez. Sin este dato el sistema medía siempre el
+        // peor caso y contestaba «no entra en el turno» a una cita que el salón
+        // hace todos los días.
+        $personas = max(1, min(20, (int) $request->query('personas', 1)));
+        $duracion = Agenda::duracionPrevista($servicios, $personas, $idSucursal, $idUsuario);
 
         if ($duracion <= 0) {
             return response()->json(['ok' => false, 'motivo' => 'Elegí primero el o los servicios.']);
@@ -98,7 +105,7 @@ class CitasController extends Controller
             }
             return response()->json([
                 'ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios),
+                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios, $personas),
             ]);
         }
 
@@ -113,7 +120,7 @@ class CitasController extends Controller
             'ok' => true, 'duracion' => $duracion,
             'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios),
             'dias' => array_values(array_diff(
-                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios),
+                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
         ]);
@@ -628,7 +635,19 @@ class CitasController extends Controller
         // Exclusividad + hueco de CADA profesional. Se vuelve a preguntar acá
         // porque entre que se dibujó la pantalla y se apretó el botón, otro
         // pudo tomar el horario.
-        if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha)) {
+        // **Cuántas personas van se lee ACÁ y no más abajo.** Es lo que decide
+        // si dos servicios de la misma zona van a la vez o uno después del
+        // otro —dos cabezas son dos cabezas—, así que el reparto y la duración
+        // dependen de él: leyéndolo después, la cita se validaba contra un
+        // tiempo que no era el suyo.
+        $personas = (int) $request->input('personas', 1);
+        if ($personas < 1 || $personas > 20) {
+            flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
+
+            return back()->withInput();
+        }
+
+        if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {
             flash($problema, 'warning');
 
             return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
@@ -636,7 +655,7 @@ class CitasController extends Controller
 
         // La cita dura el bloque más largo: los profesionales trabajan en
         // paralelo, no uno detrás del otro.
-        $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
+        $dur = Agenda::duracionReparto($asignacion, $idUsuario, $personas) ?: $dur;
 
         // **Para quién es la cita, y cuántas van.** El portal lo pregunta
         // desde la 7.57.0 y el mostrador no: la clienta que llama para
@@ -648,16 +667,10 @@ class CitasController extends Controller
         // cita que dice «es para otra persona» sin decir para quién.
         $paraOtro = (bool) $request->input('para_otra_persona', 0);
         $nombrePara = trim((string) $request->input('nombre_para', ''));
-        $personas = (int) $request->input('personas', 1);
 
         if ($paraOtro && mb_strlen($nombrePara) < 3) {
             flash('Si la cita es para otra persona, escribí su nombre: es lo que ve '
                 . 'quien atiende ese día.', 'error');
-
-            return back()->withInput();
-        }
-        if ($personas < 1 || $personas > 20) {
-            flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
 
             return back()->withInput();
         }

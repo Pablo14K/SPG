@@ -2145,12 +2145,11 @@ class FacturacionController extends Controller
             'cajon' => $cajon,
             'abierta' => $abierta,
             'saldo' => $abierta ? Caja::saldo((int) $abierta->id_caja) : null,
-            // **«Ver movimientos» abre un modal, no manda a otra pantalla.**
-            // La pregunta del mostrador es «¿qué pasó hoy con ESTA caja?», y
-            // mandarla al listado general la obligaba a volver a filtrar por
-            // la caja en la que ya estaba parada.
-            'movs' => Permisos::puede('facturacion.movimientos')
-                ? $this->movimientosDelDia($id) : [],
+            // **Los movimientos del día ya NO se traen acá.** El modal que los
+            // mostraba estaba repetido: la tarjeta de la lista lo abre, y desde
+            // esa misma tarjeta se entra a esta pantalla — el mismo botón dos
+            // veces. Esta pantalla es el arqueo, así que enlaza a la historia
+            // filtrada por este cajón en vez de volver a consultarla.
         ]);
     }
 

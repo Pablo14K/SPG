@@ -57,7 +57,27 @@
                         Es un rol del portal de la clienta: no entra al panel de gestión.
                     </p>
                 @else
-                    <div class="row g-2">
+                    {{-- **«Todos», porque marcarlos de a uno cansa.** Son 32
+                         permisos repartidos en nueve tarjetas: dar acceso
+                         completo a un rol eran treinta y dos clics. Hay dos
+                         niveles, y los dos hacen falta —uno da el rol entero,
+                         el otro un módulo suelto, que es lo que se hace más
+                         seguido—.
+
+                         **La maestra va FUERA del contenedor de su grupo**: si
+                         estuviera adentro se contaría a sí misma como hijo y
+                         nunca llegaría a «están todos». Y no lleva `name`, así
+                         que no se envía: lo que se guarda son las casillas. --}}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox"
+                               id="permTodo{{ $rol->id_rol }}"
+                               data-marca-todo="#permRol{{ $rol->id_rol }}">
+                        <label class="form-check-label fw-semibold" style="font-size:.85rem"
+                               for="permTodo{{ $rol->id_rol }}">
+                            Todos los permisos de {{ $rol->nombre }}</label>
+                    </div>
+
+                    <div class="row g-2" id="permRol{{ $rol->id_rol }}">
                         @foreach ($matriz as $m)
                             {{-- Seguridad tiene ocho submódulos: ocupa el doble
                                  de ancho y sus casillas van en dos columnas, o
@@ -65,9 +85,19 @@
                                  de cuatro renglones. --}}
                             <div class="{{ count($m['hijos']) > 6 ? 'col-md-8 col-lg-6' : 'col-md-4 col-lg-3' }}">
                                 <div class="h-100" style="border:1px solid var(--gris-calido);border-radius:8px;padding:.5rem .7rem">
-                                    <div style="font-weight:500;font-size:.85rem">{{ $m['etiqueta'] }}</div>
                                     @if ($m['hijos'])
-                                        <div style="{{ count($m['hijos']) > 6 ? 'columns:2;column-gap:1rem' : '' }}">
+                                        {{-- El nombre del módulo ES la maestra
+                                             de sus casillas: dar «todo
+                                             Tesorería» es un clic y no siete. --}}
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="permG{{ $rol->id_rol }}_{{ $m['clave'] }}"
+                                                   data-marca-todo="#permGrupo{{ $rol->id_rol }}_{{ $m['clave'] }}">
+                                            <label class="form-check-label" style="font-weight:500;font-size:.85rem"
+                                                   for="permG{{ $rol->id_rol }}_{{ $m['clave'] }}">{{ $m['etiqueta'] }}</label>
+                                        </div>
+                                        <div id="permGrupo{{ $rol->id_rol }}_{{ $m['clave'] }}"
+                                             style="{{ count($m['hijos']) > 6 ? 'columns:2;column-gap:1rem' : '' }}">
                                         @foreach ($m['hijos'] as $clave => $etiqueta)
                                             <div class="form-check" style="break-inside:avoid">
                                                 <input class="form-check-input" type="checkbox"
@@ -81,6 +111,7 @@
                                         @endforeach
                                         </div>
                                     @else
+                                        <div style="font-weight:500;font-size:.85rem">{{ $m['etiqueta'] }}</div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox"
                                                    name="perm[{{ $rol->id_rol }}][{{ $m['clave'] }}]" value="1"

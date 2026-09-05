@@ -81,7 +81,14 @@ class PortalController extends Controller
 
         $servicios = array_map('intval', (array) $request->query('servicios', []));
         $idUsuario = ((int) $request->query('id_usuario', 0)) ?: null;
-        $duracion = Agenda::duracion($servicios);
+
+        // **Cuántas personas van cambia cuánto dura la cita.** Dos servicios
+        // sobre la cabeza van en serie sobre UNA clienta; sobre dos, con dos
+        // peluqueras, van a la vez. Sin este dato el sistema medía siempre el
+        // peor caso —la suma— y cerraba el calendario diciendo que no entraba
+        // en el turno.
+        $personas = max(1, min(20, (int) $request->query('personas', 1)));
+        $duracion = Agenda::duracionPrevista($servicios, $personas, null, $idUsuario);
 
         if ($duracion <= 0) {
             return response()->json(['ok' => false, 'motivo' => 'Elegí primero el o los servicios.']);
@@ -101,6 +108,10 @@ class PortalController extends Controller
         }
         $suc = $suc ?: null;
 
+        // Con el local ya validado se rehace la cuenta: quién hace cada
+        // servicio es de ESA sucursal, así que el reparto puede ser otro.
+        $duracion = Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario) ?: $duracion;
+
         // **El turno elegido acota lo que se ofrece.** Con un turno puesto
         // —a mano con los botones, o deducido del profesional que la clienta
         // eligió— los días y las horas se recortan a esa franja. Es lo que hace
@@ -112,7 +123,7 @@ class PortalController extends Controller
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             return response()->json(['ok' => true, 'duracion' => $duracion,
                 'horas' => Agenda::soloDelTurno(
-                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios), $turno, $duracion)]);
+                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios, $personas), $turno, $duracion)]);
         }
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
@@ -123,7 +134,7 @@ class PortalController extends Controller
             'dias' => array_values(array_diff(
                 Agenda::diasDelTurno(
                     Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios),
+                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas),
                     $turno),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
@@ -372,12 +383,18 @@ class PortalController extends Controller
             }
         }
 
-        if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha)) {
+        // **Cuántas personas van se lee ACÁ y no más abajo.** Es lo que decide
+        // si dos servicios de la misma zona van a la vez o uno después del
+        // otro, así que el reparto y la duración dependen de él: leyéndolo
+        // después, se validaba la cita contra un tiempo que no era el suyo.
+        $personas = max(1, min(20, (int) $request->input('personas', 1)));
+
+        if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {
             flash($problema, 'warning');
 
             return $volver;
         }
-        $dur = Agenda::duracionReparto($asignacion, $idUsuario) ?: $dur;
+        $dur = Agenda::duracionReparto($asignacion, $idUsuario, $personas) ?: $dur;
 
         // **La clienta tampoco puede pisarse a sí misma.** La agenda cuidaba
         // al profesional y nada impedía reservar dos servicios a la misma hora
@@ -403,7 +420,6 @@ class PortalController extends Controller
             // son datos del pedido, no de la disponibilidad — el sillón se
             // ocupa lo mismo, y meterlos en el procedimiento obligaría a
             // cambiar su firma para algo que no decide nada.
-            $personas = max(1, min(20, (int) $request->input('personas', 1)));
             $nombrePara = trim((string) $request->input('nombre_para', ''));
             if ($paraOtro && $nombrePara === '') {
                 $paraOtro = false;   // sin nombre no es «para otra persona»

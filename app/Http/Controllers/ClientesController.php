@@ -27,8 +27,6 @@ class ClientesController extends Controller
             'subs' => Permisos::tarjetasPermitidas([
                 ['p' => 'clientes.registro', 'ruta' => 'clientes.lista', 'ic' => 'people',
                  't' => 'Clientes', 'd' => 'Registro y datos de contacto'],
-                ['p' => 'clientes.fidelizacion', 'ruta' => 'clientes.fidelizacion', 'ic' => 'award',
-                 't' => 'Fidelización', 'd' => 'Niveles, visitas y puntos'],
                 ['p' => 'clientes.canjes', 'ruta' => 'clientes.canjes', 'ic' => 'gift',
                  't' => 'Canjes por puntos', 'd' => 'Qué se lleva la clienta con sus puntos'],
                 ['p' => 'clientes.valoraciones', 'ruta' => 'clientes.valoraciones', 'ic' => 'star',
@@ -69,16 +67,20 @@ class ClientesController extends Controller
         }
 
         $desde = 'FROM cliente c JOIN persona pe ON pe.id_persona = c.id_persona WHERE ' . implode(' AND ', $w);
-        $cols = "c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, c.activo,
-                 fn_cliente_visitas(c.id_cliente) AS visitas";
+        // **Las visitas ya no salen de acá.** Se miran en Promociones →
+        // Visitas y puntos, junto con el nivel y los puntos, que es lo que las
+        // hace significar algo; ese listado tiene su propia exportación con las
+        // tres columnas. Acá era una llamada a `fn_cliente_visitas` por fila
+        // para un número que se leía mejor en el otro lado.
+        $cols = 'c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, c.activo';
         $orden = 'ORDER BY pe.apellido, pe.nombre';
 
         if (Listado::pideExport()) {
             return Listado::exportar('clientes',
-                ['Cliente', 'Cédula', 'Teléfono', 'Email', 'Visitas', 'Estado'],
+                ['Cliente', 'Cédula', 'Teléfono', 'Email', 'Estado'],
                 array_map(fn ($c) => [
                     $c->apellido . ', ' . $c->nombre, $c->cedula, $c->telefono, $c->email,
-                    $c->visitas, $c->activo ? 'Activo' : 'Inactivo',
+                    $c->activo ? 'Activo' : 'Inactivo',
                 ], DB::select("SELECT $cols $desde $orden", $par)),
                 $f, 'Clientes'
             );

@@ -313,6 +313,13 @@ window.SPGCarga = (function () {
     var turno = document.querySelector('[name="id_turno"]');
     if (turno && turno.value && turno.value !== '0') { p.append('turno', turno.value); }
 
+    // **Cuantas personas van cambia cuanto dura la cita.** Dos servicios
+    // sobre la cabeza van en serie sobre UNA clienta; sobre dos, con dos
+    // peluqueras, van a la vez. Sin mandarlo, el servidor mide el peor caso y
+    // contesta que no entra en el turno.
+    var per = ambito.querySelector('[name="personas"]');
+    if (per && per.value) { p.append('personas', per.value); }
+
     // La clienta, para no ofrecerle un dia en el que ya tiene ese servicio.
     // En el portal la sabe el servidor por la sesion; en Nueva cita se elige en
     // la misma pantalla, asi que viaja en la consulta.
@@ -571,6 +578,12 @@ window.SPGCarga = (function () {
     // días de la clienta anterior.
     var cli = document.querySelector('[name="id_cliente"]');
     if (cli) { cli.addEventListener('change', cargarDias); }
+
+    // **Y cambiar cuantas personas van cambia los horarios**, porque cambia lo
+    // que puede hacerse en paralelo. Sin esto, la clienta ponia «2 personas»
+    // despues de elegir el horario y la lista seguia siendo la de una.
+    var personas = ambito.querySelector('[name="personas"]');
+    if (personas) { personas.addEventListener('change', cargarDias); }
   }
 
   cargarDias();
@@ -1144,7 +1157,24 @@ window.SPGCarga = (function () {
     maestra.addEventListener('change', function () {
       // Al tocarla desde el estado a medio marcar, prende todo
       var poner = maestra.indeterminate ? true : maestra.checked;
-      hijos.forEach(function (h) { if (!h.disabled) h.checked = poner; });
+      hijos.forEach(function (h) {
+        if (h.disabled) { return; }
+        h.checked = poner;
+        // **Las maestras se pueden anidar, y sin esto la de adentro queda
+        // mintiendo.** En Roles hay una por modulo y una por rol: la del rol
+        // marca todo, incluidas las de los modulos, pero asignar `.checked`
+        // no dispara `change`, asi que las de adentro se quedaban con su
+        // `indeterminate` de antes — el cuadrito a medio marcar sobre un
+        // grupo que ya estaba entero.
+        //
+        // Se avisa desde los hijos que NO son maestras: el evento burbujea
+        // hasta el grupo de cada maestra anidada y la hace refrescarse. Sin
+        // la condicion, una maestra se avisaria a si misma y volveria a
+        // recorrer a sus hijos.
+        if (!h.hasAttribute('data-marca-todo')) {
+          h.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
       reflejar();
     });
     grupo.addEventListener('change', reflejar);

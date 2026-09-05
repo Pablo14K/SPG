@@ -227,8 +227,6 @@ body{
 .spg-suc-chip i{font-size:.75rem;}
 
 /* El desplegable abierto se marca con el oro claro, igual que el hover */
-.spg-modulos-btn{font-size:.85rem;cursor:pointer;}
-.spg-modulos-btn::after{display:none;}
 .spg-dropdown{--bs-dropdown-link-active-bg:var(--oro);font-size:.88rem;}
 .spg-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
 
@@ -584,11 +582,6 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* En el portal «Reservar» y «Mis citas» pertenecen a Citas. En móvil el
    grupo es un desplegable nativo (funciona aunque no cargue JavaScript) y no
    roba ancho a la barra. */
-.spg-portal-citas > summary{list-style:none;cursor:pointer;}
-.spg-portal-citas > summary::-webkit-details-marker{display:none;}
-.spg-portal-citas > summary::marker{content:'';}
-.spg-portal-citas .spg-nav-menu{display:none;}
-.spg-portal-citas[open] .spg-nav-menu{display:block;position:static;opacity:1;visibility:visible;transform:none;min-width:0;box-shadow:none;border-top:0;border-radius:0;padding:.15rem .3rem;background:var(--sup-oscura);}
 
 @media (max-width:576px){
   .spg-portal-citas-grid .table thead{display:none;}
@@ -768,6 +761,25 @@ html,body{max-width:100%;overflow-x:hidden;}
   .spg-srv-nombre{font-size:.8rem;}
   .spg-srv-precio{font-size:.9rem;}
   .spg-srv-desc{-webkit-line-clamp:1;}
+
+  /* **La tarjeta ELEGIDA ocupa el renglon entero, y el combo deja de ser
+     ilegible.** Con dos columnas en un telefono cada tarjeta mide unos 156 px,
+     y adentro va el combo de «quien me atiende», cuyas opciones dicen el
+     nombre Y los turnos —«con Lucia · Turno Manana 08:00-12:30»—: setenta
+     caracteres en un campo de 140 px, que es la definicion de compacto.
+
+     Los turnos NO se sacan del texto: estan ahi a proposito desde la 7.93.0,
+     para que la clienta no pida a alguien de la manana y a alguien de la
+     tarde y se entere recien al buscar horarios. Lo que se agranda es el
+     lugar donde se leen.
+
+     Elegir sigue siendo comodo de a dos; en cuanto se marca una, se abre. Las
+     marcadas son pocas, asi que la lista no se estira. La foto se aplana para
+     que la tarjeta abierta no se coma la pantalla. */
+  .spg-srv-card.elegida{grid-column:1/-1;}
+  .spg-srv-card.elegida .spg-srv-img{aspect-ratio:16/5;}
+  .spg-srv-card.elegida .spg-srv-desc{-webkit-line-clamp:2;}
+  .spg-srv-extra .form-select{font-size:.85rem;padding-top:.42rem;padding-bottom:.42rem;}
 }
 
 /* ---------------------------------------------------------------

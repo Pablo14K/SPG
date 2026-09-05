@@ -110,25 +110,6 @@
 
     @if ($spgSesion)
         <div class="spg-user">
-            @if (! $spgCliente && $spgMenu)
-                {{-- Solo en pantallas chicas: en grande está la barra de módulos de abajo --}}
-                <div class="dropdown d-lg-none">
-                    <button class="spg-user-link spg-modulos-btn" type="button" data-bs-toggle="dropdown"
-                            aria-expanded="false" title="Ir a un módulo">
-                        <i class="bi bi-grid-3x3-gap-fill"></i> <span class="spg-user-nombre">Módulos</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end spg-dropdown">
-                        @foreach ($spgMenu as $spgMod)
-                            <li><a class="dropdown-item" href="{{ $spgMod['url'] }}">
-                                <i class="bi bi-{{ $spgMod['ic'] }}"></i> {{ $spgMod['titulo'] }}</a></li>
-                        @endforeach
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ Navegacion::url('panel') }}">
-                            <i class="bi bi-house"></i> Panel principal</a></li>
-                    </ul>
-                </div>
-            @endif
-
             <div class="dropdown">
                 <button class="spg-user-link" type="button" data-bs-toggle="dropdown" aria-expanded="false"
                         title="Mi cuenta">
@@ -214,17 +195,37 @@
                 $spgCitas = collect($spgPortal)->filter(fn ($p) => in_array($p['clave'], ['portal.reservar', 'portal.citas'], true));
             @endphp
             @if ($spgCitas->isNotEmpty())
-                <details class="spg-nav-grupo spg-portal-citas" @if ($spgCitas->contains(fn ($p) => $spgRuta === $p['clave'])) open @endif>
-                    <summary class="spg-nav-item {{ $spgCitas->contains(fn ($p) => $spgRuta === $p['clave']) ? 'activo' : '' }}">
-                        <i class="bi bi-calendar-event"></i><span>Citas</span><i class="bi bi-chevron-down spg-nav-flecha"></i>
-                    </summary>
+                @php $spgCitasActivo = $spgCitas->contains(fn ($p) => $spgRuta === $p['clave']); @endphp
+                {{-- **La misma pieza que los módulos del personal, y no un
+                     `<details>`.**
+
+                     Era `<details>/<summary>`, y eso se comporta distinto en
+                     escritorio: el grupo se abría **con un clic** y el menú
+                     quedaba desplegado en el propio renglón —`position:static`—
+                     en vez del desplegable flotante que abre al pasar el mouse
+                     en el resto del sistema. En el celular las dos formas se
+                     ven igual, así que el defecto sólo se veía en la
+                     computadora.
+
+                     Con la casilla escondida y su etiqueta, el portal usa
+                     exactamente el mismo mecanismo que la barra de módulos:
+                     hover en escritorio, toque en el cajón, **CSS y sin
+                     JavaScript** en los dos casos. --}}
+                <div class="spg-nav-grupo">
+                    <input type="checkbox" id="spgGPortalCitas" class="spg-nav-int"
+                           aria-hidden="true" @checked($spgCitasActivo)>
+                    <a class="spg-nav-item {{ $spgCitasActivo ? 'activo' : '' }}"
+                       href="{{ $spgCitas->first()['url'] }}" aria-haspopup="true">
+                        <i class="bi bi-calendar-event"></i><span>Citas</span>
+                        <i class="bi bi-chevron-down spg-nav-flecha"></i></a>
+                    <label for="spgGPortalCitas" class="spg-nav-tog" aria-label="Desplegar Citas"></label>
                     <div class="spg-nav-menu" role="menu" aria-label="Citas">
                         @foreach ($spgCitas as $spgP)
                             <a role="menuitem" class="{{ $spgRuta === $spgP['clave'] ? 'activo' : '' }}" href="{{ $spgP['url'] }}">
                                 <i class="bi bi-{{ $spgP['ic'] }}"></i><span>{{ $spgP['titulo'] }}</span></a>
                         @endforeach
                     </div>
-                </details>
+                </div>
             @endif
             @foreach ($spgPortal as $spgP)
                 @if ($spgP['barra'] && ! in_array($spgP['clave'], ['portal.reservar', 'portal.citas'], true))

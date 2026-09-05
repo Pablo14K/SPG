@@ -35,6 +35,12 @@ class ServiciosController extends Controller
                  // acá había quedado el nombre viejo, así que la tarjeta del Panel
                  // y la del módulo decían cosas distintas de la misma pantalla.
                  't' => 'Promociones', 'd' => 'Vigencia y valor'],
+                // **Fidelización se administra acá**, no en Clientes: contesta
+                // la misma pregunta que las promociones —cuánto le devuelve el
+                // salón a la clienta— y los niveles y el valor del punto ya
+                // viven en Promociones desde la 7.102.0.
+                ['p' => 'clientes.fidelizacion', 'ruta' => 'clientes.fidelizacion', 'ic' => 'award',
+                 't' => 'Visitas y puntos', 'd' => 'Quién junta cuántos, y qué canjea'],
             ]),
         ]);
     }

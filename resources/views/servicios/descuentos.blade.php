@@ -38,15 +38,11 @@
             </div>
             <p class="text-muted-warm mb-0 mt-2" style="font-size:.76rem">
                 El nivel sube solo con las visitas, no se asigna a mano. Quién está
-                en cuál se mira en
-                @if ($urlFid = \App\Servicios\Navegacion::url('clientes.fidelizacion'))
-                    <a class="link-oro" href="{{ $urlFid }}">Clientes → Fidelización</a>.
-                @else
-                    Clientes → Fidelización.
-                @endif
+                en cuál se mira en <a class="link-oro" href="{{ route('clientes.fidelizacion') }}">Visitas y puntos</a>, dentro de Promociones.
             </p>
         </div>
     @endif
+
 
     {{-- Cuánto vale un punto. Va acá y no en un archivo de configuración porque
          contesta la misma pregunta que los descuentos —cuánto le devuelve el

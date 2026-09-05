@@ -78,7 +78,11 @@
                                 </td>
                             @else
                                 <td class="text-muted-warm">{{ $u->username }}</td>
-                                <td><span class="badge-estado e-prog">{{ $u->rol }}</span></td>
+                                <td>
+                                    @foreach (array_filter(array_map('trim', explode('·', (string) $u->rol))) as $rol)
+                                        <span class="badge-estado e-prog">{{ $rol }}</span>
+                                    @endforeach
+                                </td>
                                 <td class="text-muted-warm" style="font-size:.82rem">
                                     {{ $u->sucursales ?: 'todas' }}
                                 </td>

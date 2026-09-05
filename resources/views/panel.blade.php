@@ -146,9 +146,19 @@
                     </div>
                 </div>
             @endif
+        </div>
+    @endif
 
-    {{-- Las tarjetas son el segundo nivel de navegación: qué hay dentro de
-         cada módulo. Solo se dibujan las que el rol puede abrir. --}}
+    {{-- **Las tarjetas van FUERA del bloque de citas, y esto ya se rompió una
+         vez por tenerlas adentro.** Quedaron dentro del `@if ($atrasadas ||
+         $proximas)`, así que el panel se dibujaba **sin un solo módulo** en
+         cuanto no había ni una cita atrasada ni una próxima — que es
+         exactamente lo que pasa al entrar a una sucursal recién abierta, o un
+         lunes temprano. Y las tarjetas son el segundo nivel de navegación:
+         sin ellas y sin la barra —que en el Panel no se dibuja a propósito
+         desde la 7.34.1— no quedaba forma de llegar a ningún módulo.
+
+         Solo se dibujan las que el rol puede abrir. --}}
     <div class="spg-cards">
         @foreach (config('navegacion.modulos') as $mod)
             @continue (! Permisos::puede($mod['mod']))
@@ -170,9 +180,6 @@
             @endif
         @endforeach
     </div>
-
-        </div>
-    @endif
 
     {{-- **Lo que le falta cargar al salón.**
 

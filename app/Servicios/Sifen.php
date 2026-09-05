@@ -337,6 +337,63 @@ class Sifen
             $limpiar($email), $limpiar($direccion), $limpiar($telefono),
         ]);
 
+        // **El descuento tiene que llegar a los renglones, o la DNIT ve otro
+        // total del que la clienta pagó.**
+        //
+        // El Automatizador calcula el total sumando `cantidad × precio` de cada
+        // ITM —no se le manda—, y el descuento del SPG no vive en el renglón:
+        // `factura_descuento` lo guarda por factura, que es lo correcto para el
+        // modelo (una promoción o el nivel se aplican a la venta, no a una
+        // línea). Mandando el precio de lista, el KuDE y el XML declaraban el
+        // subtotal SIN descuento: la factura decía Gs. 235.000 y el comprobante
+        // interno, el cobro y la caja decían 231.250.
+        //
+        // Se reparte proporcional al peso de cada renglón, y **la última línea
+        // absorbe el redondeo**: así la suma da exactamente `fn_factura_total`,
+        // que es la autoridad. Sin ese ajuste, tres renglones con decimales
+        // dejaban al total corrido por uno o dos guaraníes — y un comprobante
+        // fiscal que no cierra consigo mismo es un rechazo esperando.
+        //
+        // **Sólo se prorratea cuando hay descuento y el total es menor que el
+        // bruto.** Una nota de crédito, o cualquier documento donde la cuenta
+        // no dé eso, sale con los precios tal cual: es preferible el precio de
+        // lista a un prorrateo sobre una premisa que no se cumple.
+        $precios = [];
+        $bruto = 0;
+        foreach ($items as $i => $it) {
+            $precios[$i] = (int) round((float) $it->precio_unitario);
+            $bruto += (int) round((float) $it->cantidad * (float) $it->precio_unitario);
+        }
+        $total = (int) round((float) DB::scalar('SELECT fn_factura_total(?)', [$idFactura]));
+
+        if ($bruto > 0 && $total > 0 && $total < $bruto) {
+            $ultimo = count($items) - 1;
+            $acumulado = 0;
+            foreach ($items as $i => $it) {
+                $cant = max(0.0001, (float) $it->cantidad);
+                if ($i === $ultimo) {
+                    $precios[$i] = (int) round(($total - $acumulado) / $cant);
+                    break;
+                }
+                $sub = (int) round($cant * (float) $it->precio_unitario);
+                $precios[$i] = (int) round(($sub * $total / $bruto) / $cant);
+                $acumulado += (int) round($precios[$i] * $cant);
+            }
+
+            // Si el reparto dejara un precio negativo —datos raros: un
+            // descuento mayor que un renglón— se descarta entero y se manda lo
+            // de siempre. Un comprobante con un precio en negativo es peor que
+            // uno sin el descuento aplicado.
+            foreach ($precios as $v) {
+                if ($v < 0) {
+                    foreach ($items as $i => $it) {
+                        $precios[$i] = (int) round((float) $it->precio_unitario);
+                    }
+                    break;
+                }
+            }
+        }
+
         foreach ($items as $i => $it) {
             $lineas[] = implode('|', [
                 'ITM',
@@ -344,7 +401,7 @@ class Sifen
                 $limpiar($it->item),
                 // Cantidad sin decimales sobrantes: «1» y no «1.00».
                 rtrim(rtrim(number_format((float) $it->cantidad, 2, '.', ''), '0'), '.'),
-                (string) (int) round((float) $it->precio_unitario),
+                (string) $precios[$i],
                 (string) (int) $it->tasa_iva,
             ]);
         }

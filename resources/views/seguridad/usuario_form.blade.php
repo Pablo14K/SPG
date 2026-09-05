@@ -226,7 +226,9 @@
                          Lo que queda acá es lo que de verdad cuelga de la cuenta:
                          sucursales a las que entra y turnos que trabaja. --}}
 
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja<x-ayuda>Sin turno asignado no aparece en la agenda: el sistema no sabría cuándo atiende. El mismo turno lo puede compartir todo el equipo.</x-ayuda></h2>
+                    @php $spgAdminRol = (int) config('permisos.rol_admin', 1); @endphp
+                    <div id="spgTurnosCuenta" data-admin-rol="{{ $spgAdminRol }}">
+                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja<x-ayuda>Solo hace falta para cuentas que también atienden servicios. Un Administrador sin rol Profesional no necesita turno.</x-ayuda></h2>
                     <div class="mb-3">
                         @if (count($turnos) > 1)
                             <div class="form-check mb-1">
@@ -256,13 +258,16 @@
                         @endforelse
                         </div>
                     </div>
+                    </div>
 
                     </div>{{-- /fmTrabajo --}}
                     </div>
 
+                    <div id="spgCrearTurnoCuenta">
                     <button type="button" class="btn btn-sm btn-rapido mb-3"
                             data-bs-toggle="modal" data-bs-target="#modalTurnoRapido">
                         <i class="bi bi-plus-lg"></i> Crear un turno</button>
+                    </div>
 
                     {{-- Un solo botón, al pie de las tres secciones: se guardan
                          juntas y siempre se guardaron juntas. --}}
@@ -403,3 +408,47 @@
         @endforeach
     </datalist>
 @endonce
+
+{{-- **Al Administrador no se le piden turnos.**
+
+     El turno existe para que la agenda sepa cuándo atiende esa persona, así
+     que a la cuenta que sólo administra el salón no le hace falta ninguno: el
+     bloque le pedía resolver algo que no era un problema.
+
+     **La excepción es tener otro rol además.** Desde que una cuenta puede
+     llevar varios (el cambio de perspectiva), la dueña que además atiende
+     lleva el rol Profesional encima — y ahí el turno vuelve a hacer falta,
+     porque la agenda sí la va a ofrecer. Por eso escucha los roles y se
+     muestra solo.
+
+     **Esconder no borra**, y eso es a propósito: la primera versión
+     desmarcaba los turnos al esconder el bloque, así que abrir la ficha de un
+     Administrador que sí los tenía y guardar se los sacaba **en silencio**.
+     Apagar un dato sin que nadie lo pida es justo lo que este proyecto ya
+     pagó caro con el correo. Lo que se guarda sigue siendo lo que estaba; lo
+     único que cambia es que no se pide.
+
+     Y el servidor no depende de esto: `Pendientes` aplica la misma regla por
+     su cuenta, así que esconder acá es comodidad, no el control. --}}
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const bloque = document.getElementById('spgTurnosCuenta');
+    if (!bloque) return;
+    const admin = String(bloque.dataset.adminRol);
+    const crear = document.getElementById('spgCrearTurnoCuenta');
+    const roles = Array.from(document.querySelectorAll('#gRoles input[name="roles[]"]'));
+    function actualizar() {
+        const atiende = roles.some(function (r) { return r.checked && String(r.value) !== admin; });
+        // Si ya tiene turnos cargados el bloque se muestra igual: esconder algo
+        // que está cargado lo vuelve invisible y no lo saca.
+        const yaTiene = Array.from(bloque.querySelectorAll('input[name="turnos[]"]'))
+            .some(function (i) { return i.checked; });
+        bloque.hidden = !(atiende || yaTiene);
+        if (crear) crear.hidden = bloque.hidden;
+    }
+    roles.forEach(function (r) { r.addEventListener('change', actualizar); });
+    actualizar();
+});
+</script>
+@endpush

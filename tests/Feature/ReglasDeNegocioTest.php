@@ -3406,6 +3406,120 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * **La zona la ocupa una PERSONA, no la cita.**
+     *
+     * Dos servicios sobre la misma cabeza no pueden pasar a la vez... sobre la
+     * misma cabeza. Cuando la reserva es para dos —la clienta y su hija— son
+     * dos cabezas, así que con dos peluqueras van en paralelo. El modelo lo
+     * daba por imposible y sumaba los tiempos, con lo cual la cita «no entraba
+     * en el turno» y el calendario salía vacío: no se podía agendar algo que el
+     * salón hace todos los días.
+     *
+     * Se mide en las tres direcciones que importan, porque relajar de más sería
+     * peor que el defecto: el candado del PROFESIONAL sigue siendo duro, vengan
+     * las personas que vengan.
+     */
+    public function test_dos_servicios_de_la_misma_zona_van_a_la_vez_si_van_dos_personas(): void
+    {
+        $mismaZona = DB::select(
+            'SELECT s.id_servicio, s.duracion_min
+               FROM servicio s
+              WHERE s.activo = 1 AND s.id_zona IS NOT NULL
+                AND s.id_zona = (SELECT s2.id_zona FROM servicio s2
+                                  WHERE s2.activo = 1 AND s2.id_zona IS NOT NULL
+                                  GROUP BY s2.id_zona HAVING COUNT(*) >= 2 LIMIT 1)
+              ORDER BY s.duracion_min DESC LIMIT 2'
+        );
+        $profs = array_map(fn ($r) => (int) $r->id_usuario, DB::select(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE r.es_personal = 1 AND u.activo = 1 ORDER BY u.id_usuario LIMIT 2'
+        ));
+        if (count($mismaZona) < 2 || count($profs) < 2) {
+            $this->markTestSkipped('Falta catálogo clasificado por zona.');
+        }
+        [$a, $b] = $mismaZona;
+        $suma = (int) $a->duracion_min + (int) $b->duracion_min;
+        $mayor = max((int) $a->duracion_min, (int) $b->duracion_min);
+        $reparto = [(int) $a->id_servicio => $profs[0], (int) $b->id_servicio => $profs[1]];
+
+        // 1) UNA persona: una sola cabeza, así que van uno después del otro.
+        $this->assertSame($suma, Agenda::duracionReparto($reparto, $profs[0], 1),
+            'Con una clienta, dos servicios de la misma zona siguen sumando.');
+
+        // 2) DOS personas y dos profesionales: dos cabezas, van a la vez.
+        $this->assertSame($mayor, Agenda::duracionReparto($reparto, $profs[0], 2),
+            'Con dos clientas y dos peluqueras, los dos servicios van en paralelo.');
+
+        // 3) DOS personas pero UNA sola profesional: el candado del
+        //    profesional no se relaja nunca — una no hace dos cosas a la vez.
+        $this->assertSame($suma, Agenda::duracionReparto(
+            [(int) $a->id_servicio => $profs[0], (int) $b->id_servicio => $profs[0]], $profs[0], 2),
+            'Una sola profesional no atiende a dos clientas al mismo tiempo.');
+
+        // 4) Y la duración prevista —la que abre el calendario— sigue a las
+        //    personas: es lo que se compara contra el largo del turno.
+        $servicios = [(int) $a->id_servicio, (int) $b->id_servicio];
+        $this->assertGreaterThan(
+            Agenda::duracionPrevista($servicios, 2),
+            Agenda::duracionPrevista($servicios, 1),
+            'Con más personas la cita tiene que durar menos, no lo mismo.'
+        );
+    }
+
+    /**
+     * **El comprobante electrónico declara el total CON descuento.**
+     *
+     * El Automatizador calcula el total sumando `cantidad × precio` de cada
+     * renglón —no se le manda—, y el descuento del SPG vive por factura
+     * (`factura_descuento`), no por renglón. Mandando el precio de lista, el
+     * KuDE y el XML declaraban el subtotal sin descontar: la factura decía una
+     * cosa y el comprobante interno, el cobro y la caja decían otra.
+     *
+     * Se comprueba sobre el TXT, que es exactamente lo que se manda.
+     */
+    public function test_el_comprobante_electronico_declara_el_total_con_descuento(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura FROM factura f
+               JOIN detalle_factura df ON df.id_factura = f.id_factura
+              WHERE f.id_estado_factura = 1
+              GROUP BY f.id_factura HAVING COUNT(*) >= 2
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        $d = DB::selectOne('SELECT id_descuento FROM descuento LIMIT 1');
+        if (! $f || ! $d) {
+            $this->markTestSkipped('Hace falta una factura con dos renglones y un descuento cargado.');
+        }
+        $id = (int) $f->id_factura;
+
+        // **La premisa se GARANTIZA, no se busca.** Sin descuento cargado esta
+        // prueba pasaría siempre sin medir nada, que es el defecto que este
+        // proyecto ya tiene anotado.
+        DB::statement(
+            'INSERT INTO factura_descuento (id_factura, id_descuento, monto_aplicado) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE monto_aplicado = VALUES(monto_aplicado)',
+            [$id, (int) $d->id_descuento, 7500]
+        );
+        $this->assertGreaterThan(0, (float) DB::scalar('SELECT fn_factura_descuento(?)', [$id]),
+            'La premisa: esta factura tiene descuento.');
+
+        $sumaDeRenglones = 0.0;
+        foreach (explode("\n", Sifen::armarTxt($id)) as $linea) {
+            if (! str_starts_with($linea, 'ITM|')) {
+                continue;
+            }
+            $c = explode('|', $linea);
+            $sumaDeRenglones += (float) $c[3] * (float) $c[4];
+        }
+
+        $this->assertEqualsWithDelta(
+            (float) DB::scalar('SELECT fn_factura_total(?)', [$id]),
+            $sumaDeRenglones, 1.0,
+            'Lo que suma el comprobante electrónico tiene que ser lo que la clienta paga.'
+        );
+    }
+
+    /**
      * El movimiento de efectivo es su propia clave, y separarlo no le quitó
      * nada a quien ya lo hacía.
      *

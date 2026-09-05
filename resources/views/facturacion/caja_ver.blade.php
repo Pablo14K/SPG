@@ -47,43 +47,29 @@
         </div>
 
         <div class="d-flex gap-2 flex-wrap mt-3">
-            @if (Permisos::puede('facturacion.movimientos'))
-                {{-- **Abre un modal, no manda a otra pantalla.** La pregunta es
-                     «¿qué pasó hoy con ESTA caja?», y el listado general la
-                     obligaba a volver a filtrar por la caja en la que ya estaba
-                     parada. La historia entera sigue estando allá. --}}
-                <button type="button" class="btn btn-outline-neutro"
-                        data-bs-toggle="modal" data-bs-target="#modalMovsDia">
-                    <i class="bi bi-list-ul"></i> Movimientos de hoy</button>
-            @endif
+            {{-- **Acá NO va otra vez «Movimientos de hoy».**
+
+                 Estaba, y era el mismo botón dos veces: la tarjeta de la lista
+                 ya abre ese modal, y desde ahí se entra a esta pantalla — así
+                 que el botón aparecía en las dos, con el mismo texto y el mismo
+                 contenido. Lo que falta desde acá es lo otro: **el arqueo de
+                 esta caja**, que es a lo que el botón de la lista dice llevar.
+
+                 Los movimientos siguen a un clic: el enlace de abajo lleva a la
+                 historia entera, ya filtrada por este cajón. --}}
             <button class="btn btn-oro" data-bs-toggle="modal" data-bs-target="#modalArqueo">
                 <i class="bi bi-lock"></i> Cerrar caja</button>
+            <a class="btn btn-outline-neutro"
+               href="{{ route('facturacion.arqueo', ['caja' => $cajon->id_caja_fisica]) }}">
+                <i class="bi bi-clipboard-check"></i> Arqueos de esta caja</a>
+            @if (Permisos::puede('facturacion.movimientos'))
+                <a class="btn btn-outline-neutro"
+                   href="{{ route('facturacion.movimientos', ['caja' => $cajon->id_caja_fisica]) }}">
+                    <i class="bi bi-clock-history"></i> Movimientos de esta caja</a>
+            @endif
         </div>
     </div>
 
-
-    @if (Permisos::puede('facturacion.movimientos'))
-        <div class="modal fade" id="modalMovsDia" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2 class="modal-title fs-5">
-                            <i class="bi bi-list-ul"></i> {{ $cajon->nombre }} · movimientos de hoy</h2>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-                    <div class="modal-body">
-                        @include('facturacion._movs_dia', ['movs' => $movs, 'cajon' => $cajon->nombre])
-                    </div>
-                    <div class="modal-footer justify-content-between">
-                        <a class="btn btn-sm btn-outline-neutro"
-                           href="{{ route('facturacion.movimientos', ['caja' => $cajon->id_caja_fisica]) }}">
-                            <i class="bi bi-clock-history"></i> Ver todos los movimientos</a>
-                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cerrar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <div class="modal fade" id="modalArqueo" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">

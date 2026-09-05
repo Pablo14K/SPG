@@ -6,7 +6,7 @@
     @php use App\Servicios\Navegacion; @endphp
 
     <x-encabezado
-        sub="Registro de clientes del salón, con sus datos de contacto y su nivel de fidelización."
+        sub="Registro de clientes del salón, con sus datos de contacto. Las visitas, los puntos y el nivel se miran en Promociones → Visitas y puntos."
         :accion="['ruta' => 'clientes.form', 't' => 'Nuevo cliente', 'ic' => 'person-plus']" />
 
     <div class="spg-panel">
@@ -17,7 +17,13 @@
                 <thead>
                     <tr>
                         <th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Email</th>
-                        <th class="text-end">Visitas</th><th>Estado</th><th class="text-end">Acciones</th>
+                        {{-- **Las visitas salieron de acá.** Contaban lo mismo
+                             que la pantalla de fidelización —hoy Promociones →
+                             Visitas y puntos— y ahí van con su nivel y sus
+                             puntos, que es lo que las hace significar algo. Un
+                             número suelto en esta tabla obligaba a mirarlo en
+                             dos lugares. --}}
+                        <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -30,7 +36,6 @@
                             <td>{{ $c->cedula ?: '—' }}</td>
                             <td>{{ $c->telefono ?: '—' }}</td>
                             <td class="text-muted-warm">{{ $c->email ?: '—' }}</td>
-                            <td class="text-end">{{ (int) $c->visitas }}</td>
                             <td>
                                 @if ($c->activo)
                                     <span class="badge-estado e-ok">Activo</span>

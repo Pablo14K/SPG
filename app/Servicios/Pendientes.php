@@ -222,6 +222,22 @@ class Pendientes
         // El criterio permisivo es DEL SALÓN: si nadie tiene turnos, el salón
         // todavía no los usa y no falta nada.
         if ((int) DB::scalar('SELECT COUNT(*) FROM usuario_turno') > 0) {
+            // **Al Administrador no se le pide turno, y era el aviso que más
+            // ruido hacía.** El turno existe para que la agenda sepa cuándo
+            // atiende esa persona; quien administra el salón y no atiende no
+            // tiene nada que cargar ahí, así que el renglón le pedía resolver
+            // algo que no era un problema — y un aviso que no aplica enseña a
+            // ignorar los que sí.
+            //
+            // **La excepción es sólo para la cuenta que ES nada más que
+            // Administrador.** Desde que una cuenta puede tener varios roles
+            // (`usuario_rol`, el cambio de perspectiva), la dueña que además
+            // atiende lleva el rol Profesional encima: ahí el turno vuelve a
+            // hacer falta, porque la agenda sí la va a ofrecer.
+            //
+            // El id sale de `permisos.rol_admin` y no escrito a mano; los dos
+            // marcadores llevan nombre distinto porque la conexión va con las
+            // preparadas nativas de MySQL, que no admiten repetir uno.
             $sinTurno = DB::select(
                 "SELECT CONCAT(pe.nombre, ' ', pe.apellido) AS quien
                    FROM usuario u
@@ -229,7 +245,13 @@ class Pendientes
                    JOIN persona pe ON pe.id_persona = u.id_persona
                   WHERE u.activo = 1 AND r.es_personal = 1
                     AND NOT EXISTS (SELECT 1 FROM usuario_turno ut WHERE ut.id_usuario = u.id_usuario)
-                  ORDER BY pe.nombre"
+                    AND NOT (u.id_rol = :adm1
+                             AND NOT EXISTS (SELECT 1 FROM usuario_rol ur
+                                              WHERE ur.id_usuario = u.id_usuario
+                                                AND ur.id_rol <> :adm2))
+                  ORDER BY pe.nombre",
+                ['adm1' => (int) config('permisos.rol_admin', 1),
+                 'adm2' => (int) config('permisos.rol_admin', 1)]
             );
             if ($sinTurno) {
                 self::anotar(self::CONFUNDE,

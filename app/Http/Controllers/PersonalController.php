@@ -224,8 +224,9 @@ class PersonalController extends Controller
                 Listado::valor($f, 'q'), 'q', $par);
         }
         if (Listado::hay($f, 'rol')) {
-            $w[] = 'u.id_rol = :r';
+            $w[] = '(u.id_rol = :r OR EXISTS (SELECT 1 FROM usuario_rol urf WHERE urf.id_usuario = u.id_usuario AND urf.id_rol = :r2))';
             $par['r'] = (int) Listado::valor($f, 'rol');
+            $par['r2'] = $par['r'];
         }
         if (Listado::hay($f, 'estado')) {
             $w[] = 'u.activo = :e';
@@ -246,7 +247,11 @@ class PersonalController extends Controller
                   JOIN rol r ON r.id_rol = u.id_rol
                   WHERE ' . implode(' AND ', $w);
         $cols = "u.id_usuario, pe_u.nombre, pe_u.apellido, u.username, pe_u.email, pe_u.telefono, u.activo,
-                 r.nombre AS rol,
+                 (SELECT GROUP_CONCAT(DISTINCT rr.nombre ORDER BY rr.nombre SEPARATOR ' · ')
+                    FROM rol rr
+                   WHERE rr.id_rol = u.id_rol
+                      OR EXISTS (SELECT 1 FROM usuario_rol urr
+                                  WHERE urr.id_usuario = u.id_usuario AND urr.id_rol = rr.id_rol)) AS rol,
                  (SELECT GROUP_CONCAT(t.nombre ORDER BY t.hora_inicio SEPARATOR ' · ')
                     FROM usuario_turno ut JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
                    WHERE ut.id_usuario = u.id_usuario) AS turnos,

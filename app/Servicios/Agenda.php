@@ -340,7 +340,7 @@ class Agenda
      * el sistema le asigna a quien esté libre.
      */
     public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null,
-                                ?int $idSucursal = null, array $servicios = []): array
+                                ?int $idSucursal = null, array $servicios = [], int $personas = 1): array
     {
         // La sucursal viaja por toda la cadena: sin ella, cada eslabón caería
         // en `Sucursales::activa()`, que para la clienta del portal no es la
@@ -376,6 +376,25 @@ class Agenda
                     continue 2;
                 }
             }
+
+            // **Y el reparto que de verdad se puede hacer a esta hora tiene que
+            // ENTRAR en la ventana que se acaba de comprobar.**
+            //
+            // `$duracion` es el mejor caso —lo que sale de `duracionPrevista()`
+            // repartiendo entre todas las que hacen cada servicio—, y a las 10
+            // de la mañana puede que la mitad de ellas esté ocupada. Si con las
+            // que quedan libres los servicios caen en serie, la cita dura más
+            // que la ventana y el guardado la rechazaría: esa hora no se
+            // ofrece, en vez de prometerla y decir que no después.
+            //
+            // Al revés no hace falta comprobar nada: todas las de `$ids` están
+            // libres por `$duracion` completa, así que cualquier bloque que
+            // entre en esa ventana les cae en un rato que ya está libre.
+            if ($hace && self::duracionReparto(
+                    self::repartoOptimista($hace, $ids), (int) $ids[0], $personas) > $duracion) {
+                continue;
+            }
+
             $out[] = ['hora' => $hora, 'profesionales' => $ids];
         }
 
@@ -424,6 +443,101 @@ class Agenda
     private static array $quienHaceMemo = [];
 
     /**
+     * Reparte los servicios entre las profesionales libres, lo más en paralelo
+     * posible.
+     *
+     * Recibe `[id_servicio => [quienes lo hacen]]` y la lista de quienes están
+     * libres, y devuelve `[id_servicio => id_usuario]`.
+     *
+     * **El más restringido primero, y eso no es un detalle**: si la coloración
+     * la hace una sola de las que están libres, esa tiene que quedársela antes
+     * de que otro servicio que también podría hacer cualquiera se la lleve. Al
+     * revés, el reparto sale peor —dos cosas para la misma persona— y la cita
+     * termina durando la suma en vez del bloque más largo.
+     *
+     * Si no queda ninguna libre para un servicio, se repite a alguien: no es un
+     * error, es que ese servicio va en otro turno, y eso lo resuelve `turnos()`.
+     *
+     * @param  array<int, array<int>>  $hace
+     * @param  array<int>  $disponibles
+     * @return array<int, int>
+     */
+    public static function repartoOptimista(array $hace, array $disponibles): array
+    {
+        $porServicio = [];
+        foreach ($hace as $sid => $quienes) {
+            $porServicio[(int) $sid] = array_values(array_intersect($quienes, $disponibles));
+        }
+        uasort($porServicio, fn ($a, $b) => count($a) <=> count($b));
+
+        $asignacion = [];
+        $tomados = [];
+        foreach ($porServicio as $sid => $quienes) {
+            $elegido = null;
+            foreach ($quienes as $idu) {
+                if (! isset($tomados[$idu])) {
+                    $elegido = (int) $idu;
+                    break;
+                }
+            }
+            if ($elegido !== null) {
+                $tomados[$elegido] = true;
+            }
+            $asignacion[$sid] = $elegido ?? (int) ($quienes[0] ?? 0);
+        }
+
+        return $asignacion;
+    }
+
+    /**
+     * Cuánto va a durar la cita de verdad, antes de que haya reparto.
+     *
+     * **No es la suma de los servicios, y confundirlas cerraba el calendario.**
+     * `duracion()` suma, que es el peor caso —todo en serie, una sola
+     * profesional—; con dos peluqueras y dos clientas, dos coloraciones de tres
+     * horas son tres horas, no seis. Con la suma, el sistema medía esas seis
+     * contra el turno más largo del local y contestaba «no entra», así que no
+     * dejaba agendar algo que el salón hace todos los días.
+     *
+     * Es el **mejor caso**, y por eso `slots()` vuelve a comprobar hora por hora
+     * que el reparto que de verdad se puede hacer ahí entre en esta ventana: si
+     * a esa hora las libres no alcanzan, esa hora no se ofrece. Prometer un
+     * horario que el guardado rechaza es el defecto que este proyecto ya tiene
+     * anotado, y no se cambia un «no» temprano por uno tardío.
+     *
+     * Con profesional pedido para todo no hay nada que paralelizar: una persona
+     * no hace dos cosas a la vez, así que ahí sigue siendo la suma.
+     *
+     * @param  array<int>  $servicios
+     */
+    public static function duracionPrevista(array $servicios, int $personas = 1,
+                                            ?int $idSucursal = null, ?int $idUsuario = null): int
+    {
+        $suma = self::duracion($servicios);
+        if ($suma <= 0 || $idUsuario) {
+            return $suma;
+        }
+
+        $hace = self::quienHace($servicios, $idSucursal);
+        $todos = [];
+        foreach ($hace as $quienes) {
+            if (! $quienes) {
+                return $suma;   // nadie lo hace: lo explica motivoSinCupo()
+            }
+            foreach ($quienes as $idu) {
+                $todos[(int) $idu] = true;
+            }
+        }
+        if (! $todos) {
+            return $suma;
+        }
+        $todos = array_keys($todos);
+
+        return self::duracionReparto(
+            self::repartoOptimista($hace, $todos), $todos[0], $personas) ?: $suma;
+    }
+
+    /**
      * Olvida el cache de quién hace qué.
      *
      * Sólo lo necesitan las pruebas: cambian `persona_servicio` a mitad de
@@ -440,7 +554,8 @@ class Agenda
      * cupo ni se ofrecen.
      */
     public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion,
-                                       ?int $idSucursal = null, array $servicios = []): array
+                                       ?int $idSucursal = null, array $servicios = [],
+                                       int $personas = 1): array
     {
         if ($duracion <= 0) {
             return [];
@@ -460,7 +575,7 @@ class Agenda
         $out = [];
         for ($i = 0; $i < $dias; $i++) {
             $fecha = date('Y-m-d', strtotime("+$i day", $d));
-            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal, $servicios)) {
+            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal, $servicios, $personas)) {
                 $out[] = $fecha;
             }
         }
@@ -905,7 +1020,7 @@ class Agenda
         return $asignacion;
     }
 
-    public static function validarReparto(array $asignacion, int $idPrincipal, string $fechaHora, ?int $excluirCita = null): ?string
+    public static function validarReparto(array $asignacion, int $idPrincipal, string $fechaHora, ?int $excluirCita = null, int $personas = 1): ?string
     {
         $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
         if (! $ids) {
@@ -951,7 +1066,7 @@ class Agenda
         // cita: empieza cuando el primero terminó. Comprobarlo desde la hora de
         // la cita lo daría por ocupado cuando está libre, y —peor— lo dejaría
         // libre para otra clienta justo en la franja en la que va a estar acá.
-        foreach (self::turnos($asignacion, $idPrincipal) as $idProf => $t) {
+        foreach (self::turnos($asignacion, $idPrincipal, $personas) as $idProf => $t) {
             if ($t['minutos'] <= 0) {
                 continue;
             }
@@ -989,7 +1104,7 @@ class Agenda
      * exclusivos, así que poniendo adelante al más largo se aprovecha esa
      * franja y la cita entera termina antes.
      */
-    public static function turnos(array $asignacion, int $idPrincipal): array
+    public static function turnos(array $asignacion, int $idPrincipal, int $personas = 1): array
     {
         $ids = array_values(array_filter(array_map('intval', array_keys($asignacion))));
         if (! $ids) {
@@ -1031,15 +1146,30 @@ class Agenda
         usort($items, fn ($a, $b) => $b['min'] <=> $a['min']);
 
         // Se busca el primer turno libre de zona y de profesional.
-        $ocupado = [];   // [orden]['z5'] / [orden]['p3'] => true
+        //
+        // **La zona es de una PERSONA, no de la cita, y ahí estaba el defecto.**
+        // Dos servicios sobre la misma cabeza no pueden pasar a la vez... sobre
+        // la misma cabeza. Cuando la reserva es para dos —la clienta y su
+        // hija, o tres amigas— son dos cabezas distintas, así que dos
+        // coloraciones con dos peluqueras SÍ van en paralelo. El modelo lo
+        // daba por imposible y sumaba los tiempos, con lo cual la cita
+        // «no entraba en el turno» y no se podía agendar algo que el salón
+        // hace todos los días.
+        //
+        // El cupo de cada zona pasa entonces a ser la cantidad de personas.
+        // **El profesional sigue siendo un candado duro**: una sola no hace
+        // dos cosas a la vez, vengan las que vengan.
+        $cupoZona = max(1, $personas);
+        $ocupado = [];   // [orden]['z']['z5'] => cuántas · [orden]['p'][3] => true
         $porServicio = [];
         foreach ($items as $it) {
             $orden = 0;
-            while (isset($ocupado[$orden][$it['zona']]) || isset($ocupado[$orden]['p' . $it['prof']])) {
+            while (($ocupado[$orden]['z'][$it['zona']] ?? 0) >= $cupoZona
+                   || isset($ocupado[$orden]['p'][$it['prof']])) {
                 $orden++;
             }
-            $ocupado[$orden][$it['zona']] = true;
-            $ocupado[$orden]['p' . $it['prof']] = true;
+            $ocupado[$orden]['z'][$it['zona']] = ($ocupado[$orden]['z'][$it['zona']] ?? 0) + 1;
+            $ocupado[$orden]['p'][$it['prof']] = true;
             $porServicio[$it['srv']] = ['orden' => $orden, 'min' => $it['min'], 'prof' => $it['prof']];
         }
 
@@ -1103,10 +1233,10 @@ class Agenda
      * son 45 minutos de cita, no 75—; por turnos, hasta que termina el último.
      * Es la misma cuenta que hace `fn_cita_duracion` en la base.
      */
-    public static function duracionReparto(array $asignacion, int $idPrincipal): int
+    public static function duracionReparto(array $asignacion, int $idPrincipal, int $personas = 1): int
     {
         $fin = 0;
-        foreach (self::turnos($asignacion, $idPrincipal) as $t) {
+        foreach (self::turnos($asignacion, $idPrincipal, $personas) as $t) {
             $fin = max($fin, $t['inicio'] + $t['minutos']);
         }
 
