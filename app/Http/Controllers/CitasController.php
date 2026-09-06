@@ -118,7 +118,7 @@ class CitasController extends Controller
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios),
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios, $personas),
             'dias' => array_values(array_diff(
                 Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas),
                 Agenda::diasYaTomados($idCliente, $servicios)
@@ -175,8 +175,22 @@ class CitasController extends Controller
             $opServ[(string) $sv->id_servicio] = $sv->nombre;
         }
 
-        $campos = ['cliente' => ['tipo' => 'texto', 'etiqueta' => 'Cliente',
-                                 'ph' => 'Nombre de la clienta', 'ancho' => '200px']];
+        // **La agenda mostraba UN día y no había forma de ver el conjunto.**
+        // Para contestar «¿qué tengo esta semana?» o «¿cuándo vino Carmen la
+        // última vez?» había que ir día por día con la flecha, y una cita de
+        // hace tres meses era inalcanzable en la práctica. El día sigue siendo
+        // lo que se abre por defecto —es la pantalla de trabajo del salón— y
+        // el rango es lo que se pide cuando hace falta mirar más lejos.
+        $campos = ['rango' => ['tipo' => 'select', 'etiqueta' => 'Ver', 'ancho' => '170px',
+                               'opciones' => [
+                                   '' => 'Sólo este día',
+                                   'sem' => 'Esta semana',
+                                   'mes' => 'Este mes',
+                                   'prox' => 'Todas las próximas',
+                                   'todas' => 'Todas',
+                               ]]];
+        $campos += ['cliente' => ['tipo' => 'texto', 'etiqueta' => 'Cliente',
+                                  'ph' => 'Nombre de la clienta', 'ancho' => '200px']];
         // Quien sólo ve lo suyo no elige profesional: hay una sola respuesta.
         if ($verTodo) {
             $campos['prof'] = ['tipo' => 'select', 'etiqueta' => 'Profesional',
@@ -188,6 +202,30 @@ class CitasController extends Controller
                              'opciones' => $opEstado, 'ancho' => '160px'];
 
         $f = Listado::filtros($campos);
+
+        // Qué tramo se mira. `$par['d']` sigue viajando siempre porque el
+        // encabezado y la navegación de días lo usan aunque el rango sea otro.
+        $rango = Listado::valor($f, 'rango');
+        $rangoSql = match ($rango) {
+            'sem' => 'v.fecha_hora >= :d1 AND v.fecha_hora < DATE_ADD(:d2, INTERVAL 7 DAY)',
+            'mes' => 'YEAR(v.fecha_hora) = YEAR(:d1) AND MONTH(v.fecha_hora) = MONTH(:d2)',
+            'prox' => 'v.fecha_hora >= :d1',
+            'todas' => '1 = 1',
+            default => 'DATE(v.fecha_hora) = :d1',
+        };
+        // Los marcadores con nombre no se pueden repetir: la conexión prepara
+        // de verdad, así que cada uso lleva el suyo.
+        // **Sólo los marcadores que la consulta usa de verdad.** La conexión
+        // prepara de forma nativa, así que pasarle uno de más no se ignora:
+        // contesta «Invalid parameter number» y la agenda entera devuelve 500.
+        // El día por defecto usa `:d1` solo; la semana y el mes, los dos.
+        unset($par['d']);
+        if ($rango !== 'todas') {
+            $par['d1'] = $dia;
+        }
+        if (in_array($rango, ['sem', 'mes'], true)) {
+            $par['d2'] = $dia;
+        }
 
         if (Listado::hay($f, 'cliente')) {
             $soloMias .= ' AND v.cliente LIKE :cli';
@@ -208,6 +246,19 @@ class CitasController extends Controller
                                         WHERE cs9.id_cita = c.id_cita AND cs9.id_servicio = :srv)';
             $par['srv'] = (int) Listado::valor($f, 'servicio');
         }
+
+        // **Un rango sin paginar es una pantalla que no se puede abrir.** «Todas»
+        // sobre un salón con un año de operación son miles de filas, y cada una
+        // trae seis subconsultas. El día se deja generoso —nunca llega a cien
+        // citas— para que la pantalla de trabajo no cambie de forma; el rango
+        // pagina como el resto del sistema. El WHERE se arma UNA vez y lo
+        // comparten el conteo y la página, o el «de 137» deja de coincidir.
+        $conteoSql = "FROM vw_agenda_citas v
+               JOIN cita c ON c.id_cita = v.id_cita
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE $rangoSql $soloMias";
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $conteoSql", $par),
+            $rango === '' ? 100 : 25);
 
         // El comprobante viene en la misma consulta porque la agenda tiene que
         // poder contestar «¿esto ya se cobró?» sin salir de la pantalla: una
@@ -242,6 +293,14 @@ class CitasController extends Controller
                     -- clienta, ni cuánta gente esperar.
                     c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
                     c.id_usuario, c.id_sucursal,
+                    -- **Las alergias de la clienta, en la fila.** Es el único
+                    -- dato de la ficha que puede lastimar a alguien si nadie lo
+                    -- mira, y hasta acá vivía dentro de `observaciones`, mezclado
+                    -- con «prefiere las 10»: quien prepara la mezcla no entraba
+                    -- a leerlas. Viene en la misma consulta porque en la vista,
+                    -- dentro del `foreach`, sería una consulta por cita.
+                    (SELECT cl2.alergias FROM cliente cl2
+                      WHERE cl2.id_cliente = c.id_cliente) AS alergias,
                     -- **Un `id_usuario` en NULL no es «nadie»: es el dueño de la
                     -- cita.** Es como `cita_servicio` representa «lo hace quien
                     -- la tiene», y esta subconsulta lo descartaba con un
@@ -311,19 +370,25 @@ class CitasController extends Controller
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
                LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
-              WHERE DATE(v.fecha_hora) = :d $soloMias
+              WHERE $rangoSql $soloMias
               -- **Primero lo que falta hacer, y dentro por hora.** El peso sale
               -- de lo que la cita todavía pide del salón: lo que ocupa la
               -- agenda arriba, lo atendido después, y lo que no va a ocurrir
               -- —cancelada, ausente— al final. Sale de `bloquea_agenda` y no de
               -- una lista de ids escrita a mano, que es como el panel se quedó
               -- corto en la 7.52.1 al entrar Atrasada.
-              ORDER BY CASE
+              -- En un rango el orden por estado no sirve: mezclaría marzo con
+              -- agosto en el mismo bloque. Ahí manda la fecha, que es lo que
+              -- se está mirando; dentro de UN día sigue mandando qué falta hacer.
+              ORDER BY " . ($rango === ''
+                    ? 'CASE
                          WHEN ec.bloquea_agenda = 1 THEN 1
                          WHEN c.id_estado_cita = 4 THEN 2
                          ELSE 3
                        END,
-                       v.fecha_hora", $par
+                       v.fecha_hora'
+                    : ($rango === 'todas' ? 'v.fecha_hora DESC' : 'v.fecha_hora')) . "
+              LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
         );
 
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
@@ -349,6 +414,8 @@ class CitasController extends Controller
         return view('citas.agenda', [
             'rows' => $rows,
             'dia' => $dia,
+            'pag' => $pag,
+            'rango' => $rango,
             'verTodo' => $verTodo,
             'puedeCobrar' => $puedeCobrar,
             'metodos' => $puedeCobrar

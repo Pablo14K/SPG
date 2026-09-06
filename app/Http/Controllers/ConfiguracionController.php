@@ -821,8 +821,11 @@ class ConfiguracionController extends Controller
         }
 
         try {
-            DB::insert('INSERT INTO rol (nombre, descripcion, es_personal, activo) VALUES (?,?,?,1)',
-                [$nombre, $desc, $esPersonal]);
+            // Un rol nuevo **exige turno por defecto**, y eso es deliberado:
+            // el silencio se elige, no se hereda. Se desmarca desde el rol
+            // cuando el salón sabe que ese puesto no atiende.
+            DB::insert('INSERT INTO rol (nombre, descripcion, es_personal, activo, exige_turno) VALUES (?,?,?,1,?)',
+                [$nombre, $desc, $esPersonal, $request->boolean('exige_turno', true) ? 1 : 0]);
             $id = (int) DB::getPdo()->lastInsertId();
 
             if ($esPersonal) {
@@ -877,8 +880,15 @@ class ConfiguracionController extends Controller
         $esPersonal = $protegido ? (int) $rol->es_personal : ($request->boolean('es_personal') ? 1 : 0);
         $activo = $protegido ? (int) $rol->activo : ($request->boolean('activo') ? 1 : 0);
 
-        DB::update('UPDATE rol SET nombre = ?, descripcion = ?, es_personal = ?, activo = ? WHERE id_rol = ?',
-            [$nombre, $desc, $esPersonal, $activo, $id]);
+        // **Si el rol atiende, sus cuentas necesitan turno.** Es del rol y no
+        // de la persona: el turno existe para que la agenda sepa cuándo atiende
+        // ese puesto. Un rol que no es personal no llega a la agenda, así que
+        // no se le pregunta y se deja en 1 —el valor por defecto— para que
+        // marcarlo como personal mañana no lo deje callado sin querer.
+        $exigeTurno = $esPersonal ? ($request->boolean('exige_turno') ? 1 : 0) : 1;
+
+        DB::update('UPDATE rol SET nombre = ?, descripcion = ?, es_personal = ?, activo = ?, exige_turno = ? WHERE id_rol = ?',
+            [$nombre, $desc, $esPersonal, $activo, $exigeTurno, $id]);
 
         // Un rol que dejó de ser personal no debe conservar módulos del panel
         if (! $esPersonal) {

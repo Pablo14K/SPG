@@ -600,7 +600,7 @@ class Agenda
      * lo que ahí se puede atender de un tirón.
      */
     public static function motivoSinCupo(int $duracion, ?int $idUsuario = null, ?int $idSucursal = null,
-                                        array $servicios = []): ?string
+                                        array $servicios = [], int $personas = 1): ?string
     {
         $suc = (int) ($idSucursal ?? Sucursales::activa());
         if ($duracion <= 0) {
@@ -643,9 +643,27 @@ class Agenda
             return $h > 0 ? ($h . ' h' . ($r ? ' ' . $r . ' min' : '')) : ($m . ' min');
         };
 
+        // **Con más de una persona conviene decir que ya se contó.** Si no, el
+        // mensaje se lee como si el sistema hubiera sumado todo en serie —que
+        // es justo el defecto que la 7.107.0 corrigió— y quien lo lee sospecha
+        // del cálculo en vez de sacar un servicio.
+        $porPersonas = $personas > 1
+            ? ' Ya está contado que vienen ' . $personas . ' personas y que varias cosas pasan a la vez.'
+            : '';
+
+        // Y **sólo se ofrece sumar gente cuando de verdad ayuda**: con una
+        // clienta sola, dos servicios sobre la misma cabeza siguen sin poder
+        // hacerse al mismo tiempo, así que sugerirlo sería mandar a probar algo
+        // que va a volver a decir que no.
+        $sugerencia = $personas === 1
+            ? ' Si en realidad vienen varias personas, cargalo en «¿Cuántas personas van?»: buena parte se hace a la vez y suele entrar.'
+            : '';
+
         return 'Lo que elegiste lleva ' . $enHoras($duracion)
-            . ' seguidos, y el turno más largo de esta sucursal es de ' . $enHoras($mayor) . '. '
-            . 'Sacá algún servicio y reservalo aparte, o probá en otra sucursal.';
+            . ' seguidos, y el turno más largo de esta sucursal es de ' . $enHoras($mayor) . '.'
+            . $porPersonas
+            . ' Sacá algún servicio y reservalo aparte, o probá en otra sucursal.'
+            . $sugerencia;
     }
 
     /**
@@ -782,8 +800,48 @@ class Agenda
                 . 'Elegí otra fecha o pedí que te atienda otro profesional.';
         }
 
-        // 3) Queda el turno laboral
-        return $nombre . ' no atiende en ese horario. Elegí uno de los horarios que se muestran disponibles.';
+        // 3) Queda el turno laboral, y acá **decir sólo «no atiende» no
+        // alcanza**: se reportó como error del sistema porque la pantalla no
+        // daba con qué corregirlo — quien lo lee no sabe si mover la hora
+        // veinte minutos o cambiar de día, y prueba a ciegas. Lo que hace
+        // accionable el rechazo es el horario de esa persona, así que se dice.
+        $dia = (int) date('N', strtotime($fechaHora));
+        $franjas = DB::select(
+            "SELECT DISTINCT TIME_FORMAT(t.hora_inicio,'%H:%i') AS desde,
+                    TIME_FORMAT(t.hora_fin,'%H:%i') AS hasta
+               FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td ON td.id_turno = t.id_turno AND td.dia_semana = ?
+              WHERE ut.id_usuario = ?
+              ORDER BY desde",
+            [$dia, $idUsuario]
+        );
+
+        // No trabaja ESE día: mover la hora no sirve de nada, hay que cambiar
+        // de día. Decirlo evita que se pruebe hora por hora sobre un domingo.
+        if (! $franjas) {
+            $otros = DB::select(
+                'SELECT DISTINCT td.dia_semana AS d
+                   FROM usuario_turno ut
+                   JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+                   JOIN turno_dia td ON td.id_turno = t.id_turno
+                  WHERE ut.id_usuario = ? ORDER BY d', [$idUsuario]
+            );
+            $nom = [1 => 'lunes', 2 => 'martes', 3 => 'miércoles', 4 => 'jueves',
+                    5 => 'viernes', 6 => 'sábado', 7 => 'domingo'];
+
+            return $nombre . ' no trabaja los ' . ($nom[$dia] ?? 'ese día') . '.'
+                . ($otros
+                    ? ' Atiende los ' . implode(', ', array_map(fn ($o) => $nom[(int) $o->d] ?? '', $otros)) . '.'
+                    : ' No tiene ningún turno cargado, así que todavía no aparece en la agenda.')
+                . ' Elegí otro día, o pedí que te atienda otro profesional.';
+        }
+
+        $horas = implode(' y ', array_map(fn ($f) => $f->desde . ' a ' . $f->hasta, $franjas));
+
+        return $nombre . ' atiende de ' . $horas . ', y a las '
+            . fecha($fechaHora, 'H:i') . ' no llega a hacer todo lo que elegiste ('
+            . $duracion . ' min). Elegí uno de los horarios que quedan marcados como libres.';
     }
 
     // -----------------------------------------------------------------

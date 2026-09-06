@@ -128,6 +128,10 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::post('sena', [PortalController::class, 'senaRegistrar'])->name('sena');
     Route::get('atencion', [PortalController::class, 'atencion'])->name('atencion');
     Route::get('atencion/json', [PortalController::class, 'atencionJson'])->name('atencion_json');
+    // **Sus comprobantes.** Se podían bajar sólo durante la atención en curso:
+    // el resto del tiempo no había un enlace hacia ellos, así que la clienta
+    // que necesitaba la factura para rendir un gasto la pedía por WhatsApp.
+    Route::get('factura', [PortalController::class, 'facturaVer'])->name('factura_ver');
     Route::get('factura/descargar', [PortalController::class, 'facturaDescargar'])->name('factura_descargar');
     Route::post('pedir', [PortalController::class, 'pedir'])->name('pedir');
     Route::get('promociones', [PortalController::class, 'promociones'])->name('promociones');
@@ -513,6 +517,10 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // Cuántos guaraníes facturados dan un punto: misma pantalla, mismo
             // permiso — es fijar cuánto le devuelve el salón al cliente.
             Route::post('puntos', [ServiciosController::class, 'puntosGuardar'])->name('puntos.guardar');
+            // Los niveles se podían mirar y no tocar: subir el corte de Oro era
+            // un UPDATE a mano. Mismo permiso, que es fijar cuánto devuelve el
+            // salón — la misma razón por la que el Profesional no lo tiene.
+            Route::post('niveles', [ServiciosController::class, 'nivelGuardar'])->name('nivel.guardar');
         });
     });
 });

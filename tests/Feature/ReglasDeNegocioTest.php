@@ -5747,4 +5747,366 @@ class ReglasDeNegocioTest extends TestCase
 
         Config::olvidar();
     }
+
+    // -----------------------------------------------------------------
+    //  7.108.0
+    // -----------------------------------------------------------------
+
+    /**
+     * La nota de crédito se puede emitir: el formulario no devuelve 500.
+     *
+     * **`$montoTexto` se leía sin existir.** La línea que lo define había
+     * quedado en `anularFactura()` —donde además no se usa: anular no recibe
+     * monto— así que `notaCredito()` la leía indefinida. En Laravel eso es un
+     * `ErrorException`, y como el `try` empieza más abajo salía sin traducir:
+     * la pantalla devolvía **500** y acreditar un comprobante era imposible.
+     *
+     * Se mide por el camino real —el POST del modal— y en los dos sentidos que
+     * importan: **por el total** y **por una parte**, que es el que la 7.101.0
+     * agregó y nunca llegó a funcionar.
+     */
+    #[Test]
+    public function emitir_una_nota_de_credito_no_devuelve_500(): void
+    {
+        // Una factura de venta vigente, sin nota emitida todavía: si ya la
+        // tuviera, el controlador rechaza antes de llegar al bloque del monto y
+        // la prueba pasaría sin medir nada.
+        $f = DB::selectOne(
+            'SELECT f.id_factura, fn_factura_total(f.id_factura) AS total
+               FROM factura f
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+              WHERE f.id_estado_factura = 1 AND tc.signo = 1
+                AND fn_factura_total(f.id_factura) > 1000
+                AND NOT EXISTS (SELECT 1 FROM factura n
+                                 WHERE n.id_factura_origen = f.id_factura AND n.id_estado_factura = 1)
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('No hay una factura de venta sin nota de crédito para medir.');
+        }
+        if (! DB::scalar('SELECT fn_timbrado_vigente(5, CURDATE(), NULL)')) {
+            $this->markTestSkipped('El salón no tiene timbrado de nota de crédito cargado.');
+        }
+
+        $this->entrarComoAdministrador();
+
+        // 1) Parcial: es el camino que leía la variable indefinida.
+        $r = $this->post(route('facturacion.nota_credito'), [
+            'id_factura' => $f->id_factura,
+            'motivo' => 'Prueba automatica de acreditacion parcial',
+            'monto' => (string) (int) max(1, (int) $f->total - 1),
+        ]);
+
+        $this->assertNotSame(500, $r->getStatusCode(),
+            'Emitir una nota de crédito devuelve 500: alguna variable se está leyendo sin definir.');
+        $r->assertRedirect();
+
+        // Y de verdad se emitió, que es la otra mitad: un redirect también lo
+        // devuelve un rechazo con `flash()`, así que sin esto un controlador
+        // que contestara «no se pudo» pasaría igual.
+        $this->assertGreaterThan(0,
+            (int) DB::scalar('SELECT COUNT(*) FROM factura WHERE id_factura_origen = ?', [$f->id_factura]),
+            'La nota de crédito no llegó a emitirse.');
+    }
+
+    /**
+     * Reprogramar mide la cita para la cantidad de personas que son.
+     *
+     * **El modal no ofrecía ni una fecha.** La cita sabe para cuántas es
+     * (`cita.personas`) pero el modal no tiene la casilla —no se vuelve a
+     * preguntar lo que ya está decidido— así que el selector consultaba sin
+     * ella y el servidor medía el peor caso: todo en serie sobre una sola
+     * clienta. Cuatro servicios de una reserva para dos daban 6 h 15 min
+     * contra un turno de 6 h, y contestaba «no entra en el turno» a una cita
+     * que el salón estaba por atender ese mismo día.
+     *
+     * Se mide en las dos direcciones: el atributo tiene que estar **y** tiene
+     * que llevar el número de la cita, no un 1 fijo.
+     */
+    #[Test]
+    public function el_modal_de_reprogramar_manda_para_cuantas_personas_es_la_cita(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+        DB::update('UPDATE cita SET personas = 3 WHERE id_cita = ?', [$cita->id_cita]);
+
+        $this->entrarComoAdministrador();
+        $html = $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-agenda-personas="3"', $html,
+            'El modal de reprogramar no manda cuántas personas son: el selector va a medir el '
+            . 'peor caso y no va a ofrecer ninguna fecha.');
+
+        // Y el endpoint lo respeta: con más personas, la cita dura menos porque
+        // varias cosas pasan a la vez. Si diera lo mismo, el atributo sería
+        // decorativo y el defecto seguiría ahí.
+        $servicios = array_map('intval', explode(',', (string) DB::scalar(
+            'SELECT GROUP_CONCAT(id_servicio) FROM cita_servicio WHERE id_cita = ?', [$cita->id_cita]
+        )));
+        $una = Agenda::duracionPrevista($servicios, 1);
+        $tres = Agenda::duracionPrevista($servicios, 3);
+        $this->assertLessThanOrEqual($una, $tres,
+            'Con más personas la cita no puede durar MÁS: varias cosas se hacen a la vez.');
+    }
+
+    /**
+     * La agenda deja ver más de un día.
+     *
+     * Mostraba UN día y no había forma de ver el conjunto: para saber qué había
+     * esta semana se iba día por día con la flecha, y una cita de hace tres
+     * meses era inalcanzable. El día sigue siendo lo que se abre por defecto.
+     */
+    #[Test]
+    public function la_agenda_se_puede_mirar_por_rango_y_no_solo_por_dia(): void
+    {
+        $this->entrarComoAdministrador();
+
+        // Un día sin citas: si el rango no cambiara nada, las dos respuestas
+        // traerían lo mismo y la prueba no mediría nada.
+        $vacio = (string) DB::scalar(
+            "SELECT d.f FROM (SELECT DATE_ADD(CURDATE(), INTERVAL n DAY) AS f
+                                FROM (SELECT 40 n UNION SELECT 41 UNION SELECT 42
+                                      UNION SELECT 43 UNION SELECT 44) x) d
+              WHERE NOT EXISTS (SELECT 1 FROM cita c WHERE DATE(c.fecha_hora) = d.f)
+              LIMIT 1"
+        );
+        if ($vacio === '') {
+            $this->markTestSkipped('No hay un día vacío cercano para comparar.');
+        }
+
+        $soloDia = $this->get(route('citas.agenda', ['dia' => $vacio]))->assertOk()->getContent();
+        $this->assertStringContainsString('No hay citas para el', $soloDia,
+            'Ese día tendría que salir vacío: la premisa de la prueba no se cumple.');
+
+        // Con «Todas», el historial entero: tiene que traer filas aunque el día
+        // elegido no tenga ninguna.
+        $todas = $this->get(route('citas.agenda', ['dia' => $vacio, 'rango' => 'todas']))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('No hay citas para el', $todas,
+            'Con el rango «Todas» la agenda sigue mirando un solo día.');
+        $this->assertStringContainsString('todo el historial', $todas,
+            'La agenda no dice qué tramo está mostrando.');
+    }
+
+    /**
+     * Un rol puede declarar que no necesita turno.
+     *
+     * El aviso de «falta asignar turno» salía para todo el personal, y eso
+     * incluye a quien no atiende —recepción, compras, caja—: les pedía todos
+     * los días resolver algo que no era un problema. La 7.107.0 exceptuó al
+     * Administrador **por id**, así que un rol nuevo volvía a tener el aviso
+     * sin forma de callarlo.
+     *
+     * Se mide en las dos direcciones sobre la MISMA persona: con el rol
+     * exigiendo turno tiene que aparecer, y sin exigirlo tiene que desaparecer.
+     */
+    #[Test]
+    public function un_rol_puede_declarar_que_no_necesita_turno(): void
+    {
+        if (! (int) DB::scalar('SELECT COUNT(*) FROM usuario_turno')) {
+            $this->markTestSkipped('El salón no usa turnos: el aviso no corre.');
+        }
+
+        // **La premisa se GARANTIZA, no se busca.** Una cuenta de personal sin
+        // turno puede no existir hoy, y saltear la prueba la deja sin medir
+        // nada justo cuando el salón está bien configurado — que es el defecto
+        // que este proyecto ya se hizo cinco veces (7.103.1).
+        //
+        // Se toma alguien con un rol que exige turno y se le sacan los suyos:
+        // corre dentro de `DatabaseTransactions`, así que se revierte solo.
+        $u = DB::selectOne(
+            "SELECT u.id_usuario, u.id_rol, CONCAT(pe.nombre,' ',pe.apellido) AS quien
+               FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+               JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE u.activo = 1 AND r.es_personal = 1 AND r.exige_turno = 1
+                AND NOT EXISTS (SELECT 1 FROM usuario_rol ur
+                                 JOIN rol r2 ON r2.id_rol = ur.id_rol
+                                WHERE ur.id_usuario = u.id_usuario
+                                  AND r2.es_personal = 1 AND r2.exige_turno = 1
+                                  AND r2.id_rol <> u.id_rol)
+              ORDER BY u.id_usuario LIMIT 1"
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta con un rol que exija turno.');
+        }
+        DB::delete('DELETE FROM usuario_turno WHERE id_usuario = ?', [$u->id_usuario]);
+
+        // Y que el salón siga usando turnos después de sacárselos: si era el
+        // único que los tenía, el criterio permisivo apaga el aviso entero y la
+        // prueba mediría eso en vez de la regla.
+        if (! (int) DB::scalar('SELECT COUNT(*) FROM usuario_turno')) {
+            $this->markTestSkipped('Era la única cuenta con turno: el salón dejaría de usarlos.');
+        }
+
+        $nombres = fn (): string => implode(' ', array_map(
+            fn (array $p) => (string) $p['que'], \App\Servicios\Pendientes::todo()
+        ));
+
+        $this->assertStringContainsString((string) $u->quien, $nombres(),
+            'Con el rol exigiendo turno, esa persona tiene que figurar como pendiente.');
+
+        DB::update('UPDATE rol SET exige_turno = 0 WHERE id_rol = ?', [$u->id_rol]);
+
+        $this->assertStringNotContainsString((string) $u->quien, $nombres(),
+            'Con el rol declarando que no atiende, el aviso de turno tiene que dejar de salir.');
+    }
+
+    /**
+     * La clienta ve y baja el comprobante de sus citas.
+     *
+     * El endpoint de descarga existía desde la 7.42.0 y el único enlace hacia
+     * él vivía en la pantalla de la atención en curso: el comprobante se podía
+     * bajar durante las dos horas de la cita y nunca más. Quien lo necesitaba
+     * para rendir un gasto lo pedía por WhatsApp.
+     *
+     * Y la pertenencia se comprueba de verdad: el id viaja en la URL, así que
+     * la factura de otra clienta tiene que contestar 404.
+     */
+    #[Test]
+    public function la_clienta_ve_y_baja_el_comprobante_de_su_cita(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, f.id_cliente, cl.id_usuario
+               FROM factura f
+               JOIN cliente cl ON cl.id_cliente = f.id_cliente
+              WHERE f.id_estado_factura = 1 AND cl.id_usuario IS NOT NULL
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('No hay una factura de una clienta con cuenta.');
+        }
+
+        session(['uid' => (int) $f->id_usuario, 'rol' => 4, 'es_personal' => false, 'es_cliente' => true]);
+        $this->conMarcaDeSesion();
+
+        $this->get(route('portal.factura_ver', ['id' => $f->id_factura]))
+            ->assertOk()
+            ->assertSee('Comprobante', false);
+
+        $pdf = $this->get(route('portal.factura_descargar', ['id' => $f->id_factura]))->assertOk();
+        $this->assertStringStartsWith('%PDF', (string) $pdf->getContent(),
+            'La descarga no devolvió un PDF.');
+
+        // La de otra clienta, no. El id se puede cambiar a mano en la URL.
+        $ajena = (int) DB::scalar(
+            'SELECT id_factura FROM factura WHERE id_estado_factura = 1 AND id_cliente <> ? LIMIT 1',
+            [(int) $f->id_cliente]
+        );
+        if ($ajena) {
+            $this->get(route('portal.factura_ver', ['id' => $ajena]))->assertNotFound();
+        }
+    }
+
+    /**
+     * El comprobante electrónico declara el descuento en vez de negarlo.
+     *
+     * El KuDE imprimía «DESCUENTO: 0 %» sobre una factura con descuento: el SPG
+     * reparte el descuento entre los renglones antes de mandarlo —el total lo
+     * calcula el Automatizador sumándolos— así que del otro lado no quedaba
+     * rastro de que hubiera existido. La clienta veía un papel con los precios
+     * corridos (75.000 impreso como 74.648) negando el descuento que sí se le
+     * hizo.
+     *
+     * El precio de lista viaja como **séptimo campo opcional del ITM**, sólo
+     * para mostrar: el que se declara sigue siendo el neto, así que el total no
+     * cambia ni con un Automatizador viejo que ignore el campo.
+     */
+    #[Test]
+    public function el_txt_del_comprobante_lleva_el_precio_de_lista_cuando_hay_descuento(): void
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, fn_factura_descuento(f.id_factura) AS desc_total
+               FROM factura f
+              WHERE f.id_estado_factura = 1
+                AND fn_factura_descuento(f.id_factura) > 0
+              ORDER BY f.id_factura DESC LIMIT 1'
+        );
+        if (! $f) {
+            $this->markTestSkipped('No hay una factura con descuento para medir.');
+        }
+
+        $txt = Sifen::armarTxt((int) $f->id_factura);
+        $items = array_values(array_filter(explode("\n", $txt),
+            fn ($l) => str_starts_with($l, 'ITM|')));
+        $this->assertNotEmpty($items, 'El TXT salió sin renglones.');
+
+        $conLista = 0;
+        foreach ($items as $l) {
+            $c = explode('|', $l);
+            if (count($c) >= 7) {
+                $conLista++;
+                $this->assertGreaterThan((int) $c[4], (int) $c[6],
+                    'El precio de lista tiene que ser mayor que el neto: si no, no hubo descuento '
+                    . 'y el campo sobra.');
+            }
+        }
+        $this->assertGreaterThan(0, $conLista,
+            'Con descuento, al menos un renglón tiene que llevar su precio de lista: sin eso el '
+            . 'KuDE vuelve a imprimir «DESCUENTO: 0 %».');
+
+        // **Y el neto sigue siendo el que se declara.** Es la mitad que evita
+        // el defecto peor: si el campo 5 pasara a ser el de lista, un
+        // Automatizador viejo declararía de más ante la DNIT.
+        $suma = 0;
+        foreach ($items as $l) {
+            $c = explode('|', $l);
+            $suma += (int) round((float) $c[3] * (float) $c[4]);
+        }
+        $total = (int) round((float) DB::scalar('SELECT fn_factura_total(?)', [$f->id_factura]));
+        $this->assertSame($total, $suma,
+            'La suma de los renglones dejó de dar el total de la factura: el comprobante '
+            . 'declararía un monto distinto del que la clienta pagó.');
+    }
+
+    /**
+     * Los niveles de fidelización se pueden cambiar desde el sistema.
+     *
+     * Se podían mirar y no tocar: subir el corte de Oro de 10 a 15 visitas o
+     * cambiarle el porcentaje era un `UPDATE` a mano, o sea imposible para el
+     * salón. Es el caso del valor del punto (7.27.0) y del nombre del salón
+     * (7.35.0) — un número comercial detrás de un despliegue.
+     */
+    #[Test]
+    public function los_niveles_de_fidelizacion_se_cambian_desde_la_pantalla(): void
+    {
+        $n = DB::selectOne('SELECT * FROM nivel ORDER BY visitas_minimas DESC LIMIT 1');
+        if (! $n) {
+            $this->markTestSkipped('El salón no tiene niveles cargados.');
+        }
+        $antes = (int) $n->visitas_minimas;
+
+        $this->entrarComoAdministrador();
+
+        // La pantalla lo ofrece.
+        $this->get(route('servicios.descuentos'))->assertOk()
+            ->assertSee('Desde cuántas visitas', false);
+
+        $this->post(route('servicios.nivel.guardar'), [
+            'id_nivel' => $n->id_nivel,
+            'visitas_minimas' => (string) ($antes + 7),
+            'id_descuento' => (string) ($n->id_descuento ?: ''),
+        ])->assertRedirect();
+
+        $this->assertSame($antes + 7,
+            (int) DB::scalar('SELECT visitas_minimas FROM nivel WHERE id_nivel = ?', [$n->id_nivel]),
+            'El corte del nivel no se guardó.');
+
+        // **Dos niveles con el mismo corte no entran.** `fn_cliente_nivel`
+        // elige por `visitas_minimas`: con dos en el mismo número, el descuento
+        // que le toca a la clienta pasa a depender del orden interno de la
+        // tabla, o sea de algo que nadie eligió.
+        $otro = DB::selectOne('SELECT * FROM nivel WHERE id_nivel <> ? LIMIT 1', [$n->id_nivel]);
+        if ($otro) {
+            $this->post(route('servicios.nivel.guardar'), [
+                'id_nivel' => $n->id_nivel,
+                'visitas_minimas' => (string) (int) $otro->visitas_minimas,
+                'id_descuento' => '',
+            ])->assertRedirect();
+
+            $this->assertNotSame((int) $otro->visitas_minimas,
+                (int) DB::scalar('SELECT visitas_minimas FROM nivel WHERE id_nivel = ?', [$n->id_nivel]),
+                'Se aceptaron dos niveles arrancando en la misma cantidad de visitas.');
+        }
+    }
 }

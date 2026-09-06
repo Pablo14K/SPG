@@ -106,6 +106,12 @@ final class InvoiceFactory
                 'unidad_descripcion'        => 'UNI',
                 'cantidad'                  => (float)$it['cantidad'],
                 'precio_unitario'           => (float)$it['precio_unitario'],
+                // **Sólo para el KuDE: NO entra en ningún cálculo fiscal.**
+                // El total del documento se sigue armando con `precio_unitario`,
+                // que ya viene neto. Esto es el precio de lista, para poder
+                // imprimir el descuento que el emisor aplicó a la venta en vez
+                // de un «DESCUENTO: 0 %» que contradice a su comprobante.
+                'precio_lista'              => (float)($it['precio_lista'] ?? $it['precio_unitario']),
                 'afectacion_iva'            => $afectacion,
                 'descripcion_afectacion_iva'=> $afectacion === 3 ? 'Exento' : 'Gravado IVA',
                 'proporcion_iva'            => 100,

@@ -290,10 +290,29 @@ class AndamiajeTest extends TestCase
                 'La entrada de ' . $m['mod'] . ' marcaría otro módulo en la barra.');
         }
 
-        // 2) Cada pantalla del catálogo cae en el módulo de SU permiso.
+        // **Las pantallas PRESTADAS y escondidas van al módulo que las presta.**
+        // Es la excepción de la 7.108.0 y tiene su motivo: «Visitas y puntos»
+        // abre con `clientes.fidelizacion` —el permiso no se renombró, que
+        // dejaría huérfanas las filas de `rol_modulo`— pero se llega a ella por
+        // Promociones y está escondida del menú de Clientes. Mandando la miga a
+        // Clientes, el enlace llevaba a un módulo donde la pantalla **no está
+        // por ningún lado**: se reportó como «existe el link pero cuando lo
+        // buscás no está».
+        $prestadas = [];
+        foreach (config('navegacion.tambien', []) as $mod => $lista) {
+            foreach ((array) $lista as $clave => $titulo) {
+                $prestadas[(string) $clave] = (string) $mod;
+            }
+        }
+
+        // 2) Cada pantalla del catálogo cae en el módulo de SU permiso, salvo
+        //    las prestadas que además están escondidas del suyo.
         foreach (config('navegacion.pantallas', []) as $clave => $p) {
             $permiso = (string) $p[2];
-            $suyo = str_contains($permiso, '.') ? explode('.', $permiso)[0] : $permiso;
+            $escondida = ($p[3] ?? true) === false;
+            $suyo = $escondida && isset($prestadas[(string) $clave])
+                ? $prestadas[(string) $clave]
+                : (str_contains($permiso, '.') ? explode('.', $permiso)[0] : $permiso);
 
             $this->assertSame($suyo, Navegacion::moduloDe((string) $clave),
                 "La pantalla $clave marcaría un módulo que no es el suyo ($permiso).");
@@ -304,6 +323,17 @@ class AndamiajeTest extends TestCase
         $this->assertSame('personal', Navegacion::moduloDe('seguridad.personal.index'));
         $this->assertSame('configuracion', Navegacion::moduloDe('seguridad.configuracion.index'));
         $this->assertSame('personal', Navegacion::moduloDe('seguridad.turnos'));
+
+        // 4) Y el de la 7.108.0, también escrito aparte: sin el arreglo devuelve
+        //    «clientes», que es el módulo donde esa pantalla ya no aparece.
+        $this->assertSame('servicios', Navegacion::moduloDe('clientes.fidelizacion'),
+            'La miga de «Visitas y puntos» mandaría a Clientes, donde la pantalla no está listada.');
+
+        // **Una pantalla prestada que NO está escondida sigue siendo de su
+        // módulo.** La ficha del equipo la presta Personal y se ve en los dos
+        // lados: ahí la miga tiene que seguir diciendo Seguridad, que es donde
+        // vive. Sin esta mitad, la regla nueva se llevaría puesto ese caso.
+        $this->assertSame('seguridad', Navegacion::moduloDe('seguridad.usuarios'));
     }
 
     /**

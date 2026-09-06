@@ -1386,7 +1386,6 @@ class FacturacionController extends Controller
     {
         $id = (int) $request->input('id_factura', 0);
         $motivo = trim((string) $request->input('motivo', ''));
-        $montoTexto = trim((string) $request->input('monto', ''));
         $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
 
         $f = DB::selectOne(
@@ -1440,6 +1439,14 @@ class FacturacionController extends Controller
     {
         $id = (int) $request->input('id_factura', 0);
         $motivo = trim((string) $request->input('motivo', ''));
+        // **Sin esta línea la pantalla devolvía 500 y no se podía acreditar
+        // nada.** El `$montoTexto` que lee el bloque de abajo se leía sin
+        // existir: la línea que lo define había quedado en `anularFactura()`,
+        // donde además no se usaba —anular no recibe monto—. Una variable
+        // indefinida es `ErrorException` en Laravel, y como el `try` empieza
+        // recién más abajo, salía sin traducir: la nota de crédito parcial que
+        // trajo la 7.101.0 nunca llegó a funcionar.
+        $montoTexto = trim((string) $request->input('monto', ''));
         $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
 
         $f = DB::selectOne(

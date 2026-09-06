@@ -622,6 +622,7 @@ CREATE TABLE `cliente` (
   `id_usuario` int(10) unsigned DEFAULT NULL,
   `fecha_registro` datetime NOT NULL DEFAULT current_timestamp(),
   `observaciones` varchar(300) DEFAULT NULL,
+  `alergias` varchar(300) DEFAULT NULL COMMENT 'Alergias y contraindicaciones. NULL = sin registrar',
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `id_persona` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id_cliente`),
@@ -638,7 +639,7 @@ CREATE TABLE `cliente` (
 
 LOCK TABLES `cliente` WRITE;
 /*!40000 ALTER TABLE `cliente` DISABLE KEYS */;
-INSERT INTO `cliente` VALUES (1,2,'2026-07-14 19:42:29',NULL,1,2);
+INSERT INTO `cliente` VALUES (1,2,'2026-07-14 19:42:29',NULL,NULL,1,2);
 /*!40000 ALTER TABLE `cliente` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2462,6 +2463,7 @@ CREATE TABLE `rol` (
   `descripcion` varchar(150) DEFAULT NULL,
   `es_personal` tinyint(1) NOT NULL DEFAULT 1,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `exige_turno` tinyint(1) NOT NULL DEFAULT 1 COMMENT '¿Las cuentas con este rol necesitan turno asignado?',
   PRIMARY KEY (`id_rol`),
   UNIQUE KEY `uq_rol_nombre` (`nombre`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -2473,7 +2475,7 @@ CREATE TABLE `rol` (
 
 LOCK TABLES `rol` WRITE;
 /*!40000 ALTER TABLE `rol` DISABLE KEYS */;
-INSERT INTO `rol` VALUES (1,'Administrador','Acceso total al sistema, cuentas y configuración',1,1),(2,'Profesional','Empleado que atiende las citas del salón',1,1),(3,'Asistente administrativo','Operación diaria: citas, clientes, caja e inventario',1,1),(4,'Cliente','Acceso al portal del cliente',0,1);
+INSERT INTO `rol` VALUES (1,'Administrador','Acceso total al sistema, cuentas y configuración',1,1,0),(2,'Profesional','Empleado que atiende las citas del salón',1,1,1),(3,'Asistente administrativo','Operación diaria: citas, clientes, caja e inventario',1,1,1),(4,'Cliente','Acceso al portal del cliente',0,1,1);
 /*!40000 ALTER TABLE `rol` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -6590,4 +6592,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-05 12:32:47
+-- Dump completed on 2026-09-06 17:53:41

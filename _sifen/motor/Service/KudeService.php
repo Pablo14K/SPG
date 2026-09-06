@@ -94,7 +94,12 @@ final class KudeService
         // Tope de tabla = margen + encabezado(80) + separación(3) + banda título(14) + receptor(55) = 152.
         $rowsTop     = self::PAGE_H - self::MARGIN - 152.0 - 24.0;               // bajo la cabecera de la tabla
         $qrTop       = self::MARGIN + 14.0 + 90.0;                               // techo de la zona QR/CDC (anclada al pie)
-        $totalsH     = 5 * self::ROW_H;                                          // SUBTOTAL+DESCUENTO+TOTAL+letras+IVA
+        // SUBTOTAL + DESCUENTO + (IMPORTE SIN DESCUENTO) + TOTAL + letras + IVA.
+        // Son 6 y no 5 desde que el descuento se imprime de verdad: el renglón
+        // de «importe sin descuento» sólo aparece cuando hay descuento, pero el
+        // alto se reserva siempre — quedarse corto empuja los totales sobre el
+        // QR, y eso se ve recién al emitir un comprobante largo con descuento.
+        $totalsH     = 6 * self::ROW_H;
         $perPage     = (int) floor(($rowsTop - $qrTop) / self::ROW_H);           // filas en páginas de continuación
         $perPageLast = (int) floor(($rowsTop - $qrTop - $totalsH) / self::ROW_H); // la última reserva lugar a totales
 
@@ -425,10 +430,46 @@ final class KudeService
             $numberCell($fmt((float) $tot['subtotal_10']),     $colX[6], $stY - 11, $colW[6], 8, true);
             $stY -= 18;
 
+            // **El descuento, si el emisor mandó los precios de lista.**
+            //
+            // Antes esta línea decía «DESCUENTO: 0 %» escrito a mano, siempre.
+            // Y cuando el emisor aplica un descuento sobre la venta entera
+            // —una promoción, el nivel de fidelización— lo reparte entre los
+            // renglones antes de mandarlos, porque el total lo calcula este
+            // sistema sumándolos: el resultado era un KuDE con los precios
+            // unitarios corridos (75.000 impreso como 74.648) declarando que
+            // no hubo ningún descuento, al lado de un comprobante del emisor
+            // que sí lo detallaba. Matemáticamente cuadraba y se leía como un
+            // error.
+            //
+            // El campo 7 del ITM trae el precio de lista y es opcional: sin él
+            // —un emisor viejo— la resta da cero y se imprime lo de siempre.
+            // **Se suma sobre `$data['items']`, no sobre `$items`.** Acá dentro
+            // `$items` son sólo las filas de ESTA página: con un comprobante de
+            // dos páginas, el descuento habría salido calculado sobre el último
+            // puñado de renglones.
+            $bruto = 0.0;
+            foreach (($data['items'] ?? []) as $it) {
+                $bruto += (float) $it['cantidad'] * (float) ($it['precio_lista'] ?? $it['precio_unitario']);
+            }
+            $descuento = max(0.0, round($bruto - (float) $tot['total_neto']));
+            $porc = $bruto > 0 ? round($descuento * 100 / $bruto, 2) : 0.0;
+
             $rect($mg, $stY - 18, $tW, 18, false);
-            $text('DESCUENTO: 0 %', $colX[0] + 2, $stY - 11, 8);
-            $numberCell('0', $colX[6], $stY - 11, $colW[6], 8);
+            $text('DESCUENTO: ' . rtrim(rtrim(number_format($porc, 2, ',', '.'), '0'), ',') . ' %',
+                $colX[0] + 2, $stY - 11, 8);
+            $numberCell($descuento > 0 ? $fmt($descuento) : '0', $colX[6], $stY - 11, $colW[6], 8);
             $stY -= 18;
+
+            // Con descuento, el SUBTOTAL de arriba es el neto y la resta no se
+            // entiende sola: se dice de cuánto se partió. Sin descuento no se
+            // dibuja, para no agregar un renglón que no informa nada.
+            if ($descuento > 0) {
+                $rect($mg, $stY - 18, $tW, 18, false);
+                $text('IMPORTE SIN DESCUENTO:', $colX[0] + 2, $stY - 11, 8);
+                $numberCell($fmt($bruto), $colX[6], $stY - 11, $colW[6], 8);
+                $stY -= 18;
+            }
 
             // Total operación
             $rect($mg, $stY - 18, $tW, 18, false);

@@ -9,6 +9,16 @@
         <div class="sub">{{ $c->telefono ?: 'Sin teléfono' }} · {{ $c->email ?: 'Sin email' }}</div>
     </div>
 
+    {{-- **Las alergias van arriba de todo y en rojo.** Es lo único de esta
+         pantalla que puede lastimar a alguien si se pasa por alto, así que no
+         compite con el nivel ni con los puntos: se lee antes que nada. --}}
+    @if (! empty($c->alergias))
+        <div class="alert alert-danger mt-2 mb-2">
+            <strong><i class="bi bi-exclamation-triangle-fill"></i> Alergias:</strong>
+            {{ $c->alergias }}
+        </div>
+    @endif
+
     @if ($fid)
         <div class="spg-metrics">
             <div class="spg-metric">
@@ -30,6 +40,8 @@
         </div>
     @endif
 
+    <x-filtros :f="$f" />
+
     <div class="spg-panel mt-2">
         <h2 style="font-size:1rem;font-weight:500;margin-bottom:.8rem;">Historial de servicios</h2>
         <div class="table-responsive">
@@ -48,11 +60,15 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted-warm py-4">Sin servicios registrados.</td>
+                            <td colspan="5" class="text-center text-muted-warm py-4">
+                                {{ $pag['total'] ? 'Ningún servicio coincide con lo que buscaste.' : 'Sin servicios registrados.' }}
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
+
+    <x-paginacion :pag="$pag" :f="$f" />
 @endsection

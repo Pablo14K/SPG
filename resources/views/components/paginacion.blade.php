@@ -7,12 +7,17 @@
     tener paginación, porque no se nota.
 
         <x-paginacion :pag="$pag" :f="$f" />
+
+    `ocultos` es para lo que no es un filtro y sin embargo define lo que se
+    está mirando —el día de la agenda—: sin arrastrarlo, pasar de página
+    devuelve a hoy y se pierde el tramo que se estaba recorriendo. Es el
+    mismo motivo por el que `<x-filtros>` ya lo tenía.
 --}}
-@props(['pag' => null, 'f' => null])
+@props(['pag' => null, 'f' => null, 'ocultos' => []])
 
 @if ($pag)
     @php
-        $qs = $f ? \App\Servicios\Listado::query($f) : [];
+        $qs = array_merge($ocultos ?: [], $f ? \App\Servicios\Listado::query($f) : []);
         $enlace = fn (int $p) => url()->current() . '?' . http_build_query(array_merge($qs, ['p' => $p]));
 
         // Ventana alrededor de la página actual: con 50 páginas no se dibujan

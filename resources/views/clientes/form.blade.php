@@ -59,6 +59,24 @@
                     <input class="form-control" id="direccion" name="direccion" maxlength="255"
                            value="{{ old('direccion', $c->direccion ?? '') }}">
                 </div>
+                {{-- **Las alergias van aparte de las observaciones, y arriba.**
+                     Anotadas entre las notas sueltas quedan mezcladas con
+                     «prefiere las 10» y no las lee nadie antes de preparar una
+                     mezcla. Es el único dato de la ficha que puede lastimar a
+                     alguien si se pasa por alto, así que tiene su propio campo
+                     y su propio destaque en el historial y en la agenda. --}}
+                <div class="col-12">
+                    <label class="form-label" for="alergias">
+                        <i class="bi bi-exclamation-triangle txt-no"></i> Alergias y contraindicaciones
+                    </label><x-ayuda campo="alergias" />
+                    <textarea class="form-control" id="alergias" name="alergias" rows="2"
+                              maxlength="300"
+                              placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias', $c->alergias ?? '') }}</textarea>
+                    <div class="form-text">
+                        Se muestra destacado antes de atenderla. Vacío significa «sin registrar»,
+                        no «no tiene ninguna».
+                    </div>
+                </div>
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />
                     <textarea class="form-control" id="observaciones" name="observaciones"

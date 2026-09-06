@@ -167,8 +167,13 @@
                             <div class="border rounded p-2" id="gRoles" style="max-height:9rem;overflow:auto">
                                 @foreach ($roles as $r)
                                     <div class="form-check">
+                                        {{-- `data-exige-turno` es lo que decide si el bloque de
+                                             turnos se le pide a esta cuenta. Sale del rol y no de
+                                             un id escrito en el JS: un salón que cree «Recepción»
+                                             la marca desde Roles y deja de ver el aviso. --}}
                                         <input class="form-check-input" type="checkbox" name="roles[]"
                                                id="rol{{ $r->id_rol }}" value="{{ $r->id_rol }}"
+                                               data-exige-turno="{{ (int) ($r->exige_turno ?? 1) }}"
                                                @checked(in_array((int) $r->id_rol, array_map('intval', $spgMisRoles), true))>
                                         <label class="form-check-label" for="rol{{ $r->id_rol }}">{{ $r->nombre }}</label>
                                     </div>
@@ -439,7 +444,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const crear = document.getElementById('spgCrearTurnoCuenta');
     const roles = Array.from(document.querySelectorAll('#gRoles input[name="roles[]"]'));
     function actualizar() {
-        const atiende = roles.some(function (r) { return r.checked && String(r.value) !== admin; });
+        // **Lo decide el rol, no un id.** Antes era «cualquier rol que no sea
+        // el Administrador», así que un «Recepción» creado por el salón volvía
+        // a pedir turno. Ahora cada rol declara si lo exige.
+        const atiende = roles.some(function (r) {
+            return r.checked && r.dataset.exigeTurno !== '0';
+        });
         // Si ya tiene turnos cargados el bloque se muestra igual: esconder algo
         // que está cargado lo vuelve invisible y no lo saca.
         const yaTiene = Array.from(bloque.querySelectorAll('input[name="turnos[]"]'))

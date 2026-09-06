@@ -252,6 +252,26 @@ class Navegacion
             }
         }
 
+        // **Una pantalla PRESTADA pertenece, para navegar, al módulo que la
+        // presta.** «Visitas y puntos» abre con `clientes.fidelizacion` —el
+        // permiso no se renombró, que dejaría huérfanas las filas de
+        // `rol_modulo`— pero desde la 7.107.0 se llega a ella por Promociones y
+        // está escondida del menú de Clientes (cuarto valor en `false`).
+        //
+        // Deducido del permiso, la miga decía «Panel › Clientes › Visitas y
+        // puntos» y ese enlace llevaba a un módulo donde la pantalla **no
+        // aparece por ningún lado**: se reportó como «existe el link pero
+        // cuando lo buscás no está». El módulo que la presta sí la ofrece, así
+        // que es el que corresponde nombrar.
+        $catalogo = (array) config('navegacion.pantallas', []);
+        if (($catalogo[$rutaActual][3] ?? true) === false) {
+            foreach ((array) config('navegacion.tambien', []) as $mod => $prestadas) {
+                if (array_key_exists($rutaActual, (array) $prestadas)) {
+                    return (string) $mod;
+                }
+            }
+        }
+
         $p = self::pantalla($rutaActual);
         if ($p) {
             $permiso = (string) $p['permiso'];

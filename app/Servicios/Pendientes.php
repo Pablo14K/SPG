@@ -235,9 +235,17 @@ class Pendientes
             // atiende lleva el rol Profesional encima: ahí el turno vuelve a
             // hacer falta, porque la agenda sí la va a ofrecer.
             //
-            // El id sale de `permisos.rol_admin` y no escrito a mano; los dos
-            // marcadores llevan nombre distinto porque la conexión va con las
-            // preparadas nativas de MySQL, que no admiten repetir uno.
+            // **Quién necesita turno lo dice el ROL, no un id escrito acá.**
+            // Hasta la 7.107.0 la excepción era el Administrador y estaba
+            // clavada por `permisos.rol_admin`: un salón que creara «Recepción»
+            // —que tampoco atiende— volvía a recibir el aviso todos los días
+            // sin forma de callarlo. Ahora `rol.exige_turno` es un dato que se
+            // marca en Seguridad → Roles.
+            //
+            // **Basta con que UNO de sus roles lo exija.** Desde que una cuenta
+            // lleva varios (`usuario_rol`, el cambio de perspectiva), la dueña
+            // que además atiende tiene el rol Profesional encima: ahí el turno
+            // vuelve a hacer falta, porque la agenda sí la va a ofrecer.
             $sinTurno = DB::select(
                 "SELECT CONCAT(pe.nombre, ' ', pe.apellido) AS quien
                    FROM usuario u
@@ -245,13 +253,12 @@ class Pendientes
                    JOIN persona pe ON pe.id_persona = u.id_persona
                   WHERE u.activo = 1 AND r.es_personal = 1
                     AND NOT EXISTS (SELECT 1 FROM usuario_turno ut WHERE ut.id_usuario = u.id_usuario)
-                    AND NOT (u.id_rol = :adm1
-                             AND NOT EXISTS (SELECT 1 FROM usuario_rol ur
-                                              WHERE ur.id_usuario = u.id_usuario
-                                                AND ur.id_rol <> :adm2))
-                  ORDER BY pe.nombre",
-                ['adm1' => (int) config('permisos.rol_admin', 1),
-                 'adm2' => (int) config('permisos.rol_admin', 1)]
+                    AND (r.exige_turno = 1
+                         OR EXISTS (SELECT 1 FROM usuario_rol ur
+                                      JOIN rol r2 ON r2.id_rol = ur.id_rol
+                                     WHERE ur.id_usuario = u.id_usuario
+                                       AND r2.es_personal = 1 AND r2.exige_turno = 1))
+                  ORDER BY pe.nombre"
             );
             if ($sinTurno) {
                 self::anotar(self::CONFUNDE,

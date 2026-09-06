@@ -27,7 +27,17 @@
                href="{{ route('citas.agenda', ['dia' => date('Y-m-d', strtotime($dia . ' +1 day'))]) }}">
                 Siguiente <i class="bi bi-chevron-right"></i></a>
             <span class="ms-auto text-muted-warm" style="font-size:.85rem">
-                {{ fecha_larga($dia) }}
+                {{-- Con un rango puesto, la fecha grande de la derecha mentiría:
+                     dice el día y en la tabla hay una semana. --}}
+                @if ($rango === '')
+                    {{ fecha_larga($dia) }}
+                @else
+                    {{ $pag['total'] }} cita(s) ·
+                    {{ ['sem' => 'semana del ' . fecha($dia, 'd/m'),
+                        'mes' => 'mes de ' . fecha($dia, 'm/Y'),
+                        'prox' => 'desde el ' . fecha($dia, 'd/m/Y'),
+                        'todas' => 'todo el historial'][$rango] ?? '' }}
+                @endif
             </span>
         </form>
     </div>
@@ -104,7 +114,24 @@
                                     if (trim((string) $c->observaciones) !== '') { $spgDet[] = 'dejó dicho'; }
                                     if ($c->para_otra_persona) { $spgDet[] = 'para otra persona'; }
                                     if ((int) $c->personas > 1) { $spgDet[] = 'vienen ' . (int) $c->personas; }
+                                    $spgAlergias = trim((string) ($c->alergias ?? ''));
+                                    if ($spgAlergias !== '') { $spgDet[] = 'alergias'; }
                                 @endphp
+
+                                {{-- **La alergia se ve en la fila, no escondida en el modal.**
+                                     Todo lo demás de esta celda se guarda detrás del botón
+                                     porque se mira una vez al preparar el turno; una alergia
+                                     hay que verla sin abrir nada, y por eso va en rojo y con
+                                     su texto puesto. Es la excepción que la regla de la ayuda
+                                     contextual ya declara: lo que ADVIERTE no se esconde. --}}
+                                @if ($spgAlergias !== '')
+                                    <div class="badge-estado e-no d-inline-flex align-items-center gap-1 mb-1"
+                                         title="Alergias de {{ $c->cliente }}">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        {{ \Illuminate\Support\Str::limit($spgAlergias, 40) }}
+                                    </div>
+                                @endif
+
                                 @if ($spgDet)
                                     <button type="button" class="btn btn-sm btn-rapido spg-btn-det"
                                             data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}">
@@ -330,14 +357,30 @@
                             <td colspan="{{ $verTodo ? 7 : 6 }}">
                                 <div class="spg-vacio">
                                     <i class="bi bi-calendar-week"></i>
-                                    <div class="t">No hay citas para el {{ fecha($dia, 'd/m/Y') }}.</div>
-                                    <div class="d">Agendá una con el botón «Nueva cita».</div>
+                                    <div class="t">
+                                        @if ($rango === '')
+                                            No hay citas para el {{ fecha($dia, 'd/m/Y') }}.
+                                        @else
+                                            Ninguna cita coincide con lo que buscaste.
+                                        @endif
+                                    </div>
+                                    <div class="d">
+                                        @if ($rango === '')
+                                            Agendá una con el botón «Nueva cita», o mirá otro tramo con el filtro «Ver».
+                                        @else
+                                            Probá con otro tramo o soltá algún filtro.
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+
+            {{-- El día viaja con la paginación por lo mismo que con los filtros:
+                 sin él, pasar de página te devolvía a hoy. --}}
+            <x-paginacion :pag="$pag" :f="$f" :ocultos="['dia' => $dia]" />
 
         @foreach ($rows as $c)
                         {{-- **Lo que la clienta dejó dicho al reservar.** Se guardaba
@@ -354,7 +397,7 @@
                              con `display:none` gana siempre: el modal no podía hacerse
                              visible ni con Bootstrap haciendo su trabajo. Se veía el
                              fondo gris y nada más. --}}
-                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1)
+                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || trim((string) ($c->alergias ?? '')) !== '')
                             <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content">
@@ -414,6 +457,10 @@
                                                             </ul>
                                                         @endif
                                                     </dd>
+                                                @endif
+                                                @if (trim((string) ($c->alergias ?? '')) !== '')
+                                                    <dt class="txt-no">Alergias</dt>
+                                                    <dd class="txt-no"><strong>{{ $c->alergias }}</strong></dd>
                                                 @endif
                                                 @if ($c->observaciones)
                                                     <dt>Dejó dicho</dt>
@@ -515,6 +562,11 @@
                                  data-agenda-servicios="{{ $c->servicios_ids ?? '' }}"
                                  data-agenda-profesional="{{ (int) $c->id_usuario }}"
                                  data-agenda-sucursal="{{ (int) $c->id_sucursal }}"
+                                 {{-- **Para cuántas personas es la cita.** Sin esto el modal
+                                      medía el peor caso —todo en serie sobre una sola clienta— y
+                                      una reserva para dos no ofrecía ni un día: decía «no entra en
+                                      el turno» de algo que el salón atiende igual. --}}
+                                 data-agenda-personas="{{ max(1, (int) ($c->personas ?? 1)) }}"
                                  data-agenda-boton="#btnRepro{{ $c->id_cita }}">
                                 <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
                                 <div data-agenda-dias class="spg-dias mt-2"></div>

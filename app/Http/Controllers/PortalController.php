@@ -11,6 +11,7 @@ use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Calendario;
 use App\Servicios\Canje;
+use App\Servicios\Config;
 use App\Servicios\Sena;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -141,7 +142,7 @@ class PortalController extends Controller
             // Si el calendario sale vacío porque lo elegido no entra en ningún
             // turno, hay que decirlo: «probá con otro profesional» manda a
             // recorrer uno por uno algo que ninguno puede dar.
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios)]);
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas)]);
     }
 
     public function reservar(Request $request): View
@@ -672,7 +673,11 @@ class PortalController extends Controller
             // por algo que ya pagó con sus puntos. Si además pidió otro
             // servicio sin canje, ese sí se puede señar — por eso es una resta
             // y no un «tiene canje: no muestres nada».
+            // `c.personas` viaja porque el modal de reprogramar la necesita:
+            // sin ella el selector pide los horarios midiendo el peor caso —
+            // todo en serie sobre una sola clienta— y no ofrece ninguna fecha.
             'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal, c.id_usuario,
+                    c.personas,
                     -- **Los servicios de la cita, por id.** Los necesita el
                     -- selector de horarios del modal de reprogramar: reprogramar
                     -- no pregunta qué se hace —eso ya está decidido— así que los
@@ -708,8 +713,26 @@ class PortalController extends Controller
 
         return view('portal.citas', [
             'prox' => $prox,
+            // **El comprobante de cada cita, para que la clienta lo pueda ver
+            // y bajar.** Existía el endpoint de descarga desde la 7.42.0 y no
+            // había un solo enlace hacia él fuera de la pantalla de la atención
+            // en curso: o sea que la factura se podía bajar sólo durante las dos
+            // horas que dura la cita, y después no había forma de llegar. Quien
+            // la necesita para rendir un gasto la pedía por WhatsApp.
+            //
+            // Se une acá y no con una consulta por fila: en la vista, dentro del
+            // `foreach`, sería una por cita.
             'pasadas' => DB::select(
-                "SELECT v.* FROM vw_agenda_citas v JOIN cita c ON c.id_cita = v.id_cita
+                "SELECT v.*, f.id_factura,
+                        CASE WHEN f.id_factura IS NULL THEN NULL
+                             ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
+                        CASE WHEN f.id_factura IS NULL THEN NULL
+                             ELSE fn_factura_total(f.id_factura) END AS total_facturado,
+                        tc.nombre AS tipo_comprobante
+                   FROM vw_agenda_citas v
+                   JOIN cita c ON c.id_cita = v.id_cita
+                   LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
+                   LEFT JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
                   WHERE c.id_cliente = ? $excluir ORDER BY v.fecha_hora DESC LIMIT 50", [$idc]
             ),
             // Para el enlace de «agendar en mi calendario». Se resuelve acá y
@@ -1386,34 +1409,105 @@ class PortalController extends Controller
         ];
     }
 
-    /** Descarga el comprobante propio de la clienta en PDF. */
-    public function facturaDescargar(Request $request): Response|RedirectResponse
+    /**
+     * El comprobante de una cita, para verlo en pantalla.
+     *
+     * **La clienta no tenía cómo llegar a sus facturas.** El endpoint de
+     * descarga existía desde la 7.42.0 y el único enlace hacia él vivía en la
+     * pantalla de la atención en curso: o sea que el comprobante se podía bajar
+     * durante las dos horas de la cita y nunca más. Quien lo necesitaba para
+     * rendir un gasto lo pedía por WhatsApp.
+     *
+     * Son dos pantallas y no una porque son dos gestos distintos: mirar cuánto
+     * salió se hace en el momento y desde el teléfono; bajarlo se hace cuando
+     * hay que presentarlo en algún lado.
+     */
+    public function facturaVer(Request $request): View
     {
-        $f = DB::selectOne(
-            'SELECT f.id_factura, fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
-                    fn_factura_total(f.id_factura) AS total, f.fecha_emision,
-                    (SELECT GROUP_CONCAT(CONCAT(COALESCE(s.nombre,p.nombre), " x", df.cantidad) SEPARATOR ", ")
-                       FROM detalle_factura df LEFT JOIN servicio s ON s.id_servicio = df.id_servicio
-                       LEFT JOIN producto p ON p.id_producto = df.id_producto
-                      WHERE df.id_factura = f.id_factura) AS detalle
-               FROM factura f JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
-              WHERE f.id_factura = ? AND f.id_cliente = ? AND f.id_estado_factura = 1',
-            [(int) $request->query('id', 0), $this->cliente()]
-        );
-        if (! $f) {
-            abort(404);
-        }
-        $html = '<html><meta charset="utf-8"><style>body{font-family:Arial;padding:32px}h1{font-size:20px;border-bottom:1px solid #ccc;padding-bottom:10px}.total{font-size:18px;font-weight:bold;margin-top:24px}</style>'
-            . '<h1>Comprobante ' . e($f->nro) . '</h1><p>' . e($f->tipo) . ' · ' . e(fecha($f->fecha_emision)) . '</p>'
-            . '<p>' . e($f->detalle ?: 'Detalle no disponible') . '</p><p class="total">Total: ' . e(money($f->total)) . '</p></html>';
+        return view('portal.factura', $this->comprobante((int) $request->query('id', 0)));
+    }
+
+    /** El mismo comprobante, en PDF. */
+    public function facturaDescargar(Request $request): Response
+    {
+        $datos = $this->comprobante((int) $request->query('id', 0));
+
+        // Las dos vistas comparten el MISMO partial (`portal._factura_cuerpo`):
+        // escritas por separado se desfasan, y ahí la clienta termina con dos
+        // documentos que dicen cosas distintas del mismo cobro.
         $pdf = new Dompdf();
-        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->loadHtml(view('portal.factura_pdf', $datos)->render(), 'UTF-8');
         $pdf->setPaper('A4');
         $pdf->render();
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="comprobante-' . str_replace('/', '-', (string) $f->nro) . '.pdf"',
+            'Content-Disposition' => 'attachment; filename="comprobante-'
+                . str_replace('/', '-', (string) $datos['f']->nro) . '.pdf"',
         ]);
+    }
+
+    /**
+     * Los datos del comprobante, comprobando que sea de ESTA clienta.
+     *
+     * El id viaja en la URL, así que se puede cambiar a mano: la pertenencia se
+     * comprueba en la consulta y no después, que es la regla del proyecto —
+     * `id_cliente` sale de la sesión, nunca del pedido.
+     *
+     * @return array<string, mixed>
+     */
+    private function comprobante(int $id): array
+    {
+        $f = DB::selectOne(
+            'SELECT f.id_factura, fn_factura_nro(f.id_factura) AS nro, tc.nombre AS tipo,
+                    f.fecha_emision, f.id_cita,
+                    fn_factura_subtotal(f.id_factura) AS subtotal,
+                    fn_factura_descuento(f.id_factura) AS descuento,
+                    fn_factura_total(f.id_factura) AS total,
+                    fn_factura_saldo(f.id_factura) AS saldo,
+                    su.nombre AS sucursal, su.direccion, su.telefono, su.ruc,
+                    -- **Si tiene una nota de crédito vigente, el comprobante ya
+                    -- no vale por lo que dice.** Callarlo sería dejar que la
+                    -- clienta presente un documento acreditado como si fuera un
+                    -- gasto — es el mismo sello que la lista del salón muestra
+                    -- desde la 7.23.0.
+                    (SELECT COUNT(*) FROM factura n
+                      WHERE n.id_factura_origen = f.id_factura AND n.id_estado_factura = 1) AS acreditada
+               FROM factura f
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+               LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+               LEFT JOIN sucursal su ON su.id_sucursal = COALESCE(f.id_sucursal, t.id_sucursal)
+              WHERE f.id_factura = ? AND f.id_cliente = ? AND f.id_estado_factura = 1',
+            [$id, $this->cliente()]
+        );
+        if (! $f) {
+            abort(404);
+        }
+
+        return [
+            'f' => $f,
+            'salon' => Config::nombreSalon(),
+            'lineas' => DB::select(
+                // `detalle_factura` no guarda una descripción propia: el renglón
+                // es un servicio o un producto, y el nombre sale de ahí.
+                "SELECT COALESCE(s.nombre, p.nombre, 'Detalle') AS que,
+                        df.cantidad, df.precio_unitario,
+                        (df.cantidad * df.precio_unitario) AS importe
+                   FROM detalle_factura df
+                   LEFT JOIN servicio s ON s.id_servicio = df.id_servicio
+                   LEFT JOIN producto p ON p.id_producto = df.id_producto
+                  WHERE df.id_factura = ?
+                  ORDER BY df.id_detalle_factura", [$id]
+            ),
+            // Con qué la pagó. Es lo primero que se busca al mirar un
+            // comprobante viejo: si ya está pago y por dónde salió la plata.
+            'cobros' => DB::select(
+                'SELECT c.monto, c.fecha AS fecha_cobro, m.nombre AS medio
+                   FROM cobro c JOIN metodo_pago m ON m.id_metodo_pago = c.id_metodo_pago
+                  WHERE c.id_estado_cobro = 1
+                    AND (c.id_factura = :f1 OR c.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))
+                  ORDER BY c.fecha', ['f1' => $id, 'f2' => $id]
+            ),
+        ];
     }
 }

@@ -15,7 +15,7 @@ use RuntimeException;
  *
  *   FAC|estab|punto|numero|fecha|condicion|moneda
  *   CLI|tipo|documento|nombre|email|direccion|telefono
- *   ITM|codigo|descripcion|cantidad|precio_unitario|iva       (repetible)
+ *   ITM|codigo|descripcion|cantidad|precio_unitario|iva[|precio_lista]   (repetible)
  *   PAG|tipo                                                  (repetible; el monto lo calcula el sistema)
  *
  *   condicion: 1=contado, 2=crédito
@@ -114,6 +114,18 @@ final class TxtParser
                         'cantidad'        => $campos[3] ?? '0',
                         'precio_unitario' => $campos[4] ?? '0',
                         'iva'             => $campos[5] ?? '10',
+                        // **Campo opcional, y sólo para mostrar.** El precio que
+                        // se declara sigue siendo el del campo 5, ya neto: el
+                        // emisor reparte el descuento de la venta entre los
+                        // renglones antes de mandarlo, porque el total lo calcula
+                        // este sistema sumándolos.
+                        //
+                        // Éste es el precio de lista, y sirve para que el KuDE
+                        // pueda imprimir el descuento en vez de un «0 %» que
+                        // contradice al comprobante del emisor. Si no viene, cae
+                        // en el neto y no hay descuento que mostrar — que es
+                        // exactamente el comportamiento anterior.
+                        'precio_lista'    => $campos[6] ?? ($campos[4] ?? '0'),
                     ];
                     $tieneDatos = true;
                     break;

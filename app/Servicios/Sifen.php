@@ -394,8 +394,32 @@ class Sifen
             }
         }
 
+        // **El KuDE imprimía «DESCUENTO: 0 %» sobre una factura con descuento.**
+        // Desde el lado del Automatizador eso era cierto —le llegan los precios
+        // ya netos— pero al lado del resumen del salón, que dice «Descuento:
+        // Gs. 750», se lee como una contradicción: la clienta ve un papel que
+        // niega el descuento que sí se le hizo, con los precios unitarios
+        // corridos (75.000 impreso como 74.648) y sin nada que lo explique.
+        //
+        // Va como **séptimo campo opcional del ITM: el precio de lista**, y es
+        // sólo para mostrar. La elección importa y es deliberada:
+        //
+        //  · **El precio que se declara sigue siendo el neto** (campo 5). El
+        //    total del comprobante lo calcula el Automatizador sumando esos
+        //    netos, así que no cambia ni un guaraní respecto de hoy.
+        //  · **Un Automatizador viejo ignora el campo** —su parser lee del 1 al
+        //    5 y descarta el resto— y se comporta exactamente como ahora. Al
+        //    revés también: si el campo no viene, cae en el neto y no hay
+        //    descuento que mostrar. Ninguna de las dos direcciones rompe.
+        //
+        // Mandar el precio de lista en el campo 5 y el descuento aparte sería
+        // lo «natural», y es justo lo que NO se puede hacer: un Automatizador
+        // que ignorara ese campo declararía el total sin descontar, o sea de
+        // más ante la DNIT. El formato se extiende sólo por donde el error
+        // posible es cosmético.
         foreach ($items as $i => $it) {
-            $lineas[] = implode('|', [
+            $lista = (int) round((float) $it->precio_unitario);
+            $campos = [
                 'ITM',
                 'S' . str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
                 $limpiar($it->item),
@@ -403,7 +427,14 @@ class Sifen
                 rtrim(rtrim(number_format((float) $it->cantidad, 2, '.', ''), '0'), '.'),
                 (string) $precios[$i],
                 (string) (int) $it->tasa_iva,
-            ]);
+            ];
+            // Sólo cuando de verdad hubo prorrateo: sin descuento el campo
+            // repetiría el mismo número y sería ruido en el archivo que se
+            // guarda como prueba de lo enviado.
+            if ($lista > $precios[$i]) {
+                $campos[] = (string) $lista;
+            }
+            $lineas[] = implode('|', $campos);
         }
 
         return implode("\n", $lineas) . "\n";

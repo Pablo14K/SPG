@@ -100,7 +100,10 @@ return [
     'fecha_hora' => 'Elegí el día y después la hora. Sólo se ofrecen las que están libres de verdad.',
     'personas' => 'Cuántas van a venir, contándote. Sirve para preparar el lugar.',
     'nombre_para' => 'Si la cita es para otra persona, su nombre. Quien atiende va a saber a quién esperar.',
-    'observaciones' => 'Lo que quien atiende tiene que saber antes: alergias, un color que no le gustó, lo que sea.',
+    // Las alergias salieron de acá y tienen campo propio: mezcladas con las
+    // notas sueltas no las leía nadie antes de preparar una mezcla.
+    'observaciones' => 'Lo que quien atiende tiene que saber antes: un color que no le gustó, cómo prefiere el lavado, lo que sea. Las alergias van en su propio campo.',
+    'alergias' => 'A qué es alérgica o qué no se le puede aplicar: amoníaco, PPD, látex. Se muestra destacado antes de atenderla, así que conviene ser concreto. Vacío quiere decir «sin registrar», no «no tiene ninguna».',
     'observacion' => 'Lo que la clienta va a leer en el aviso. Se le manda tal cual.',
     'pedido' => 'Lo que se te ocurrió agregar. Quien te atiende confirma precio y tiempo en el momento.',
     'motivo' => 'Queda registrado, y es lo único que explica esta decisión dentro de tres meses. Al menos 10 caracteres.',

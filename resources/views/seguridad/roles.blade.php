@@ -226,6 +226,32 @@
                                        name="descripcion" value="{{ $rol->descripcion }}" maxlength="150">
                             </div>
 
+                            {{-- **Si este rol atiende, hace falta darle turno.**
+                                 El aviso de «falta asignar turno» salía para todo el
+                                 personal, y eso incluye a quien no atiende —recepción,
+                                 compras, caja—: les pedía todos los días resolver algo
+                                 que no era un problema, y un aviso que no aplica enseña
+                                 a ignorar los que sí.
+
+                                 Va acá y no en la ficha de cada persona porque es una
+                                 propiedad del puesto, no de quien lo ocupa. Se ofrece
+                                 también en los roles protegidos: el Administrador es
+                                 justamente el caso que motivó esto. --}}
+                            @if ((int) $rol->es_personal === 1)
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="exige_turno" value="1"
+                                           id="re_turno{{ $rol->id_rol }}" @checked((int) ($rol->exige_turno ?? 1))>
+                                    <label class="form-check-label" for="re_turno{{ $rol->id_rol }}">
+                                        Atiende clientas, así que necesita turno asignado
+                                    </label>
+                                </div>
+                                <p class="text-muted-warm mb-2" style="font-size:.78rem">
+                                    Sin marcar, el sistema deja de pedir turno para las cuentas con este rol
+                                    y no las cuenta como pendientes. Si una de esas cuentas además tiene otro
+                                    rol que sí atiende, el turno le sigue haciendo falta.
+                                </p>
+                            @endif
+
                             @if (in_array((int) $rol->id_rol, $protegidos, true))
                                 <p class="text-muted-warm mb-0" style="font-size:.78rem">
                                     Es un rol que el sistema referencia por su id: se le puede cambiar el

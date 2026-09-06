@@ -610,13 +610,91 @@ class ServiciosController extends Controller
             // y quién está dónde— y ésta ya contestaba media primera con el
             // valor del punto. Las reglas quedan juntas acá; el listado, allá.
             'niveles' => DB::select(
-                'SELECT n.nombre, n.visitas_minimas, d.nombre AS descuento,
+                'SELECT n.id_nivel, n.nombre, n.visitas_minimas, n.id_descuento, n.activo,
+                        d.nombre AS descuento,
                         (SELECT COUNT(*) FROM cliente cl
                           WHERE cl.activo = 1 AND fn_cliente_nivel(cl.id_cliente) = n.id_nivel) AS clientes
                    FROM nivel n LEFT JOIN descuento d ON d.id_descuento = n.id_descuento
                   ORDER BY n.visitas_minimas'
             ),
+            // **Qué descuentos se le pueden atar a un nivel.** Sólo los que ya
+            // están atados a alguno o los que no son promociones con vigencia:
+            // un descuento de nivel se aplica siempre que la clienta esté en
+            // ese nivel, así que uno con fechas puestas dejaría el nivel sin
+            // descuento la mitad del año sin que nada lo diga.
+            'descuentosNivel' => DB::select(
+                'SELECT d.id_descuento, d.nombre, d.tipo, d.valor
+                   FROM descuento d
+                  WHERE d.activo = 1
+                    AND (d.fecha_inicio IS NULL AND d.fecha_fin IS NULL
+                         OR EXISTS (SELECT 1 FROM nivel n2 WHERE n2.id_descuento = d.id_descuento))
+                  ORDER BY d.tipo, d.valor'
+            ),
         ]);
+    }
+
+    /**
+     * Cambiar un nivel de fidelización.
+     *
+     * **Los niveles se podían mirar y no tocar**, así que subir el corte de
+     * Oro de 10 a 15 visitas o cambiarle el porcentaje era un `UPDATE` a mano
+     * — o sea, imposible para el salón. Es exactamente el caso del valor del
+     * punto (7.27.0) y del nombre del salón (7.35.0): un número comercial que
+     * estaba detrás de un despliegue.
+     *
+     * **El nombre no se toca**: `nivel.nombre` es UNIQUE y lo nombran los
+     * comprobantes y el portal («por su nivel Oro»); renombrarlo dejaría los
+     * textos ya emitidos hablando de un nivel que no existe.
+     */
+    public function nivelGuardar(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_nivel', 0);
+        $visitas = entero($request->input('visitas_minimas'));
+        $idDesc = ((int) $request->input('id_descuento', 0)) ?: null;
+        $volver = redirect()->route('servicios.descuentos');
+
+        $n = DB::selectOne('SELECT * FROM nivel WHERE id_nivel = ?', [$id]);
+        if (! $n) {
+            flash('Ese nivel no existe.', 'error');
+
+            return $volver;
+        }
+        if ($visitas < 0) {
+            flash('Las visitas mínimas no pueden ser negativas.', 'error');
+
+            return $volver;
+        }
+        // **Dos niveles con el mismo corte son un empate sin desempate.**
+        // `fn_cliente_nivel` elige por `visitas_minimas`, así que con dos en 10
+        // la clienta cae en uno de los dos según el orden interno de la tabla:
+        // el descuento que le toca pasa a depender de algo que nadie eligió.
+        if (DB::scalar('SELECT COUNT(*) FROM nivel WHERE visitas_minimas = ? AND id_nivel <> ?', [$visitas, $id])) {
+            flash('Ya hay otro nivel que arranca en ' . $visitas . ' visitas. '
+                . 'Dos niveles con el mismo corte dejan sin decidir cuál se aplica.', 'error');
+
+            return $volver;
+        }
+        if ($idDesc && ! DB::scalar('SELECT COUNT(*) FROM descuento WHERE id_descuento = ? AND activo = 1', [$idDesc])) {
+            flash('Ese descuento no existe o está dado de baja.', 'error');
+
+            return $volver;
+        }
+
+        DB::update('UPDATE nivel SET visitas_minimas = ?, id_descuento = ? WHERE id_nivel = ?',
+            [$visitas, $idDesc, $id]);
+
+        // Qué cambió, no sólo que cambió: dentro de tres meses, «se modificó el
+        // nivel Oro» no explica por qué una clienta pasó a pagar distinto.
+        Auditoria::registrar('MODIFICACION', 'Servicios', 'nivel', $id,
+            $n->nombre . ': de ' . (int) $n->visitas_minimas . ' a ' . $visitas . ' visitas'
+            . ((int) $n->id_descuento !== (int) $idDesc
+                ? ' · descuento ' . ($n->id_descuento ?: 'ninguno') . ' → ' . ($idDesc ?: 'ninguno')
+                : ''));
+
+        flash('Nivel «' . $n->nombre . '» actualizado. '
+            . 'Se aplica desde ahora: lo ya facturado no cambia.');
+
+        return $volver;
     }
 
     /**

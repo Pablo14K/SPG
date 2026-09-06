@@ -170,6 +170,9 @@
                                                          data-agenda-servicios="{{ $c->servicios_ids }}"
                                                          data-agenda-profesional="{{ (int) $c->id_usuario }}"
                                                          data-agenda-sucursal="{{ (int) $c->id_sucursal }}"
+                                                         {{-- Para cuántas personas es: sin esto el selector mide
+                                                              el peor caso y no ofrece ninguna fecha. --}}
+                                                         data-agenda-personas="{{ max(1, (int) ($c->personas ?? 1)) }}"
                                                          data-agenda-boton="#btnRp{{ $c->id_cita }}"
                                                          class="mb-2">
                                                         <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
@@ -222,7 +225,7 @@
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Anteriores</h2>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                    <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesional</th><th>Estado</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesional</th><th>Estado</th><th>Comprobante</th></tr></thead>
                     <tbody>
                         @foreach ($pasadas as $c)
                             <tr>
@@ -230,6 +233,34 @@
                                 <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
                                 <td>{{ $c->profesional }}</td>
                                 <td>{!! estado_badge($c->estado) !!}</td>
+                                {{-- **Su comprobante, para verlo y bajarlo.** Se podía
+                                     bajar sólo mientras duraba la atención: después no
+                                     había ningún enlace y había que pedirlo por WhatsApp.
+
+                                     Son dos botones y no uno porque son dos cosas: mirar
+                                     cuánto salió se hace en el momento, y el archivo se
+                                     baja cuando hay que rendir el gasto. --}}
+                                <td>
+                                    @if ($c->id_factura)
+                                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                                            <span class="text-muted-warm" style="font-size:.8rem">
+                                                {{ $c->nro_comprobante }}
+                                            </span>
+                                            <a class="btn btn-sm btn-rapido"
+                                               href="{{ route('portal.factura_ver', ['id' => $c->id_factura]) }}"
+                                               target="_blank" rel="noopener">
+                                                <i class="bi bi-eye"></i> Ver</a>
+                                            <a class="btn btn-sm btn-outline-neutro" download
+                                               href="{{ route('portal.factura_descargar', ['id' => $c->id_factura]) }}">
+                                                <i class="bi bi-download"></i> Bajar</a>
+                                        </div>
+                                    @elseif ($c->estado === 'Atendida')
+                                        <span class="text-muted-warm" style="font-size:.8rem">
+                                            Todavía sin comprobante</span>
+                                    @else
+                                        <span class="text-muted-warm">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

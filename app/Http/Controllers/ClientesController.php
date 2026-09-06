@@ -119,6 +119,12 @@ class ClientesController extends Controller
             // la columna quedaba siempre vacía.
             'direccion' => trim((string) $request->input('direccion', '')) ?: null,
             'observaciones' => trim((string) $request->input('observaciones', '')) ?: null,
+            // **Las alergias tienen su propio campo y no van en observaciones.**
+            // Ahí quedaban mezcladas con «prefiere las 10» y «vino con su hija»,
+            // y quien prepara la mezcla no las veía. El dato tiene una
+            // consecuencia distinta de todas las demás notas —puede lastimar a
+            // alguien— así que se guarda aparte y la pantalla lo destaca.
+            'alergias' => trim((string) $request->input('alergias', '')) ?: null,
         ];
         $volver = $id ? redirect()->route('clientes.form', $id) : redirect()->route('clientes.form');
 
@@ -155,15 +161,15 @@ class ClientesController extends Controller
             DB::transaction(function () use ($id, $datos, $personaActual) {
                 if ($id) {
                     Persona::guardar($personaActual, $datos);
-                    DB::update('UPDATE cliente SET observaciones = :obs WHERE id_cliente = :id',
-                        ['obs' => $datos['observaciones'], 'id' => $id]);
+                    DB::update('UPDATE cliente SET observaciones = :obs, alergias = :ale WHERE id_cliente = :id',
+                        ['obs' => $datos['observaciones'], 'ale' => $datos['alergias'], 'id' => $id]);
                     Auditoria::registrar('MODIFICACION', 'Clientes', 'cliente', $id,
                         $datos['nombre'] . ' ' . $datos['apellido']);
                     flash('Cliente actualizado.');
                 } else {
                     $idPersona = Persona::guardar(null, $datos);
-                    DB::insert('INSERT INTO cliente (id_persona, observaciones) VALUES (?,?)',
-                        [$idPersona, $datos['observaciones']]);
+                    DB::insert('INSERT INTO cliente (id_persona, observaciones, alergias) VALUES (?,?,?)',
+                        [$idPersona, $datos['observaciones'], $datos['alergias']]);
                     Auditoria::registrar('ALTA', 'Clientes', 'cliente', (int) DB::getPdo()->lastInsertId(),
                         $datos['nombre'] . ' ' . $datos['apellido']);
                     flash('Cliente registrado.');
@@ -212,7 +218,11 @@ class ClientesController extends Controller
         return redirect()->route('clientes.lista');
     }
 
-    public function historial(int $id): View|RedirectResponse
+    // La firma lleva `StreamedResponse` porque ahora la pantalla también
+    // devuelve un archivo: con `: View` a secas, exportar revienta con un
+    // TypeError que NO se ve abriendo la pantalla, sólo al apretar el botón —
+    // que es exactamente cómo Auditoría estuvo rota durante versiones.
+    public function historial(int $id): View|RedirectResponse|StreamedResponse
     {
         $c = $this->cliente($id);
         if (! $c) {
@@ -221,9 +231,56 @@ class ClientesController extends Controller
             return redirect()->route('clientes.lista');
         }
 
+        // **El historial no paginaba, y es la tabla que más crece del
+        // sistema.** Una clienta habitual pasa las cien filas en un año y se
+        // dibujaban todas: la pantalla se volvía impracticable justo con la
+        // clienta sobre la que más hay para mirar. Va con el prototipo de
+        // listado, como el resto — mismos filtros, misma paginación, misma
+        // exportación.
+        $f = Listado::filtros([
+            'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Servicio o profesional'],
+            'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
+            'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
+        ]);
+
+        $w = ['id_cliente = :cli'];
+        $par = ['cli' => $id];
+        if (Listado::hay($f, 'q')) {
+            $w[] = Listado::likeVarias(['servicio', 'profesional'], Listado::valor($f, 'q'), 'q', $par);
+        }
+        if (Listado::hay($f, 'desde')) {
+            $w[] = 'fecha_hora >= :desde';
+            $par['desde'] = Listado::valor($f, 'desde') . ' 00:00:00';
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $w[] = 'fecha_hora <= :hasta';
+            $par['hasta'] = Listado::valor($f, 'hasta') . ' 23:59:59';
+        }
+        // El WHERE se arma UNA vez y lo comparten el conteo y la página: si se
+        // separan, el «de 137» del pie deja de coincidir con lo que se ve.
+        $desde = 'FROM vw_historial_cliente WHERE ' . implode(' AND ', $w);
+
+        if (Listado::pideExport()) {
+            return Listado::exportar(
+                'historial-' . $id,
+                ['Fecha', 'Servicio', 'Profesional', 'Comprobante', 'Puntaje'],
+                array_map(fn ($h) => [fecha($h->fecha_hora), $h->servicio, $h->profesional,
+                                      $h->nro_comprobante ?: '', $h->puntaje ?: ''],
+                    DB::select("SELECT * $desde ORDER BY fecha_hora DESC", $par)),
+                $f,
+                'Historial de ' . $c->nombre . ' ' . $c->apellido
+            );
+        }
+
+        $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+
         return view('clientes.historial', [
             'c' => $c,
-            'hist' => DB::select('SELECT * FROM vw_historial_cliente WHERE id_cliente = ? ORDER BY fecha_hora DESC', [$id]),
+            'f' => $f,
+            'pag' => $pag,
+            'hist' => DB::select(
+                "SELECT * $desde ORDER BY fecha_hora DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
+            ),
             'fid' => DB::selectOne('SELECT * FROM vw_cliente_fidelizacion WHERE id_cliente = ?', [$id]),
             'pref' => DB::select('SELECT * FROM preferencia_cliente WHERE id_cliente = ? ORDER BY fecha_registro DESC', [$id]),
         ]);

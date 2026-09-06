@@ -274,6 +274,8 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+
+| 7.108.0 | 06/09/2026 | **Trece cosas reportadas usando el sistema, y una impedía acreditar un comprobante.** **El peor**: emitir una nota de crédito devolvía **500 siempre**. `notaCredito()` leía `$montoTexto` sin que existiera —la línea que lo define había quedado en `anularFactura()`, donde además no se usa porque anular no recibe monto— y una variable indefinida es `ErrorException` en Laravel: como el `try` empieza más abajo, salía sin traducir y sin nada en pantalla. O sea que **la nota de crédito parcial que trajo la 7.101.0 nunca llegó a funcionar**, y la entera tampoco. Comprobado en las dos direcciones: sacando la línea a propósito, la prueba falla. **Reprogramar no ofrecía ni una fecha**, que es lo que se reportó como «no hay fecha para dentro de dos meses siendo que algunos días no hay citas». La cita sabe para cuántas personas es (`cita.personas`) pero el modal **no se lo mandaba al selector**: no tiene la casilla —no se vuelve a preguntar lo que ya está decidido— así que el servidor recibía 1 y medía el peor caso, todo en serie sobre una sola clienta. Los cuatro servicios de una reserva para dos daban **6 h 15 min contra un turno de 6 h** y contestaba «no entra en el turno» a una cita que el salón estaba por atender ese mismo día. Entra `data-agenda-personas`, y **el fijo le gana a la casilla**: si el modal lo declara, es el dato de la cita y no hay nada que leer de la pantalla. **La clienta ya ve y baja sus facturas.** El endpoint de descarga existía desde la 7.42.0 y el único enlace hacia él vivía en la pantalla de la atención en curso: el comprobante se podía bajar **durante las dos horas de la cita y nunca más**, así que quien lo necesitaba para rendir un gasto lo pedía por WhatsApp. Ahora cada cita anterior lo ofrece, con pantalla y PDF —y el PDF pasa de tres renglones a un comprobante de verdad: detalle por servicio, subtotal, descuento, total, saldo y con qué se pagó—. **Es UN partial para los dos**, que escritos aparte la clienta termina con dos documentos que dicen cosas distintas del mismo cobro. La pertenencia se comprueba en la consulta: la factura de otra clienta contesta **404**. **El KuDE decía «DESCUENTO: 0 %» sobre una factura con descuento.** El SPG reparte el descuento entre los renglones antes de mandarlo —el total lo calcula el Automatizador sumándolos, y así se corrigió en la 7.107.0— pero del otro lado no quedaba rastro de que hubiera existido: la clienta veía un papel con los precios corridos (75.000 impreso como 74.648) negando el descuento que sí se le hizo. El precio de lista viaja ahora como **séptimo campo opcional del ITM**, y la elección es deliberada: **el que se declara sigue siendo el neto**, así que el total no cambia ni con un Automatizador viejo que ignore el campo. Mandar la lista en el campo 5 y el descuento aparte sería lo natural y es justo lo que no se puede hacer — un Automatizador viejo declararía **de más ante la DNIT**. El formato se extiende sólo por donde el error posible es cosmético. **La agenda se puede mirar por rango**: mostraba UN día y para saber qué había esta semana se iba día por día con la flecha, con una cita de hace tres meses inalcanzable en la práctica. Entra el filtro «Ver» —día, semana, mes, próximas, todas— con paginación; el día sigue siendo lo que se abre y **conserva su orden por lo que falta hacer**, que en un rango mezclaría marzo con agosto. **Un rol puede declarar que no necesita turno.** El aviso salía para todo `es_personal`, y eso incluye a quien no atiende; la 7.107.0 exceptuó al Administrador **por id**, así que un «Recepción» creado por el salón volvía a tenerlo sin forma de callarlo. Ahora es `rol.exige_turno`, se marca en Roles, y **basta con que UNO de los roles de la cuenta lo exija**. **Las alergias tienen su propio campo**: anotadas en observaciones quedaban mezcladas con «prefiere las 10» y no las leía nadie antes de preparar una mezcla. Es el único dato de la ficha que puede lastimar a alguien, así que se ve **en la fila de la agenda y en rojo** —no escondido tras el botón de detalle— que es la excepción que la regla de la ayuda contextual ya declara: lo que ADVIERTE no se esconde. **El historial de la clienta pagina**, que es la tabla que más crece: una habitual pasa las cien filas en un año y se dibujaban todas. **Los niveles de fidelización se cambian desde la pantalla** —desde cuántas visitas y con qué descuento— que eran dos números detrás de un `UPDATE` a mano; **el nombre no se toca**, que lo nombran los comprobantes ya emitidos. Y **dos niveles no pueden arrancar en el mismo número**: `fn_cliente_nivel` elige por `visitas_minimas`, así que ahí el descuento pasaría a depender del orden interno de la tabla. **«Visitas y puntos» dejaba de encontrarse**: se mudó a Promociones en la 7.107.0 y la miga seguía saliendo del permiso, así que decía «Panel › Clientes › Visitas y puntos» y ese enlace llevaba a un módulo donde la pantalla **no está listada**. Una pantalla prestada Y escondida de su módulo pasa a pertenecer, para navegar, al que la presta. **Los mensajes del agendamiento dicen qué hacer.** «Fulana no atiende en ese horario» no da con qué corregirlo: ahora dice **de qué hora a qué hora atiende**, o **qué días trabaja** si el problema es el día —mover la hora sobre un domingo no sirve de nada—. Y el de «no entra en el turno» aclara que ya contó cuántas personas vienen, o sugiere cargarlo si son varias. **Y en el celular el selector de fecha se lee**: con dos combos por fila quedaban 166 px cada uno y «septiembre de 2026» salía cortado en «septiembre de 2(». Medido: de 155 a **320 px** y de 31 a 42 px de alto. De paso el catálogo de servicios **scrollea adentro suyo** en vez de estirar la página — se acota el alto, **no se esconde nada**: con `display:none` un campo obligatorio hace que el navegador se niegue a enviar el formulario en silencio, que es el defecto de la 7.67.0. **178 pruebas · 1252 aserciones**, siete nuevas · 81 tablas · 80 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 | 7.107.0 | 05/09/2026 | **Once cosas reportadas usando el sistema, y una dejaba el panel sin un solo módulo.** **El peor**: las tarjetas de módulo del Panel habían quedado **dentro del `@if ($atrasadas || $proximas)`**, así que un panel sin citas atrasadas ni próximas se dibujaba **sin ninguna** — y como la barra de módulos no se dibuja en el Panel a propósito desde la 7.34.1, ahí no quedaba forma de llegar a nada. Se reportó como «al cambiar de sucursal desaparecen los módulos», y es exactamente cuando pasa: **una sucursal recién abierta no tiene citas**. Un lunes temprano hace lo mismo. Es un patrón nuevo para la lista de los errores que este proyecto se hace a sí mismo —**un bloque que queda anidado dentro de un condicional ajeno**— y no da error: Blade dibuja la página entera, sólo que sin esa parte. Comprobado en el navegador en el escenario reportado: entrando a la sucursal sin citas, de 0 tarjetas a las 9. **La reserva de dos personas ya se puede agendar, y era un error de modelo.** Dos servicios sobre la misma cabeza no pueden pasar a la vez, así que el sistema los sumaba; con **dos clientas y dos peluqueras** son dos cabezas y van en paralelo, pero `turnos()` trataba la zona como si fuera de la CITA y no de una persona. Con eso, keratina + mechas + corte daban 375 minutos contra un turno de 330 y el calendario salía vacío diciendo «no entra en el turno» — un «no» a algo que el salón hace todos los días. Ahora **el cupo de cada zona es la cantidad de personas**, y **el candado del profesional sigue siendo duro**: una sola no atiende a dos clientas a la vez, vengan las que vengan. Medido: con 1 persona sigue dando 375 y 0 días; con 2, **225 minutos y 17 días con lugar**. Entra `duracionPrevista()`, que es lo que se compara contra el turno, y **`slots()` vuelve a comprobar hora por hora** que el reparto que de verdad se puede hacer ahí entre en la ventana: `duracionPrevista` es el mejor caso, y prometer un horario que el guardado rechaza es el defecto que este documento ya tiene anotado. `personas` viaja en la consulta y **se lee antes de validar**, que estaba leyéndose después — o sea que la cita se validaba contra un tiempo que no era el suyo. **El comprobante electrónico declaraba el total SIN descuento.** El Automatizador calcula el total sumando `cantidad × precio` de cada renglón —no se le manda— y el descuento del SPG vive por factura (`factura_descuento`), que es lo correcto para el modelo: una promoción se aplica a la venta, no a una línea. Resultado: la factura 001-001-0000063 declaraba **235.000 ante la DNIT y la clienta pagaba 231.250**. El interno estaba bien, que es lo que hacía difícil verlo. Ahora se reparte proporcional al peso de cada renglón y **la última línea absorbe el redondeo**, así la suma da exactamente `fn_factura_total`; sin descuento los precios salen intactos, comprobado. **No se tocó el formato del Automatizador** a propósito: cambiarlo rompería con una versión vieja del otro lado, y el SPG no sabe cuál corre allá. **La barra del portal se comportaba distinto en la computadora.** El grupo «Citas» era un `<details>/<summary>`, que abre **con un clic** y despliega el menú en el propio renglón, mientras el resto del sistema abre al pasar el mouse. En el celular las dos formas se ven igual, así que el defecto sólo estaba en escritorio. Pasa a ser la **misma pieza** que la barra del personal —casilla escondida y su etiqueta—: hover en escritorio, toque en el cajón, **CSS y sin JavaScript** en los dos casos. **Al Administrador se le dejó de pedir turno.** El aviso salía para todo `es_personal`, así que la dueña que no atiende leía todos los días que le falta cargar algo que no le hace falta — y un aviso que no aplica enseña a ignorar los que sí. **La excepción es tener otro rol además**: con el rol Profesional encima el turno vuelve a hacer falta, porque la agenda sí la va a ofrecer. Comprobado en las dos direcciones. En la ficha, el bloque se esconde solo — **y esconder no borra**: la primera versión desmarcaba los turnos al esconderlo, así que abrir la ficha de un Administrador que sí los tenía y guardar se los sacaba en silencio. **Cambiar de perspectiva mandaba a elegir sucursal siempre.** `cambiarRol()` soltaba la sucursal en todos los casos, así que la dueña que pasa a Profesional para ver su agenda volvía a elegir el local en el que ya estaba. Tampoco se puede conservar a ciegas —**qué locales ve una cuenta depende del rol**: el Administrador los ve todos— así que ahora se comprueba contra el rol NUEVO y sólo se suelta si de verdad dejó de valer. **Fidelización se muda entera a Promociones**, por pedido del usuario: contestan la misma pregunta —cuánto le devuelve el salón a la clienta por venir— y los niveles y el valor del punto ya viven ahí desde la 7.102.0. **La URL y el permiso no se tocan**, que renombrarlo dejaría huérfanas las filas de `rol_modulo`: lo que cambia es de dónde se llega. Y **la columna «Visitas» sale de la tabla de Clientes**, que contaba lo mismo sin el nivel ni los puntos que la hacen significar algo. **En Caja, «ver movimientos» estaba dos veces**: la tarjeta abre su modal y el botón de arqueo llevaba a otra pantalla con el mismo botón otra vez. Esa pantalla **es** el arqueo, así que ahora enlaza a **su arqueo** —los cierres de ese cajón, ya filtrados— y a sus movimientos, en vez de repetir el modal. **Roles gana «Todos»**: son 32 permisos en nueve tarjetas, o sea treinta y dos clics para dar acceso completo. Hay maestra por rol y por módulo, y `data-marca-todo` aprendió a **anidarse** — sin eso la de adentro quedaba con el cuadrito a medio marcar sobre un grupo ya entero. **La tabla de usuarios muestra todos los roles**, no sólo el principal: desde que existe el cambio de perspectiva una cuenta lleva varios, y ahí se veía uno. **Y en el celular la tarjeta de servicio elegida ocupa el renglón entero**: con dos columnas medía 156 px y adentro va el combo de «quién me atiende», cuyas opciones dicen el nombre Y los turnos —setenta caracteres en un campo de 140 px—. Los turnos **no** se sacan del texto: están ahí desde la 7.93.0 para que la clienta no pida a alguien de la mañana y a alguien de la tarde. Lo que se agranda es dónde se leen: medido, de 156 a 320 px la tarjeta y de 140 a 304 el combo, con las no elegidas todavía de a dos. **De paso sale el botón «Módulos» del celular**, que duplicaba el cajón lateral. **169 pruebas · 1265 aserciones**, dos nuevas comprobadas en las dos direcciones — con cada arreglo sacado a propósito, cada una falla |
 | 7.106.0 | 05/09/2026 | **La factura electrónica estaba APAGADA en el servidor, y el sistema no lo decía en ningún lado.** Se reportó como «los correos de facturación llegan vacíos», y el correo no tenía nada de malo: `docker/php/env.produccion` viajaba con `SIFEN_ACTIVO=false` —el valor de la plantilla, el que corresponde a un salón que no factura electrónicamente— así que en el servidor **no pasaba ninguna de las tres cosas que la clienta espera**: la pantalla de emitir no pedía los datos del receptor, el comprobante no se declaraba, y sin CDC no hay KuDE ni XML que adjuntar. El correo salía igual, con su detalle, **y sin los documentos** — que es exactamente lo que se ve como un correo vacío. **Medido en el servidor y acá**, que es lo que lo cerró: la misma consulta dio `cuerpo 2866 chars | adjuntos 0` allá y `4548 chars | adjuntos 2` acá, con el Automatizador comprobadamente callado de los dos lados. **Lo que se arregla de fondo no es la línea sino el silencio**: con el módulo apagado el diagnóstico no decía una palabra —terminaba en «Todo en orden» mientras el salón creía estar declarando— y ahora lo dice como **OJO**, con qué significa y cómo se enciende. Va como aviso y no como falla porque un salón puede legítimamente no facturar electrónicamente; lo que no puede pasar es que no se sepa. Es la regla del proyecto —*si algo queda apagado, tiene que notarse*— aplicada al interruptor que ya estaba nombrado en ella y no tenía quién lo mirara. Comprobado en las dos direcciones. **Y de paso, el Automatizador deja de levantar sin configurar.** Sube con el sistema desde siempre, pero su `bootstrap.php` busca un `.env` propio y **cuando no lo encuentra cae en su `.env.example`**: en el servidor corría con los valores de demostración sin decirlo. Crearle ese archivo a mano adentro del contenedor no sirve —la imagen se reconstruye desde un clon nuevo en cada despliegue, que es el problema de la 7.87.0 un contenedor más allá— así que la configuración pasa al compose, donde **las variables del contenedor le ganan al archivo**: su cargador sólo escribe la clave `if (getenv($k) === false)`. Comprobado con su `.env` cargado a propósito con una cuenta de correo: el contenedor lo sigue viendo vacío. Van `SIFEN_MODE` explícito —`mock` es lo que se puede hacer sin certificado, y en silencio se confunde con estar declarando—, `APP_URL`, y `MAIL_FROM_EMAIL` vacío, que pasa a ser **el tercer candado del remitente único** y el único que nadie va a llenar de buena fe. Entran además dos volúmenes con nombre: `sifen_certs`, para que el certificado sobreviva al despliegue —no está en el repositorio, un `.pem` versionado es un `.pem` publicado— y `sifen_salida`, con el XML firmado y el KuDE originales. **167 pruebas · 1258 aserciones** |
 | 7.105.0 | 05/09/2026 | **El correo del salón pasa a vivir SÓLO en el sistema: se carga en una pantalla, no en un archivo, y de ahí sale todo — el comprobante electrónico incluido.** Eran dos mitades del mismo problema. **La primera**: la regla de que manda uno solo —el SPG, con la cuenta de «Seguridad → Correo del sistema»— estaba escrita desde la 7.91.0 y **la garantía era floja**. El Automatizador se callaba únicamente si su `.env` dejaba `MAIL_FROM_EMAIL` vacío, o sea si nadie lo completaba de buena fe; y ese archivo no se versiona, así que **cuando no existe el Automatizador lee su propio `.env.example`**: basta con que alguien lo copie y lo llene una vez para que la clienta reciba el mismo comprobante **dos veces, desde dos direcciones**, y cambiar la cuenta en la pantalla arregle la mitad. Ahora **lo decide el SPG en cada emisión** —manda `X-SPG-Correo: no` y `construirMail()` lo respeta antes de mirar su configuración—, así que quedan dos candados y el que manda es el primero, porque el segundo vive donde el sistema no llega. Comprobado contra el servicio corriendo, con su `.env` cargado a propósito: **sin** la cabecera contesta `mail_enviado: true` y escribe el `.eml`; **con** la cabecera, `false` y ninguno. Y si del otro lado corre una versión vieja que la ignora, el SPG lo dice en pantalla y en el log. **La segunda mitad, por decisión del usuario**: `secretos.env` deja de llevar la cuenta. `MAIL_USERNAME`, `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS` van vacíos —y de paso `SPG_EMAIL_TLS`, que tenía la misma dirección y no lo usa nadie desde que el certificado lo saca Traefik—, así que el **formulario es la única fuente**: se cambia sin volver a desplegar, la clave queda cifrada con la APP_KEY y **no vuelve a quedar publicada en el repositorio**, que es lo que pasaba desde la 7.87.0. **El precio se dice y se hace visible**, que es la condición para apagar algo: una instalación recién levantada no manda un solo correo hasta que alguien complete esa pantalla. `spg:diagnostico` lo cuenta como **problema**, el panel lo lista en **IMPIDE TRABAJAR** con el enlace —renglón nuevo de `Pendientes`, marcado como sólo-Administrador para no ofrecerle a otro rol algo que le va a contestar 403— y la pantalla abre diciéndolo. **De paso salió el correo IMPRESO en el KuDE, que es otra cosa y se confunde con ésta**: es el **fiscal**, el de «Seguridad → Sucursales», y viaja en `EMI|`. Vacío, el Automatizador cae en el `EMISOR_EMAIL` de su archivo de ejemplo —`facturacion@miempresa.com`— así que **el comprobante fiscal de la clienta salía con el correo de otra empresa impreso**: es el defecto de la 7.52.0 por otra puerta, con el correo en lugar de la razón social. Ahora cae a la cuenta que envía, que es una dirección real y del salón. **167 pruebas · 1256 aserciones**, tres nuevas comprobadas en las dos direcciones. Dos son de andamiaje y nacen del mismo patrón: la cabecera la escriben **dos proyectos distintos** —renombrarla de un lado no da error, sólo vuelve a mandar el correo con la cuenta que no corresponde— y la credencial se vuelve a colar **llenando una línea de un archivo de ejemplo**, que es como este proyecto ya se rompió el correo una vez |
@@ -472,7 +474,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **203 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **205 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -513,10 +515,17 @@ app/
     Borrador.php           No perder lo escrito al usar un alta rápida
     Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Pendientes.php         Qué le falta CARGAR al salón: el panel y spg:pendientes
-    Navegacion.php         Migas, accesos rápidos y catálogo de pantallas
+    Navegacion.php         Migas, módulos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
-  Http/Controllers/        Uno por módulo, más Auth, Cuenta, Portal, CitaToken, Webauthn.
+    Acompanantes.php       Quiénes vienen con la clienta (`cita_acompanante`)
+    Asistencia.php         Fichaje, franja del turno y faltas sin aviso
+    Ayuda.php              El diccionario de `config/ayudas.php`: de()
+    CitasVencidas.php      Cierra la Atrasada de más de un día y la que no se presentó
+    Sena.php               Cuánta seña pide el salón y su desglose por servicio
+  Http/Controllers/        Uno por módulo, más Auth, Cuenta, Panel, Portal, CitaToken,
+                           Sucursal (elegir local), Vivo (la huella de actualización)
+                           y Webauthn.
                            La excepción es Seguridad: son 1500 líneas y no gana nada
                            juntarlas, así que SeguridadController tiene sólo el landing y
                            las pantallas siguen repartidas entre PersonalController
@@ -542,7 +551,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 203 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 205 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -559,7 +568,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 160 pruebas
+tests/Feature/             Las 178 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -875,11 +884,13 @@ y dice la causa probable y cómo recuperarlas. Comprobado en las dos direcciones
 
   > **Había un cuarto nivel, los accesos rápidos (`.spg-chip`), y salió en la 7.32.0 por
   > pedido del usuario.** Contestaban «¿qué suelo hacer después de esto?», una pregunta que
-  > las tarjetas del módulo ya contestaban unos centímetros más arriba. El arreglo de
-  > `config/navegacion.php` (`rapidos`) **se dejó donde está**, por el mismo motivo que
-  > `sp_generar_recordatorios`: no molesta, y borrarlo es tirar la configuración de una
-  > función que el salón puede querer de vuelta. `Navegacion::accesosRapidos()` sigue
-  > existiendo y ninguna vista la dibuja.
+  > las tarjetas del módulo ya contestaban unos centímetros más arriba.
+  >
+  > **Ya no queda nada de eso en el código**, aunque este documento dijo hasta la 7.108.0 que
+  > el arreglo `rapidos` de `config/navegacion.php` y `Navegacion::accesosRapidos()` seguían
+  > ahí: los dos se borraron en algún momento posterior y el párrafo se quedó describiendo
+  > código inexistente. Es exactamente el patrón que la lista de abajo persigue —algo apunta
+  > a lo que ya no está y nada avisa— sólo que esta vez el que apuntaba mal era el documento.
 
   > **El desplegable es un ATAJO, no un reemplazo.** El enlace del módulo sigue llevando a su
   > tarjeta, así que nada depende de que funcione. Tres cosas que conviene no perder al
@@ -1836,6 +1847,54 @@ turno_dia       id_turno · dia_semana        1 fila por día (1FN)
 usuario_turno   id_usuario · id_turno        N:M, el mismo turno lo comparte el equipo
 ```
 
+### Hay roles que NO llevan turno, y lo dice el rol
+
+**`rol.exige_turno`** (por defecto 1) declara si las cuentas con ese rol
+necesitan turno asignado. Sin marcar, el sistema deja de pedirlo y no las cuenta
+como pendientes; se administra en **Seguridad → Roles**.
+
+| | |
+|---|---|
+| Dónde se decide | `rol.exige_turno` — una casilla por rol |
+| Quién lo hace cumplir | `Pendientes::profesionales()` y el bloque de turnos de la ficha |
+| La excepción | **basta con que UNO de sus roles lo exija** |
+
+> **El turno existe para que la agenda sepa cuándo atiende esa persona**, así que
+> a quien no atiende no le hace falta ninguno: recepción, compras, caja. El aviso
+> les pedía todos los días resolver algo que no era un problema, y **un aviso que
+> no aplica enseña a ignorar los que sí**.
+>
+> **La 7.107.0 lo tapó a medias exceptuando al Administrador por id**
+> (`permisos.rol_admin`), que es justo lo que este proyecto no hace en ninguna
+> otra parte: los roles se crean desde una pantalla, así que un salón que creara
+> «Recepción» volvía a tener el aviso sin forma de callarlo.
+
+> **La excepción del rol de más se conserva y es la parte delicada.** Desde que
+> una cuenta lleva varios (`usuario_rol`, el cambio de perspectiva), la dueña que
+> además atiende tiene el rol Profesional encima: ahí el turno vuelve a hacer
+> falta, porque la agenda sí la va a ofrecer. En la ficha, el bloque de turnos se
+> muestra o se esconde leyendo `data-exige-turno` de cada casilla de rol — y
+> **esconder no borra**: lo que ya estaba cargado se sigue guardando.
+
+### Las alergias de la clienta van en su propio campo
+
+**`cliente.alergias`** (NULL = sin registrar). Se carga en la ficha y se muestra
+**destacado en rojo** en el historial y **en la fila de la agenda**.
+
+> **Anotadas en `observaciones` no las leía nadie.** Ahí quedan mezcladas con
+> «prefiere las 10» y «vino con su hija», y quien prepara la mezcla no entra a
+> leerlas. Es el único dato de la ficha que **puede lastimar a alguien** si se
+> pasa por alto, así que tiene su propio lugar y su propio destaque.
+
+> **Se ve en la fila, no escondida detrás del botón de detalle.** Todo lo demás
+> de esa celda se guarda ahí porque se mira una vez al preparar el turno; una
+> alergia hay que verla sin abrir nada. Es la excepción que la regla de la ayuda
+> contextual ya declara: **lo que explica se guarda, lo que advierte no**.
+
+> **NULL no es «no tiene ninguna».** Vacío quiere decir que nadie lo registró, y
+> la pantalla dice «sin alergias registradas» en vez de afirmar que no las tiene
+> — afirmarlo sin que nadie lo haya dicho sería inventarlo.
+
 **`dia_semana` va de 1 (lunes) a 7 (domingo)**, que es lo que dan `date('N')` en PHP y
 `WEEKDAY()+1` en la base. No es el `DAYOFWEEK()` de MySQL (que arranca en domingo): si mezclás
 los dos, la agenda se corre un día.
@@ -1974,6 +2033,28 @@ marca de que el cambio se usó — sólo faltaba leerlo.
 para confirmar la seña, que el cambio de día es uno solo, y que faltando a la
 cita la seña no se devuelve. Enterarse de cualquiera de las tres más tarde es
 enterarse cuando ya no se puede hacer nada distinto.
+
+### La agenda se mira por día, y también por tramo
+
+El filtro **«Ver»** decide qué se está mirando: `''` (sólo ese día, lo que se
+abre por defecto), `sem`, `mes`, `prox` y `todas`.
+
+> **Mostraba UN día y no había forma de ver el conjunto.** Para contestar «¿qué
+> tengo esta semana?» o «¿cuándo vino Carmen la última vez?» había que ir día por
+> día con la flecha, y una cita de hace tres meses era inalcanzable en la
+> práctica.
+
+- **El día sigue siendo la pantalla de trabajo**, así que no cambia de forma: se
+  abre sin filtro y conserva su orden **por lo que falta hacer** —lo que ocupa la
+  agenda arriba, lo atendido después, lo que ya no va a ocurrir al final—.
+- **En un rango manda la fecha.** Ese orden por estado mezclaría marzo con agosto
+  en el mismo bloque; «Todas» va al revés, de lo más nuevo a lo más viejo.
+- **Todo pagina**, y el día con página grande (100) para no partir en dos una
+  jornada. «Todas» sobre un año de operación son miles de filas con seis
+  subconsultas cada una.
+- **Los marcadores son sólo los que la consulta usa.** La conexión prepara de
+  forma nativa: pasarle uno de más contesta *Invalid parameter number* y la
+  agenda entera devuelve 500. El día usa `:d1`; la semana y el mes, los dos.
 
 ### Atrasada es un estado de paso, no un destino
 
@@ -2426,11 +2507,39 @@ productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock 
 con cuánta plata hay que ir a comprar.
 
 > Acá decía que lo dibujaba un componente `<x-aviso-stock>`. **Ese componente no existe**:
-> los seis que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`,
-> `<x-cobro-lineas>` y `<x-ciudad>`.
+> los ocho que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`,
+> `<x-cobro-lineas>`, `<x-ayuda>`, `<x-servicio-tarjeta>` y `<x-ciudad>`.
 > Quedaba además su CSS (`.spg-aviso-stock`, `.spg-aviso-item`, `.spg-aviso-mas`) sin marcado
 > que lo usara, heredado del sistema anterior; se borró en la 7.1.0. Si algún día se unifica
 > el aviso en un componente, este párrafo vuelve a valer.
+
+## Sus comprobantes: la clienta los ve y los baja
+
+| | |
+|---|---|
+| Dónde | **Portal → Mis citas**, en la columna «Comprobante» de cada cita anterior |
+| Ver | `portal.factura_ver` — la pantalla, para mirar cuánto salió |
+| Bajar | `portal.factura_descargar` — el PDF, para presentarlo en algún lado |
+
+> **El endpoint de descarga existía desde la 7.42.0 y no se llegaba a él.** El
+> único enlace vivía en la pantalla de la atención en curso, así que el
+> comprobante se podía bajar **durante las dos horas de la cita y nunca más**:
+> quien lo necesitaba para rendir un gasto lo pedía por WhatsApp.
+
+Tres cosas al tocarlo:
+
+- **La pantalla y el PDF comparten `portal/_factura_cuerpo`.** Escritos aparte
+  se desfasan, y ahí la clienta termina con **dos documentos que dicen cosas
+  distintas del mismo cobro** — el error que este proyecto ya se hizo con el
+  desglose de la seña. Lo que cambia entre los dos es el envoltorio: el PDF lleva
+  los colores escritos a mano porque **Dompdf no lee `app.css` ni las variables
+  CSS**.
+- **La pertenencia se comprueba en la consulta, no después.** El id viaja en la
+  URL: `WHERE f.id_factura = ? AND f.id_cliente = ?`, con el cliente sacado de la
+  sesión. La factura de otra clienta contesta **404**.
+- **Una factura acreditada lo dice.** Con una nota de crédito vigente el
+  comprobante ya no vale por lo que dice, y callarlo dejaría a la clienta
+  presentando como gasto algo que el salón le devolvió.
 
 ## El portal de la clienta durante la atención
 
@@ -2617,7 +2726,19 @@ quién le fallan más, y ahí puede estar el horario o el recordatorio.
 Dos cosas distintas que conviene no mezclar:
 
 - **El nivel** (Bronce → Platino) lo calcula `fn_cliente_nivel` por **cantidad de visitas**.
-  No hay nada que hacer desde PHP.
+  Quién está en cuál no se asigna a mano; **desde cuántas visitas empieza cada uno
+  y con qué descuento SÍ se administran**, en Servicios → Promociones.
+  > Eran dos números detrás de un `UPDATE` a mano, o sea imposibles para el
+  > salón — el caso del valor del punto (7.27.0) y del nombre del salón (7.35.0).
+  >
+  > **El nombre no se toca**: `nivel.nombre` es UNIQUE y lo nombran los
+  > comprobantes ya emitidos y el portal («por su nivel Oro»); renombrarlo dejaría
+  > esos textos hablando de un nivel que no existe.
+  >
+  > **Y dos niveles no pueden arrancar en el mismo número.** `fn_cliente_nivel`
+  > elige por `visitas_minimas`, así que con dos en 10 la clienta cae en uno de
+  > los dos según el orden interno de la tabla: el descuento que le toca pasaría
+  > a depender de algo que nadie eligió.
 - **Los puntos** los acumula la app al emitir el comprobante: `Facturacion::acumularPuntos()`
   llama a `sp_registrar_puntos` con 1 punto cada **`Config::puntosCadaGs()`** guaraníes.
   **Ese número lo decide el salón, no el código**: vive en `configuracion.puntos_cada_gs` y se
@@ -2810,9 +2931,27 @@ El total **no se escribe**: lo calcula el Automatizador desde los renglones.
 > reparto dejara un precio negativo se descarta entero: un comprobante con un
 > precio en negativo es peor que uno sin el descuento aplicado.
 >
-> **No se cambió el formato del Automatizador**, y es a propósito: agregarle un
-> campo rompería con una versión vieja del otro lado, y el SPG no sabe cuál
-> corre allá.
+> **El precio de lista SÍ viaja, como séptimo campo opcional del ITM, y sólo
+> para mostrar.** Con los renglones ya netos, del otro lado no quedaba rastro de
+> que hubiera existido un descuento: el KuDE imprimía **«DESCUENTO: 0 %»** sobre
+> una factura descontada, con los precios unitarios corridos (75.000 impreso como
+> 74.648) y sin nada que lo explicara. Al lado del comprobante interno, que sí lo
+> detalla, se lee como una contradicción.
+>
+> **La forma en que se extendió el formato es la parte que importa:**
+>
+> | | Se declara | Un Automatizador viejo |
+> |---|---|---|
+> | Campo 5 · precio | **el neto**, como siempre | lo usa igual: el total no cambia |
+> | Campo 7 · precio de lista | nada — es para el KuDE | **lo ignora** y se comporta como antes |
+>
+> Mandar la lista en el campo 5 y el descuento aparte sería lo «natural» y es
+> justo lo que **no se puede hacer**: un Automatizador que ignorara ese campo
+> declararía el total **sin descontar**, o sea de más ante la DNIT. El formato se
+> extiende sólo por donde el error posible es cosmético.
+>
+> El campo va **sólo cuando hubo prorrateo**: sin descuento repetiría el mismo
+> número y sería ruido en el archivo que se guarda como prueba de lo enviado.
 
 ### Quién emite: el registro `EMI`
 
@@ -4143,7 +4282,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 146 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 178 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -4197,15 +4336,15 @@ columna (por eso `uq_asistencia_dia` es `(id_turno, id_usuario, fecha)` y no al 
 > alguna vez se lee código de aquella versión, ese archivo explica de dónde salieron esas
 > tablas.
 
-## Los siete errores que este proyecto se hace a sí mismo
+## Los nueve errores que este proyecto se hace a sí mismo
 
-**Casi todo lo que se rompió acá es la misma falla vista de siete formas**: algo
+**Casi todo lo que se rompió acá es la misma falla vista de nueve formas**: algo
 se renombró o se movió, lo que apuntaba a eso quedó apuntando al vacío, y
 **nada dio error**. No hay excepción, no hay 500, no hay una línea en el log —
 la función simplemente deja de ocurrir. Se descubre cuando alguien abre la
 pantalla, o peor, cuando no la abre y da por hecho que anda.
 
-Vale tenerlos nombrados, porque el próximo va a tener una de estas siete formas:
+Vale tenerlos nombrados, porque el próximo va a tener una de estas nueve formas:
 
 | Patrón | Cómo se ve | Qué lo detiene hoy |
 |---|---|---|
@@ -4297,7 +4436,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**146 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**178 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

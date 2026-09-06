@@ -611,6 +611,22 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 /* Las horas en cifras tabulares: alineadas, la lista se recorre más rápido. */
 .spg-agenda-campo select{font-variant-numeric:tabular-nums;}
+
+/* **En el celular cada combo se lleva el renglón entero.**
+
+   Con `flex:1 1 9rem` entraban dos por fila, y en una pantalla de 375 px eso
+   deja unos 166 px por combo: «septiembre de 2026» no cabe y el navegador lo
+   corta a «septiembre de 2(». Se reportó como que el selector de fecha «sigue
+   siendo muy compacto», y es exactamente eso — el mes es el texto más largo
+   de los tres y es el primero que se lee.
+
+   De paso el control crece: 44 px de alto es el mínimo cómodo para el dedo, y
+   estos tres se tocan uno tras otro. */
+@media (max-width:575.98px){
+  .spg-agenda-campo{flex:1 1 100%;min-width:0;}
+  .spg-agenda-campo select{font-size:1rem;padding-top:.5rem;padding-bottom:.5rem;}
+  .spg-agenda-campo .form-label{font-size:.75rem;}
+}
 .spg-dia{cursor:pointer;user-select:none;}
 .spg-dia input{position:absolute;opacity:0;width:0;height:0;}
 .spg-dia span{
@@ -702,6 +718,33 @@ html,body{max-width:100%;overflow-x:hidden;}
    --------------------------------------------------------------- */
 .spg-srv-grid{display:grid;gap:.75rem;
   grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
+
+/* **En el celular el catálogo scrollea adentro suyo, no estira la página.**
+
+   Con quince servicios de a dos columnas la pantalla de reservar medía varias
+   pantallas de alto, y lo que viene después —el selector de fecha, quién viene
+   con vos, el botón— quedaba tan abajo que había que buscarlo. Se reportó como
+   que la página se ve sobrecargada.
+
+   **Se acota el alto, NO se esconde nada**: todas las tarjetas siguen en el
+   DOM y dentro del formulario. Esconderlas con `display:none` sería el defecto
+   que este proyecto ya pagó en la 7.67.0 —un campo obligatorio escondido hace
+   que el navegador se niegue a enviar el formulario, en silencio— y además
+   dejaría una elegida invisible.
+
+   El `65vh` deja ver unas tres filas: suficiente para que se lea como una
+   lista que sigue, y `overscroll-behavior` evita que al llegar al final el
+   scroll se contagie a la página. */
+@media (max-width:575.98px){
+  .spg-srv-grid{
+    max-height:65vh;overflow-y:auto;overscroll-behavior:contain;
+    padding-right:.25rem;
+    /* El borde superior e inferior avisan que hay más arriba y abajo. */
+    border-top:1px solid var(--gris-calido);
+    border-bottom:1px solid var(--gris-calido);
+    padding-top:.6rem;padding-bottom:.6rem;
+  }
+}
 
 .spg-srv-card{display:flex;flex-direction:column;
   border:1px solid var(--gris-calido);border-radius:10px;overflow:hidden;

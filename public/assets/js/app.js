@@ -122,6 +122,8 @@ window.SPGCarga = (function () {
     // alguien arme el enlace sin el atributo.
     if (/[?&]export=csv\b/.test(a.href)) return false;
     if (/\/mi-cita\/calendario\b/.test(a.href)) return false;
+    // El comprobante que la clienta se baja del portal: mismo caso.
+    if (/\/portal\/factura\/descargar\b/.test(a.href)) return false;
 
     return true;
   }
@@ -259,7 +261,15 @@ window.SPGCarga = (function () {
   var fijos = {
     servicios: (cont.getAttribute('data-agenda-servicios') || '').split(',').filter(Boolean),
     profesional: cont.getAttribute('data-agenda-profesional') || '',
-    sucursal: cont.getAttribute('data-agenda-sucursal') || ''
+    sucursal: cont.getAttribute('data-agenda-sucursal') || '',
+    // **Cuantas personas van tambien es fijo al reprogramar**, y sin esto el
+    // modal no ofrecia una sola fecha. La cita ya sabe para cuantas es
+    // (`cita.personas`), pero el modal no tiene la casilla —no se vuelve a
+    // preguntar lo que ya esta decidido— asi que el servidor recibia 1 y
+    // media el peor caso: los cuatro servicios de una reserva para dos daban
+    // 6 h 15 min en serie contra un turno de 6 h, y contestaba «no entra en el
+    // turno» a una cita que el salon estaba por atender ese mismo dia.
+    personas: cont.getAttribute('data-agenda-personas') || ''
   };
   var diaElegido = null;
   // Lo que ya venia elegido, para devolverlo marcado tras un rechazo. Se
@@ -317,8 +327,12 @@ window.SPGCarga = (function () {
     // sobre la cabeza van en serie sobre UNA clienta; sobre dos, con dos
     // peluqueras, van a la vez. Sin mandarlo, el servidor mide el peor caso y
     // contesta que no entra en el turno.
+    // Reservar la toma de la casilla; reprogramar la trae fija del atributo,
+    // porque ahi la casilla no existe. El fijo manda: si el modal la declara,
+    // es el dato de la cita y no hay nada que leer de la pantalla.
     var per = ambito.querySelector('[name="personas"]');
-    if (per && per.value) { p.append('personas', per.value); }
+    if (fijos.personas) { p.append('personas', fijos.personas); }
+    else if (per && per.value) { p.append('personas', per.value); }
 
     // La clienta, para no ofrecerle un dia en el que ya tiene ese servicio.
     // En el portal la sabe el servidor por la sesion; en Nueva cita se elige en
