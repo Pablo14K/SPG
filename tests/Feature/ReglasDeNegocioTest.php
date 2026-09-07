@@ -5790,11 +5790,26 @@ class ReglasDeNegocioTest extends TestCase
 
         $this->entrarComoAdministrador();
 
+        // **La devolución sale de una caja del local de la factura (7.109.0).**
+        // Si esa venta se cobró en efectivo y no se dice de cuál, el controlador
+        // rechaza antes de emitir: sin esto la prueba mediría el rechazo nuevo y
+        // no el 500 que vino a cuidar.
+        $caja = DB::scalar(
+            'SELECT c.id_caja
+               FROM caja c
+               JOIN factura fa ON fa.id_factura = ?
+               LEFT JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+              WHERE c.id_estado_caja = 1
+                AND c.id_sucursal = COALESCE(fa.id_sucursal, t.id_sucursal)
+              ORDER BY fn_caja_saldo(c.id_caja) DESC LIMIT 1', [$f->id_factura]
+        );
+
         // 1) Parcial: es el camino que leía la variable indefinida.
         $r = $this->post(route('facturacion.nota_credito'), [
             'id_factura' => $f->id_factura,
             'motivo' => 'Prueba automatica de acreditacion parcial',
             'monto' => (string) (int) max(1, (int) $f->total - 1),
+            'id_caja' => (string) (int) $caja,
         ]);
 
         $this->assertNotSame(500, $r->getStatusCode(),
@@ -6107,6 +6122,247 @@ class ReglasDeNegocioTest extends TestCase
             $this->assertNotSame((int) $otro->visitas_minimas,
                 (int) DB::scalar('SELECT visitas_minimas FROM nivel WHERE id_nivel = ?', [$n->id_nivel]),
                 'Se aceptaron dos niveles arrancando en la misma cantidad de visitas.');
+        }
+    }
+
+    // -----------------------------------------------------------------
+    //  7.109.0
+    // -----------------------------------------------------------------
+
+    /**
+     * La nota de crédito descuenta el efectivo de la caja QUE SE ELIGE.
+     *
+     * Pedido del usuario: *«Nota de crédito no disminuye caja (al disminuir
+     * debe dar como opción a qué caja disminuir —perteneciente a esa
+     * sucursal—)»*. Invierte a propósito lo que decidió la 7.48.0, que sacó el
+     * egreso de la emisión para que no hubiera dos devoluciones por la misma
+     * nota; hoy esa protección la sostiene la base —el índice único
+     * `uq_movcaja_devolucion (id_factura, activo)`— así que el egreso puede
+     * volver a escribirse acá sin reabrir aquel agujero.
+     *
+     * **Se mide con DOS cajas abiertas en el mismo local**, que es el único
+     * escenario donde la pregunta significa algo: con una sola, un controlador
+     * que tomara «la primera que encuentre» pasaría igual. Por eso se elige
+     * deliberadamente la segunda, y se comprueba que la otra no se mueva.
+     */
+    #[Test]
+    public function la_nota_de_credito_descuenta_el_efectivo_de_la_caja_que_se_elige(): void
+    {
+        if (! DB::scalar('SELECT fn_timbrado_vigente(5, CURDATE(), NULL)')) {
+            $this->markTestSkipped('El salón no tiene timbrado de nota de crédito cargado.');
+        }
+
+        // Una factura de venta vigente, sin nota y **cobrada en efectivo**: sin
+        // efectivo no hay nada que sacar del cajón y la prueba no mediría nada.
+        // Facturas de venta vigentes, sin nota y **cobradas en efectivo**: sin
+        // efectivo no hay nada que sacar del cajón y la prueba no mediría nada.
+        // Se piden dos porque cada mitad gasta la suya —una factura admite una
+        // sola nota vigente, así que no se la puede acreditar dos veces.
+        $facturas = DB::select(
+            "SELECT f.id_factura, COALESCE(f.id_sucursal, t.id_sucursal) AS id_sucursal,
+                    (SELECT COALESCE(SUM(co.monto),0)
+                       FROM cobro co
+                       JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+                      WHERE co.id_estado_cobro = 1 AND mp.tipo = 'EFECTIVO'
+                        AND (co.id_factura = f.id_factura OR co.id_cita = f.id_cita)) AS efectivo
+               FROM factura f
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+               LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+              WHERE f.id_estado_factura = 1 AND tc.signo = 1
+                AND NOT EXISTS (SELECT 1 FROM factura n
+                                 WHERE n.id_factura_origen = f.id_factura AND n.id_estado_factura = 1)
+              HAVING efectivo > 0
+              ORDER BY efectivo ASC LIMIT 2"
+        );
+        if (! $facturas) {
+            $this->markTestSkipped('No hay una factura cobrada en efectivo y sin nota de crédito.');
+        }
+        $f = $facturas[0];
+
+        $this->entrarComoAdministrador();
+        $uid = (int) session('uid');
+        $suc = (int) $f->id_sucursal;
+
+        // **La premisa se GARANTIZA, no se espera a encontrarla.** Dos cajas
+        // abiertas en ese local: las que falten se abren acá, con su cajón
+        // creado al vuelo si hace falta. Todo dentro de la transacción de la
+        // prueba, así que no queda nada.
+        $abiertas = array_map('intval', array_column(DB::select(
+            'SELECT id_caja FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ? ORDER BY id_caja',
+            [$suc]), 'id_caja'));
+
+        while (count($abiertas) < 2) {
+            $libre = DB::scalar(
+                'SELECT cf.id_caja_fisica FROM caja_fisica cf
+                  WHERE cf.id_sucursal = ? AND cf.activo = 1
+                    AND NOT EXISTS (SELECT 1 FROM caja c
+                                     WHERE c.id_caja_fisica = cf.id_caja_fisica AND c.id_estado_caja = 1)
+                  ORDER BY cf.id_caja_fisica LIMIT 1', [$suc]);
+            if (! $libre) {
+                DB::insert("INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, 'Caja de prueba')", [$suc]);
+                $libre = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+            }
+            $abiertas[] = (int) Bd::idDe('sp_abrir_caja', [$uid, 500000, (int) $libre, 'Prueba automatica'], 4);
+        }
+
+        // La SEGUNDA, a propósito: es la que un controlador que eligiera solo
+        // no habría tomado.
+        $elegida = $abiertas[1];
+        $otra = $abiertas[0];
+        $efectivo = (float) $f->efectivo;
+        $antesElegida = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$elegida]);
+        $antesOtra = (float) DB::scalar('SELECT fn_caja_saldo(?)', [$otra]);
+
+        // 1) **Sin decir de cuál sale, con dos abiertas, no se toca ninguna.**
+        //    La nota se emite igual —es un comprobante fiscal, no se cancela
+        //    por un problema de caja— pero el egreso no se escribe: adivinar
+        //    dejaría el arqueo de otra persona descuadrado sin que nada lo diga,
+        //    y la devolución vuelve a ser el segundo acto, desde Movimiento de
+        //    efectivo. Va sobre OTRA factura porque una sólo admite una nota.
+        if (count($facturas) > 1) {
+            $g = $facturas[1];
+            $this->post(route('facturacion.nota_credito'), [
+                'id_factura' => $g->id_factura,
+                'motivo' => 'Prueba automatica sin elegir caja',
+            ])->assertRedirect();
+
+            $idSinCaja = (int) DB::scalar(
+                'SELECT id_factura FROM factura WHERE id_factura_origen = ? AND id_estado_factura = 1
+                  ORDER BY id_factura DESC LIMIT 1', [$g->id_factura]);
+            $this->assertGreaterThan(0, $idSinCaja,
+                'La nota tiene que emitirse igual: el cajón no puede cancelar un comprobante fiscal.');
+            $this->assertSame(0,
+                (int) DB::scalar('SELECT COUNT(*) FROM movimiento_caja WHERE id_factura = ? AND activo = 1',
+                    [$idSinCaja]),
+                'Con dos cajas abiertas y ninguna elegida, el sistema le sacó plata a una igual.');
+        }
+
+        // 2) Eligiendo la caja, la nota sale y el cajón baja exactamente eso.
+        $this->post(route('facturacion.nota_credito'), [
+            'id_factura' => $f->id_factura,
+            'motivo' => 'Prueba automatica de devolucion desde caja',
+            'id_caja' => (string) $elegida,
+        ])->assertRedirect();
+
+        $idNota = (int) DB::scalar(
+            'SELECT id_factura FROM factura WHERE id_factura_origen = ? AND id_estado_factura = 1
+              ORDER BY id_factura DESC LIMIT 1', [$f->id_factura]);
+        $this->assertGreaterThan(0, $idNota, 'La nota de crédito no llegó a emitirse.');
+
+        $mov = DB::selectOne(
+            'SELECT id_caja, tipo, monto FROM movimiento_caja WHERE id_factura = ? AND activo = 1',
+            [$idNota]);
+        $this->assertNotNull($mov, 'La nota de crédito no descontó nada de ninguna caja.');
+        $this->assertSame($elegida, (int) $mov->id_caja,
+            'El egreso cayó en un cajón que nadie eligió.');
+        $this->assertSame('EGRESO', $mov->tipo);
+        $this->assertEqualsWithDelta($efectivo, (float) $mov->monto, 0.01,
+            'Se devolvió un monto distinto del que la clienta había pagado en efectivo.');
+
+        $this->assertEqualsWithDelta($antesElegida - $efectivo,
+            (float) DB::scalar('SELECT fn_caja_saldo(?)', [$elegida]), 0.01,
+            'El saldo de la caja elegida no bajó lo que se devolvió.');
+        $this->assertEqualsWithDelta($antesOtra,
+            (float) DB::scalar('SELECT fn_caja_saldo(?)', [$otra]), 0.01,
+            'Se tocó el arqueo de una caja que no era la elegida.');
+
+        // 3) **Y no puede haber una segunda salida por la misma nota**, que es
+        //    lo que la 7.48.0 vino a evitar y sigue valiendo. Lo sostiene la
+        //    base con `uq_movcaja_devolucion (id_factura, activo)`; acá se mide
+        //    el efecto: un solo egreso vigente, y la nota ya no aparece en la
+        //    lista de devoluciones pendientes de «Movimiento de efectivo».
+        $this->assertSame(1,
+            (int) DB::scalar(
+                'SELECT COUNT(*) FROM movimiento_caja WHERE id_factura = ? AND activo = 1', [$idNota]),
+            'Quedó más de un egreso vigente por la misma nota de crédito.');
+
+        $this->assertSame(0,
+            (int) DB::scalar(
+                'SELECT COUNT(*) FROM factura nc
+                  WHERE nc.id_factura = ?
+                    AND NOT EXISTS (SELECT 1 FROM movimiento_caja mc
+                                     WHERE mc.id_factura = nc.id_factura AND mc.activo = 1)',
+                [$idNota]),
+            'La nota sigue figurando como devolución pendiente después de haberse devuelto.');
+    }
+
+    /**
+     * «Mis citas» del portal pagina, y cada tabla conserva la página de la otra.
+     *
+     * Reportado por el usuario. Las dos tablas se dibujaban enteras: la de
+     * anteriores cortaba con `LIMIT 50` **sin decirlo**, que es justo lo que el
+     * prototipo de listado existe para evitar — a partir de la fila 51 esas
+     * citas no existían para la clienta.
+     *
+     * **La premisa se garantiza bajando el tamaño de página**, no esperando a
+     * que una clienta junte cincuenta citas: `Listado::paginacion()` lo lee de
+     * la configuración, así que con 5 cualquier historial real da varias
+     * páginas.
+     */
+    #[Test]
+    public function el_portal_pagina_sus_citas_y_las_dos_tablas_no_se_pisan(): void
+    {
+        config(['spg.lista.por_pagina' => 5]);
+
+        // La clienta con más historial: con menos de una página la paginación
+        // no se dibuja y la prueba pasaría sin medir nada.
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, cl.id_cliente,
+                    (SELECT COUNT(*) FROM cita c WHERE c.id_cliente = cl.id_cliente) AS citas
+               FROM usuario u
+               JOIN cliente cl ON cl.id_usuario = u.id_usuario
+              WHERE u.activo = 1
+              ORDER BY citas DESC LIMIT 1'
+        );
+        if (! $u || (int) $u->citas <= 5) {
+            $this->markTestSkipped('Ninguna cuenta de clienta tiene más de una página de citas.');
+        }
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]); $this->conSucursal();
+
+        $r = $this->get(route('portal.citas'))->assertOk();
+        $html = $r->getContent();
+
+        $this->assertStringContainsString('Mostrando <strong>1–5</strong>', $html,
+            'La lista de citas del portal no dice cuántas hay ni en qué página está.');
+
+        // **`ph` y no `p`**: son dos tablas en la misma pantalla, así que cada
+        // paginador necesita su propio parámetro o pasar de página en una las
+        // mueve a las dos.
+        $this->assertStringContainsString('ph=2', $html,
+            'El historial no ofrece la página siguiente con su propio parámetro.');
+
+        // Y la página 2 trae **otras** citas, que es lo único que prueba que el
+        // OFFSET llegó a la consulta: un paginador dibujado sobre una lista que
+        // no se recorta se ve exactamente igual. Se comparan los datos de la
+        // vista y no el HTML: la pantalla dibuja además un modal por cita
+        // próxima, así que buscar fechas en el marcado encuentra las de arriba.
+        $primeras = array_column($r->viewData('pasadas'), 'id_cita');
+        $segundas = array_column(
+            $this->get(route('portal.citas', ['ph' => 2]))->assertOk()->viewData('pasadas'), 'id_cita');
+
+        $this->assertCount(5, $primeras, 'El historial no se recortó a la página pedida.');
+        $this->assertEmpty(array_intersect($primeras, $segundas),
+            'La página 2 del historial muestra las mismas citas que la 1.');
+
+        // **Y las próximas se excluyen del historial ENTERAS, no sólo las de
+        // esta página.** Contando únicamente las de la página 1, la 2 mostraría
+        // como pasadas las citas próximas que no entraron arriba.
+        $vigentes = array_column($r->viewData('prox'), 'id_cita');
+        $this->assertEmpty(array_intersect($vigentes, $segundas),
+            'Una cita que todavía no ocurrió aparece en el historial.');
+
+        // **Los dos paginadores se arrastran entre sí.** Sin esto, pasar de
+        // página en «Próximas» devolvía «Anteriores» a la primera —y al revés—,
+        // así que quien recorría su historial lo perdía al tocar el otro.
+        $enPagina3 = $this->get(route('portal.citas', ['ph' => 3]))->assertOk()->getContent();
+        preg_match_all('/\?([^"]*pp=\d+[^"]*)"/', $enPagina3, $m);
+        if ($m[1]) {
+            $this->assertNotEmpty(preg_grep('/ph=3/', $m[1]),
+                'Pasar de página en «Próximas» pierde la página del historial.');
         }
     }
 }

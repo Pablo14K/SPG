@@ -115,7 +115,7 @@ class Listado
      * Se le pasa el total ya contado (un COUNT(*) con los MISMOS filtros que
      * la consulta de la lista) y devuelve la rebanada que hay que pedir.
      */
-    public static function paginacion(int $total, ?int $porPagina = null): array
+    public static function paginacion(int $total, ?int $porPagina = null, string $param = 'p'): array
     {
         $porPagina ??= (int) config('spg.lista.por_pagina', 20);
         $porPagina = max(5, min($porPagina, (int) config('spg.lista.max_por_pagina', 200)));
@@ -124,7 +124,7 @@ class Listado
 
         // Si alguien pide la página 900 de una lista de 3, se le da la última:
         // es más útil que una tabla vacía sin explicación.
-        $pagina = max(1, min((int) Request::query('p', 1), $paginas));
+        $pagina = max(1, min((int) Request::query($param, 1), $paginas));
         $offset = ($pagina - 1) * $porPagina;
 
         return [

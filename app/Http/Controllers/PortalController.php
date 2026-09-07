@@ -13,6 +13,7 @@ use App\Servicios\Calendario;
 use App\Servicios\Canje;
 use App\Servicios\Config;
 use App\Servicios\Sena;
+use App\Servicios\Listado;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -666,7 +667,7 @@ class PortalController extends Controller
         // clienta registró y el salón todavía no confirmó. Son dos cosas
         // distintas y la pantalla las dice distinto: una es plata que ya
         // entró, la otra es un aviso de que va a entrar.
-        $prox = DB::select(
+        $proxSql =
             // **Lo canjeado no se paga**, así que no entra en lo que se puede
             // señar. Una cita cuyos servicios están todos canjeados no tiene
             // nada que adelantar, y ofrecerle «dejar una seña» es pedirle plata
@@ -705,11 +706,39 @@ class PortalController extends Controller
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE c.id_cliente = ? AND ' . self::VIGENTE . '
-              ORDER BY v.fecha_hora', [$idc]
-        );
+              ORDER BY v.fecha_hora';
+        // **Los ids de TODAS las próximas, con una consulta liviana.**
+        //
+        // Se necesitan enteros por dos motivos distintos: para contar —el «de
+        // 12» del pie— y para excluirlas de «Anteriores», que si se excluyeran
+        // sólo las de esta página, la 2 mostraría como pasadas las próximas que
+        // no entraron arriba.
+        //
+        // Pero **no hace falta traer las filas para eso**: la consulta de
+        // arriba lleva ocho subconsultas por cita —la seña, el total, lo
+        // canjeado, los servicios— y correrla entera para después descartarla
+        // es pagar todo eso dos veces.
+        // `self::VIGENTE` mira `v.fecha_hora` y `v.duracion_min`, así que la
+        // vista tiene que estar en el FROM también acá: el criterio se escribe
+        // una vez y no se puede consultar sin ella.
+        $ids = array_map('intval', array_column(DB::select(
+            'SELECT v.id_cita
+               FROM vw_agenda_citas v
+               JOIN cita c ON c.id_cita = v.id_cita
+               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
+              WHERE c.id_cliente = ? AND ' . self::VIGENTE, [$idc]
+        ), 'id_cita'));
 
-        $ids = array_map(fn ($p) => (int) $p->id_cita, $prox);
+        $pagProx = Listado::paginacion(count($ids), null, 'pp');
+        $prox = DB::select($proxSql . " LIMIT {$pagProx['porPagina']} OFFSET {$pagProx['offset']}", [$idc]);
+
         $excluir = $ids ? ' AND v.id_cita NOT IN (' . implode(',', $ids) . ')' : '';
+
+        $pasadasBase = "FROM vw_agenda_citas v
+                   JOIN cita c ON c.id_cita = v.id_cita
+                  WHERE c.id_cliente = ? $excluir";
+        $totalPasadas = (int) DB::scalar("SELECT COUNT(*) $pasadasBase", [$idc]);
+        $pagPasadas = Listado::paginacion($totalPasadas, null, 'ph');
 
         return view('portal.citas', [
             'prox' => $prox,
@@ -733,7 +762,8 @@ class PortalController extends Controller
                    JOIN cita c ON c.id_cita = v.id_cita
                    LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
                    LEFT JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
-                  WHERE c.id_cliente = ? $excluir ORDER BY v.fecha_hora DESC LIMIT 50", [$idc]
+                  WHERE c.id_cliente = ? $excluir ORDER BY v.fecha_hora DESC
+                  LIMIT {$pagPasadas['porPagina']} OFFSET {$pagPasadas['offset']}", [$idc]
             ),
             // Para el enlace de «agendar en mi calendario». Se resuelve acá y
             // no en la vista: es una consulta, y en la vista correría una vez
@@ -749,6 +779,8 @@ class PortalController extends Controller
             // Se trae indexado por sucursal porque cada cita puede ser de un
             // local distinto, y son las cuentas de ESE local las que valen.
             'cuentas' => $this->cuentasPorSucursal($prox),
+            'pagProx' => $pagProx,
+            'pagPasadas' => $pagPasadas,
 
             // **De dónde sale la seña de cada cita.** El total solo no se puede
             // comprobar: con tres servicios marcados no se sabe si es de uno o

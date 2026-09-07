@@ -295,6 +295,17 @@ class FacturacionController extends Controller
                    FROM factura n WHERE n.id_factura_origen = ? AND n.id_estado_factura = 1
                   ORDER BY n.fecha_emision', [$id]
             ),
+            // **Las cajas del local DE LA FACTURA, no del local donde estoy
+            // parado.** `vw_factura_resumen` no trae `id_sucursal`, así que
+            // `$f->id_sucursal` era siempre null: `Caja::abiertasDe(0)` cae en
+            // `Sucursales::activa()` y el combo ofrecía los cajones de otra
+            // sede — que es justo lo que el POST después rechaza. La pantalla
+            // no puede ofrecer algo que el servidor va a negar.
+            'cajasNota' => Caja::abiertasDe($this->sucursalDeFactura($id)),
+            // Cuánto sale del cajón si se acredita todo. Con esto el modal
+            // puede pedir la caja **sólo cuando hay efectivo que devolver** y
+            // decir de cuánto se trata, en vez de un selector suelto.
+            'efectivoNota' => $this->efectivoDevolvible($id),
             // Facturación electrónica: si el salón no la usa, no se dibuja nada.
             'sifen' => Sifen::activo(),
             'sifenEstado' => Sifen::activo() ? Sifen::estado($id) : null,
@@ -1450,13 +1461,15 @@ class FacturacionController extends Controller
         $volver = redirect()->route('facturacion.factura_ver', ['id' => $id]);
 
         $f = DB::selectOne(
-            'SELECT f.id_factura, f.id_cliente, f.id_estado_factura, tc.signo,
+            'SELECT f.id_factura, f.id_cliente, f.id_estado_factura,
+                    COALESCE(f.id_sucursal, t.id_sucursal) AS id_sucursal, tc.signo,
                     fn_factura_nro(f.id_factura) AS nro,
                     fn_factura_total(f.id_factura) AS total,
                     (SELECT COUNT(*) FROM factura n
                       WHERE n.id_factura_origen = f.id_factura AND n.id_estado_factura = 1) AS notas
                FROM factura f
                JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+               LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
               WHERE f.id_factura = ?', [$id]
         );
         if (! $f) {
@@ -1510,39 +1523,128 @@ class FacturacionController extends Controller
         // cajón** (FA-02). Sólo lo que la clienta pagó en efectivo: lo que pagó
         // con tarjeta o transferencia se le devuelve por el mismo camino y no
         // toca la caja, igual que al entrar.
-        $enEfectivo = (float) DB::scalar(
-            "SELECT COALESCE(SUM(co.monto),0)
-               FROM cobro co
-               JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
-              WHERE co.id_estado_cobro = 1 AND mp.tipo = 'EFECTIVO'
-                AND (co.id_factura = :f1
-                     OR co.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))",
-            ['f1' => $id, 'f2' => $id]
-        );
+        $enEfectivo = $this->efectivoDevolvible($id);
         $proporcion = $monto === null || $monto >= (float) $f->total
             ? 1.0 : $monto / max(0.01, (float) $f->total);
         $enEfectivo *= $proporcion;
 
-        // **Emitir la nota NO necesita caja abierta, porque no mueve el cajón.**
-        // Lo que lo mueve es la devolución del dinero, y esa se confirma después
-        // desde Movimiento de efectivo eligiendo esta nota. Son dos actos
-        // distintos —el comprobante se emite ahora, la plata se entrega cuando
-        // la clienta pasa— igual que la seña, donde registrar no es cobrar.
+        // **De qué cajón sale, y de cuál NO.** Es el pedido del usuario: la
+        // nota descuenta la caja, y se elige cuál — entre las abiertas del
+        // local **que emitió la factura**, no las del local donde está parada
+        // la persona. La sucursal la dice el documento; el cajón, quien opera:
+        // es la misma regla del cobro y de los dos pagos desde la 7.78.0.
+        $idCajaDevolucion = (int) $request->input('id_caja', 0);
+        $cajaDevolucion = null;
+
+        // Por qué la devolución NO pudo salir del cajón, si no pudo. Se dice
+        // en el aviso final: una devolución que no ocurre y no se nombra es
+        // indistinguible de una que sí, que es el defecto que originó todo esto.
+        $pendientePorque = '';
+
+        if ($enEfectivo > 0.01) {
+            $abiertas = Caja::abiertasDe((int) $f->id_sucursal);
+
+            // **Con un solo cajón abierto no se pregunta.** Es la misma regla
+            // que el cobro y los dos pagos: preguntar algo de una única
+            // respuesta hace perder un clic. Con dos o más hay que elegir, o el
+            // egreso cae en el arqueo de otra persona sin que nada lo diga.
+            if (! $idCajaDevolucion && count($abiertas) === 1) {
+                $idCajaDevolucion = (int) $abiertas[0]->id_caja;
+            }
+
+            // **El id del POST no se cree**: se comprueba que esté abierta y
+            // que sea del local de la factura. Si no, cambiando un número
+            // oculto se le saca plata al cajón de otra sucursal.
+            $cajaDevolucion = $idCajaDevolucion ? DB::selectOne(
+                'SELECT c.id_caja, cf.nombre, fn_caja_saldo(c.id_caja) AS saldo
+                   FROM caja c
+                   JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
+                  WHERE c.id_caja = ? AND c.id_sucursal = ? AND c.id_estado_caja = 1',
+                [$idCajaDevolucion, (int) $f->id_sucursal]
+            ) : null;
+
+            if (! $cajaDevolucion) {
+                // Los dos casos se dicen distinto: no es lo mismo «no elegiste»
+                // que «no hay ninguna abierta acá», y el segundo se resuelve
+                // abriendo la caja, no volviendo a elegir.
+                $pendientePorque = $abiertas
+                    ? 'no se eligió de qué caja sale'
+                    : 'la sucursal que emitió la factura no tiene ninguna caja abierta';
+            } elseif ($enEfectivo > (float) $cajaDevolucion->saldo + 0.01) {
+                // **Un egreso no puede dejar el cajón en negativo**, que es la
+                // regla que ya valen el pago a proveedores y el movimiento de
+                // efectivo. Lo que no corresponde es cancelar la nota por eso.
+                $pendientePorque = 'la caja ' . $cajaDevolucion->nombre . ' tiene '
+                    . money($cajaDevolucion->saldo) . ' y hacen falta ' . money($enEfectivo);
+                $cajaDevolucion = null;
+            }
+        }
+
+        // **La nota y la devolución se registran juntas**, por pedido del
+        // usuario: en el mostrador la plata se entrega en el mismo acto, así
+        // que separarlo obligaba a un segundo paso que nadie daba y el cajón
+        // quedaba diciendo que ese dinero seguía adentro.
         //
-        // Antes se escribía el egreso acá Y ADEMÁS se podía cargar otro a mano:
-        // dos salidas por la misma devolución, con montos distintos si quien la
-        // cargaba escribía otro número.
+        // Lo que la 7.48.0 vino a evitar —**dos salidas por la misma
+        // devolución**— sigue estando cubierto, y por dos lados: el índice único
+        // `uq_movcaja_devolucion (id_factura, activo)` no admite una segunda, y
+        // `notasPorDevolver()` descarta la nota que ya tiene su egreso, así que
+        // deja de ofrecerse en Movimiento de efectivo.
 
         try {
             $idNota = Facturacion::notaCredito($id, (int) session('uid'), $motivo, $monto);
             $nroNota = Facturacion::numero($idNota);
+
+            // **El egreso va en su propio try, y no arrastra a la nota si
+            // falla.** El comprobante ya está emitido y numerado: tirarlo abajo
+            // porque el cajón no aceptó el movimiento sería perder un número de
+            // la SET por un problema de caja. Si falla, la nota queda igual y
+            // vuelve a aparecer en Movimiento de efectivo como devolución
+            // pendiente — que es exactamente para lo que ese camino sigue ahí.
+            $avisoCaja = '';
+            if ($enEfectivo > 0.01 && $cajaDevolucion) {
+                try {
+                    // Los cuatro tipos son de salida (`signo = 'S'`); se pide
+                    // explícito y no por descarte, que un `<> 'E'` se lee al revés.
+                    $tipoDevolucion = (int) DB::scalar(
+                        "SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+                          WHERE activo = 1 AND signo = 'S' AND nombre LIKE 'Devoluci%'
+                          ORDER BY id_tipo_mov_caja LIMIT 1");
+                    if (! $tipoDevolucion) {
+                        throw new \RuntimeException('No hay un tipo de movimiento «Devolución al cliente» activo.');
+                    }
+                    DB::insert(
+                        'INSERT INTO movimiento_caja
+                            (id_caja, id_tipo_mov_caja, id_factura, tipo, monto, concepto, nro_comprobante, id_usuario)
+                         VALUES (?,?,?,?,?,?,?,?)',
+                        [(int) $cajaDevolucion->id_caja, $tipoDevolucion,
+                         $idNota, 'EGRESO', $enEfectivo,
+                         'Devolución por ' . $nroNota . ' sobre ' . $f->nro, $nroNota,
+                         (int) session('uid')]
+                    );
+                    Caja::olvidar();
+                } catch (Throwable $exCaja) {
+                    Log::error('Nota de crédito ' . $nroNota . ': no se pudo registrar el egreso de caja. '
+                        . $exCaja->getMessage());
+                    $enEfectivo = 0.0;
+                    $avisoCaja = ' OJO: no se pudo descontar el efectivo del cajón, así que la devolución '
+                        . 'de esa plata quedó pendiente en Tesorería → Movimiento de efectivo.';
+                }
+            } elseif ($pendientePorque !== '') {
+                // **La nota se emite igual, y eso no es un descuido.** Es un
+                // comprobante fiscal con su número: no se puede tirar abajo
+                // porque el cajón esté corto o porque falte abrirlo, y su
+                // número tampoco se reutiliza. La devolución vuelve a ser lo
+                // que era antes de esta versión —el segundo acto, desde
+                // Movimiento de efectivo— y acá se dice por qué.
+                $avisoCaja = ' OJO: no se descontó nada del cajón porque ' . $pendientePorque
+                    . ', así que la devolución de ' . money($enEfectivo) . ' quedó PENDIENTE '
+                    . 'en Tesorería → Movimiento de efectivo.';
+                $enEfectivo = 0.0;
+            }
+
             Auditoria::registrar('NOTA_CREDITO', 'Facturacion', 'factura', $idNota,
                 'Nota de crédito ' . $nroNota . ' sobre ' . $f->nro . ' — ' . $motivo);
-
-            // **La devolución sale de la caja** (FA-02). El procedimiento crea
-            // El egreso ya no se escribe acá: lo escribe la confirmación de la
-            // devolución, desde Movimiento de efectivo. Ver el comentario de
-            // arriba — emitir la nota y entregar la plata son dos actos.
 
             $devueltos = Facturacion::revertirPuntos($id, (int) $f->id_cliente, 'Nota de crédito', $proporcion);
 
@@ -1578,9 +1680,15 @@ class FacturacionController extends Controller
 
             flash('Nota de crédito ' . $nroNota . ' emitida sobre ' . $f->nro
                 . ($monto !== null && $monto < (float) $f->total ? ' por ' . money($monto) : ' por el total') . '.'
+                // **Se dice de QUÉ cajón salió.** Con dos abiertas en el mismo
+                // local, «se descontó de la caja» no alcanza: quien cierra el
+                // otro cajón no tiene cómo saber que ese egreso no era suyo.
                 . ($enEfectivo > 0
-                    ? ' Se descontaron ' . money($enEfectivo) . ' del efectivo de la caja.'
-                    : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.')
+                    ? ' Se descontaron ' . money($enEfectivo) . ' de ' . ($cajaDevolucion->nombre ?? 'la caja') . '.'
+                    : ($avisoCaja !== ''
+                        ? ''
+                        : ' No se descontó nada del cajón: esa venta no se había cobrado en efectivo.'))
+                . $avisoCaja
                 . ($devueltos ? ' Se le descontaron al cliente los ' . $devueltos . ' punto(s) de esa venta.' : '')
                 . $avisoSifen
                 . ($correo !== ''
@@ -2564,6 +2672,47 @@ class FacturacionController extends Controller
         }
 
         return $volver;
+    }
+
+    /**
+     * En qué local se emitió la factura.
+     *
+     * **La factura lo guarda desde la 7.49.0 y el timbrado queda de respaldo**:
+     * un local sin timbrado propio numera con el de otra sede, así que deducirlo
+     * del timbrado solo mandaría la devolución al cajón equivocado.
+     */
+    private function sucursalDeFactura(int $idFactura): int
+    {
+        return (int) DB::scalar(
+            'SELECT COALESCE(f.id_sucursal, t.id_sucursal)
+               FROM factura f
+               LEFT JOIN timbrado t ON t.id_timbrado = f.id_timbrado
+              WHERE f.id_factura = ?', [$idFactura]
+        );
+    }
+
+    /**
+     * Cuánto de esa venta se cobró EN EFECTIVO, que es lo único que sale del cajón.
+     *
+     * Lo que la clienta pagó con tarjeta o transferencia se le devuelve por el
+     * mismo camino y el arqueo no se toca.
+     *
+     * **Se resuelve en un solo lugar a propósito**: lo consultan la pantalla
+     * —para decidir si pide la caja— y el guardado —para escribir el egreso—, y
+     * escrito dos veces uno de los dos se queda atrás y el modal termina
+     * pidiendo una caja para un egreso que no ocurre, o al revés.
+     */
+    private function efectivoDevolvible(int $idFactura): float
+    {
+        return (float) DB::scalar(
+            "SELECT COALESCE(SUM(co.monto),0)
+               FROM cobro co
+               JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+              WHERE co.id_estado_cobro = 1 AND mp.tipo = 'EFECTIVO'
+                AND (co.id_factura = :f1
+                     OR co.id_cita = (SELECT id_cita FROM factura WHERE id_factura = :f2))",
+            ['f1' => $idFactura, 'f2' => $idFactura]
+        );
     }
 
     /**

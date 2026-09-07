@@ -430,6 +430,50 @@
                                            min="0.01" max="{{ (float) $f->total }}" placeholder="Todo: {{ money($f->total) }}">
                                 </div>
                                 <div class="form-text mb-2">Dejá vacío para cobrar por todo. Máximo: {{ money($f->total) }}.</div>
+                                {{-- **De qué cajón sale la plata.**
+
+                                     Sólo se pregunta cuando de verdad hay efectivo que
+                                     devolver: lo que la clienta pagó con tarjeta o
+                                     transferencia se le devuelve por el mismo camino y no
+                                     toca el arqueo, así que un selector ahí sería una
+                                     decisión sobre algo que no va a pasar.
+
+                                     Y son las cajas del local QUE EMITIÓ la factura, no las
+                                     del local donde está parada la persona: el egreso tiene
+                                     que caer en el arqueo de esa sede. --}}
+                                @if ($efectivoNota > 0)
+                                    <div class="alert alert-warning py-2 mb-2" style="font-size:.85rem">
+                                        Esa venta se cobró <strong>{{ money($efectivoNota) }}</strong> en efectivo,
+                                        así que acreditarla entera <strong>saca esa plata del cajón</strong>.
+                                        Acreditando sólo una parte sale la parte que le toca.
+                                    </div>
+
+                                    @if (count($cajasNota) === 0)
+                                        {{-- Sin caja abierta en ESE local no hay de dónde sacarlo, **y
+                                             aun así la nota se emite**: es un comprobante fiscal con su
+                                             número, y no se cancela porque falte abrir un cajón. Lo que
+                                             se dice es la consecuencia: la devolución queda pendiente. --}}
+                                        <div class="alert alert-danger py-2 mb-2" style="font-size:.85rem">
+                                            La sucursal que emitió esta factura <strong>no tiene ninguna caja
+                                            abierta</strong>, así que la nota va a salir igual y la devolución
+                                            va a quedar <strong>pendiente</strong> en Movimiento de efectivo.
+                                            Si querés que salga del cajón ahora, abrí la caja de ese local
+                                            antes de acreditar.
+                                        </div>
+                                    @else
+                                        {{-- El MISMO bloque que usan el cobro, la seña y los dos pagos.
+                                             Escrito de nuevo acá se desfasaría del resto, que es el error
+                                             que la 7.78.0 corrigió juntando los cuatro en uno. --}}
+                                        @include('facturacion._caja_elegir', [
+                                            'cajas' => $cajasNota,
+                                            'uid' => 'NC' . $f->id_factura,
+                                            'rotulo' => '¿De qué caja sale la devolución?',
+                                            'ayuda' => 'Son las cajas abiertas del local que emitió esta factura, '
+                                                . 'no las del local donde estás parada: el egreso tiene que caer '
+                                                . 'en el arqueo de esa sede.',
+                                        ])
+                                    @endif
+                                @endif
                                 <label class="form-label" for="motivoNC">Motivo *</label>
                                 <input class="form-control" id="motivoNC" name="motivo" required maxlength="200">
 

@@ -218,6 +218,19 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- **Sólo si hay alguna.** Sin citas próximas la tabla ya lo dice con
+             todas las letras; un «Sin resultados» encima sería decir dos veces
+             lo mismo, y el más seco de los dos.
+
+             **Y cada paginador arrastra la página del otro.** Son dos tablas
+             independientes en la misma pantalla: sin esto, pasar de página en
+             «Próximas» devolvía «Anteriores» a la primera —y al revés—, así que
+             quien estaba recorriendo su historial lo perdía al tocar el otro. --}}
+        @if ($pagProx['total'])
+            <x-paginacion :pag="$pagProx" param="pp"
+                          :ocultos="$pagPasadas['pagina'] > 1 ? ['ph' => $pagPasadas['pagina']] : []" />
+        @endif
     </div>
 
     @if ($pasadas)
@@ -266,6 +279,12 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Va DENTRO del panel, como en el resto del sistema: suelto abajo
+                 se lee como si contara las dos tablas. Y conserva la página de
+                 «Próximas», por lo mismo que el de arriba conserva ésta. --}}
+            <x-paginacion :pag="$pagPasadas" param="ph"
+                          :ocultos="$pagProx['pagina'] > 1 ? ['pp' => $pagProx['pagina']] : []" />
         </div>
     @endif
     {{-- Un modal por cita próxima sin seña. --}}

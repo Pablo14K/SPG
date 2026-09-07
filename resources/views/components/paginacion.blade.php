@@ -13,12 +13,12 @@
     devuelve a hoy y se pierde el tramo que se estaba recorriendo. Es el
     mismo motivo por el que `<x-filtros>` ya lo tenía.
 --}}
-@props(['pag' => null, 'f' => null, 'ocultos' => []])
+@props(['pag' => null, 'f' => null, 'ocultos' => [], 'param' => 'p'])
 
 @if ($pag)
     @php
         $qs = array_merge($ocultos ?: [], $f ? \App\Servicios\Listado::query($f) : []);
-        $enlace = fn (int $p) => url()->current() . '?' . http_build_query(array_merge($qs, ['p' => $p]));
+        $enlace = fn (int $p) => url()->current() . '?' . http_build_query(array_merge($qs, [$param => $p]));
 
         // Ventana alrededor de la página actual: con 50 páginas no se dibujan
         // 50 botones, se dibujan los vecinos y los extremos.
