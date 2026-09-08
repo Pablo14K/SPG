@@ -54,20 +54,23 @@ return [
         'clientes.lista'            => ['Clientes',              'people',             'clientes.registro'],
         'clientes.form'             => ['Nuevo cliente',         'person-plus',        'clientes.registro', false],
         'clientes.historial'        => ['Historial',             'clock-history',      'clientes.registro', false],
-        // **Fidelización vive en Promociones, no en Clientes** (pedido del
-        // usuario). Las dos pantallas contestaban la misma pregunta —cuánto le
-        // devuelve el salón a la clienta por venir— y separadas obligaban a
-        // saltar de una a la otra: los niveles y el valor del punto se
-        // administran en Promociones desde la 7.102.0, y quién junta cuántos se
-        // miraba en otro módulo.
+        // **«Visitas y puntos» es de CLIENTES, y vuelve acá** (pedido del
+        // usuario). La 7.107.0 la mudó a Promociones con el argumento de que
+        // contesta la misma pregunta que los descuentos, y eso mezcló dos
+        // jerarquías: la pantalla lista **personas** —quién junta cuántos
+        // puntos, en qué nivel está, qué canjeó— y buscar a una clienta dentro
+        // de Servicios no se le ocurre a nadie.
         //
-        // **La URL no se muda** —es la regla del proyecto: mover una pantalla
-        // de módulo no la muda de ruta— y **el permiso tampoco**, que
-        // renombrarlo dejaría huérfanas las filas de `rol_modulo` de las bases
-        // andando. Lo que cambia es de dónde se llega: el `false` la saca del
-        // menú de Clientes y `tambien.servicios` la ofrece desde Promociones,
-        // con el nombre con el que se la busca ahí.
-        'clientes.fidelizacion'     => ['Visitas y puntos',      'award',              'clientes.fidelizacion', false],
+        // **Lo que SÍ se queda en Promociones son los parámetros**: desde
+        // cuántas visitas arranca cada nivel, qué descuento le toca y cuántos
+        // guaraníes vale un punto. Ésa es la distinción que ordena las dos —
+        // *fijar la regla* es de Servicios, *mirar a quién le tocó* es de
+        // Clientes— y es la misma por la que el catálogo vive en Servicios y
+        // las citas en Citas.
+        //
+        // **La URL y el permiso no se tocan**, que ya eran de Clientes: lo
+        // único que cambia es de dónde se llega.
+        'clientes.fidelizacion'     => ['Visitas y puntos',      'award',              'clientes.fidelizacion'],
         'clientes.canjes'           => ['Canjes por puntos',     'gift',               'clientes.canjes'],
         'clientes.valoraciones'     => ['Valoraciones',          'star',               'clientes.valoraciones'],
         'servicios.lista'           => ['Servicios',             'scissors',           'servicios.catalogo'],
@@ -125,8 +128,9 @@ return [
     //  vez de borrarse: el mecanismo sigue siendo correcto y la próxima
     //  pantalla compartida lo va a necesitar.
     'tambien' => [
-        // Fidelización se administra desde Promociones: ver arriba.
-        'servicios' => ['clientes.fidelizacion' => 'Visitas y puntos'],
+        // Vacío a propósito: «Visitas y puntos» volvió a Clientes en la
+        // 7.110.0, que es su módulo de siempre. El mecanismo se conserva —la
+        // próxima pantalla compartida lo va a necesitar.
     ],
 
     // -----------------------------------------------------------------
@@ -195,6 +199,7 @@ return [
         ['ruta' => 'portal.citas',        'titulo' => 'Mis citas',      'ic' => 'calendar-week', 'barra' => true],
         ['ruta' => 'portal.promociones',  'titulo' => 'Promociones',    'ic' => 'gift',          'barra' => true],
         ['ruta' => 'portal.valoraciones', 'titulo' => 'Valoraciones',   'ic' => 'star',          'barra' => true],
+        ['ruta' => 'portal.ficha',        'titulo' => 'Mi ficha',       'ic' => 'person-vcard'],
         ['ruta' => 'portal.preferencias', 'titulo' => 'Mis recordatorios', 'ic' => 'bell'],
         ['ruta' => 'cuenta.index',        'titulo' => 'Mi cuenta',      'ic' => 'gear'],
     ],

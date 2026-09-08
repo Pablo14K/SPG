@@ -11,6 +11,20 @@
         <form method="post" action="{{ route('citas.guardar') }}" id="formCita">
             @csrf
 
+            {{-- **El mismo asistente que el portal**, por pedido del usuario:
+                 «realizar tanto para portal cliente como para los demás».
+
+                 Nueva cita pedía clienta, servicios, quién hace cada uno, día,
+                 hora y detalles en una sola pantalla: en el mostrador eso se
+                 llena rápido cuando ya se sabe todo, y se pierde cuando la
+                 clienta está decidiendo por teléfono. Un paso por vez deja ver
+                 qué falta.
+
+                 **Sin `app.js` se ve todo junto, como antes.** --}}
+            <div class="spg-wiz" data-asistente>
+
+            <div data-paso="Cliente" data-paso-requiere="#id_cliente"
+                 data-paso-error="Elegí la clienta para seguir.">
             <div class="row g-3">
                 {{-- 1. Cliente --}}
                 <div class="col-md-8">
@@ -50,6 +64,12 @@
                      nadie elegido en ningún servicio, decide el sistema — que es
                      exactamente lo que hacía «sin preferencia». --}}
 
+            </div>
+            </div>
+
+            <div data-paso="Servicios" data-paso-requiere="servicios"
+                 data-paso-error="Elegí al menos un servicio para seguir.">
+            <div class="row g-3">
                 {{-- 2. Servicios --}}
                 <div class="col-12">
                     <label class="form-label">Servicios *</label>
@@ -92,6 +112,27 @@
                     </div>
                 </div>
 
+            </div>
+            </div>
+
+            {{-- **Quién hace cada servicio, todo junto.** El combo sigue
+                 viviendo dentro de su tarjeta —aparece con su servicio desde la
+                 7.51.0— y este paso **mueve** esos mismos nodos acá para poder
+                 mirarlos de una: copiarlos mandaría dos valores para el mismo
+                 servicio y ganaría el último. --}}
+            <div data-paso="Profesionales">
+                <label class="form-label">Quién hace cada servicio</label>
+                <p class="text-muted-warm mb-2" style="font-size:.8rem">
+                    Dos servicios de la <em>misma zona del cuerpo</em> no se pueden hacer
+                    a la vez —van uno después del otro— y los de zonas distintas sí
+                    conviven. Dejalo en «quien esté libre» y lo decide el sistema.
+                </p>
+                <div data-paso-profesionales></div>
+            </div>
+
+            <div data-paso="Fecha y hora" data-paso-requiere="#fecha_hora"
+                 data-paso-error="Elegí el día y el horario para seguir.">
+            <div class="row g-3">
                 {{-- 3. Fecha y hora, ofrecidas por el motor de disponibilidad.
                      El selector lo maneja app.js, el mismo que usa el portal. --}}
                 <div class="col-12">
@@ -110,6 +151,11 @@
                     <input type="hidden" name="fecha_hora" id="fecha_hora" value="{{ old('fecha_hora') }}">
                 </div>
 
+            </div>
+            </div>
+
+            <div data-paso="Detalles">
+            <div class="row g-3">
                 {{-- Canjes por puntos de la clienta elegida.
                      Vienen los de TODAS y el JS muestra los de la elegida,
                      porque la clienta se elige en esta misma pantalla. El
@@ -122,7 +168,7 @@
                             <i class="bi bi-gift txt-oro"></i> Canjes por puntos de esta clienta
                         </label>
                         <p class="text-muted-warm" style="font-size:.82rem">
-                            Marcá el canje <strong>y también el servicio de arriba</strong>: el canje no
+                            Marcá el canje <strong>y también su servicio, en el paso «Servicios»</strong>: el canje no
                             reemplaza al servicio, lo acompaña. El servicio ocupa el mismo tiempo en la
                             agenda; lo único que cambia es que no se cobra.
                         </p>
@@ -197,13 +243,21 @@
                               rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
                 </div>
             </div>
+            </div>
 
-            <div class="mt-4 d-flex gap-2">
-                <button class="btn btn-oro" id="btnAgendar" disabled>
+            {{-- El repaso, igual que en el portal: qué se le va a hacer, con
+                 quién, qué día y cuánto sale. Quien atiende por teléfono lo lee
+                 en voz alta antes de confirmar. --}}
+            <div data-paso="Confirmar">
+                <label class="form-label">La cita quedaría así</label>
+                <div data-wiz-repaso class="mb-3"></div>
+                <a class="btn btn-outline-neutro" href="{{ route('citas.agenda') }}" data-wiz-cancelar>Cancelar</a>
+                <button class="btn btn-oro" id="btnAgendar" data-wiz-confirmar disabled>
                     <i class="bi bi-calendar-check"></i> Agendar
                 </button>
-                <a class="btn btn-outline-neutro" href="{{ route('citas.agenda') }}">Cancelar</a>
             </div>
+
+            </div> <!-- /asistente -->
         </form>
     </div>
 

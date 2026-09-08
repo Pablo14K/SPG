@@ -8,6 +8,7 @@ use App\Mail\ComprobanteCliente;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
+use App\Servicios\Cuenta;
 use App\Servicios\Facturacion;
 use App\Servicios\Listado;
 use App\Servicios\Permisos;
@@ -3034,6 +3035,11 @@ class FacturacionController extends Controller
             // puestos, el egreso caía en el arqueo de otra persona sin que
             // nada lo dijera.
             'cajas' => Caja::abiertasDe(),
+            // **Y de qué CUENTA sale, cuando no sale del cajón.** Una
+            // transferencia no toca la caja, así que el control del efectivo no
+            // la miraba: se podía liquidar el mes entero contra una cuenta
+            // vacía y enterarse cuando el banco rechazara la transferencia.
+            'cuentasBanco' => Cuenta::deSucursal((int) Sucursales::activa()),
         ]);
     }
 
@@ -3108,13 +3114,34 @@ class FacturacionController extends Controller
             }
         }
 
+        // **Y si no sale del cajón, sale de una cuenta.** El id viaja en el
+        // formulario, así que se valida contra el local — la misma regla que
+        // `cajaElegida()`. En efectivo no se anota ninguna: de un cajón no sale
+        // ninguna transferencia, y guardarla diría algo falso.
+        $idCuenta = Caja::esEfectivo($idMetodo)
+            ? 0
+            : Cuenta::valida((int) $request->input('id_dato_pago', 0), (int) Sucursales::activa());
+
+        // **Avisa, no impide.** `fn_cuenta_saldo` es un piso —el sistema conoce
+        // lo que sale del banco, no lo que entra— así que bloquear con un
+        // número que sabemos incompleto frenaría un pago legítimo. Con el
+        // efectivo es al revés: ese saldo es exacto y por eso arriba sí rechaza.
+        $avisoCuenta = $idCuenta ? Cuenta::aviso($idCuenta, $monto) : '';
+
         try {
             $idPago = Bd::idDe('sp_registrar_pago_personal',
                 [$idProf, (int) session('uid'), $periodo, $idMetodo, $idCaja]);
+            if ($idPago && $idCuenta) {
+                DB::update('UPDATE pago_personal SET id_dato_pago = ? WHERE id_pago_personal = ?',
+                    [$idCuenta, $idPago]);
+            }
             Auditoria::registrar('PAGO_PERSONAL', 'Facturacion', 'pago_personal', $idPago,
                 "Liquidación $periodo ($pend servicios) por " . money($monto));
             flash('Liquidación de ' . money($monto) . ' registrada.'
                 . (Caja::esEfectivo($idMetodo) ? ' Se descontó del efectivo de la caja.' : ''));
+            if ($avisoCuenta) {
+                flash($avisoCuenta, 'warning');
+            }
         } catch (Throwable $ex) {
             flash('No se pudo registrar el pago. El detalle quedó registrado.', 'error');
             Log::error('Liquidación al personal', ['profesional' => $idProf, 'error' => $ex->getMessage()]);
@@ -3198,13 +3225,18 @@ class FacturacionController extends Controller
         );
 
         $cajasPorCompra = [];
+        $bancosPorCompra = [];
         foreach ($cuentas as $c) {
             $cajasPorCompra[(int) $c->id_compra] = Caja::abiertasDe((int) $c->id_sucursal);
+            // Las cuentas del banco del MISMO local, por el mismo motivo que
+            // los cajones: la plata sale de donde se hizo la compra.
+            $bancosPorCompra[(int) $c->id_compra] = Cuenta::deSucursal((int) $c->id_sucursal);
         }
 
         return view('facturacion.proveedores', [
             'cuentas' => $cuentas,
             'cajasPorCompra' => $cajasPorCompra,
+            'bancosPorCompra' => $bancosPorCompra,
             // El monto no se guarda: lo calcula la función de la base
             'pagos' => DB::select(
                 "SELECT pp.id_pago_proveedor, pp.fecha, pp.referencia,
@@ -3323,11 +3355,28 @@ class FacturacionController extends Controller
             }
         }
 
+        // **De qué CUENTA sale, cuando no sale del cajón.** El banco no tenía
+        // ningún control: el comentario de arriba lo dice —«no salen del cajón,
+        // salen de la cuenta»— y de la cuenta no se sabía nada. Se valida contra
+        // el local DE LA COMPRA, igual que el cajón.
+        $sucCompra = (int) DB::scalar('SELECT id_sucursal FROM compra WHERE id_compra = ?', [$idCompra]);
+        $idCuenta = Caja::esEfectivo($idMetodo)
+            ? 0
+            : Cuenta::valida((int) $request->input('id_dato_pago', 0), $sucCompra);
+
+        // Avisa y no impide: el saldo de la cuenta es un piso, no un dato
+        // exacto. Ver `App\Servicios\Cuenta`.
+        $avisoCuenta = $idCuenta ? Cuenta::aviso($idCuenta, $monto) : '';
+
         try {
             // La caja la elige quien paga cuando hay más de una abierta: sin
             // eso, el egreso salía del arqueo del cajón equivocado.
             $idPago = Bd::idDe('sp_pagar_compra',
                 [$idCompra, $idMetodo, (int) session('uid'), $monto, $ref, $idCajaElegida ?: null]);
+            if ($idPago && $idCuenta) {
+                DB::update('UPDATE pago_proveedor SET id_dato_pago = ? WHERE id_pago_proveedor = ?',
+                    [$idCuenta, $idPago]);
+            }
             if ($idPago) {
                 // Igual que en el cobro: el procedimiento busca la caja del
                 // propio usuario, y la del salón puede haberla abierto otra persona.
@@ -3346,6 +3395,9 @@ class FacturacionController extends Controller
 
             Auditoria::registrar('PAGO_PROVEEDOR', 'Facturacion', 'compra', $idCompra, 'Pago ' . money($monto));
             flash('Pago al proveedor registrado por ' . money($monto) . '.');
+            if ($avisoCuenta) {
+                flash($avisoCuenta, 'warning');
+            }
         } catch (Throwable $ex) {
             $msg = $ex->getMessage();
             flash(str_contains($msg, 'saldo') ? 'El monto supera el saldo pendiente de la compra.'

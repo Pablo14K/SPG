@@ -27,24 +27,49 @@
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-award"></i> Niveles de fidelización<x-ayuda>El nivel se calcula solo por cantidad de visitas. Acá se decide desde cuántas empieza cada uno y qué descuento le corresponde; el nombre no se cambia porque lo nombran los comprobantes ya emitidos.</x-ayuda></h2>
             <div class="spg-niveles">
                 @foreach ($niveles as $n)
-                    <div class="spg-nivel">
+                    {{-- **El nivel dado de baja se sigue viendo, apagado.** Si
+                         desapareciera de la lista, el botón que lo apaga sería
+                         indistinguible de uno que lo borra y no habría desde
+                         dónde volver a encenderlo — es el defecto que la 7.62.1
+                         corrigió con «Disponible acá». --}}
+                    <div class="spg-nivel{{ $n->activo ? '' : ' spg-nivel-baja' }}">
                         <div class="spg-nivel-nombre">{{ $n->nombre }}</div>
                         <div class="spg-nivel-req">
-                            desde {{ (int) $n->visitas_minimas }} visita{{ (int) $n->visitas_minimas === 1 ? '' : 's' }}
+                            @if ($n->activo)
+                                desde {{ (int) $n->visitas_minimas }} visita{{ (int) $n->visitas_minimas === 1 ? '' : 's' }}
+                            @else
+                                <span class="badge-estado e-muted">Dado de baja</span>
+                            @endif
                         </div>
                         <div class="spg-nivel-desc">{{ $n->descuento ?: 'sin descuento' }}</div>
                         <div class="spg-nivel-clientes">
-                            {{ (int) $n->clientes }} cliente{{ (int) $n->clientes === 1 ? '' : 's' }}
+                            @if ($n->activo)
+                                {{ (int) $n->clientes }} cliente{{ (int) $n->clientes === 1 ? '' : 's' }}
+                            @else
+                                no se aplica
+                            @endif
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-neutro mt-2"
-                                data-bs-toggle="modal" data-bs-target="#nivel{{ $n->id_nivel }}">
-                            <i class="bi bi-pencil"></i> Cambiar</button>
+                        <div class="d-flex gap-1 justify-content-center mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-neutro"
+                                    data-bs-toggle="modal" data-bs-target="#nivel{{ $n->id_nivel }}">
+                                <i class="bi bi-pencil"></i> Cambiar</button>
+                            <form method="post" action="{{ route('servicios.nivel.baja') }}" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="id_nivel" value="{{ $n->id_nivel }}">
+                                <button class="btn btn-sm btn-outline-neutro"
+                                        title="{{ $n->activo ? 'Dar de baja' : 'Volver a aplicar' }}"
+                                        data-confirmar="{{ $n->activo
+                                            ? '¿Dar de baja el nivel ' . $n->nombre . '? Las ' . (int) $n->clientes . ' clienta(s) que hoy están ahí pasan al nivel de abajo, así que su descuento cambia. Lo ya facturado no se toca.'
+                                            : '¿Volver a aplicar el nivel ' . $n->nombre . '?' }}">
+                                    <i class="bi bi-toggle-{{ $n->activo ? 'on' : 'off' }}"></i></button>
+                            </form>
+                        </div>
                     </div>
                 @endforeach
             </div>
             <p class="text-muted-warm mb-0 mt-2" style="font-size:.76rem">
                 El nivel sube solo con las visitas, no se asigna a mano. Quién está
-                en cuál se mira en <a class="link-oro" href="{{ route('clientes.fidelizacion') }}">Visitas y puntos</a>, dentro de Promociones.
+                en cuál se mira en <a class="link-oro" href="{{ route('clientes.fidelizacion') }}">Clientes → Visitas y puntos</a>.
             </p>
         </div>
 

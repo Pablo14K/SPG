@@ -9,6 +9,7 @@ use App\Servicios\Agenda;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
+use App\Servicios\Cuenta;
 use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
 use App\Servicios\Notificaciones;
@@ -1270,10 +1271,29 @@ class ReglasDeNegocioTest extends TestCase
         // molesta: la prueba queda igual de válida en los dos casos.
         $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
 
-        $this->get(route('portal.reservar', ['sucursal' => $suc]))
+        $html = $this->get(route('portal.reservar', ['sucursal' => $suc]))
             ->assertOk()
-            ->assertDontSee('¿Con quién?')
-            ->assertSee('prof_servicio', false);   // el selector fino sigue
+            ->assertSee('prof_servicio', false)    // el selector fino sigue
+            ->getContent();
+
+        // **La regla es que haya UN selector por servicio y ninguno para toda
+        // la cita**, no que un texto esté o no esté. La primera versión de esta
+        // prueba pedía que no apareciera «¿Con quién?», y eso dejó de medir la
+        // regla en cuanto el asistente de reserva usó ese mismo título para el
+        // paso que junta los combos: son los mismos nodos movidos por el JS, o
+        // sea exactamente un selector por servicio.
+        $this->assertDoesNotMatchRegularExpression(
+            '/<select[^>]*name="id_usuario"/', $html,
+            'El portal volvió a preguntar el profesional para toda la cita.'
+        );
+
+        // Uno por servicio y ni uno de más: un segundo combo con el mismo
+        // `name` mandaría dos valores para el mismo servicio y ganaría el
+        // último — que es lo que pasaría si el paso los COPIARA en vez de
+        // moverlos.
+        preg_match_all('/name="prof_servicio\[(\d+)\]"/', $html, $m);
+        $this->assertSame(count($m[1]), count(array_unique($m[1])),
+            'Hay más de un selector de profesional para el mismo servicio.');
     }
 
     #[Test]
@@ -1975,25 +1995,35 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
-     * El Profesional cobra, pero no administra el arqueo del salón.
+     * El Profesional atiende; cobrar y facturar son del Administrador y del
+     * Asistente administrativo.
      *
-     * La base venía dándole `facturacion.caja`, así que abría y cerraba la caja
-     * y le veía el saldo — y este documento decía lo contrario desde la 7.13.1.
-     * La simulación de 60 días lo destapó. Lo que sí conserva es cobrar y
-     * emitir: sacarle eso lo dejaría sin poder trabajar en el mostrador.
+     * **Decisión del usuario, y da vuelta lo que fijaba la 7.29.0.** Aquella
+     * versión le sacó `facturacion.caja` —abría y cerraba el arqueo del
+     * salón— y conservó cobrar y emitir a propósito, con el argumento de que
+     * sacárselo lo dejaba sin poder trabajar en el mostrador. Hoy el salón
+     * decide justamente eso: quien atiende, atiende.
+     *
+     * **La consecuencia queda medida acá y no sólo escrita**: con una
+     * profesional sola en el salón, el dinero espera. Es lo mismo que ya pasa
+     * con la caja desde la 7.29.0.
+     *
+     * Se mide **en las dos direcciones**: que al Profesional le contesten 403
+     * y que al Asistente le contesten 200. Con sólo la primera mitad, una
+     * matriz que se hubiera quedado sin esas claves para TODOS pasaría igual.
      */
     #[Test]
-    public function el_profesional_cobra_pero_no_administra_la_caja(): void
+    public function cobrar_y_facturar_son_del_administrador_y_del_asistente(): void
     {
         $claves = array_map(fn ($r) => $r->modulo,
             DB::select('SELECT modulo FROM rol_modulo WHERE id_rol = 2'));
 
         $this->assertNotContains('facturacion.cajas', $claves,
             'El Profesional NO administra la caja del salón.');
-        $this->assertContains('facturacion.cobros', $claves,
-            'Pero sí cobra: sin esto no puede trabajar en el mostrador.');
-        $this->assertContains('facturacion.facturas', $claves,
-            'Y sí emite comprobantes.');
+        $this->assertNotContains('facturacion.cobros', $claves,
+            'Cobrar dejó de ser del Profesional.');
+        $this->assertNotContains('facturacion.facturas', $claves,
+            'Emitir comprobantes dejó de ser del Profesional.');
 
         // Y el guardia lo hace cumplir, que es lo que importa: esconder el
         // botón no es el control. La caché de permisos es estática y sobrevive
@@ -2002,10 +2032,20 @@ class ReglasDeNegocioTest extends TestCase
         session(['uid' => (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 2 AND activo = 1 LIMIT 1') ?: 1), 'rol' => 2, 'es_personal' => true, 'es_cliente' => false, 'id_sucursal' => 1]);
 
         $this->get(route('facturacion.cajas'))->assertForbidden();
+        $this->get(route('facturacion.cobros'))->assertForbidden();
+        $this->get(route('facturacion.facturas'))->assertForbidden();
 
-        // Lo que sí necesita para trabajar sigue abierto.
-        $this->get(route('facturacion.cobros'))->assertOk();
-        $this->get(route('facturacion.facturas'))->assertOk();
+        // **La otra mitad: alguien tiene que poder cobrar.** Sin esto, borrar
+        // esas claves de la matriz entera dejaría el salón sin cobrar y la
+        // prueba seguiría en verde.
+        Permisos::olvidar();
+        $asistente = (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 3 AND activo = 1 LIMIT 1') ?: 0);
+        if ($asistente) {
+            session(['uid' => $asistente, 'rol' => 3, 'es_personal' => true,
+                     'es_cliente' => false, 'id_sucursal' => 1]);
+            $this->get(route('facturacion.cobros'))->assertOk();
+            $this->get(route('facturacion.facturas'))->assertOk();
+        }
     }
 
     /**
@@ -4972,6 +5012,187 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * Reservar es un asistente, y es el MISMO en las dos pantallas.
+     *
+     * Lo pidió el usuario así: «utilizar este estilo para el agendamiento de
+     * citas… realizar tanto para portal cliente como para los demás». Las dos
+     * pantallas pedían cinco cosas en una sola página, y en el celular eso son
+     * varias pantallas de scroll donde no se ve dónde se está ni cuánto falta
+     * — con el botón de confirmar al final, deshabilitado y sin decir por qué.
+     *
+     * **Se mide el andamiaje, no el aspecto.** Que los pasos existan, que el
+     * botón de confirmar viva en el último y que haya un lugar donde se dibuje
+     * el repaso: si alguno se renombra, el asistente deja de armarse **y no da
+     * ningún error** — la pantalla se dibuja entera, sin pasos. Es el patrón
+     * que `AndamiajeTest` persigue, acá aplicado a las dos pantallas que más
+     * se usan.
+     */
+    #[Test]
+    public function las_dos_pantallas_de_reserva_usan_el_mismo_asistente(): void
+    {
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
+
+        // La del mostrador y la de la clienta: son dos roles distintos, así que
+        // se entra dos veces.
+        $this->entrarComo('admin', 'admin123');
+        $mostrador = $this->get(route('citas.form'))->assertOk()->getContent();
+
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        if (! $u) {
+            $this->markTestSkipped('No hay ninguna cuenta de cliente en la base de prueba.');
+        }
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]); $this->conSucursal();
+        $portal = $this->get(route('portal.reservar', ['sucursal' => $suc]))->assertOk()->getContent();
+
+        foreach (['Nueva cita' => $mostrador, 'el portal' => $portal] as $donde => $html) {
+            $this->assertStringContainsString('data-asistente', $html,
+                "En $donde el contenedor del asistente dejó de estar: la pantalla se dibuja entera y sin pasos.");
+
+            $this->assertGreaterThanOrEqual(5, substr_count($html, 'data-paso='),
+                "En $donde quedaron menos de cinco pasos: alguno se perdió al mover el marcado.");
+
+            $this->assertStringContainsString('data-wiz-confirmar', $html,
+                "En $donde el botón de confirmar no está marcado, así que queda suelto en medio del último paso.");
+
+            $this->assertStringContainsString('data-wiz-repaso', $html,
+                "En $donde no hay dónde dibujar el repaso, que es lo que se mira antes de confirmar.");
+        }
+
+        // **El paso de profesionales no COPIA los combos, los mueve**, así que
+        // el marcado sólo declara dónde van. Copiarlos mandaría dos valores
+        // para el mismo servicio y ganaría el último.
+        $this->assertStringContainsString('data-paso-profesionales', $portal,
+            'Sin el destino, los combos de profesional se quedan dentro de sus tarjetas.');
+    }
+
+    /**
+     * La cuenta del banco AVISA cuando no alcanza, y no frena el pago.
+     *
+     * **El efectivo tenía su control desde la 5.5.0 y el banco ninguno.** El
+     * propio código lo decía al lado del `if` —«los pagos por banco no se
+     * frenan: no salen del cajón, salen de la cuenta»— y de la cuenta no se
+     * sabía nada: se podía liquidar el mes entero contra una cuenta vacía y
+     * enterarse cuando el banco rechazara la transferencia.
+     *
+     * Se miden las TRES cosas que hacen que esto signifique algo, porque
+     * cualquiera de ellas sola pasaría con la función rota:
+     *
+     * 1. **Sin declarar es NULL, no cero.** Un cero se leería como «la cuenta
+     *    está vacía», que es afirmar algo que nadie comprobó — y con eso el
+     *    sistema avisaría siempre, que es lo mismo que no avisar nunca.
+     * 2. **Avisa** cuando el pago se lleva más de lo declarado.
+     * 3. **Y no bloquea.** El saldo es un PISO —el sistema conoce lo que sale
+     *    del banco, no lo que entra— así que rechazar con un número que
+     *    sabemos incompleto frenaría un pago legítimo. Con el efectivo es al
+     *    revés y por eso ahí sí se rechaza: ese saldo es exacto.
+     */
+    #[Test]
+    public function la_cuenta_del_banco_avisa_cuando_no_alcanza_pero_no_frena_el_pago(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        // Hace falta una caja abierta: liquidar la exige aunque se pague por
+        // transferencia, porque el egreso se anota igual en el arqueo.
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
+            [$suc, 'Cta ' . uniqid()]);
+        $cajon = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                    VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+        $caja = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago
+                                     WHERE activo = 1 AND tipo = 'BANCO' LIMIT 1");
+        $this->assertNotSame(0, $metodo, 'Hace falta un método de pago bancario.');
+
+        // La cuenta se crea acá y no se toma una cargada: la base de prueba
+        // puede no tener ninguna, y sobre todo el saldo declarado es lo que se
+        // está midiendo — tomarlo de una existente mediría otra cosa.
+        DB::insert('INSERT INTO dato_pago_sucursal
+                    (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta, orden, activo)
+                    VALUES (?, ?, ?, ?, ?, 99, 1)',
+            [$suc, $metodo, 'Banco de prueba', 'Peluquería', '000-' . random_int(1000, 9999)]);
+        $cuenta = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        // 1) Sin declarar: NULL, y por lo tanto nada que avisar.
+        $this->assertNull(DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+            'Una cuenta que nadie declaró vale «no se sabe», no cero.');
+        $this->assertSame('', Cuenta::aviso($cuenta, 999999999),
+            'Sin saldo declarado no hay nada que avisar: avisar sería inventarlo.');
+
+        // El arqueo de la cuenta, por el mismo camino que la pantalla.
+        $this->post(route('seguridad.pagos.saldo'),
+            ['id_dato_pago' => $cuenta, 'saldo' => '1.000'])->assertRedirect();
+
+        $this->assertSame(1000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+            'Recién declarado, el saldo es el declarado.');
+
+        // 2) y 3): se liquida por transferencia contra esa cuenta, por mucho
+        //    más de los Gs. 1.000 que dice tener.
+        $prof = (int) DB::scalar(
+            'SELECT sr.id_usuario FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE d.id_detalle_pago IS NULL
+              GROUP BY sr.id_usuario
+             HAVING SUM(fn_comision_servicio(sr.id_servicio_realizado)) > 1000 LIMIT 1'
+        );
+        if (! $prof) {
+            $this->markTestSkipped('Hace falta alguien con comisión sin liquidar mayor a Gs. 1.000.');
+        }
+
+        $monto = (float) DB::scalar(
+            'SELECT COALESCE(SUM(fn_comision_servicio(sr.id_servicio_realizado)), 0)
+               FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE sr.id_usuario = ? AND d.id_detalle_pago IS NULL', [$prof]
+        );
+
+        $this->post(route('facturacion.pagar_personal'), [
+            'id_usuario' => $prof,
+            'periodo' => date('m/Y'),
+            'id_metodo_pago' => $metodo,
+            'id_caja' => $caja,
+            'id_dato_pago' => $cuenta,
+        ])->assertRedirect();
+
+        $pago = DB::selectOne(
+            'SELECT id_pago_personal, id_dato_pago FROM pago_personal
+              WHERE id_usuario = ? ORDER BY id_pago_personal DESC LIMIT 1', [$prof]
+        );
+
+        // **NO se frenó**: es la mitad que más importa. Un control que
+        // bloqueara acá apagaría algo que hoy funciona.
+        $this->assertNotNull($pago, 'El pago tiene que registrarse igual: esto avisa, no impide.');
+        $this->assertSame($cuenta, (int) $pago->id_dato_pago,
+            'Tiene que quedar anotado de qué cuenta salió, o no hay forma de saber cuál se vació.');
+
+        // **Y avisó**, con el monto y el saldo nombrados: un «no alcanza» a
+        // secas no dice qué comprobar.
+        $avisos = array_column(session('spg_flash', []), 'msg');
+        $this->assertNotEmpty(preg_grep('/declaró/', $avisos),
+            'El pago tiene que avisar que se lleva más de lo que la cuenta declara.');
+
+        // El saldo baja por lo que se pagó: es lo que hace que el aviso valga
+        // para el pago siguiente.
+        $this->assertSame(round(1000 - $monto, 2),
+            round((float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]), 2),
+            'La función tiene que descontar los pagos posteriores al arqueo.');
+
+        DB::delete('DELETE FROM detalle_pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
+        DB::delete('DELETE FROM pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
+        DB::delete('DELETE FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$cuenta]);
+        DB::delete('DELETE FROM caja WHERE id_caja = ?', [$caja]);
+        DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
+    }
+
+    /**
      * El mismo servicio se repite en el día si la cita es para OTRA persona.
      *
      * `trg_citaserv_bi` comparaba «el mismo cliente», y eso rechazaba un caso
@@ -6364,5 +6585,127 @@ class ReglasDeNegocioTest extends TestCase
             $this->assertNotEmpty(preg_grep('/ph=3/', $m[1]),
                 'Pasar de página en «Próximas» pierde la página del historial.');
         }
+    }
+
+    // -----------------------------------------------------------------
+    //  7.110.0
+    // -----------------------------------------------------------------
+
+    /**
+     * Cada profesional cierra SU parte, y con eso su agenda queda libre.
+     *
+     * **Una cita de dos horas dejaba ocupadas dos horas a las dos.** La clienta
+     * pide mechas con una y manicura con otra; la segunda termina en diez
+     * minutos y seguía sin poder recibir a nadie, porque «atendida» era un
+     * estado de la CITA y no había forma de decir que una parte ya terminó.
+     *
+     * Se miden las cuatro cosas que tienen que pasar a la vez, y **la tercera
+     * es la que puede salir catastróficamente mal**: cerrar lo propio no puede
+     * llevarse puestos los servicios que la otra todavía no hizo — antes se
+     * borraba de la cita todo lo agendado sin atención, y la clienta se iría
+     * sin la mitad de lo que pidió.
+     */
+    #[Test]
+    public function cada_profesional_cierra_su_parte_y_deja_de_estar_ocupada(): void
+    {
+        // **La premisa se garantiza, y acá se garantiza de más.** La que cierra
+        // tiene que ser una profesional **sin** acceso a la agenda entera: con
+        // el Administrador —que `Agenda::profesionales()` devuelve como uno
+        // más— el alcance es «todas» y la prueba mediría el otro camino. Ya
+        // pasó al escribirla: `profs[1]` era el `admin`.
+        $profs = array_values(array_filter(Agenda::profesionales(),
+            fn ($p) => ! Permisos::rolPuede(
+                (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$p->id_usuario]),
+                'personal.turnos')
+            && (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$p->id_usuario])
+               !== (int) config('permisos.rol_admin', 1)));
+
+        if (count($profs) < 2) {
+            $this->markTestSkipped('Hacen falta dos profesionales que atiendan y no vean la agenda entera.');
+        }
+        [$dueno, $ayuda] = [(int) $profs[0]->id_usuario, (int) $profs[1]->id_usuario];
+
+        // **Y cada una tiene que HACER el servicio que se le asigna.** Con dos
+        // ids cualquiera, la base rechaza con «no está habilitado para alguno de
+        // esos servicios» y la prueba mediría eso en vez del cierre por partes.
+        $cliente = $this->clienteLibreHoy();
+        $haceA = DB::select(
+            'SELECT id_servicio FROM servicio WHERE activo = 1
+              AND fn_usuario_hace_servicio(?, id_servicio) = 1 ORDER BY id_servicio', [$dueno]);
+        $haceB = DB::select(
+            'SELECT id_servicio FROM servicio WHERE activo = 1
+              AND fn_usuario_hace_servicio(?, id_servicio) = 1 ORDER BY id_servicio DESC', [$ayuda]);
+
+        $sA = (int) ($haceA[0]->id_servicio ?? 0);
+        $sB = 0;
+        foreach ($haceB as $x) {
+            if ((int) $x->id_servicio !== $sA) {
+                $sB = (int) $x->id_servicio;
+                break;
+            }
+        }
+        if (! $cliente || ! $sA || ! $sB) {
+            $this->markTestSkipped('Hacen falta dos servicios distintos que esas dos personas hagan.');
+        }
+
+        DB::insert('INSERT INTO cita (id_cliente,id_usuario,id_estado_cita,fecha_hora,id_sucursal) VALUES (?,?,?,?,1)',
+            [$cliente, $dueno, 1, ahora_bd('Y-m-d H:i:s')]);
+        $idCita = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,NULL)', [$idCita, $sA]);
+        DB::insert('INSERT INTO cita_servicio (id_cita,id_servicio,id_usuario) VALUES (?,?,?)', [$idCita, $sB, $ayuda]);
+
+        $this->fichar($dueno);
+        $this->fichar($ayuda);
+
+        // Antes de cerrar nada, las dos están ocupadas.
+        $this->assertGreaterThan(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $dueno]));
+        $this->assertGreaterThan(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $ayuda]));
+
+        // --- La segunda cierra SÓLO lo suyo, entrando como ella ---
+        Permisos::olvidar();
+        session(['uid' => $ayuda, 'rol' => 2, 'es_personal' => true,
+                 'es_cliente' => false, 'id_sucursal' => 1]);
+
+        $this->post(route('citas.atender.guardar'), [
+            'id_cita' => $idCita,
+            'servicios' => [$sB],
+        ])->assertRedirect();
+
+        // 1) Su parte quedó marcada.
+        $this->assertNotNull(
+            DB::scalar('SELECT terminado_en FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sB]),
+            'La parte que cerró tiene que quedar con su hora.');
+
+        // 2) **Y deja de ocuparle la agenda**, que es para lo que existe todo
+        //    esto: `fn_verificar_disponibilidad` descarta el solape con `> 0`.
+        $this->assertSame(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $ayuda]),
+            'Cerrada su parte, esa cita ya no le ocupa la agenda.');
+
+        // 3) **La otra sigue ocupada Y su servicio sigue en la cita.** Esto es
+        //    lo que no puede fallar: cerrar lo propio borraba de `cita_servicio`
+        //    todo lo agendado sin atención, o sea el trabajo de la otra.
+        $this->assertGreaterThan(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $dueno]),
+            'La que todavía no cerró sigue ocupada.');
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sA]),
+            'Cerrar lo propio no puede sacar de la cita el servicio que la otra todavía no hizo.');
+
+        // 4) **Y la cita NO se puede facturar todavía**: se factura al terminar
+        //    la cita entera (decisión del usuario), así que sigue En proceso.
+        $this->assertSame(5, (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]),
+            'Con una parte abierta la cita no queda Atendida: si no, se podría facturar a medias.');
+
+        // --- Cierra la que faltaba: recién ahí la cita queda cerrada ---
+        Permisos::olvidar();
+        $this->entrarComoAdministrador();
+        $this->post(route('citas.atender.guardar'), [
+            'id_cita' => $idCita,
+            'servicios' => [$sA],
+            'cerrar_de' => $dueno,
+        ])->assertRedirect();
+
+        $this->assertSame(4, (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]),
+            'Con todas las partes cerradas la cita queda Atendida y ya se puede facturar.');
+        $this->assertSame(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $dueno]));
     }
 }

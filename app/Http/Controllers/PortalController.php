@@ -1248,6 +1248,63 @@ class PortalController extends Controller
         return $volver;
     }
 
+    /**
+     * Mi ficha: lo que el salón tiene anotado de mí, y mis alergias.
+     *
+     * **Las alergias las carga la clienta.** `cliente.alergias` existe desde la
+     * 7.108.0 y sólo se podía escribir desde la ficha del salón, o sea que el
+     * único dato de la ficha que **puede lastimar a alguien** dependía de que
+     * ella se acordara de decirlo en el mostrador y de que quien atiende se
+     * acordara de escribirlo. El salón lo sigue pudiendo cargar; lo que faltaba
+     * era la otra mitad.
+     *
+     * **El resto de sus datos se muestra y no se edita.** El correo es con lo
+     * que entra y el teléfono es por donde el salón la llama: cambiarlos desde
+     * acá es otra decisión —con su verificación— y no la de esta pantalla. Lo
+     * que sí hace es dejarle ver qué figura, que es como se detecta un teléfono
+     * mal tipeado.
+     */
+    public function ficha(Request $request): View|RedirectResponse
+    {
+        $idc = $this->cliente();
+
+        if ($request->isMethod('post')) {
+            $alergias = trim((string) $request->input('alergias', ''));
+
+            if (mb_strlen($alergias) > 300) {
+                flash('Las alergias no pueden pasar de 300 caracteres.', 'error');
+
+                return redirect()->route('portal.ficha');
+            }
+
+            // **Vacío es «no tengo ninguna anotada», y se guarda como NULL.**
+            // La agenda distingue NULL de una cadena vacía: dice «sin alergias
+            // registradas» y no «no tiene», porque afirmar que no tiene sin que
+            // nadie lo haya dicho sería inventarlo.
+            DB::update('UPDATE cliente SET alergias = ? WHERE id_cliente = ?',
+                [$alergias ?: null, $idc]);
+
+            Auditoria::registrarComo((int) session('uid'), 'MODIFICACION', 'Portal', 'cliente', $idc,
+                $alergias === '' ? 'La clienta borró sus alergias' : 'La clienta cargó sus alergias');
+
+            flash($alergias === ''
+                ? 'Listo: no quedó ninguna alergia anotada en tu ficha.'
+                : 'Gracias. Lo van a ver antes de prepararte cualquier mezcla.');
+
+            return redirect()->route('portal.ficha');
+        }
+
+        return view('portal.ficha', [
+            'yo' => DB::selectOne(
+                "SELECT CONCAT(pe.nombre,' ',pe.apellido) AS nombre, pe.cedula, pe.telefono,
+                        pe.email, pe.direccion, cl.alergias
+                   FROM cliente cl
+                   JOIN persona pe ON pe.id_persona = cl.id_persona
+                  WHERE cl.id_cliente = ?", [$idc]
+            ),
+        ]);
+    }
+
     public function preferencias(Request $request): View|RedirectResponse
     {
         $idc = $this->cliente();

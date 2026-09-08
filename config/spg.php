@@ -22,8 +22,8 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.109.0',
-    'version_fecha' => '2026-09-07',
+    'version' => '7.110.0',
+    'version_fecha' => '2026-09-08',
 
     'moneda' => 'Gs.',
 

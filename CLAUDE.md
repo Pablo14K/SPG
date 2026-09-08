@@ -12,8 +12,8 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **21 procedimientos, 39 funciones, 17 triggers y 17 vistas**,
-más **78 restricciones `CHECK`**.
+La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
+más **81 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -46,7 +46,7 @@ desde PDO: los parámetros de salida (`Bd::idDe()`), cerrar el cursor después d
 | Comisión de un servicio | `fn_comision_servicio(id_servicio_realizado)` |
 | Quién trabaja tal día | `turno_laboral` ⋈ `turno_dia` ⋈ `usuario_turno` — ver la sección **Turnos** |
 | Cuánto dura una cita | `fn_cita_duracion(id)` — la suma de los **turnos**, y cada turno dura lo que el profesional que más tarda en él. Con un solo turno —el caso normal— es el bloque más largo y no la suma |
-| Cuánto le toca a uno en esa cita | `fn_cita_duracion_de(id_cita, id_usuario)` — es lo que le bloquea la agenda |
+| Cuánto le toca a uno en esa cita | `fn_cita_duracion_de(id_cita, id_usuario)` — es lo que le bloquea la agenda, y **descuenta lo que esa persona ya cerró** (`cita_servicio.terminado_en`) |
 | Desde cuándo le toca | `fn_cita_inicio_de(id_cita, id_usuario)` — cero salvo que haya turnos: con servicios exclusivos repartidos, el segundo arranca cuando el primero termina |
 | Convertir 30 ml a stock | `consumo_a_stock()` / `stock_a_consumo()` de `app/Ayudas/formato.php` |
 | La hora real del reloj | `ahora_bd()` de `app/Ayudas/formato.php`, **nunca `date()`** — ver la sección **La hora** |
@@ -275,6 +275,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | Versión | Fecha | Cambio |
 |---|---|---|
 
+| 7.110.0 | 08/09/2026 | **Diez cosas reportadas usando el sistema, y la que más pesaba dejaba a media agenda ocupada de gusto.** **Cada profesional cierra SU parte de la cita.** Una cita de 120 minutos dejaba ocupadas 120 minutos a las dos: la clienta pide mechas con Lucía y manicura con Rocío, Rocío termina lo suyo en diez minutos y seguía apareciendo ocupada las dos horas —«atendida» era un estado de la CITA y no había forma de decir que una parte terminó—. Entra `cita_servicio.terminado_en`, y **es un hecho nuevo, no una copia**: `servicio_realizado.fecha_hora` es cuándo se REGISTRÓ una atención, que es otra entidad y otro momento. **Con una sola función se cubren las dos puntas**: `fn_cita_duracion_de` la usan el motor (`fn_verificar_disponibilidad`) y su espejo de PHP —que la llama en SQL y no la reimplementa— así que un `AND cs.terminado_en IS NULL` libera la agenda en los dos **sin desincronizarlos**. Los admin y el asistente cierran **la parte de cada una por separado**, con su propio consumo de inventario, y **la cita se factura recién al terminar entera** (decisión del usuario). **Y probándolo apareció un defecto de verdad, no leyéndolo**: sin acotar el alcance, un administrador que cerraba la parte de una **borraba los servicios pendientes de las otras** — lo destapó la prueba, porque `ExigeSesion` relee el rol de la base y el «profesional» que usaba resultó ser admin. Un nivel más abajo estaba el bug reportado tal cual: **`citaAjena()` miraba sólo `cita.id_usuario`**, así que una profesional asignada a un servicio de la cita de otra **ni siquiera podía abrirla** — 403 sobre una cita que era suya. **La agenda del profesional cambia de forma**: gana «Con quién» —los OTROS de esa cita, o «sola»— y **«qué servicios se pidieron con ella»**, que era lo que faltaba para saber a qué se está entrando. **Cobrar y facturar pasan a ser del Administrador y del Asistente administrativo**, por decisión del usuario, e **invierte a propósito** lo que este documento sostenía: el argumento de antes —que sacárselo lo deja sin trabajar en el mostrador— sigue siendo cierto y **ése es el punto**, el mostrador pasa a ser de quien administra. Se le quitan las dos claves del `.sql` que se entrega y **el salón puede volver a dárselas desde Roles**. **El control de la cuenta bancaria**, que era el punto 1: el efectivo tiene su candado desde la 5.5.0 y el banco **ninguno** —el propio código lo decía al lado del `if`, «los pagos por banco no se frenan: no salen del cajón, salen de la cuenta», y de la cuenta no se sabía nada—, así que se podía liquidar el mes entero contra una cuenta vacía y enterarse cuando el banco rechazara la transferencia. Entran `dato_pago_sucursal.saldo_declarado` —**un hecho observado, como `caja.monto_contado`**: el sistema conoce lo que SALE de la cuenta pero **no lo que entra**, porque una transferencia de una clienta llega al banco sin pasar por acá— y `fn_cuenta_saldo`, que **no se guarda porque es derivada**. **Es un PISO y por eso AVISA en vez de bloquear**: sólo puede quedar por debajo del real, y rechazar con un número que sabemos incompleto frenaría un pago legítimo — al revés que el cajón, que es exacto. **Y NULL no es cero**: una cuenta que nadie declaró vale «no se sabe», así que el sistema se calla en vez de avisar siempre. **El agendamiento se rehace como asistente**, con la maqueta que dio el usuario y en **las dos pantallas**: pedían cinco cosas en una sola página y el botón vivía al final, o sea que la única forma de saber si faltaba algo era llegar abajo y encontrarlo deshabilitado **sin decir por qué**. Ahora es un paso por vez —Servicios · Profesionales · Fecha y hora · Detalles · Confirmar, con Cliente adelante en Nueva cita— y **el último muestra la cita armada**: qué, con quién, qué día y cuánto sale. **Sin `app.js` se ven todos los pasos y se reserva igual**, y **`required` se saca del paso escondido**, que es el defecto de la 7.67.0 y acá pegaría más fuerte porque el envío ocurre con todo lo demás oculto. **El paso de profesionales MUEVE los combos, no los copia**: dos con el mismo `name` mandarían dos valores para el mismo servicio. **Las alergias las carga también la clienta**, desde «Mi ficha» del portal — el salón anota lo que ella cuenta, y eso dependía de que alguien se acordara de preguntar. **«Visitas y puntos» vuelve a Clientes**: la 7.107.0 la había mudado a Promociones y eso mezcló dos jerarquías —esa pantalla lista **personas**, y buscar a una clienta dentro de Servicios no se le ocurre a nadie—; **lo que se queda en Promociones son los parámetros**, que es la distinción que las ordena. **Las fidelizaciones y las excepciones se pueden dar de baja**: las dos tablas ya tenían su `activo` y **no lo tocaba ninguna pantalla**, así que un nivel mal cargado o una licencia que no va quedaban para siempre. **En Clientes, «ver ficha» reemplaza a «nueva cita»**: desde una lista de clientas lo que se hace es mirar a una, y agendar ya se hace desde la agenda. **El detalle de la agenda mostraba el precio y el servicio y NO los productos usados** —reportado tal cual—: la pantalla dibujaba el panel de consumo sólo en modo edición, así que con la cita ya atendida el bloque desaparecía entero. **Y la tabla de «lo que falta cargar» entra a las actualizaciones en vivo**, que es donde fallaba en silencio. **181 pruebas · 1361 aserciones**, tres nuevas comprobadas en las dos direcciones · 22 procedimientos · 43 funciones · 81 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 | 7.109.0 | 07/09/2026 | **«Mis citas» del portal no paginaba, y la nota de crédito no descontaba la caja.** Las dos cosas reportadas por el usuario. **La paginación**: las dos tablas del portal se dibujaban enteras y la de anteriores cortaba con `LIMIT 50` **sin decirlo**, que es exactamente lo que el prototipo de listado existe para evitar — a partir de la fila 51 esas citas dejaban de existir para la clienta, y como el corte no se ve, tampoco había forma de sospecharlo. Entran los dos paginadores, y **cada uno con su propio parámetro** (`pp` y `ph`): son dos tablas en la misma pantalla, así que con un solo `p` pasar de página en una movía las dos. **Y cada uno arrastra la página del otro**, que era el defecto que quedaba después de partirlos — `?pp=2&ph=3` armaba los enlaces como `pp=1` pelado y devolvía el historial a la primera página, o sea que quien lo estaba recorriendo lo perdía al tocar el otro. De paso **la consulta de las próximas se partió en dos**: sus ids se necesitan enteros —para contar y para excluirlas del historial— pero la consulta que las trae lleva ocho subconsultas por cita, así que se piden con un `SELECT id_cita` liviano y las filas sólo de la página que se ve. **Si se excluyeran sólo las de la página 1, la 2 mostraría como pasadas las próximas que no entraron arriba.** En el lado del profesional **no había nada que arreglar**: la agenda pagina desde la 7.108.0 y se comprobó corriendo como `lucia` — «Mostrando 1–25 de 34 registros» con `?rango=todas`, que son exactamente sus 34 citas. **La nota de crédito** ahora **descuenta el efectivo del cajón al emitirse, y pregunta de cuál** —entre las cajas abiertas del local **que emitió la factura**, no las del local donde está parada la persona—. Invierte a propósito lo que decidió la 7.48.0, y el motivo de aquella sigue valiendo pero ya no hace falta pagar ese precio: la duplicidad la impide **la base** con el índice único `uq_movcaja_devolucion (id_factura, activo)`, así que el egreso puede volver a escribirse en la emisión sin reabrir el agujero de las dos salidas por la misma nota. El segundo paso —Movimiento de efectivo— **no se retira**: pasa a ser a donde cae la devolución que no pudo salir, y son tres casos (no se eligió caja habiendo varias, ese local no tiene ninguna abierta, o la elegida no tiene saldo). **La nota se emite igual en los tres**, y eso no es un descuido: es un comprobante fiscal con su número, cancelarlo por un problema de cajón sería apagar algo que hoy anda y el número tampoco se reutiliza — lo que no puede pasar es que la devolución no ocurra **en silencio**, así que el aviso nombra el motivo y dice dónde quedó. **Dos defectos aparecieron probándolo, no leyéndolo**: `vw_factura_resumen` no trae `id_sucursal`, así que `Caja::abiertasDe(0)` caía en `Sucursales::activa()` y el combo ofrecía **los cajones del local equivocado** —justo los que el guardado después rechaza—; y el egreso quedaba dentro del `try` de la nota, o sea que un fallo del cajón se llevaba puesto un número de la SET. **Comprobado de punta a punta sobre la factura 001-001-0000062**, con dos cajas abiertas en el mismo local: eligiendo Caja 1, su saldo pasó de Gs. 531.250 a **370.000** —exactamente los 161.250 cobrados en efectivo—, Caja 2 quedó intacta en 2.148.000, el movimiento quedó como «Devolución al cliente» nombrando los dos comprobantes, y la nota **desapareció del selector de devoluciones pendientes**. **180 pruebas · 1315 aserciones**, dos nuevas comprobadas en las dos direcciones — sacando el egreso, la primera falla; sacando el `OFFSET`, la segunda trae 20 filas donde pide 5 |
 | 7.108.1 | 06/09/2026 | **El descuento del KuDE va en la columna que ya existía, y la fila que agregué rompía el pie.** Reportado por el usuario: *«ese apartado no es necesario ya que ya hay un %DESC»*, y tenía razón por partida doble. El KuDE tiene desde siempre una columna **%DESC** por renglón —está en la cabecera de la tabla, entre la descripción y el precio— clavada en `0`; la 7.108.0 la dejó ahí y puso el descuento en la fila **DESCUENTO** del pie más una fila nueva, «IMPORTE SIN DESCUENTO», para explicar la diferencia. **Y ese pie dejaba de sumar**: los importes de la derecha ya son netos (`ea008 = (precio − descuentos) × cantidad`), así que el SUBTOTAL es la suma de los netos y `SUBTOTAL − DESCUENTO = TOTAL` sólo se cumple con esa fila en **cero** — con 750 puestos daba `159.250 − 750 ≠ 159.250`. Explicarlo con un renglón de más era tapar el síntoma. Ahora el descuento se muestra **donde corresponde**: con el precio de lista que ya viaja en el campo 7 del ITM, **PRECIO UNITARIO vuelve a ser el de lista**, **%DESC dice cuánto se descontó** y el importe sigue siendo el neto — las tres columnas se explican entre sí y de paso se arregla lo que originó todo esto, que los precios salían corridos (75.000 impreso como 74.648). Comprobado sobre la factura 449, con sus cuatro renglones: precios 75.000 / 40.000 / 55.000 / 65.000, **1,6 %** en cada uno, importes 73.803 / 39.362 / 54.122 / 63.963, y el pie cerrando en `231.250 − 0 = 231.250` — que es exactamente `fn_factura_total`. El «DESCUENTO: 0 %» del pie **es correcto y no es el defecto de antes**: ése es el descuento *global* del comprobante, y acá se aplicó por renglón. `totalsH` vuelve a reservar 5 filas y no 6. **El TXT no cambió**, así que la prueba de la 7.108.0 sigue midiendo lo mismo y sigue en verde |
 | 7.108.0 | 06/09/2026 | **Trece cosas reportadas usando el sistema, y una impedía acreditar un comprobante.** **El peor**: emitir una nota de crédito devolvía **500 siempre**. `notaCredito()` leía `$montoTexto` sin que existiera —la línea que lo define había quedado en `anularFactura()`, donde además no se usa porque anular no recibe monto— y una variable indefinida es `ErrorException` en Laravel: como el `try` empieza más abajo, salía sin traducir y sin nada en pantalla. O sea que **la nota de crédito parcial que trajo la 7.101.0 nunca llegó a funcionar**, y la entera tampoco. Comprobado en las dos direcciones: sacando la línea a propósito, la prueba falla. **Reprogramar no ofrecía ni una fecha**, que es lo que se reportó como «no hay fecha para dentro de dos meses siendo que algunos días no hay citas». La cita sabe para cuántas personas es (`cita.personas`) pero el modal **no se lo mandaba al selector**: no tiene la casilla —no se vuelve a preguntar lo que ya está decidido— así que el servidor recibía 1 y medía el peor caso, todo en serie sobre una sola clienta. Los cuatro servicios de una reserva para dos daban **6 h 15 min contra un turno de 6 h** y contestaba «no entra en el turno» a una cita que el salón estaba por atender ese mismo día. Entra `data-agenda-personas`, y **el fijo le gana a la casilla**: si el modal lo declara, es el dato de la cita y no hay nada que leer de la pantalla. **La clienta ya ve y baja sus facturas.** El endpoint de descarga existía desde la 7.42.0 y el único enlace hacia él vivía en la pantalla de la atención en curso: el comprobante se podía bajar **durante las dos horas de la cita y nunca más**, así que quien lo necesitaba para rendir un gasto lo pedía por WhatsApp. Ahora cada cita anterior lo ofrece, con pantalla y PDF —y el PDF pasa de tres renglones a un comprobante de verdad: detalle por servicio, subtotal, descuento, total, saldo y con qué se pagó—. **Es UN partial para los dos**, que escritos aparte la clienta termina con dos documentos que dicen cosas distintas del mismo cobro. La pertenencia se comprueba en la consulta: la factura de otra clienta contesta **404**. **El KuDE decía «DESCUENTO: 0 %» sobre una factura con descuento.** El SPG reparte el descuento entre los renglones antes de mandarlo —el total lo calcula el Automatizador sumándolos, y así se corrigió en la 7.107.0— pero del otro lado no quedaba rastro de que hubiera existido: la clienta veía un papel con los precios corridos (75.000 impreso como 74.648) negando el descuento que sí se le hizo. El precio de lista viaja ahora como **séptimo campo opcional del ITM**, y la elección es deliberada: **el que se declara sigue siendo el neto**, así que el total no cambia ni con un Automatizador viejo que ignore el campo. Mandar la lista en el campo 5 y el descuento aparte sería lo natural y es justo lo que no se puede hacer — un Automatizador viejo declararía **de más ante la DNIT**. El formato se extiende sólo por donde el error posible es cosmético. **La agenda se puede mirar por rango**: mostraba UN día y para saber qué había esta semana se iba día por día con la flecha, con una cita de hace tres meses inalcanzable en la práctica. Entra el filtro «Ver» —día, semana, mes, próximas, todas— con paginación; el día sigue siendo lo que se abre y **conserva su orden por lo que falta hacer**, que en un rango mezclaría marzo con agosto. **Un rol puede declarar que no necesita turno.** El aviso salía para todo `es_personal`, y eso incluye a quien no atiende; la 7.107.0 exceptuó al Administrador **por id**, así que un «Recepción» creado por el salón volvía a tenerlo sin forma de callarlo. Ahora es `rol.exige_turno`, se marca en Roles, y **basta con que UNO de los roles de la cuenta lo exija**. **Las alergias tienen su propio campo**: anotadas en observaciones quedaban mezcladas con «prefiere las 10» y no las leía nadie antes de preparar una mezcla. Es el único dato de la ficha que puede lastimar a alguien, así que se ve **en la fila de la agenda y en rojo** —no escondido tras el botón de detalle— que es la excepción que la regla de la ayuda contextual ya declara: lo que ADVIERTE no se esconde. **El historial de la clienta pagina**, que es la tabla que más crece: una habitual pasa las cien filas en un año y se dibujaban todas. **Los niveles de fidelización se cambian desde la pantalla** —desde cuántas visitas y con qué descuento— que eran dos números detrás de un `UPDATE` a mano; **el nombre no se toca**, que lo nombran los comprobantes ya emitidos. Y **dos niveles no pueden arrancar en el mismo número**: `fn_cliente_nivel` elige por `visitas_minimas`, así que ahí el descuento pasaría a depender del orden interno de la tabla. **«Visitas y puntos» dejaba de encontrarse**: se mudó a Promociones en la 7.107.0 y la miga seguía saliendo del permiso, así que decía «Panel › Clientes › Visitas y puntos» y ese enlace llevaba a un módulo donde la pantalla **no está listada**. Una pantalla prestada Y escondida de su módulo pasa a pertenecer, para navegar, al que la presta. **Los mensajes del agendamiento dicen qué hacer.** «Fulana no atiende en ese horario» no da con qué corregirlo: ahora dice **de qué hora a qué hora atiende**, o **qué días trabaja** si el problema es el día —mover la hora sobre un domingo no sirve de nada—. Y el de «no entra en el turno» aclara que ya contó cuántas personas vienen, o sugiere cargarlo si son varias. **Y en el celular el selector de fecha se lee**: con dos combos por fila quedaban 166 px cada uno y «septiembre de 2026» salía cortado en «septiembre de 2(». Medido: de 155 a **320 px** y de 31 a 42 px de alto. De paso el catálogo de servicios **scrollea adentro suyo** en vez de estirar la página — se acota el alto, **no se esconde nada**: con `display:none` un campo obligatorio hace que el navegador se niegue a enviar el formulario en silencio, que es el defecto de la 7.67.0. **178 pruebas · 1252 aserciones**, siete nuevas · 81 tablas · 80 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
@@ -476,7 +477,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **205 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **214 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -506,6 +507,7 @@ app/
     WebAuthn.php           Huella en PHP puro (CBOR, COSE→PEM, OpenSSL)
     Facturacion.php        Emitir, cobrar, anular, nota de crédito, puntos
     Caja.php               Caja abierta y saldo
+    Cuenta.php             La cuenta BANCARIA del salón: si alcanza para pagar
     Persona.php            El único lugar que escribe en `persona`
     Notificaciones.php     Cola de avisos: ausencias, bajas, recordatorios y los internos
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
@@ -553,7 +555,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 205 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 214 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -570,7 +572,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 178 pruebas
+tests/Feature/             Las 181 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1124,6 +1126,17 @@ portal mientras alguien mira el día.
 | Cada cuánto | `VivoController::CADA` — 20 segundos |
 | Secciones hoy | `agenda`, `cajas`, `panel` |
 
+> **La huella del panel incluye «lo que falta cargar».** Esa tabla no sale de
+> una consulta sola: la arma `Pendientes::mios()` cruzando timbrados, turnos,
+> servicios sin profesional y el correo del sistema, así que un conteo de filas
+> no la cubre. La huella se hace **sobre los renglones que de verdad se
+> dibujan** —nivel y texto—, que es lo único que puede cambiar sin que cambie
+> ninguna de las tablas que el resto de la huella mira.
+>
+> Se reportó como que **«FALTA CARGAR» no se actualiza y falla en silencio**, y
+> es exactamente eso: se cargaba el timbrado en otra pestaña y el panel seguía
+> pidiéndolo hasta que alguien recargara a mano.
+
 Cuatro decisiones que conviene no revertir:
 
 - **Devuelve una huella y no datos.** Así no hay nada que filtrar por permiso
@@ -1516,17 +1529,26 @@ solo ofrece el botón a quien tenga `facturacion.timbrados`.
 > lista de Servicios sin poder tocarla, es un permiso nuevo de sólo lectura, no
 > `servicios.catalogo`.** Lo fija `ReglasDeNegocioTest::el_profesional_no_administra_precios_ni_promociones`.
 
-> **El Profesional cobra, pero no administra el arqueo.** La base venía dándole
-> `facturacion.caja`, así que abría y cerraba la caja del salón y le veía el saldo — y este
-> documento decía lo contrario desde la 7.13.1. La simulación de 2 meses lo destapó
-> comprobándolo de punta a punta, y en la 7.29.0 se le quitó la clave del `.sql` que se
-> entrega. **Lo que sí conserva es `facturacion.cobros` y `facturacion.facturas`**: sacarle
-> eso lo dejaría sin poder trabajar en el mostrador, que no es lo que se quiso.
+> **Cobrar y facturar son del Administrador y del Asistente administrativo, no del
+> Profesional.** Lo decidió el usuario en la 7.110.0 —«desde ahora solo los Admin y
+> asistente administrativos pueden cobrar y facturar»— y **invierte a propósito** lo que
+> este documento sostuvo hasta la 7.109.0.
 >
-> La consecuencia hay que tenerla presente: **si el Profesional abre el salón, no puede
-> cobrar hasta que alguien con permiso abra la caja.** Es a propósito — sin caja abierta no
-> se mueve un guaraní, y quién responde por ese cajón es una decisión del salón. Lo fija
-> `ReglasDeNegocioTest::el_profesional_cobra_pero_no_administra_la_caja`.
+> El argumento de antes era que sacarle `facturacion.cobros` y `.facturas` lo dejaba sin
+> poder trabajar en el mostrador. Sigue siendo cierto, y **ése es justamente el punto**: el
+> mostrador pasa a ser de quien administra. Quien atiende registra la atención —eso es
+> `citas.atencion` y no se toca—, y el dinero lo cobra otro.
+>
+> Son **tres claves y ninguna vuelve por la ventana**: `facturacion.caja` se le había quitado
+> en la 7.29.0, y ahora se le quitan `facturacion.cobros` y `facturacion.facturas` del `.sql`
+> que se entrega. **El salón puede volver a dárselas desde Roles**: no está clavado en el
+> código, es la matriz de siempre. Lo fija en las dos direcciones
+> `ReglasDeNegocioTest::cobrar_y_facturar_son_del_administrador_y_del_asistente` — 403 para
+> el rol Profesional, 200 para el Asistente administrativo.
+>
+> **Y la cita se factura recién al terminarla ENTERA** (decisión del usuario, misma tanda).
+> Con varios profesionales, cada uno cierra su parte; mientras quede alguna abierta la cita
+> sigue En proceso y no hay nada que facturar — ver *«Cada profesional cierra SU parte»*.
 
 > **Al mudar una pantalla de módulo, revisá contra qué rol queda.** Timbrados vivía en
 > Configuración, que ningún rol salvo el Administrador tiene; al pasarla a Facturación quedó
@@ -1802,6 +1824,64 @@ Cuatro decisiones que conviene no revertir:
 Lo fija `ReglasDeNegocioTest::la_clienta_ve_las_cuentas_del_local_donde_reservo`,
 comprobada en las dos direcciones.
 
+#### Y cuánta plata hay en esa cuenta: el arqueo del banco
+
+**El efectivo tenía su control desde la 5.5.0 y el banco ninguno.** El propio
+código lo decía al lado del `if` —«los pagos por banco no se frenan: no salen
+del cajón, salen de la cuenta»— y **de la cuenta no se sabía nada**: se podía
+liquidar el mes entero contra una cuenta vacía y enterarse cuando el banco
+rechazara la transferencia. Es el punto 1 de la tanda de la 7.110.0, tal como lo
+pidió el usuario: *«control de pago… para verificar si hay dinero antes de pagar
+a profesionales y proveedores»*.
+
+| Qué | Dónde | ¿Se guarda? |
+|---|---|---|
+| Lo que el salón leyó en su banco | `dato_pago_sucursal.saldo_declarado` | **sí** |
+| Cuándo lo leyó | `dato_pago_sucursal.saldo_declarado_en` | **sí** |
+| De qué cuenta salió cada pago | `pago_proveedor.id_dato_pago` · `pago_personal.id_dato_pago` | **sí** |
+| **Cuánto queda** | `fn_cuenta_saldo(id)` | **NO: se calcula** |
+
+Cinco decisiones, y ninguna es cosmética:
+
+- **El saldo declarado es un HECHO OBSERVADO, así que se guarda.** El sistema
+  conoce lo que SALE de la cuenta —los pagos que él mismo registró— pero **no lo
+  que entra**: una transferencia de una clienta llega al banco sin pasar por
+  acá, y `cobro` no dice a qué cuenta del salón cayó. Reconstruirlo sumando
+  cobros sería inventarlo. Es exactamente el criterio de `caja.monto_contado`.
+- **Y el saldo calculado NO se guarda**, por lo mismo que la diferencia del
+  arqueo: es derivado, y guardarlo lo separaría del real en silencio.
+- **`fn_cuenta_saldo` es un PISO, no un saldo.** Parte de lo declarado y resta
+  lo pagado desde entonces; lo que entró no se suma. Así el número sólo puede
+  quedar **por debajo** del real, que es la única dirección segura para la
+  pregunta que contesta: *¿alcanza para pagar esto?*
+- **Por eso AVISA y no bloquea**, al revés que el efectivo. El saldo del cajón
+  es exacto y rechazar un egreso mayor es correcto; éste es aproximado por
+  abajo, y bloquear con un número que sabemos incompleto **frenaría un pago
+  legítimo** — apagar algo que hoy funciona, que es lo que la regla del proyecto
+  manda no hacer sin preguntar.
+- **NULL no es cero.** Una cuenta que nadie declaró vale «no se sabe», y
+  entonces el sistema **no dice nada**: un cero se leería como «está vacía» y el
+  aviso saldría siempre, que es lo mismo que no avisar nunca.
+
+**Dónde se ve**: el saldo se declara en Configuración → Datos de pago, con el
+botón «Declarar / Actualizar» de cada cuenta —**vaciar el campo la devuelve a
+«sin declarar»**, que es una respuesta válida—; y de qué cuenta sale la plata se
+elige en los dos modales de pago (`facturacion/_cuenta_elegir`), que es el mismo
+partial para los dos por el motivo de siempre.
+
+> **El selector se esconde cuando se paga en efectivo**, porque de un cajón no
+> sale ninguna transferencia. **Arranca visible y lo esconde `app.js`**, y
+> esconder no es el control: el servidor ignora `id_dato_pago` cuando el medio
+> es efectivo.
+
+> **Volver a declarar el saldo es, literalmente, hacer el arqueo de la cuenta**:
+> `fn_cuenta_saldo` sólo descuenta los pagos posteriores a esa fecha, así que lo
+> anterior queda cerrado.
+
+Lo fija en las tres direcciones que importan
+`ReglasDeNegocioTest::la_cuenta_del_banco_avisa_cuando_no_alcanza_pero_no_frena_el_pago`:
+sin declarar no avisa, declarado avisa, y **el pago se registra igual**.
+
 ### La reserva con seña queda pendiente, y el lugar se guarda un plazo
 
 **Son dos mitades y hacen falta las dos.** Si la cita no se creara hasta cobrar
@@ -1880,8 +1960,19 @@ como pendientes; se administra en **Seguridad → Roles**.
 
 ### Las alergias de la clienta van en su propio campo
 
-**`cliente.alergias`** (NULL = sin registrar). Se carga en la ficha y se muestra
-**destacado en rojo** en el historial y **en la fila de la agenda**.
+**`cliente.alergias`** (NULL = sin registrar). Se muestra **destacado en rojo**
+en el historial y **en la fila de la agenda**, y se carga desde **los dos lados**:
+
+| Quién | Dónde |
+|---|---|
+| El salón | Clientes → la ficha, y el botón **«ver ficha»** de cada fila |
+| **La clienta** | Portal → **Mi ficha** (`portal.ficha`) |
+
+> **Que la cargue la clienta no es un extra: es quien lo sabe.** El salón anota
+> lo que ella le cuenta, y eso depende de que alguien se acuerde de preguntar.
+> Del otro lado, la pantalla muestra sus datos de contacto **en sólo lectura** —
+> cambiarlos ahí sería otra cosa y otra decisión— y lo único editable son las
+> alergias. Queda auditado a su nombre con `Auditoria::registrarComo()`.
 
 > **Anotadas en `observaciones` no las leía nadie.** Ahí quedan mezcladas con
 > «prefiere las 10» y «vino con su hija», y quien prepara la mezcla no entra a
@@ -1896,6 +1987,16 @@ como pendientes; se administra en **Seguridad → Roles**.
 > **NULL no es «no tiene ninguna».** Vacío quiere decir que nadie lo registró, y
 > la pantalla dice «sin alergias registradas» en vez de afirmar que no las tiene
 > — afirmarlo sin que nadie lo haya dicho sería inventarlo.
+
+> **Y en Clientes, «ver ficha» reemplaza al botón de «nueva cita»** (pedido del
+> usuario). Desde una lista de clientas lo que se hace es **mirar** a una —qué
+> le pasó, qué le hicieron, a qué es alérgica— y agendar ya se hace desde la
+> agenda, que es donde están los horarios. El modal es de sólo lectura: la ficha
+> se edita con el lápiz de al lado.
+>
+> **Los modales van FUERA del panel de la tabla**, por lo de la 7.87.4: uno
+> dibujado dentro de un `<tr>` hereda cualquier `display:none` del ancestro y no
+> se puede mostrar ni con Bootstrap haciendo su trabajo.
 
 **`dia_semana` va de 1 (lunes) a 7 (domingo)**, que es lo que dan `date('N')` en PHP y
 `WEEKDAY()+1` en la base. No es el `DAYOFWEEK()` de MySQL (que arranca en domingo): si mezclás
@@ -2228,6 +2329,123 @@ hacen y devuelve el **mejor** caso.
 > horario a otra clienta. Es el caso peligroso, y por eso la prueba lo comprueba en las dos
 > direcciones. Como siempre que cambian las reglas de disponibilidad, hay que tocar la base
 > **y** su espejo de PHP (`Agenda::slotsProfesional()`, vía `Agenda::turnos()`).
+
+### Cada profesional cierra SU parte, y deja de estar ocupada
+
+**Una cita de 120 minutos dejaba ocupadas 120 minutos a las dos.** La clienta
+pide mechas con Lucía y manicura con Rocío: Rocío termina lo suyo en diez
+minutos y seguía apareciendo ocupada las dos horas, porque «atendida» era un
+estado de la CITA y no había forma de decir que una parte ya terminó. Con eso la
+agenda le negaba casi dos horas que tenía libres.
+
+| | |
+|---|---|
+| Dónde se marca | `cita_servicio.terminado_en` — NULL es «todavía no» |
+| Quién lo hace | cada profesional, desde «Registrar atención», por su parte |
+| Y también | Administrador y Asistente administrativo, **por cada una y por separado** |
+| Qué se libera | `fn_cita_duracion_de` deja de contar lo cerrado, así que la agenda la suelta |
+| Cuándo se cierra la cita | cuando **no queda ninguna** parte abierta: ahí pasa a Atendida |
+
+Cinco cosas que conviene no romper:
+
+- **Una sola función cubre las dos puntas.** `fn_cita_duracion_de` la usan
+  `fn_verificar_disponibilidad` —el motor— y `Agenda::datosProfesional()`, que la
+  llama **en SQL** y no la reimplementa: por eso agregarle `AND cs.terminado_en
+  IS NULL` libera la agenda en el motor y en su espejo de PHP **sin
+  desincronizarlos**, que es el riesgo que este documento persigue.
+- **El alcance de quien cierra es SU parte.** `atenderGuardar()` filtra los
+  servicios de la cita contra el ámbito de quien guarda; los que quedan fuera
+  **no se tocan**, ni para marcarlos ni para borrarlos.
+  > **Esto salió de una prueba y era un defecto de verdad**: sin el filtro, un
+  > administrador que cerraba la parte de una **borraba los servicios pendientes
+  > de las otras**. La prueba lo destapó porque `ExigeSesion` relee el rol de la
+  > base en cada petición, así que el «profesional» que usaba resultó ser
+  > admin — o sea alcance total.
+- **Los admin eligen de quién cierran**, con el selector `cerrar_de`: sin eso
+  sólo podrían cerrar «todo», que es justamente lo que se vino a evitar.
+- **Cada una registra lo que usó por separado.** El consumo cuelga del servicio,
+  así que se imputa a quien lo hizo y no a la dueña de la cita — es AG-02 un
+  nivel más adentro.
+- **Y la factura espera a la cita entera** (decisión del usuario): mientras
+  quede una parte abierta la cita sigue En proceso y no hay nada que facturar.
+
+**Y para verlo, la agenda del profesional cambia de forma.** Antes mostraba
+únicamente las citas de las que ella es la dueña, así que **una cita donde le
+tocaba un servicio no le aparecía**: sólo la veía la otra.
+
+| Columna | Qué dice |
+|---|---|
+| **Con quién** | los **otros** profesionales de esa cita, o «sola» |
+| **Mis servicios** | qué se pidió **con ella**, en el oro secundario, con el total debajo |
+
+> **Y `citaAjena()` tuvo que aprenderlo también, que era el defecto un nivel más
+> abajo**: comprobaba sólo `cita.id_usuario`, así que una profesional asignada a
+> un servicio de la cita de otra **ni siquiera podía abrirla** — 403. Ahora la
+> cita es suya si es la dueña **o** si tiene un `cita_servicio` a su nombre.
+
+Lo fija `ReglasDeNegocioTest::cada_profesional_cierra_su_parte_y_deja_de_estar_ocupada`,
+que mide el ciclo entero: la duración antes, el cierre de una parte, la duración
+después, que la otra siga abierta y que la cita no pase a Atendida hasta que
+cierre la última.
+
+### El asistente de reserva: una decisión por pantalla
+
+Las dos pantallas que reservan —el portal y Nueva cita— pedían **cinco cosas en
+una sola página**: servicios, quién atiende cada uno, día, hora y los detalles.
+En el celular eso son varias pantallas de scroll donde no se ve dónde se está ni
+cuánto falta, y el botón de confirmar vivía al final: **la única forma de saber
+si faltaba algo era llegar abajo y encontrarlo deshabilitado**, sin decir por
+qué. Lo pidió el usuario con una maqueta: *«utilizar este estilo para el
+agendamiento de citas… realizar tanto para portal cliente como para los demás.
+Respetar los colores del sistema»*.
+
+| Pieza | Qué es |
+|---|---|
+| `data-asistente` | el contenedor; sus hijos con `data-paso` son los pasos |
+| `data-paso="Servicios"` | el rótulo que sale en la barra de arriba |
+| `data-paso-requiere` | `#idDeUnCampo` o `servicios`, para no dejar avanzar sin eso |
+| `data-paso-error` | qué se dice cuando falta |
+| `data-paso-profesionales` | dónde se **mueven** los combos de «con quién» |
+| `data-wiz-repaso` | dónde se dibuja la cita armada, en el último paso |
+| `data-wiz-confirmar` | el botón de enviar, que se muda a la botonera del paso |
+| `data-wiz-cancelar` | «Cancelar», que si no queda suelto arriba de la botonera |
+
+Los pasos son **Servicios → Profesionales → Fecha y hora → Detalles →
+Confirmar** en el portal, y los mismos con **Cliente** adelante en Nueva cita.
+La sucursal se elige antes, en su propio panel, porque los servicios y los
+horarios son de un local y mostrarlos antes sería ofrecer algo que puede no
+existir ahí.
+
+Cuatro cosas que **no** hay que romper al tocarlo:
+
+- **Sin `app.js` se ven todos los pasos y se reserva igual.** El CSS esconde
+  sólo bajo `.spg-wiz-on`, y esa clase la pone el script.
+- **`required` se saca del paso escondido y se devuelve al mostrarlo**
+  (`trabar()`). Un campo obligatorio dentro de un `display:none` hace que el
+  navegador **se niegue a enviar el formulario y no diga nada** — es el defecto
+  de la 7.67.0, y acá el riesgo es peor porque el envío ocurre en el último
+  paso, con todos los demás escondidos.
+- **El paso de profesionales MUEVE los combos, no los copia.** Cada uno vive
+  dentro de su tarjeta desde la 7.51.0 —aparece con su servicio, y no hay quince
+  colgando de servicios que nadie pidió—; este paso los junta para poder
+  mirarlos de una y los devuelve al salir. Copiados, dos combos con el mismo
+  `name` mandarían dos valores para el mismo servicio y ganaría el último.
+- **Cambiar de paso no navega.** Es la misma página: si empezara a recargar se
+  perdería lo cargado, que es lo que `data-borrador` ya resolvió una vez.
+
+> **El repaso se arma con lo que la pantalla ya tiene** —los `data-precio` y
+> `data-duracion` de las tarjetas y el valor que el selector de disponibilidad
+> dejó en el campo escondido—, **sin preguntarle nada al servidor**: así no puede
+> quedar desfasado de lo que la clienta está viendo.
+
+> **Cada paso se arma al ENTRAR**, no al cargar la página: el motor despacha
+> `spg:asistente-paso` y los dos handlers escuchan ahí. El de profesionales sólo
+> puede saber qué servicios hay cuando ya se eligieron, y el repaso sólo tiene
+> sentido cuando no queda nada por cambiar.
+
+Lo fija `ReglasDeNegocioTest::las_dos_pantallas_de_reserva_usan_el_mismo_asistente`,
+que mide el andamiaje —no el aspecto— en las dos pantallas: si alguno de esos
+atributos se renombra, el asistente deja de armarse **y no da ningún error**.
 
 ## Cambio de contraseña: segundo factor
 
@@ -2733,6 +2951,14 @@ Dos cosas distintas que conviene no mezclar:
   > Eran dos números detrás de un `UPDATE` a mano, o sea imposibles para el
   > salón — el caso del valor del punto (7.27.0) y del nombre del salón (7.35.0).
   >
+  > **Y se pueden dar de baja.** `nivel.activo` existía desde el TCC y **no lo
+  > tocaba ninguna pantalla**, así que un nivel mal cargado quedaba para
+  > siempre. Se da de baja, no se borra: los comprobantes ya emitidos lo
+  > nombran, y `fn_cliente_nivel` deja de elegirlo sin que nada se rompa. El
+  > renglón se queda en la lista, atenuado y con el borde punteado —**un botón
+  > que hace desaparecer la fila no se puede deshacer**, que es la regla que
+  > este documento ya tiene anotada.
+  >
   > **El nombre no se toca**: `nivel.nombre` es UNIQUE y lo nombran los
   > comprobantes ya emitidos y el portal («por su nivel Oro»); renombrarlo dejaría
   > esos textos hablando de un nivel que no existe.
@@ -2785,23 +3011,29 @@ paso evita el clásico del estado que se olvidó de actualizar.
 | Dónde | Quién | Permiso |
 |---|---|---|
 | Portal → Promociones | la clienta, sola | — (su propia sesión) |
-| Servicios → Promociones → **Visitas y puntos** | quien atiende, **por** la clienta que vino al local | `clientes.fidelizacion` |
+| Clientes → **Visitas y puntos** | quien atiende, **por** la clienta que vino al local | `clientes.fidelizacion` |
 | Clientes → Canjes por puntos | el salón, para armar el **catálogo** | `clientes.canjes` |
 
-> **Fidelización vive en Promociones, no en Clientes** (pedido del usuario).
-> Las dos pantallas contestaban la misma pregunta —cuánto le devuelve el salón
-> a la clienta por venir— y separadas obligaban a saltar de una a la otra: los
-> niveles y el valor del punto se administran en Promociones desde la 7.102.0,
-> y quién junta cuántos se miraba en otro módulo. De paso, la columna
-> «Visitas» salió de la tabla de Clientes: contaba lo mismo sin el nivel ni los
-> puntos, que es lo que la hace significar algo.
+> **«Visitas y puntos» es de CLIENTES, y volvió acá en la 7.110.0** (pedido del
+> usuario: *«jerarquía de servicios y clientes mezclada»*). La 7.107.0 la había
+> mudado a Promociones con el argumento de que contesta la misma pregunta que
+> los descuentos, y eso mezcló dos jerarquías: **la pantalla lista personas**
+> —quién junta cuántos puntos, en qué nivel está, qué canjeó— y buscar a una
+> clienta dentro de Servicios no se le ocurre a nadie.
 >
-> **La URL no se muda y el permiso tampoco.** Es la regla del proyecto —mover
-> una pantalla de módulo no la muda de ruta— y renombrar la clave dejaría
-> huérfanas las filas de `rol_modulo` de las bases andando. Lo que cambia es de
-> dónde se llega: el catálogo la marca con el cuarto valor en `false` para
-> sacarla del menú de Clientes, y `navegacion.tambien.servicios` la ofrece
-> desde Promociones con el nombre con el que se la busca ahí.
+> **Lo que SÍ se queda en Promociones son los parámetros**: desde cuántas
+> visitas arranca cada nivel, qué descuento le toca y cuántos guaraníes vale un
+> punto. Ésa es la distinción que ordena las dos —*fijar la regla* es de
+> Servicios, *mirar a quién le tocó* es de Clientes— y es la misma por la que el
+> catálogo vive en Servicios y las citas en Citas.
+>
+> **La URL y el permiso no se tocan**: ya eran de Clientes, así que la mudanza
+> de ida y la de vuelta fueron las dos sólo de menú. Lo que se saca es el cuarto
+> valor en `false` del catálogo y la entrada de `navegacion.tambien.servicios`,
+> que queda **vacía a propósito** — el mecanismo se conserva, la próxima
+> pantalla compartida lo va a necesitar. `AndamiajeTest` lo fija en las dos
+> direcciones: que `moduloDe('clientes.fidelizacion')` diga `clientes` y que no
+> quede declarada como prestada a Servicios.
 
 Y se **usa** desde dos: Portal → Reservar y **Citas → Nueva cita**, las dos por
 `Canje::aplicarACita()`.
@@ -3026,6 +3258,14 @@ La columna Acciones de la agenda contesta las tres situaciones, cada una con su 
 `?cita=` sólo **ordena y resalta**: el id no se usa para emitir nada, así que uno inventado en la
 URL no hace daño. Emitir sigue pidiendo `facturacion.facturas`, que es un permiso distinto de
 `facturacion.cobros` — quien sólo cobra ve el estado pero no el botón.
+
+> **Ojo con el modo de sólo lectura: esconder el formulario escondía también lo
+> que se hizo.** Con la cita ya atendida, «Detalle» dibujaba el precio y los
+> servicios y **no los productos usados** —reportado tal cual—, porque el panel
+> de consumo se dibujaba únicamente en modo edición: al apagar el formulario se
+> iba el bloque entero, con la lista adentro. Ahora esa rama tiene la suya, que
+> lista lo consumido sin ningún campo, y dice «no se registró ninguno» cuando no
+> hubo — que es distinto de no mostrar nada.
 
 **Y «Registrar atención» dice cuánto va sumando**, que es el paso de antes. Listaba el
 precio de cada servicio y **no sumaba ninguno**: se agregaba una manicura en el sillón y
@@ -4367,8 +4607,8 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 21 procedimientos, 39 funciones,
-   17 triggers, 17 vistas y 78 `CHECK`, y que **la base coincide con el `.sql`**.
+4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
+   17 triggers, 17 vistas y 81 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -4499,7 +4739,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**178 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**181 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

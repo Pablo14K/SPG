@@ -27,6 +27,13 @@ class ClientesController extends Controller
             'subs' => Permisos::tarjetasPermitidas([
                 ['p' => 'clientes.registro', 'ruta' => 'clientes.lista', 'ic' => 'people',
                  't' => 'Clientes', 'd' => 'Registro y datos de contacto'],
+                // **Quién junta cuántos puntos es de Clientes**: la pantalla
+                // lista personas. Lo que se administra en Promociones son los
+                // parámetros —desde cuántas visitas arranca cada nivel y cuánto
+                // vale un punto—, que es fijar la regla y no mirar a quién le
+                // tocó.
+                ['p' => 'clientes.fidelizacion', 'ruta' => 'clientes.fidelizacion', 'ic' => 'award',
+                 't' => 'Visitas y puntos', 'd' => 'Quién junta cuántos, y en qué nivel está'],
                 ['p' => 'clientes.canjes', 'ruta' => 'clientes.canjes', 'ic' => 'gift',
                  't' => 'Canjes por puntos', 'd' => 'Qué se lleva la clienta con sus puntos'],
                 ['p' => 'clientes.valoraciones', 'ruta' => 'clientes.valoraciones', 'ic' => 'star',
@@ -72,7 +79,15 @@ class ClientesController extends Controller
         // hace significar algo; ese listado tiene su propia exportación con las
         // tres columnas. Acá era una llamada a `fn_cliente_visitas` por fila
         // para un número que se leía mejor en el otro lado.
-        $cols = 'c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, c.activo';
+        // **La ficha se mira sin entrar a editarla**, así que la lista trae lo
+        // que el modal muestra. Son columnas planas de dos tablas que ya están
+        // unidas: no agrega ni una consulta por fila.
+        //
+        // **Lo que NO entra son el nivel, las visitas y los puntos.** Ésos
+        // salen de `fn_cliente_*`, o sea una llamada por fila, y se miran donde
+        // significan algo: Clientes → Visitas y puntos.
+        $cols = 'c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, '
+              . 'pe.direccion, c.alergias, c.observaciones, c.activo';
         $orden = 'ORDER BY pe.apellido, pe.nombre';
 
         if (Listado::pideExport()) {

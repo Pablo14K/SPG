@@ -127,6 +127,47 @@
                 $extras  = collect($servicios)->reject(fn ($x) => $x->agendado || $x->ya);
             @endphp
 
+            {{-- **Cada profesional cierra SU parte.** Una cita de dos horas
+                 repartida entre dos dejaba ocupadas dos horas a las dos: la que
+                 hace la manicura termina en diez minutos y seguía sin poder
+                 recibir a nadie. Al guardar, lo que se marca queda cerrado y esa
+                 agenda se libera desde esa hora — la cita sigue abierta hasta que
+                 cierren todas. --}}
+            @if (! $soloLectura && ($faltanCerrar ?? 0) > 0)
+                <div class="alert alert-warning py-2 mb-2" style="font-size:.85rem">
+                    <i class="bi bi-people"></i>
+                    @if ($puedeTodo)
+                        Quedan <strong>{{ $faltanCerrar }}</strong> servicio(s) sin cerrar en esta cita.
+                        Podés cerrar la parte de cada profesional por separado, con lo que usó cada una.
+                    @else
+                        Marcá <strong>lo tuyo</strong> y guardá: tu agenda queda libre desde ese momento,
+                        sin esperar a que termine el resto de la cita.
+                    @endif
+                    <strong>Se va a poder cobrar y facturar cuando estén todos cerrados.</strong>
+                </div>
+            @endif
+
+            {{-- **De quién se cierra la parte.** Sólo lo ve quien puede cerrar la
+                 de cualquiera. No es un filtro de pantalla: define qué servicios
+                 se dan por no realizados y salen de la cita, así que cerrar la
+                 parte de una no puede llevarse lo que las demás todavía no
+                 hicieron. --}}
+            @if (! $soloLectura && $puedeTodo && count($abiertasDe) > 1)
+                <div class="mb-2" style="max-width:340px">
+                    <label class="form-label" for="cerrarDe">¿De quién estás cerrando?</label>
+                    <select class="form-select form-select-sm" id="cerrarDe" name="cerrar_de">
+                        <option value="0">Todas — cierro la cita entera</option>
+                        @foreach ($abiertasDe as $a)
+                            <option value="{{ $a->id_usuario }}">Sólo la parte de {{ $a->nombre }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">
+                        Lo que quede sin marcar de esa parte sale de la cita: no se le cobra
+                        a la clienta. Lo de las demás no se toca.
+                    </div>
+                </div>
+            @endif
+
             <div class="spg-check-lista" id="listaServiciosAt">
                 @if ($pedidos->isNotEmpty())
                     <div class="spg-grupo-rotulo">Lo que se agendo</div>
@@ -182,7 +223,56 @@
             </div>
         </div>
 
-        {{-- 2. Productos usados --}}
+        {{-- 2. Productos usados
+
+             **En «Detalle» esto se MIRA, no se carga.** La 7.82.0 sacó el
+             formulario de la cita ya atendida y lo hizo a medias: se aplicó a la
+             lista de servicios —que pasa a mostrar sólo los realizados— y este
+             bloque quedó dibujando sus tres filas vacías igual. Así que el botón
+             «Detalle» abría una cita ya facturada con tres selectores en «— sin
+             producto —», y lo que de verdad se usó no aparecía por ningún lado:
+             se reportó exactamente así, «se ve el precio y el servicio pero no
+             carga los productos utilizados».
+
+             Con la cita cerrada, lo que corresponde es lo que se consumió. Y si
+             no se cargó ninguno **se dice**, en vez de dejar el hueco: un bloque
+             que desaparece no distingue «no se usó nada» de «esto se rompió». --}}
+        @if ($soloLectura)
+            <div class="spg-panel mb-3">
+                <h2 class="spg-form-titulo mb-2">
+                    <i class="bi bi-box-seam"></i> Productos que se usaron
+                </h2>
+                @if ($usados)
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Producto</th><th>Servicio</th><th class="text-end">Cantidad</th></tr></thead>
+                            <tbody>
+                                @foreach ($usados as $u)
+                                    <tr>
+                                        <td>{{ $u->nombre }}</td>
+                                        <td class="text-muted-warm">{{ $u->servicio }}</td>
+                                        <td class="text-end">
+                                            {{ cant(stock_a_consumo((array) $u, (float) $u->cantidad)) }}
+                                            {{ unidad_consumo((array) $u) }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="spg-vacio">
+                        <i class="bi bi-box-seam"></i>
+                        <div class="t">No se cargó ningún producto en esta atención.</div>
+                        <div class="d">
+                            Puede ser que no se haya usado nada, o que al registrarla el
+                            descuento de stock no haya entrado — eso se avisa en el momento
+                            y queda en el registro del sistema.
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @else
         <div class="spg-panel mb-3">
             <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?<x-ayuda>Cargá lo que realmente se usó: no es una cantidad fija por servicio, cambia según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.</x-ayuda></h2>
 
@@ -273,6 +363,7 @@
                 <i class="bi bi-plus-lg"></i> Otra fila
             </button>
         </div>
+        @endif
 
         {{-- 3. Observaciones --}}
         <div class="spg-panel mb-3">
@@ -282,15 +373,19 @@
         </div>
 
         <div class="d-flex gap-2">
+            @unless ($soloLectura)
             <button class="btn btn-oro" @disabled((bool) $factura)
                     data-confirmar="Al registrar la atención, la cita queda ATENDIDA y el stock de los productos se descuenta. ¿Confirmás?">
                 <i class="bi bi-clipboard-check"></i> Registrar atención
             </button>
+            @endunless
             <a class="btn btn-outline-neutro" href="{{ route('citas.agenda') }}">Volver a la agenda</a>
         </div>
     </form>
 
-    @if ($usados)
+    {{-- Con la cita cerrada esto ya se muestra arriba: repetirlo sería la misma
+         tabla dos veces en la misma pantalla. --}}
+    @if ($usados && ! $soloLectura)
         <div class="spg-panel mt-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Productos ya cargados en esta cita</h2>
             <div class="table-responsive">

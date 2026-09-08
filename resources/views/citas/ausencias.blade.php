@@ -85,21 +85,44 @@
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Quién</th><th>Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Motivo</th></tr>
+                            <tr><th>Quién</th><th>Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
+                                <th>Motivo</th><th>Estado</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             @forelse ($rows as $a)
-                                <tr>
+                                {{-- **La dada de baja sigue en la lista.** Si al
+                                     apagarla desapareciera, el botón se leería como
+                                     «borrar» y no habría desde dónde deshacerlo. --}}
+                                <tr @class(['text-muted-warm' => ! $a->activo])>
                                     <td>{{ $a->quien }}</td>
                                     <td class="text-muted-warm">{{ $a->donde }}</td>
-                                    <td><span class="badge-estado e-prog">{{ $a->tipo }}</span></td>
+                                    <td><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
                                     <td>{{ fecha($a->fecha_inicio) }}</td>
                                     <td>{{ fecha($a->fecha_fin) }}</td>
                                     <td class="text-muted-warm">{{ $a->motivo ?: '—' }}</td>
+                                    <td>
+                                        @if ($a->activo)
+                                            <span class="badge-estado e-ok">Vigente</span>
+                                        @else
+                                            <span class="badge-estado e-muted">De baja</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end" style="white-space:nowrap">
+                                        <form method="post" action="{{ route('citas.ausencia.baja') }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="id_ausencia" value="{{ $a->id_ausencia }}">
+                                            <button class="btn btn-sm btn-outline-neutro"
+                                                    title="{{ $a->activo ? 'Dar de baja' : 'Volver a aplicar' }}"
+                                                    data-confirmar="{{ $a->activo
+                                                        ? '¿Dar de baja esta excepción? Esos horarios vuelven a poder agendarse. Las citas que ya se movieron por esto no se deshacen solas.'
+                                                        : '¿Volver a aplicar esta excepción? Esos horarios dejan de ofrecerse.' }}">
+                                                <i class="bi bi-toggle-{{ $a->activo ? 'on' : 'off' }}"></i></button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="8">
                                         <div class="spg-vacio">
                                             <i class="bi bi-calendar-x"></i>
                                             <div class="t">No hay excepciones cargadas.</div>

@@ -61,7 +61,9 @@
                 <thead>
                     <tr>
                         <th>Hora</th><th>Cliente</th>
-                        @if ($verTodo)<th>Profesional</th>@endif
+                        {{-- Para quien ve la agenda del salón, quién atiende; para
+                             quien ve la suya, con quién comparte esa cita. --}}
+                        <th>{{ $verTodo ? 'Profesional' : 'Con quién' }}</th>
                         <th>Servicios</th><th class="text-end">Duración</th>
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
@@ -139,8 +141,34 @@
                                         {{ ucfirst(implode(' · ', $spgDet)) }}</button>
                                 @endif
                             </td>
-                            @if ($verTodo)<td class="text-muted-warm">{{ $c->profesionales ?: $c->profesional }}</td>@endif
-                            <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
+                            @if ($verTodo)
+                                <td class="text-muted-warm">{{ $c->profesionales ?: $c->profesional }}</td>
+                            @else
+                                {{-- **Con quién más se atiende esta cita.** La columna
+                                     entera se dibujaba sólo para quien ve la agenda del
+                                     salón, así que la profesional que comparte una cita
+                                     no sabía que iba a haber alguien más en el sillón de
+                                     al lado — ni a quién preguntarle. --}}
+                                <td class="text-muted-warm">
+                                    {{ $c->otros_profesionales ?: 'sola' }}
+                                </td>
+                            @endif
+                            <td class="text-muted-warm">
+                                @if ($verTodo || ! $c->mis_servicios)
+                                    {{ $c->servicios ?: '—' }}
+                                @else
+                                    {{-- **Lo que le pidieron A ELLA, primero.** De los
+                                         cuatro servicios de la cita puede tocarle uno:
+                                         leer los cuatro sin saber cuál es suyo obliga a
+                                         abrir el detalle para preparar el puesto. --}}
+                                    <span class="txt-oro">{{ $c->mis_servicios }}</span>
+                                    @if ($c->otros_profesionales)
+                                        <div style="font-size:.76rem">
+                                            + {{ $c->servicios }}
+                                        </div>
+                                    @endif
+                                @endif
+                            </td>
                             <td class="text-end">{{ (int) $c->duracion_min }} min</td>
                             <td>
                                 {!! estado_badge($c->estado) !!}

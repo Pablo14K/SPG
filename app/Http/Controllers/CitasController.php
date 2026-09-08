@@ -146,8 +146,22 @@ class CitasController extends Controller
         $par = ['d' => $dia];
         $soloMias = '';
         if (! $verTodo) {
-            $soloMias = ' AND c.id_usuario = :yo';
-            $par['yo'] = (int) session('uid');
+            // **Una cita es mía si trabajo en ella, no sólo si es mía.**
+            // Preguntaba únicamente por `c.id_usuario`, o sea por el DUEÑO de
+            // la cita, y desde la 5.3.0 una cita se reparte: la clienta pide
+            // mechas con Lucía y manicura con Rocío, la cita queda a nombre de
+            // una —`principalDelReparto()`— y la otra **no la veía en su
+            // agenda**. El día de la cita se enteraba porque la clienta se
+            // sentaba en su sillón.
+            //
+            // El reparto vive en `cita_servicio.id_usuario`, y **un NULL ahí no
+            // es «nadie»: es el dueño de la cita** —así se representa «lo hace
+            // quien la tiene» desde siempre—, que es justo el caso que la
+            // primera condición ya cubre.
+            $soloMias = ' AND (c.id_usuario = :yo1
+                               OR EXISTS (SELECT 1 FROM cita_servicio cs0
+                                           WHERE cs0.id_cita = c.id_cita AND cs0.id_usuario = :yo2))';
+            $par['yo1'] = $par['yo2'] = (int) session('uid');
         }
 
         // **La agenda es la del local en el que se está trabajando.**
@@ -232,8 +246,13 @@ class CitasController extends Controller
             $par['cli'] = '%' . Listado::valor($f, 'cliente') . '%';
         }
         if (Listado::hay($f, 'prof')) {
-            $soloMias .= ' AND c.id_usuario = :prof';
-            $par['prof'] = (int) Listado::valor($f, 'prof');
+            // Mismo criterio que «mis citas»: filtrar por alguien tiene que
+            // traer todo lo que esa persona atiende, no sólo lo que tiene a su
+            // nombre — si no, el filtro contesta distinto que la agenda propia.
+            $soloMias .= ' AND (c.id_usuario = :prof1
+                                OR EXISTS (SELECT 1 FROM cita_servicio cs1
+                                            WHERE cs1.id_cita = c.id_cita AND cs1.id_usuario = :prof2))';
+            $par['prof1'] = $par['prof2'] = (int) Listado::valor($f, 'prof');
         }
         if (Listado::hay($f, 'estado')) {
             $soloMias .= ' AND c.id_estado_cita = :est';
@@ -266,6 +285,33 @@ class CitasController extends Controller
         // no siempre pide factura, nadie se acuerda de pasar por Facturación.
         // Se mira sólo el comprobante NO anulado (estado 1). `nro_comprobante`
         // NO es una columna de `factura`: lo arma `fn_factura_nro()`.
+        // **Qué de esta cita es MÍO.** Quien ve su propia agenda necesita dos
+        // cosas que la fila no decía: **qué servicios le pidieron a ella** —de
+        // los cuatro de la cita puede tocarle uno— y **con quién más la
+        // atiende**, que la columna «Profesional» sólo se dibuja para quien ve
+        // la agenda entera.
+        //
+        // Van en `$parLista` y no en `$par`: el `COUNT(*)` de arriba **no** las
+        // lleva en su SELECT, y un marcador de más en una consulta que no lo
+        // usa es `SQLSTATE[HY093]` — la conexión prepara de forma nativa.
+        $parLista = $par;
+        $colsMias = "NULL AS mis_servicios, NULL AS otros_profesionales,";
+        if (! $verTodo) {
+            $colsMias = "(SELECT GROUP_CONCAT(DISTINCT sm.nombre ORDER BY sm.nombre SEPARATOR ', ')
+                            FROM cita_servicio csm
+                            JOIN servicio sm ON sm.id_servicio = csm.id_servicio
+                           WHERE csm.id_cita = v.id_cita
+                             AND COALESCE(csm.id_usuario, c.id_usuario) = :mio1) AS mis_servicios,
+                         (SELECT GROUP_CONCAT(DISTINCT CONCAT(pe_ot.nombre,' ',pe_ot.apellido)
+                                              ORDER BY pe_ot.nombre, pe_ot.apellido SEPARATOR ', ')
+                            FROM cita_servicio cso
+                            JOIN usuario uo ON uo.id_usuario = COALESCE(cso.id_usuario, c.id_usuario)
+                            JOIN persona pe_ot ON pe_ot.id_persona = uo.id_persona
+                           WHERE cso.id_cita = v.id_cita
+                             AND COALESCE(cso.id_usuario, c.id_usuario) <> :mio2) AS otros_profesionales,";
+            $parLista['mio1'] = $parLista['mio2'] = (int) session('uid');
+        }
+
         $rows = DB::select(
             "SELECT v.*,
                     -- **La seña es lo que se cobró POR ADELANTADO, no todo lo
@@ -321,6 +367,7 @@ class CitasController extends Controller
                     -- modal de reprogramar: son fijos, la cita ya los tiene.
                     (SELECT GROUP_CONCAT(csv.id_servicio)
                        FROM cita_servicio csv WHERE csv.id_cita = v.id_cita) AS servicios_ids,
+                    $colsMias
                     (SELECT ss.id_solicitud FROM sena_solicitud ss
                       WHERE ss.id_cita = v.id_cita AND ss.id_cobro IS NULL AND ss.rechazada_en IS NULL
                       ORDER BY ss.id_solicitud LIMIT 1) AS id_solicitud,
@@ -388,7 +435,7 @@ class CitasController extends Controller
                        END,
                        v.fecha_hora'
                     : ($rango === 'todas' ? 'v.fecha_hora DESC' : 'v.fecha_hora')) . "
-              LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
+              LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $parLista
         );
 
         // La seña mueve plata: el botón solo aparece si el rol maneja caja
@@ -1333,15 +1380,78 @@ class CitasController extends Controller
                    LEFT JOIN usuario u   ON u.id_usuario = a.id_usuario
                    LEFT JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                    LEFT JOIN sucursal su  ON su.id_sucursal = a.id_sucursal
-                  WHERE a.activo = 1
-                    AND (:s = 0 OR a.id_sucursal IS NULL OR a.id_sucursal = :s2)
-                  ORDER BY a.fecha_inicio DESC LIMIT 100",
+                  WHERE (:s = 0 OR a.id_sucursal IS NULL OR a.id_sucursal = :s2)
+                  ORDER BY a.activo DESC, a.fecha_inicio DESC LIMIT 100",
                 ['s' => Sucursales::activa(), 's2' => Sucursales::activa()]
             ),
             'profs' => Agenda::profesionales(),
             'sucursales' => DB::select('SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1 ORDER BY nombre'),
             'tipos' => DB::select('SELECT * FROM tipo_ausencia ORDER BY nombre'),
         ]);
+    }
+
+    /**
+     * Dar de baja una excepción de agenda, o volver a ponerla.
+     *
+     * **Se cargaban y no se podían sacar.** Una licencia mal tipeada —el mes
+     * equivocado, la persona equivocada— dejaba a alguien sin agenda y la
+     * única salida era cargar otra encima, que no borra la primera:
+     * `fn_verificar_disponibilidad` mira TODAS las vigentes, así que la mala
+     * seguía bloqueando el horario.
+     *
+     * **Es una baja y no un borrado**, con `activo`, que la tabla ya tenía:
+     * una ausencia explica por qué esa semana no se agendó nada, y borrarla
+     * deja ese hueco sin motivo. Además así se puede deshacer.
+     *
+     * **Y la fila NO desaparece de la lista.** Un botón que hace desaparecer
+     * la fila que toca es indistinguible de uno que borra, y desde ahí no hay
+     * cómo volver atrás — es el patrón que este proyecto ya tiene anotado
+     * («que el filtro sea una columna»). La lista muestra las dos, con su
+     * estado, y las vigentes primero.
+     */
+    public function ausenciaBaja(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_ausencia', 0);
+        $volver = redirect()->route('citas.ausencias');
+
+        $a = DB::selectOne(
+            "SELECT a.*, ta.nombre AS tipo,
+                    COALESCE(CONCAT(pe.nombre,' ',pe.apellido),'todo el salón') AS quien
+               FROM ausencia_agenda a
+               JOIN tipo_ausencia ta ON ta.id_tipo_ausencia = a.id_tipo_ausencia
+               LEFT JOIN usuario u  ON u.id_usuario = a.id_usuario
+               LEFT JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE a.id_ausencia = ?", [$id]
+        );
+        if (! $a) {
+            flash('Esa excepción no existe.', 'error');
+
+            return $volver;
+        }
+
+        // **La sucursal manda, como en toda la operación.** Una excepción de
+        // otro local no se toca desde acá; la que vale en todas (`id_sucursal`
+        // en NULL) sí, que es del salón entero.
+        $suc = (int) (Sucursales::activa() ?: 0);
+        if ($suc && $a->id_sucursal !== null && (int) $a->id_sucursal !== $suc) {
+            flash('Esa excepción es de otra sucursal: se da de baja desde ese local.', 'error');
+
+            return $volver;
+        }
+
+        $nuevo = (int) $a->activo === 1 ? 0 : 1;
+        DB::update('UPDATE ausencia_agenda SET activo = ? WHERE id_ausencia = ?', [$nuevo, $id]);
+
+        Auditoria::registrar($nuevo ? 'ALTA' : 'BAJA', 'Citas', 'ausencia_agenda', $id,
+            $a->tipo . ' de ' . $a->quien . ' (' . fecha($a->fecha_inicio) . ' – ' . fecha($a->fecha_fin) . ')'
+            . ($nuevo ? ' vuelve a valer' : ' dada de baja'));
+
+        flash($nuevo
+            ? 'La excepción vuelve a valer: esos horarios dejan de ofrecerse otra vez.'
+            : 'Excepción dada de baja. Esos horarios vuelven a estar disponibles para agendar.'
+              . ' Las citas que ya se hubieran movido por esto NO se deshacen solas.');
+
+        return $volver;
     }
 
     public function ausenciaGuardar(Request $request): RedirectResponse
@@ -1469,7 +1579,49 @@ class CitasController extends Controller
         // atender y facturar quedaba una ventana abierta.
         $soloLectura = (int) $cita->id_estado_cita === 4;
 
+        // **Cada profesional cierra SU parte, no la cita entera.** Una cita de
+        // dos horas repartida entre dos dejaba ocupadas a las dos las dos
+        // horas: la que hace la manicura termina en diez minutos y seguía
+        // apareciendo ocupada, porque «atendida» era un estado de la CITA.
+        //
+        // Quién puede cerrar qué:
+        //
+        //   · el Administrador y el Asistente cierran **la parte de cualquiera**,
+        //     por separado — es lo que se pidió, y es lo que hace falta cuando
+        //     la profesional se fue sin registrar lo suyo;
+        //   · una profesional cierra **sólo lo suyo**.
+        //
+        // Lo hace cumplir el guardado; acá se calcula para poder dibujarlo.
+        $puedeTodo = $this->veTodaLaAgenda();
+        $mias = array_map('intval', array_column(DB::select(
+            'SELECT cs.id_servicio
+               FROM cita_servicio cs
+               JOIN cita c ON c.id_cita = cs.id_cita
+              WHERE cs.id_cita = :c
+                AND (:todo = 1 OR COALESCE(cs.id_usuario, c.id_usuario) = :yo)',
+            ['c' => $id, 'todo' => $puedeTodo ? 1 : 0, 'yo' => (int) session('uid')]
+        ), 'id_servicio'));
+
+        // Quiénes tienen todavía algo abierto en esta cita: es entre ellas que
+        // elige el Administrador para cerrar una parte sin tocar las demás.
+        $abiertasDe = $puedeTodo ? DB::select(
+            "SELECT DISTINCT u.id_usuario, CONCAT(pe.nombre,' ',pe.apellido) AS nombre
+               FROM cita_servicio cs
+               JOIN cita c ON c.id_cita = cs.id_cita
+               JOIN usuario u ON u.id_usuario = COALESCE(cs.id_usuario, c.id_usuario)
+               JOIN persona pe ON pe.id_persona = u.id_persona
+              WHERE cs.id_cita = ? AND cs.terminado_en IS NULL
+              ORDER BY pe.nombre", [$id]) : [];
+
         return view('citas.atender', [
+            'puedeTodo' => $puedeTodo,
+            'mias' => $mias,
+            'abiertasDe' => $abiertasDe,
+            // Lo que falta cerrar de la cita entera: la factura recién se puede
+            // emitir cuando no queda ninguna parte abierta (decisión del
+            // usuario), así que la pantalla lo tiene que decir.
+            'faltanCerrar' => (int) DB::scalar(
+                'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND terminado_en IS NULL', [$id]),
             'cita' => $cita,
             'soloLectura' => $soloLectura,
             // Quién puede atender: un servicio agregado en el sillón lo puede
@@ -1493,12 +1645,15 @@ class CitasController extends Controller
                         -- Quién lo tiene asignado hoy: el reparto de la cita
                         -- manda sobre el profesional de la cabecera (AG-02).
                         (SELECT x2.id_usuario FROM cita_servicio x2
-                          WHERE x2.id_cita = :c5 AND x2.id_servicio = s.id_servicio LIMIT 1) AS id_usuario
+                          WHERE x2.id_cita = :c5 AND x2.id_servicio = s.id_servicio LIMIT 1) AS id_usuario,
+                        -- Cuándo se cerró esa parte. NULL es «todavía no».
+                        (SELECT x3.terminado_en FROM cita_servicio x3
+                          WHERE x3.id_cita = :c6 AND x3.id_servicio = s.id_servicio LIMIT 1) AS terminado_en
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'
                 . ($soloLectura ? ') t WHERE t.ya > 0' : ''),
-                ['c1' => $id, 'c2' => $id, 'c5' => $id]
+                ['c1' => $id, 'c2' => $id, 'c5' => $id, 'c6' => $id]
             ),
             // **A qué servicio se le imputa el producto: sólo a los de ESTA
             // cita.** El selector ofrecía el catálogo entero, así que se podía
@@ -1636,12 +1791,62 @@ class CitasController extends Controller
             return $volver;
         }
 
+        // **Qué parte de la cita puede cerrar quien está guardando.** El
+        // Administrador y el Asistente cierran la de cualquiera; una
+        // profesional, sólo la suya. **Esconder las casillas de las demás no
+        // es el control**: el POST se puede armar a mano, así que el alcance se
+        // vuelve a calcular acá y lo de afuera se descarta.
+        $puedeTodo = $this->veTodaLaAgenda();
+
+        // **De quién se está cerrando la parte.** Una profesional cierra la
+        // suya y no hay nada que preguntar. El Administrador y el Asistente
+        // pueden cerrar **la de cada una por separado** —es lo que se pidió, y
+        // es lo que hace falta cuando alguien se fue sin registrar lo suyo— así
+        // que lo eligen; en «todas» se comporta como siempre.
+        //
+        // **No es cosmético: define qué se BORRA.** Lo agendado y no realizado
+        // sale de la cita para no cobrárselo a la clienta, y sin acotar de
+        // quién, el admin que cerrara la parte de una le borraba de la cita los
+        // servicios que las demás todavía no habían hecho.
+        $cerrarDe = $puedeTodo ? (int) $request->input('cerrar_de', 0) : (int) session('uid');
+
+        $enScope = array_map('intval', array_column(DB::select(
+            'SELECT cs.id_servicio
+               FROM cita_servicio cs
+               JOIN cita c ON c.id_cita = cs.id_cita
+              WHERE cs.id_cita = :c AND cs.terminado_en IS NULL
+                AND (:de = 0 OR COALESCE(cs.id_usuario, c.id_usuario) = :de2)',
+            ['c' => $idCita, 'de' => $cerrarDe, 'de2' => $cerrarDe]
+        ), 'id_servicio'));
+
+        // **De lo tildado sólo se cierra lo que a esta persona le toca.** Un
+        // servicio que YA está en la cita y es de otra profesional —o que ella
+        // ya cerró— se descarta: esconder la casilla no es el control, el POST
+        // se arma a mano.
+        //
+        // **El servicio que NO está en la cita sí pasa**, y es a propósito: es
+        // la manicura que la clienta pide en el sillón, que quien la atiende
+        // agrega sobre la marcha y cierra en el mismo acto.
+        $enCitaHoy = array_map('intval', array_column(DB::select(
+            'SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$idCita]), 'id_servicio'));
+
+        $fuera = array_values(array_diff(array_intersect($validos, $enCitaHoy), $enScope));
+        $validos = array_values(array_diff($validos, $fuera));
+
+        if (! $validos) {
+            flash($fuera
+                ? 'Esos servicios no son tuyos o ya están cerrados: no hay nada que registrar de tu parte.'
+                : 'Marcá al menos un servicio realizado.', 'error');
+
+            return $volver;
+        }
+
         try {
             // Quién hace cada servicio según la pantalla. Se lee acá y no
             // adentro: el closure no captura `$request`.
             $profRealiza = array_map('intval', (array) $request->input('prof_realiza', []));
 
-            $resumen = DB::transaction(function () use ($idCita, $cita, $validos, $prodIds, $prodCant, $prodServ, $obs, $profRealiza) {
+            $resumen = DB::transaction(function () use ($idCita, $cita, $validos, $prodIds, $prodCant, $prodServ, $obs, $profRealiza, $enScope, $puedeTodo) {
                 $idsSR = [];
                 $srPorServicio = [];
                 $agregados = 0;
@@ -1725,15 +1930,46 @@ class CitasController extends Controller
                 $conAtencion = array_map(fn ($r) => (int) $r->id_servicio,
                     DB::select('SELECT DISTINCT id_servicio FROM servicio_realizado WHERE id_cita = ?', [$idCita]));
 
+                // **Sólo se quitan los servicios que ESTA persona estaba
+                // cerrando.** Antes se borraba todo lo agendado sin atención, y
+                // con el cierre por partes eso sería catastrófico: la que
+                // termina primero le borraría de la cita los servicios que la
+                // otra todavía no hizo, y la clienta se iría sin la mitad de lo
+                // que pidió. El alcance es el mismo con el que se decide qué se
+                // puede cerrar.
                 $quitados = 0;
-                foreach (array_diff($enCita, $validos, $conAtencion) as $sid) {
+                foreach (array_intersect(array_diff($enCita, $validos, $conAtencion), $enScope) as $sid) {
                     $quitados += DB::delete('DELETE FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sid]);
                 }
 
-                DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [$idCita]);
+                // **Lo que se cerró queda marcado con la hora.** De ahí sale que
+                // esa profesional deje de estar ocupada: `fn_cita_duracion_de`
+                // ignora lo terminado, y `fn_verificar_disponibilidad` la
+                // descarta sola porque filtra ese bloque con `> 0`.
+                //
+                // `ahora_bd()` y no `NOW()` de PHP: es un momento que después se
+                // le muestra a una persona, y la tzdata de PHP se desactualiza.
+                $cerrados = 0;
+                foreach ($validos as $sid) {
+                    $cerrados += DB::update(
+                        'UPDATE cita_servicio SET terminado_en = ?
+                          WHERE id_cita = ? AND id_servicio = ? AND terminado_en IS NULL',
+                        [ahora_bd(), $idCita, $sid]);
+                }
+
+                // **La cita pasa a Atendida SÓLO cuando no queda ninguna parte
+                // abierta**, que es la condición para poder facturarla (decisión
+                // del usuario: se factura al terminar la cita entera). Mientras
+                // falte alguien, se queda En proceso — sigue ocupando el sillón
+                // y la clienta sigue ahí.
+                $faltan = (int) DB::scalar(
+                    'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND terminado_en IS NULL', [$idCita]);
+
+                DB::update('UPDATE cita SET id_estado_cita = ? WHERE id_cita = ?',
+                    [$faltan === 0 ? 4 : 5, $idCita]);
 
                 return ['servicios' => count($idsSR), 'agregados' => $agregados,
-                        'quitados' => $quitados,
+                        'quitados' => $quitados, 'cerrados' => $cerrados, 'faltan' => $faltan,
                         'sr' => $srPorServicio, 'primerSR' => $idsSR[0] ?? 0];
             });
 
@@ -1757,7 +1993,16 @@ class CitasController extends Controller
             flash('Atención registrada: ' . $resumen['servicios'] . ' servicio(s).'
                 . ($resumen['agregados'] ? " Se agregaron {$resumen['agregados']} servicio(s) que no estaban en la cita original." : '')
                 . ($resumen['quitados'] ? " Se quitaron {$resumen['quitados']} servicio(s) agendado(s) que no se realizaron: no se van a facturar." : '')
-                . ($consumo['ok'] ? ' El stock de los productos usados fue descontado.' : ''));
+                . ($consumo['ok'] ? ' El stock de los productos usados fue descontado.' : '')
+                // **Lo que hay que decir es qué pasó con la CITA**, que es otra
+                // cosa que lo que pasó con esta parte: quien cierra lo suyo se
+                // libera la agenda, pero la clienta sigue en el sillón y el
+                // comprobante todavía no se puede emitir.
+                . ($resumen['faltan'] === 0
+                    ? ' La cita quedó cerrada: ya se puede cobrar y facturar.'
+                    : ' Tu parte quedó cerrada, así que tu agenda queda libre desde ahora.'
+                      . ' Falta(n) ' . $resumen['faltan'] . ' servicio(s) de la cita:'
+                      . ' se va a poder facturar cuando estén todos.'));
 
             // El aviso del consumo va aparte y en amarillo: la atención quedó
             // registrada —eso es lo importante— pero el inventario no refleja
@@ -2071,14 +2316,33 @@ class CitasController extends Controller
     /**
      * Limitar la agenda a las citas propias no alcanza si después se puede
      * entrar a la de otro escribiendo el id en la URL.
+     *
+     * **«Propia» es donde trabajo, no sólo la que está a mi nombre.** Preguntaba
+     * únicamente por `cita.id_usuario`, o sea por el dueño, y desde la 5.3.0 una
+     * cita se reparte: la clienta pide mechas con Lucía y manicura con Rocío, la
+     * cita queda a nombre de una y a la otra **le contestaba 403** al abrir la
+     * atención de una clienta que estaba atendiendo ella.
+     *
+     * Es el mismo criterio con el que la agenda decide qué mostrar, escrito acá
+     * también porque acá es donde de verdad se hace cumplir: la agenda esconde,
+     * esto niega.
      */
     private function citaAjena(?object $cita): bool
     {
-        if (! $cita) {
+        if (! $cita || $this->veTodaLaAgenda()) {
             return false;
         }
 
-        return ! $this->veTodaLaAgenda() && (int) $cita->id_usuario !== (int) session('uid');
+        $yo = (int) session('uid');
+        if ((int) $cita->id_usuario === $yo) {
+            return false;
+        }
+
+        // Un `cita_servicio.id_usuario` en NULL es el dueño de la cita, que es
+        // el caso que ya resolvió la comparación de arriba.
+        return ! DB::scalar(
+            'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND id_usuario = ?',
+            [(int) $cita->id_cita, $yo]);
     }
 
     private function esPersonalActivo(int $idUsuario): bool

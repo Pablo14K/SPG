@@ -47,12 +47,24 @@
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
             
-            <div class="spg-reserva-layout">
-                <div class="spg-reserva-col-main">
+            {{-- **Una decisión por pantalla.**
 
-            <div class="spg-seccion">
+                 Reservar pedía cinco cosas en una sola página —servicios, quién
+                 atiende cada uno, día, hora y los detalles— y en el celular eso
+                 son varias pantallas de scroll donde no se ve dónde se está ni
+                 cuánto falta. Peor: el botón vivía al final, así que la única
+                 forma de saber si faltaba algo era llegar abajo y encontrarlo
+                 deshabilitado, sin decir por qué.
+
+                 **Sin `app.js` se ven todos los pasos uno abajo del otro y se
+                 reserva igual**: el CSS esconde sólo bajo la clase que pone el
+                 script. Es la regla de siempre — lo que adorna puede faltar. --}}
+            <div class="spg-wiz" data-asistente>
+
+            <div class="spg-seccion" data-paso="Servicios"
+                 data-paso-requiere="servicios"
+                 data-paso-error="Elegí al menos un servicio para seguir.">
                 <div class="spg-seccion-head">
-                    <span class="spg-paso">1</span>
                     <label class="form-label">¿Qué te querés hacer? *</label>
                 </div>
                 {{-- **El catálogo completo vive en su propia pantalla.** Acá
@@ -218,9 +230,26 @@
             {{-- El selector de huecos lo maneja app.js, el mismo que usa Nueva
                  cita. Acá no hay combo de profesional a propósito, así que la
                  agenda que se consulta sale de los selectores por servicio. --}}
-            <div class="spg-seccion">
+            {{-- **Quién atiende cada servicio, todo junto.** El combo vive dentro
+                 de su tarjeta desde la 7.51.0 —aparece con su servicio y no hay
+                 quince colgando de servicios que nadie pidió— y eso se conserva:
+                 este paso **mueve** esos mismos combos acá para poder mirarlos de
+                 una. Copiarlos mandaría dos valores para el mismo servicio. --}}
+            <div class="spg-seccion" data-paso="Profesionales">
                 <div class="spg-seccion-head">
-                    <span class="spg-paso">2</span>
+                    <label class="form-label">¿Con quién?</label>
+                </div>
+                <p class="text-muted-warm" style="font-size:.85rem">
+                    Podés elegir a quién preferís para cada servicio, o dejarlo en
+                    «sin preferencia» y lo asignamos al reservar.
+                </p>
+                <div data-paso-profesionales></div>
+            </div>
+
+            <div class="spg-seccion" data-paso="Fecha y hora"
+                 data-paso-requiere="#fecha_hora"
+                 data-paso-error="Elegí el día y el horario para seguir.">
+                <div class="spg-seccion-head">
                     <label class="form-label">¿Cuándo? *</label>
                 </div>
                 <div class="spg-cuando-caja">
@@ -246,9 +275,8 @@
 
                  Arranca oculto el nombre y lo muestra el JS; sin `app.js` se
                  ven los dos campos y se reserva igual. --}}
-            <div class="spg-seccion">
+            <div class="spg-seccion" data-paso="Detalles">
                 <div class="spg-seccion-head">
-                    <span class="spg-paso">3</span>
                     <label class="form-label">Detalles</label>
                 </div>
                 <div class="spg-detalle-grupo">
@@ -292,33 +320,35 @@
                 </div>
             </div>
 
-            </div> <!-- /col-main -->
-
-            <div class="spg-reserva-col-side">
-
-            {{-- **Lo que va a costar, antes de reservar.**
-
-                 La pantalla mostraba el precio de cada servicio y no sumaba
-                 ninguno: con tres marcados, la clienta tenía que hacer la
-                 cuenta de cabeza para saber con cuánto venir. Y la seña es
-                 parte de la misma pregunta —cuánto hay que adelantar—, así que
-                 va en el mismo bloque y no en una franja aparte.
-
-                 Lo arma `app.js` con los `data-precio` y `data-duracion` que
-                 cada tarjeta ya trae, así que no hace falta consultar al
-                 servidor. **Sin JavaScript no se dibuja**, y cada tarjeta
-                 sigue mostrando su propio precio: es un resumen, no la única
-                 forma de saber cuánto sale. --}}
-            <div class="spg-resumen spg-resumen-destacado mb-3" id="resumenCita" style="display:none">
-                <div class="spg-resumen-tit">
-                    <i class="bi bi-receipt"></i> Tu cita
-                    <span class="spg-resumen-dur" data-resumen="dur"></span>
+            {{-- **El último paso es mirar la cita armada.** Es lo que no se
+                 podía ver antes de confirmar: qué servicios, con quién, qué día
+                 y a qué hora, y cuánto sale todo junto. Lo dibuja `app.js` con
+                 los `data-` que las tarjetas ya traen, así que no puede quedar
+                 desfasado de lo que la clienta está viendo. --}}
+            <div class="spg-seccion" data-paso="Confirmar">
+                <div class="spg-seccion-head">
+                    <label class="form-label">Tu cita quedaría así</label>
                 </div>
-                <ul class="spg-resumen-lista" data-resumen="lista"></ul>
-                <div class="spg-resumen-total">
-                    <span>Total</span>
-                    <strong data-resumen="total">Gs. 0</strong>
-                </div>
+                <p class="text-muted-warm" style="font-size:.85rem">
+                    Revisá los detalles antes de confirmar.
+                </p>
+
+                <div data-wiz-repaso class="mb-3"></div>
+
+            {{-- **De este bloque queda sólo la seña.**
+
+                 Los servicios, la duración y el total los dice ahora el repaso
+                 de arriba, con el día, la hora y quién atiende cada uno — que es
+                 más de lo que este resumen mostraba. Dejarlo entero sería la
+                 misma cuenta dos veces en la misma pantalla.
+
+                 **La seña sí se queda**, porque no está en el repaso y contesta
+                 otra pregunta: no cuánto sale, sino **cuánto hay que adelantar
+                 para que la reserva valga**. El JS pone cada dato con un `if`
+                 sobre su elemento, así que sacar los otros tres no rompe nada. --}}
+            {{-- El contenedor queda sin estilo propio: adentro va un solo aviso, que
+                 ya trae el suyo. Una caja dentro de otra caja para un renglón. --}}
+            <div class="mb-3" id="resumenCita" style="display:none">
                 <div class="spg-resumen-sena" data-resumen="sena-caja" style="display:none">
                     <i class="bi bi-cash-coin"></i>
                     Para confirmarla hace falta una seña de
@@ -327,11 +357,14 @@
                 </div>
             </div>
 
-            <button class="btn btn-oro spg-reservar-btn" id="btnReservar" disabled>
-                <i class="bi bi-calendar-check"></i> Reservar</button>
-            
-            </div> <!-- /col-side -->
-            </div> <!-- /layout -->
+            {{-- `data-wiz-confirmar` lo manda a la botonera del paso, al lado de
+                 «Volver»: es la acción principal de esta pantalla y tiene que
+                 quedar donde el pulgar ya estaba apretando «Siguiente». --}}
+            <button class="btn btn-oro spg-reservar-btn" id="btnReservar" data-wiz-confirmar disabled>
+                <i class="bi bi-calendar-check"></i> Confirmar cita</button>
+            </div> <!-- /paso Confirmar -->
+
+            </div> <!-- /asistente -->
 
         </form>
     </div>

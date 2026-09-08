@@ -81,6 +81,7 @@
                                                         style="width:130px" aria-label="Medio de pago" required>
                                                     @foreach ($metodos as $m)
                                                         <option value="{{ $m->id_metodo_pago }}"
+                                                            data-tipo="{{ $m->tipo }}"
                                                             @selected($m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
                                                     @endforeach
                                                 </select>
@@ -88,6 +89,14 @@
                                                     'cajas' => $cajas,
                                                     'uid' => 'Pers' . $p->id_usuario,
                                                     'rotulo' => '¿De qué caja sale la plata?',
+                                                    'compacto' => true,
+                                                ])
+                                                {{-- Y si se le transfiere, de qué cuenta:
+                                                     el cajón no se toca y hasta acá nada
+                                                     miraba si en el banco había plata. --}}
+                                                @include('facturacion._cuenta_elegir', [
+                                                    'cuentas' => $cuentasBanco,
+                                                    'uid' => 'Pers' . $p->id_usuario,
                                                     'compacto' => true,
                                                 ])
                                                 <button class="btn btn-sm btn-oro"

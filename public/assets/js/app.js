@@ -1627,7 +1627,13 @@ window.SPGCarga = (function () {
     });
 
     if (!caja) { return; }
-    caja.style.display = cuantos > 0 ? '' : 'none';
+    // **El bloque se muestra por lo que de verdad tiene adentro.** En el
+    // asistente quedó sólo con la seña —los servicios y el total los dice el
+    // repaso—, así que atarlo a «hay servicios marcados» dibujaba un recuadro
+    // vacío al pie del último paso.
+    caja.style.display = (lista || elTot)
+      ? (cuantos > 0 ? '' : 'none')
+      : (sena > 0 ? '' : 'none');
 
     // Se arma con nodos y no con innerHTML: el nombre del servicio lo
     // escribe el salón, y concatenarlo dentro de una cadena de HTML es
@@ -2008,3 +2014,411 @@ window.SPGCarga = (function () {
   mirar();
   timer = setInterval(mirar, cada);
 })();
+
+/* ------------------------------------------------------------------
+   El asistente de reserva: una decisión por pantalla
+   ------------------------------------------------------------------
+   Reservar pedía CINCO cosas en una sola página —local, servicios, quién
+   atiende cada uno, día, hora y los detalles— y en el celular eso son
+   varias pantallas de scroll donde no se ve dónde se está ni cuánto
+   falta. Peor: el botón de reservar vivía al final, así que la única
+   forma de saber si faltaba algo era llegar abajo y encontrarlo
+   deshabilitado, sin decir por qué.
+
+   Ahora es un paso por vez, con la barra de arriba diciendo en cuál se
+   está, y **el último paso muestra la cita armada antes de confirmarla**
+   — que es lo que nadie podía ver: qué servicios, con quién, a qué hora
+   y cuánto sale, todo junto.
+
+   TRES COSAS QUE NO HAY QUE ROMPER AL TOCARLO:
+
+   1) **Sin `app.js` se ven TODOS los pasos y se reserva igual.** El CSS
+      esconde sólo bajo `.spg-wiz-on`, y esa clase la pone este script.
+      Es la regla de siempre: lo que adorna puede faltar.
+
+   2) **`required` se saca del paso escondido.** Un campo obligatorio
+      dentro de un `display:none` hace que el navegador **se niegue a
+      enviar el formulario y no diga nada** — es el defecto de la 7.67.0,
+      que dejó «crear usuario» sin funcionar hasta que alguien miró la
+      consola. Acá el riesgo es peor, porque el envío ocurre en el último
+      paso, con todos los demás escondidos.
+
+   3) **Cambiar de paso no navega.** Es la misma página: si esto
+      empezara a recargar, se perdería lo cargado y volveríamos al
+      problema que `data-borrador` ya resolvió una vez.
+   ------------------------------------------------------------------ */
+(function () {
+  var cajas = document.querySelectorAll('[data-asistente]');
+  if (!cajas.length) return;
+
+  function icono(nombre) {
+    var i = document.createElement('i');
+    i.className = 'bi bi-' + (nombre || 'circle');
+    return i;
+  }
+
+  cajas.forEach(function (caja) {
+    var pasos = Array.prototype.filter.call(caja.children, function (el) {
+      return el.hasAttribute('data-paso');
+    });
+    if (pasos.length < 2) return;
+
+    caja.classList.add('spg-wiz-on');
+    var actual = 0;
+
+    // ---- La barra de pasos ----
+    var barra = document.createElement('ol');
+    barra.className = 'spg-wiz-barra';
+    pasos.forEach(function (p, i) {
+      var li = document.createElement('li');
+      li.className = 'spg-wiz-item';
+      var bola = document.createElement('span');
+      bola.className = 'spg-wiz-bola';
+      bola.textContent = String(i + 1);
+      var tit = document.createElement('span');
+      tit.className = 'spg-wiz-tit';
+      tit.textContent = p.getAttribute('data-paso') || ('Paso ' + (i + 1));
+      li.appendChild(bola);
+      li.appendChild(tit);
+      // Volver a un paso ya recorrido: hacia adelante no, que saltearía
+      // lo que ese paso pide.
+      li.addEventListener('click', function () { if (i < actual) ir(i); });
+      barra.appendChild(li);
+    });
+    caja.insertBefore(barra, caja.firstChild);
+
+    // ---- La botonera de cada paso ----
+    pasos.forEach(function (p, i) {
+      var nav = document.createElement('div');
+      nav.className = 'spg-wiz-nav';
+
+      if (i > 0) {
+        var atras = document.createElement('button');
+        atras.type = 'button';
+        atras.className = 'btn btn-outline-neutro';
+        atras.appendChild(icono('arrow-left'));
+        atras.appendChild(document.createTextNode(' Volver'));
+        atras.addEventListener('click', function () { ir(i - 1); });
+        nav.appendChild(atras);
+      }
+
+      if (i < pasos.length - 1) {
+        var sig = document.createElement('button');
+        sig.type = 'button';
+        sig.className = 'btn btn-oro ms-auto';
+        sig.appendChild(document.createTextNode('Siguiente '));
+        sig.appendChild(icono('arrow-right'));
+        sig.addEventListener('click', function () { if (valida(p)) ir(i + 1); });
+        nav.appendChild(sig);
+      }
+
+      // «Cancelar» va con los demás botones, no suelto arriba: si se queda
+      // en el cuerpo del paso, queda un enlace huérfano entre el repaso y
+      // la botonera y se lee como parte del contenido.
+      var salir = p.querySelector('[data-wiz-cancelar]');
+      if (salir) { nav.appendChild(salir); }
+
+      // El último paso ya trae el botón de confirmar del formulario: se
+      // lo empuja a la derecha para que quede donde estaba «Siguiente».
+      var propio = p.querySelector('[data-wiz-confirmar]');
+      if (propio) { propio.classList.add('ms-auto'); nav.appendChild(propio); }
+
+      p.appendChild(nav);
+    });
+
+    /* **La validación del paso, antes de dejar avanzar.**
+       Se usa la del navegador —`reportValidity` muestra el globo nativo
+       sobre el campo— y encima una propia para lo que no es un campo:
+       elegir servicios son casillas, y el horario lo escribe el selector
+       de disponibilidad en un `input` escondido. */
+    function valida(p) {
+      var campos = p.querySelectorAll('input:not([type=hidden]), select, textarea');
+      for (var i = 0; i < campos.length; i++) {
+        if (!campos[i].checkValidity()) { campos[i].reportValidity(); return false; }
+      }
+
+      var pide = p.getAttribute('data-paso-requiere');
+      if (pide) {
+        var falta = false;
+        if (pide.charAt(0) === '#' || pide.charAt(0) === '.') {
+          var el = document.querySelector(pide);
+          falta = !el || !String(el.value || '').trim();
+        } else if (pide === 'servicios') {
+          falta = !document.querySelector('.srv:checked');
+        }
+        if (falta) { aviso(p, p.getAttribute('data-paso-error') || 'Falta completar este paso.'); return false; }
+      }
+      return true;
+    }
+
+    function aviso(p, texto) {
+      var caja2 = p.querySelector('[data-wiz-aviso]');
+      if (!caja2) {
+        caja2 = document.createElement('div');
+        caja2.className = 'alert alert-warning py-2 mt-2';
+        caja2.setAttribute('data-wiz-aviso', '');
+        p.insertBefore(caja2, p.querySelector('.spg-wiz-nav'));
+      }
+      caja2.textContent = texto;
+      caja2.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    /* **`required` se saca de lo escondido y se devuelve al mostrarlo.**
+       Ver el aviso 2 de arriba: sin esto el formulario no se envía y no
+       hay ningún mensaje que lo explique. */
+    function trabar(p, escondido) {
+      p.querySelectorAll('[required], [data-wiz-req]').forEach(function (c) {
+        if (escondido) {
+          if (c.hasAttribute('required')) { c.setAttribute('data-wiz-req', '1'); c.removeAttribute('required'); }
+        } else if (c.hasAttribute('data-wiz-req')) {
+          c.removeAttribute('data-wiz-req'); c.setAttribute('required', 'required');
+        }
+      });
+    }
+
+    function ir(i) {
+      actual = i;
+      pasos.forEach(function (p, k) {
+        var activo = k === i;
+        p.classList.toggle('spg-wiz-activo', activo);
+        trabar(p, !activo);
+      });
+      barra.querySelectorAll('.spg-wiz-item').forEach(function (li, k) {
+        li.classList.toggle('hecho', k < i);
+        li.classList.toggle('activo', k === i);
+      });
+      // **Cada paso se arma al ENTRAR, no antes.** El de profesionales
+      // sólo puede saber qué servicios hay cuando ya se eligieron, y el
+      // repaso sólo tiene sentido cuando ya no queda nada por cambiar.
+      document.dispatchEvent(new CustomEvent('spg:asistente-paso', {
+        detail: { caja: caja, paso: pasos[i], indice: i, ultimo: i === pasos.length - 1, pasos: pasos },
+      }));
+      caja.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    ir(0);
+  });
+})();
+
+
+/* ------------------------------------------------------------------
+   Paso «Profesionales»: quién hace cada servicio, uno debajo del otro
+   ------------------------------------------------------------------
+   El combo de profesional vive **dentro de la tarjeta del servicio**
+   desde la 7.51.0, y ahí está bien: aparece con su servicio y no hay
+   quince combos colgando de servicios que nadie pidió. Lo que este paso
+   agrega es mirarlos juntos, que es otra pregunta —«¿con quién me
+   atiendo?»— y en el celular obligaba a subir y bajar entre tarjetas.
+
+   **Se MUEVE el nodo, no se copia.** Dos combos con el mismo `name`
+   mandarían dos valores para el mismo servicio y ganaría el último, que
+   es justo el defecto que este proyecto ya se hizo copiando formularios.
+   Al salir del paso vuelve a su tarjeta.
+   ------------------------------------------------------------------ */
+document.addEventListener('spg:asistente-paso', function (e) {
+  var paso = e.detail.paso;
+  var caja = e.detail.caja;
+  var destino = caja.querySelector('[data-paso-profesionales]');
+  if (!destino) return;
+
+  function devolver() {
+    destino.querySelectorAll('.spg-srv-extra').forEach(function (ex) {
+      var card = document.querySelector('[data-srv-card="' + ex.getAttribute('data-de-card') + '"]');
+      if (card) { card.appendChild(ex); }
+    });
+    destino.textContent = '';
+  }
+
+  // El contenedor vive DENTRO del paso, no es el paso: comparar los dos
+  // nodos daba siempre distinto y la lista no se armaba nunca.
+  if (!paso.contains(destino)) { devolver(); return; }
+
+  devolver();
+  var hay = 0;
+  document.querySelectorAll('.srv:checked').forEach(function (c) {
+    var card = c.closest('.spg-srv-card');
+    var ex = card && card.querySelector('.spg-srv-extra');
+    if (!card || !ex) { return; }
+
+    ex.setAttribute('data-de-card', card.getAttribute('data-srv-card'));
+
+    var fila = document.createElement('div');
+    fila.className = 'spg-wiz-linea';
+
+    var ic = document.createElement('div');
+    ic.className = 'spg-wiz-linea-ic';
+    ic.innerHTML = '<i class="bi bi-scissors"></i>';
+
+    var cuerpo = document.createElement('div');
+    cuerpo.className = 'spg-wiz-linea-cuerpo';
+    var nom = document.createElement('div');
+    nom.className = 'spg-wiz-linea-nom';
+    nom.textContent = (card.querySelector('.spg-srv-nombre') || {}).textContent || '';
+    var dur = document.createElement('div');
+    dur.className = 'spg-wiz-linea-quien';
+    dur.textContent = (c.getAttribute('data-duracion') || '') + ' min';
+    cuerpo.appendChild(nom);
+    cuerpo.appendChild(dur);
+    cuerpo.appendChild(ex);
+
+    fila.appendChild(ic);
+    fila.appendChild(cuerpo);
+    destino.appendChild(fila);
+    hay++;
+  });
+
+  if (!hay) {
+    var v = document.createElement('div');
+    v.className = 'text-muted-warm';
+    v.textContent = 'Volvé al paso anterior y elegí al menos un servicio.';
+    destino.appendChild(v);
+  }
+});
+
+/* ------------------------------------------------------------------
+   Paso final: «tu cita quedaría así»
+   ------------------------------------------------------------------
+   Lo que faltaba antes de confirmar: **la cita armada**. La pantalla
+   pedía cinco cosas y la última decisión se tomaba sin poder ver las
+   cuatro anteriores juntas — qué servicios, con quién, qué día y a qué
+   hora, y cuánto sale todo.
+
+   Se arma con los `data-` que las tarjetas ya traen y con el valor que
+   el selector de disponibilidad dejó en el campo escondido: **no se le
+   pregunta nada al servidor**, así que no puede quedar desfasado de lo
+   que la clienta está viendo.
+   ------------------------------------------------------------------ */
+document.addEventListener('spg:asistente-paso', function (e) {
+  if (!e.detail.ultimo) return;
+  var destino = e.detail.caja.querySelector('[data-wiz-repaso]');
+  if (!destino) return;
+
+  function gs(n) {
+    return 'Gs. ' + Math.round(n).toLocaleString('es-PY', { maximumFractionDigits: 0 });
+  }
+  function txt(el, clase, contenido) {
+    var d = document.createElement(el);
+    if (clase) { d.className = clase; }
+    d.textContent = contenido;
+    return d;
+  }
+
+  destino.textContent = '';
+  var caja = document.createElement('div');
+  caja.className = 'spg-wiz-repaso';
+
+  // --- El día y la hora, arriba ---
+  var campo = document.getElementById('fecha_hora');
+  var cuando = campo && String(campo.value || '').trim();
+  var dia = document.createElement('div');
+  dia.className = 'spg-wiz-repaso-dia';
+  dia.innerHTML = '<i class="bi bi-calendar-event"></i>';
+  dia.appendChild(txt('span', '', cuando
+    ? new Date(cuando.replace(' ', 'T')).toLocaleString('es-PY', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+    : 'Todavía no elegiste el horario'));
+  caja.appendChild(dia);
+
+  // --- Un renglón por servicio, con quién lo hace ---
+  var total = 0, min = 0, cuantos = 0;
+  document.querySelectorAll('.srv:checked').forEach(function (c) {
+    var card = c.closest('.spg-srv-card');
+    var precio = parseFloat(c.getAttribute('data-precio')) || 0;
+    total += precio;
+    min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
+    cuantos++;
+
+    var fila = document.createElement('div');
+    fila.className = 'spg-wiz-linea';
+    var ic = document.createElement('div');
+    ic.className = 'spg-wiz-linea-ic';
+    ic.innerHTML = '<i class="bi bi-scissors"></i>';
+
+    var cuerpo = document.createElement('div');
+    cuerpo.className = 'spg-wiz-linea-cuerpo';
+    cuerpo.appendChild(txt('div', 'spg-wiz-linea-nom',
+      card ? ((card.querySelector('.spg-srv-nombre') || {}).textContent || '') : ''));
+
+    // Quién lo hace sale del combo de esa tarjeta; el combo puede estar
+    // movido al paso de profesionales, así que se lo busca por `name`.
+    var sel = document.querySelector('select[name$="[' + c.value + ']"]')
+           || (card && card.querySelector('select'));
+    // **«Sin preferencia» se dice en el repaso como lo que significa.** El
+    // texto de la opción está escrito para elegir —«quien me atienda»— y en
+    // un repaso se lee como si ésa fuera la profesional asignada.
+    var elegido = sel && sel.value && sel.value !== '0';
+    var quien = elegido && sel.options[sel.selectedIndex]
+      ? sel.options[sel.selectedIndex].textContent.trim().split('·')[0].trim() : '';
+    cuerpo.appendChild(txt('div', 'spg-wiz-linea-quien',
+      quien ? quien : 'con quien esté disponible'));
+
+    fila.appendChild(ic);
+    fila.appendChild(cuerpo);
+    fila.appendChild(txt('div', 'spg-wiz-linea-val', gs(precio)));
+    caja.appendChild(fila);
+  });
+
+  if (!cuantos) {
+    caja.appendChild(txt('div', 'spg-wiz-linea', 'Todavía no elegiste ningún servicio.'));
+  }
+  destino.appendChild(caja);
+
+  // --- Duración y total, como en la maqueta ---
+  var cifras = document.createElement('div');
+  cifras.className = 'spg-wiz-cifras';
+
+  var c1 = document.createElement('div');
+  c1.className = 'spg-wiz-cifra';
+  c1.appendChild(txt('span', 'r', 'Duración total'));
+  c1.appendChild(txt('span', 'v', min >= 60
+    ? (Math.floor(min / 60) + ' h ' + (min % 60 ? (min % 60) + ' min' : '')).trim()
+    : min + ' min'));
+
+  var c2 = document.createElement('div');
+  c2.className = 'spg-wiz-cifra';
+  c2.appendChild(txt('span', 'r', 'Total'));
+  c2.appendChild(txt('span', 'v', gs(total)));
+
+  cifras.appendChild(c1);
+  cifras.appendChild(c2);
+  destino.appendChild(cifras);
+});
+
+/* ------------------------------------------------------------------
+   «¿De qué cuenta sale?» se esconde cuando el pago es en efectivo
+   ------------------------------------------------------------------
+   El efectivo no sale de ninguna cuenta bancaria, así que preguntarlo
+   ahí es ruido — y en la fila de «Pagos al personal» son tres combos
+   en el mismo renglón.
+
+   **Arranca visible y lo esconde este script**: con `app.js` caído se
+   ve el combo y se elige igual, que es la regla de siempre. Y esconder
+   NO es el control: el servidor ignora `id_dato_pago` cuando el medio
+   es efectivo.
+
+   El combo de método se busca **dentro del mismo formulario**, no por
+   un id: la pantalla de pagos al personal dibuja una fila por
+   profesional y los ids se repetirían.
+   ------------------------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-cuenta-bloque]').forEach(function (bloque) {
+    var form = bloque.closest('form');
+    var medio = form && form.querySelector('select[name="id_metodo_pago"]');
+    if (!medio) return;
+
+    function acomodar() {
+      var op = medio.options[medio.selectedIndex];
+      var efectivo = op && op.getAttribute('data-tipo') === 'EFECTIVO';
+      bloque.classList.toggle('d-none', !!efectivo);
+      // Vaciarlo al esconderlo: si no, queda mandando una cuenta que la
+      // persona ya no está viendo.
+      if (efectivo) {
+        var sel = bloque.querySelector('select');
+        if (sel) { sel.value = ''; }
+      }
+    }
+
+    medio.addEventListener('change', acomodar);
+    acomodar();
+  });
+});

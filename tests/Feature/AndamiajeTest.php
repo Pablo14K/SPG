@@ -324,10 +324,21 @@ class AndamiajeTest extends TestCase
         $this->assertSame('configuracion', Navegacion::moduloDe('seguridad.configuracion.index'));
         $this->assertSame('personal', Navegacion::moduloDe('seguridad.turnos'));
 
-        // 4) Y el de la 7.108.0, también escrito aparte: sin el arreglo devuelve
-        //    «clientes», que es el módulo donde esa pantalla ya no aparece.
-        $this->assertSame('servicios', Navegacion::moduloDe('clientes.fidelizacion'),
-            'La miga de «Visitas y puntos» mandaría a Clientes, donde la pantalla no está listada.');
+        // 4) **«Visitas y puntos» volvió a Clientes en la 7.110.0**, que es su
+        //    módulo de siempre: la 7.107.0 la había mudado a Promociones y con
+        //    eso la miga decía «Servicios» sobre una pantalla que lista
+        //    personas. Escrito aparte porque es el caso que hizo falta arreglar
+        //    dos veces, en direcciones opuestas.
+        $this->assertSame('clientes', Navegacion::moduloDe('clientes.fidelizacion'),
+            'La miga de «Visitas y puntos» tiene que decir Clientes: es donde la pantalla se lista.');
+
+        //    Y la otra mitad, que es lo que hace que esto no vuelva a
+        //    desfasarse: si está listada en su módulo, NO puede estar además
+        //    prestada a otro — ahí volvería a haber dos lugares diciendo dónde
+        //    vive.
+        $this->assertArrayNotHasKey('clientes.fidelizacion',
+            (array) (config('navegacion.tambien.servicios') ?? []),
+            'La pantalla está listada en Clientes: prestarla a Servicios la deja con dos módulos.');
 
         // **Una pantalla prestada que NO está escondida sigue siendo de su
         // módulo.** La ficha del equipo la presta Personal y se ve en los dos

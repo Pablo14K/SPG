@@ -35,12 +35,6 @@ class ServiciosController extends Controller
                  // acá había quedado el nombre viejo, así que la tarjeta del Panel
                  // y la del módulo decían cosas distintas de la misma pantalla.
                  't' => 'Promociones', 'd' => 'Vigencia y valor'],
-                // **Fidelización se administra acá**, no en Clientes: contesta
-                // la misma pregunta que las promociones —cuánto le devuelve el
-                // salón a la clienta— y los niveles y el valor del punto ya
-                // viven en Promociones desde la 7.102.0.
-                ['p' => 'clientes.fidelizacion', 'ruta' => 'clientes.fidelizacion', 'ic' => 'award',
-                 't' => 'Visitas y puntos', 'd' => 'Quién junta cuántos, y qué canjea'],
             ]),
         ]);
     }
@@ -646,6 +640,63 @@ class ServiciosController extends Controller
      * comprobantes y el portal («por su nivel Oro»); renombrarlo dejaría los
      * textos ya emitidos hablando de un nivel que no existe.
      */
+    /**
+     * Dar de baja un nivel de fidelización, o volver a habilitarlo.
+     *
+     * **Se podían crear los cortes y no apagarlos.** Un salón que decide dejar
+     * de premiar a Platino tenía que ponerle un corte imposible —«desde 9999
+     * visitas»— que es apagarlo escribiendo un número falso: la pantalla
+     * seguiría diciendo que el nivel existe y arranca en 9999.
+     *
+     * **Es una BAJA, no un borrado, y no es una preferencia.** `nivel.nombre`
+     * lo nombran los comprobantes ya emitidos y el portal («por su nivel
+     * Oro»), así que borrarlo dejaría esos textos hablando de algo que no
+     * existe. Es la misma regla del cajón, del timbrado y del producto: lo que
+     * la historia nombra no se puede quitar.
+     *
+     * **La base ya lo respetaba sola**: `fn_cliente_nivel` filtra por
+     * `activo = 1` desde siempre, así que lo único que faltaba era el botón.
+     * Por eso no hay ningún cambio de esquema acá.
+     */
+    public function nivelBaja(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_nivel', 0);
+        $volver = redirect()->route('servicios.descuentos');
+
+        $n = DB::selectOne('SELECT * FROM nivel WHERE id_nivel = ?', [$id]);
+        if (! $n) {
+            flash('Ese nivel no existe.', 'error');
+
+            return $volver;
+        }
+
+        $nuevo = (int) $n->activo === 1 ? 0 : 1;
+
+        // **Cuántas clientas quedan sin ese nivel HOY.** Es lo que hay que
+        // decir antes de que se note en la caja: al darlo de baja, cada una
+        // pasa al corte de abajo y con eso al descuento de abajo.
+        $afectadas = $nuevo === 0
+            ? (int) DB::scalar('SELECT COUNT(*) FROM cliente cl
+                                 WHERE cl.activo = 1 AND fn_cliente_nivel(cl.id_cliente) = ?', [$id])
+            : 0;
+
+        DB::update('UPDATE nivel SET activo = ? WHERE id_nivel = ?', [$nuevo, $id]);
+
+        Auditoria::registrar($nuevo ? 'ALTA' : 'BAJA', 'Servicios', 'nivel', $id,
+            'Nivel ' . $n->nombre . ($nuevo ? ' habilitado' : ' dado de baja')
+            . ($afectadas ? ' · ' . $afectadas . ' clienta(s) pasan al nivel de abajo' : ''));
+
+        flash($nuevo
+            ? 'El nivel «' . $n->nombre . '» vuelve a aplicarse.'
+            : 'El nivel «' . $n->nombre . '» quedó dado de baja: deja de aplicarse desde ahora.'
+              . ($afectadas
+                    ? ' ' . $afectadas . ' clienta(s) pasan al nivel de abajo, así que su descuento cambia.'
+                    : '')
+              . ' Lo ya facturado no cambia, y el nombre se conserva porque lo nombran los comprobantes emitidos.');
+
+        return $volver;
+    }
+
     public function nivelGuardar(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_nivel', 0);

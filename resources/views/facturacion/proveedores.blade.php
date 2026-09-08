@@ -199,12 +199,29 @@
                                         . $c->sucursal . ', que es el local de la compra.',
                                 ])
 
+                                {{-- **Y si NO sale del cajón, ¿de qué cuenta sale?**
+                                     Una transferencia no toca la caja —por eso
+                                     `fn_caja_saldo` no la resta— así que hasta acá
+                                     no había ningún control: se podía pagar el mes
+                                     entero contra una cuenta vacía. Son las del
+                                     local de la compra, por lo mismo que los
+                                     cajones. --}}
+                                @include('facturacion._cuenta_elegir', [
+                                    'cuentas' => $bancosPorCompra[$c->id_compra] ?? [],
+                                    'uid' => 'Prov' . $c->id_compra,
+                                ])
+
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label">Medio de pago</label>
+                                        {{-- El `data-tipo` lo lee app.js para esconder
+                                             el selector de cuenta cuando se paga en
+                                             efectivo: de un cajón no sale ninguna
+                                             transferencia. --}}
                                         <select class="form-select" name="id_metodo_pago" required>
                                             @foreach ($metodos as $m)
-                                                <option value="{{ $m->id_metodo_pago }}">{{ $m->nombre }}</option>
+                                                <option value="{{ $m->id_metodo_pago }}"
+                                                        data-tipo="{{ $m->tipo }}">{{ $m->nombre }}</option>
                                             @endforeach
                                         </select>
                                     </div>

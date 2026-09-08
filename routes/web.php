@@ -138,6 +138,11 @@ Route::middleware('sesion')->prefix('portal')->name('portal.')->group(function (
     Route::post('canjear', [PortalController::class, 'canjear'])->name('canjear');
     Route::get('valoraciones', [PortalController::class, 'valoraciones'])->name('valoraciones');
     Route::post('calificar', [PortalController::class, 'calificar'])->name('calificar');
+    // **Sus alergias las carga ELLA.** El salón ya las podía cargar desde la
+    // ficha (7.108.0), pero es la clienta la que sabe a qué es alérgica: si el
+    // único camino es que se acuerde de decirlo en el mostrador, el dato que
+    // puede lastimarla depende de que alguien lo escriba.
+    Route::match(['get', 'post'], 'ficha', [PortalController::class, 'ficha'])->name('ficha');
     Route::match(['get', 'post'], 'recordatorios', [PortalController::class, 'preferencias'])->name('preferencias');
 });
 
@@ -178,6 +183,7 @@ Route::middleware(['sesion', 'personal'])->group(function () {
         Route::middleware('modulo:citas.ausencias')->group(function () {
             Route::get('excepciones', [CitasController::class, 'ausencias'])->name('ausencias');
             Route::post('excepciones', [CitasController::class, 'ausenciaGuardar'])->name('ausencia.guardar');
+            Route::post('excepciones/baja', [CitasController::class, 'ausenciaBaja'])->name('ausencia.baja');
         });
     });
 
@@ -305,6 +311,8 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('pagos', [ConfiguracionController::class, 'pagosGuardar'])->name('pagos.guardar');
             Route::post('pagos/estado', [ConfiguracionController::class, 'pagosEstado'])->name('pagos.estado');
             Route::post('pagos/orden', [ConfiguracionController::class, 'pagosOrden'])->name('pagos.orden');
+            // El arqueo de la cuenta: cuánta plata dice el banco que hay
+            Route::post('pagos/saldo', [ConfiguracionController::class, 'pagosSaldo'])->name('pagos.saldo');
         });
 
         Route::middleware('modulo:configuracion.contacto')->group(function () {
@@ -521,6 +529,7 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             // un UPDATE a mano. Mismo permiso, que es fijar cuánto devuelve el
             // salón — la misma razón por la que el Profesional no lo tiene.
             Route::post('niveles', [ServiciosController::class, 'nivelGuardar'])->name('nivel.guardar');
+            Route::post('niveles/baja', [ServiciosController::class, 'nivelBaja'])->name('nivel.baja');
         });
     });
 });

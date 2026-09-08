@@ -235,7 +235,10 @@ class ConfiguracionController extends Controller
             'filtroAlias' => self::ALIAS_FILTROS,
             'tiposCuenta' => self::CUENTA_TIPOS,
             'datos' => $suc ? DB::select(
-                'SELECT d.*, m.nombre AS medio
+                // `fn_cuenta_saldo` devuelve NULL cuando nadie lo declaró: un
+                // cero ahí se leería como «la cuenta está vacía», que es
+                // afirmar algo que nadie comprobó.
+                'SELECT d.*, m.nombre AS medio, fn_cuenta_saldo(d.id_dato_pago) AS saldo
                    FROM dato_pago_sucursal d
                    JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
                   WHERE d.id_sucursal = ?
@@ -444,6 +447,71 @@ class ConfiguracionController extends Controller
             : 'La cuenta vuelve a mostrarse.');
 
         return redirect()->route('seguridad.pagos', ['sucursal' => $d->id_sucursal]);
+    }
+
+    /**
+     * Declarar cuánta plata hay en la cuenta: el arqueo del banco.
+     *
+     * **Es un HECHO OBSERVADO y por eso se guarda**, igual que
+     * `caja.monto_contado`: el sistema conoce lo que SALE de la cuenta —los
+     * pagos que él mismo registró— pero no lo que entra, porque una
+     * transferencia de una clienta llega al banco sin pasar por acá.
+     * Reconstruirlo sumando cobros sería inventarlo.
+     *
+     * **Volver a declararlo es, literalmente, hacer el arqueo de la cuenta**:
+     * `fn_cuenta_saldo` sólo descuenta los pagos posteriores a esta fecha, así
+     * que lo anterior queda cerrado.
+     */
+    public function pagosSaldo(Request $request): RedirectResponse
+    {
+        $id = (int) $request->input('id_dato_pago');
+        $suyas = array_map(fn ($s) => (int) $s->id_sucursal, Sucursales::delUsuario());
+
+        $d = DB::selectOne('SELECT * FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$id]);
+        if (! $d || ! in_array((int) $d->id_sucursal, $suyas, true)) {
+            flash('No encontramos esa cuenta.', 'error');
+
+            return back();
+        }
+
+        $volver = redirect()->route('seguridad.pagos', ['sucursal' => $d->id_sucursal]);
+
+        // **Vaciar el campo es «no sé cuánto hay», y es una respuesta válida.**
+        // Vuelve a dejar la cuenta sin saldo declarado, con lo cual el aviso de
+        // los pagos deja de salir en vez de salir con un número inventado.
+        if (trim((string) $request->input('saldo', '')) === '') {
+            DB::update('UPDATE dato_pago_sucursal
+                           SET saldo_declarado = NULL, saldo_declarado_en = NULL
+                         WHERE id_dato_pago = ?', [$id]);
+            Auditoria::registrar('EDICION', 'Configuración', 'dato_pago_sucursal', $id,
+                'Saldo de la cuenta sin declarar (' . $d->entidad . ')');
+            flash('La cuenta queda sin saldo declarado.');
+
+            return $volver;
+        }
+
+        $saldo = num($request->input('saldo'));
+        if ($saldo < 0) {
+            flash('El saldo no puede ser negativo.', 'error');
+
+            return $volver;
+        }
+
+        // **Los dos van juntos o ninguno**, y lo hace cumplir `chk_dpago_saldo`:
+        // un saldo sin fecha no dice nada —¿de cuándo?— y una fecha sin saldo
+        // tampoco. La fecha sale del reloj de la base, nunca de `date()`.
+        DB::update('UPDATE dato_pago_sucursal
+                       SET saldo_declarado = ?, saldo_declarado_en = ?
+                     WHERE id_dato_pago = ?', [$saldo, ahora_bd(), $id]);
+
+        Auditoria::registrar('EDICION', 'Configuración', 'dato_pago_sucursal', $id,
+            'Saldo declarado de ' . $d->entidad . ': '
+            . ($d->saldo_declarado === null ? 'sin declarar' : money($d->saldo_declarado))
+            . ' → ' . money($saldo));
+
+        flash('Saldo declarado: ' . money($saldo) . '. Desde acá se descuentan los pagos nuevos.');
+
+        return $volver;
     }
 
     public function contacto(): View

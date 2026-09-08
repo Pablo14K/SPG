@@ -85,8 +85,12 @@ class PanelController extends Controller
         $parProx = [];
         $soloMiasProx = '';
         if (! $todaLaAgenda) {
-            $soloMiasProx = ' AND c.id_usuario = :yo';
-            $parProx['yo'] = (int) session('uid');
+            // Mismo criterio que la agenda: una cita repartida es de las dos
+            // que la atienden, no sólo de la que la tiene a su nombre.
+            $soloMiasProx = ' AND (c.id_usuario = :yo1
+                                   OR EXISTS (SELECT 1 FROM cita_servicio cs0
+                                               WHERE cs0.id_cita = c.id_cita AND cs0.id_usuario = :yo2))';
+            $parProx['yo1'] = $parProx['yo2'] = (int) session('uid');
         }
         $soloMiasProx .= Sucursales::filtro('c', $parProx);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Pendientes;
 use App\Servicios\Sucursales;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,7 +55,7 @@ class VivoController extends Controller
         $huella = match ($seccion) {
             'agenda' => $this->agenda($request, $suc),
             'cajas' => $this->cajas($suc),
-            'panel' => $this->agenda($request, $suc) . '|' . $this->cajas($suc),
+            'panel' => $this->agenda($request, $suc) . '|' . $this->cajas($suc) . '|' . $this->pendientes(),
             default => null,
         };
 
@@ -63,6 +64,41 @@ class VivoController extends Controller
         }
 
         return response()->json(['ok' => true, 'v' => md5($huella), 'cada' => self::CADA]);
+    }
+
+    /**
+     * Lo que le falta cargar al salón.
+     *
+     * **Esta lista fallaba en silencio, que es lo peor que puede hacer un
+     * aviso.** El panel es una foto del momento en que se pidió, así que a la
+     * dueña que deja la pantalla abierta —el caso normal— le seguía diciendo
+     * «todo en orden» **después** de que otra persona le sumara el rol
+     * Profesional a una cuenta sin turno: ese aviso existe justamente para que
+     * no se descubra el día de la cita, y llegaba recién cuando alguien
+     * recargaba a mano.
+     *
+     * **La huella sale de la lista misma, no de un contador barato.** Se probó
+     * al revés —contar `usuario_rol`, `usuario_turno`, `persona_servicio` y los
+     * timbrados— y no alcanza: cada aviso nuevo habría que acordarse de sumarlo
+     * acá, y el que se olvide vuelve a fallar callado. Hasheando lo que la
+     * pantalla dibuja, la huella cambia exactamente cuando cambia el aviso.
+     *
+     * **Y es `mios()`, no `todo()`**: la lista se filtra por permiso, así que
+     * dos personas mirando el panel no tienen por qué ver la misma. Con
+     * `todo()`, a la recepcionista se le recargaría la pantalla por un timbrado
+     * que ella no puede cargar ni ve.
+     *
+     * Son seis consultas chicas cada veinte segundos. Es más que un `COUNT`, y
+     * sigue siendo mucho menos que sostener una conexión abierta.
+     */
+    private function pendientes(): string
+    {
+        $puntos = array_map(
+            static fn (array $p): string => $p['nivel'] . '·' . $p['que'],
+            Pendientes::mios()
+        );
+
+        return 'p:' . count($puntos) . ':' . md5(implode('|', $puntos));
     }
 
     /**

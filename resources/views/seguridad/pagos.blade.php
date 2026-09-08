@@ -210,7 +210,7 @@
                         <thead>
                             <tr>
                                 <th>Dónde</th><th>Alias</th><th>Cuenta</th>
-                                <th>Se le muestra</th><th></th>
+                                <th>Saldo</th><th>Se le muestra</th><th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -234,6 +234,32 @@
                                         <div class="text-muted-warm" style="font-size:.8rem">
                                             {{ $d->titular }}@if ($d->tipo_cuenta) · {{ $d->tipo_cuenta }}@endif
                                         </div>
+                                    </td>
+                                    {{-- **El saldo declarado, que es el arqueo de la
+                                         cuenta.** El sistema conoce lo que SALE del
+                                         banco —los pagos que él mismo registró— pero no
+                                         lo que entra: una transferencia de una clienta
+                                         llega sin pasar por acá. Así que lo que se
+                                         muestra es un PISO, nunca el saldo real, y con
+                                         eso alcanza para la única pregunta que contesta:
+                                         ¿alcanza para pagar esto?
+
+                                         **Sin declarar NO es cero**: es «no se sabe», y
+                                         entonces el sistema no avisa nada. --}}
+                                    <td>
+                                        @if ($d->saldo === null)
+                                            <span class="text-muted-warm" style="font-size:.85rem">sin declarar</span>
+                                        @else
+                                            <div class="spg-cuenta-nro">{{ money($d->saldo) }}</div>
+                                            <div class="text-muted-warm" style="font-size:.78rem">
+                                                declarado {{ money($d->saldo_declarado) }}
+                                                el {{ fecha($d->saldo_declarado_en) }}
+                                            </div>
+                                        @endif
+                                        <button class="btn btn-sm btn-outline-neutro mt-1" type="button"
+                                                data-bs-toggle="modal" data-bs-target="#modalSaldo{{ $d->id_dato_pago }}">
+                                            <i class="bi bi-cash-stack"></i>
+                                            {{ $d->saldo === null ? 'Declarar' : 'Actualizar' }}</button>
                                     </td>
                                     <td>
                                         @if ($d->activo)
@@ -288,6 +314,63 @@
         </div>
     </div>
 </div>
+
+{{-- **Los modales van FUERA de la tabla.** Uno dibujado dentro de un `<tr>`
+     hereda cualquier `display:none` del ancestro y **no se puede mostrar ni con
+     Bootstrap haciendo su trabajo**: es el defecto de la 7.87.4, que dejó el
+     detalle de la cita roto para todos los roles. --}}
+@foreach ($datos as $d)
+    <div class="modal fade" id="modalSaldo{{ $d->id_dato_pago }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{{ route('seguridad.pagos.saldo') }}">
+                    @csrf
+                    <input type="hidden" name="id_dato_pago" value="{{ $d->id_dato_pago }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" style="font-size:1rem">
+                            El arqueo de {{ $d->entidad }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted-warm" style="font-size:.88rem">
+                            Mirá el saldo en tu banco y escribilo acá. Desde este momento
+                            el sistema le descuenta los pagos que registres, así que antes
+                            de liquidar te puede decir si alcanza.
+                        </p>
+
+                        <label class="form-label" for="saldo{{ $d->id_dato_pago }}">
+                            ¿Cuánto dice el banco que hay?</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                            <input class="form-control input-miles" id="saldo{{ $d->id_dato_pago }}"
+                                   name="saldo" data-min="0"
+                                   value="{{ $d->saldo_declarado === null ? '' : monto_input($d->saldo_declarado) }}">
+                        </div>
+                        <div class="form-text">
+                            Dejalo <strong>vacío</strong> si preferís no declararlo: el
+                            sistema deja de avisar en vez de avisar con un número que
+                            nadie comprobó.
+                        </div>
+
+                        @if ($d->saldo !== null)
+                            <div class="alert alert-warning py-2 mt-3 mb-0" style="font-size:.85rem">
+                                Hoy el sistema calcula <strong>{{ money($d->saldo) }}</strong>:
+                                los {{ money($d->saldo_declarado) }} que declaraste
+                                el {{ fecha($d->saldo_declarado_en) }} menos lo que se pagó
+                                desde entonces. <strong>Lo que ENTRÓ no lo ve</strong>, así
+                                que puede haber más — nunca menos.
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-oro">Guardar el saldo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endforeach
 
 @push('scripts')
 <script>

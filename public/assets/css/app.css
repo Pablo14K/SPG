@@ -1127,6 +1127,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-nivel{
   border:1px solid var(--gris-calido);border-radius:10px;padding:.65rem .8rem;background:var(--blanco);
 }
+.spg-nivel-baja{opacity:.55;border-style:dashed;}
 .spg-nivel-nombre{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
 .spg-nivel-req{font-size:.75rem;color:var(--gris-oscuro);}
 .spg-nivel-desc{font-size:.78rem;margin-top:.25rem;}
@@ -1641,29 +1642,18 @@ html,body{max-width:100%;overflow-x:hidden;}
    el tinte de aviso, que es lo que la identidad reserva para «esto hay que
    saberlo antes».
    --------------------------------------------------------------------- */
-.spg-resumen{
-  border:1px solid var(--gris-calido);border-radius:10px;
-  background:var(--blanco);padding:.7rem .8rem;max-width:420px;
-}
-.spg-resumen-tit{
-  font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;
-  color:var(--gris-oscuro);margin-bottom:.4rem;
-}
-.spg-resumen-dur{font-size:.75rem;text-transform:none;letter-spacing:0;}
-.spg-resumen-lista{list-style:none;margin:0 0 .5rem;padding:0;font-size:.85rem;}
-.spg-resumen-lista li{
-  display:flex;justify-content:space-between;gap:.75rem;
-  padding:.15rem 0;border-bottom:1px dashed var(--gris-calido);
-}
-.spg-resumen-lista li:last-child{border-bottom:0;}
-.spg-resumen-lista b{font-weight:500;white-space:nowrap;}
-.spg-resumen-total{
-  display:flex;justify-content:space-between;align-items:baseline;gap:.75rem;
-  border-top:2px solid var(--oro);padding-top:.4rem;
-}
-.spg-resumen-total strong{font-size:1.15rem;color:var(--oro-texto);}
+/* **Del resumen de la reserva queda sólo la seña.** Los servicios, la
+   duración y el total los dice el repaso del último paso del asistente, con
+   el día, la hora y quién atiende cada uno — que es más de lo que este bloque
+   mostraba. Se fueron entonces `.spg-resumen`, `.spg-resumen-tit`,
+   `.spg-resumen-dur`, `.spg-resumen-lista` y `.spg-resumen-total`: la misma
+   cuenta dos veces en la misma pantalla.
+
+   La seña se queda porque contesta otra pregunta —no cuánto sale, sino cuánto
+   hay que adelantar para que la reserva valga— y va en el tinte de aviso, que
+   es lo que la identidad reserva para «esto hay que saberlo antes». */
 .spg-resumen-sena{
-  margin-top:.5rem;padding:.4rem .5rem;border-radius:var(--radius);
+  padding:.5rem .6rem;border-radius:var(--radius);
   background:var(--oro-tinte);color:var(--oro-texto);font-size:.8rem;line-height:1.35;
 }
 
@@ -1737,28 +1727,16 @@ html,body{max-width:100%;overflow-x:hidden;}
   margin-bottom: 0;
 }
 
-/* --- Círculo dorado con número de paso ------------------------------- */
-.spg-paso {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border-radius: 50%;
-  background: var(--oro-suave);
-  border: 1.5px solid var(--oro);
-  color: var(--oro-texto);
-  font-size: .72rem;
-  font-weight: 700;
-  flex-shrink: 0;
-  line-height: 1;
-}
+/* **El círculo dorado con el número de paso se fue con el asistente.**
+   Lo dibujaba `<span class="spg-paso">1</span>` en reservar; ahora los pasos
+   los numera la barra del asistente (`.spg-wiz-bola`), así que ese marcado ya
+   no existe.
 
-[data-tema="oscuro"] .spg-paso {
-  background: var(--oro-suave);
-  border-color: var(--oro);
-  color: var(--oro-texto);
-}
+   Y sacarlo arregla otra cosa: **el nombre estaba usado dos veces**. Datos de
+   pago tiene su propio `.spg-paso`, que es un RENGLÓN con el número al lado
+   del título, y esta regla —declarada más abajo— le ganaba por cascada y lo
+   aplastaba a un círculo de 1,55 rem con el título encima. Un mismo nombre
+   para dos cosas distintas no da error: rompe la que se declaró primero. */
 
 /* --- Sub-panel para agrupar campos sueltos (detalles) ---------------- */
 .spg-detalle-grupo {
@@ -1773,17 +1751,8 @@ html,body{max-width:100%;overflow-x:hidden;}
   border-color: var(--gris-calido);
 }
 
-/* --- Resumen destacado ----------------------------------------------- */
-.spg-resumen-destacado {
-  border-top: 3px solid var(--oro);
-  box-shadow: 0 2px 12px rgba(201, 168, 76, .08);
-  width: 100%;
-}
-
-[data-tema="oscuro"] .spg-resumen-destacado {
-  box-shadow: 0 2px 16px rgba(0, 0, 0, .25);
-  background: var(--sup-oscura-2);
-}
+/* `.spg-resumen-destacado` se fue con el resumen de dos columnas: era el
+   realce de la tarjeta pegada a la derecha, que ya no existe. */
 
 /* --- Botón reservar más prominente ----------------------------------- */
 .spg-reservar-btn {
@@ -1842,48 +1811,115 @@ html,body{max-width:100%;overflow-x:hidden;}
   border-color: var(--gris-calido);
 }
 
-/* =====================================================================
-   LAYOUT PREMIUM: 2 COLUMNAS STICKY (Desktop)
-   ===================================================================== */
-.spg-reserva-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.spg-reserva-col-side {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-@media (min-width: 992px) {
-  .spg-reserva-layout {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 2.5rem;
-  }
-  
-  .spg-reserva-col-main {
-    flex: 1 1 auto;
-    min-width: 0; /* previene desborde en flex */
-  }
-  
-  .spg-reserva-col-side {
-    flex: 0 0 340px;
-    position: sticky;
-    top: 2rem;
-    z-index: 10;
-  }
-}
+/* **Las dos columnas de reservar se fueron con el asistente.** Eran
+   `.spg-reserva-layout` y sus dos hijas: el formulario a la izquierda y el
+   resumen pegado a la derecha. Con un paso por pantalla ya no hay dos cosas
+   que mirar a la vez —el resumen ES el último paso— así que el marcado dejó de
+   existir y las reglas quedaban sin nada a lo que aplicar. */
 
 /* --- Responsive: las secciones se aprietan en móvil ------------------ */
 @media (max-width: 575.98px) {
   .spg-seccion { padding: .8rem 0 1rem; }
-  .spg-paso { width: 1.35rem; height: 1.35rem; font-size: .66rem; }
   .spg-seccion-head .form-label { font-size: .85rem; }
   .spg-detalle-grupo { padding: .7rem .75rem; }
   .spg-cuando-caja { padding: .7rem .75rem; }
   .spg-reservar-btn { font-size: .92rem; padding: .6rem 1rem; }
   .spg-titulo-linea { width: 36px; height: 2.5px; }
 }
+
+/* --- El asistente de reserva: un paso por pantalla ------------------
+   Los colores salen todos de las variables de la identidad: el oro
+   marca el paso EN CURSO —que es jerarquía, no adorno— y lo recorrido
+   queda en el verde semántico, que es lo que ya significa «salió bien».
+   Nada de esto inventa un color.
+
+   **Sin `app.js` no aplica nada**: el `display:none` cuelga de
+   `.spg-wiz-on`, que la pone el script. Con el JS caído se ven los
+   pasos uno abajo del otro y se reserva igual, como antes. */
+.spg-wiz-on > [data-paso]{display:none;}
+.spg-wiz-on > [data-paso].spg-wiz-activo{display:block;animation:spgWizEntra .18s ease-out;}
+@keyframes spgWizEntra{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){
+  .spg-wiz-on > [data-paso].spg-wiz-activo{animation:none;}
+}
+
+.spg-wiz-barra{
+  display:flex;gap:.25rem;list-style:none;margin:0 0 1rem;padding:0;
+  overflow-x:auto;scrollbar-width:none;
+}
+.spg-wiz-barra::-webkit-scrollbar{display:none;}
+.spg-wiz-item{
+  display:flex;flex-direction:column;align-items:center;gap:.25rem;
+  flex:1 1 0;min-width:64px;position:relative;padding-top:.15rem;
+  font-size:.7rem;color:var(--gris-oscuro);text-align:center;
+}
+/* La línea que une los pasos: se dibuja hacia atrás, así el primero no
+   arrastra una línea que sale de la nada. */
+.spg-wiz-item + .spg-wiz-item::before{
+  content:"";position:absolute;top:calc(.15rem + 13px);right:50%;left:-50%;
+  height:2px;background:var(--gris-calido);z-index:0;
+}
+.spg-wiz-item.hecho + .spg-wiz-item::before,
+.spg-wiz-item.activo::before{background:var(--oro);}
+.spg-wiz-bola{
+  position:relative;z-index:1;
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--blanco);border:2px solid var(--gris-calido);
+  font-size:.78rem;font-weight:500;color:var(--gris-oscuro);
+}
+.spg-wiz-item.activo .spg-wiz-bola{
+  background:var(--oro);border-color:var(--oro);color:var(--negro);
+}
+.spg-wiz-item.activo .spg-wiz-tit{color:var(--oro-texto);font-weight:500;}
+.spg-wiz-item.hecho .spg-wiz-bola{
+  background:var(--verde-tinte);border-color:var(--verde);color:var(--verde);
+}
+.spg-wiz-item.hecho{cursor:pointer;}
+.spg-wiz-tit{line-height:1.1;}
+
+.spg-wiz-nav{
+  display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;
+  margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--gris-calido);
+}
+/* En el celular los dos botones ocupan el ancho: son el único destino
+   del pulgar en esa pantalla. */
+@media (max-width:575.98px){
+  .spg-wiz-nav .btn{flex:1 1 auto;justify-content:center;}
+  .spg-wiz-tit{display:none;}
+  .spg-wiz-item{min-width:0;}
+}
+
+/* --- El repaso del último paso: «tu cita quedaría así» --- */
+.spg-wiz-repaso{
+  border:1px solid var(--gris-calido);border-radius:.6rem;overflow:hidden;
+  background:var(--blanco);
+}
+.spg-wiz-repaso-dia{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.6rem .8rem;border-bottom:1px solid var(--gris-calido);
+  font-weight:500;
+}
+.spg-wiz-linea{
+  display:flex;gap:.7rem;align-items:flex-start;
+  padding:.7rem .8rem;border-bottom:1px solid var(--gris-calido);
+}
+.spg-wiz-linea:last-child{border-bottom:0;}
+.spg-wiz-linea-ic{
+  width:34px;height:34px;border-radius:.5rem;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--oro-tinte);color:var(--oro-texto);
+}
+.spg-wiz-linea-cuerpo{flex:1 1 auto;min-width:0;}
+.spg-wiz-linea-nom{font-weight:500;}
+.spg-wiz-linea-quien{font-size:.8rem;color:var(--gris-oscuro);}
+.spg-wiz-linea-val{white-space:nowrap;font-weight:500;}
+.spg-wiz-cifras{
+  display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.8rem;
+}
+.spg-wiz-cifra{
+  border:1px solid var(--gris-calido);border-radius:.6rem;padding:.6rem .7rem;
+  background:var(--blanco);
+}
+.spg-wiz-cifra .r{font-size:.74rem;color:var(--gris-oscuro);display:block;}
+.spg-wiz-cifra .v{font-weight:500;}
