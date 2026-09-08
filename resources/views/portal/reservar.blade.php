@@ -14,7 +14,7 @@
          ofrecer algo que después puede no existir ahí. Con una sola sucursal
          este bloque no aparece: se elige sola. --}}
     @if (count($sucursales) > 1)
-        <div class="spg-panel mb-3" style="max-width:760px">
+        <div class="spg-panel mb-3">
             <label class="form-label">¿En qué local? *</label>
             <div class="d-flex flex-wrap gap-2 mt-1">
                 @foreach ($sucursales as $s)
@@ -34,7 +34,7 @@
     @endif
 
     @if (! $sucursal)
-        <div class="spg-panel" style="max-width:760px">
+        <div class="spg-panel">
             <div class="spg-vacio">
                 <i class="bi bi-shop"></i>
                 <div class="t">Elegí primero la sucursal.</div>
@@ -42,10 +42,13 @@
             </div>
         </div>
     @else
-    <div class="spg-panel" style="max-width:760px">
+    <div class="spg-panel">
         <form method="post" action="{{ route('portal.guardar_reserva') }}">
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
+            
+            <div class="spg-reserva-layout">
+                <div class="spg-reserva-col-main">
 
             <div class="spg-seccion">
                 <div class="spg-seccion-head">
@@ -289,6 +292,10 @@
                 </div>
             </div>
 
+            </div> <!-- /col-main -->
+
+            <div class="spg-reserva-col-side">
+
             {{-- **Lo que va a costar, antes de reservar.**
 
                  La pantalla mostraba el precio de cada servicio y no sumaba
@@ -322,6 +329,10 @@
 
             <button class="btn btn-oro spg-reservar-btn" id="btnReservar" disabled>
                 <i class="bi bi-calendar-check"></i> Reservar</button>
+            
+            </div> <!-- /col-side -->
+            </div> <!-- /layout -->
+
         </form>
     </div>
     @endif
