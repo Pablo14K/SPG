@@ -6,6 +6,7 @@
     <div class="spg-page-head">
         <a class="spg-back" href="{{ route('portal.index') }}"><i class="bi bi-arrow-left"></i> Mi portal</a>
         <h1 class="mt-1">Reservar una cita<x-ayuda lado="bottom">Elegí los servicios y te mostramos sólo los horarios que quedan libres de verdad, con el tiempo que lleva todo junto.</x-ayuda></h1>
+        <span class="spg-titulo-linea"></span>
     </div>
 
     {{-- **Primero el local.** Los servicios, los horarios y los profesionales
@@ -46,8 +47,11 @@
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
 
-            <div class="mb-3">
-                <label class="form-label">¿Qué te querés hacer? *</label>
+            <div class="spg-seccion">
+                <div class="spg-seccion-head">
+                    <span class="spg-paso">1</span>
+                    <label class="form-label">¿Qué te querés hacer? *</label>
+                </div>
                 {{-- **El catálogo completo vive en su propia pantalla.** Acá
                      estaba desplegable, pero esta página ya pide elegir
                      servicios, profesional, día y hora: un bloque más con el
@@ -211,16 +215,21 @@
             {{-- El selector de huecos lo maneja app.js, el mismo que usa Nueva
                  cita. Acá no hay combo de profesional a propósito, así que la
                  agenda que se consulta sale de los selectores por servicio. --}}
-            <div class="mb-3">
-                <label class="form-label">¿Cuándo? *</label>
-                <div data-agenda="{{ route('portal.disponibilidad') }}"
-                     data-agenda-sujeto="Tu cita"
-                     data-agenda-boton="#btnReservar">
-                    <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem">
-                        Elegí primero los servicios para ver los horarios disponibles.
+            <div class="spg-seccion">
+                <div class="spg-seccion-head">
+                    <span class="spg-paso">2</span>
+                    <label class="form-label">¿Cuándo? *</label>
+                </div>
+                <div class="spg-cuando-caja">
+                    <div data-agenda="{{ route('portal.disponibilidad') }}"
+                         data-agenda-sujeto="Tu cita"
+                         data-agenda-boton="#btnReservar">
+                        <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem">
+                            Elegí primero los servicios para ver los horarios disponibles.
+                        </div>
+                        <div data-agenda-dias class="spg-dias mt-2"></div>
+                        <div data-agenda-horas class="spg-horas mt-2"></div>
                     </div>
-                    <div data-agenda-dias class="spg-dias mt-2"></div>
-                    <div data-agenda-horas class="spg-horas mt-2"></div>
                 </div>
                 {{-- Con valor: el selector lo lee al arrancar y devuelve marcados
                      el día y la hora que ya estaban elegidos. --}}
@@ -234,42 +243,50 @@
 
                  Arranca oculto el nombre y lo muestra el JS; sin `app.js` se
                  ven los dos campos y se reserva igual. --}}
-            <div class="mb-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
-                           id="paraOtro" @checked(old('para_otra_persona'))>
-                    <label class="form-check-label" for="paraOtro">
-                        La cita es para otra persona
-                    </label>
+            <div class="spg-seccion">
+                <div class="spg-seccion-head">
+                    <span class="spg-paso">3</span>
+                    <label class="form-label">Detalles</label>
                 </div>
-                <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
-                    <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
-                    <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
-                           value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
+                <div class="spg-detalle-grupo">
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
+                                   id="paraOtro" @checked(old('para_otra_persona'))>
+                            <label class="form-check-label" for="paraOtro">
+                                La cita es para otra persona
+                            </label>
+                        </div>
+                        <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
+                            <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
+                            <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
+                                   value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
+                        </div>
+                    </div>
+
+                    <div class="mb-3" style="max-width:180px">
+                        <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda campo="personas" />
+                        <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}"
+                               data-solo="numeros" inputmode="numeric" maxlength="2"
+                               data-acomp="#bloqueAcomp">
+                    </div>
+
+                    {{-- **Quiénes vienen, no sólo cuántas.** El número decía que iban a
+                         llegar tres y el salón no sabía a quiénes esperar. Los campos
+                         los dibuja `app.js` según el número: la primera persona NO se
+                         pide, porque es la clienta que está reservando y su nombre ya
+                         lo tiene el sistema. --}}
+                    <div class="mb-3" id="bloqueAcomp" style="max-width:420px"
+                         data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
+                             'nombre' => $v,
+                             'apellido' => old('acomp_apellido.' . $k, ''),
+                         ]])) }}"></div>
+
+                    <div class="mb-0">
+                        <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label><x-ayuda campo="observaciones" />
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
+                    </div>
                 </div>
-            </div>
-
-            <div class="mb-3" style="max-width:180px">
-                <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda campo="personas" />
-                <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}"
-                       data-solo="numeros" inputmode="numeric" maxlength="2"
-                       data-acomp="#bloqueAcomp">
-            </div>
-
-            {{-- **Quiénes vienen, no sólo cuántas.** El número decía que iban a
-                 llegar tres y el salón no sabía a quiénes esperar. Los campos
-                 los dibuja `app.js` según el número: la primera persona NO se
-                 pide, porque es la clienta que está reservando y su nombre ya
-                 lo tiene el sistema. --}}
-            <div class="mb-3" id="bloqueAcomp" style="max-width:420px"
-                 data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
-                     'nombre' => $v,
-                     'apellido' => old('acomp_apellido.' . $k, ''),
-                 ]])) }}"></div>
-
-            <div class="mb-3">
-                <label class="form-label" for="observaciones">¿Algo que quieras avisarnos?</label><x-ayuda campo="observaciones" />
-                <textarea class="form-control" id="observaciones" name="observaciones" rows="2" maxlength="300">{{ old('observaciones') }}</textarea>
             </div>
 
             {{-- **Lo que va a costar, antes de reservar.**
@@ -285,7 +302,7 @@
                  servidor. **Sin JavaScript no se dibuja**, y cada tarjeta
                  sigue mostrando su propio precio: es un resumen, no la única
                  forma de saber cuánto sale. --}}
-            <div class="spg-resumen mb-3" id="resumenCita" style="display:none">
+            <div class="spg-resumen spg-resumen-destacado mb-3" id="resumenCita" style="display:none">
                 <div class="spg-resumen-tit">
                     <i class="bi bi-receipt"></i> Tu cita
                     <span class="spg-resumen-dur" data-resumen="dur"></span>
@@ -303,7 +320,7 @@
                 </div>
             </div>
 
-            <button class="btn btn-oro" id="btnReservar" disabled>
+            <button class="btn btn-oro spg-reservar-btn" id="btnReservar" disabled>
                 <i class="bi bi-calendar-check"></i> Reservar</button>
         </form>
     </div>

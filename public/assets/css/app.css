@@ -1691,3 +1691,164 @@ html,body{max-width:100%;overflow-x:hidden;}
 @media (max-width:575.98px){
   .spg-vivo{left:1rem;right:1rem;justify-content:space-between;}
 }
+
+
+/* =====================================================================
+   REDISEÑO VISUAL — Formulario de Reserva (portal/reservar)
+
+   Clases decorativas para dar jerarquía visual al formulario. Solo
+   estilos; no cambian ningún name, id, data-*, ruta ni lógica.
+   ===================================================================== */
+
+/* --- Línea decorativa bajo el título de la página -------------------- */
+.spg-titulo-linea {
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--oro);
+  border-radius: 2px;
+  margin-top: .45rem;
+  opacity: .7;
+}
+
+/* --- Sección lógica del formulario ----------------------------------- */
+.spg-seccion {
+  position: relative;
+  padding: 1.1rem 0 1.3rem;
+  border-bottom: 1px solid var(--gris-calido);
+}
+.spg-seccion:last-of-type { border-bottom: none; }
+
+[data-tema="oscuro"] .spg-seccion {
+  border-bottom-color: var(--gris-calido);
+}
+
+/* --- Encabezado de sección con paso numerado ------------------------- */
+.spg-seccion-head {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin-bottom: .65rem;
+}
+.spg-seccion-head .form-label {
+  font-size: .92rem;
+  font-weight: 600;
+  color: var(--carbon);
+  margin-bottom: 0;
+}
+
+/* --- Círculo dorado con número de paso ------------------------------- */
+.spg-paso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  background: var(--oro-suave);
+  border: 1.5px solid var(--oro);
+  color: var(--oro-texto);
+  font-size: .72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+[data-tema="oscuro"] .spg-paso {
+  background: var(--oro-suave);
+  border-color: var(--oro);
+  color: var(--oro-texto);
+}
+
+/* --- Sub-panel para agrupar campos sueltos (detalles) ---------------- */
+.spg-detalle-grupo {
+  background: var(--blanco-hueso);
+  border: 1px solid var(--gris-calido);
+  border-radius: var(--radius);
+  padding: .85rem 1rem;
+}
+
+[data-tema="oscuro"] .spg-detalle-grupo {
+  background: rgba(255, 255, 255, .02);
+  border-color: var(--gris-calido);
+}
+
+/* --- Resumen destacado ----------------------------------------------- */
+.spg-resumen-destacado {
+  border-top: 3px solid var(--oro);
+  box-shadow: 0 2px 12px rgba(201, 168, 76, .08);
+  max-width: 480px;
+}
+
+[data-tema="oscuro"] .spg-resumen-destacado {
+  box-shadow: 0 2px 16px rgba(0, 0, 0, .25);
+}
+
+/* --- Botón reservar más prominente ----------------------------------- */
+.spg-reservar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  width: 100%;
+  max-width: 480px;
+  padding: .7rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  letter-spacing: .02em;
+  transition: background .15s, transform .1s, box-shadow .15s;
+}
+.spg-reservar-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(201, 168, 76, .25);
+}
+.spg-reservar-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.spg-reservar-btn:disabled {
+  opacity: .5;
+}
+
+/* --- Micro-mejoras en tarjetas de servicio (solo hover) -------------- */
+.spg-srv-card {
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.spg-srv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .10);
+}
+.spg-srv-card.elegida {
+  box-shadow: 0 0 0 2px var(--oro-suave), 0 4px 16px rgba(201, 168, 76, .12);
+}
+
+[data-tema="oscuro"] .spg-srv-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .30);
+}
+[data-tema="oscuro"] .spg-srv-card.elegida {
+  box-shadow: 0 0 0 2px var(--oro-suave), 0 4px 16px rgba(201, 168, 76, .08);
+}
+
+/* --- Contenedor de disponibilidad con fondo sutil -------------------- */
+.spg-cuando-caja {
+  background: var(--blanco-hueso);
+  border: 1px solid var(--gris-calido);
+  border-radius: var(--radius);
+  padding: .85rem 1rem;
+}
+
+[data-tema="oscuro"] .spg-cuando-caja {
+  background: rgba(255, 255, 255, .02);
+  border-color: var(--gris-calido);
+}
+
+/* --- Responsive: las secciones se aprietan en móvil ------------------ */
+@media (max-width: 575.98px) {
+  .spg-seccion { padding: .8rem 0 1rem; }
+  .spg-paso { width: 1.35rem; height: 1.35rem; font-size: .66rem; }
+  .spg-seccion-head .form-label { font-size: .85rem; }
+  .spg-detalle-grupo { padding: .7rem .75rem; }
+  .spg-cuando-caja { padding: .7rem .75rem; }
+  .spg-reservar-btn { font-size: .92rem; padding: .6rem 1rem; }
+  .spg-titulo-linea { width: 36px; height: 2.5px; }
+}
