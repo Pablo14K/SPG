@@ -5861,6 +5861,99 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * El portal nombra a TODAS las que atienden la cita, no sólo a la dueña.
+     *
+     * **El defecto reportado**: la clienta eligió varios servicios con varios
+     * profesionales distintos y «Mis citas» le mostraba **uno solo**.
+     * `vw_agenda_citas.profesional` sale de `cita.id_usuario` —la dueña de la
+     * cita— y quién hace cada servicio vive en `cita_servicio.id_usuario`, que
+     * esa vista no mira.
+     *
+     * **Un NULL ahí no es «nadie»: es la dueña**, que es como se representa «lo
+     * hace quien la tiene» desde siempre; por eso la subconsulta usa
+     * `COALESCE`. Es la misma corrección que el panel recibió en la 7.104.0 y
+     * que el portal se había quedado sin aplicar — media corrección, el patrón
+     * que este documento ya tiene anotado.
+     *
+     * Se mide en las dos direcciones dentro de la misma prueba: la columna
+     * vieja **no** puede nombrar a la segunda profesional —eso es exactamente
+     * lo que estaba mal— y la nueva tiene que nombrar a las dos.
+     */
+    #[Test]
+    public function test_el_portal_nombra_a_todos_los_profesionales_de_la_cita(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+
+        $nombreDe = fn (int $idu) => (string) DB::scalar(
+            'SELECT CONCAT(pe.nombre, \' \', pe.apellido) FROM usuario u
+               JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?', [$idu]);
+
+        // **La premisa: una segunda profesional, distinta de la dueña.** Sin eso
+        // las dos columnas dirían lo mismo y la prueba no mediría nada.
+        $otro = 0;
+        foreach (Agenda::profesionales($cita->id_sucursal) as $p) {
+            if ((int) $p->id_usuario !== (int) $cita->id_usuario) {
+                $otro = (int) $p->id_usuario;
+                break;
+            }
+        }
+        if (! $otro) {
+            $this->markTestSkipped('Hace falta más de un profesional en el local.');
+        }
+
+        $srv2 = (int) DB::scalar(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1
+                AND s.id_servicio NOT IN (SELECT cs.id_servicio FROM cita_servicio cs WHERE cs.id_cita = ?)
+              LIMIT 1', [$cita->id_cita]);
+        $this->assertNotSame(0, $srv2, 'La premisa: hace falta un segundo servicio en el catálogo.');
+
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario) VALUES (?,?,?)',
+                   [$cita->id_cita, $srv2, $otro]);
+
+        // La cita pasa a una clienta con cuenta en el portal: es la pantalla que
+        // se está midiendo, y sin cuenta no se puede abrir.
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, cl.id_cliente FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+               JOIN persona pe ON pe.id_persona = u.id_persona
+               JOIN cliente cl ON cl.id_persona = pe.id_persona
+              WHERE r.es_personal = 0 AND u.activo = 1 AND cl.activo = 1 LIMIT 1');
+        $this->assertNotNull($u, 'La premisa: hace falta una clienta con cuenta en el portal.');
+        DB::update('UPDATE cita SET id_cliente = ? WHERE id_cita = ?', [$u->id_cliente, $cita->id_cita]);
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+        $this->conMarcaDeSesion();
+        $this->conSucursal();
+
+        $fila = null;
+        foreach ($this->get(route('portal.citas'))->assertOk()->viewData('prox') as $c) {
+            if ((int) $c->id_cita === (int) $cita->id_cita) {
+                $fila = $c;
+                break;
+            }
+        }
+        $this->assertNotNull($fila, 'La premisa: la cita tiene que salir entre las próximas.');
+
+        $duenia = $nombreDe((int) $cita->id_usuario);
+        $segunda = $nombreDe($otro);
+
+        // **La mitad que falla sin el arreglo.** La columna de la vista nombra
+        // sólo a la dueña, así que la segunda profesional no puede estar ahí.
+        $this->assertStringNotContainsString($segunda, (string) $fila->profesional,
+            'La premisa: `vw_agenda_citas.profesional` nombra sólo a la dueña de la cita.');
+
+        // Y la que tiene que cumplirse: la columna nueva las nombra a las dos.
+        $this->assertStringContainsString($duenia, (string) $fila->profesionales,
+            'Falta la profesional dueña de la cita.');
+        $this->assertStringContainsString($segunda, (string) $fila->profesionales,
+            'Falta la profesional que hace el otro servicio: es el defecto reportado.');
+    }
+
+    /**
      * Los horarios que se ofrecen respetan el turno de CADA profesional pedido.
      *
      * **El defecto reportado**: «el horario no coincide con el turno de los

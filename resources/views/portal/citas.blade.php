@@ -17,14 +17,20 @@
         <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Próximas</h2>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
-                <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesional</th><th>Estado</th><th class="text-end"></th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesionales</th><th>Estado</th><th class="text-end"></th></tr></thead>
                 <tbody>
                     @forelse ($prox as $c)
                         <tr>
-                            <td><strong>{{ fecha($c->fecha_hora) }}</strong></td>
-                            <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
-                            <td>{{ $c->profesional }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Fecha"><strong>{{ fecha($c->fecha_hora) }}</strong></td>
+                            <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
+                            {{-- **Todas las que la atienden, no sólo la dueña de la cita.**
+                                 `vw_agenda_citas.profesional` sale de `cita.id_usuario`, así
+                                 que con tres servicios en tres manos distintas nombraba a
+                                 una — y la clienta había elegido tres. El `?:` deja el valor
+                                 de siempre por si la cita no tuviera servicios cargados: una
+                                 raya ahí se leería como que falta el dato. --}}
+                            <td data-label="Profesionales">{{ $c->profesionales ?: $c->profesional }}</td>
+                            <td data-label="Estado">
                                 {!! estado_badge($c->estado) !!}
                                 @if ($c->en_curso)<span class="badge-estado e-proc">en curso</span>@endif
                                 @if ((float) $c->sena > 0)
@@ -43,7 +49,7 @@
                                         sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 {{-- **Se puede seguir hasta que el pago esté cerrado.**
                                      Antes el botón sólo estaba con la cita «En proceso», así
                                      que la clienta veía el detalle mientras la atendían y lo
@@ -238,14 +244,15 @@
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Anteriores</h2>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                    <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesional</th><th>Estado</th><th>Comprobante</th></tr></thead>
+                    <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesionales</th><th>Estado</th><th>Comprobante</th></tr></thead>
                     <tbody>
                         @foreach ($pasadas as $c)
                             <tr>
-                                <td>{{ fecha($c->fecha_hora) }}</td>
-                                <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
-                                <td>{{ $c->profesional }}</td>
-                                <td>{!! estado_badge($c->estado) !!}</td>
+                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha_hora) }}</td>
+                                <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
+                                {{-- Ídem: una cita pasada también pudo atenderse entre varias. --}}
+                                <td data-label="Profesionales">{{ $c->profesionales ?: $c->profesional }}</td>
+                                <td data-label="Estado">{!! estado_badge($c->estado) !!}</td>
                                 {{-- **Su comprobante, para verlo y bajarlo.** Se podía
                                      bajar sólo mientras duraba la atención: después no
                                      había ningún enlace y había que pedirlo por WhatsApp.
@@ -253,7 +260,7 @@
                                      Son dos botones y no uno porque son dos cosas: mirar
                                      cuánto salió se hace en el momento, y el archivo se
                                      baja cuando hay que rendir el gasto. --}}
-                                <td>
+                                <td data-label="Comprobante">
                                     @if ($c->id_factura)
                                         <div class="d-flex flex-wrap gap-1 align-items-center">
                                             <span class="text-muted-warm" style="font-size:.8rem">
@@ -332,12 +339,31 @@
                                     <div class="spg-cuentas-tit">
                                         <i class="bi bi-bank"></i> Podés transferir a:
                                     </div>
+                                    {{-- **Cada dato con su rótulo, y el alias primero.**
+
+                                         Antes salían los valores sueltos, pegados con
+                                         puntos: «456123 / buscalo por cédula · o por
+                                         número: 6543356 / Ana Garcia · 456123 · Caja de
+                                         ahorro». Tres problemas de una: **ningún número
+                                         decía qué era**, el mismo `456123` aparecía dos
+                                         veces significando cosas distintas —el alias, que
+                                         es una cédula, y el documento de la titular— y la
+                                         nota del salón («Enviar comprobante») quedaba
+                                         suelta al pie, leyéndose como un botón. Se reportó
+                                         como que el bloque es inentendible.
+
+                                         El alias va arriba porque es **lo único que hace
+                                         falta para transferir** en el SIPAP: reemplaza al
+                                         número, a la entidad y al nombre. Lo de abajo es
+                                         para comprobar que se le está mandando a quien
+                                         corresponde. --}}
                                     @foreach ($ctas as $ct)
                                         <div class="spg-cuenta">
                                             <div class="spg-cuenta-cab">
                                                 <strong>{{ $ct->entidad }}</strong>
                                                 <span class="text-muted-warm">· {{ $ct->medio }}</span>
                                             </div>
+
                                             @if ($ct->alias)
                                                 @php
                                                     $comoBuscar = [
@@ -345,19 +371,58 @@
                                                         'CELULAR' => 'celular', 'EMAIL' => 'correo',
                                                     ][$ct->alias_tipo] ?? 'alias';
                                                 @endphp
-                                                <div class="spg-cuenta-nro">{{ $ct->alias }}</div>
-                                                <div class="spg-cuenta-pie">
-                                                    buscalo por <strong>{{ $comoBuscar }}</strong>
-                                                    · o por número: {{ $ct->numero_cuenta }}</div>
-                                            @else
-                                                <div class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</div>
+                                                <div class="spg-cuenta-dato">
+                                                    <span class="spg-cuenta-rot">Alias</span>
+                                                    <span class="spg-cuenta-val">
+                                                        <span class="spg-cuenta-nro">{{ $ct->alias }}</span>
+                                                        {{-- Cómo buscarlo va PEGADO al alias y no en otro
+                                                             renglón: es la instrucción de ese número, no un
+                                                             dato más de la cuenta. --}}
+                                                        <span class="spg-cuenta-hint">buscalo por {{ $comoBuscar }}</span>
+                                                    </span>
+                                                </div>
                                             @endif
-                                            <div class="spg-cuenta-pie">
-                                                {{ $ct->titular }}@if ($ct->documento) · {{ $ct->documento }}@endif
-                                                @if ($ct->tipo_cuenta) · {{ $ct->tipo_cuenta }}@endif
+
+                                            @if ($ct->numero_cuenta)
+                                                <div class="spg-cuenta-dato">
+                                                    <span class="spg-cuenta-rot">N.º de cuenta</span>
+                                                    <span class="spg-cuenta-val">
+                                                        <span class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</span>
+                                                    </span>
+                                                </div>
+                                            @endif
+
+                                            @if ($ct->tipo_cuenta)
+                                                <div class="spg-cuenta-dato">
+                                                    <span class="spg-cuenta-rot">Tipo de cuenta</span>
+                                                    <span class="spg-cuenta-val">{{ $ct->tipo_cuenta }}</span>
+                                                </div>
+                                            @endif
+
+                                            <div class="spg-cuenta-dato">
+                                                <span class="spg-cuenta-rot">Titular</span>
+                                                <span class="spg-cuenta-val">{{ $ct->titular }}</span>
                                             </div>
+
+                                            {{-- **El documento no se repite si ES el alias.** Con un
+                                                 alias de tipo cédula o RUC el mismo número salía dos
+                                                 veces con dos significados, que es justo lo que hacía
+                                                 ilegible el bloque. --}}
+                                            @if ($ct->documento && $ct->documento !== $ct->alias)
+                                                <div class="spg-cuenta-dato">
+                                                    <span class="spg-cuenta-rot">Documento</span>
+                                                    <span class="spg-cuenta-val">{{ $ct->documento }}</span>
+                                                </div>
+                                            @endif
+
+                                            {{-- **La nota dice que es una nota.** Sin rótulo, «Enviar
+                                                 comprobante» al pie de una tarjeta se lee como un
+                                                 botón que no hace nada. --}}
                                             @if ($ct->observacion)
-                                                <div class="spg-cuenta-obs">{{ $ct->observacion }}</div>
+                                                <div class="spg-cuenta-obs">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    {{ $ct->observacion }}
+                                                </div>
                                             @endif
                                         </div>
                                     @endforeach

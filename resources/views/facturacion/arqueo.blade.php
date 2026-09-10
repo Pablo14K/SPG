@@ -38,7 +38,7 @@
 </div>
 
 <div class="spg-panel">
-    <div class="table-responsive">
+    <div class="table-responsive spg-tabla-movil">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
@@ -62,26 +62,26 @@
             <tbody>
                 @forelse ($rows as $c)
                     <tr>
-                        <td class="text-muted-warm" style="white-space:nowrap">
+                        <td class="text-muted-warm spg-movil-titulo" style="white-space:nowrap" data-label="Abierta">
                             {{ $c->fecha_apertura ? fecha($c->fecha_apertura, 'd/m/Y H:i') : '—' }}</td>
-                        <td style="white-space:nowrap">{{ fecha($c->fecha_cierre, 'd/m/Y H:i') }}</td>
-                        <td>{{ $c->caja_nombre }}</td>
-                        <td class="text-muted-warm">{{ $c->sucursal_nombre }}</td>
-                        <td class="text-muted-warm">{{ $c->responsable ?? '—' }}</td>
-                        <td class="text-muted-warm">
+                        <td style="white-space:nowrap" data-label="Cerrada">{{ fecha($c->fecha_cierre, 'd/m/Y H:i') }}</td>
+                        <td data-label="Caja">{{ $c->caja_nombre }}</td>
+                        <td class="text-muted-warm" data-label="Sucursal">{{ $c->sucursal_nombre }}</td>
+                        <td class="text-muted-warm" data-label="Abrió">{{ $c->responsable ?? '—' }}</td>
+                        <td class="text-muted-warm" data-label="Cerró">
                             {{-- Sin `arqueo_por` es una caja cerrada antes de que el
                                  arqueo existiera: se dice, en vez de repetir a quien
                                  abrió como si hubiera contado él. --}}
                             {{ $c->arqueo_por ?: '—' }}
                         </td>
-                        <td class="text-end">{{ money($c->saldo ?? 0) }}</td>
-                        <td class="text-end">
+                        <td class="text-end" data-label="Esperado">{{ money($c->saldo ?? 0) }}</td>
+                        <td class="text-end" data-label="Contado">
                             {{-- «—» y no «Gs. 0» cuando no se contó: un cero ahí
                                  se lee como «cuadró», que es justo lo que no se
                                  sabe de las cajas cerradas antes del arqueo. --}}
                             {{ $c->monto_contado === null ? '—' : money($c->monto_contado) }}
                         </td>
-                        <td class="text-end" style="white-space:nowrap">
+                        <td class="text-end" style="white-space:nowrap" data-label="Diferencia">
                             @if ($c->diferencia === null)
                                 <span class="text-muted-warm">sin conteo</span>
                             @elseif (abs((float) $c->diferencia) < 0.01)
@@ -92,7 +92,7 @@
                                 <span class="badge-estado e-no">− {{ money(abs((float) $c->diferencia)) }}</span>
                             @endif
                         </td>
-                        <td class="text-muted-warm" style="font-size:.84rem">
+                        <td class="text-muted-warm" style="font-size:.84rem" data-label="Detalle">
                             {{-- El motivo se exige SÓLO cuando no cuadra, así que
                                  nombrarlo con la caja cuadrada sería pedir algo
                                  que el sistema no pidió. --}}

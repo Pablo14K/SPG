@@ -166,7 +166,7 @@
 
     <div class="spg-panel mt-2">
         <h2 style="font-size:1rem;font-weight:500;margin-bottom:.8rem;">Historial de servicios</h2>
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Fecha</th><th>Servicio</th><th>Profesional</th><th>Comprobante</th><th>Puntaje</th></tr>
@@ -174,11 +174,11 @@
                 <tbody>
                     @forelse ($hist as $h)
                         <tr>
-                            <td>{{ fecha($h->fecha_hora) }}</td>
-                            <td>{{ $h->servicio }}</td>
-                            <td>{{ $h->profesional }}</td>
-                            <td class="text-muted-warm">{{ $h->nro_comprobante ?: '—' }}</td>
-                            <td class="txt-oro">{{ $h->puntaje ? str_repeat('★', (int) $h->puntaje) : '—' }}</td>
+                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($h->fecha_hora) }}</td>
+                            <td data-label="Servicio">{{ $h->servicio }}</td>
+                            <td data-label="Profesional">{{ $h->profesional }}</td>
+                            <td class="text-muted-warm" data-label="Comprobante">{{ $h->nro_comprobante ?: '—' }}</td>
+                            <td class="txt-oro" data-label="Puntaje">{{ $h->puntaje ? str_repeat('★', (int) $h->puntaje) : '—' }}</td>
                         </tr>
                     @empty
                         <tr>

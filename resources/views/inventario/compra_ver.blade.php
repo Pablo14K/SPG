@@ -74,7 +74,7 @@
     </div>
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -85,11 +85,11 @@
                 <tbody>
                     @foreach ($lineas as $l)
                         <tr>
-                            <td>{{ $l->nombre }}</td>
-                            <td class="text-muted-warm">{{ $l->categoria }}</td>
-                            <td class="text-end">{{ cant($l->cantidad) }} {{ $l->unidad_medida }}</td>
-                            <td class="text-end">{{ money($l->precio_unitario) }}</td>
-                            <td class="text-end">{{ money($l->total_linea) }}</td>
+                            <td class="spg-movil-titulo" data-label="Producto">{{ $l->nombre }}</td>
+                            <td class="text-muted-warm" data-label="Categoría">{{ $l->categoria }}</td>
+                            <td class="text-end" data-label="Cantidad">{{ cant($l->cantidad) }} {{ $l->unidad_medida }}</td>
+                            <td class="text-end" data-label="Precio">{{ money($l->precio_unitario) }}</td>
+                            <td class="text-end" data-label="Subtotal">{{ money($l->total_linea) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -117,18 +117,18 @@
         <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Pagos de esta compra</h2>
 
         @if ($pagos)
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Fecha</th><th>Medio</th><th>Referencia</th>
                         <th class="text-end">Aplicado</th><th>Estado</th></tr></thead>
                     <tbody>
                         @foreach ($pagos as $p)
                             <tr class="{{ $p->estado === 'Anulado' ? 'text-muted-warm' : '' }}">
-                                <td>{{ fecha($p->fecha) }}</td>
-                                <td>{{ $p->metodo }}</td>
-                                <td class="text-muted-warm">{{ $p->referencia ?: '—' }}</td>
-                                <td class="text-end">{{ money($p->monto) }}</td>
-                                <td>{!! estado_badge($p->estado) !!}</td>
+                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
+                                <td data-label="Medio">{{ $p->metodo }}</td>
+                                <td class="text-muted-warm" data-label="Referencia">{{ $p->referencia ?: '—' }}</td>
+                                <td class="text-end" data-label="Aplicado">{{ money($p->monto) }}</td>
+                                <td data-label="Estado">{!! estado_badge($p->estado) !!}</td>
                             </tr>
                         @endforeach
                     </tbody>

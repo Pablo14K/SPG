@@ -26,7 +26,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -38,13 +38,13 @@
                 <tbody>
                     @forelse ($rows as $r)
                         <tr>
-                            <td>{{ $r->cliente }}</td>
-                            <td class="text-muted-warm">{{ $r->telefono ?: '—' }}</td>
-                            <td class="text-end">{{ (int) $r->visitas }}</td>
-                            <td class="text-end">{{ (int) $r->puntos }}</td>
-                            <td><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>
-                            <td class="text-muted-warm">{{ $r->descuento_del_nivel ?: '—' }}</td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="spg-movil-titulo" data-label="Cliente">{{ $r->cliente }}</td>
+                            <td class="text-muted-warm" data-label="Teléfono">{{ $r->telefono ?: '—' }}</td>
+                            <td class="text-end" data-label="Visitas">{{ (int) $r->visitas }}</td>
+                            <td class="text-end" data-label="Puntos">{{ (int) $r->puntos }}</td>
+                            <td data-label="Nivel"><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>
+                            <td class="text-muted-warm" data-label="Descuento del nivel">{{ $r->descuento_del_nivel ?: '—' }}</td>
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 {{-- Canjear desde el mostrador: la clienta viene al local y
                                      pide gastar sus puntos. La mayoría ni tiene cuenta en el
                                      portal, así que sin esto no podría canjear nunca.

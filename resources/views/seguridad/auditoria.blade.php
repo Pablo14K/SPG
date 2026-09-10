@@ -8,7 +8,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr><th>Fecha</th><th>Usuario</th><th>Sucursal</th><th>Acción</th><th>Módulo</th>
@@ -17,15 +17,15 @@
                 <tbody>
                     @forelse ($rows as $a)
                         <tr>
-                            <td style="white-space:nowrap">{{ fecha($a->fecha) }}</td>
-                            <td>{{ $a->usuario }}</td>
-                            <td class="text-muted-warm">{{ $a->sucursal }}</td>
-                            <td><span class="badge-estado e-prog">{{ $a->accion }}</span></td>
-                            <td class="text-muted-warm">{{ $a->modulo }}</td>
-                            <td class="text-muted-warm" style="font-size:.8rem">
+                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($a->fecha) }}</td>
+                            <td data-label="Usuario">{{ $a->usuario }}</td>
+                            <td class="text-muted-warm" data-label="Sucursal">{{ $a->sucursal }}</td>
+                            <td data-label="Acción"><span class="badge-estado e-prog">{{ $a->accion }}</span></td>
+                            <td class="text-muted-warm" data-label="Módulo">{{ $a->modulo }}</td>
+                            <td class="text-muted-warm" style="font-size:.8rem" data-label="Registro">
                                 {{ $a->tabla_afectada }}{{ $a->id_registro ? ' #' . $a->id_registro : '' }}
                             </td>
-                            <td class="text-muted-warm" style="font-size:.82rem">{{ $a->detalle ?: '—' }}</td>
+                            <td class="text-muted-warm" style="font-size:.82rem" data-label="Detalle">{{ $a->detalle ?: '—' }}</td>
                         </tr>
                     @empty
                         <tr>

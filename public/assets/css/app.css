@@ -882,12 +882,31 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-cuenta{border:1px solid var(--gris-calido);border-radius:8px;
   padding:.55rem .7rem;margin-bottom:.45rem;background:var(--blanco-hueso);}
 .spg-cuenta:last-child{margin-bottom:0;}
-.spg-cuenta-cab{font-size:.86rem;}
+.spg-cuenta-cab{font-size:.86rem;margin-bottom:.35rem;
+  padding-bottom:.3rem;border-bottom:1px solid var(--gris-calido);}
 .spg-cuenta-nro{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:1.02rem;letter-spacing:.02em;word-break:break-all;margin:.1rem 0;}
-.spg-cuenta-pie{font-size:.79rem;color:var(--gris-oscuro);}
-.spg-cuenta-obs{font-size:.79rem;color:var(--gris-oscuro);margin-top:.25rem;
-  padding-top:.25rem;border-top:1px dashed var(--gris-calido);}
+  font-size:1.02rem;letter-spacing:.02em;word-break:break-all;display:block;}
+
+/* **Cada dato con su rótulo.** Antes los valores salían sueltos y pegados con
+   puntos —«Ana Garcia · 456123 · Caja de ahorro»— así que ningún número decía
+   qué era. Es una grilla de dos columnas y no una tabla: con `minmax` el
+   rótulo no empuja al valor fuera de la tarjeta en un teléfono angosto. */
+.spg-cuenta-dato{display:grid;grid-template-columns:minmax(0,7.5rem) 1fr;
+  gap:.2rem .6rem;align-items:baseline;padding:.18rem 0;}
+.spg-cuenta-rot{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;
+  letter-spacing:.03em;}
+.spg-cuenta-val{font-size:.9rem;min-width:0;word-break:break-word;}
+/* Cómo buscar el alias va debajo del alias y no en otro renglón de la tarjeta:
+   es la instrucción de ESE número. */
+.spg-cuenta-hint{display:block;font-size:.75rem;color:var(--gris-oscuro);}
+@media (max-width:420px){
+  /* En un teléfono angosto la grilla de dos columnas deja el valor en 4 rem:
+     un número de cuenta no entra. Rótulo arriba, valor abajo. */
+  .spg-cuenta-dato{grid-template-columns:1fr;gap:0;}
+}
+
+.spg-cuenta-obs{font-size:.79rem;color:var(--gris-oscuro);margin-top:.35rem;
+  padding-top:.3rem;border-top:1px dashed var(--gris-calido);}
 
 .spg-vacio{text-align:center;color:var(--gris-oscuro);padding:2.2rem 1rem;}
 .spg-vacio i{font-size:1.7rem;color:var(--gris-calido);display:block;margin-bottom:.4rem;}
@@ -1935,3 +1954,85 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 .spg-wiz-cifra .r{font-size:.74rem;color:var(--gris-oscuro);display:block;}
 .spg-wiz-cifra .v{font-weight:500;}
+
+/* =====================================================================
+   TABLAS CONVERTIDAS EN TARJETAS PARA MÓVIL
+   Patrón genérico: se agrega `spg-tabla-movil` al wrapper y `data-label`
+   a cada `<td>` de la vista. En ≤575.98 px las filas se vuelven tarjetas
+   verticales con pares etiqueta-valor.
+
+   El CSS del portal (`.spg-portal-citas-grid`) fue el prototipo de esto;
+   ahora se generaliza para las ~40 pantallas de gestión interna.
+
+   En escritorio NO cambia nada: todo vive dentro de la media query.
+   ===================================================================== */
+@media (max-width:575.98px){
+  .spg-tabla-movil .table thead{display:none;}
+  .spg-tabla-movil .table tbody tr{
+    display:block;
+    border:1px solid var(--gris-calido);
+    border-radius:.5rem;
+    padding:.75rem;
+    margin-bottom:.75rem;
+    background:var(--blanco);
+  }
+  .spg-tabla-movil .table tbody tr:last-child{margin-bottom:0;}
+  .spg-tabla-movil .table tbody td{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:.5rem;
+    border:0;
+    padding:.25rem 0;
+    text-align:right;
+    white-space:normal !important;
+  }
+  /* La pseudo-etiqueta sale del data-label de cada celda. */
+  .spg-tabla-movil .table tbody td[data-label]:before{
+    content:attr(data-label);
+    font-weight:600;
+    font-size:.75rem;
+    color:var(--gris-oscuro);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    text-align:left;
+    flex-shrink:0;
+    min-width:5.5rem;
+  }
+  /* Celda sin data-label: no muestra pseudo-etiqueta. */
+  .spg-tabla-movil .table tbody td:not([data-label]):before{display:none;}
+  /* El primer dato con label es el «título» de la tarjeta: va más grande
+     y sin etiqueta repetida para que se lea de un vistazo. */
+  .spg-tabla-movil .table tbody td.spg-movil-titulo{
+    font-weight:600;
+    font-size:.95rem;
+    text-align:left;
+    border-bottom:1px solid var(--gris-calido);
+    padding-bottom:.4rem;
+    margin-bottom:.15rem;
+  }
+  .spg-tabla-movil .table tbody td.spg-movil-titulo:before{display:none;}
+  /* La celda de acciones se separa visualmente del resto. */
+  .spg-tabla-movil .table tbody td.spg-movil-acciones{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    gap:.35rem;
+    padding-top:.5rem;
+    border-top:1px solid var(--gris-calido);
+    margin-top:.25rem;
+  }
+  .spg-tabla-movil .table tbody td.spg-movil-acciones:before{display:none;}
+  /* Los badges y chips quedan a la izquierda, que es donde el ojo los busca. */
+  .spg-tabla-movil .table tbody td .badge-estado{margin-right:auto;}
+  /* Columnas que se ocultan en móvil via d-none ya están cubiertas por Bootstrap;
+     los botones dentro de las tarjetas reciben un poco más de aire. */
+  .spg-tabla-movil .table .btn-sm{min-height:36px;min-width:36px;}
+
+  /* ---- Filtros apilados en móvil ----
+     En ≤576 px cada campo se lleva el renglón entero, los botones se
+     reparten el ancho y el aviso de filtros activos no se recorta. */
+  .spg-filtros{flex-direction:column;align-items:stretch;}
+  .spg-filtro{flex:1 1 100% !important;min-width:0 !important;}
+  .spg-filtro-btns{flex-wrap:wrap;width:100%;justify-content:stretch;}
+  .spg-filtro-btns .btn{flex:1 1 auto;}
+}

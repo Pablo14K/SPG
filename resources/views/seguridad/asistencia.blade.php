@@ -20,7 +20,7 @@
     </div>
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -31,8 +31,8 @@
                 <tbody>
                     @forelse ($filas as $f)
                         <tr>
-                            <td>{{ $f->profesional }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Profesional">{{ $f->profesional }}</td>
+                            <td data-label="Turno">
                                 {{ $f->turno }}
                                 <div class="text-muted-warm" style="font-size:.76rem">
                                     {{ substr((string) $f->hora_inicio, 0, 5) }} a {{ substr((string) $f->hora_fin, 0, 5) }}
@@ -40,8 +40,8 @@
                                     · {{ $f->sucursal }}
                                 </div>
                             </td>
-                            <td>{{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
-                            <td>
+                            <td data-label="Entrada">{{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
+                            <td data-label="Salida">
                                 {{ $f->hora_salida ? substr((string) $f->hora_salida, 0, 5) : '—' }}
                                 @if ((float) ($f->horas_extras ?? 0) > 0)
                                     <div class="text-muted-warm" style="font-size:.72rem">
@@ -49,7 +49,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 @if ($f->justificada === null && $f->hora_entrada)
                                     <span class="badge-estado e-ok">Presente</span>
                                 @elseif ((int) $f->justificada === 1)
@@ -66,7 +66,7 @@
                                     <span class="badge-estado e-muted">Sin fichar</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 @php
                                     $mio = (int) $f->id_usuario === $yo;
                                     // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
@@ -318,7 +318,7 @@
         <x-filtros :f="$fa" />
 
         @if ($rows)
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr><th>Fecha</th><th>Profesional</th><th>Turno</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr>
@@ -326,12 +326,12 @@
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
-                                <td>{{ fecha($r->fecha, 'd/m/Y') }}</td>
-                                <td>{{ $r->profesional }}</td>
-                                <td class="text-muted-warm">{{ $r->turno }}</td>
-                                <td>{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
-                                <td>{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
+                                <td data-label="Profesional">{{ $r->profesional }}</td>
+                                <td class="text-muted-warm" data-label="Turno">{{ $r->turno }}</td>
+                                <td data-label="Entrada">{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
+                                <td data-label="Salida">{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
+                                <td data-label="Estado">
                                     @if ($r->justificada === null)
                                         <span class="badge-estado e-ok">Presente</span>
                                     @elseif ((int) $r->justificada === 1)

@@ -122,15 +122,15 @@
             <h2 style="font-size:1rem;font-weight:500;margin:0 0 .5rem">
                 <i class="bi bi-ticket-perforated txt-oro"></i> Lo que canjeaste
             </h2>
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Servicio</th><th>Vence</th><th>Estado</th></tr></thead>
                     <tbody>
                         @foreach ($misCanjes as $c)
                             <tr>
-                                <td>{{ $c->nombre }}</td>
-                                <td style="white-space:nowrap">{{ fecha($c->vence_en, 'd/m/Y') }}</td>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Servicio">{{ $c->nombre }}</td>
+                                <td style="white-space:nowrap" data-label="Vence">{{ fecha($c->vence_en, 'd/m/Y') }}</td>
+                                <td data-label="Estado">
                                     @switch($c->estado)
                                         @case('USADO')
                                             <span class="badge-estado e-ok">Ya lo usaste</span> @break

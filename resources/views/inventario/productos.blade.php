@@ -44,12 +44,12 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
                         <th>Producto</th><th>Categoría</th><th class="text-end">Stock</th>
-                        <th class="text-end">Mínimo</th><th class="text-end">Costo</th>
+                        <th class="text-end d-none d-md-table-cell">Mínimo</th><th class="text-end">Costo</th>
                         {{-- <th class="text-end">Venta</th> --}}<th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -64,15 +64,15 @@
                             $bajo = $mio && (float) $p->stock_actual < (float) $p->stock_minimo;
                         @endphp
                         <tr class="{{ $mio ? '' : 'text-muted-warm' }}">
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Producto">
                                 {{ $p->nombre }}
                                 @if (producto_fraccionado((array) $p))
                                     <span class="badge-estado e-prog" title="Se consume por partes">
                                         {{ cant($p->contenido) }} {{ $p->unidad_consumo }} por {{ $p->unidad_medida }}</span>
                                 @endif
                             </td>
-                            <td class="text-muted-warm">{{ $p->categoria }}</td>
-                            <td class="text-end">
+                            <td class="text-muted-warm" data-label="Categoría">{{ $p->categoria }}</td>
+                            <td class="text-end" data-label="Stock">
                                 @if ($mio)
                                     <strong class="{{ $bajo ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
                                     <span class="text-muted-warm">{{ $p->unidad_medida }}</span>
@@ -86,12 +86,12 @@
                                     <span class="text-muted-warm">—</span>
                                 @endif
                             </td>
-                            <td class="text-end text-muted-warm">{{ $mio ? cant($p->stock_minimo) : '—' }}</td>
-                            <td class="text-end">{{ money($p->precio_costo) }}</td>
+                            <td class="text-end text-muted-warm d-none d-md-table-cell" data-label="Mínimo">{{ $mio ? cant($p->stock_minimo) : '—' }}</td>
+                            <td class="text-end" data-label="Costo">{{ money($p->precio_costo) }}</td>
                             {{-- Precio de venta: fuera de alcance (ver el formulario del producto).
                             <td class="text-end">{{ money($p->precio_venta) }}</td>
                             --}}
-                            <td>
+                            <td data-label="Estado">
                                 @if (! $mio)
                                     <span class="badge-estado e-muted">En otra sucursal</span>
                                 @elseif (! $p->activo)
@@ -103,16 +103,16 @@
                                 @endif
                             </td>
                             @if (! $mio)
-                                <td class="text-end" style="white-space:nowrap">
+                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                     <form method="post" action="{{ route('inventario.producto.traer') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_producto" value="{{ $p->id_producto }}">
                                         <button class="btn btn-sm btn-rapido" title="Manejarlo también en esta sucursal">
-                                            <i class="bi bi-plus-lg"></i> Traer acá</button>
+                                             <i class="bi bi-plus-lg"></i> Traer acá</button>
                                     </form>
                                 </td>
                             @else
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Cargar stock"
                                    href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
                                     <i class="bi bi-plus-slash-minus"></i></a>

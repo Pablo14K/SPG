@@ -13,7 +13,7 @@
 
     <div class="spg-panel mb-3">
         <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cuentas por pagar</h2>
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Proveedor</th><th>Compra</th><th>Vencimiento</th>
@@ -22,21 +22,21 @@
                 <tbody>
                     @forelse ($cuentas as $c)
                         <tr>
-                            <td>{{ $c->proveedor }}</td>
-                            <td class="text-muted-warm">
+                            <td class="spg-movil-titulo" data-label="Proveedor">{{ $c->proveedor }}</td>
+                            <td class="text-muted-warm" data-label="Compra">
                                 {{ fecha($c->fecha, 'd/m/Y') }}
                                 @if ($c->nro_factura_proveedor ?? null) · {{ $c->nro_factura_proveedor }} @endif
                             </td>
-                            <td>
+                            <td data-label="Vencimiento">
                                 @if ($c->vencida)
                                     <span class="badge-estado e-no">vencida</span>
                                 @endif
                                 <span class="text-muted-warm">
                                     {{ $c->vencimiento ? fecha($c->vencimiento, 'd/m/Y') : '—' }}</span>
                             </td>
-                            <td class="text-end">{{ money($c->total) }}</td>
-                            <td class="text-end"><strong class="txt-no">{{ money($c->saldo) }}</strong></td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
+                            <td class="text-end" data-label="Saldo"><strong class="txt-no">{{ money($c->saldo) }}</strong></td>
+                            <td class="text-end spg-movil-acciones">
                                 @if ($caja)
                                     <button class="btn btn-sm btn-oro" data-bs-toggle="modal"
                                             data-bs-target="#modalPago{{ $c->id_compra }}">
@@ -61,23 +61,23 @@
 
     <div class="spg-panel">
         <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Pagos registrados</h2>
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Fecha</th><th>Proveedor</th><th>Compra que pagó</th><th>Medio</th><th>Referencia</th>
+                    <tr><th>Fecha</th><th>Proveedor</th><th>Compra que pagó</th><th>Medio</th><th class="d-none d-md-table-cell">Referencia</th>
                         <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Anular</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($pagos as $p)
                         <tr>
-                            <td>{{ fecha($p->fecha) }}</td>
-                            <td>{{ $p->proveedor }}</td>
+                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
+                            <td data-label="Proveedor">{{ $p->proveedor }}</td>
                             {{-- **Qué compra pagó.** El pago SÍ queda ligado a la
                                  compra —`sp_pagar_compra` escribe el detalle— pero acá
                                  no se veía: con el mismo proveedor repetido no había
                                  forma de saber cuál de las cuatro compras se pagó.
                                  Un pago puede cubrir varias, y por eso salen todas. --}}
-                            <td class="text-muted-warm" style="font-size:.83rem">
+                            <td class="text-muted-warm" style="font-size:.83rem" data-label="Compra que pagó">
                                 {{ $p->compras ?: '—' }}
                                 {{-- **El papel que llega después del pago.** La compra
                                      saldada ya no está en «Cuentas por pagar», así que
@@ -90,11 +90,11 @@
                                         <i class="bi bi-receipt"></i> Cargar la factura</button>
                                 @endif
                             </td>
-                            <td>{{ $p->metodo }}</td>
-                            <td class="text-muted-warm">{{ $p->referencia ?: '—' }}</td>
-                            <td class="text-end">{{ money($p->monto) }}</td>
-                            <td>{!! estado_badge($p->estado) !!}</td>
-                            <td class="text-end">
+                            <td data-label="Medio">{{ $p->metodo }}</td>
+                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Referencia">{{ $p->referencia ?: '—' }}</td>
+                            <td class="text-end" data-label="Monto">{{ money($p->monto) }}</td>
+                            <td data-label="Estado">{!! estado_badge($p->estado) !!}</td>
+                            <td class="text-end spg-movil-acciones">
                                 @if ($p->estado !== 'Anulado')
                                     <button class="btn btn-sm btn-outline-neutro" title="Anular"
                                             data-bs-toggle="modal"

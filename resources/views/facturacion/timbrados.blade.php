@@ -100,7 +100,7 @@
 
         <div class="col-lg-7">
             <div class="spg-panel">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr>
@@ -111,23 +111,23 @@
                         <tbody>
                             @forelse ($rows as $t)
                                 <tr>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Timbrado">
                                         <strong>{{ $t->nro_timbrado }}</strong>
                                         <div class="text-muted-warm" style="font-size:.76rem">
                                             {{ $t->establecimiento }}-{{ $t->punto_expedicion }} · {{ $t->sucursal }}
                                         </div>
                                     </td>
-                                    <td class="text-muted-warm">{{ $t->comprobante }}</td>
-                                    <td class="text-muted-warm" style="font-size:.82rem">
+                                    <td class="text-muted-warm" data-label="Comprobante">{{ $t->comprobante }}</td>
+                                    <td class="text-muted-warm" style="font-size:.82rem" data-label="Vigencia">
                                         {{ fecha($t->fecha_inicio, 'd/m/Y') }} – {{ fecha($t->fecha_fin, 'd/m/Y') }}
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Emitidos">
                                         {{ (int) $t->emitidos }}
                                         <div class="text-muted-warm" style="font-size:.72rem">
                                             último {{ (int) $t->ultimo }}/{{ (int) $t->nro_hasta }}
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Estado">
                                         @if (! $t->activo)
                                             <span class="badge-estado e-muted">Inactivo</span>
                                         @elseif ($t->vigente)
@@ -136,7 +136,7 @@
                                             <span class="badge-estado e-no">Vencido</span>
                                         @endif
                                     </td>
-                                    <td class="text-end" style="white-space:nowrap">
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                         <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                            href="{{ route('facturacion.timbrados', ['editar' => $t->id_timbrado]) }}">
                                             <i class="bi bi-pencil"></i></a>

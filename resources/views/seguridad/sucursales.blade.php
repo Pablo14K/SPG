@@ -93,7 +93,7 @@
     </div>
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Nombre</th><th>RUC</th><th>Ciudad</th><th>Teléfono</th>
@@ -102,19 +102,19 @@
                 <tbody>
                     @forelse ($rows as $s)
                         <tr>
-                            <td>{{ $s->nombre }}</td>
-                            <td class="text-muted-warm">{{ $s->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm">{{ $s->ciudad ?: '—' }}</td>
-                            <td>{{ $s->telefono ?: '—' }}</td>
-                            <td class="text-end">{{ (int) $s->personal }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Nombre">{{ $s->nombre }}</td>
+                            <td class="text-muted-warm" data-label="RUC">{{ $s->ruc ?: '—' }}</td>
+                            <td class="text-muted-warm" data-label="Ciudad">{{ $s->ciudad ?: '—' }}</td>
+                            <td data-label="Teléfono">{{ $s->telefono ?: '—' }}</td>
+                            <td class="text-end" data-label="Personal">{{ (int) $s->personal }}</td>
+                            <td data-label="Estado">
                                 @if ($s->activo)
                                     <span class="badge-estado e-ok">Activa</span>
                                 @else
                                     <span class="badge-estado e-muted">Inactiva</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('seguridad.sucursal_form', $s->id_sucursal) }}">
                                     <i class="bi bi-pencil"></i></a>

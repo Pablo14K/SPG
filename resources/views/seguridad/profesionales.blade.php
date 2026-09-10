@@ -19,7 +19,7 @@
 <x-filtros :f="$f" />
 
 <div class="spg-panel">
-    <div class="table-responsive">
+    <div class="table-responsive spg-tabla-movil">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
@@ -30,15 +30,15 @@
             <tbody>
                 @forelse ($rows as $r)
                     <tr>
-                        <td>{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
-                        <td class="text-muted-warm">{{ $r->cedula ?: '—' }}</td>
-                        <td class="text-muted-warm" style="font-size:.85rem">
+                        <td class="spg-movil-titulo" data-label="Nombre">{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
+                        <td class="text-muted-warm" data-label="Cédula">{{ $r->cedula ?: '—' }}</td>
+                        <td class="text-muted-warm" style="font-size:.85rem" data-label="Contacto">
                             <div>{{ $r->telefono ?: '—' }}</div>
                             @if ($r->email)
                                 <div>{{ $r->email }}</div>
                             @endif
                         </td>
-                        <td>
+                        <td data-label="Cuenta del sistema">
                             {{-- **«Sin cuenta» no es un error y hay que decirlo así.**
                                  Es alguien que atiende y no entra al sistema, que es
                                  un caso normal del salón. --}}
@@ -54,7 +54,7 @@
                                 @endif
                             @endif
                         </td>
-                        <td class="text-end">
+                        <td class="text-end spg-movil-acciones">
                             <a class="btn btn-sm btn-outline-neutro" title="Editar sus datos"
                                href="{{ route('seguridad.profesional_form', $r->id_persona) }}">
                                 <i class="bi bi-pencil"></i></a>

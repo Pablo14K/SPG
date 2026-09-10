@@ -10,7 +10,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -22,14 +22,14 @@
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
-                            <td>{{ fecha($c->fecha, 'd/m/Y') }}</td>
-                            <td>{{ $c->proveedor }}</td>
+                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha, 'd/m/Y') }}</td>
+                            <td data-label="Proveedor">{{ $c->proveedor }}</td>
                             {{-- **Sin número se dice y se puede cargar de una.** El papel
                                  del proveedor no siempre llega con la mercadería, así que
                                  la compra entra sin él y después hay que anotarlo. Con un
                                  guión y nada más, la única forma de saber cuáles faltan era
                                  abrirlas una por una. --}}
-                            <td>
+                            <td data-label="Nº factura">
                                 @if ($c->nro_factura_proveedor)
                                     <span class="text-muted-warm">{{ $c->nro_factura_proveedor }}</span>
                                 @else
@@ -42,17 +42,17 @@
                                         <i class="bi bi-paperclip"></i> Cargar factura</button>
                                 @endif
                             </td>
-                            <td class="text-end">{{ (int) $c->items }}</td>
-                            <td class="text-end">{{ money($c->total) }}</td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Ítems">{{ (int) $c->items }}</td>
+                            <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
+                            <td class="text-end" data-label="Saldo">
                                 @if ((float) $c->saldo > 0.01)
                                     <strong class="txt-no">{{ money($c->saldo) }}</strong>
                                 @else
                                     <span class="txt-ok">pagada</span>
                                 @endif
                             </td>
-                            <td>{!! estado_badge($c->estado) !!}</td>
-                            <td class="text-end">
+                            <td data-label="Estado">{!! estado_badge($c->estado) !!}</td>
+                            <td class="text-end spg-movil-acciones">
                                 {{-- **El botón dice qué hay adentro.** Un ojito con
                                      «Ver el detalle» no deja adivinar que ahí también se
                                      anota la factura del proveedor. --}}

@@ -89,7 +89,7 @@
             </div>
         </div>
 
-        <div class="table-responsive mt-3">
+        <div class="table-responsive spg-tabla-movil mt-3">
             <table class="table table-sm align-middle">
                 <thead>
                     <tr>
@@ -108,14 +108,14 @@
                                 : null;
                         @endphp
                         <tr>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Detalle">
                                 {{ $l->item }}
                                 @if ($cj)
                                     <span class="badge-estado e-ok">canjeado por {{ entero($cj->puntos) }} puntos</span>
                                 @endif
                             </td>
-                            <td class="text-end">{{ cant($l->cantidad) }}</td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Cant.">{{ cant($l->cantidad) }}</td>
+                            <td class="text-end" data-label="Precio">
                                 @if ($cj)
                                     <span class="text-muted-warm" style="text-decoration:line-through">
                                         {{ money($cj->precio) }}</span>
@@ -123,7 +123,7 @@
                                     {{ money($l->precio_unitario) }}
                                 @endif
                             </td>
-                            <td class="text-end">{{ money($l->subtotal) }}</td>
+                            <td class="text-end" data-label="Subtotal">{{ money($l->subtotal) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -191,18 +191,18 @@
     @if ($cobros)
         <div class="spg-panel mt-3 no-imprimir">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cobros de este comprobante</h2>
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Fecha</th><th>Medio</th><th>Detalle</th><th class="text-end">Monto</th><th>Estado</th></tr></thead>
                     <tbody>
                         @foreach ($cobros as $c)
                             <tr>
-                                <td>{{ fecha($c->fecha) }}</td>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha) }}</td>
+                                <td data-label="Medio">
                                     {{ $c->metodo }}
                                     @if ($c->es_sena)<span class="badge-estado e-warn">seña</span>@endif
                                 </td>
-                                <td class="text-muted-warm" style="font-size:.8rem">
+                                <td class="text-muted-warm" style="font-size:.8rem" data-label="Detalle">
                                     @if ($c->marca)
                                         {{ $c->marca }} {{ $c->tipo_tarjeta }}
                                         @if ($c->ultimos_4)···{{ $c->ultimos_4 }}@endif
@@ -215,8 +215,8 @@
                                         {{ $c->referencia ?: '—' }}
                                     @endif
                                 </td>
-                                <td class="text-end">{{ money($c->monto) }}</td>
-                                <td>{!! estado_badge($c->estado) !!}</td>
+                                <td class="text-end" data-label="Monto">{{ money($c->monto) }}</td>
+                                <td data-label="Estado">{!! estado_badge($c->estado) !!}</td>
                             </tr>
                         @endforeach
                     </tbody>

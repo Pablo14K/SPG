@@ -30,7 +30,7 @@
                 llegó a su mínimo o quedó por debajo. Comprando esto, cada uno
                 vuelve a estar por encima.
             </p>
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-2">
                     <thead>
                         <tr>
@@ -44,7 +44,7 @@
                         @foreach ($bajo as $b)
                             @php $totalRepo += (float) $b->faltante * (float) $b->precio_costo; @endphp
                             <tr>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Producto">
                                     {{ $b->nombre }}
                                     <div class="text-muted-warm" style="font-size:.78rem">
                                         {{ $b->categoria }} · hay {{ cant($b->stock_actual) }}
@@ -52,12 +52,12 @@
                                         {{ cant($b->stock_minimo) }}
                                     </div>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end" data-label="Comprar">
                                     <strong>{{ cant($b->faltante) }}</strong>
                                     <div class="text-muted-warm" style="font-size:.78rem">
                                         {{ $b->unidad_medida ?? 'unidades' }}</div>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end" data-label="Cuánto cuesta">
                                     {{ money((float) $b->faltante * (float) $b->precio_costo) }}
                                     <div class="text-muted-warm" style="font-size:.78rem">
                                         a {{ money($b->precio_costo) }} c/u</div>
@@ -88,7 +88,7 @@
     @endif
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -100,9 +100,9 @@
                     @forelse ($rows as $p)
                         @php $bajoMin = (float) $p->stock_actual < (float) $p->stock_minimo; @endphp
                         <tr>
-                            <td>{{ $p->nombre }}</td>
-                            <td class="text-muted-warm">{{ $p->categoria }}</td>
-                            <td class="text-end">
+                            <td class="spg-movil-titulo" data-label="Producto">{{ $p->nombre }}</td>
+                            <td class="text-muted-warm" data-label="Categoría">{{ $p->categoria }}</td>
+                            <td class="text-end" data-label="Stock">
                                 <strong class="{{ $bajoMin ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
                                 <span class="text-muted-warm">{{ $p->unidad_medida }}</span>
                                 @if (producto_fraccionado((array) $p))
@@ -112,9 +112,9 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-end text-muted-warm">{{ cant($p->stock_minimo) }}</td>
-                            <td class="text-end">{{ money((float) $p->stock_actual * (float) $p->precio_costo) }}</td>
-                            <td class="text-end">
+                            <td class="text-end text-muted-warm" data-label="Mínimo">{{ cant($p->stock_minimo) }}</td>
+                            <td class="text-end" data-label="Valor a costo">{{ money((float) $p->stock_actual * (float) $p->precio_costo) }}</td>
+                            <td class="text-end spg-movil-acciones">
                                 <a class="btn btn-sm btn-outline-neutro" title="Cargar o corregir stock"
                                    href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
                                     <i class="bi bi-plus-slash-minus"></i></a>

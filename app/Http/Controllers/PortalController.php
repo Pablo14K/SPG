@@ -677,6 +677,25 @@ class PortalController extends Controller
             // todo en serie sobre una sola clienta— y no ofrece ninguna fecha.
             'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal, c.id_usuario,
                     c.personas,
+                    -- **Quiénes la atienden, no sólo quien tiene la cita.**
+                    --
+                    -- `vw_agenda_citas.profesional` sale de `cita.id_usuario`, o
+                    -- sea la dueña de la cita, y con varios servicios en manos
+                    -- distintas eso muestra **una sola**: la clienta eligió tres
+                    -- profesionales y la pantalla le nombraba a una. Se reportó
+                    -- tal cual.
+                    --
+                    -- **Un NULL en `cita_servicio.id_usuario` no es «nadie»: es
+                    -- la dueña de la cita** — así se representa «lo hace quien la
+                    -- tiene» desde siempre, por eso el `COALESCE`. Es la misma
+                    -- corrección que el panel recibió en la 7.104.0 y que acá se
+                    -- había quedado sin aplicar.
+                    (SELECT GROUP_CONCAT(DISTINCT CONCAT(pe_pr.nombre,\' \',pe_pr.apellido)
+                                         ORDER BY pe_pr.nombre, pe_pr.apellido SEPARATOR \', \')
+                       FROM cita_servicio csp
+                       JOIN usuario up ON up.id_usuario = COALESCE(csp.id_usuario, c.id_usuario)
+                       JOIN persona pe_pr ON pe_pr.id_persona = up.id_persona
+                      WHERE csp.id_cita = v.id_cita) AS profesionales,
                     -- **Los servicios de la cita, por id.** Los necesita el
                     -- selector de horarios del modal de reprogramar: reprogramar
                     -- no pregunta qué se hace —eso ya está decidido— así que los
@@ -751,6 +770,15 @@ class PortalController extends Controller
             // `foreach`, sería una por cita.
             'pasadas' => DB::select(
                 "SELECT v.*, f.id_factura,
+                        -- Los mismos de arriba: ver el aviso de la consulta de
+                        -- las próximas. Una cita pasada también pudo atenderse
+                        -- entre varias.
+                        (SELECT GROUP_CONCAT(DISTINCT CONCAT(pe_pr.nombre,' ',pe_pr.apellido)
+                                             ORDER BY pe_pr.nombre, pe_pr.apellido SEPARATOR ', ')
+                           FROM cita_servicio csp
+                           JOIN usuario up ON up.id_usuario = COALESCE(csp.id_usuario, c.id_usuario)
+                           JOIN persona pe_pr ON pe_pr.id_persona = up.id_persona
+                          WHERE csp.id_cita = v.id_cita) AS profesionales,
                         CASE WHEN f.id_factura IS NULL THEN NULL
                              ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
                         CASE WHEN f.id_factura IS NULL THEN NULL

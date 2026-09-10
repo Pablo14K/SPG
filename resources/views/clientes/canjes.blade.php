@@ -73,7 +73,7 @@
     @if ($rows)
         <div class="spg-panel mt-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-list-check"></i> Lo que se puede canjear</h2>
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr>
@@ -86,26 +86,26 @@
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Servicio">
                                     {{ $r->nombre }}
                                     <div class="text-muted-warm" style="font-size:.8rem">{{ $r->categoria }}</div>
                                 </td>
-                                <td class="text-end text-muted-warm">{{ money($r->precio) }}</td>
+                                <td class="text-end text-muted-warm" data-label="Vale">{{ money($r->precio) }}</td>
                                 {{-- Los campos van atados con `form=` a un formulario declarado
                                      FUERA de la tabla. Un `<form>` no puede cruzar celdas: el
                                      navegador lo saca del `<tbody>` y la fila se desarma. --}}
-                                <td class="text-end">
+                                <td class="text-end" data-label="Puntos">
                                     <input class="form-control form-control-sm text-end" name="puntos" data-solo="numeros" inputmode="numeric"
                                            form="fc{{ $r->id_servicio_canjeable }}"
                                            value="{{ (int) $r->puntos }}" data-min="1" aria-label="Puntos">
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end" data-label="Vigencia">
                                     <input class="form-control form-control-sm text-end" name="dias_vigencia" data-solo="numeros" inputmode="numeric"
                                            form="fc{{ $r->id_servicio_canjeable }}"
                                            value="{{ (int) $r->dias_vigencia }}" data-min="1" data-max="365"
                                            aria-label="Días de vigencia">
                                 </td>
-                                <td>
+                                <td data-label="Estado">
                                     @if (! $r->activo)
                                         <span class="badge-estado e-muted">Sin ofrecer</span>
                                     @elseif (! $r->servicio_activo)
@@ -114,7 +114,7 @@
                                         <span class="badge-estado e-ok">Se ofrece</span>
                                     @endif
                                 </td>
-                                <td class="text-end" style="white-space:nowrap">
+                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                     <button class="btn btn-sm btn-outline-neutro"
                                             form="fc{{ $r->id_servicio_canjeable }}">Guardar</button>
                                     <button class="btn btn-sm btn-outline-neutro"
@@ -151,7 +151,7 @@
     @if ($canjeados)
         <div class="spg-panel mt-3">
             <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos canjes de las clientas</h2>
-            <div class="table-responsive">
+            <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr><th>Cuándo</th><th>Clienta</th><th>Servicio</th>
@@ -160,12 +160,12 @@
                     <tbody>
                         @foreach ($canjeados as $c)
                             <tr>
-                                <td style="white-space:nowrap">{{ fecha($c->fecha, 'd/m/Y') }}</td>
-                                <td>{{ $c->cliente }}</td>
-                                <td>{{ $c->servicio }}</td>
-                                <td class="text-end">{{ (int) $c->puntos }}</td>
-                                <td style="white-space:nowrap">{{ fecha($c->vence_en, 'd/m/Y') }}</td>
-                                <td>
+                                <td class="spg-movil-titulo" data-label="Cuándo" style="white-space:nowrap">{{ fecha($c->fecha, 'd/m/Y') }}</td>
+                                <td data-label="Clienta">{{ $c->cliente }}</td>
+                                <td data-label="Servicio">{{ $c->servicio }}</td>
+                                <td class="text-end" data-label="Puntos">{{ (int) $c->puntos }}</td>
+                                <td data-label="Vence" style="white-space:nowrap">{{ fecha($c->vence_en, 'd/m/Y') }}</td>
+                                <td data-label="Estado">
                                     @switch($c->estado)
                                         @case('USADO')
                                             <span class="badge-estado e-ok">Usado</span> @break

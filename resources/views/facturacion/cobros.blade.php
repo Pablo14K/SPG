@@ -9,19 +9,19 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
                         <th>Fecha</th><th>Cliente</th><th>Comprobante</th><th>Medio</th>
-                        <th class="text-end">Monto</th><th>Referencia</th><th>Estado</th><th class="text-end">Anular</th>
+                        <th class="text-end">Monto</th><th class="d-none d-md-table-cell">Referencia</th><th>Estado</th><th class="text-end">Anular</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
                         <tr>
-                            <td>{{ fecha($r->fecha) }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
+                            <td data-label="Cliente">
                                 {{ $r->cliente ?: '—' }}
                                 @if ($r->es_sena)<span class="badge-estado e-warn">seña</span>@endif
                             </td>
@@ -29,7 +29,7 @@
                                  pago NO es una factura, así que buscarlo bajo
                                  «Facturas» no se le ocurre a nadie: se lo busca
                                  acá, en Cobros, y desde acá se llega. --}}
-                            <td>
+                            <td data-label="Comprobante">
                                 @if ($r->id_factura)
                                     <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}"
                                        title="Ver el comprobante">{{ $r->nro_comprobante }}</a>
@@ -38,11 +38,11 @@
                                     <span class="text-muted-warm">—</span>
                                 @endif
                             </td>
-                            <td>{{ $r->metodo }}</td>
-                            <td class="text-end">{{ money($r->monto) }}</td>
-                            <td class="text-muted-warm">{{ $r->referencia ?: '—' }}</td>
-                            <td>{!! estado_badge($r->estado) !!}</td>
-                            <td class="text-end">
+                            <td data-label="Medio">{{ $r->metodo }}</td>
+                            <td class="text-end" data-label="Monto">{{ money($r->monto) }}</td>
+                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Referencia">{{ $r->referencia ?: '—' }}</td>
+                            <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>
+                            <td class="text-end spg-movil-acciones">
                                 @if ($r->estado !== 'Anulado')
                                     <button class="btn btn-sm btn-outline-neutro" title="Anular"
                                             data-bs-toggle="modal" data-bs-target="#modalAnular{{ $r->id_cobro }}">

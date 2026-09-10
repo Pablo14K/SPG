@@ -37,7 +37,7 @@
 
         <div class="col-lg-7">
             <div class="spg-panel">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Zona</th><th class="text-end">Servicios</th><th class="text-end">Acciones</th></tr>
@@ -45,7 +45,7 @@
                         <tbody>
                             @forelse ($rows as $z)
                                 <tr>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Zona">
                                         <form method="post" action="{{ route('servicios.zona.editar') }}"
                                               class="d-flex gap-2 align-items-center">
                                             @csrf
@@ -56,8 +56,8 @@
                                                 <i class="bi bi-check-lg"></i></button>
                                         </form>
                                     </td>
-                                    <td class="text-end">{{ entero($z->usos) }}</td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Servicios">{{ entero($z->usos) }}</td>
+                                    <td class="text-end spg-movil-acciones">
                                         {{-- No se borra con servicios adentro: quedarían sin zona y
                                              pasarían a poder hacerse junto con cualquier cosa, en
                                              silencio. El servidor lo vuelve a comprobar. --}}

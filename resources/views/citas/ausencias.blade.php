@@ -25,7 +25,7 @@
 
         <div class="col-lg-7">
             <div class="spg-panel">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Quién</th><th>Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
@@ -37,20 +37,20 @@
                                      apagarla desapareciera, el botón se leería como
                                      «borrar» y no habría desde dónde deshacerlo. --}}
                                 <tr @class(['text-muted-warm' => ! $a->activo])>
-                                    <td>{{ $a->quien }}</td>
-                                    <td class="text-muted-warm">{{ $a->donde }}</td>
-                                    <td><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
-                                    <td>{{ fecha($a->fecha_inicio) }}</td>
-                                    <td>{{ fecha($a->fecha_fin) }}</td>
-                                    <td class="text-muted-warm">{{ $a->motivo ?: '—' }}</td>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Quién">{{ $a->quien }}</td>
+                                    <td class="text-muted-warm" data-label="Dónde">{{ $a->donde }}</td>
+                                    <td data-label="Tipo"><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
+                                    <td data-label="Desde">{{ fecha($a->fecha_inicio) }}</td>
+                                    <td data-label="Hasta">{{ fecha($a->fecha_fin) }}</td>
+                                    <td class="text-muted-warm" data-label="Motivo">{{ $a->motivo ?: '—' }}</td>
+                                    <td data-label="Estado">
                                         @if ($a->activo)
                                             <span class="badge-estado e-ok">Vigente</span>
                                         @else
                                             <span class="badge-estado e-muted">De baja</span>
                                         @endif
                                     </td>
-                                    <td class="text-end" style="white-space:nowrap">
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                         {{-- **Editar sólo mientras no haya empezado.**
                                              Una excepción que ya arrancó dejó de ser un
                                              plan: la agenda no ofreció esos horarios,

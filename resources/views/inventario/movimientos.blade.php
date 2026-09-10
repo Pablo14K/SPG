@@ -25,7 +25,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -37,16 +37,16 @@
                 <tbody>
                     @forelse ($rows as $m)
                         <tr>
-                            <td style="white-space:nowrap">{{ fecha($m->fecha) }}</td>
-                            <td>{{ $m->producto }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($m->fecha) }}</td>
+                            <td data-label="Producto">{{ $m->producto }}</td>
+                            <td data-label="Tipo">
                                 @if ($m->signo === 'E')
                                     <span class="badge-estado e-ok">{{ $m->tipo }}</span>
                                 @else
                                     <span class="badge-estado e-no">{{ $m->tipo }}</span>
                                 @endif
                             </td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Cantidad">
                                 <strong>{{ $m->signo === 'E' ? '+' : '−' }} {{ cant($m->cantidad) }}</strong>
                                 <span class="text-muted-warm">{{ $m->unidad_medida }}</span>
                                 @if (producto_fraccionado((array) $m))
@@ -55,14 +55,14 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-end">{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</td>
-                            <td class="text-muted-warm">
+                            <td class="text-end" data-label="Precio">{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</td>
+                            <td class="text-muted-warm" data-label="Referencia">
                                 {{ $m->referencia ?: '—' }}
                                 @if ($m->observaciones)
                                     <div style="font-size:.72rem">{{ $m->observaciones }}</div>
                                 @endif
                             </td>
-                            <td class="text-muted-warm">{{ $m->usuario }}</td>
+                            <td class="text-muted-warm" data-label="Quién">{{ $m->usuario }}</td>
                         </tr>
                     @empty
                         <tr>

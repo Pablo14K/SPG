@@ -25,7 +25,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 {{-- **Dos listas, no una con todo mezclado.**
 
@@ -51,14 +51,14 @@
                 <tbody>
                     @forelse ($rows as $u)
                         <tr>
-                            <td>{{ $u->nombre }} {{ $u->apellido }}</td>
+                            <td class="spg-movil-titulo" data-label="Nombre">{{ $u->nombre }} {{ $u->apellido }}</td>
 
                             @if ($comoPersonal)
-                                <td class="text-muted-warm" style="font-size:.82rem">
+                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Contacto">
                                     {{ $u->email }}
                                     @if ($u->telefono)<div>{{ $u->telefono }}</div>@endif
                                 </td>
-                                <td class="text-muted-warm" style="font-size:.82rem">
+                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Servicios que hace">
                                     {{-- **Sin servicios cargados los hace todos**, que es el
                                          criterio permisivo de siempre. Decir «ninguno» sería
                                          mentir: lo que pasa es que nadie lo administró, y por
@@ -69,7 +69,7 @@
                                         <span class="txt-no">sin cargar · se le ofrece para todo</span>
                                     @endif
                                 </td>
-                                <td class="text-muted-warm" style="font-size:.82rem">
+                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Turnos">
                                     @if ($u->turnos)
                                         {{ $u->turnos }}
                                     @else
@@ -77,24 +77,24 @@
                                     @endif
                                 </td>
                             @else
-                                <td class="text-muted-warm">{{ $u->username }}</td>
-                                <td>
+                                <td class="text-muted-warm" data-label="Usuario">{{ $u->username }}</td>
+                                <td data-label="Rol">
                                     @foreach (array_filter(array_map('trim', explode('·', (string) $u->rol))) as $rol)
                                         <span class="badge-estado e-prog">{{ $rol }}</span>
                                     @endforeach
                                 </td>
-                                <td class="text-muted-warm" style="font-size:.82rem">
+                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Sucursales">
                                     {{ $u->sucursales ?: 'todas' }}
                                 </td>
                             @endif
-                            <td>
+                            <td data-label="Estado">
                                 @if ($u->activo)
                                     <span class="badge-estado e-ok">Activo</span>
                                 @else
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 @if (Permisos::esAdmin())
                                     <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                        {{-- El «desde» viaja para que la ficha abra en la

@@ -43,7 +43,7 @@
             <input type="hidden" name="de" value="{{ $de }}">
 
             <div class="spg-panel mt-3">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
@@ -66,10 +66,10 @@
                                                name="citas[]" value="{{ $c->id_cita }}" checked
                                                aria-label="Reasignar esta cita">
                                     </td>
-                                    <td>{{ fecha($c->fecha_hora, 'd/m/Y H:i') }}</td>
-                                    <td>{{ $c->cliente }}</td>
-                                    <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
-                                    <td class="text-end text-muted-warm">{{ (int) $c->dur }} min</td>
+                                    <td class="spg-movil-titulo" data-label="Cuándo">{{ fecha($c->fecha_hora, 'd/m/Y H:i') }}</td>
+                                    <td data-label="Clienta">{{ $c->cliente }}</td>
+                                    <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
+                                    <td class="text-end text-muted-warm" data-label="Dura">{{ (int) $c->dur }} min</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -12,11 +12,11 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Email</th>
+                        <th>Cliente</th><th>Cédula</th><th>Teléfono</th><th class="d-none d-md-table-cell">Email</th>
                         {{-- **Las visitas salieron de acá.** Contaban lo mismo
                              que la pantalla de fidelización —hoy Promociones →
                              Visitas y puntos— y ahí van con su nivel y sus
@@ -29,21 +29,21 @@
                 <tbody>
                     @forelse ($clientes as $c)
                         <tr>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Cliente">
                                 <a class="link-oro" href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     {{ $c->apellido . ', ' . $c->nombre }}</a>
                             </td>
-                            <td>{{ $c->cedula ?: '—' }}</td>
-                            <td>{{ $c->telefono ?: '—' }}</td>
-                            <td class="text-muted-warm">{{ $c->email ?: '—' }}</td>
-                            <td>
+                            <td data-label="Cédula">{{ $c->cedula ?: '—' }}</td>
+                            <td data-label="Teléfono">{{ $c->telefono ?: '—' }}</td>
+                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Email">{{ $c->email ?: '—' }}</td>
+                            <td data-label="Estado">
                                 @if ($c->activo)
                                     <span class="badge-estado e-ok">Activo</span>
                                 @else
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Historial"
                                    href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     <i class="bi bi-clock-history"></i></a>

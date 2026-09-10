@@ -10,7 +10,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -24,7 +24,7 @@
                 <tbody>
                     @forelse ($rows as $s)
                         <tr>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Servicio">
                                 {{ $s->nombre }}
                                 {{-- **El badge «exclusivo» se fue.** Desde la 7.43.0
                                      lo que decide si dos servicios pueden hacerse a la
@@ -40,11 +40,11 @@
                                     <div class="text-muted-warm" style="font-size:.76rem">{{ $s->descripcion }}</div>
                                 @endif
                             </td>
-                            <td class="text-muted-warm">{{ $s->categoria }}</td>
-                            <td class="text-end">{{ money($s->precio) }}</td>
-                            <td class="text-end">{{ (int) $s->duracion_min }} min</td>
-                            <td class="text-end">{{ (int) $s->tasa_iva }}%</td>
-                            <td>
+                            <td class="text-muted-warm" data-label="Categoría">{{ $s->categoria }}</td>
+                            <td class="text-end" data-label="Precio">{{ money($s->precio) }}</td>
+                            <td class="text-end" data-label="Duración">{{ (int) $s->duracion_min }} min</td>
+                            <td class="text-end" data-label="IVA">{{ (int) $s->tasa_iva }}%</td>
+                            <td data-label="Estado">
                                 @if ($s->activo)
                                     <span class="badge-estado e-ok">Activo</span>
                                 @else
@@ -59,7 +59,7 @@
                                  de volver a ofrecerlo — parecía que el botón lo
                                  borraba. --}}
                             @if ($varias)
-                                <td>
+                                <td data-label="Disponible acá">
                                     @if ($s->aqui)
                                         <span class="badge-estado e-ok">Sí</span>
                                     @else
@@ -67,7 +67,7 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.form', $s->id_servicio) }}"><i class="bi bi-pencil"></i></a>
                                 <form method="post" action="{{ route('servicios.baja') }}" class="d-inline">

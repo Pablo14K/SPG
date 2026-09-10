@@ -56,7 +56,7 @@
     @endif
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -76,8 +76,8 @@
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
-                            <td style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Hora" style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
+                            <td data-label="Cliente">
                                 {{-- **Arriba va quien SE ATIENDE; abajo y en chico, quien
                                      la pidió.** Con el badge «para Josefina» al lado del
                                      nombre de la clienta, el renglón tenía dos nombres del
@@ -147,14 +147,14 @@
                                 @endif
                             </td>
                             @if ($verTodo)
-                                <td class="text-muted-warm">{{ $c->profesionales ?: $c->profesional }}</td>
+                                <td class="text-muted-warm" data-label="Profesional">{{ $c->profesionales ?: $c->profesional }}</td>
                             @else
                                 {{-- **Con quién más se atiende esta cita.** La columna
                                      entera se dibujaba sólo para quien ve la agenda del
                                      salón, así que la profesional que comparte una cita
                                      no sabía que iba a haber alguien más en el sillón de
                                      al lado — ni a quién preguntarle. --}}
-                                <td class="text-muted-warm">
+                                <td class="text-muted-warm" data-label="Colabora con">
                                     @if ($c->otros_profesionales)
                                         {{ $c->otros_profesionales }}
                                     @else
@@ -165,7 +165,7 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="text-muted-warm">
+                            <td class="text-muted-warm" data-label="Servicios">
                                 @if ($verTodo || ! $c->mis_servicios)
                                     {{ $c->servicios ?: '—' }}
                                 @else
@@ -181,8 +181,8 @@
                                     @endif
                                 @endif
                             </td>
-                            <td class="text-end">{{ (int) $c->duracion_min }} min</td>
-                            <td>
+                            <td class="text-end" data-label="Duración">{{ (int) $c->duracion_min }} min</td>
+                            <td data-label="Estado">
                                 {!! estado_badge($c->estado) !!}
                                 {{-- **Seña y cobro de la atención son dos badges, no uno.**
                                      `fn_cita_sena` suma todo lo que entró contra la cita, y
@@ -213,7 +213,7 @@
                                         sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 {{-- **Ausente cierra la fila, igual que Cancelada.** La
                                      clienta no vino: no hay nada que marcar en proceso, ni
                                      que atender, ni que reprogramar. Los botones seguían

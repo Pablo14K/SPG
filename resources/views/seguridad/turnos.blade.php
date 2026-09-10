@@ -15,7 +15,7 @@
 
         <div class="col-lg-7">
             <div class="spg-panel">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Turno</th><th>Horario</th><th>Entrada</th><th>Días</th><th>Quiénes lo trabajan</th>
@@ -24,24 +24,24 @@
                         <tbody>
                             @forelse ($rows as $t)
                                 <tr>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Turno">
                                         {{ $t->nombre }}
                                         <div class="text-muted-warm" style="font-size:.76rem">{{ $t->sucursal }}</div>
                                     </td>
-                                    <td style="white-space:nowrap">
+                                    <td style="white-space:nowrap" data-label="Horario">
                                         {{ substr((string) $t->hora_inicio, 0, 5) }}
                                         a {{ substr((string) $t->hora_fin, 0, 5) }}
                                     </td>
-                                    <td>{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
-                                    <td class="text-muted-warm" style="font-size:.82rem">{{ $t->dias_texto }}</td>
-                                    <td class="text-muted-warm" style="font-size:.82rem">
+                                    <td data-label="Entrada">{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
+                                    <td class="text-muted-warm" style="font-size:.82rem" data-label="Días">{{ $t->dias_texto }}</td>
+                                    <td class="text-muted-warm" style="font-size:.82rem" data-label="Quiénes lo trabajan">
                                         @if (! empty($gente[$t->id_turno]))
                                             {{ implode(', ', $gente[$t->id_turno]) }}
                                         @else
                                             <span class="txt-no">nadie todavía</span>
                                         @endif
                                     </td>
-                                    <td class="text-end" style="white-space:nowrap">
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                         {{-- Abre el modal en vez de recargar: asi el formulario
                                              de «Nuevo turno» sigue a la vista. --}}
                                         <button type="button" class="btn btn-sm btn-outline-neutro" title="Editar"

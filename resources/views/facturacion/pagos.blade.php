@@ -26,7 +26,7 @@
                     </p>
                 @endif
 
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         {{-- **Cuánto se le debe, no sólo cuántos servicios.**
                              La tabla decía «3 pendientes» y ofrecía Liquidar:
@@ -37,21 +37,21 @@
                         <tbody>
                             @forelse ($profs as $p)
                                 <tr>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Profesional">
                                         {{ $p->nombre }} {{ $p->apellido }}
                                         @if ($p->desde_cuando)
                                             <div class="text-muted-warm" style="font-size:.75rem">
                                                 sin liquidar desde el {{ fecha($p->desde_cuando, 'd/m/Y') }}</div>
                                         @endif
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Pendientes">
                                         @if ((int) $p->pendientes)
                                             <strong>{{ (int) $p->pendientes }}</strong>
                                         @else
                                             <span class="text-muted-warm">—</span>
                                         @endif
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="A pagar">
                                         @if ((int) $p->pendientes)
                                             {{-- **«Gs. 0» acá casi nunca significa que ganó
                                                  cero**: significa que nadie le cargó una
@@ -66,7 +66,7 @@
                                             <span class="text-muted-warm">—</span>
                                         @endif
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end spg-movil-acciones">
                                         @if ((int) $p->pendientes)
                                             <form method="post" action="{{ route('facturacion.pagar_personal') }}"
                                                   class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
@@ -122,7 +122,7 @@
                      las liquidaciones dejaban de existir para quien mira. --}}
                 <x-filtros :f="$f" />
                 <x-paginacion :pag="$pag" :f="$f" />
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Fecha</th><th>Profesional</th><th>Período</th>
@@ -131,12 +131,12 @@
                         <tbody>
                             @forelse ($rows as $r)
                                 <tr>
-                                    <td>{{ fecha($r->fecha, 'd/m/Y') }}</td>
-                                    <td>{{ $r->beneficiario ?? $r->profesional ?? '—' }}</td>
-                                    <td class="text-muted-warm">{{ $r->periodo }}</td>
-                                    <td class="text-end">{{ money($r->monto ?? 0) }}</td>
-                                    <td>{!! estado_badge($r->estado) !!}</td>
-                                    <td class="text-end">
+                                    <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
+                                    <td data-label="Profesional">{{ $r->beneficiario ?? $r->profesional ?? '—' }}</td>
+                                    <td class="text-muted-warm" data-label="Período">{{ $r->periodo }}</td>
+                                    <td class="text-end" data-label="Monto">{{ money($r->monto ?? 0) }}</td>
+                                    <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>
+                                    <td class="text-end spg-movil-acciones">
                                         @if ($r->estado !== 'Revertido' && $r->estado !== 'Anulado')
                                             <button class="btn btn-sm btn-outline-neutro" title="Revertir"
                                                     data-bs-toggle="modal"

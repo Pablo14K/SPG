@@ -19,7 +19,7 @@
 
         <div class="col-lg-7">
             <div class="spg-panel">
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Categoría</th><th class="text-end">Productos</th><th class="text-end">Acciones</th></tr>
@@ -27,7 +27,7 @@
                         <tbody>
                             @forelse ($rows as $c)
                                 <tr>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Categoría">
                                         <form method="post" action="{{ route('inventario.categoria.editar') }}"
                                               class="d-flex gap-2 align-items-center">
                                             @csrf
@@ -38,8 +38,8 @@
                                                 <i class="bi bi-check-lg"></i></button>
                                         </form>
                                     </td>
-                                    <td class="text-end">{{ (int) $c->usos }}</td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Productos">{{ (int) $c->usos }}</td>
+                                    <td class="text-end spg-movil-acciones">
                                         <form method="post" action="{{ route('inventario.categoria.borrar') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="id" value="{{ $c->id_categoria }}">

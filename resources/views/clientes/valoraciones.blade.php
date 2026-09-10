@@ -11,7 +11,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr><th>Fecha</th><th>Cliente</th><th>Profesional</th><th>Puntaje</th><th>Comentario</th></tr>
@@ -19,13 +19,13 @@
                 <tbody>
                     @forelse ($rows as $r)
                         <tr>
-                            <td>{{ fecha($r->fecha) }}</td>
-                            <td>{{ $r->cliente }}</td>
-                            <td>{{ $r->profesional }}</td>
-                            <td class="txt-oro" style="white-space:nowrap">
+                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
+                            <td data-label="Cliente">{{ $r->cliente }}</td>
+                            <td data-label="Profesional">{{ $r->profesional }}</td>
+                            <td class="txt-oro" style="white-space:nowrap" data-label="Puntaje">
                                 {{ str_repeat('★', (int) $r->puntaje) . str_repeat('☆', 5 - (int) $r->puntaje) }}
                             </td>
-                            <td class="text-muted-warm">{{ $r->comentario ?: '—' }}</td>
+                            <td class="text-muted-warm" data-label="Comentario">{{ $r->comentario ?: '—' }}</td>
                         </tr>
                     @empty
                         <tr>

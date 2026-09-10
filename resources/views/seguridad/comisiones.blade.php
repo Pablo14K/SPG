@@ -8,7 +8,7 @@
         :accion="['ruta' => 'seguridad.comision_form', 't' => 'Nueva comisión', 'ic' => 'plus-lg']" />
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Profesional</th><th>Sucursal</th><th>Servicio</th><th>Tipo</th>
@@ -17,15 +17,15 @@
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
-                            <td>{{ $c->profesional }}</td>
-                            <td class="text-muted-warm">{{ $c->donde }}</td>
-                            <td class="text-muted-warm">{{ $c->servicio }}</td>
-                            <td>{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</td>
-                            <td class="text-end">
+                            <td class="spg-movil-titulo" data-label="Profesional">{{ $c->profesional }}</td>
+                            <td class="text-muted-warm" data-label="Sucursal">{{ $c->donde }}</td>
+                            <td class="text-muted-warm" data-label="Servicio">{{ $c->servicio }}</td>
+                            <td data-label="Tipo">{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</td>
+                            <td class="text-end" data-label="Valor">
                                 <strong>{{ $c->tipo === 'PORCENTAJE' ? cant($c->valor) . ' %' : money($c->valor) }}</strong>
                             </td>
-                            <td>{{ fecha($c->vigente_desde, 'd/m/Y') }}</td>
-                            <td class="text-end text-nowrap">
+                            <td data-label="Vigente desde">{{ fecha($c->vigente_desde, 'd/m/Y') }}</td>
+                            <td class="text-end text-nowrap spg-movil-acciones">
                                 <a class="btn btn-sm btn-outline-neutro"
                                    href="{{ route('seguridad.comision_form', ['id' => $c->id_comision]) }}"
                                    title="Editar esta comisión"><i class="bi bi-pencil"></i></a>

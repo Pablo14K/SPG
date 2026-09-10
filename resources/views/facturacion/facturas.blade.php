@@ -28,7 +28,7 @@
             <i class="bi bi-receipt"></i>
             Falta facturar {{ count($sinFacturar) }} atención{{ count($sinFacturar) === 1 ? '' : 'es' }}
         </h2>
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table table-sm align-middle mb-0" style="font-size:.86rem">
                 <thead>
                     <tr><th>Cuándo</th><th>Clienta</th><th class="text-end">Total</th><th></th></tr>
@@ -36,11 +36,11 @@
                 <tbody>
                     @foreach ($sinFacturar as $sf)
                         <tr>
-                            <td class="text-muted-warm" style="white-space:nowrap">
+                            <td class="text-muted-warm spg-movil-titulo" style="white-space:nowrap" data-label="Cuándo">
                                 {{ fecha($sf->fecha_hora, 'd/m H:i') }}</td>
-                            <td>{{ $sf->cliente }}</td>
-                            <td class="text-end">{{ money($sf->total) }}</td>
-                            <td class="text-end">
+                            <td data-label="Clienta">{{ $sf->cliente }}</td>
+                            <td class="text-end" data-label="Total">{{ money($sf->total) }}</td>
+                            <td class="text-end spg-movil-acciones">
                                 <a class="btn btn-sm btn-oro"
                                    href="{{ route('facturacion.emitir', ['cita' => $sf->id_cita]) }}">
                                     Emitir</a>
@@ -55,35 +55,35 @@
 
 <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
                         <th>Nº</th><th>Fecha</th><th>Cliente</th><th>Comprobante</th>
-                        <th class="text-end">Total</th><th class="text-end">Cobrado</th>
+                        <th class="text-end">Total</th><th class="text-end d-none d-md-table-cell">Cobrado</th>
                         <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
                         <tr>
-                            <td style="white-space:nowrap">
+                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Nº">
                                 <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     {{ $r->nro_comprobante }}</a>
                             </td>
-                            <td>{{ fecha($r->fecha_emision) }}</td>
-                            <td>{{ $r->cliente }}</td>
-                            <td class="text-muted-warm">{{ $r->tipo_comprobante }}</td>
-                            <td class="text-end">{{ money($r->total) }}</td>
-                            <td class="text-end">{{ money($r->cobrado) }}</td>
-                            <td class="text-end">
+                            <td data-label="Fecha">{{ fecha($r->fecha_emision) }}</td>
+                            <td data-label="Cliente">{{ $r->cliente }}</td>
+                            <td class="text-muted-warm" data-label="Comprobante">{{ $r->tipo_comprobante }}</td>
+                            <td class="text-end" data-label="Total">{{ money($r->total) }}</td>
+                            <td class="text-end d-none d-md-table-cell" data-label="Cobrado">{{ money($r->cobrado) }}</td>
+                            <td class="text-end" data-label="Saldo">
                                 @if ((float) $r->saldo > 0.01)
                                     <strong class="txt-no">{{ money($r->saldo) }}</strong>
                                 @else
                                     <span class="txt-ok">saldada</span>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 {!! estado_badge($r->estado) !!}
                                 {{-- Una venta acreditada se ve igual que cualquier otra —«Emitida»,
                                      saldo 0—, así que sin este sello no había forma de saber que
@@ -92,7 +92,7 @@
                                     <span class="badge-estado e-no" title="Tiene una nota de crédito emitida">acreditada</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Ver el comprobante"
                                    href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     <i class="bi bi-file-earmark-text"></i></a>

@@ -160,18 +160,18 @@
     </div>
 
     @if (count($movimientos))
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table table-sm align-middle mb-0">
                 <thead>
-                    <tr><th>Cuándo</th><th>Caja</th><th>Qué pasó</th><th>Medio</th>
+                    <tr><th>Cuándo</th><th class="d-none d-md-table-cell">Caja</th><th>Qué pasó</th><th>Medio</th>
                         <th>Quién</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @foreach ($movimientos as $m)
                         <tr>
-                            <td style="white-space:nowrap">{{ fecha($m->cuando, 'd/m H:i') }}</td>
-                            <td class="text-muted-warm">{{ $m->caja_nombre }}</td>
-                            <td>
+                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Cuándo">{{ fecha($m->cuando, 'd/m H:i') }}</td>
+                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Caja">{{ $m->caja_nombre }}</td>
+                            <td data-label="Qué pasó">
                                 {{-- El color dice el signo y el texto dice qué es:
                                      un cobro y una liquidación son los dos
                                      movimientos de caja, pero no la misma cosa. --}}
@@ -182,12 +182,13 @@
                                     <div class="text-muted-warm" style="font-size:.75rem">{{ $m->motivo }}</div>
                                 @endunless
                             </td>
-                            <td class="text-muted-warm" style="font-size:.84rem">{{ $m->medio }}</td>
-                            <td class="text-muted-warm" style="font-size:.84rem">{{ $m->quien ?: '—' }}</td>
+                            <td class="text-muted-warm" style="font-size:.84rem" data-label="Medio">{{ $m->medio }}</td>
+                            <td class="text-muted-warm" style="font-size:.84rem" data-label="Quién">{{ $m->quien ?: '—' }}</td>
                             <td class="text-end {{ $m->activo ? ((int) $m->signo > 0 ? 'txt-ok' : 'txt-no') : 'text-muted-warm' }}"
-                                style="white-space:nowrap;{{ $m->activo ? '' : 'text-decoration:line-through' }}">
+                                style="white-space:nowrap;{{ $m->activo ? '' : 'text-decoration:line-through' }}"
+                                data-label="Monto">
                                 {{ (int) $m->signo > 0 ? '+' : '−' }} {{ money($m->monto) }}</td>
-                            <td class="text-end">
+                            <td class="text-end spg-movil-acciones">
                                 {{-- **Sólo se anula lo cargado a mano**, y sólo
                                      mientras su caja siga abierta: un cobro se
                                      anula desde el comprobante, que es donde la

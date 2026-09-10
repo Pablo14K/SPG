@@ -12,7 +12,7 @@
     <div class="spg-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -23,25 +23,25 @@
                 <tbody>
                     @forelse ($rows as $p)
                         <tr>
-                            <td>{{ $p->nombre }}</td>
-                            <td class="text-muted-warm">{{ $p->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm">{{ $p->contacto ?: '—' }}</td>
-                            <td>{{ $p->telefono ?: '—' }}</td>
-                            <td class="text-end">
+                            <td class="spg-movil-titulo" data-label="Proveedor">{{ $p->nombre }}</td>
+                            <td class="text-muted-warm" data-label="RUC">{{ $p->ruc ?: '—' }}</td>
+                            <td class="text-muted-warm" data-label="Contacto">{{ $p->contacto ?: '—' }}</td>
+                            <td data-label="Teléfono">{{ $p->telefono ?: '—' }}</td>
+                            <td class="text-end" data-label="Saldo">
                                 @if ((float) $p->saldo > 0.01)
                                     <strong class="txt-no">{{ money($p->saldo) }}</strong>
                                 @else
                                     <span class="txt-ok">sin deuda</span>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 @if ($p->activo)
                                     <span class="badge-estado e-ok">Activo</span>
                                 @else
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 @if ($urlCompra = Navegacion::url('inventario.compra_form'))
                                     <a class="btn btn-sm btn-outline-neutro" title="Nueva compra"
                                        href="{{ $urlCompra . '?proveedor=' . $p->id_proveedor }}">

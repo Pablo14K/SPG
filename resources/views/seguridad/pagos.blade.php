@@ -205,7 +205,7 @@
                     </div>
                 </div>
             @else
-                <div class="table-responsive">
+                <div class="table-responsive spg-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
@@ -216,11 +216,11 @@
                         <tbody>
                             @foreach ($datos as $d)
                                 <tr @class(['text-muted-warm' => ! $d->activo])>
-                                    <td>
+                                    <td class="spg-movil-titulo" data-label="Dónde">
                                         <div>{{ $d->entidad }}</div>
                                         <div class="text-muted-warm" style="font-size:.8rem">{{ $d->medio }}</div>
                                     </td>
-                                    <td>
+                                    <td data-label="Alias">
                                         @if ($d->alias)
                                             <div class="spg-cuenta-nro">{{ $d->alias }}</div>
                                             <div class="text-muted-warm" style="font-size:.8rem">
@@ -229,7 +229,7 @@
                                             <span class="text-muted-warm" style="font-size:.85rem">sin alias</span>
                                         @endif
                                     </td>
-                                    <td>
+                                    <td data-label="Cuenta">
                                         <div style="font-size:.88rem">{{ $d->numero_cuenta ?: '—' }}</div>
                                         <div class="text-muted-warm" style="font-size:.8rem">
                                             {{ $d->titular }}@if ($d->tipo_cuenta) · {{ $d->tipo_cuenta }}@endif
@@ -246,7 +246,7 @@
 
                                          **Sin declarar NO es cero**: es «no se sabe», y
                                          entonces el sistema no avisa nada. --}}
-                                    <td>
+                                    <td data-label="Saldo">
                                         @if ($d->saldo === null)
                                             <span class="text-muted-warm" style="font-size:.85rem">sin declarar</span>
                                         @else
@@ -261,14 +261,14 @@
                                             <i class="bi bi-cash-stack"></i>
                                             {{ $d->saldo === null ? 'Declarar' : 'Actualizar' }}</button>
                                     </td>
-                                    <td>
+                                    <td data-label="Se le muestra">
                                         @if ($d->activo)
                                             <span class="badge-estado e-ok">sí</span>
                                         @else
                                             <span class="badge-estado e-muted">no</span>
                                         @endif
                                     </td>
-                                    <td class="text-end" style="white-space:nowrap">
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                         {{-- **Reordenar con flechas, no con un número.**
                                              El campo «orden» hacía elegir un número para
                                              ordenar dos o tres filas; acá se ve el efecto

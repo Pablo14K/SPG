@@ -175,7 +175,7 @@
     </div>
 
     <div class="spg-panel">
-        <div class="table-responsive">
+        <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -190,16 +190,16 @@
                                     && (! $d->fecha_fin || $d->fecha_fin >= date('Y-m-d'));
                         @endphp
                         <tr>
-                            <td>
+                            <td class="spg-movil-titulo" data-label="Promoción">
                                 {{ $d->nombre }}
                                 @if ($d->descripcion)
                                     <div class="text-muted-warm" style="font-size:.76rem">{{ $d->descripcion }}</div>
                                 @endif
                             </td>
-                            <td class="text-end">
+                            <td class="text-end" data-label="Valor">
                                 {{ $d->tipo === 'PORCENTAJE' ? cant($d->valor) . ' %' : money($d->valor) }}
                             </td>
-                            <td class="text-muted-warm">
+                            <td class="text-muted-warm" data-label="Vigencia">
                                 @if ($d->fecha_inicio || $d->fecha_fin)
                                     {{ $d->fecha_inicio ? fecha($d->fecha_inicio, 'd/m/Y') : 'siempre' }}
                                     –
@@ -208,7 +208,7 @@
                                     Sin límite de fechas
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 @if (! $d->activo)
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @elseif ($vigente)
@@ -217,7 +217,7 @@
                                     <span class="badge-estado e-warn">Fuera de fecha</span>
                                 @endif
                             </td>
-                            <td class="text-end" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.descuento_form', $d->id_descuento) }}">
                                     <i class="bi bi-pencil"></i></a>
