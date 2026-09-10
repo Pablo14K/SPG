@@ -110,6 +110,10 @@ services:
       # sirve.
       - imagenes_servicios:/app/public/assets/servicios
       - imagenes_logo:/app/public/assets/logo
+      # Las fotos de perfil. **Van en su propio volumen y no en el repositorio**:
+      # son la cara de alguien, o sea un dato personal, así que ni al ZIP ni a
+      # git — a diferencia del logo, que es del programa que se entrega.
+      - imagenes_personas:/app/public/assets/personas
 
   web:
     build:
@@ -133,6 +137,7 @@ services:
       # Caddy las sirve, no las toca.
       - imagenes_servicios:/app/public/assets/servicios:ro
       - imagenes_logo:/app/public/assets/logo:ro
+      - imagenes_personas:/app/public/assets/personas:ro
     # **Sin red compartida, y eso es deliberado.** La documentación de Hostinger
     # propone una red `traefik-proxy` externa, pero la plantilla del panel
     # levanta Traefik en **`network_mode: host`** — comprobado en el servidor— y
@@ -263,6 +268,7 @@ volumes:
   almacenamiento:
   imagenes_servicios:
   imagenes_logo:
+  imagenes_personas:
   caddy_log:
   sifen_certs:
   sifen_salida:

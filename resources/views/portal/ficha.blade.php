@@ -16,27 +16,7 @@
                  único que la clienta puede cargar: ponerlo debajo de sus datos
                  de contacto lo convertiría en un campo más de un formulario. --}}
             <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2">
-                    <i class="bi bi-exclamation-triangle txt-oro"></i> ¿Sos alérgica a algo?
-                </h2>
-                <p class="text-muted-warm" style="font-size:.85rem">
-                    Anotalo acá y lo van a ver <strong>antes</strong> de prepararte
-                    cualquier mezcla — tinturas, decolorantes, keratinas, guantes de
-                    látex. Aparece destacado en la agenda del día, así que no depende
-                    de que alguien se acuerde de preguntarte.
-                </p>
-
-                <form method="post" action="{{ route('portal.ficha') }}">
-                    @csrf
-                    <label class="form-label" for="alergias">Mis alergias</label>
-                    <textarea class="form-control" id="alergias" name="alergias" rows="3" maxlength="300"
-                              placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias', $yo->alergias ?? '') }}</textarea>
-                    <div class="form-text mb-3">
-                        Si no sos alérgica a nada, dejalo vacío. Si alguna vez tuviste
-                        una reacción y no sabés a qué, escribilo igual: sirve.
-                    </div>
-                    <button class="btn btn-oro"><i class="bi bi-check-lg"></i> Guardar</button>
-                </form>
+                @include('portal._alergias', ['alergias' => $yo->alergias ?? ''])
             </div>
         </div>
 

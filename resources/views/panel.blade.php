@@ -191,18 +191,22 @@
          Sólo se dibuja si hay algo, y sólo trae lo que ESTA persona puede
          resolver: el filtro por permiso está en `Pendientes::mios()`. --}}
     @if ($pendientes)
-        <div class="spg-panel mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                <h2 style="font-size:.95rem;font-weight:500;margin:0;">
-                    <i class="bi bi-sliders me-1"></i>Falta cargar
-                    <span class="text-muted-warm">({{ count($pendientes) }})</span>
+        <div class="spg-panel mt-3" style="background:transparent;border:0;padding:0;">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
+                 style="border-bottom:1px solid var(--gris-calido);padding-bottom:.6rem;">
+                <h2 style="font-size:.9rem;font-weight:600;margin:0;display:flex;align-items:center;gap:.4rem;color:var(--carbon);">
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:.45rem;background:var(--oro-tinte);color:var(--oro-texto);font-size:.85rem;">
+                        <i class="bi bi-sliders"></i>
+                    </span>
+                    Falta cargar
+                    <span class="text-muted-warm" style="font-weight:400">({{ count($pendientes) }})</span>
                 </h2>
-                <span class="text-muted-warm" style="font-size:.8rem">
+                <span class="text-muted-warm" style="font-size:.75rem;font-style:italic;">
                     El sistema funciona igual, pero decide con lo que hay cargado
                 </span>
             </div>
 
-            <ul class="list-unstyled mb-0">
+            <div class="d-flex flex-column">
                 @foreach ($pendientes as $p)
                     @php
                         $url = $p['ruta'] ? Navegacion::url($p['ruta']) : null;
@@ -216,21 +220,22 @@
                             default    => ['spg-falta-conviene', 'Conviene'],
                         };
                     @endphp
-                    <li class="spg-falta">
+                    <div class="spg-falta">
                         <span class="spg-falta-nivel {{ $cls }}">{{ $rot }}</span>
                         <span class="spg-falta-txt">
                             {{ $p['que'] }}
                             <span class="d-block text-muted-warm spg-falta-donde">
                                 @if ($url)
-                                    <a href="{{ $url }}">{{ $p['donde'] }}</a>
+                                    <i class="bi bi-arrow-right-short"></i><a href="{{ $url }}">{{ $p['donde'] }}</a>
                                 @else
                                     {{ $p['donde'] }}
                                 @endif
                             </span>
                         </span>
-                    </li>
+                    </div>
                 @endforeach
-            </ul>
+            </div>
         </div>
     @endif
+
 @endsection

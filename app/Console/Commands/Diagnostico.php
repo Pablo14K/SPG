@@ -25,19 +25,20 @@ class Diagnostico extends Command
     protected $description = 'Revisa la conexión, la hora, las rutinas de la base y los permisos';
 
     /** Cuántas rutinas tiene que haber, según el esquema del TCC */
-    private const ESPERADO = ['PROCEDURE' => 22, 'FUNCTION' => 41, 'trigger' => 17, 'vista' => 17];
+    private const ESPERADO = ['PROCEDURE' => 22, 'FUNCTION' => 43, 'trigger' => 17, 'vista' => 17];
 
     /**
      * Las restricciones CHECK, que un export de phpMyAdmin se come.
      *
-     * Son **57** desde la 7.2.0, que sumó `chk_pref_tema`. Este número se
-     * quedó atrás **dos veces ya**: en 54 cuando la 7.0.0 lo llevó a 56, y en
-     * 56 cuando la 7.2.0 lo llevó a 57. Como la comparación es «menos que»,
-     * quedarse corto no hace saltar nada — o sea que el desfase esconde
-     * justamente lo que este número tendría que detectar. **Al agregar un
-     * CHECK, actualizalo acá en la misma tanda.**
+     * Son **82** desde la 7.112.0, que sumó `chk_persona_foto`. Este número se
+     * quedó atrás **tres veces ya**: en 54 cuando la 7.0.0 lo llevó a 56, en
+     * 56 cuando la 7.2.0 lo llevó a 57, y en 78 mientras el esquema seguía
+     * creciendo. Como la comparación es «menos que», quedarse corto no hace
+     * saltar nada — o sea que el desfase esconde justamente lo que este número
+     * tendría que detectar. **Al agregar un CHECK, actualizalo acá en la misma
+     * tanda.**
      */
-    private const CHECKS = 78;
+    private const CHECKS = 82;
 
     /**
      * Cuánto se aparta de UTC la hora de Paraguay, en segundos.
@@ -631,6 +632,7 @@ class Diagnostico extends Command
         foreach ([
             ['servicios', "SELECT imagen FROM servicio WHERE imagen IS NOT NULL AND imagen <> ''", 'de servicios'],
             ['logo', "SELECT logo AS imagen FROM configuracion WHERE logo IS NOT NULL AND logo <> ''", 'del salón (logo)'],
+            ['personas', "SELECT foto AS imagen FROM persona WHERE foto IS NOT NULL AND foto <> ''", 'de perfil'],
         ] as [$carpeta, $sql, $que]) {
             try {
                 $filas = DB::select($sql);

@@ -1615,20 +1615,21 @@ window.SPGCarga = (function () {
   var elDur = caja && caja.querySelector('[data-resumen="dur"]');
   var elSena = caja && caja.querySelector('[data-resumen="sena"]');
   var cajaSena = caja && caja.querySelector('[data-resumen="sena-caja"]');
+  var detSena = caja && caja.querySelector('[data-resumen="sena-detalle"]');
 
   function gs(n) {
     return 'Gs. ' + Math.round(n).toLocaleString('es-PY', { maximumFractionDigits: 0 });
   }
 
-  // **La seña de un servicio sale de su badge, y el badge vive en el
-  // cuerpo de la tarjeta.** Buscarlo con `closest('div')` desde la
-  // casilla daba el contenedor de la IMAGEN, donde no está: el aviso de
-  // seña no se mostraba nunca.
-  function senaDe(tarjeta) {
-    var b = tarjeta && tarjeta.querySelector('.spg-srv-dur .badge-estado.e-warn');
-    if (!b) return 0;
-
-    return parseFloat((b.textContent || '').replace(/[^0-9]/g, '')) || 0;
+  // **La seña de cada servicio viaja como dato, no como texto.**
+  //
+  // Salía de raspar el badge —«seña Gs. 140.000» sin los no-dígitos— y eso
+  // andaba de casualidad: cambiar la redacción, o un precio con decimales,
+  // daba otro número sin que nada avisara. Y no alcanzaba para decir DE
+  // DÓNDE sale el total, que es lo que se pidió: el porcentaje no estaba
+  // en ningún lado.
+  function senaDe(casilla) {
+    return parseFloat(casilla.getAttribute('data-sena')) || 0;
   }
 
   function reflejar() {
@@ -1641,10 +1642,9 @@ window.SPGCarga = (function () {
       if (!c.checked) { return; }
 
       var precio = parseFloat(c.getAttribute('data-precio')) || 0;
-      var nombre = tarjeta ? (tarjeta.querySelector('.spg-srv-nombre') || {}).textContent : '';
       total += precio;
       min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
-      sena += senaDe(tarjeta);
+      sena += senaDe(c);
       cuantos++;
     });
 
@@ -1679,6 +1679,34 @@ window.SPGCarga = (function () {
     if (elDur) { elDur.textContent = min > 0 ? ('· ' + min + ' min') : ''; }
     if (cajaSena) { cajaSena.style.display = sena > 0 ? '' : 'none'; }
     if (elSena) { elSena.textContent = gs(sena); }
+
+    // **De dónde sale la seña, servicio por servicio.** Con uno solo el total
+    // se explica solo; con dos, la clienta ve una cifra que no puede
+    // comprobar. Se arma con nodos y no con innerHTML: el nombre del servicio
+    // lo escribe el salón, y concatenarlo dentro de una cadena de HTML es la
+    // puerta por la que entra el marcado ajeno.
+    if (detSena) {
+      detSena.textContent = '';
+      var conSena = 0;
+      casillas.forEach(function (c) {
+        if (!c.checked) { return; }
+        var s = senaDe(c);
+        if (s <= 0) { return; }
+        conSena++;
+        var pct = parseFloat(c.getAttribute('data-sena-pct')) || 0;
+        var li = document.createElement('li');
+        var n = document.createElement('span');
+        n.textContent = c.getAttribute('data-nombre') || '';
+        var v = document.createElement('b');
+        v.textContent = gs(s) + (pct > 0 ? ' (' + pct + ' %)' : '');
+        li.appendChild(n);
+        li.appendChild(v);
+        detSena.appendChild(li);
+      });
+      // Con un solo servicio la lista repetiría el mismo número que el
+      // renglón de arriba: un desglose de una línea no desglosa nada.
+      detSena.style.display = conSena > 1 ? '' : 'none';
+    }
   }
 
   casillas.forEach(function (c) { c.addEventListener('change', reflejar); });

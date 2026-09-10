@@ -90,6 +90,10 @@ Route::middleware('sesion')->prefix('cuenta')->name('cuenta.')->group(function (
     Route::post('password/cancelar', [CuentaController::class, 'passwordCancelar'])->name('password_cancelar');
     // El tema de la interfaz: preferencia de cada persona, no del salón.
     Route::post('tema', [CuentaController::class, 'tema'])->name('tema');
+    // La foto de perfil. Sin permiso de por medio: cada uno la suya, y lo que
+    // se cambia es un dato propio — no hay ninguna decisión del salón acá.
+    Route::post('foto', [CuentaController::class, 'foto'])->name('foto');
+    Route::post('foto/quitar', [CuentaController::class, 'fotoQuitar'])->name('foto_quitar');
     Route::post('cambiar-rol', [CuentaController::class, 'cambiarRol'])->name('cambiar_rol');
 });
 

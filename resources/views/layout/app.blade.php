@@ -13,12 +13,11 @@
     que acá todo va con prefijo `spg`.
 --}}
 @php
-    use App\Servicios\Config;
     use App\Servicios\Navegacion;
     use App\Servicios\Permisos;
 
-    // El logo que cargó el salón, o null para la tijera de siempre.
-    $spgLogo = Config::logo();
+    // La foto de quien está en sesión, o null para sus iniciales.
+    $spgFotoPerfil = \App\Servicios\Perfil::foto();
 
     $spgRuta     = Route::currentRouteName() ?? '';
     // **Cuál módulo se marca en la barra sale del PERMISO de la pantalla.**
@@ -94,14 +93,10 @@
         </label>
     @endif
     <a class="spg-brand" href="{{ Navegacion::url($spgCliente ? 'portal.index' : 'panel') ?? url('/') }}">
-        {{-- El logo del salón si lo cargó; si no, la tijera de siempre. --}}
-        <span class="spg-logo">
-            @if ($spgLogo)
-                <img src="{{ $spgLogo }}" alt="" style="height:100%;width:100%;object-fit:contain">
-            @else
-                <i class="bi bi-scissors"></i>
-            @endif
-        </span>
+        {{-- El logo del salón si lo cargó; si no, la tijera de siempre. Lo
+             dibuja el partial, que es donde se decide sacarle el fondo dorado
+             —el del ícono por defecto— cuando hay imagen. --}}
+        @include('layout._marca', ['modo' => 'barra'])
         <span class="spg-brand-txt">
             <span class="spg-brand-name">{{ config('app.name') }}</span>
             <span class="spg-brand-sub">Sistema de gestión</span>
@@ -113,7 +108,14 @@
             <div class="dropdown">
                 <button class="spg-user-link" type="button" data-bs-toggle="dropdown" aria-expanded="false"
                         title="Mi cuenta">
-                    <i class="bi bi-person-circle"></i>
+                    {{-- **La foto de perfil, si la cargó.** Un monigote igual
+                         para todos no distingue a nadie; sin foto van las
+                         iniciales, que sí. --}}
+                    @if ($spgFotoPerfil)
+                        <span class="spg-avatar"><img src="{{ $spgFotoPerfil }}" alt=""></span>
+                    @else
+                        <span class="spg-avatar">{{ \App\Servicios\Perfil::iniciales() }}</span>
+                    @endif
                     <span class="spg-user-nombre">{{ $spgSesion['nombre'] }}</span>
                     <i class="bi bi-chevron-down" style="font-size:.65rem"></i>
                 </button>

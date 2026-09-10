@@ -1,0 +1,10 @@
+# Las fotos de perfil que sube cada persona.
+#
+# **Son la cara de alguien: no van al repositorio ni por accidente.** Es un dato
+# personal, no una pieza del sistema — el mismo criterio que ya vale para las
+# fotos de los servicios y el logo del salón, sólo que acá pesa más.
+#
+# En el servidor viven en el volumen `imagenes_personas`, que sobrevive a los
+# despliegues. Ver «Las fotos que sube el salón» en CLAUDE.md.
+*
+!.gitignore

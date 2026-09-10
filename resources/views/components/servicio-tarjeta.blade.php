@@ -26,6 +26,17 @@
 @php
     $img = \App\Servicios\Imagen::url($s->imagen ?? null, 'servicios');
 
+    // **Cuánta seña pide ESTE servicio, como dato y no como texto.**
+    //
+    // El resumen de la reserva lo suma con JavaScript, y hasta la 7.112.0 lo
+    // sacaba raspando el texto del badge («seña Gs. 140.000» → 140000). Eso
+    // andaba de casualidad: cambiar el texto, o un precio con decimales, daba
+    // un número distinto sin que nada avisara. Y sobre todo no alcanzaba para
+    // lo que se pidió — decir de dónde sale el total con más de un servicio
+    // marcado — porque el porcentaje no viajaba a ningún lado.
+    $spgSenaPct = (float) ($s->sena_porcentaje ?? 0);
+    $spgSena = $spgSenaPct > 0 ? round((float) $s->precio * $spgSenaPct / 100) : 0;
+
     // **El precio que va a pagar, no el de lista.** El descuento lo decide la
     // base —el mismo criterio que la factura— y la tarjeta sólo lo muestra: la
     // clienta Oro veía Gs. 75.000 y pagaba 67.500, así que lo mejor que el
@@ -68,6 +79,8 @@
                name="{{ $nombreCampo }}" value="{{ $s->id_servicio }}" id="{{ $id }}"
                data-duracion="{{ $s->duracion_min }}"
                data-precio="{{ $desc > 0 ? $conDesc : (float) $s->precio }}"
+               data-nombre="{{ $s->nombre }}"
+               data-sena="{{ $spgSena }}" data-sena-pct="{{ $spgSenaPct }}"
                @checked($marcado)>
     </div>
 

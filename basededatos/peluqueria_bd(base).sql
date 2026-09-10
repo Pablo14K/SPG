@@ -527,6 +527,7 @@ CREATE TABLE `cita_servicio` (
   `id_servicio` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `terminado_en` datetime DEFAULT NULL,
   PRIMARY KEY (`id_cita_servicio`),
   UNIQUE KEY `uq_cita_servicio` (`id_cita`,`id_servicio`),
   KEY `idx_cs_servicio` (`id_servicio`),
@@ -1076,6 +1077,8 @@ CREATE TABLE `dato_pago_sucursal` (
   `alias` varchar(60) DEFAULT NULL,
   `alias_tipo` varchar(10) DEFAULT NULL,
   `observacion` varchar(200) DEFAULT NULL,
+  `saldo_declarado` decimal(14,2) DEFAULT NULL,
+  `saldo_declarado_en` datetime DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id_dato_pago`),
@@ -1086,7 +1089,8 @@ CREATE TABLE `dato_pago_sucursal` (
   CONSTRAINT `fk_dpago_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_dpago_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
   CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3),
-  CONSTRAINT `chk_dpago_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL'))
+  CONSTRAINT `chk_dpago_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL')),
+  CONSTRAINT `chk_dpago_saldo` CHECK (`saldo_declarado` is null and `saldo_declarado_en` is null or `saldo_declarado` is not null and `saldo_declarado_en` is not null and `saldo_declarado` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2029,6 +2033,7 @@ CREATE TABLE `pago_personal` (
   `id_metodo_pago` int(10) unsigned DEFAULT NULL,
   `id_estado_pago` int(10) unsigned NOT NULL,
   `id_caja` int(10) unsigned DEFAULT NULL,
+  `id_dato_pago` int(10) unsigned DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `periodo` varchar(40) DEFAULT NULL,
   `observaciones` varchar(300) DEFAULT NULL,
@@ -2038,7 +2043,9 @@ CREATE TABLE `pago_personal` (
   KEY `idx_pp_estado` (`id_estado_pago`),
   KEY `fk_pagopers_metodo` (`id_metodo_pago`),
   KEY `fk_pagopers_caja` (`id_caja`),
+  KEY `fk_pagopers_dpago` (`id_dato_pago`),
   CONSTRAINT `fk_pagopers_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`),
+  CONSTRAINT `fk_pagopers_dpago` FOREIGN KEY (`id_dato_pago`) REFERENCES `dato_pago_sucursal` (`id_dato_pago`),
   CONSTRAINT `fk_pagopers_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
@@ -2093,6 +2100,7 @@ CREATE TABLE `pago_proveedor` (
   `id_metodo_pago` int(10) unsigned NOT NULL,
   `id_estado_pago_proveedor` int(10) unsigned NOT NULL,
   `id_caja` int(10) unsigned DEFAULT NULL,
+  `id_dato_pago` int(10) unsigned DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `referencia` varchar(100) DEFAULT NULL,
   `observaciones` varchar(300) DEFAULT NULL,
@@ -2102,6 +2110,8 @@ CREATE TABLE `pago_proveedor` (
   KEY `idx_pprov_metodo` (`id_metodo_pago`),
   KEY `idx_pprov_estado` (`id_estado_pago_proveedor`),
   KEY `idx_pprov_caja` (`id_caja`),
+  KEY `fk_pagoprov_dpago` (`id_dato_pago`),
+  CONSTRAINT `fk_pagoprov_dpago` FOREIGN KEY (`id_dato_pago`) REFERENCES `dato_pago_sucursal` (`id_dato_pago`),
   CONSTRAINT `fk_pprov_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_pprov_estado` FOREIGN KEY (`id_estado_pago_proveedor`) REFERENCES `estado_pago_proveedor` (`id_estado_pago_proveedor`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pprov_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`) ON UPDATE CASCADE,
@@ -2158,6 +2168,7 @@ CREATE TABLE `persona` (
   `telefono` varchar(20) DEFAULT NULL,
   `email` varchar(120) DEFAULT NULL,
   `direccion` varchar(255) DEFAULT NULL,
+  `foto` varchar(120) DEFAULT NULL,
   `fecha_nacimiento` date DEFAULT NULL,
   `fecha_alta` datetime NOT NULL DEFAULT current_timestamp(),
   `es_personal` tinyint(1) NOT NULL DEFAULT 0,
@@ -2165,7 +2176,8 @@ CREATE TABLE `persona` (
   UNIQUE KEY `uq_persona_cedula` (`cedula`),
   UNIQUE KEY `uq_persona_ruc` (`ruc`),
   KEY `idx_persona_nombre` (`apellido`,`nombre`),
-  KEY `idx_persona_email` (`email`)
+  KEY `idx_persona_email` (`email`),
+  CONSTRAINT `chk_persona_foto` CHECK (`foto` is null or char_length(trim(`foto`)) > 0)
 ) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2175,7 +2187,7 @@ CREATE TABLE `persona` (
 
 LOCK TABLES `persona` WRITE;
 /*!40000 ALTER TABLE `persona` DISABLE KEYS */;
-INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,'2026-08-06 15:48:43',1),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cliente.demo@peluqueria.local','Toribio ocampos',NULL,'2026-08-06 15:48:43',0),(19,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,'2026-08-22 20:32:58',0),(20,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,'2026-08-22 20:32:58',0),(21,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,'2026-08-22 20:32:58',0),(22,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(23,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(24,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1),(25,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,'2026-08-22 20:32:58',1);
+INSERT INTO `persona` VALUES (1,'Ana','Propietaria',NULL,NULL,NULL,'admin@peluqueria.com',NULL,NULL,NULL,'2026-08-06 15:48:43',1),(2,'Ana','Gimenez','7443136',NULL,'0981-000000','cliente.demo@peluqueria.local','Toribio ocampos',NULL,NULL,'2026-08-06 15:48:43',0),(19,'Distribuidora Capilar SA','',NULL,'80012345-0','021445566','ventas@capilar.com.py','Avda. Mariscal López 1234, Asunción',NULL,NULL,'2026-08-22 20:32:58',0),(20,'Belleza Total SRL','',NULL,'80098765-1','021778899','pedidos@bellezatotal.py','Ruta Mcal. Estigarribia km 12, Luque',NULL,NULL,'2026-08-22 20:32:58',0),(21,'Insumos del Este SA','',NULL,'80055443-3','021332211','contacto@insumoseste.py','Avda. España 890, Asunción',NULL,NULL,'2026-08-22 20:32:58',0),(22,'Marta','Cáceres','3800111',NULL,'0981200100','marta.caceres@peluqueria.local',NULL,NULL,NULL,'2026-08-22 20:32:58',1),(23,'Rocío','Duarte','3800222',NULL,'0981200200','rocio.duarte@peluqueria.local',NULL,NULL,NULL,'2026-08-22 20:32:58',1),(24,'Lucía','Benítez','3800333',NULL,'0981200300','lucia.benitez@peluqueria.local',NULL,NULL,NULL,'2026-08-22 20:32:58',1),(25,'Sofía','Espínola','3800444',NULL,'0981200400','sofia.espinola@peluqueria.local',NULL,NULL,NULL,'2026-08-22 20:32:58',1);
 /*!40000 ALTER TABLE `persona` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2500,7 +2512,7 @@ CREATE TABLE `rol_modulo` (
 
 LOCK TABLES `rol_modulo` WRITE;
 /*!40000 ALTER TABLE `rol_modulo` DISABLE KEYS */;
-INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'facturacion.cobros'),(2,'facturacion.facturas'),(2,'personal.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'personal.asistencia'),(3,'personal.profesionales'),(3,'personal.turnos'),(3,'reportes'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
+INSERT INTO `rol_modulo` VALUES (2,'citas.agenda'),(2,'citas.atencion'),(2,'clientes.fidelizacion'),(2,'clientes.registro'),(2,'clientes.valoraciones'),(2,'personal.asistencia'),(3,'citas.agenda'),(3,'citas.atencion'),(3,'clientes.canjes'),(3,'clientes.fidelizacion'),(3,'clientes.registro'),(3,'clientes.valoraciones'),(3,'facturacion.caja'),(3,'facturacion.cobros'),(3,'facturacion.facturas'),(3,'facturacion.movimientos'),(3,'facturacion.pagos'),(3,'facturacion.proveedores'),(3,'inventario.compras'),(3,'inventario.productos'),(3,'inventario.proveedores'),(3,'inventario.stock'),(3,'personal.asistencia'),(3,'personal.profesionales'),(3,'personal.turnos'),(3,'reportes'),(3,'servicios.catalogo'),(3,'servicios.categorias'),(3,'servicios.descuentos');
 /*!40000 ALTER TABLE `rol_modulo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3815,9 +3827,9 @@ DELIMITER ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cita_duracion_de`(p_id_cita INT UNSIGNED, p_id_usuario INT UNSIGNED) RETURNS int(11)
     READS SQL DATA
@@ -3834,7 +3846,9 @@ BEGIN
            ON ps.id_persona = u.id_persona
           AND ps.id_servicio = s.id_servicio AND ps.activo = 1
    WHERE cs.id_cita = p_id_cita
-     AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario;
+     AND COALESCE(cs.id_usuario, c.id_usuario) = p_id_usuario
+     
+     AND cs.terminado_en IS NULL;
 
   RETURN v_dur;
 END ;;
@@ -4287,6 +4301,51 @@ BEGIN
   WHERE c.id_compra = p_id_compra;
 
   RETURN v_venc;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cuenta_saldo` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cuenta_saldo`(p_id_dato_pago INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  DECLARE v_base  DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_desde DATETIME DEFAULT NULL;
+  DECLARE v_prov  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_pers  DECIMAL(14,2) DEFAULT 0;
+
+  SELECT saldo_declarado, saldo_declarado_en INTO v_base, v_desde
+  FROM dato_pago_sucursal WHERE id_dato_pago = p_id_dato_pago;
+
+  
+  IF v_base IS NULL OR v_desde IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
+  FROM pago_proveedor pp
+  WHERE pp.id_dato_pago = p_id_dato_pago
+    AND pp.id_estado_pago_proveedor = 1
+    AND pp.fecha >= v_desde;
+
+  SELECT COALESCE(SUM(fn_pago_personal_monto(pg.id_pago_personal)), 0) INTO v_pers
+  FROM pago_personal pg
+  WHERE pg.id_dato_pago = p_id_dato_pago
+    AND pg.id_estado_pago = 1
+    AND pg.fecha >= v_desde;
+
+  RETURN v_base - v_prov - v_pers;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -6592,4 +6651,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-06 17:53:41
+-- Dump completed on 2026-09-10  9:30:22

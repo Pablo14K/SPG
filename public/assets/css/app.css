@@ -192,6 +192,38 @@ body{
   width:34px;height:34px;border-radius:9px;background:var(--oro);
   display:flex;align-items:center;justify-content:center;color:var(--negro);font-size:1.2rem;
 }
+/* **Con logo cargado, el fondo dorado se va.**
+
+   La pastilla de oro es el fondo del ÍCONO por defecto —la tijera negra sobre
+   oro—, no un marco de la marca. Al cargar un logo la imagen se dibujaba
+   encima con `object-fit:contain`, así que un logo rectangular (los que traen
+   el nombre del salón adentro lo son casi siempre) quedaba con dos bandas
+   doradas a los costados: se veía el ícono de antes asomando de fondo, que es
+   exactamente como se reportó.
+
+   Y deja de ser un cuadrado: un logo ancho aplastado en 34 px no se lee. Se le
+   da el alto y que el ancho salga solo, con un tope para que no empuje la
+   barra.
+
+   **Quitando el logo vuelve todo**, porque la clase la pone el marcado sólo
+   cuando hay imagen. */
+.spg-logo.tiene-img{
+  background:none;border-radius:0;width:auto;max-width:190px;
+}
+.spg-logo.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
+
+/* La cara de quien está en sesión: su foto, o sus iniciales sobre el oro.
+   Un monigote genérico igual para todos no distingue a nadie, que es lo único
+   que un avatar tiene que hacer. */
+.spg-avatar{
+  width:26px;height:26px;border-radius:50%;background:var(--oro);color:var(--negro);
+  display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
+  font-size:.68rem;font-weight:600;letter-spacing:.02em;flex:0 0 auto;
+}
+.spg-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.spg-avatar-lg{
+  width:64px;height:64px;font-size:1.35rem;border:1px solid var(--gris-calido);
+}
 .spg-brand-name{color:var(--oro);font-size:1.05rem;font-weight:500;letter-spacing:.3px;}
 .spg-topbar .spg-user{color:var(--sobre-oscura);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
 /* Sin restringir a "a": en la barra hay enlaces y también botones (Módulos),
@@ -379,23 +411,50 @@ body{
     padding-top:.4rem;font-size:.95rem;}
 
 /* ---- Falta cargar (panel) ----
-   El nivel se pinta con lo que cada color ya significa en esta paleta, no con
-   uno nuevo: el rojo semántico para lo que impide, `--oro-tinte` —que la
-   identidad reserva justamente para los AVISOS— para lo que hace decidir
-   distinto, y neutros cálidos para lo que sólo conviene. Así el renglón que
-   hay que mirar primero se lee sin tener que aprender un código de colores. */
-.spg-falta{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem 0;
-    border-top:1px solid var(--gris-calido);}
-.spg-falta:first-child{border-top:0;}
-.spg-falta-txt{flex:1 1 auto;font-size:.85rem;line-height:1.35;}
-.spg-falta-donde{font-size:.78rem;}
-.spg-falta-nivel{flex:0 0 auto;min-width:5.2rem;text-align:center;
-    font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;
-    padding:.15rem .45rem;border-radius:999px;border:1px solid transparent;
-    margin-top:.1rem;}
-.spg-falta-impide{background:var(--rojo-tinte);color:var(--rojo);border-color:var(--rojo);}
-.spg-falta-confunde{background:var(--oro-tinte);color:var(--oro-texto);border-color:var(--oro);}
-.spg-falta-conviene{background:transparent;color:var(--gris-oscuro);border-color:var(--gris-calido);}
+   Cada pendiente se muestra como una tarjeta individual con borde lateral
+   de color según su nivel. Las tarjetas heredan el radio, la sombra y los
+   neutros cálidos del resto del panel, así que se integran con las tarjetas
+   de módulo de arriba en vez de parecer un bloque de texto suelto.
+
+   El nivel se pinta con lo que cada color ya significa en esta paleta: el
+   rojo semántico para lo que impide, el oro para lo que hace decidir distinto,
+   y neutros cálidos para lo que sólo conviene. */
+.spg-falta{
+  display:flex;gap:.75rem;align-items:flex-start;
+  padding:.75rem .85rem;
+  border-radius:var(--radius, .6rem);
+  border:1px solid var(--gris-calido);
+  border-left:3.5px solid var(--gris-calido);
+  background:var(--blanco);
+  margin-bottom:.5rem;
+  transition:border-color .15s, box-shadow .15s;
+}
+.spg-falta:last-child{margin-bottom:0;}
+.spg-falta:hover{box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.spg-falta-txt{flex:1 1 auto;font-size:.85rem;line-height:1.4;min-width:0;}
+.spg-falta-donde{font-size:.78rem;margin-top:.2rem;}
+.spg-falta-donde a{color:var(--oro-oscuro);text-decoration:underline;text-decoration-color:var(--oro-claro);}
+.spg-falta-donde a:hover{color:var(--oro-texto);text-decoration-color:var(--oro);}
+.spg-falta-nivel{
+  flex:0 0 auto;min-width:5.2rem;text-align:center;
+  font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;
+  padding:.2rem .55rem;border-radius:999px;border:1px solid transparent;
+  margin-top:.05rem;
+}
+.spg-falta-impide{
+  background:var(--rojo-tinte);color:var(--rojo);border-color:var(--rojo);
+}
+.spg-falta-confunde{
+  background:var(--oro-tinte);color:var(--oro-texto);border-color:var(--oro);
+}
+.spg-falta-conviene{
+  background:transparent;color:var(--gris-oscuro);border-color:var(--gris-calido);
+}
+/* El borde lateral de la tarjeta toma el color del nivel. */
+.spg-falta:has(.spg-falta-impide){border-left-color:var(--rojo);}
+.spg-falta:has(.spg-falta-confunde){border-left-color:var(--oro);}
+.spg-falta:has(.spg-falta-conviene){border-left-color:var(--gris-calido);}
+
 
 /* ---- Login ---- */
 /* `column` no es un detalle: los avisos de `auth/marco` se dibujan como
@@ -408,6 +467,10 @@ body{
 .spg-login-wrap > .alert{width:100%;max-width:390px;margin-bottom:0;}
 .spg-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
   justify-content:center;color:var(--negro);font-size:1.9rem;margin:0 auto 1rem;}
+/* Igual que en la barra: con logo cargado, el fondo dorado del ícono por
+   defecto se va y el logo puede ser ancho. Ver `.spg-logo.tiene-img`. */
+.spg-login .logo-big.tiene-img{background:none;border-radius:0;width:auto;max-width:240px;height:64px;}
+.spg-login .logo-big.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
 
 /* ---- Form ---- */
 .form-label{font-size:.82rem;color:var(--gris-oscuro);font-weight:500;}
@@ -891,14 +954,14 @@ html,body{max-width:100%;overflow-x:hidden;}
    puntos —«Ana Garcia · 456123 · Caja de ahorro»— así que ningún número decía
    qué era. Es una grilla de dos columnas y no una tabla: con `minmax` el
    rótulo no empuja al valor fuera de la tarjeta en un teléfono angosto. */
-.spg-cuenta-dato{display:grid;grid-template-columns:minmax(0,7.5rem) 1fr;
+/* La columna del rótulo da para «ALIAS (Nº DE CELULAR)», que es el más largo:
+   el tipo de alias pasó a vivir ahí en la 7.112.0, y con 7,5 rem partía en dos
+   renglones. */
+.spg-cuenta-dato{display:grid;grid-template-columns:minmax(0,9.2rem) 1fr;
   gap:.2rem .6rem;align-items:baseline;padding:.18rem 0;}
 .spg-cuenta-rot{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;
   letter-spacing:.03em;}
 .spg-cuenta-val{font-size:.9rem;min-width:0;word-break:break-word;}
-/* Cómo buscar el alias va debajo del alias y no en otro renglón de la tarjeta:
-   es la instrucción de ESE número. */
-.spg-cuenta-hint{display:block;font-size:.75rem;color:var(--gris-oscuro);}
 @media (max-width:420px){
   /* En un teléfono angosto la grilla de dos columnas deja el valor en 4 rem:
      un número de cuenta no entra. Rótulo arriba, valor abajo. */
@@ -1665,6 +1728,14 @@ html,body{max-width:100%;overflow-x:hidden;}
   padding:.5rem .6rem;border-radius:var(--radius);
   background:var(--oro-tinte);color:var(--oro-texto);font-size:.8rem;line-height:1.35;
 }
+/* De dónde sale la seña, servicio por servicio. Sólo se dibuja con más de uno:
+   con uno solo repetiría el número del renglón de arriba. */
+.spg-sena-detalle{list-style:none;margin:.4rem 0 .3rem;padding:0;}
+.spg-sena-detalle li{
+  display:flex;justify-content:space-between;gap:.8rem;
+  padding:.12rem 0;border-top:1px solid rgba(138,108,30,.22);
+}
+.spg-sena-detalle li:first-child{border-top:0;}
 
 /* El atajo al detalle de la cita: se lee de una y ocupa un renglón chico.
    Antes era una «i» gris del tamaño del texto, indistinguible del resto de

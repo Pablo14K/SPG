@@ -1294,13 +1294,18 @@ class PortalController extends Controller
     {
         $idc = $this->cliente();
 
+        // **Se vuelve a donde se cargó, y por eso el destino viaja.** El mismo
+        // campo se edita desde «Mi ficha» y desde «Mi cuenta»: devolver siempre
+        // a la primera dejaría a la clienta en una pantalla a la que no iba.
+        $volver = $request->input('volver') === 'cuenta' ? 'cuenta.index' : 'portal.ficha';
+
         if ($request->isMethod('post')) {
             $alergias = trim((string) $request->input('alergias', ''));
 
             if (mb_strlen($alergias) > 300) {
                 flash('Las alergias no pueden pasar de 300 caracteres.', 'error');
 
-                return redirect()->route('portal.ficha');
+                return redirect()->route($volver);
             }
 
             // **Vacío es «no tengo ninguna anotada», y se guarda como NULL.**
@@ -1317,7 +1322,7 @@ class PortalController extends Controller
                 ? 'Listo: no quedó ninguna alergia anotada en tu ficha.'
                 : 'Gracias. Lo van a ver antes de prepararte cualquier mezcla.');
 
-            return redirect()->route('portal.ficha');
+            return redirect()->route($volver);
         }
 
         return view('portal.ficha', [

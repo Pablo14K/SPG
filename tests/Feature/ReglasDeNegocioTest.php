@@ -14,6 +14,8 @@ use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
 use App\Servicios\Notificaciones;
 use App\Servicios\Config;
+use App\Servicios\Pagos;
+use App\Servicios\Perfil;
 use App\Servicios\Permisos;
 use App\Servicios\Notificaciones as NotificacionesSPG;
 use App\Servicios\Sesion;
@@ -22,6 +24,7 @@ use App\Servicios\WebAuthn;
 use App\Servicios\CitasVencidas;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
@@ -43,6 +46,18 @@ use Throwable;
  */
 class ReglasDeNegocioTest extends TestCase
 {
+    /**
+     * Un PNG de 1x1 de verdad, para las pruebas que suben una imagen.
+     *
+     * **No se usa `UploadedFile::fake()->image()`**: eso necesita GD, y el
+     * contenedor no la trae. Y tampoco serviría un archivo con la extensión
+     * cambiada — `Imagen::guardar()` mira el CONTENIDO con `getimagesize`,
+     * que es justamente su defensa principal, así que la prueba tiene que
+     * darle algo que de verdad sea una imagen.
+     */
+    private const PNG_MINIMO = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+        . 'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
     use DatabaseTransactions;
 
     /**
@@ -6898,5 +6913,279 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertSame(4, (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]),
             'Con todas las partes cerradas la cita queda Atendida y ya se puede facturar.');
         $this->assertSame(0, (int) DB::scalar('SELECT fn_cita_duracion_de(?,?)', [$idCita, $dueno]));
+    }
+    // -----------------------------------------------------------------
+    //  La foto de perfil: es de la PERSONA, y se puede sacar
+    // -----------------------------------------------------------------
+
+    /**
+     * Cargar la foto desde Mi cuenta, verla, y volver a las iniciales.
+     *
+     * **Se comprueba el ciclo entero y no sólo la subida**, porque el defecto
+     * que importa está del otro lado: quitarla tiene que devolver la columna a
+     * NULL *y* borrar el archivo — si no, el disco del servidor se llena de
+     * caras de gente que pidió que se las sacaran.
+     */
+    public function test_la_foto_de_perfil_se_carga_y_se_saca(): void
+    {
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 0 ORDER BY u.id_usuario LIMIT 1');
+        if (! $uid) {
+            $this->markTestSkipped('No hay ninguna cuenta de clienta para probarlo.');
+        }
+        $idPersona = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$uid]);
+        $antes = DB::scalar('SELECT foto FROM persona WHERE id_persona = ?', [$idPersona]);
+
+        session(['uid' => $uid, 'rol' => (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$uid]),
+            'es_personal' => false, 'es_cliente' => true]);
+        $this->conMarcaDeSesion();
+        DB::update('UPDATE persona SET foto = NULL WHERE id_persona = ?', [$idPersona]);
+        Perfil::olvidar();
+
+        // --- Sin foto: van las iniciales, no un monigote genérico ---
+        $this->get(route('cuenta.index'))->assertOk()->assertSee('spg-avatar', false);
+
+        // **Un PNG de verdad, no un `fake()`.** `Imagen::guardar()` mira el
+        // CONTENIDO con `getimagesize` y no la extensión, que es su defensa
+        // principal; y el contenedor no trae GD, así que la imagen de mentira
+        // de Laravel no se puede generar acá.
+        $tmp = tempnam(sys_get_temp_dir(), 'spg') . '.png';
+        file_put_contents($tmp, base64_decode(self::PNG_MINIMO));
+        $nombre = '';
+
+        // **La limpieza va en un `finally`.** `DatabaseTransactions` revierte
+        // la base pero NO el disco, y si una aserción falla lo de abajo no se
+        // ejecuta — quedaría la cara de alguien en `public/`, que es justo lo
+        // que esta prueba dice que no puede pasar.
+        try {
+            $this->post(route('cuenta.foto'), [
+                'foto' => new UploadedFile($tmp, 'cara.png', 'image/png', null, true),
+            ])->assertRedirect(route('cuenta.index'));
+
+            $nombre = (string) DB::scalar('SELECT foto FROM persona WHERE id_persona = ?', [$idPersona]);
+            $this->assertNotSame('', $nombre, 'La foto tiene que quedar guardada en la PERSONA.');
+            $this->assertFileExists(public_path('assets/personas/' . $nombre),
+                'El archivo se escribe antes de tocar la base: si la fila lo nombra, tiene que estar.');
+
+            Perfil::olvidar();
+            $this->get(route('cuenta.index'))->assertOk()->assertSee($nombre, false);
+
+            // --- Y se saca: vuelve a NULL y el archivo se borra ---
+            $this->post(route('cuenta.foto_quitar'))->assertRedirect(route('cuenta.index'));
+
+            $this->assertNull(DB::scalar('SELECT foto FROM persona WHERE id_persona = ?', [$idPersona]),
+                'Quitarla tiene que dejar la columna en NULL, que es «no cargó ninguna».');
+            $this->assertFileDoesNotExist(public_path('assets/personas/' . $nombre),
+                'Y el archivo se borra: es la cara de alguien que pidió que se la saquen.');
+        } finally {
+            if ($nombre !== '') {
+                @unlink(public_path('assets/personas/' . $nombre));
+            }
+            DB::update('UPDATE persona SET foto = ? WHERE id_persona = ?', [$antes, $idPersona]);
+            Perfil::olvidar();
+            @unlink($tmp);
+        }
+    }
+
+    /**
+     * Las alergias se cargan también desde Mi cuenta, con el mismo formulario.
+     *
+     * Se reportó que «no aparece un campo de alergias en Mi cuenta»: existía, y
+     * estaba sólo en «Mi ficha». Las dos son pantallas legítimas para buscarlo,
+     * así que la prueba pide las dos cosas — que el campo esté, y que guardar
+     * desde ahí **vuelva a ahí** y no a la otra pantalla.
+     */
+    public function test_las_alergias_se_cargan_tambien_desde_mi_cuenta(): void
+    {
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+               JOIN cliente c ON c.id_usuario = u.id_usuario
+              WHERE u.activo = 1 AND r.es_personal = 0 ORDER BY u.id_usuario LIMIT 1');
+        if (! $uid) {
+            $this->markTestSkipped('No hay ninguna clienta con cuenta para probarlo.');
+        }
+        $idc = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE id_usuario = ?', [$uid]);
+        $antes = DB::scalar('SELECT alergias FROM cliente WHERE id_cliente = ?', [$idc]);
+
+        session(['uid' => $uid, 'rol' => (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$uid]),
+            'es_personal' => false, 'es_cliente' => true]);
+        $this->conMarcaDeSesion();
+
+        $this->get(route('cuenta.index'))
+            ->assertOk()
+            ->assertSee('¿Sos alérgica a algo?', false)
+            ->assertSee('name="alergias"', false);
+
+        // Guardar desde acá vuelve ACÁ: el mismo POST sirve a las dos pantallas.
+        $this->post(route('portal.ficha'), ['alergias' => 'Látex', 'volver' => 'cuenta'])
+            ->assertRedirect(route('cuenta.index'));
+        $this->assertSame('Látex', (string) DB::scalar(
+            'SELECT alergias FROM cliente WHERE id_cliente = ?', [$idc]));
+
+        // Y desde «Mi ficha» sigue volviendo a «Mi ficha».
+        $this->post(route('portal.ficha'), ['alergias' => 'Amoníaco'])
+            ->assertRedirect(route('portal.ficha'));
+
+        DB::update('UPDATE cliente SET alergias = ? WHERE id_cliente = ?', [$antes, $idc]);
+    }
+
+    /**
+     * El resumen de la reserva dice DE DÓNDE sale la seña.
+     *
+     * Con un servicio el total se explica solo; con dos, «Gs. 315.000» es una
+     * cifra que la clienta no puede comprobar — se reportó así. El desglose lo
+     * arma el navegador con los `data-` de cada tarjeta, así que lo que esta
+     * prueba fija es **que esos datos viajen**: si el atributo se renombra, el
+     * resumen deja de sumar y no da ningún error.
+     *
+     * Comprobado en las dos direcciones: el que pide seña la declara con su
+     * porcentaje, y el que no pide la declara en CERO — omitirla dejaría al JS
+     * sumando NaN.
+     */
+    public function test_el_resumen_de_la_reserva_dice_de_donde_sale_la_sena(): void
+    {
+        $con = DB::selectOne('SELECT id_servicio, precio, sena_porcentaje FROM servicio
+                               WHERE activo = 1 AND sena_porcentaje > 0 ORDER BY id_servicio LIMIT 1');
+        $sin = DB::selectOne('SELECT id_servicio FROM servicio
+                               WHERE activo = 1 AND sena_porcentaje IS NULL ORDER BY id_servicio LIMIT 1');
+        if (! $con || ! $sin) {
+            $this->markTestSkipped('Hace falta un servicio con seña y uno sin ella.');
+        }
+
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+               JOIN cliente c ON c.id_usuario = u.id_usuario
+              WHERE u.activo = 1 AND r.es_personal = 0 ORDER BY u.id_usuario LIMIT 1');
+        if (! $uid) {
+            $this->markTestSkipped('No hay ninguna clienta con cuenta para probarlo.');
+        }
+        session(['uid' => $uid, 'rol' => (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$uid]),
+            'es_personal' => false, 'es_cliente' => true]);
+        $this->conMarcaDeSesion();
+
+        $html = $this->get(route('portal.reservar', ['sucursal' => 1]))->assertOk()->getContent();
+
+        $esperado = (int) round((float) $con->precio * (float) $con->sena_porcentaje / 100);
+        $this->assertStringContainsString('data-sena="' . $esperado . '"', $html,
+            'La tarjeta tiene que declarar cuánta seña pide ese servicio.');
+        $this->assertMatchesRegularExpression(
+            '/id="srv' . (int) $con->id_servicio . '"[^>]*data-sena-pct="[1-9]/s', $html,
+            'Y el porcentaje, que es lo que hace comprobable el número.');
+
+        $this->assertMatchesRegularExpression(
+            '/id="srv' . (int) $sin->id_servicio . '"[^>]*data-sena="0"/s', $html,
+            'El servicio sin seña tiene que declarar cero, no omitir el atributo.');
+
+        $this->assertStringContainsString('data-resumen="sena-detalle"', $html,
+            'Y el contenedor donde el desglose se dibuja.');
+        $this->assertStringContainsString('Es el mínimo', $html,
+            'Que el número es un mínimo se dice a la vista, no detrás del ícono de ayuda.');
+    }
+
+    /**
+     * El alias dice de qué tipo es, en su propio rótulo.
+     *
+     * Iba abajo del número, como una instrucción suelta —«buscalo por cédula»—
+     * y se reportó que confunde. Ahora es «Alias (Cédula)», con el nombre
+     * saliendo del MISMO lugar que usa la pantalla donde el salón lo carga:
+     * escritas aparte, las dos listas ya se habían desfasado una vez.
+     */
+    public function test_el_alias_dice_de_que_tipo_es_en_su_rotulo(): void
+    {
+        $this->assertSame('Alias (Cédula)', Pagos::rotuloAlias('CI'));
+        $this->assertSame('Alias (Nº de celular)', Pagos::rotuloAlias('CELULAR'));
+        // Sin tipo cargado queda «Alias» a secas, que es lo honesto: el salón
+        // puede haberlo cargado sin decir de cuál se trata.
+        $this->assertSame('Alias', Pagos::rotuloAlias(null));
+        $this->assertSame('Alias', Pagos::rotuloAlias('LO_QUE_SEA'));
+
+        $uid = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+               JOIN cliente c ON c.id_usuario = u.id_usuario
+              WHERE u.activo = 1 AND r.es_personal = 0 ORDER BY u.id_usuario LIMIT 1');
+        if (! $uid) {
+            return;
+        }
+        session(['uid' => $uid, 'rol' => (int) DB::scalar('SELECT id_rol FROM usuario WHERE id_usuario = ?', [$uid]),
+            'es_personal' => false, 'es_cliente' => true]);
+        $this->conMarcaDeSesion();
+
+        $html = $this->get(route('portal.citas'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('buscalo por', $html,
+            'La instrucción suelta se fue: el tipo vive en el rótulo.');
+    }
+
+    /**
+     * La huella se registra a nombre del SALÓN.
+     *
+     * `rp.name` es lo que el sistema operativo escribe en el diálogo de la
+     * clave de acceso. Salía de `config('app.name')`, o sea del pisado que hace
+     * `AppServiceProvider` al arrancar; ahora sale de la fuente.
+     *
+     * **El dominio que igual aparece no es esto**: el `rpId` es el dominio
+     * efectivo por especificación —no admite texto libre ni una IP— y varios
+     * navegadores lo muestran tal cual en su propia burbuja. Lo que esta prueba
+     * fija es lo único que el sistema decide.
+     */
+    public function test_la_huella_se_registra_a_nombre_del_salon(): void
+    {
+        $this->entrarComoAdministrador();
+
+        $pk = $this->post(route('webauthn.reg_options'))->assertOk()->json('publicKey');
+
+        $salon = Config::nombreSalon();
+        $this->assertSame($salon, $pk['rp']['name'],
+            'El diálogo del sistema operativo tiene que decir el nombre del salón.');
+        $this->assertStringContainsString($salon, $pk['user']['displayName'],
+            'Y la credencial guardada tiene que decir de qué sistema es.');
+        $this->assertSame(WebAuthn::rpId(), $pk['rp']['id'],
+            'El rpId sigue siendo el dominio: lo exige la especificación.');
+    }
+
+    /**
+     * Con logo cargado NO queda el ícono por defecto de fondo.
+     *
+     * La pastilla de oro es el fondo de la tijera, no un marco de la marca: al
+     * cargar un logo la imagen se dibujaba encima con `object-fit:contain` y
+     * quedaban dos bandas doradas a los costados — el ícono de antes asomando.
+     * Se reportó así.
+     *
+     * Comprobado en las dos direcciones, que es lo que se pidió explícitamente:
+     * quitando el logo tiene que volver el ícono.
+     */
+    public function test_el_logo_cargado_reemplaza_al_icono_por_defecto(): void
+    {
+        $antes = DB::scalar('SELECT logo FROM configuracion WHERE id_configuracion = 1');
+        $archivo = 'logo-prueba-' . uniqid() . '.png';
+
+        // **La limpieza va en un `finally`, no después del último assert.**
+        // `DatabaseTransactions` revierte la base pero NO el disco, y si una
+        // aserción falla lo de abajo no se ejecuta: el archivo queda ahí. Pasó
+        // exactamente eso al comprobar esta prueba en reversa.
+        try {
+            // --- Sin logo: la tijera, con su fondo dorado ---
+            DB::update('UPDATE configuracion SET logo = NULL WHERE id_configuracion = 1');
+            Config::olvidar();
+            $html = $this->get(route('login'))->assertOk()->getContent();
+            $this->assertStringContainsString('bi-scissors', $html, 'Sin logo va la tijera de la identidad.');
+            $this->assertStringNotContainsString('tiene-img', $html);
+
+            // --- Con logo: la imagen, y el fondo del ícono se va ---
+            file_put_contents(public_path('assets/logo/' . $archivo), base64_decode(self::PNG_MINIMO));
+            DB::update('UPDATE configuracion SET logo = ? WHERE id_configuracion = 1', [$archivo]);
+            Config::olvidar();
+
+            $html = $this->get(route('login'))->assertOk()->getContent();
+            $this->assertStringContainsString('tiene-img', $html,
+                'Con logo cargado, el contenedor pierde el fondo dorado del ícono.');
+            $this->assertStringNotContainsString('bi-scissors', $html,
+                'Y la tijera no se dibuja: no puede quedar el ícono viejo detrás.');
+        } finally {
+            @unlink(public_path('assets/logo/' . $archivo));
+            DB::update('UPDATE configuracion SET logo = ? WHERE id_configuracion = 1', [$antes]);
+            Config::olvidar();
+        }
     }
 }

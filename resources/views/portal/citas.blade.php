@@ -365,20 +365,23 @@
                                             </div>
 
                                             @if ($ct->alias)
-                                                @php
-                                                    $comoBuscar = [
-                                                        'CI' => 'cédula', 'RUC' => 'RUC',
-                                                        'CELULAR' => 'celular', 'EMAIL' => 'correo',
-                                                    ][$ct->alias_tipo] ?? 'alias';
-                                                @endphp
+                                                {{-- **El tipo va en el RÓTULO: «Alias (Cédula)».**
+
+                                                     Estaba abajo del número, como una instrucción
+                                                     —«buscalo por cédula»— y se reportó que confunde:
+                                                     en un bloque donde los otros cuatro datos son
+                                                     rótulo + valor, ése era el único con un renglón
+                                                     extra colgando. Puesto en el rótulo, el tipo se
+                                                     lee como lo que es —qué clase de alias es ese
+                                                     número— y de paso sigue diciendo por dónde
+                                                     buscarlo en la app del banco.
+
+                                                     El nombre sale de `Pagos`, el mismo que usa la
+                                                     pantalla donde el salón lo carga. --}}
                                                 <div class="spg-cuenta-dato">
-                                                    <span class="spg-cuenta-rot">Alias</span>
+                                                    <span class="spg-cuenta-rot">{{ \App\Servicios\Pagos::rotuloAlias($ct->alias_tipo) }}</span>
                                                     <span class="spg-cuenta-val">
                                                         <span class="spg-cuenta-nro">{{ $ct->alias }}</span>
-                                                        {{-- Cómo buscarlo va PEGADO al alias y no en otro
-                                                             renglón: es la instrucción de ese número, no un
-                                                             dato más de la cuenta. --}}
-                                                        <span class="spg-cuenta-hint">buscalo por {{ $comoBuscar }}</span>
                                                     </span>
                                                 </div>
                                             @endif
@@ -463,8 +466,18 @@
                                      que decirlo antes: con Gs. 10.000 sobre una seña de
                                      210.000 la cita queda igual de sin confirmar, pero
                                      con un aviso que alguien tiene que ir a rechazar. El
-                                     servidor lo vuelve a comprobar. --}}
-                                <x-ayuda>El mínimo es {{ money($c->sena_requerida) }}: con menos, el horario no queda confirmado.</x-ayuda>
+                                     servidor lo vuelve a comprobar.
+
+                                     **Va a la vista y no detrás del ícono de ayuda.**
+                                     Estaba en un `<x-ayuda>`, o sea escondido hasta que
+                                     alguien lo tocara, y se reportó que el formulario no
+                                     dice cuál es el mínimo. Es la regla que este proyecto
+                                     ya tiene escrita: lo que EXPLICA se guarda, lo que
+                                     ADVIERTE se queda a la vista. --}}
+                                <div class="form-text">
+                                    <strong>El mínimo es {{ money($c->sena_requerida) }}</strong>:
+                                    con menos, el horario no queda confirmado.
+                                </div>
                             @endif
 
                             {{-- **El comprobante de la transferencia.** La cita se

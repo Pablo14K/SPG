@@ -59,6 +59,14 @@ TRUNCATE TABLE auditoria;
 UPDATE configuracion SET nombre_salon = 'Peluquería Luque', logo = NULL
  WHERE id_configuracion = 1;
 
+-- --- Y las caras tampoco viajan --------------------------------------
+--  `persona.foto` es la foto de perfil de alguien: un dato personal, no una
+--  pieza del sistema. El archivo ni siquiera está en el repositorio, así que
+--  dejar el nombre acá haría que el salón que instala arranque con filas
+--  apuntando a imágenes que no existen — y el diagnóstico lo cuente como
+--  problema el primer día.
+UPDATE persona SET foto = NULL WHERE foto IS NOT NULL;
+
 -- --- Un solo local ----------------------------------------------------
 --  El segundo lo crea cada salón cuando lo abre. Se sueltan primero las
 --  filas que lo referencian: con las claves desactivadas, borrar la

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Auditoria;
+use App\Servicios\Config;
 use App\Servicios\Sesion;
 use App\Servicios\WebAuthn;
 use Illuminate\Http\JsonResponse;
@@ -81,13 +82,34 @@ class WebauthnController extends Controller
         // registrarse dos veces y quedarían credenciales huérfanas.
         $existentes = DB::select('SELECT credential_id FROM credencial_webauthn WHERE id_usuario = ?', [$uid]);
 
+        // **El nombre del salón, no el del `.env` ni el dominio.**
+        //
+        // `rp.name` es lo que el sistema operativo escribe en el diálogo al
+        // guardar la clave de acceso —«Configurá tu clave de acceso para …»— y
+        // en la lista de claves guardadas. Sale de `Config::nombreSalon()` y no
+        // de `config('app.name')`: es el mismo valor —`AppServiceProvider` lo
+        // pisa al arrancar— pero pedirlo de la fuente deja de depender de que
+        // ese pisado haya ocurrido, y esto se dibuja en una pantalla del
+        // sistema operativo donde un valor equivocado no se puede corregir
+        // después.
+        //
+        // **El dominio que igual aparece NO se puede cambiar.** El `rpId` es el
+        // dominio efectivo por especificación —no admite un texto libre ni una
+        // IP— y varios navegadores lo muestran tal cual en su propia burbuja.
+        // Lo que sí controla el sistema es este nombre y el de la cuenta.
+        $salon = Config::nombreSalon();
+
         return response()->json(['ok' => true, 'publicKey' => [
             'challenge' => WebAuthn::nuevoDesafio(),
-            'rp' => ['name' => config('app.name'), 'id' => WebAuthn::rpId()],
+            'rp' => ['name' => $salon, 'id' => WebAuthn::rpId()],
             'user' => [
                 'id' => WebAuthn::b64urlEncode('u' . $uid),
                 'name' => $u->email ?: $u->username,
-                'displayName' => trim($u->nombre . ' ' . $u->apellido),
+                // **Con el nombre del salón adentro**: el gestor de claves de
+                // acceso lista «displayName» junto al dominio, así que sin él
+                // la persona ve su nombre a secas y tiene que deducir de qué
+                // sistema es esa credencial.
+                'displayName' => trim($u->nombre . ' ' . $u->apellido) . ' · ' . $salon,
             ],
             'pubKeyCredParams' => [
                 ['type' => 'public-key', 'alg' => -7],     // ES256

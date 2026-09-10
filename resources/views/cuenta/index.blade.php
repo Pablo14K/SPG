@@ -18,6 +18,44 @@
         <div class="col-lg-6">
             <div class="spg-panel">
                 <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Tus datos</h2>
+
+                {{-- **La foto de perfil, arriba de sus datos.** Es de la PERSONA
+                     (`persona.foto`), así que es la misma cara la vea quien la
+                     vea; la cambia cada uno para sí mismo, porque no hay ninguna
+                     decisión del salón en juego.
+
+                     **Sin foto van las iniciales, no un monigote genérico**: un
+                     avatar igual para todos no distingue a nadie, que es lo único
+                     que un avatar tiene que hacer. --}}
+                @php $spgFoto = \App\Servicios\Imagen::url($perfil->foto ?? null, 'personas'); @endphp
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="spg-avatar spg-avatar-lg">
+                        @if ($spgFoto)
+                            <img src="{{ $spgFoto }}" alt="Tu foto de perfil">
+                        @else
+                            {{ \App\Servicios\Perfil::inicialesDe($perfil->nombre, (string) $perfil->apellido) }}
+                        @endif
+                    </span>
+                    <div class="flex-grow-1">
+                        <form method="post" action="{{ route('cuenta.foto') }}" enctype="multipart/form-data"
+                              class="d-flex flex-wrap align-items-center gap-2">
+                            @csrf
+                            <input type="file" class="form-control form-control-sm" name="foto"
+                                   accept="image/png,image/jpeg,image/webp" style="max-width:230px" required>
+                            <button class="btn btn-sm btn-oro"><i class="bi bi-upload"></i> Subir</button>
+                        </form>
+                        <div class="form-text mt-1">PNG, JPG o WEBP, hasta 512 KB.</div>
+                        @if ($spgFoto)
+                            <form method="post" action="{{ route('cuenta.foto_quitar') }}" class="mt-1">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-neutro"
+                                        data-confirmar="¿Sacar tu foto y volver a tus iniciales?">
+                                    <i class="bi bi-trash"></i> Quitar la foto</button>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+
                 <table class="table table-sm mb-0">
                     <tbody>
                         <tr><td class="text-muted-warm">Nombre</td>
@@ -76,6 +114,20 @@
         </div>
 
         <div class="col-lg-6">
+            {{-- **Las alergias, para la clienta, van acá también.** Se reportó
+                 que «no aparece un campo de alergias en Mi cuenta»: existía, y
+                 estaba en «Mi ficha». Las dos son pantallas legítimas para
+                 buscarlo, así que se dibuja en las dos — con el MISMO partial y
+                 el mismo POST, porque copiado se desfasa.
+
+                 Va primero de esta columna: es lo único de esta pantalla que
+                 puede lastimar a alguien si nadie lo mira. --}}
+            @if ($alergias !== null)
+                <div class="spg-panel mb-3">
+                    @include('portal._alergias', ['alergias' => $alergias, 'volver' => 'cuenta'])
+                </div>
+            @endif
+
             <div class="spg-panel mb-3">
                 <h2 class="spg-form-titulo mb-1"><i class="bi bi-fingerprint"></i> Ingreso con huella<x-ayuda>Entrar apoyando el dedo, sin escribir la contraseña. La huella no sale de tu equipo: el sistema solo guarda una clave pública para comprobar que sos vos.</x-ayuda></h2>
 

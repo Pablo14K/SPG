@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
-más **81 restricciones `CHECK`**.
+más **82 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -331,6 +331,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | Versión | Fecha | Cambio |
 |---|---|---|
 
+| 7.112.0 | 10/09/2026 | **Seis cosas de pantalla reportadas usando el sistema, y la mitad eran funciones escondidas donde nadie las buscaba.** **La foto de perfil**, que es lo nuevo: entra `persona.foto` y cada uno carga la suya desde Mi cuenta. **Va en `persona` y no en `usuario`**, que es donde la regla número dos manda los datos de alguien — colgada de la cuenta, quien trabaja en el salón **sin cuenta de sistema** (existe desde la 7.68.0) no podría tener foto, y una persona con dos cuentas tendría dos caras para la misma cara. **Se guarda el nombre del archivo, no el archivo**, el criterio del logo y de la imagen del servicio. **Sin foto van las INICIALES y no un monigote genérico**: un avatar igual para todos no distingue a nadie, que es lo único que un avatar tiene que hacer; y se toma la primera letra del nombre y la del apellido —«Ana Propietaria» es AP y no AN— porque dos personas que se llaman igual de nombre se distinguen por el apellido. **Y al quitarla el archivo se borra**, que si no el disco del servidor se llena de caras de gente que pidió que se las sacaran. Va en su propio volumen y con su propio `.gitignore`: **las fotos de los servicios y el logo son del salón, una cara es un dato personal**, así que ni al repositorio ni al ZIP, y `dejar_lista.sql` la vacía antes de generar el `.sql` que se entrega. **Las alergias aparecen también en Mi cuenta.** Existían —desde la 7.110.0, en «Mi ficha»— y se reportó que no están: las dos son pantallas legítimas para buscarlas, y Mi cuenta es donde uno mira lo suyo. Se dibujan en las dos con **un solo partial y un solo POST**, porque copiado se desfasa; el destino viaja en el formulario (`volver`), que si no guardar desde Mi cuenta dejaba a la clienta en una pantalla a la que no iba. **El logo cargado deja de tener el ícono viejo de fondo.** `.spg-logo` y `.logo-big` son **pastillas doradas, y ese oro es el fondo de la tijera** —el ícono por defecto—, no un marco de la marca: al cargar un logo la imagen se dibujaba encima con `object-fit:contain` y un logo apaisado —los que traen el nombre del salón adentro lo son casi siempre— quedaba con **dos bandas doradas a los costados**, o sea el ícono de antes asomando. Medido: de un cuadrado de 34 px con fondo `#C9A84C` a 119 px de ancho **sin fondo**. Y **quitando el logo vuelve solo**, que es lo que se pidió explícitamente, porque la clase depende de que haya imagen. **El contenedor pasa a dibujarlo `layout/_marca`**: escrita en cada vista, la condición habría quedado en cinco lugares — el patrón que este documento persigue. De paso, al lado de un texto el logo conserva su proporción: encerrado en 1,1 em de ancho quedaba reducido a un puntito. **La seña dice cuánto es el mínimo y de dónde sale.** En el modal de «Dejar una seña» el mínimo estaba **detrás del ícono de ayuda**, o sea escondido hasta que alguien lo tocara: es la regla que este documento ya tiene escrita —*lo que EXPLICA se guarda, lo que ADVIERTE se queda a la vista*— aplicada al revés. Y al reservar no había desglose: con un servicio «Gs. 140.000» se explica solo, con dos «Gs. 315.000» es una cifra que la clienta no puede comprobar. Ahora el resumen lo abre servicio por servicio, y **la seña de cada uno viaja como DATO** (`data-sena`, `data-sena-pct`) en vez de raspar el texto del badge: eso andaba de casualidad —cambiar la redacción o un precio con decimales daba otro número **sin que nada avisara**— y sobre todo no alcanzaba, porque el porcentaje no estaba en ningún lado. **El servicio sin seña declara cero y no omite el atributo**, que omitido el JS sumaría `NaN`. Comprobado en las cuatro direcciones en el navegador: dos con seña desglosa, uno solo no —repetiría el número de arriba—, uno con y uno sin sigue sin desglosar, y ninguno esconde el aviso entero. **El alias dice de qué tipo es en su propio rótulo**: «Alias (Cédula)». Iba abajo del número, como una instrucción suelta —«buscalo por cédula»— y en un bloque donde los otros cuatro datos son rótulo + valor ése era el único con un renglón colgando. El nombre se muda a **`App\Servicios\Pagos`**, que es el mismo que usa la pantalla donde el salón lo carga: escritas aparte, las dos listas ya se habían desfasado —una decía «Celular» y la otra «celular»—. **Y la huella se registra a nombre del salón**: `rp.name` sale ahora de `Config::nombreSalon()` y el `displayName` de la credencial lleva el salón al lado del nombre de la persona. **El dominio que igual aparece NO se puede cambiar y conviene tenerlo escrito**: el `rpId` es el dominio efectivo por especificación —no admite texto libre ni una IP— y varios navegadores lo escriben tal cual en su propia burbuja; lo único que el sistema decide son esos dos nombres. **Y no toca las credenciales ya registradas**: el nombre queda guardado en el autenticador el día que se creó la clave, así que quien ya tenía la huella activa la vuelve a activar desde Mi cuenta. **188 pruebas · 1426 aserciones**, seis nuevas y **las seis comprobadas en las dos direcciones** — sacando cada arreglo a propósito, cada una falla · 82 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 | 7.111.1 | 10/09/2026 | **«Mis citas» nombraba a UNA profesional cuando la clienta había elegido varias, y el bloque de a dónde transferir era ilegible.** Los dos reportados usando el sistema en el servidor. **La columna de profesionales**: `vw_agenda_citas.profesional` sale de `cita.id_usuario` —la dueña de la cita— y quién hace cada servicio vive en `cita_servicio.id_usuario`, que esa vista no mira; así que una cita con dos servicios en dos manos distintas salía a nombre de una sola. Es **la misma corrección que el panel recibió en la 7.104.0 y que el portal se había quedado sin aplicar** —media corrección, el patrón que este documento ya tiene anotado— con la misma trampa adentro: **un NULL en `cita_servicio.id_usuario` no es «nadie», es la dueña**, que es como se representa «lo hace quien la tiene» desde siempre, y por eso la subconsulta va con `COALESCE` y no con un `IS NOT NULL`. Medido sobre una cita real: la vista decía «Carmen Fretes» y la atienden **«Ana Propietaria, Carmen Fretes»**. Va en las dos tablas —próximas y anteriores, que una cita pasada también pudo atenderse entre varias— y el encabezado pasa a **«Profesionales»**. **Y la consulta de las próximas es un string PHP entre comillas simples**, así que las del SQL hay que escaparlas: copiada tal cual desde el panel —donde vive en comillas dobles— corta el string y da error de sintaxis. **El bloque de a dónde transferir**: salían los valores sueltos pegados con puntos —«456123 / buscalo por cédula · o por número: 6543356 / Ana Garcia · 456123 · Caja de ahorro / Enviar comprobante»— con tres problemas de una. **Ningún número decía qué era**; el mismo `456123` aparecía **dos veces significando cosas distintas** —el alias, que es una cédula, y el documento de la titular—; y la nota del salón quedaba suelta al pie, donde «Enviar comprobante» se lee como un botón que no hace nada. Ahora cada dato lleva su rótulo en una grilla de dos columnas —que en un teléfono angosto se apila, porque con `minmax` el valor quedaba en 4 rem y un número de cuenta no entra— **el alias va primero** porque es lo único que hace falta para transferir en el SIPAP, con su «buscalo por cédula» pegado abajo y no en otro renglón, **el documento no se repite cuando ES el alias**, y la nota se anuncia como nota. Comprobado en las dos direcciones: con `documento = alias` la fila no se dibuja, con uno distinto sí. **183 pruebas · 1399 aserciones**, una nueva comprobada en las dos direcciones —mide que la columna vieja NO nombre a la segunda, que es lo que estaba mal, y que la nueva las nombre a las dos— · **sólo código: la base no se tocó** |
 | 7.111.0 | 09/09/2026 | **Seis cosas reportadas usando el sistema, y la peor ofrecía horarios que después rechazaba.** **El agendamiento ignoraba a los profesionales pedidos.** La consulta de disponibilidad llevaba **un solo `id_usuario`**, así que el navegador sólo podía mandarlo cuando todos los servicios iban a la misma persona: con dos servicios en dos manos distintas —o con uno pedido y otro en «quien me atienda»— mandaba **cero**, y cero significa «cualquiera». El servidor contestaba con los huecos del **equipo entero**, así que la pantalla ofrecía horas en las que una de las elegidas ni trabaja y el «no» llegaba **al guardar**, con el día y la hora ya decididos — que es el «al agendar con varios servicios retrocede» del reporte, porque el rechazo devuelve la misma pantalla y el asistente arrancaba de nuevo en el paso 1. **Medido**: con Gloria (sólo mañana) y Carmen sobre dos servicios, el día ofrecía **6 huecos incluidos 13:30, 14:00, 14:15 y 14:30**; con el arreglo, **1: las 08:00**, que es la única hora en que las dos pueden. La corrección entra **por donde el problema general ya estaba resuelto**: `slots()` exige desde antes que **cada servicio tenga ahí quién lo haga**, así que alcanzó con dejar en la lista de ese servicio a la persona pedida (`Agenda::acotarPedidos()`) y la intersección de turnos, el reparto y el «no entra en el turno» salen solos de la maquinaria que ya existía — sin tocar el motor. **Y a la persona pedida se la respeta aunque no figure entre quienes hacen ese servicio**: el calendario queda vacío y el guardado explica el motivo, que es accionable; descartar el pedido en silencio sería volver a ofrecer horarios de otra gente. **Nueva cita ofrecía a cualquiera para cualquier servicio**, que es la otra mitad del mismo defecto: el portal filtra por `persona_servicio` desde la 7.90.0 y esta pantalla se había quedado afuera —media corrección aplicada, el patrón que este documento ya tiene anotado—, así que se podía repartir una coloración a quien sólo hace uñas y enterarse **después** de elegir día y hora («Gloria Garay no hace Coloración completa»). El mapa se muda a `Agenda::mapaHaceServicio()` y lo comparten las dos pantallas: escrito dos veces, una se queda atrás. **El combo de «¿con quién?» se preguntaba dos veces**: aparecía dentro de la tarjeta al marcar el servicio y una pantalla después el asistente lo volvía a preguntar. Se esconde **sólo mientras el asistente esté andando y sólo mientras siga dentro de la tarjeta** —al moverlo al paso, la regla ya no lo alcanza— así que sin JavaScript se ven todos y se elige profesional igual. **La tarjeta elegida deja de crecer**: la 7.107.0 le daba el renglón entero en el celular porque adentro vivía ese combo, y con eso **la grilla se reacomodaba sola al marcar** —las de abajo saltaban de lugar— y elegir el segundo servicio era apuntarle a un blanco que se acababa de mover. Sin combo adentro, la regla perdió su motivo. De paso el `transform` del hover pasa a `hover:hover`: en táctil el navegador lo emula con el primer toque y no lo suelta, así que la tarjeta quedaba levantada 2 px. **Y el catálogo deja de scrollear adentro suyo**, que es el reporte textual: una caja que scrollea dentro de una página que también scrollea **le roba el gesto al dedo**, y para llegar al botón había que buscar el borde libre de los costados. El `overscroll-behavior:contain` empeoraba justo eso. El alto ya no hace falta acotarlo: el asistente muestra un paso por vez desde la 7.110.0. **El asistente deja de «retroceder» sin decir por qué**: tras un rechazo abre en el **último paso** —con todo cargado de vuelta por `old()`— y **no se scrollea a sí mismo en la primera pintada**, que era lo que dejaba el aviso del rechazo fuera de pantalla. **Las excepciones de agenda se pueden editar**, y sólo mientras no hayan empezado: una que ya arrancó dejó de ser un plan —la agenda no ofreció esos horarios, puede haber clientas avisadas y citas movidas— y cambiarle el rango hacia atrás no deshace nada de eso; para eso está la baja. Es **un solo método para el alta y la edición** y **un solo partial de campos**, porque dos formularios iguales se desfasan; el botón no se dibuja cuando ya empezó y **el servidor lo vuelve a comprobar**, comprobado armando el POST a mano. **«Con quién» pasa a «Colabora con»**: al lado del nombre de la clienta se leía como «con quién viene» —que es la columna de al lado— cuando muestra la otra punta, quién más trabaja en esa cita; va también al detalle, donde el nombre entra completo. **El campo de alergias existía y no se encontraba**: `portal.ficha` no tenía `barra`, así que sólo salía en el pie y en el desplegable de la cuenta, y se reportó como «no existe en ninguna parte para cargar alergias». Una función que no se encuentra es indistinguible de una que no está. **Y el historial de la clienta gana su perfil**: la tabla contesta «qué pasó tal día» y con cien filas paginadas de a veinticinco saber que siempre pide lo mismo, que viene los sábados a la mañana o que se atiende con la misma persona obligaba a leerlas todas llevando la cuenta a mano. Entran visitas, servicios, facturado, cada cuántos días viene, lo que más pide, qué días, a qué hora y con quién — **por CITA y no por servicio**, que una cita con cuatro servicios es **una** visita y contando renglones ese día pesaría cuatro veces más. **No respeta los filtros de la tabla, a propósito**: filtrado por un mes cualquiera diría que su favorito es el único que se hizo ese mes. Las barras son un `width` en por ciento sobre la familia `.spg-graf-*` que Reportes ya tenía: no entra ninguna librería. **182 pruebas · 1389 aserciones**, una nueva comprobada en las dos direcciones —sacando `acotarPedidos()` a propósito, falla— · **sólo código: la base no se tocó** |
 | 7.110.0 | 08/09/2026 | **Diez cosas reportadas usando el sistema, y la que más pesaba dejaba a media agenda ocupada de gusto.** **Cada profesional cierra SU parte de la cita.** Una cita de 120 minutos dejaba ocupadas 120 minutos a las dos: la clienta pide mechas con Lucía y manicura con Rocío, Rocío termina lo suyo en diez minutos y seguía apareciendo ocupada las dos horas —«atendida» era un estado de la CITA y no había forma de decir que una parte terminó—. Entra `cita_servicio.terminado_en`, y **es un hecho nuevo, no una copia**: `servicio_realizado.fecha_hora` es cuándo se REGISTRÓ una atención, que es otra entidad y otro momento. **Con una sola función se cubren las dos puntas**: `fn_cita_duracion_de` la usan el motor (`fn_verificar_disponibilidad`) y su espejo de PHP —que la llama en SQL y no la reimplementa— así que un `AND cs.terminado_en IS NULL` libera la agenda en los dos **sin desincronizarlos**. Los admin y el asistente cierran **la parte de cada una por separado**, con su propio consumo de inventario, y **la cita se factura recién al terminar entera** (decisión del usuario). **Y probándolo apareció un defecto de verdad, no leyéndolo**: sin acotar el alcance, un administrador que cerraba la parte de una **borraba los servicios pendientes de las otras** — lo destapó la prueba, porque `ExigeSesion` relee el rol de la base y el «profesional» que usaba resultó ser admin. Un nivel más abajo estaba el bug reportado tal cual: **`citaAjena()` miraba sólo `cita.id_usuario`**, así que una profesional asignada a un servicio de la cita de otra **ni siquiera podía abrirla** — 403 sobre una cita que era suya. **La agenda del profesional cambia de forma**: gana «Con quién» —los OTROS de esa cita, o «sola»— y **«qué servicios se pidieron con ella»**, que era lo que faltaba para saber a qué se está entrando. **Cobrar y facturar pasan a ser del Administrador y del Asistente administrativo**, por decisión del usuario, e **invierte a propósito** lo que este documento sostenía: el argumento de antes —que sacárselo lo deja sin trabajar en el mostrador— sigue siendo cierto y **ése es el punto**, el mostrador pasa a ser de quien administra. Se le quitan las dos claves del `.sql` que se entrega y **el salón puede volver a dárselas desde Roles**. **El control de la cuenta bancaria**, que era el punto 1: el efectivo tiene su candado desde la 5.5.0 y el banco **ninguno** —el propio código lo decía al lado del `if`, «los pagos por banco no se frenan: no salen del cajón, salen de la cuenta», y de la cuenta no se sabía nada—, así que se podía liquidar el mes entero contra una cuenta vacía y enterarse cuando el banco rechazara la transferencia. Entran `dato_pago_sucursal.saldo_declarado` —**un hecho observado, como `caja.monto_contado`**: el sistema conoce lo que SALE de la cuenta pero **no lo que entra**, porque una transferencia de una clienta llega al banco sin pasar por acá— y `fn_cuenta_saldo`, que **no se guarda porque es derivada**. **Es un PISO y por eso AVISA en vez de bloquear**: sólo puede quedar por debajo del real, y rechazar con un número que sabemos incompleto frenaría un pago legítimo — al revés que el cajón, que es exacto. **Y NULL no es cero**: una cuenta que nadie declaró vale «no se sabe», así que el sistema se calla en vez de avisar siempre. **El agendamiento se rehace como asistente**, con la maqueta que dio el usuario y en **las dos pantallas**: pedían cinco cosas en una sola página y el botón vivía al final, o sea que la única forma de saber si faltaba algo era llegar abajo y encontrarlo deshabilitado **sin decir por qué**. Ahora es un paso por vez —Servicios · Profesionales · Fecha y hora · Detalles · Confirmar, con Cliente adelante en Nueva cita— y **el último muestra la cita armada**: qué, con quién, qué día y cuánto sale. **Sin `app.js` se ven todos los pasos y se reserva igual**, y **`required` se saca del paso escondido**, que es el defecto de la 7.67.0 y acá pegaría más fuerte porque el envío ocurre con todo lo demás oculto. **El paso de profesionales MUEVE los combos, no los copia**: dos con el mismo `name` mandarían dos valores para el mismo servicio. **Las alergias las carga también la clienta**, desde «Mi ficha» del portal — el salón anota lo que ella cuenta, y eso dependía de que alguien se acordara de preguntar. **«Visitas y puntos» vuelve a Clientes**: la 7.107.0 la había mudado a Promociones y eso mezcló dos jerarquías —esa pantalla lista **personas**, y buscar a una clienta dentro de Servicios no se le ocurre a nadie—; **lo que se queda en Promociones son los parámetros**, que es la distinción que las ordena. **Las fidelizaciones y las excepciones se pueden dar de baja**: las dos tablas ya tenían su `activo` y **no lo tocaba ninguna pantalla**, así que un nivel mal cargado o una licencia que no va quedaban para siempre. **En Clientes, «ver ficha» reemplaza a «nueva cita»**: desde una lista de clientas lo que se hace es mirar a una, y agendar ya se hace desde la agenda. **El detalle de la agenda mostraba el precio y el servicio y NO los productos usados** —reportado tal cual—: la pantalla dibujaba el panel de consumo sólo en modo edición, así que con la cita ya atendida el bloque desaparecía entero. **Y la tabla de «lo que falta cargar» entra a las actualizaciones en vivo**, que es donde fallaba en silencio. **181 pruebas · 1361 aserciones**, tres nuevas comprobadas en las dos direcciones · 22 procedimientos · 43 funciones · 81 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
@@ -585,6 +586,8 @@ app/
     Ayuda.php              El diccionario de `config/ayudas.php`: de()
     CitasVencidas.php      Cierra la Atrasada de más de un día y la que no se presentó
     Sena.php               Cuánta seña pide el salón y su desglose por servicio
+    Pagos.php              Los tipos de alias del SIPAP, que miran el salón y la clienta
+    Perfil.php             La foto de perfil de quien está en sesión, o sus iniciales
   Http/Controllers/        Uno por módulo, más Auth, Cuenta, Panel, Portal, CitaToken,
                            Sucursal (elegir local), Vivo (la huella de actualización)
                            y Webauthn.
@@ -630,7 +633,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 181 pruebas
+tests/Feature/             Las 188 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -887,6 +890,15 @@ un volumen de Docker.
 |---|---|---|
 | Fotos de los servicios | volumen `imagenes_servicios` | `servicio.imagen`, el nombre |
 | Logo del salón | volumen `imagenes_logo` | `configuracion.logo`, el nombre |
+| **Fotos de perfil** | volumen `imagenes_personas` | `persona.foto`, el nombre |
+
+> **Las de perfil pesan distinto y por eso llevan su propio `.gitignore`.** El
+> logo y las fotos de los servicios son del salón; una foto de perfil es **la
+> cara de una persona**, o sea un dato personal. No va al repositorio ni por
+> accidente, y `dejar_lista.sql` la vacía antes de generar el `.sql` que se
+> entrega — si no, el salón que instala arrancaría con filas apuntando a
+> imágenes que no existen y el diagnóstico se lo contaría como problema el
+> primer día.
 
 ### Qué las conserva y qué las borra
 
@@ -1040,6 +1052,65 @@ muestra en cinco pantallas, y sale de **`layout/_marca`**:
 > (llave), el código (escudo), verificar (sobre) y la huella (dedo) usan el
 > **ícono de la tarea**, que es lo correcto — dicen qué se está haciendo, no de
 > quién es el sistema.
+
+### La foto de perfil, y la marca cuando el salón carga la suya
+
+Dos cosas distintas que se dibujan en el mismo renglón de la barra y conviene
+no confundir: **el logo es del salón** y **la foto es de la persona**.
+
+| | Logo | Foto de perfil |
+|---|---|---|
+| De quién | del salón | de **la persona** (`persona.foto`) |
+| Quién lo carga | el Administrador, en Seguridad → Sucursales | **cada uno el suyo**, en Mi cuenta |
+| Sin cargar | la tijera de la identidad | **las iniciales** |
+| Dónde vive | volumen `imagenes_logo` | volumen `imagenes_personas` |
+
+**La foto va en `persona` y no en `usuario`**, que es donde la regla número dos
+manda los datos de alguien. Colgada de la cuenta habría dos problemas: quien
+trabaja en el salón **sin cuenta de sistema** —existe desde la 7.68.0— no
+podría tener foto, y una persona con dos cuentas tendría dos caras para la
+misma cara.
+
+**Se cambia sin permiso de por medio**, y por eso vive en Mi cuenta y no en la
+ficha que administra Seguridad: no hay ninguna decisión del salón en juego.
+
+> **Sin foto van las INICIALES, no un monigote genérico.** Un avatar igual para
+> todos no distingue a nadie, que es lo único que un avatar tiene que hacer.
+> `Perfil::inicialesDe()` toma la primera letra del nombre y la del apellido
+> —«Ana Propietaria» es AP y no AN—: dos personas que se llaman igual de nombre
+> se distinguen por el apellido, que es de lo que se trata.
+
+> **Y el archivo se borra al quitarla.** Si no, el disco del servidor se llena
+> de caras de gente que pidió que se las sacaran. Lo fija
+> `ReglasDeNegocioTest::la_foto_de_perfil_se_carga_y_se_saca`, que recorre el
+> ciclo entero.
+
+#### Con logo cargado, el fondo del ícono por defecto se VA
+
+`.spg-logo` y `.logo-big` son **pastillas doradas**, y ese oro es el fondo de la
+tijera —el ícono por defecto—, no un marco de la marca. Al cargar un logo, la
+imagen se dibujaba encima con `object-fit:contain`: un logo apaisado —los que
+traen el nombre del salón adentro lo son casi siempre— quedaba con **dos bandas
+doradas a los costados**, o sea el ícono de antes asomando de fondo. Se reportó
+exactamente así.
+
+| | Sin logo | Con logo |
+|---|---|---|
+| Clase | `spg-logo` | `spg-logo tiene-img` |
+| Fondo | `var(--oro)` | ninguno |
+| Forma | cuadrado de 34 px, radio 9 | alto 34, **ancho libre** hasta 190 px |
+| Qué dibuja | `<i class="bi bi-scissors">` | `<img>` |
+
+- **La clase la decide `layout/_marca`, que ahora dibuja el contenedor entero.**
+  Antes lo ponía cada vista y la condición habría quedado escrita en cinco
+  lugares — el patrón que este documento persigue.
+- **Quitando el logo vuelve todo solo**, porque la clase depende de que haya
+  imagen. Es lo que se pidió explícitamente, y lo comprueba
+  `ReglasDeNegocioTest::el_logo_cargado_reemplaza_al_icono_por_defecto` en las
+  dos direcciones.
+- **Y el logo deja de ser cuadrado.** Aplastado en 34 px, un logo ancho no se
+  lee: se le fija el alto y el ancho sale solo, con un tope para que no empuje
+  la barra.
 
 ### Centro de Ayuda y Soporte
 
@@ -1834,6 +1905,41 @@ que corresponde a esa cita.
   transferencia; en el mostrador, el profesional la registra a mano cuando la
   clienta la deja en el local. En los dos casos queda atada a la cita.
 
+#### Cuánta seña se pide se ve TRES veces, y en las tres con su desglose
+
+| Pantalla | Cuándo | Qué muestra |
+|---|---|---|
+| Portal → Reservar, paso «Confirmar» | **antes** de reservar | el total, que es un mínimo, y qué servicio aporta cuánto |
+| Portal → Mis citas, «Dejar una seña» | al ir a pagarla | ídem, más lo ya registrado |
+| Agenda → el modal de cobro | al confirmarla en el mostrador | ídem, del lado del salón |
+
+**Las dos últimas comparten `facturacion/_sena_desglose`**, así que el salón y
+la clienta no pueden estar mirando cuentas distintas. La primera lo arma el
+navegador con los `data-` que cada tarjeta ya trae — no le pregunta nada al
+servidor, así que no puede quedar desfasado de lo que está marcado en pantalla.
+
+Tres cosas que conviene no perder:
+
+- **La seña de cada servicio viaja como DATO** (`data-sena`, `data-sena-pct` en
+  el checkbox), no raspando el texto del badge. Salía de sacarle los no-dígitos
+  a «seña Gs. 140.000», y eso andaba de casualidad: cambiar la redacción, o un
+  precio con decimales, daba otro número **sin que nada avisara**. Y sobre todo
+  no alcanzaba para decir de dónde sale el total, porque el porcentaje no
+  estaba en ningún lado.
+- **El servicio sin seña declara CERO, no omite el atributo.** Omitido, el JS
+  leería `null` y sumaría `NaN`.
+- **El desglose sólo se dibuja con más de un servicio con seña.** Con uno solo
+  repetiría el número del renglón de arriba: un desglose de una línea no
+  desglosa nada. Con dos, «Gs. 315.000» es una cifra que la clienta no puede
+  comprobar — se reportó así.
+
+> **Y que es un MÍNIMO se dice a la vista, no detrás del ícono de ayuda.** El
+> modal de «Dejar una seña» lo tenía en un `<x-ayuda>`, o sea escondido hasta
+> que alguien lo tocara, y se reportó que el formulario no dice cuál es el
+> mínimo. Es la regla que este documento ya tiene escrita: **lo que EXPLICA se
+> guarda, lo que ADVIERTE se queda a la vista.** Dejando menos, la cita queda
+> igual de sin confirmar y con un aviso que alguien tiene que ir a rechazar.
+
 ### A dónde transferir: los datos de pago de cada sucursal
 
 **No hay pasarela de pagos y no la va a haber.** La clienta transfiere por su
@@ -1860,9 +1966,16 @@ Cuatro decisiones que conviene no revertir:
   único dato necesario para transferir —reemplaza al número de cuenta, a la
   entidad y al nombre del destinatario— y no es texto libre: es **cédula, RUC,
   celular o correo**. Guardar el tipo permite validarlo y, sobre todo, decirle
-  a la clienta **por dónde buscarlo** en su app: el portal muestra «buscalo por
-  celular» en vez de un número sin contexto. Es opcional — no todos los bancos
-  lo usan.
+  a la clienta **por dónde buscarlo** en su app. Es opcional — no todos los
+  bancos lo usan.
+- **Y el tipo va en el RÓTULO: «Alias (Cédula)».** Estaba abajo del número,
+  como una instrucción suelta —«buscalo por cédula»— y se reportó que confunde:
+  en un bloque donde los otros cuatro datos son rótulo + valor, ése era el
+  único con un renglón extra colgando. En el rótulo se lee como lo que es —qué
+  clase de alias es ese número— y sigue diciendo por dónde buscarlo.
+  **El nombre sale de `App\Servicios\Pagos`**, que es el mismo que usa la
+  pantalla donde el salón lo carga: escritas aparte, las dos listas ya se
+  habían desfasado una vez.
 - **Los medios salen de `metodo_pago`**, no de una lista escrita en la pantalla,
   así que ésta y la del cobro hablan del mismo vocabulario. El efectivo y las
   tarjetas quedan afuera: no hay ninguna cuenta que darle a nadie.
@@ -2024,7 +2137,18 @@ en el historial y **en la fila de la agenda**, y se carga desde **los dos lados*
 | Quién | Dónde |
 |---|---|
 | El salón | Clientes → la ficha, y el botón **«ver ficha»** de cada fila |
-| **La clienta** | Portal → **Mi ficha** (`portal.ficha`) |
+| **La clienta** | Portal → **Mi ficha**, y también **Mi cuenta** |
+
+> **En las dos pantallas del portal, y con el MISMO bloque.** Se reportó que
+> «no aparece un campo de alergias en Mi cuenta»: existía, y estaba sólo en Mi
+> ficha. Las dos son lugares legítimos para buscarlo —Mi cuenta es donde uno
+> mira lo suyo— así que se dibuja en las dos, con un solo partial
+> (`portal/_alergias`) y un solo POST. Copiado, una pantalla pediría 300
+> caracteres y la otra otra cosa.
+>
+> **El destino viaja en el formulario** (`volver`): guardando desde Mi cuenta
+> se vuelve a Mi cuenta. Sin eso, la clienta terminaba en una pantalla a la que
+> no iba.
 
 > **Que la cargue la clienta no es un extra: es quien lo sabe.** El salón anota
 > lo que ella le cuenta, y eso depende de que alguien se acuerde de preguntar.
@@ -4427,6 +4551,32 @@ Tres cosas del `.env` de producción que se olvidan y se pagan:
   > con el subdominio y HTTPS, funciona. `SPGBio.estado()` lo explica en pantalla en vez de
   > echarle la culpa al equipo.
 
+  > **El dominio que aparece en el diálogo del sistema operativo NO se puede
+  > cambiar, y conviene saberlo antes de intentarlo.** Se reportó que la
+  > autorización por huella dice `spg.columbiatcc.online` en vez del nombre del
+  > salón: eso es el **`rpId`**, que por especificación es el dominio efectivo
+  > —no admite texto libre ni una IP— y varios navegadores lo escriben tal cual
+  > en su propia burbuja.
+  >
+  > Lo que el sistema sí decide son los dos nombres que van al lado, y los dos
+  > salen de la base:
+  >
+  > | Campo | Qué es | De dónde sale |
+  > |---|---|---|
+  > | `rp.name` | «Configurá tu clave de acceso para …» del diálogo de Windows Hello | `Config::nombreSalon()` |
+  > | `user.displayName` | cómo se lista la credencial guardada | el nombre de la persona **· el salón** |
+  >
+  > **Sale de `Config::nombreSalon()` y no de `config('app.name')`**: es el mismo
+  > valor —`AppServiceProvider` lo pisa al arrancar— pero pedirlo de la fuente
+  > deja de depender de que ese pisado haya ocurrido, y esto se dibuja en una
+  > pantalla del sistema operativo donde un valor equivocado no se corrige
+  > después.
+  >
+  > **Y no cambia las credenciales ya registradas**: el nombre queda guardado en
+  > el autenticador el día que se creó la clave. Quien ya tenía la huella activa
+  > la vuelve a activar desde Mi cuenta —que reemplaza la suya— para que el
+  > nombre nuevo aparezca.
+
 **Y el correo saliente sigue siendo lo que hay que confirmar con el proveedor**: por el puerto
 587 salen el código de verificación, la recuperación de contraseña, el segundo factor y los
 recordatorios. Si Hostinger lo bloquea, **una clienta nueva no puede terminar de registrarse**.
@@ -4666,7 +4816,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
-   17 triggers, 17 vistas y 81 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 82 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -4797,7 +4947,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**181 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**188 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

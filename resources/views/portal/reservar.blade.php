@@ -359,6 +359,22 @@
                     <i class="bi bi-cash-coin"></i>
                     Para confirmarla hace falta una seña de
                     <strong data-resumen="sena">Gs. 0</strong>.
+                    {{-- **Que es un MÍNIMO hay que decirlo acá.** Dejando menos, el
+                         horario no queda confirmado y la clienta se entera recién
+                         cuando el salón le rechaza el aviso — o peor, el día de la
+                         cita. Es la misma frase que el modal de «Dejar una seña». --}}
+                    Es el mínimo: con menos, el horario no queda confirmado.
+
+                    {{-- **Y de dónde sale ese número, servicio por servicio.**
+
+                         Con un solo servicio con seña el total se explica solo; con
+                         dos, «Gs. 315.000» es una cifra que la clienta no puede
+                         comprobar — se reportó así. Es el mismo desglose que ve
+                         quien confirma el pago en el mostrador, sólo que acá lo
+                         arma el navegador con los `data-` que ya trae cada tarjeta:
+                         así no puede quedar desfasado de lo que está marcado. --}}
+                    <ul class="spg-sena-detalle" data-resumen="sena-detalle"></ul>
+
                     Después de reservar te mostramos dónde registrar el comprobante.
                 </div>
             </div>

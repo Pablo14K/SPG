@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Bd;
+use App\Servicios\Pagos;
 use App\Servicios\Persona;
 use App\Servicios\Sucursales;
 use Illuminate\Database\QueryException;
@@ -164,40 +165,14 @@ class ConfiguracionController extends Controller
      */
     private const CUENTA_TIPOS = ['Caja de ahorro', 'Cuenta corriente', 'Billetera', 'Cuenta única'];
 
-    private const ALIAS_TIPOS = [
-        'CI' => 'Cédula',
-        'RUC' => 'RUC',
-        'CELULAR' => 'Celular',
-        'EMAIL' => 'Correo',
-    ];
-
     /**
-     * Cómo se ve cada tipo de alias, para que la pantalla lo muestre de ejemplo.
+     * Los tipos de alias viven en `App\Servicios\Pagos`, no acá.
      *
-     * Un placeholder que cambia con el tipo es lo que evita el error de tipeo
-     * antes de que ocurra: quien ve «80012345-6» no escribe el RUC sin guion.
+     * **Los miran los dos lados**: esta pantalla, donde el salón carga la
+     * cuenta, y el portal, donde la clienta la lee para transferir. Escritos
+     * dos veces se desfasan — y de hecho lo estaban: acá decía «Celular» y el
+     * portal armaba su propia lista con «celular», que es la que la clienta ve.
      */
-    private const ALIAS_EJEMPLOS = [
-        'CI' => '4200000',
-        'RUC' => '80012345-6',
-        'CELULAR' => '0981123456',
-        'EMAIL' => 'salon@correo.com',
-    ];
-
-    /**
-     * Qué caracteres deja escribir cada tipo (`data-solo` de `app.js`).
-     *
-     * **La pantalla no puede ser más estricta que el servidor**, así que cada
-     * juego copia la regla de `Persona::error()`. El correo queda libre: no
-     * hay juego de caracteres que lo describa sin dejar afuera uno válido.
-     */
-    private const ALIAS_FILTROS = [
-        'CI' => 'numeros',
-        'RUC' => 'ruc',
-        'CELULAR' => 'telefono',
-        'EMAIL' => '',
-    ];
-
     /**
      * Los medios que aceptan datos: cuentas bancarias y billeteras.
      *
@@ -230,9 +205,9 @@ class ConfiguracionController extends Controller
             'sucursales' => $mias,
             'sucursal' => $suc,
             'medios' => $this->mediosConDatos(),
-            'tiposAlias' => self::ALIAS_TIPOS,
-            'ejemplosAlias' => self::ALIAS_EJEMPLOS,
-            'filtroAlias' => self::ALIAS_FILTROS,
+            'tiposAlias' => Pagos::ALIAS_TIPOS,
+            'ejemplosAlias' => Pagos::ALIAS_EJEMPLOS,
+            'filtroAlias' => Pagos::ALIAS_FILTROS,
             'tiposCuenta' => self::CUENTA_TIPOS,
             'datos' => $suc ? DB::select(
                 // `fn_cuenta_saldo` devuelve NULL cuando nadie lo declaró: un
@@ -303,7 +278,7 @@ class ConfiguracionController extends Controller
             // **El alias y su tipo van juntos o no van.** Un alias sin tipo no
             // se le puede explicar a la clienta —«buscá por qué cosa»— y un
             // tipo sin alias no es nada.
-            $alias !== '' && ! isset(self::ALIAS_TIPOS[$aliasTipo])
+            $alias !== '' && ! isset(Pagos::ALIAS_TIPOS[$aliasTipo])
                 => 'Elegí de qué tipo es el alias: cédula, RUC, celular o correo.',
             $aliasTipo !== '' && $alias === ''
                 => 'Escribí el alias, o dejá el tipo en «sin alias».',
