@@ -13,64 +13,7 @@
                 <form method="post" action="{{ route('citas.ausencia.guardar') }}">
                     @csrf
 
-                    <div class="mb-3">
-                        <label class="form-label" for="id_usuario">¿A quién afecta?</label>
-                        <select class="form-select" id="id_usuario" name="id_usuario">
-                            <option value="0">Todo el salón (feriado)</option>
-                            @foreach ($profs as $p)
-                                <option value="{{ $p->id_usuario }}"
-                                    @selected((int) old('id_usuario') === (int) $p->id_usuario)>{{ $p->nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    {{-- **En qué local.** Antes no se preguntaba y toda ausencia
-                         valía en todas las sucursales: cargar una acá dejaba a esa
-                         persona sin agenda en las otras. Sólo se dibuja con más de
-                         un local — preguntar algo de una única respuesta hace
-                         perder un clic. --}}
-                    @if (count($sucursales) > 1)
-                        <div class="mb-3">
-                            <label class="form-label" for="id_sucursal">¿En qué sucursal?</label>
-                            <select class="form-select" id="id_sucursal" name="id_sucursal">
-                                <option value="0">En todas</option>
-                                @foreach ($sucursales as $s)
-                                    <option value="{{ $s->id_sucursal }}"
-                                        @selected((int) old('id_sucursal') === (int) $s->id_sucursal)>{{ $s->nombre }}</option>
-                                @endforeach
-                            </select>
-                            <x-ayuda>Un feriado del salón va en todas. La licencia de una persona que trabaja en varios locales, también — si no, sigue apareciendo disponible en los otros.</x-ayuda>
-                        </div>
-                    @endif
-
-                    <div class="mb-3">
-                        <label class="form-label" for="id_tipo_ausencia">Tipo *</label><x-ayuda campo="id_tipo_ausencia" />
-                        <select class="form-select" id="id_tipo_ausencia" name="id_tipo_ausencia" required>
-                            @foreach ($tipos as $t)
-                                <option value="{{ $t->id_tipo_ausencia }}"
-                                    @selected((int) old('id_tipo_ausencia') === (int) $t->id_tipo_ausencia)>{{ $t->nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label" for="fecha_inicio">Desde *</label><x-ayuda campo="fecha_inicio" />
-                            <input type="datetime-local" class="form-control" id="fecha_inicio"
-                                   name="fecha_inicio" required value="{{ old('fecha_inicio') }}">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label" for="fecha_fin">Hasta *</label><x-ayuda campo="fecha_fin" />
-                            <input type="datetime-local" class="form-control" id="fecha_fin"
-                                   name="fecha_fin" required value="{{ old('fecha_fin') }}">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label" for="motivo">Motivo</label><x-ayuda campo="motivo" />
-                        <input class="form-control" id="motivo" name="motivo" maxlength="150"
-                               value="{{ old('motivo') }}" placeholder="Ej. Licencia médica">
-                    </div>
+                    @include('citas._ausencia_campos')
 
                     <button class="btn btn-oro w-100"
                             data-confirmar="Mientras esté cargada, la agenda no va a ofrecer esos horarios. ¿Registrar la excepción?">
@@ -108,6 +51,25 @@
                                         @endif
                                     </td>
                                     <td class="text-end" style="white-space:nowrap">
+                                        {{-- **Editar sólo mientras no haya empezado.**
+                                             Una excepción que ya arrancó dejó de ser un
+                                             plan: la agenda no ofreció esos horarios,
+                                             puede haber clientas avisadas y citas movidas
+                                             por ella. Cambiarle el rango hacia atrás no
+                                             deshace nada de eso y sí deja la fila
+                                             diciendo algo que no fue lo que pasó — para
+                                             eso está la baja, que corta de acá en
+                                             adelante y lo dice.
+
+                                             El botón no se dibuja cuando ya empezó, y el
+                                             servidor lo vuelve a comprobar: esconderlo
+                                             no es el control. --}}
+                                        @if ($a->activo && $a->editable)
+                                            <button class="btn btn-sm btn-outline-neutro" type="button"
+                                                    title="Editar" data-bs-toggle="modal"
+                                                    data-bs-target="#edAus{{ $a->id_ausencia }}">
+                                                <i class="bi bi-pencil"></i></button>
+                                        @endif
                                         <form method="post" action="{{ route('citas.ausencia.baja') }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="id_ausencia" value="{{ $a->id_ausencia }}">
@@ -137,4 +99,41 @@
             </div>
         </div>
     </div>
+
+    {{-- **Los modales van fuera de la tabla.** Uno dibujado dentro de un `<tr>`
+         hereda cualquier `display:none` del ancestro y después no se puede
+         mostrar ni con Bootstrap haciendo su trabajo: es el defecto que el
+         detalle de la agenda pagó en la 7.87.4. --}}
+    @foreach ($rows as $a)
+        @if ($a->activo && $a->editable)
+            <div class="modal fade" id="edAus{{ $a->id_ausencia }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post" action="{{ route('citas.ausencia.guardar') }}">
+                            @csrf
+                            <input type="hidden" name="id_ausencia" value="{{ $a->id_ausencia }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title" style="font-size:1rem">
+                                    <i class="bi bi-pencil"></i> Editar la excepción</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-warm" style="font-size:.85rem">
+                                    Todavía no empezó, así que se puede corregir entera.
+                                    Empieza el <strong>{{ fecha($a->fecha_inicio) }}</strong>.
+                                </p>
+                                @include('citas._ausencia_campos', ['a' => $a, 'pfx' => 'ed' . $a->id_ausencia . '_'])
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-oro"
+                                        data-confirmar="¿Guardar los cambios? Si el rango cambia, se le vuelve a avisar a las clientas que queden dentro.">
+                                    <i class="bi bi-check-lg"></i> Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endforeach
 @endsection

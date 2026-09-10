@@ -90,7 +90,15 @@ class PortalController extends Controller
         // peor caso —la suma— y cerraba el calendario diciendo que no entraba
         // en el turno.
         $personas = max(1, min(20, (int) $request->query('personas', 1)));
-        $duracion = Agenda::duracionPrevista($servicios, $personas, null, $idUsuario);
+        // **Y con quién quiere atenderse CADA servicio.**
+        //
+        // Sin esto el calendario ofrecía horarios fuera del turno de las
+        // personas que la clienta acababa de elegir: la consulta llevaba un
+        // solo `id_usuario`, así que con dos servicios en dos manos distintas
+        // el navegador mandaba cero —«cualquiera»— y el servidor contestaba con
+        // los huecos del equipo entero. Ver `Agenda::acotarPedidos()`.
+        $pedidos = Agenda::pedidosDe((array) $request->query('prof', []));
+        $duracion = Agenda::duracionPrevista($servicios, $personas, null, $idUsuario, $pedidos);
 
         if ($duracion <= 0) {
             return response()->json(['ok' => false, 'motivo' => 'Elegí primero el o los servicios.']);
@@ -112,7 +120,7 @@ class PortalController extends Controller
 
         // Con el local ya validado se rehace la cuenta: quién hace cada
         // servicio es de ESA sucursal, así que el reparto puede ser otro.
-        $duracion = Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario) ?: $duracion;
+        $duracion = Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario, $pedidos) ?: $duracion;
 
         // **El turno elegido acota lo que se ofrece.** Con un turno puesto
         // —a mano con los botones, o deducido del profesional que la clienta
@@ -125,7 +133,7 @@ class PortalController extends Controller
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             return response()->json(['ok' => true, 'duracion' => $duracion,
                 'horas' => Agenda::soloDelTurno(
-                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios, $personas), $turno, $duracion)]);
+                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios, $personas, $pedidos), $turno, $duracion)]);
         }
 
         return response()->json(['ok' => true, 'duracion' => $duracion,
@@ -136,14 +144,14 @@ class PortalController extends Controller
             'dias' => array_values(array_diff(
                 Agenda::diasDelTurno(
                     Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas),
+                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, $pedidos),
                     $turno),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
             // Si el calendario sale vacío porque lo elegido no entra en ningún
             // turno, hay que decirlo: «probá con otro profesional» manda a
             // recorrer uno por uno algo que ninguno puede dar.
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas)]);
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas, $pedidos)]);
     }
 
     public function reservar(Request $request): View
@@ -184,17 +192,7 @@ class PortalController extends Controller
             // Vale el criterio permisivo de siempre: quien no tiene ninguno
             // cargado los hace todos, así que un salón que no administre esto
             // sigue viendo a todo el equipo en todos los servicios.
-            'haceServicio' => $elegida ? (function () {
-                $out = [];
-                foreach (DB::select(
-                    'SELECT ps.id_servicio, u.id_usuario FROM persona_servicio ps
-                       JOIN usuario u ON u.id_persona = ps.id_persona AND u.activo = 1'
-                ) as $r) {
-                    $out[(int) $r->id_servicio][] = (int) $r->id_usuario;
-                }
-
-                return $out;
-            })() : [],
+            'haceServicio' => $elegida ? Agenda::mapaHaceServicio() : [],
             // Sólo los servicios que ESE local publica. El catálogo es único
             // —«Corte de dama» es un servicio con un precio— y cada sucursal
             // marca cuáles ofrece, en `servicio_sucursal`.

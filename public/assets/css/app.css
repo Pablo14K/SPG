@@ -719,32 +719,23 @@ html,body{max-width:100%;overflow-x:hidden;}
 .spg-srv-grid{display:grid;gap:.75rem;
   grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
 
-/* **En el celular el catálogo scrollea adentro suyo, no estira la página.**
+/* **El catálogo NO scrollea adentro suyo, y eso se probó al revés.**
 
-   Con quince servicios de a dos columnas la pantalla de reservar medía varias
-   pantallas de alto, y lo que viene después —el selector de fecha, quién viene
-   con vos, el botón— quedaba tan abajo que había que buscarlo. Se reportó como
-   que la página se ve sobrecargada.
+   La 7.108.0 le puso `max-height:65vh` con `overflow-y:auto` en el celular,
+   para que la página de reservar no midiera varias pantallas de alto. El
+   remedio salió peor que la enfermedad y así se reportó: **una caja que
+   scrollea adentro de una página que también scrollea le roba el gesto al
+   dedo**. Con el catálogo ocupando el centro de la pantalla —que es donde
+   queda— deslizar hacia abajo mueve la lista y no la página, así que para
+   llegar al botón hay que buscar el borde de 20 px que queda libre a los
+   costados y deslizar por ahí.
 
-   **Se acota el alto, NO se esconde nada**: todas las tarjetas siguen en el
-   DOM y dentro del formulario. Esconderlas con `display:none` sería el defecto
-   que este proyecto ya pagó en la 7.67.0 —un campo obligatorio escondido hace
-   que el navegador se niegue a enviar el formulario, en silencio— y además
-   dejaría una elegida invisible.
+   Un `overscroll-behavior:contain` empeora justamente eso: es lo que impide
+   que al llegar al final el scroll se contagie a la página.
 
-   El `65vh` deja ver unas tres filas: suficiente para que se lea como una
-   lista que sigue, y `overscroll-behavior` evita que al llegar al final el
-   scroll se contagie a la página. */
-@media (max-width:575.98px){
-  .spg-srv-grid{
-    max-height:65vh;overflow-y:auto;overscroll-behavior:contain;
-    padding-right:.25rem;
-    /* El borde superior e inferior avisan que hay más arriba y abajo. */
-    border-top:1px solid var(--gris-calido);
-    border-bottom:1px solid var(--gris-calido);
-    padding-top:.6rem;padding-bottom:.6rem;
-  }
-}
+   El alto se acota donde no cuesta nada —el asistente muestra un paso por vez
+   desde la 7.110.0, así que el catálogo ya no compite con el selector de fecha
+   ni con el botón— y el gesto vuelve a ser uno solo en toda la pantalla. */
 
 .spg-srv-card{display:flex;flex-direction:column;
   border:1px solid var(--gris-calido);border-radius:10px;overflow:hidden;
@@ -805,23 +796,22 @@ html,body{max-width:100%;overflow-x:hidden;}
   .spg-srv-precio{font-size:.9rem;}
   .spg-srv-desc{-webkit-line-clamp:1;}
 
-  /* **La tarjeta ELEGIDA ocupa el renglon entero, y el combo deja de ser
-     ilegible.** Con dos columnas en un telefono cada tarjeta mide unos 156 px,
-     y adentro va el combo de «quien me atiende», cuyas opciones dicen el
-     nombre Y los turnos —«con Lucia · Turno Manana 08:00-12:30»—: setenta
-     caracteres en un campo de 140 px, que es la definicion de compacto.
+  /* **La tarjeta elegida NO cambia de tamaño**, y eso es lo que se pidió.
 
-     Los turnos NO se sacan del texto: estan ahi a proposito desde la 7.93.0,
-     para que la clienta no pida a alguien de la manana y a alguien de la
-     tarde y se entere recien al buscar horarios. Lo que se agranda es el
-     lugar donde se leen.
+     La 7.107.0 le daba el renglón entero (`grid-column:1/-1`) y le aplanaba la
+     foto, porque adentro vivía el combo de «quién me atiende» y en 156 px no
+     se leía. Visto desde el dedo eso es otra cosa: **la grilla se reacomoda
+     sola en cuanto se marca algo** —la tarjeta crece, las de abajo saltan de
+     lugar— y elegir el segundo servicio pasa a ser apuntarle a un blanco que
+     se acaba de mover.
 
-     Elegir sigue siendo comodo de a dos; en cuanto se marca una, se abre. Las
-     marcadas son pocas, asi que la lista no se estira. La foto se aplana para
-     que la tarjeta abierta no se coma la pantalla. */
-  .spg-srv-card.elegida{grid-column:1/-1;}
-  .spg-srv-card.elegida .spg-srv-img{aspect-ratio:16/5;}
-  .spg-srv-card.elegida .spg-srv-desc{-webkit-line-clamp:2;}
+     El motivo de aquella regla desapareció: el combo ya no se dibuja acá
+     mientras el asistente esté andando (ver `.spg-wiz-on` más abajo), porque
+     el paso «Profesionales» pregunta exactamente eso una pantalla después.
+     Sin combo adentro, la tarjeta no necesita crecer para nada.
+
+     Lo que marca la elegida sigue siendo el oro del borde, que no ocupa un
+     píxel de más. */
   .spg-srv-extra .form-select{font-size:.85rem;padding-top:.42rem;padding-bottom:.42rem;}
 }
 
@@ -1779,13 +1769,21 @@ html,body{max-width:100%;overflow-x:hidden;}
   opacity: .5;
 }
 
-/* --- Micro-mejoras en tarjetas de servicio (solo hover) -------------- */
+/* --- Micro-mejoras en tarjetas de servicio (solo hover) --------------
+
+   **El `transform` va detrás de `hover:hover`.** En una pantalla táctil el
+   navegador emula el hover con el primer toque y no lo suelta hasta que se
+   toca otra cosa: la tarjeta recién tocada quedaba levantada 2 px, que junto
+   al borde de oro se lee como que la selección hace crecer el cuadro. Es la
+   misma razón por la que el desplegable de la barra se acota a `hover:hover`. */
 .spg-srv-card {
   transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-.spg-srv-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .10);
+@media (hover:hover){
+  .spg-srv-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .10);
+  }
 }
 .spg-srv-card.elegida {
   box-shadow: 0 0 0 2px var(--oro-suave), 0 4px 16px rgba(201, 168, 76, .12);
@@ -1836,6 +1834,20 @@ html,body{max-width:100%;overflow-x:hidden;}
    **Sin `app.js` no aplica nada**: el `display:none` cuelga de
    `.spg-wiz-on`, que la pone el script. Con el JS caído se ven los
    pasos uno abajo del otro y se reserva igual, como antes. */
+/* **El combo de profesional no se pregunta dos veces.**
+
+   Vive dentro de la tarjeta desde la 7.51.0 y ahí sigue: es el nodo que el
+   paso «Profesionales» **mueve** —no copia— y es el que queda usable si
+   `app.js` no cargó. Lo que no puede pasar es que se vea en los dos lugares:
+   marcabas un servicio, te aparecía «¿con quién?» ahí mismo, y una pantalla
+   después el asistente te lo volvía a preguntar. Se reportó tal cual.
+
+   Se esconde **sólo mientras el asistente esté andando** y **sólo mientras el
+   combo siga dentro de la tarjeta**: al moverlo, el nodo deja de tener
+   `.spg-srv-card` de ancestro y esta regla no lo alcanza. Sin JavaScript no
+   existe `.spg-wiz-on`, así que se ven todos y se elige profesional igual. */
+.spg-wiz-on .spg-srv-card .spg-srv-extra{display:none;}
+
 .spg-wiz-on > [data-paso]{display:none;}
 .spg-wiz-on > [data-paso].spg-wiz-activo{display:block;animation:spgWizEntra .18s ease-out;}
 @keyframes spgWizEntra{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}

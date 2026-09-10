@@ -40,6 +40,128 @@
         </div>
     @endif
 
+    {{-- **El perfil: cómo es esta clienta, no qué pasó tal día.**
+
+         La tabla de abajo contesta lo segundo, y con cien filas paginadas de a
+         veinticinco saber que siempre pide lo mismo, que viene los sábados o
+         que se atiende con la misma persona obligaba a leerlas todas llevando
+         la cuenta a mano. Son las preguntas del mostrador antes de atender:
+         qué ofrecerle, cuándo llamarla y a quién asignarle.
+
+         **No respeta los filtros de la tabla, a propósito**: filtrado por un
+         mes cualquiera diría que su servicio favorito es el único que se hizo
+         ese mes. Es el perfil de la persona, no el total de lo filtrado. --}}
+    @if ($perfil && (int) $perfil->visitas > 0)
+        <div class="spg-panel mt-2">
+            <h2 style="font-size:1rem;font-weight:500;margin-bottom:.8rem;">
+                <i class="bi bi-person-badge"></i> Su perfil
+                <x-ayuda>Sale de todo su historial, no de lo que estés filtrando abajo.</x-ayuda>
+            </h2>
+
+            <div class="spg-metrics mb-3">
+                <div class="spg-metric">
+                    <div class="lbl">Visitas</div>
+                    <div class="val">{{ (int) $perfil->visitas }}</div>
+                </div>
+                <div class="spg-metric">
+                    <div class="lbl">Servicios</div>
+                    <div class="val">{{ (int) $perfil->servicios }}</div>
+                </div>
+                <div class="spg-metric">
+                    {{-- **Facturado, no cobrado.** Sale de los precios del historial:
+                         son dos números distintos y el rótulo tiene que decir cuál. --}}
+                    <div class="lbl">Facturado</div>
+                    <div class="val" style="font-size:1rem">{{ money($perfil->gastado ?? 0) }}</div>
+                </div>
+                <div class="spg-metric">
+                    <div class="lbl">Viene cada</div>
+                    <div class="val" style="font-size:1rem">
+                        @if ($perfil->cada_dias)
+                            {{ (int) $perfil->cada_dias }} días
+                        @else
+                            {{-- Con una sola visita no hay intervalo que medir, y un
+                                 «0 días» se leería como un dato. --}}
+                            <span class="text-muted-warm" style="font-size:.85rem">1ª visita</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="spg-metric">
+                    <div class="lbl">Última</div>
+                    <div class="val" style="font-size:1rem">{{ fecha($perfil->ultima, 'd/m/Y') }}</div>
+                </div>
+                <div class="spg-metric">
+                    <div class="lbl">Cliente desde</div>
+                    <div class="val" style="font-size:1rem">{{ fecha($perfil->primera, 'd/m/Y') }}</div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="form-label mb-1">Lo que más pide</div>
+                    @php $topSrv = max(1, (int) ($favoritos[0]->veces ?? 1)); @endphp
+                    @foreach ($favoritos as $sv)
+                        <div class="spg-graf-fila">
+                            <div class="spg-graf-rot" style="width:9rem">{{ $sv->servicio }}</div>
+                            {{-- La barra es un `width` en por ciento sobre dos divs: no
+                                 entra ninguna librería, la misma decisión que Reportes. --}}
+                            <div class="spg-graf-pista">
+                                <div class="spg-graf-barra" style="width:{{ round((int) $sv->veces / $topSrv * 100) }}%"></div>
+                            </div>
+                            <div class="spg-graf-val spg-graf-val-ancho">
+                                {{ (int) $sv->veces }}×
+                                <span class="text-muted-warm">· {{ money($sv->gastado) }}</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-label mb-1">Qué días viene</div>
+                    @php
+                        // 1 = lunes … 7 = domingo, la convención del proyecto.
+                        $nomDia = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves',
+                                   5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
+                        $topDia = max(1, (int) ($porDia[0]->visitas ?? 1));
+                    @endphp
+                    @foreach (array_slice($porDia, 0, 4) as $d)
+                        <div class="spg-graf-fila">
+                            <div class="spg-graf-rot" style="width:4.6rem">{{ $nomDia[(int) $d->dia] ?? '—' }}</div>
+                            <div class="spg-graf-pista">
+                                <div class="spg-graf-barra" style="width:{{ round((int) $d->visitas / $topDia * 100) }}%"></div>
+                            </div>
+                            <div class="spg-graf-val">{{ (int) $d->visitas }}</div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="col-md-3">
+                    <div class="form-label mb-1">A qué hora</div>
+                    @php $topHora = max(1, (int) ($porHora[0]->visitas ?? 1)); @endphp
+                    @foreach (array_slice($porHora, 0, 4) as $h)
+                        <div class="spg-graf-fila">
+                            <div class="spg-graf-rot" style="width:3.2rem">{{ sprintf('%02d:00', (int) $h->hora) }}</div>
+                            <div class="spg-graf-pista">
+                                <div class="spg-graf-barra" style="width:{{ round((int) $h->visitas / $topHora * 100) }}%"></div>
+                            </div>
+                            <div class="spg-graf-val">{{ (int) $h->visitas }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            @if (count($conQuien) > 0)
+                <div class="mt-3">
+                    <div class="form-label mb-1">Con quién se atiende</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach ($conQuien as $q)
+                            <span class="badge-estado e-muted">{{ $q->profesional }} · {{ (int) $q->visitas }}</span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
+    @endif
+
     <x-filtros :f="$f" />
 
     <div class="spg-panel mt-2">

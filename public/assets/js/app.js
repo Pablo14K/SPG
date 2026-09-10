@@ -312,6 +312,28 @@ window.SPGCarga = (function () {
     var p = new URLSearchParams();
     elegidos().forEach(function (s) { p.append('servicios[]', s); });
     p.append('id_usuario', profesional());
+
+    // **Con quién quiere atenderse CADA servicio, y no sólo cuando coinciden.**
+    //
+    // `profesional()` devuelve una sola persona, así que sólo puede hablar
+    // cuando TODOS los servicios van a la misma: con dos servicios en dos manos
+    // distintas —o con uno pedido y otro en «quien me atienda»— devuelve 0, que
+    // para el servidor significa «cualquiera». Con eso el calendario contestaba
+    // con los huecos del equipo entero y ofrecía horarios **fuera del turno de
+    // las personas que se acababan de elegir**; el «no» llegaba al guardar, con
+    // todo ya decidido. Se reportó así: «el horario no coincide con el turno de
+    // los profesionales seleccionados».
+    //
+    // Mandando el pedido servicio por servicio, `Agenda::acotarPedidos()` deja
+    // en cada uno a quien se pidió y la intersección de turnos sale sola de la
+    // maquinaria que ya estaba.
+    if (!fijos.profesional) {
+      elegidos().forEach(function (id) {
+        var sel = ambito.querySelector('[name="prof_servicio[' + id + ']"]');
+        var v = sel ? parseInt(sel.value, 10) : 0;
+        if (v > 0) { p.append('prof[' + id + ']', v); }
+      });
+    }
     // La sucursal elegida viaja con la consulta: el turno es del local, asi
     // que sin ella el servidor contestaria con los horarios de otra sede.
     var suc = document.querySelector('[name="id_sucursal"]');
@@ -2176,7 +2198,17 @@ window.SPGCarga = (function () {
       });
     }
 
-    function ir(i) {
+    /**
+     * `inicial` es la primera pintada, y ahí NO se scrollea.
+     *
+     * **Ése era el «retrocede» que se reportó.** Cuando el servidor rechaza la
+     * reserva, la respuesta es esta misma pantalla con el aviso arriba y todo
+     * lo cargado de vuelta por `old()`. El asistente arrancaba en el paso 1 y
+     * encima se traía la vista hacia sí mismo, así que el aviso que explica el
+     * rechazo quedaba fuera de pantalla: desde el dedo, apretar «Confirmar»
+     * devolvía al principio sin decir una palabra.
+     */
+    function ir(i, inicial) {
       actual = i;
       pasos.forEach(function (p, k) {
         var activo = k === i;
@@ -2193,10 +2225,18 @@ window.SPGCarga = (function () {
       document.dispatchEvent(new CustomEvent('spg:asistente-paso', {
         detail: { caja: caja, paso: pasos[i], indice: i, ultimo: i === pasos.length - 1, pasos: pasos },
       }));
-      caja.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (!inicial) { caja.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
     }
 
-    ir(0);
+    /* **Dónde abre.** Normalmente en el primero; después de un rechazo, en el
+       paso que la pantalla indique —el último, con todo lo cargado de vuelta—
+       para no hacer recorrer de nuevo cinco pasos que ya estaban contestados. */
+    var arranque = parseInt(caja.getAttribute('data-asistente-inicio'), 10);
+    if (!(arranque >= 0)) { arranque = 0; }
+    // Se acota al último que exista: la vista manda un número alto —no sabe
+    // cuántos pasos dibujó— y así agregar o sacar uno no obliga a tocarla.
+    if (arranque >= pasos.length) { arranque = pasos.length - 1; }
+    ir(arranque, true);
   });
 })();
 

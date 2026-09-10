@@ -298,7 +298,77 @@ class ClientesController extends Controller
             ),
             'fid' => DB::selectOne('SELECT * FROM vw_cliente_fidelizacion WHERE id_cliente = ?', [$id]),
             'pref' => DB::select('SELECT * FROM preferencia_cliente WHERE id_cliente = ? ORDER BY fecha_registro DESC', [$id]),
-        ]);
+        ] + $this->perfilCliente($id));
+    }
+
+    /**
+     * El perfil de una clienta: qué se hace, cuándo viene y con quién.
+     *
+     * **La tabla del historial contesta «qué pasó tal día» y no «cómo es esta
+     * clienta».** Con cien filas paginadas de a veinticinco, saber que siempre
+     * pide lo mismo, que viene los sábados a la mañana o que se atiende con la
+     * misma persona exige leerlas todas y llevar la cuenta a mano — que es
+     * justamente lo que una pantalla tiene que ahorrar. Son las preguntas que
+     * el mostrador se hace antes de atender: qué ofrecerle, cuándo llamarla y a
+     * quién asignarle.
+     *
+     * **Sale del historial completo, no de la página que se está viendo, y
+     * NO respeta los filtros de la tabla.** Es a propósito y es la diferencia
+     * con el resumen de un informe: acá no es un total de lo filtrado sino el
+     * perfil de la persona, y filtrado por un mes cualquiera diría que su
+     * servicio favorito es el único que se hizo ese mes.
+     *
+     * El día va **1 = lunes … 7 = domingo** (`WEEKDAY()+1`), la convención del
+     * proyecto: `DAYOFWEEK()` arranca en domingo y corre todo un día.
+     *
+     * @return array<string, mixed>
+     */
+    private function perfilCliente(int $id): array
+    {
+        $par = ['cli' => $id];
+
+        return [
+            // Lo que más pide, con cuánto gastó en eso: dos servicios con la
+            // misma cantidad de veces no valen lo mismo para el salón.
+            'favoritos' => DB::select(
+                'SELECT servicio, COUNT(*) AS veces, SUM(precio) AS gastado, MAX(fecha_hora) AS ultima
+                   FROM vw_historial_cliente WHERE id_cliente = :cli
+                  GROUP BY servicio ORDER BY veces DESC, gastado DESC LIMIT 5', $par),
+
+            // **Por CITA y no por servicio**: una cita con cuatro servicios es
+            // una sola visita, y contando renglones ese día pesaría cuatro
+            // veces más que otro en el que pidió una sola cosa.
+            'porDia' => DB::select(
+                'SELECT WEEKDAY(fecha_hora) + 1 AS dia, COUNT(DISTINCT id_cita) AS visitas
+                   FROM vw_historial_cliente WHERE id_cliente = :cli
+                  GROUP BY WEEKDAY(fecha_hora) + 1 ORDER BY visitas DESC, dia', $par),
+
+            'porHora' => DB::select(
+                'SELECT HOUR(fecha_hora) AS hora, COUNT(DISTINCT id_cita) AS visitas
+                   FROM vw_historial_cliente WHERE id_cliente = :cli
+                  GROUP BY HOUR(fecha_hora) ORDER BY visitas DESC, hora', $par),
+
+            'conQuien' => DB::select(
+                'SELECT profesional, COUNT(DISTINCT id_cita) AS visitas
+                   FROM vw_historial_cliente
+                  WHERE id_cliente = :cli AND profesional IS NOT NULL
+                  GROUP BY profesional ORDER BY visitas DESC LIMIT 4', $par),
+
+            // El resumen de arriba. `gastado` sale de los precios del
+            // historial, así que es lo facturado y no lo cobrado: son dos
+            // números distintos y el rótulo lo dice.
+            'perfil' => DB::selectOne(
+                'SELECT COUNT(DISTINCT id_cita) AS visitas, COUNT(*) AS servicios,
+                        SUM(precio) AS gastado, MIN(fecha_hora) AS primera, MAX(fecha_hora) AS ultima,
+                        -- Cada cuántos días viene, en promedio. Con una sola visita
+                        -- no hay intervalo que medir y queda en NULL, que la
+                        -- pantalla dice como «todavía no se puede saber».
+                        CASE WHEN COUNT(DISTINCT DATE(fecha_hora)) > 1
+                             THEN ROUND(DATEDIFF(MAX(fecha_hora), MIN(fecha_hora))
+                                        / (COUNT(DISTINCT DATE(fecha_hora)) - 1))
+                        END AS cada_dias
+                   FROM vw_historial_cliente WHERE id_cliente = :cli', $par),
+        ];
     }
 
     // -----------------------------------------------------------------

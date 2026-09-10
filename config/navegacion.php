@@ -199,7 +199,13 @@ return [
         ['ruta' => 'portal.citas',        'titulo' => 'Mis citas',      'ic' => 'calendar-week', 'barra' => true],
         ['ruta' => 'portal.promociones',  'titulo' => 'Promociones',    'ic' => 'gift',          'barra' => true],
         ['ruta' => 'portal.valoraciones', 'titulo' => 'Valoraciones',   'ic' => 'star',          'barra' => true],
-        ['ruta' => 'portal.ficha',        'titulo' => 'Mi ficha',       'ic' => 'person-vcard'],
+        // **En la barra, y eso es lo que faltaba.** El campo de alergias existe
+        // desde la 7.110.0 y se reportó igual que «no existe en ninguna parte
+        // para cargar alergias»: sin `barra` esta pantalla sólo salía en el pie
+        // y en el desplegable de la cuenta, o sea en dos lugares donde nadie la
+        // busca. Una función que no se encuentra es indistinguible de una que
+        // no está — el mismo problema que `spg:pendientes` tuvo en la 7.61.0.
+        ['ruta' => 'portal.ficha',        'titulo' => 'Mi ficha',       'ic' => 'person-vcard', 'barra' => true],
         ['ruta' => 'portal.preferencias', 'titulo' => 'Mis recordatorios', 'ic' => 'bell'],
         ['ruta' => 'cuenta.index',        'titulo' => 'Mi cuenta',      'ic' => 'gear'],
     ],

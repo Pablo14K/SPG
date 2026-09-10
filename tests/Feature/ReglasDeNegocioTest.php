@@ -5861,6 +5861,104 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * Los horarios que se ofrecen respetan el turno de CADA profesional pedido.
+     *
+     * **El defecto reportado**: «el horario no coincide con el turno de los
+     * profesionales seleccionados». La consulta de disponibilidad llevaba un
+     * solo `id_usuario`, así que el navegador sólo podía mandarlo cuando todos
+     * los servicios iban a la misma persona: con dos servicios en dos manos
+     * distintas mandaba **cero**, y cero significa «cualquiera». El servidor
+     * contestaba entonces con los huecos del equipo entero y la pantalla
+     * ofrecía horas en las que una de las dos personas elegidas ni trabaja —
+     * el «no» llegaba al guardar, con el día y la hora ya elegidos.
+     *
+     * La prueba **garantiza su premisa**: elige a dos profesionales cuyos
+     * turnos NO se superponen del todo y les carga un servicio a cada uno, que
+     * es lo que los saca del criterio permisivo.
+     *
+     * Se mide en las dos direcciones, que es lo que la hace valer: **sin** los
+     * pedidos se ofrece al menos una hora que uno de los dos no puede tomar
+     * —eso es exactamente lo que estaba mal— y **con** los pedidos toda hora
+     * ofrecida les sirve a los dos.
+     */
+    #[Test]
+    public function test_los_horarios_respetan_el_turno_de_cada_profesional_pedido(): void
+    {
+        $equipo = array_map(fn ($p) => (int) $p->id_usuario, Agenda::profesionales(1));
+        if (count($equipo) < 2) {
+            $this->markTestSkipped('Hace falta más de un profesional en el local.');
+        }
+
+        $srv = DB::select('SELECT id_servicio, duracion_min FROM servicio WHERE activo = 1 ORDER BY duracion_min LIMIT 2');
+        if (count($srv) < 2) {
+            $this->markTestSkipped('Hacen falta dos servicios en el catálogo.');
+        }
+        $s1 = (int) $srv[0]->id_servicio;
+        $s2 = (int) $srv[1]->id_servicio;
+        $dur = (int) $srv[0]->duracion_min + (int) $srv[1]->duracion_min;
+
+        // **La premisa: dos personas cuyos turnos no coinciden.** Se busca el
+        // par y el día donde la diferencia se ve: si los turnos fueran los
+        // mismos, la corrección no cambiaría nada y la prueba no mediría nada.
+        $par = null;
+        $dia = null;
+        foreach ($equipo as $a) {
+            foreach ($equipo as $b) {
+                if ($a === $b || $par) {
+                    continue;
+                }
+                for ($i = 1; $i <= 21; $i++) {
+                    $f = date('Y-m-d', strtotime("+$i day"));
+                    $ha = array_column(Agenda::slotsProfesional($a, $f, $dur, null, 1), 0) ?: Agenda::slotsProfesional($a, $f, $dur, null, 1);
+                    $hb = Agenda::slotsProfesional($b, $f, $dur, null, 1);
+                    // Hay algo que uno puede y el otro no: ahí se nota.
+                    if ($ha && $hb && array_diff($hb, $ha)) {
+                        $par = [$a, $b];
+                        $dia = $f;
+                        break 3;
+                    }
+                }
+            }
+        }
+        if (! $par) {
+            $this->markTestSkipped('Todos los profesionales tienen el mismo turno: no hay diferencia que medir.');
+        }
+        [$p1, $p2] = $par;
+
+        // Cada uno hace un servicio, y sólo ése: es lo que los saca del
+        // criterio permisivo —quien no tiene ninguno cargado los hace todos—.
+        foreach ($equipo as $id) {
+            $per = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$id]);
+            DB::delete('DELETE FROM persona_servicio WHERE id_persona = ?', [$per]);
+            if ($id === $p1) {
+                DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?,?)', [$per, $s1]);
+            } elseif ($id === $p2) {
+                DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?,?)', [$per, $s2]);
+            }
+        }
+        Agenda::olvidarQuienHace();
+
+        $suyas = Agenda::slotsProfesional($p1, $dia, $dur, null, 1);
+
+        $sin = array_column(Agenda::slots(null, $dia, $dur, null, 1, [$s1, $s2], 1), 'hora');
+        $con = array_column(Agenda::slots(null, $dia, $dur, null, 1, [$s1, $s2], 1, [$s1 => $p1, $s2 => $p2]), 'hora');
+
+        // **La mitad que falla sin el arreglo.** Sin decir a quién se pidió, el
+        // selector junta los huecos del equipo y ofrece horas que la persona
+        // elegida no puede tomar.
+        $this->assertNotEmpty(array_diff($sin, $suyas),
+            'La premisa: sin los pedidos se ofrece alguna hora que ese profesional no puede tomar.');
+
+        // Y la que tiene que cumplirse siempre: lo ofrecido le sirve a los dos.
+        foreach ($con as $h) {
+            $this->assertContains($h, $suyas,
+                "Se ofreció $h, y el profesional pedido para ese servicio no trabaja a esa hora.");
+        }
+        $this->assertEmpty(array_diff($con, $sin),
+            'Pedir a alguien sólo puede acotar lo que se ofrece, nunca agregar horas.');
+    }
+
+    /**
      * Reprogramar desde el panel no deja escribir la fecha a mano.
      *
      * **Es el defecto reportado**: el modal tenía un `datetime-local` suelto,

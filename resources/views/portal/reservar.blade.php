@@ -59,7 +59,13 @@
                  **Sin `app.js` se ven todos los pasos uno abajo del otro y se
                  reserva igual**: el CSS esconde sólo bajo la clase que pone el
                  script. Es la regla de siempre — lo que adorna puede faltar. --}}
-            <div class="spg-wiz" data-asistente>
+            {{-- **Después de un rechazo abre en el último paso, no en el primero.**
+                 El servidor devuelve esta misma pantalla con el aviso arriba y todo
+                 lo cargado de vuelta por `old()`; arrancando en el paso 1 se leía
+                 como que el sistema «retrocedió» y había que recorrer otra vez
+                 cinco pasos ya contestados. El 99 lo acota el script al último
+                 paso que exista. --}}
+            <div class="spg-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
 
             <div class="spg-seccion" data-paso="Servicios"
                  data-paso-requiere="servicios"

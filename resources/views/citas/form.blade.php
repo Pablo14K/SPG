@@ -21,7 +21,7 @@
                  qué falta.
 
                  **Sin `app.js` se ve todo junto, como antes.** --}}
-            <div class="spg-wiz" data-asistente>
+            <div class="spg-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
 
             <div data-paso="Cliente" data-paso-requiere="#id_cliente"
                  data-paso-error="Elegí la clienta para seguir.">
@@ -98,11 +98,27 @@
                                         name="prof_servicio[{{ $s->id_servicio }}]"
                                         data-prof-de="#srv{{ $s->id_servicio }}">
                                     <option value="0">quien esté libre</option>
+                                    @php
+                                        // **Sólo quienes hacen ESTE servicio.** El combo
+                                        // listaba al equipo entero, así que se podía
+                                        // repartir una coloración a quien sólo hace uñas
+                                        // y el rechazo llegaba **después** de haber
+                                        // elegido día y hora: «Fulana no hace tal cosa».
+                                        // El portal ya filtraba desde la 7.90.0 y esta
+                                        // pantalla se había quedado afuera.
+                                        //
+                                        // Criterio permisivo de siempre: sin nadie
+                                        // cargado para ese servicio, lo hacen todos.
+                                        $suyos = $haceServicio[$s->id_servicio] ?? [];
+                                        $ofrecer = $suyos
+                                            ? collect($profs)->filter(fn ($x) => in_array((int) $x->id_usuario, $suyos, true))
+                                            : collect($profs);
+                                    @endphp
                                     {{-- Con su turno al lado: quien atiende también
                                          necesita ver de un vistazo si esa persona
                                          está a la mañana o a la tarde antes de
                                          repartir los servicios. --}}
-                                    @foreach ($profs as $p)
+                                    @foreach ($ofrecer as $p)
                                         <option value="{{ $p->id_usuario }}"
                                             @selected($profSel === (int) $p->id_usuario)>{{ $p->nombre }}@if (! empty($p->turnos)) · {{ $p->turnos }}@endif</option>
                                     @endforeach

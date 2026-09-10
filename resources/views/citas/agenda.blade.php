@@ -63,7 +63,12 @@
                         <th>Hora</th><th>Cliente</th>
                         {{-- Para quien ve la agenda del salón, quién atiende; para
                              quien ve la suya, con quién comparte esa cita. --}}
-                        <th>{{ $verTodo ? 'Profesional' : 'Con quién' }}</th>
+                        {{-- **«Con quién» no decía con quién QUÉ.** En una agenda,
+                             al lado del nombre de la clienta, se leía como «con
+                             quién viene» o «con quién se atiende» —que es la
+                             columna de al lado—. Lo que muestra es la otra punta:
+                             quién más trabaja en esa misma cita. --}}
+                        <th>{{ $verTodo ? 'Profesional' : 'Colabora con' }}</th>
                         <th>Servicios</th><th class="text-end">Duración</th>
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
@@ -150,7 +155,14 @@
                                      no sabía que iba a haber alguien más en el sillón de
                                      al lado — ni a quién preguntarle. --}}
                                 <td class="text-muted-warm">
-                                    {{ $c->otros_profesionales ?: 'sola' }}
+                                    @if ($c->otros_profesionales)
+                                        {{ $c->otros_profesionales }}
+                                    @else
+                                        {{-- «Sola» y no una raya: la raya se lee como
+                                             que el dato falta, y acá el dato ES que no
+                                             hay nadie más en esa cita. --}}
+                                        <span class="text-muted-warm">sola</span>
+                                    @endif
                                 </td>
                             @endif
                             <td class="text-muted-warm">
@@ -489,6 +501,14 @@
                                                 @if (trim((string) ($c->alergias ?? '')) !== '')
                                                     <dt class="txt-no">Alergias</dt>
                                                     <dd class="txt-no"><strong>{{ $c->alergias }}</strong></dd>
+                                                @endif
+                                                {{-- **Quién más trabaja en esta cita.** La fila lo dice en
+                                                     su columna, pero el detalle es lo que se abre para
+                                                     preparar el turno y ahí hace falta el nombre completo:
+                                                     la columna lo recorta. --}}
+                                                @if (! $verTodo && $c->otros_profesionales)
+                                                    <dt>Colabora con</dt>
+                                                    <dd>{{ $c->otros_profesionales }}</dd>
                                                 @endif
                                                 @if ($c->observaciones)
                                                     <dt>Dejó dicho</dt>

@@ -340,7 +340,8 @@ class Agenda
      * el sistema le asigna a quien esté libre.
      */
     public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null,
-                                ?int $idSucursal = null, array $servicios = [], int $personas = 1): array
+                                ?int $idSucursal = null, array $servicios = [], int $personas = 1,
+                                array $pedidos = []): array
     {
         // La sucursal viaja por toda la cadena: sin ella, cada eslabón caería
         // en `Sucursales::activa()`, que para la clienta del portal no es la
@@ -367,7 +368,7 @@ class Agenda
         // clienta puede pedir dos cosas que hacen dos personas distintas, y
         // eso el reparto lo resuelve. Lo que no puede pasar es que un servicio
         // se quede sin nadie.
-        $hace = $idUsuario ? [] : self::quienHace($servicios, $idSucursal);
+        $hace = $idUsuario ? [] : self::acotarPedidos(self::quienHace($servicios, $idSucursal), $pedidos);
 
         $out = [];
         foreach ($porHora as $hora => $ids) {
@@ -443,6 +444,109 @@ class Agenda
     private static array $quienHaceMemo = [];
 
     /**
+     * Acota «quién hace cada servicio» a **quien la clienta pidió** para ese
+     * servicio.
+     *
+     * **El defecto que esto corrige, y era de verdad.** El calendario se
+     * consultaba con UN solo `id_usuario`, así que el navegador sólo podía
+     * mandarlo cuando todos los servicios iban a la misma persona: con dos
+     * servicios en dos manos distintas —o con uno pedido y otro en «quien me
+     * atienda»— mandaba **cero**, y cero significa «cualquiera». El servidor
+     * contestaba entonces con los huecos del equipo entero, así que la
+     * pantalla ofrecía horarios **fuera del turno de las personas que la
+     * clienta acababa de elegir**; el «no» llegaba recién al guardar, con todo
+     * ya decidido. Se reportó como que el horario no coincide con el turno de
+     * los profesionales seleccionados.
+     *
+     * La corrección entra por donde ya estaba resuelto el problema general:
+     * `slots()` exige que **cada servicio tenga ahí quién lo haga**, así que
+     * alcanza con dejar en la lista de ese servicio a la persona pedida. La
+     * intersección de turnos, el reparto y el «no entra en el turno» salen
+     * solos de la maquinaria que ya existía.
+     *
+     * **Si la persona pedida no figura entre quienes hacen ese servicio se la
+     * respeta igual**, sola. No es lo mismo que no ofrecer nada: el calendario
+     * queda vacío y el guardado explica que esa persona no hace ese servicio,
+     * que es un mensaje accionable. Descartar el pedido en silencio sería
+     * volver a ofrecer horarios de otra gente.
+     *
+     * @param  array<int, array<int>>  $hace      `[id_servicio => [ids]]`
+     * @param  array<int, int>         $pedidos   `[id_servicio => id_usuario]`, 0 = sin preferencia
+     * @return array<int, array<int>>
+     */
+    public static function acotarPedidos(array $hace, array $pedidos): array
+    {
+        if (! $pedidos || ! $hace) {
+            return $hace;
+        }
+
+        foreach ($hace as $sid => $quienes) {
+            $pedido = (int) ($pedidos[(int) $sid] ?? 0);
+            if ($pedido <= 0) {
+                continue;
+            }
+            // Pedida es pedida, figure o no entre quienes hacen ese servicio:
+            // ver el aviso de arriba sobre por qué no se descarta en silencio.
+            $hace[$sid] = [$pedido];
+        }
+
+        return $hace;
+    }
+
+    /**
+     * Qué servicios hace cada profesional, para llenar los combos.
+     *
+     * Devuelve `[id_servicio => [ids de usuario]]` **de todo el salón**, sin
+     * filtrar por sucursal: es para el combo de una pantalla que ya sabe en qué
+     * local está. Un servicio que no figura no tiene a nadie cargado, y ahí
+     * vale el criterio permisivo de siempre — lo hacen todos.
+     *
+     * **Estaba escrito sólo en el portal.** Nueva cita listaba al equipo
+     * entero en cada servicio, así que se podía pedir una coloración con quien
+     * sólo hace uñas y el rechazo llegaba **después** de haber elegido día y
+     * hora: «Gloria Garay no hace Coloración completa». Media corrección
+     * aplicada, que es el patrón que este proyecto ya tiene anotado — el mismo
+     * defecto lo pagó la reasignación en la 7.90.0.
+     *
+     * @return array<int, array<int>>
+     */
+    public static function mapaHaceServicio(): array
+    {
+        $out = [];
+        foreach (DB::select(
+            'SELECT ps.id_servicio, u.id_usuario FROM persona_servicio ps
+               JOIN usuario u ON u.id_persona = ps.id_persona AND u.activo = 1'
+        ) as $r) {
+            $out[(int) $r->id_servicio][] = (int) $r->id_usuario;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Los profesionales pedidos servicio por servicio, tal como llegan de la
+     * pantalla (`prof[<id_servicio>]=<id_usuario>`).
+     *
+     * Devuelve sólo los que piden a alguien en concreto: el 0 de «quien me
+     * atienda» no acota nada y dejarlo obligaría a distinguirlo más adelante.
+     *
+     * @return array<int, int>
+     */
+    public static function pedidosDe(array $crudo): array
+    {
+        $out = [];
+        foreach ($crudo as $sid => $idu) {
+            $sid = (int) $sid;
+            $idu = (int) $idu;
+            if ($sid > 0 && $idu > 0) {
+                $out[$sid] = $idu;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Reparte los servicios entre las profesionales libres, lo más en paralelo
      * posible.
      *
@@ -511,14 +615,15 @@ class Agenda
      * @param  array<int>  $servicios
      */
     public static function duracionPrevista(array $servicios, int $personas = 1,
-                                            ?int $idSucursal = null, ?int $idUsuario = null): int
+                                            ?int $idSucursal = null, ?int $idUsuario = null,
+                                            array $pedidos = []): int
     {
         $suma = self::duracion($servicios);
         if ($suma <= 0 || $idUsuario) {
             return $suma;
         }
 
-        $hace = self::quienHace($servicios, $idSucursal);
+        $hace = self::acotarPedidos(self::quienHace($servicios, $idSucursal), $pedidos);
         $todos = [];
         foreach ($hace as $quienes) {
             if (! $quienes) {
@@ -555,7 +660,7 @@ class Agenda
      */
     public static function diasConCupo(?int $idUsuario, string $desde, int $dias, int $duracion,
                                        ?int $idSucursal = null, array $servicios = [],
-                                       int $personas = 1): array
+                                       int $personas = 1, array $pedidos = []): array
     {
         if ($duracion <= 0) {
             return [];
@@ -575,7 +680,7 @@ class Agenda
         $out = [];
         for ($i = 0; $i < $dias; $i++) {
             $fecha = date('Y-m-d', strtotime("+$i day", $d));
-            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal, $servicios, $personas)) {
+            if (self::slots($idUsuario, $fecha, $duracion, $cache, $idSucursal, $servicios, $personas, $pedidos)) {
                 $out[] = $fecha;
             }
         }
@@ -600,7 +705,8 @@ class Agenda
      * lo que ahí se puede atender de un tirón.
      */
     public static function motivoSinCupo(int $duracion, ?int $idUsuario = null, ?int $idSucursal = null,
-                                        array $servicios = [], int $personas = 1): ?string
+                                        array $servicios = [], int $personas = 1,
+                                        array $pedidos = []): ?string
     {
         $suc = (int) ($idSucursal ?? Sucursales::activa());
         if ($duracion <= 0) {

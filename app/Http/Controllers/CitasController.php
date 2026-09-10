@@ -83,7 +83,15 @@ class CitasController extends Controller
         // peor caso y contestaba «no entra en el turno» a una cita que el salón
         // hace todos los días.
         $personas = max(1, min(20, (int) $request->query('personas', 1)));
-        $duracion = Agenda::duracionPrevista($servicios, $personas, $idSucursal, $idUsuario);
+        // **Y con quién quiere atenderse CADA servicio.**
+        //
+        // Sin esto el calendario ofrecía horarios fuera del turno de las
+        // personas que la clienta acababa de elegir: la consulta llevaba un
+        // solo `id_usuario`, así que con dos servicios en dos manos distintas
+        // el navegador mandaba cero —«cualquiera»— y el servidor contestaba con
+        // los huecos del equipo entero. Ver `Agenda::acotarPedidos()`.
+        $pedidos = Agenda::pedidosDe((array) $request->query('prof', []));
+        $duracion = Agenda::duracionPrevista($servicios, $personas, $idSucursal, $idUsuario, $pedidos);
 
         if ($duracion <= 0) {
             return response()->json(['ok' => false, 'motivo' => 'Elegí primero el o los servicios.']);
@@ -105,7 +113,7 @@ class CitasController extends Controller
             }
             return response()->json([
                 'ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios, $personas),
+                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios, $personas, $pedidos),
             ]);
         }
 
@@ -118,9 +126,9 @@ class CitasController extends Controller
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios, $personas),
+            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios, $personas, $pedidos),
             'dias' => array_values(array_diff(
-                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas),
+                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas, $pedidos),
                 Agenda::diasYaTomados($idCliente, $servicios)
             )),
         ]);
@@ -606,6 +614,10 @@ class CitasController extends Controller
                   WHERE c.activo = 1 ORDER BY pe.apellido, pe.nombre'
             ),
             'profs' => Agenda::profesionales(),
+            // **Cada combo ofrece sólo a quien hace ESE servicio.** Listando al
+            // equipo entero se podía pedir una coloración con quien sólo hace
+            // uñas, y el rechazo llegaba después de elegir día y hora.
+            'haceServicio' => Agenda::mapaHaceServicio(),
             'servicios' => DB::select(
                 'SELECT s.id_servicio, s.nombre, s.precio, s.duracion_min, s.requiere_exclusividad,
                         s.descripcion, s.imagen, cs.nombre AS categoria,
@@ -1374,7 +1386,11 @@ class CitasController extends Controller
             'rows' => DB::select(
                 "SELECT a.*, ta.nombre AS tipo,
                         COALESCE(CONCAT(pe_u.nombre,' ',pe_u.apellido),'Todo el salón') AS quien,
-                        COALESCE(su.nombre,'Todas las sucursales') AS donde
+                        COALESCE(su.nombre,'Todas las sucursales') AS donde,
+                        -- **Todavía no empezó**, o sea que se puede corregir entera.
+                        -- Lo decide la base y no PHP por la regla de siempre: la hora
+                        -- del reloj sale de la conexión, nunca de `date()`.
+                        (a.fecha_inicio > NOW()) AS editable
                    FROM ausencia_agenda a
                    JOIN tipo_ausencia ta ON ta.id_tipo_ausencia = a.id_tipo_ausencia
                    LEFT JOIN usuario u   ON u.id_usuario = a.id_usuario
@@ -1454,6 +1470,21 @@ class CitasController extends Controller
         return $volver;
     }
 
+    /**
+     * Alta y edición de una excepción de agenda.
+     *
+     * **Es un solo método para las dos cosas, a propósito.** Los campos, las
+     * validaciones y el aviso a las clientas son idénticos: escritos dos veces
+     * se desfasan, que es un error que este proyecto ya se hizo varias veces.
+     * Lo que cambia es una línea —`INSERT` o `UPDATE`— y a quién se audita.
+     *
+     * **Editar sólo vale mientras la excepción no haya empezado.** Una vez que
+     * arrancó dejó de ser un plan: la agenda ya no ofreció esos horarios,
+     * puede haber clientas avisadas y citas movidas por ella, y cambiarle el
+     * rango hacia atrás no deshace nada de eso — deja la fila diciendo algo
+     * que no fue lo que pasó. Para eso está la baja, que corta de acá en
+     * adelante y lo dice.
+     */
     public function ausenciaGuardar(Request $request): RedirectResponse
     {
         $d = [
@@ -1468,6 +1499,33 @@ class CitasController extends Controller
             'motivo' => trim((string) $request->input('motivo', '')) ?: null,
         ];
         $volver = redirect()->route('citas.ausencias');
+
+        // **Qué se está haciendo, y si se puede.** La pantalla esconde el botón
+        // de editar cuando la excepción ya empezó; esto es el control de
+        // verdad, porque el id viaja en el formulario.
+        $id = (int) $request->input('id_ausencia', 0);
+        $previa = null;
+        if ($id > 0) {
+            $previa = DB::selectOne(
+                'SELECT a.*, (a.fecha_inicio > NOW()) AS editable FROM ausencia_agenda a WHERE a.id_ausencia = ?', [$id]);
+
+            if (! $previa) {
+                flash('Esa excepción no existe.', 'error');
+
+                return $volver;
+            }
+            if (! $previa->activo) {
+                flash('Esa excepción está dada de baja. Volvé a aplicarla y después editala.', 'error');
+
+                return $volver;
+            }
+            if (! $previa->editable) {
+                flash('Esa excepción ya empezó, así que no se puede editar: la agenda dejó de ofrecer esos '
+                    . 'horarios y puede haber clientas avisadas. Dala de baja si ya no corresponde.', 'error');
+
+                return $volver;
+            }
+        }
 
         $error = null;
         if (! $d['id_tipo_ausencia'] || ! $d['fecha_inicio'] || ! $d['fecha_fin']) {
@@ -1503,12 +1561,28 @@ class CitasController extends Controller
         );
 
         try {
-            DB::insert(
-                'INSERT INTO ausencia_agenda (id_usuario,id_sucursal,id_tipo_ausencia,fecha_inicio,fecha_fin,motivo)
-                 VALUES (:id_usuario,:id_sucursal,:id_tipo_ausencia,:fecha_inicio,:fecha_fin,:motivo)', $d
-            );
-            Auditoria::registrar('ALTA', 'Citas', 'ausencia_agenda', (int) DB::getPdo()->lastInsertId(),
-                'Excepción ' . $d['fecha_inicio'] . ' a ' . $d['fecha_fin']);
+            if ($previa) {
+                DB::update(
+                    'UPDATE ausencia_agenda
+                        SET id_usuario = :id_usuario, id_sucursal = :id_sucursal,
+                            id_tipo_ausencia = :id_tipo_ausencia, fecha_inicio = :fecha_inicio,
+                            fecha_fin = :fecha_fin, motivo = :motivo
+                      WHERE id_ausencia = :id', $d + ['id' => $id]
+                );
+                // **De cuánto a cuánto**, como en el cambio de precio: el detalle
+                // que sirve dentro de tres meses es qué decía antes, no que se
+                // editó.
+                Auditoria::registrar('MODIFICACION', 'Citas', 'ausencia_agenda', $id,
+                    'Excepción: de ' . $previa->fecha_inicio . '–' . $previa->fecha_fin
+                    . ' a ' . $d['fecha_inicio'] . '–' . $d['fecha_fin']);
+            } else {
+                DB::insert(
+                    'INSERT INTO ausencia_agenda (id_usuario,id_sucursal,id_tipo_ausencia,fecha_inicio,fecha_fin,motivo)
+                     VALUES (:id_usuario,:id_sucursal,:id_tipo_ausencia,:fecha_inicio,:fecha_fin,:motivo)', $d
+                );
+                Auditoria::registrar('ALTA', 'Citas', 'ausencia_agenda', (int) DB::getPdo()->lastInsertId(),
+                    'Excepción ' . $d['fecha_inicio'] . ' a ' . $d['fecha_fin']);
+            }
 
             // A cada clienta que tenía cita en ese rango se le avisa, con el
             // enlace del correo para reprogramar o cambiar de profesional. El
@@ -1519,12 +1593,12 @@ class CitasController extends Controller
                 (string) ($d['motivo'] ?? '')
             );
 
-            flash('Excepción registrada.'
+            flash(($previa ? 'Excepción actualizada.' : 'Excepción registrada.')
                 . ($choques ? " Hay $choques cita(s) agendada(s) dentro de ese rango." : '')
                 . ($avisadas ? " Se le avisó a $avisadas clienta(s) para que reprogramen." : ''),
                 $choques ? 'warning' : 'success');
         } catch (Throwable) {
-            flash('No se pudo registrar la excepción. Revisá que las fechas sean válidas y que el rango '
+            flash('No se pudo guardar la excepción. Revisá que las fechas sean válidas y que el rango '
                 . 'no esté ya cargado; si sigue igual, el detalle quedó en el registro del sistema.', 'error');
         }
 
