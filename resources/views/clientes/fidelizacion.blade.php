@@ -30,7 +30,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Cliente</th><th>Teléfono</th><th class="text-end">Visitas</th>
+                        <th>Cliente</th><th class="spg-movil-oculto">Teléfono</th><th class="text-end">Visitas</th>
                         <th class="text-end">Puntos</th><th>Nivel</th>
                         <th>Descuento del nivel</th><th class="text-end">Ver</th>
                     </tr>
@@ -39,7 +39,7 @@
                     @forelse ($rows as $r)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Cliente">{{ $r->cliente }}</td>
-                            <td class="text-muted-warm" data-label="Teléfono">{{ $r->telefono ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Teléfono">{{ $r->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Visitas">{{ (int) $r->visitas }}</td>
                             <td class="text-end" data-label="Puntos">{{ (int) $r->puntos }}</td>
                             <td data-label="Nivel"><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>

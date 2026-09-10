@@ -15,7 +15,7 @@
                 <thead>
                     <tr>
                         <th>Fecha</th><th>Proveedor</th><th>Nº factura</th>
-                        <th class="text-end">Ítems</th><th class="text-end">Total</th>
+                        <th class="text-end spg-movil-oculto">Ítems</th><th class="text-end">Total</th>
                         <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Detalle</th>
                     </tr>
                 </thead>
@@ -42,7 +42,7 @@
                                         <i class="bi bi-paperclip"></i> Cargar factura</button>
                                 @endif
                             </td>
-                            <td class="text-end" data-label="Ítems">{{ (int) $c->items }}</td>
+                            <td class="text-end spg-movil-oculto" data-label="Ítems">{{ (int) $c->items }}</td>
                             <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $c->saldo > 0.01)

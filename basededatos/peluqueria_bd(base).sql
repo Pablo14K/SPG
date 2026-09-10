@@ -383,6 +383,7 @@ CREATE TABLE `cita` (
   `id_cliente` int(10) unsigned NOT NULL,
   `para_otra_persona` tinyint(1) NOT NULL DEFAULT 0,
   `nombre_para` varchar(120) DEFAULT NULL,
+  `alergias_para` varchar(300) DEFAULT NULL COMMENT 'Alergias de quien se atiende cuando la cita es para otra persona. NULL = sin registrar',
   `personas` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_sucursal` int(10) unsigned NOT NULL,
@@ -401,7 +402,8 @@ CREATE TABLE `cita` (
   CONSTRAINT `fk_cita_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `fk_cita_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cita_personas` CHECK (`personas` >= 1 and `personas` <= 20),
-  CONSTRAINT `chk_cita_para` CHECK (`para_otra_persona` = 0 or `nombre_para` is not null)
+  CONSTRAINT `chk_cita_para` CHECK (`para_otra_persona` = 0 or `nombre_para` is not null),
+  CONSTRAINT `chk_cita_alergias_para` CHECK (`alergias_para` is null or `para_otra_persona` = 1 and char_length(trim(`alergias_para`)) >= 2)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -469,11 +471,13 @@ CREATE TABLE `cita_acompanante` (
   `orden` tinyint(3) unsigned NOT NULL,
   `nombre` varchar(60) NOT NULL,
   `apellido` varchar(60) DEFAULT NULL,
+  `alergias` varchar(300) DEFAULT NULL COMMENT 'Alergias de esta persona, dichas al reservar. NULL = sin registrar',
   PRIMARY KEY (`id_acompanante`),
   UNIQUE KEY `uq_acomp_cita_orden` (`id_cita`,`orden`),
   CONSTRAINT `fk_acomp_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE,
   CONSTRAINT `chk_acomp_orden` CHECK (`orden` between 2 and 20),
-  CONSTRAINT `chk_acomp_nombre` CHECK (char_length(trim(`nombre`)) >= 2)
+  CONSTRAINT `chk_acomp_nombre` CHECK (char_length(trim(`nombre`)) >= 2),
+  CONSTRAINT `chk_acomp_alergias` CHECK (`alergias` is null or char_length(trim(`alergias`)) >= 2)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -6651,4 +6655,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-10  9:30:22
+-- Dump completed on 2026-09-10 13:38:09

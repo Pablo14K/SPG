@@ -16,7 +16,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Proveedor</th><th>RUC</th><th>Contacto</th><th>Teléfono</th>
+                        <th>Proveedor</th><th class="spg-movil-oculto">RUC</th><th class="spg-movil-oculto">Contacto</th><th>Teléfono</th>
                         <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -24,8 +24,8 @@
                     @forelse ($rows as $p)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Proveedor">{{ $p->nombre }}</td>
-                            <td class="text-muted-warm" data-label="RUC">{{ $p->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm" data-label="Contacto">{{ $p->contacto ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="RUC">{{ $p->ruc ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Contacto">{{ $p->contacto ?: '—' }}</td>
                             <td data-label="Teléfono">{{ $p->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $p->saldo > 0.01)

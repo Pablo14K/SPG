@@ -22,7 +22,26 @@
                     @forelse ($prox as $c)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha"><strong>{{ fecha($c->fecha_hora) }}</strong></td>
-                            <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
+                            <td class="text-muted-warm" data-label="Servicios">
+                                {{ $c->servicios ?: '—' }}
+                                {{-- **Lo que cargaste de alergias, y de quién es cada
+                                     una.** Se cargan al reservar y acá se comprueban: es
+                                     lo único que puede lastimar a alguien si el salón no
+                                     lo mira, así que tenés que poder ver que quedó bien
+                                     anotado y a nombre de quién. Con una sola persona el
+                                     nombre sobra —sos vos—; con varias, cada una la
+                                     suya. --}}
+                                @php
+                                    $spgGente = \App\Servicios\Alergias::deLaCita($c, $acompanantes[$c->id_cita] ?? []);
+                                    $spgAlergicas = array_values(array_filter($spgGente, fn ($p) => $p->alergias !== null));
+                                @endphp
+                                @foreach ($spgAlergicas as $spgA)
+                                    <div class="txt-no" style="font-size:.82rem">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        @if (count($spgGente) > 1)<strong>{{ $spgA->quien }}:</strong> @endif{{ $spgA->alergias }}
+                                    </div>
+                                @endforeach
+                            </td>
                             {{-- **Todas las que la atienden, no sólo la dueña de la cita.**
                                  `vw_agenda_citas.profesional` sale de `cita.id_usuario`, así
                                  que con tres servicios en tres manos distintas nombraba a

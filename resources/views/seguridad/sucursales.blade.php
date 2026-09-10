@@ -96,15 +96,15 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Nombre</th><th>RUC</th><th>Ciudad</th><th>Teléfono</th>
+                    <tr><th>Nombre</th><th class="spg-movil-oculto">RUC</th><th class="spg-movil-oculto">Ciudad</th><th>Teléfono</th>
                         <th class="text-end">Personal</th><th>Estado</th><th class="text-end">Acciones</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $s)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Nombre">{{ $s->nombre }}</td>
-                            <td class="text-muted-warm" data-label="RUC">{{ $s->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm" data-label="Ciudad">{{ $s->ciudad ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="RUC">{{ $s->ruc ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Ciudad">{{ $s->ciudad ?: '—' }}</td>
                             <td data-label="Teléfono">{{ $s->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Personal">{{ (int) $s->personal }}</td>
                             <td data-label="Estado">

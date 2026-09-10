@@ -18,7 +18,7 @@
                 <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Turno</th><th>Horario</th><th>Entrada</th><th>Días</th><th>Quiénes lo trabajan</th>
+                            <tr><th>Turno</th><th>Horario</th><th class="spg-movil-oculto">Entrada</th><th>Días</th><th>Quiénes lo trabajan</th>
                                 <th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
@@ -32,7 +32,7 @@
                                         {{ substr((string) $t->hora_inicio, 0, 5) }}
                                         a {{ substr((string) $t->hora_fin, 0, 5) }}
                                     </td>
-                                    <td data-label="Entrada">{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
+                                    <td class="spg-movil-oculto" data-label="Entrada">{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
                                     <td class="text-muted-warm" style="font-size:.82rem" data-label="Días">{{ $t->dias_texto }}</td>
                                     <td class="text-muted-warm" style="font-size:.82rem" data-label="Quiénes lo trabajan">
                                         @if (! empty($gente[$t->id_turno]))

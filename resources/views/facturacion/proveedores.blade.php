@@ -17,7 +17,7 @@
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Proveedor</th><th>Compra</th><th>Vencimiento</th>
-                        <th class="text-end">Total</th><th class="text-end">Saldo</th><th class="text-end">Pagar</th></tr>
+                        <th class="text-end spg-movil-oculto">Total</th><th class="text-end">Saldo</th><th class="text-end">Pagar</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($cuentas as $c)
@@ -34,7 +34,7 @@
                                 <span class="text-muted-warm">
                                     {{ $c->vencimiento ? fecha($c->vencimiento, 'd/m/Y') : '—' }}</span>
                             </td>
-                            <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
+                            <td class="text-end spg-movil-oculto" data-label="Total">{{ money($c->total) }}</td>
                             <td class="text-end" data-label="Saldo"><strong class="txt-no">{{ money($c->saldo) }}</strong></td>
                             <td class="text-end spg-movil-acciones">
                                 @if ($caja)
@@ -64,7 +64,7 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Fecha</th><th>Proveedor</th><th>Compra que pagó</th><th>Medio</th><th class="d-none d-md-table-cell">Referencia</th>
+                    <tr><th>Fecha</th><th>Proveedor</th><th class="spg-movil-oculto">Compra que pagó</th><th>Medio</th><th class="d-none d-md-table-cell">Referencia</th>
                         <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Anular</th></tr>
                 </thead>
                 <tbody>
@@ -77,7 +77,7 @@
                                  no se veía: con el mismo proveedor repetido no había
                                  forma de saber cuál de las cuatro compras se pagó.
                                  Un pago puede cubrir varias, y por eso salen todas. --}}
-                            <td class="text-muted-warm" style="font-size:.83rem" data-label="Compra que pagó">
+                            <td class="text-muted-warm spg-movil-oculto" style="font-size:.83rem" data-label="Compra que pagó">
                                 {{ $p->compras ?: '—' }}
                                 {{-- **El papel que llega después del pago.** La compra
                                      saldada ya no está en «Cuentas por pagar», así que

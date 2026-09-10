@@ -13,7 +13,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
-más **82 restricciones `CHECK`**.
+más **84 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -331,6 +331,8 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | Versión | Fecha | Cambio |
 |---|---|---|
 
+| 7.113.0 | 10/09/2026 | **La cita anotaba UNA alergia, y una cita puede ser de tres personas.** `cliente.alergias` (7.108.0) alcanza mientras la cita sea de una sola persona **y esa persona tenga ficha**, y ninguna de las dos cosas es siempre cierta: la cita puede ser **para otra persona** —cuyo nombre va como texto en `cita.nombre_para`, porque el salón no la registró— y pueden venir varias, que viven en `cita_acompanante` desde la 7.97.0. Así que en una cita de tres el sistema podía anotar **una sola** alergia, y en una «para otra persona» la única que la agenda mostraba era **la de alguien que ese día ni viene**. Es el único dato de la ficha que puede lastimar a alguien si nadie lo mira, así que media advertencia es peor que ninguna: «maní» a secas en una cita de tres no dice a quién no se le puede dar. **Ahora cada una lleva la suya, y cada una va donde va su NOMBRE**, que es lo que la hace consistente con el modelo que ya estaba: la titular en `cliente.alergias` —su ficha—, la de quien se atiende en su lugar en `cita.alergias_para`, y la de cada acompañante en `cita_acompanante.alergias`. **Las dos últimas son un dato de la VISITA y no de una persona, y por eso no van a `persona`**: quien acompaña no tiene ficha, y crearle una sería inventar a alguien que el salón no registró —la regla que este proyecto sostiene desde la 7.97.0—; la de la titular sí es de su ficha, así que le queda para la próxima. No rompe la 3FN: ninguna columna es copia de nada ni se deduce de ninguna otra. **Se cargan al AGENDAR, en las dos pantallas** —el portal y Nueva cita—, que es cuando la clienta las cuenta: mandar a quien atiende a otra pantalla a anotarlas es pedirle que se acuerde después. **Y el campo de la titular viene con lo que ya tiene cargado**, que no es una comodidad sino el arreglo de un defecto que este cambio podía introducir: en Nueva cita la clienta se elige en esa misma pantalla, así que el campo arrancaría vacío y **agendarle una cita le borraría las alergias, en silencio**. El formulario manda además el valor con el que se dibujó (`alergias_titular_base`) y el guardado **sólo escribe si cambió** — vacío contra vacío no toca nada, y borrarlas a propósito sigue funcionando. **Y NULL no es una cadena vacía**: quiere decir «sin registrar», que es distinto de «no tiene ninguna» y es lo que las pantallas dicen con esas palabras. **En la agenda se ven discriminadas, y en la fila y no en el modal**: un badge rojo por persona, con su nombre adelante cuando la cita es de varias —con una sola el nombre sobra, es la de la fila, y el badge queda exactamente como estaba—. El detalle las abre **todas, incluidas las que no declararon ninguna**, porque ahí «sin registrar» ES una respuesta y un renglón en blanco se leería como que está todo bien. **Y la clienta las vuelve a ver en «Mis citas»**, que es donde comprueba que quedaron bien anotadas y a nombre de quién. **De paso, `dejar_lista.sql` no vaciaba `cita_acompanante`**: faltaba desde la 7.97.0 y no se notaba porque `TRUNCATE cita` **no dispara el `ON DELETE CASCADE`** y con `FOREIGN_KEY_CHECKS` en 0 tampoco se queja — las filas quedaban huérfanas y viajaban en el `.sql` que se entrega, ahora con el nombre de alguien **y con a qué es alérgica**. **Y el rótulo del bloque de acompañantes lo declara la pantalla** (`data-acomp-titulo`): en el mostrador decía «¿Quiénes vienen con vos?», y quien carga la cita no es la que viene. **192 pruebas · 1461 aserciones**, cuatro nuevas y **las cuatro comprobadas en las dos direcciones** — y la del andamiaje **no medía nada en su primera versión**: buscaba el nombre del campo suelto, así que renombrarlo a `alergias_paraX` seguía conteniéndolo y pasaba en verde; busca el `name=` entero · 84 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
+
 | 7.112.0 | 10/09/2026 | **Seis cosas de pantalla reportadas usando el sistema, y la mitad eran funciones escondidas donde nadie las buscaba.** **La foto de perfil**, que es lo nuevo: entra `persona.foto` y cada uno carga la suya desde Mi cuenta. **Va en `persona` y no en `usuario`**, que es donde la regla número dos manda los datos de alguien — colgada de la cuenta, quien trabaja en el salón **sin cuenta de sistema** (existe desde la 7.68.0) no podría tener foto, y una persona con dos cuentas tendría dos caras para la misma cara. **Se guarda el nombre del archivo, no el archivo**, el criterio del logo y de la imagen del servicio. **Sin foto van las INICIALES y no un monigote genérico**: un avatar igual para todos no distingue a nadie, que es lo único que un avatar tiene que hacer; y se toma la primera letra del nombre y la del apellido —«Ana Propietaria» es AP y no AN— porque dos personas que se llaman igual de nombre se distinguen por el apellido. **Y al quitarla el archivo se borra**, que si no el disco del servidor se llena de caras de gente que pidió que se las sacaran. Va en su propio volumen y con su propio `.gitignore`: **las fotos de los servicios y el logo son del salón, una cara es un dato personal**, así que ni al repositorio ni al ZIP, y `dejar_lista.sql` la vacía antes de generar el `.sql` que se entrega. **Las alergias aparecen también en Mi cuenta.** Existían —desde la 7.110.0, en «Mi ficha»— y se reportó que no están: las dos son pantallas legítimas para buscarlas, y Mi cuenta es donde uno mira lo suyo. Se dibujan en las dos con **un solo partial y un solo POST**, porque copiado se desfasa; el destino viaja en el formulario (`volver`), que si no guardar desde Mi cuenta dejaba a la clienta en una pantalla a la que no iba. **El logo cargado deja de tener el ícono viejo de fondo.** `.spg-logo` y `.logo-big` son **pastillas doradas, y ese oro es el fondo de la tijera** —el ícono por defecto—, no un marco de la marca: al cargar un logo la imagen se dibujaba encima con `object-fit:contain` y un logo apaisado —los que traen el nombre del salón adentro lo son casi siempre— quedaba con **dos bandas doradas a los costados**, o sea el ícono de antes asomando. Medido: de un cuadrado de 34 px con fondo `#C9A84C` a 119 px de ancho **sin fondo**. Y **quitando el logo vuelve solo**, que es lo que se pidió explícitamente, porque la clase depende de que haya imagen. **El contenedor pasa a dibujarlo `layout/_marca`**: escrita en cada vista, la condición habría quedado en cinco lugares — el patrón que este documento persigue. De paso, al lado de un texto el logo conserva su proporción: encerrado en 1,1 em de ancho quedaba reducido a un puntito. **La seña dice cuánto es el mínimo y de dónde sale.** En el modal de «Dejar una seña» el mínimo estaba **detrás del ícono de ayuda**, o sea escondido hasta que alguien lo tocara: es la regla que este documento ya tiene escrita —*lo que EXPLICA se guarda, lo que ADVIERTE se queda a la vista*— aplicada al revés. Y al reservar no había desglose: con un servicio «Gs. 140.000» se explica solo, con dos «Gs. 315.000» es una cifra que la clienta no puede comprobar. Ahora el resumen lo abre servicio por servicio, y **la seña de cada uno viaja como DATO** (`data-sena`, `data-sena-pct`) en vez de raspar el texto del badge: eso andaba de casualidad —cambiar la redacción o un precio con decimales daba otro número **sin que nada avisara**— y sobre todo no alcanzaba, porque el porcentaje no estaba en ningún lado. **El servicio sin seña declara cero y no omite el atributo**, que omitido el JS sumaría `NaN`. Comprobado en las cuatro direcciones en el navegador: dos con seña desglosa, uno solo no —repetiría el número de arriba—, uno con y uno sin sigue sin desglosar, y ninguno esconde el aviso entero. **El alias dice de qué tipo es en su propio rótulo**: «Alias (Cédula)». Iba abajo del número, como una instrucción suelta —«buscalo por cédula»— y en un bloque donde los otros cuatro datos son rótulo + valor ése era el único con un renglón colgando. El nombre se muda a **`App\Servicios\Pagos`**, que es el mismo que usa la pantalla donde el salón lo carga: escritas aparte, las dos listas ya se habían desfasado —una decía «Celular» y la otra «celular»—. **Y la huella se registra a nombre del salón**: `rp.name` sale ahora de `Config::nombreSalon()` y el `displayName` de la credencial lleva el salón al lado del nombre de la persona. **El dominio que igual aparece NO se puede cambiar y conviene tenerlo escrito**: el `rpId` es el dominio efectivo por especificación —no admite texto libre ni una IP— y varios navegadores lo escriben tal cual en su propia burbuja; lo único que el sistema decide son esos dos nombres. **Y no toca las credenciales ya registradas**: el nombre queda guardado en el autenticador el día que se creó la clave, así que quien ya tenía la huella activa la vuelve a activar desde Mi cuenta. **188 pruebas · 1426 aserciones**, seis nuevas y **las seis comprobadas en las dos direcciones** — sacando cada arreglo a propósito, cada una falla · 82 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 | 7.111.1 | 10/09/2026 | **«Mis citas» nombraba a UNA profesional cuando la clienta había elegido varias, y el bloque de a dónde transferir era ilegible.** Los dos reportados usando el sistema en el servidor. **La columna de profesionales**: `vw_agenda_citas.profesional` sale de `cita.id_usuario` —la dueña de la cita— y quién hace cada servicio vive en `cita_servicio.id_usuario`, que esa vista no mira; así que una cita con dos servicios en dos manos distintas salía a nombre de una sola. Es **la misma corrección que el panel recibió en la 7.104.0 y que el portal se había quedado sin aplicar** —media corrección, el patrón que este documento ya tiene anotado— con la misma trampa adentro: **un NULL en `cita_servicio.id_usuario` no es «nadie», es la dueña**, que es como se representa «lo hace quien la tiene» desde siempre, y por eso la subconsulta va con `COALESCE` y no con un `IS NOT NULL`. Medido sobre una cita real: la vista decía «Carmen Fretes» y la atienden **«Ana Propietaria, Carmen Fretes»**. Va en las dos tablas —próximas y anteriores, que una cita pasada también pudo atenderse entre varias— y el encabezado pasa a **«Profesionales»**. **Y la consulta de las próximas es un string PHP entre comillas simples**, así que las del SQL hay que escaparlas: copiada tal cual desde el panel —donde vive en comillas dobles— corta el string y da error de sintaxis. **El bloque de a dónde transferir**: salían los valores sueltos pegados con puntos —«456123 / buscalo por cédula · o por número: 6543356 / Ana Garcia · 456123 · Caja de ahorro / Enviar comprobante»— con tres problemas de una. **Ningún número decía qué era**; el mismo `456123` aparecía **dos veces significando cosas distintas** —el alias, que es una cédula, y el documento de la titular—; y la nota del salón quedaba suelta al pie, donde «Enviar comprobante» se lee como un botón que no hace nada. Ahora cada dato lleva su rótulo en una grilla de dos columnas —que en un teléfono angosto se apila, porque con `minmax` el valor quedaba en 4 rem y un número de cuenta no entra— **el alias va primero** porque es lo único que hace falta para transferir en el SIPAP, con su «buscalo por cédula» pegado abajo y no en otro renglón, **el documento no se repite cuando ES el alias**, y la nota se anuncia como nota. Comprobado en las dos direcciones: con `documento = alias` la fila no se dibuja, con uno distinto sí. **183 pruebas · 1399 aserciones**, una nueva comprobada en las dos direcciones —mide que la columna vieja NO nombre a la segunda, que es lo que estaba mal, y que la nueva las nombre a las dos— · **sólo código: la base no se tocó** |
 | 7.111.0 | 09/09/2026 | **Seis cosas reportadas usando el sistema, y la peor ofrecía horarios que después rechazaba.** **El agendamiento ignoraba a los profesionales pedidos.** La consulta de disponibilidad llevaba **un solo `id_usuario`**, así que el navegador sólo podía mandarlo cuando todos los servicios iban a la misma persona: con dos servicios en dos manos distintas —o con uno pedido y otro en «quien me atienda»— mandaba **cero**, y cero significa «cualquiera». El servidor contestaba con los huecos del **equipo entero**, así que la pantalla ofrecía horas en las que una de las elegidas ni trabaja y el «no» llegaba **al guardar**, con el día y la hora ya decididos — que es el «al agendar con varios servicios retrocede» del reporte, porque el rechazo devuelve la misma pantalla y el asistente arrancaba de nuevo en el paso 1. **Medido**: con Gloria (sólo mañana) y Carmen sobre dos servicios, el día ofrecía **6 huecos incluidos 13:30, 14:00, 14:15 y 14:30**; con el arreglo, **1: las 08:00**, que es la única hora en que las dos pueden. La corrección entra **por donde el problema general ya estaba resuelto**: `slots()` exige desde antes que **cada servicio tenga ahí quién lo haga**, así que alcanzó con dejar en la lista de ese servicio a la persona pedida (`Agenda::acotarPedidos()`) y la intersección de turnos, el reparto y el «no entra en el turno» salen solos de la maquinaria que ya existía — sin tocar el motor. **Y a la persona pedida se la respeta aunque no figure entre quienes hacen ese servicio**: el calendario queda vacío y el guardado explica el motivo, que es accionable; descartar el pedido en silencio sería volver a ofrecer horarios de otra gente. **Nueva cita ofrecía a cualquiera para cualquier servicio**, que es la otra mitad del mismo defecto: el portal filtra por `persona_servicio` desde la 7.90.0 y esta pantalla se había quedado afuera —media corrección aplicada, el patrón que este documento ya tiene anotado—, así que se podía repartir una coloración a quien sólo hace uñas y enterarse **después** de elegir día y hora («Gloria Garay no hace Coloración completa»). El mapa se muda a `Agenda::mapaHaceServicio()` y lo comparten las dos pantallas: escrito dos veces, una se queda atrás. **El combo de «¿con quién?» se preguntaba dos veces**: aparecía dentro de la tarjeta al marcar el servicio y una pantalla después el asistente lo volvía a preguntar. Se esconde **sólo mientras el asistente esté andando y sólo mientras siga dentro de la tarjeta** —al moverlo al paso, la regla ya no lo alcanza— así que sin JavaScript se ven todos y se elige profesional igual. **La tarjeta elegida deja de crecer**: la 7.107.0 le daba el renglón entero en el celular porque adentro vivía ese combo, y con eso **la grilla se reacomodaba sola al marcar** —las de abajo saltaban de lugar— y elegir el segundo servicio era apuntarle a un blanco que se acababa de mover. Sin combo adentro, la regla perdió su motivo. De paso el `transform` del hover pasa a `hover:hover`: en táctil el navegador lo emula con el primer toque y no lo suelta, así que la tarjeta quedaba levantada 2 px. **Y el catálogo deja de scrollear adentro suyo**, que es el reporte textual: una caja que scrollea dentro de una página que también scrollea **le roba el gesto al dedo**, y para llegar al botón había que buscar el borde libre de los costados. El `overscroll-behavior:contain` empeoraba justo eso. El alto ya no hace falta acotarlo: el asistente muestra un paso por vez desde la 7.110.0. **El asistente deja de «retroceder» sin decir por qué**: tras un rechazo abre en el **último paso** —con todo cargado de vuelta por `old()`— y **no se scrollea a sí mismo en la primera pintada**, que era lo que dejaba el aviso del rechazo fuera de pantalla. **Las excepciones de agenda se pueden editar**, y sólo mientras no hayan empezado: una que ya arrancó dejó de ser un plan —la agenda no ofreció esos horarios, puede haber clientas avisadas y citas movidas— y cambiarle el rango hacia atrás no deshace nada de eso; para eso está la baja. Es **un solo método para el alta y la edición** y **un solo partial de campos**, porque dos formularios iguales se desfasan; el botón no se dibuja cuando ya empezó y **el servidor lo vuelve a comprobar**, comprobado armando el POST a mano. **«Con quién» pasa a «Colabora con»**: al lado del nombre de la clienta se leía como «con quién viene» —que es la columna de al lado— cuando muestra la otra punta, quién más trabaja en esa cita; va también al detalle, donde el nombre entra completo. **El campo de alergias existía y no se encontraba**: `portal.ficha` no tenía `barra`, así que sólo salía en el pie y en el desplegable de la cuenta, y se reportó como «no existe en ninguna parte para cargar alergias». Una función que no se encuentra es indistinguible de una que no está. **Y el historial de la clienta gana su perfil**: la tabla contesta «qué pasó tal día» y con cien filas paginadas de a veinticinco saber que siempre pide lo mismo, que viene los sábados a la mañana o que se atiende con la misma persona obligaba a leerlas todas llevando la cuenta a mano. Entran visitas, servicios, facturado, cada cuántos días viene, lo que más pide, qué días, a qué hora y con quién — **por CITA y no por servicio**, que una cita con cuatro servicios es **una** visita y contando renglones ese día pesaría cuatro veces más. **No respeta los filtros de la tabla, a propósito**: filtrado por un mes cualquiera diría que su favorito es el único que se hizo ese mes. Las barras son un `width` en por ciento sobre la familia `.spg-graf-*` que Reportes ya tenía: no entra ninguna librería. **182 pruebas · 1389 aserciones**, una nueva comprobada en las dos direcciones —sacando `acotarPedidos()` a propósito, falla— · **sólo código: la base no se tocó** |
@@ -582,6 +584,7 @@ app/
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
     Acompanantes.php       Quiénes vienen con la clienta (`cita_acompanante`)
+    Alergias.php           Las alergias de CADA persona de la cita
     Asistencia.php         Fichaje, franja del turno y faltas sin aviso
     Ayuda.php              El diccionario de `config/ayudas.php`: de()
     CitasVencidas.php      Cierra la Atrasada de más de un día y la que no se presentó
@@ -633,7 +636,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 188 pruebas
+tests/Feature/             Las 192 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2169,6 +2172,85 @@ en el historial y **en la fila de la agenda**, y se carga desde **los dos lados*
 > **NULL no es «no tiene ninguna».** Vacío quiere decir que nadie lo registró, y
 > la pantalla dice «sin alergias registradas» en vez de afirmar que no las tiene
 > — afirmarlo sin que nadie lo haya dicho sería inventarlo.
+
+#### Y una por CADA persona de la cita, no una por cita
+
+`cliente.alergias` alcanza mientras la cita sea de una sola persona **y esa
+persona tenga ficha**. Ninguna de las dos cosas es siempre cierta: la cita puede
+ser **para otra persona** y pueden venir **varias**. Así que en una cita de tres
+el sistema anotaba **una sola** alergia, y en una «para otra persona» la única
+que la agenda mostraba era la de alguien que ese día ni viene.
+
+**Cada alergia va donde va el NOMBRE de esa persona**, que es lo que la hace
+consistente con el modelo que ya estaba:
+
+| Quién se atiende | Su nombre | Sus alergias |
+|---|---|---|
+| La clienta titular | `persona` | `cliente.alergias` — **su ficha** |
+| Para quien es la cita | `cita.nombre_para` | `cita.alergias_para` |
+| Cada acompañante | `cita_acompanante.nombre` | `cita_acompanante.alergias` |
+
+Las compone **`App\Servicios\Alergias`**, que no consulta nada: arma la lista con
+lo que la pantalla ya trajo, porque las dos que la usan listan citas y una
+consulta por fila sería una por cada renglón de la agenda.
+
+- **Las dos últimas son un dato de la VISITA y no de una persona**, y por eso no
+  van a `persona`: quien acompaña **no tiene ficha**, y crearle una sería
+  inventar a alguien que el salón no registró —la regla que este proyecto
+  sostiene desde la 7.97.0—. La de la titular sí es de su ficha, así que le
+  queda para la próxima cita.
+- **No rompe la 3FN**: ninguna de las dos columnas es copia de nada ni se deduce
+  de ninguna otra.
+- **La titular figura sólo si es ella la que se atiende.** Con la cita marcada
+  «para otra persona», la que viene es la del `nombre_para`: ésa ocupa el lugar 1
+  del grupo, que es el mismo motivo por el que `cita_acompanante.orden` arranca
+  en 2.
+
+##### Se cargan al AGENDAR, en las dos pantallas
+
+| Pantalla | Campos |
+|---|---|
+| Portal → Reservar, paso «Detalles» | `alergias_titular` · `alergias_para` · `acomp_alergias[n]` |
+| Citas → Nueva cita, paso «Detalles» | los mismos |
+
+Es cuando la clienta las cuenta: mandar a quien atiende a otra pantalla a
+anotarlas es pedirle que se acuerde después.
+
+> **El campo de la titular viene con lo que ya tiene cargado, y eso no es una
+> comodidad: es el arreglo de un defecto que este cambio podía introducir.** En
+> Nueva cita la clienta se elige en esa misma pantalla, así que el campo
+> arrancaría vacío y **agendarle una cita le borraría las alergias, en
+> silencio** — sobre el único dato de la ficha que puede lastimar a alguien.
+>
+> El formulario manda además el valor con el que se dibujó
+> (`alergias_titular_base`) y **`Alergias::guardarDelTitular()` sólo escribe si
+> cambió**: vacío contra vacío no toca nada, y borrarlas a propósito sigue
+> funcionando porque ahí el valor sí difiere. En el mostrador lo llena el JS
+> desde el `data-alergias` de cada opción del combo, el mismo patrón que los
+> canjes.
+
+##### Y se ven discriminadas en la tabla de citas
+
+- **En la fila de la agenda, un badge rojo por persona**, con su nombre adelante
+  **cuando la cita es de varias**. Con una sola el nombre sobra —es la de la
+  fila— y el badge queda exactamente como estaba. «Maní» a secas en una cita de
+  tres es media advertencia: no dice a quién no se le puede dar.
+- **En el detalle van TODAS, incluidas las que no declararon ninguna**, porque
+  ahí «sin registrar» ES una respuesta y un renglón en blanco se leería como que
+  está todo bien.
+- **Y la clienta las vuelve a ver en «Mis citas»**: es donde comprueba que
+  quedaron bien anotadas y a nombre de quién.
+
+Lo fijan cuatro pruebas, las cuatro comprobadas en las dos direcciones. La del
+andamiaje busca el **`name=` entero y no el nombre del campo suelto**: en su
+primera versión, renombrarlo a `alergias_paraX` seguía conteniéndolo y pasaba en
+verde sin medir nada.
+
+> **Lo que queda pendiente y conviene tenerlo escrito**: la alergia de un
+> acompañante **se carga al reservar y no se puede corregir después**. La de la
+> titular sí, desde su ficha; las otras dos personas no tienen ficha, así que su
+> único momento es el formulario de la cita. Si aparece el caso —alguien la
+> menciona al llegar—, el lugar natural sería el detalle de la agenda.
 
 > **Y en Clientes, «ver ficha» reemplaza al botón de «nueva cita»** (pedido del
 > usuario). Desde una lista de clientas lo que se hace es **mirar** a una —qué
@@ -4793,7 +4875,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 178 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 192 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -4816,7 +4898,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan spg:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
-   17 triggers, 17 vistas y 82 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 84 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -4947,7 +5029,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**188 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**192 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

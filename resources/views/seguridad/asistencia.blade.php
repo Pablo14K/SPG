@@ -321,14 +321,14 @@
             <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
-                        <tr><th>Fecha</th><th>Profesional</th><th>Turno</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr>
+                        <tr><th>Fecha</th><th>Profesional</th><th class="spg-movil-oculto">Turno</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr>
                     </thead>
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
                                 <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
                                 <td data-label="Profesional">{{ $r->profesional }}</td>
-                                <td class="text-muted-warm" data-label="Turno">{{ $r->turno }}</td>
+                                <td class="text-muted-warm spg-movil-oculto" data-label="Turno">{{ $r->turno }}</td>
                                 <td data-label="Entrada">{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
                                 <td data-label="Salida">{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
                                 <td data-label="Estado">

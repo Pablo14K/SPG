@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Mail\AvisoInterno;
+use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
+use App\Servicios\Alergias;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
@@ -24,6 +26,7 @@ use App\Servicios\WebAuthn;
 use App\Servicios\CitasVencidas;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -7188,4 +7191,216 @@ class ReglasDeNegocioTest extends TestCase
             Config::olvidar();
         }
     }
+
+    // -----------------------------------------------------------------
+    //  Las alergias son de CADA persona de la cita, no de la cita
+    // -----------------------------------------------------------------
+
+    /**
+     * Cada persona de la cita tiene las suyas, y cada una va a su lugar.
+     *
+     * `cliente.alergias` alcanzaba mientras la cita fuera de una sola persona
+     * con ficha. No es el caso: la cita puede ser **para otra persona** —cuyo
+     * nombre va como texto en `cita.nombre_para`, porque el salón no la
+     * registró— y pueden venir varias, que viven en `cita_acompanante`. Así
+     * que en una cita de tres el sistema anotaba **una sola** alergia, y en
+     * una «para otra persona» la que anotaba era la de alguien que ese día ni
+     * viene.
+     *
+     * Se mide en las dos direcciones que importan: que cada alergia quede
+     * atribuida a SU persona, y que la de la clienta que reservó **no** se le
+     * cuelgue a la que se atiende en su lugar.
+     */
+    #[Test]
+    public function las_alergias_son_de_cada_persona_de_la_cita(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+
+        // La clienta que reservó tiene lo suyo en su ficha, como siempre.
+        DB::update('UPDATE cliente SET alergias = ? WHERE id_cliente = ?',
+                   ['Amoniaco de la titular', $cita->id_cliente]);
+
+        // Y la cita es para su hija, que viene con una amiga.
+        DB::update('UPDATE cita SET para_otra_persona = 1, nombre_para = ?, alergias_para = ?, personas = 2
+                     WHERE id_cita = ?',
+                   ['Josefina Villalba', 'Latex y PPD', $cita->id_cita]);
+
+        Acompanantes::guardar($cita->id_cita,
+            [2 => 'Marta'], [2 => 'Duarte'], 2, [2 => 'Niquel']);
+
+        $fila = DB::selectOne(
+            'SELECT c.para_otra_persona, c.nombre_para, c.alergias_para,
+                    (SELECT cl.alergias FROM cliente cl WHERE cl.id_cliente = c.id_cliente) AS alergias,
+                    (SELECT CONCAT(pe.nombre, \' \', pe.apellido)
+                       FROM cliente cl JOIN persona pe ON pe.id_persona = cl.id_persona
+                      WHERE cl.id_cliente = c.id_cliente) AS cliente
+               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
+        );
+        $acomp = Acompanantes::deCitas([$cita->id_cita])[$cita->id_cita] ?? [];
+
+        $this->assertCount(1, $acomp, 'La premisa: la acompañante tiene que haberse guardado.');
+        $this->assertSame('Niquel', $acomp[0]->alergias,
+            'La alergia de quien acompaña va con su nombre, en la cita: no tiene ficha donde dejarla.');
+
+        $gente = Alergias::deLaCita($fila, $acomp);
+
+        $this->assertCount(2, $gente,
+            'Se atienden dos: la hija —que ocupa el lugar de la titular— y la amiga.');
+        $this->assertSame('Josefina Villalba', $gente[0]->quien);
+        $this->assertSame('Latex y PPD', $gente[0]->alergias,
+            'La que se atiende es ella, así que la alergia que vale es la suya.');
+        $this->assertSame('Marta Duarte', $gente[1]->quien);
+        $this->assertSame('Niquel', $gente[1]->alergias);
+
+        // **La otra mitad, que es la que estaba mal**: la de la clienta que
+        // reservó no puede aparecer, porque ese día no se atiende.
+        foreach ($gente as $p) {
+            $this->assertNotSame('Amoniaco de la titular', $p->alergias,
+                'La alergia de quien reservó no dice nada de quien se sienta en el sillón.');
+        }
+
+        // Y sin «para otra persona», la que se atiende es ella y vale su ficha.
+        DB::update('UPDATE cita SET para_otra_persona = 0, nombre_para = NULL, alergias_para = NULL
+                     WHERE id_cita = ?', [$cita->id_cita]);
+        $fila2 = DB::selectOne(
+            'SELECT c.para_otra_persona, c.nombre_para, c.alergias_para,
+                    (SELECT cl.alergias FROM cliente cl WHERE cl.id_cliente = c.id_cliente) AS alergias,
+                    (SELECT CONCAT(pe.nombre, \' \', pe.apellido)
+                       FROM cliente cl JOIN persona pe ON pe.id_persona = cl.id_persona
+                      WHERE cl.id_cliente = c.id_cliente) AS cliente
+               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
+        );
+        $this->assertSame('Amoniaco de la titular', Alergias::deLaCita($fila2, $acomp)[0]->alergias);
+    }
+
+    /**
+     * La agenda las muestra y dice de quién es cada una.
+     *
+     * «Maní» a secas en una cita de tres es media advertencia: no dice a quién
+     * no se le puede dar. La fila mostraba una sola —la de la ficha de quien
+     * reservó— así que las otras dos personas se sentaban sin que nadie
+     * supiera con qué no se las puede tocar.
+     */
+    #[Test]
+    public function la_agenda_discrimina_la_alergia_de_cada_persona(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+
+        DB::update('UPDATE cita SET para_otra_persona = 1, nombre_para = ?, alergias_para = ?, personas = 2
+                     WHERE id_cita = ?',
+                   ['Josefina Villalba', 'AlergiaDeJosefina', $cita->id_cita]);
+        Acompanantes::guardar($cita->id_cita,
+            [2 => 'Marta'], [2 => 'Duarte'], 2, [2 => 'AlergiaDeMarta']);
+
+        $this->entrarComoAdministrador();
+        $html = $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('AlergiaDeJosefina', $html,
+            'La alergia de quien se atiende tiene que verse en la fila, no escondida.');
+        $this->assertStringContainsString('AlergiaDeMarta', $html,
+            'Y la de quien la acompaña también: se la atiende igual.');
+
+        // Discriminadas: cada una con el nombre de su dueña al lado. Sin eso,
+        // dos alergias sueltas en la misma fila no se pueden atribuir.
+        $this->assertMatchesRegularExpression(
+            '/Josefina Villalba.{0,120}AlergiaDeJosefina/su', $html,
+            'Cada alergia va con el nombre de quien la tiene.');
+        $this->assertMatchesRegularExpression(
+            '/Marta Duarte.{0,120}AlergiaDeMarta/su', $html);
+    }
+
+    /**
+     * Las dos pantallas que agendan piden las alergias de cada uno.
+     *
+     * Se pidió explícitamente que estén en las dos —portal y mostrador—, y es
+     * el andamiaje lo que se mide: si un campo se renombra, el formulario no
+     * da ningún error, simplemente deja de guardar la alergia. Es el patrón
+     * que este proyecto ya tiene anotado.
+     */
+    #[Test]
+    public function las_dos_pantallas_de_agendar_piden_las_alergias(): void
+    {
+        // --- El mostrador ---
+        $this->entrarComoAdministrador();
+        $html = $this->get(route('citas.form'))->assertOk()->getContent();
+
+        // **Con el `name=` entero y no el nombre suelto.** Buscando el
+        // nombre a secas, un campo renombrado a `alergias_paraX` seguiría
+        // conteniéndolo: la prueba pasaría sin medir nada. Comprobado.
+        foreach (['name="alergias_titular"', 'name="alergias_titular_base"',
+                  'name="alergias_para"', 'data-alergias='] as $campo) {
+            $this->assertStringContainsString($campo, $html,
+                "Nueva cita tiene que ofrecer «{$campo}».");
+        }
+
+        // --- El portal ---
+        $idc = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE id_usuario IS NOT NULL
+                                  AND activo = 1 ORDER BY id_cliente LIMIT 1');
+        $this->assertNotSame(0, $idc, 'La premisa: hace falta una clienta con cuenta.');
+        $uid = (int) DB::scalar('SELECT id_usuario FROM cliente WHERE id_cliente = ?', [$idc]);
+        session([
+            'uid' => $uid, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => $idc,
+        ]);
+        $this->conMarcaDeSesion();
+
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $html = $this->get(route('portal.reservar', ['sucursal' => $suc]))->assertOk()->getContent();
+
+        foreach (['name="alergias_titular"', 'name="alergias_titular_base"',
+                  'name="alergias_para"'] as $campo) {
+            $this->assertStringContainsString($campo, $html,
+                "Reservar tiene que ofrecer «{$campo}».");
+        }
+
+        // Y el JS que dibuja a los acompañantes tiene que saber de la alergia:
+        // sin ese campo, en una cita de tres sólo se puede cargar una.
+        $js = file_get_contents(public_path('assets/js/app.js'));
+        $this->assertStringContainsString('acomp_alergias[', $js,
+            'Cada acompañante lleva su propio campo de alergias.');
+    }
+
+    /**
+     * Agendar sin tocar el campo NO le borra a la clienta lo que ya tenía.
+     *
+     * Es el defecto que este arreglo podía introducir, y del peor tipo: en
+     * silencio, sobre el único dato de la ficha que puede lastimar a alguien.
+     * En «Nueva cita» el campo arranca vacío —la clienta se elige en esa misma
+     * pantalla— así que sin la comparación contra el valor con el que se
+     * dibujó, agendarle una cita le vaciaba las alergias.
+     */
+    #[Test]
+    public function agendar_no_borra_las_alergias_que_la_clienta_ya_tenia(): void
+    {
+        $idc = (int) DB::scalar('SELECT id_cliente FROM cliente WHERE activo = 1 ORDER BY id_cliente LIMIT 1');
+        DB::update('UPDATE cliente SET alergias = ? WHERE id_cliente = ?', ['PPD y amoniaco', $idc]);
+
+        $leer = fn () => DB::scalar('SELECT alergias FROM cliente WHERE id_cliente = ?', [$idc]);
+
+        // 1. El formulario no mandó nada: no se toca. Es el caso de un POST
+        //    viejo, o de la pantalla sin JavaScript.
+        Alergias::guardarDelTitular(new Request(), $idc);
+        $this->assertSame('PPD y amoniaco', $leer(),
+            'Sin el campo en el POST, lo cargado se queda como está.');
+
+        // 2. Se dibujó con lo que tenía y no se tocó: tampoco.
+        Alergias::guardarDelTitular(
+            new Request(['alergias_titular' => 'PPD y amoniaco',
+                         'alergias_titular_base' => 'PPD y amoniaco']), $idc);
+        $this->assertSame('PPD y amoniaco', $leer());
+
+        // 3. Se corrigió: se guarda.
+        Alergias::guardarDelTitular(
+            new Request(['alergias_titular' => 'PPD, amoniaco y niquel',
+                         'alergias_titular_base' => 'PPD y amoniaco']), $idc);
+        $this->assertSame('PPD, amoniaco y niquel', $leer());
+
+        // 4. Se vació a propósito: se borra, y queda NULL —«sin registrar»—
+        //    y no una cadena vacía, que la pantalla no sabría distinguir.
+        Alergias::guardarDelTitular(
+            new Request(['alergias_titular' => '',
+                         'alergias_titular_base' => 'PPD, amoniaco y niquel']), $idc);
+        $this->assertNull($leer(), 'Borrarlas a propósito tiene que poder hacerse.');
+    }
+
 }

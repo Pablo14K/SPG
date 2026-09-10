@@ -13,7 +13,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Fecha</th><th>Cliente</th><th>Comprobante</th><th>Medio</th>
+                        <th>Fecha</th><th>Cliente</th><th>Comprobante</th><th class="spg-movil-oculto">Medio</th>
                         <th class="text-end">Monto</th><th class="d-none d-md-table-cell">Referencia</th><th>Estado</th><th class="text-end">Anular</th>
                     </tr>
                 </thead>
@@ -38,7 +38,7 @@
                                     <span class="text-muted-warm">—</span>
                                 @endif
                             </td>
-                            <td data-label="Medio">{{ $r->metodo }}</td>
+                            <td class="spg-movil-oculto" data-label="Medio">{{ $r->metodo }}</td>
                             <td class="text-end" data-label="Monto">{{ money($r->monto) }}</td>
                             <td class="text-muted-warm d-none d-md-table-cell" data-label="Referencia">{{ $r->referencia ?: '—' }}</td>
                             <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>

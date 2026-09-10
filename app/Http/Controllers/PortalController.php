@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
+use App\Servicios\Alergias;
 use Illuminate\Database\QueryException;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
@@ -222,6 +223,14 @@ class PortalController extends Controller
             // y lo tiene que hacer un profesional que lo haga, en un horario
             // libre. Lo único que cambia es que no se cobra.
             'canjes' => Canje::deCliente($this->cliente(), true),
+            // **Lo que ya tiene anotado, para que el campo no arranque vacío.**
+            // Vacío se lee como «no tiene ninguna», así que quien no lo mirara
+            // se las borraría sin querer al reservar — y son el único dato de
+            // la ficha que puede lastimar a alguien. Viaja además como valor de
+            // referencia (`alergias_titular_base`): el guardado sólo escribe si
+            // cambió. Ver `Alergias::guardarDelTitular()`.
+            'misAlergias' => (string) (DB::scalar(
+                'SELECT alergias FROM cliente WHERE id_cliente = ?', [$this->cliente()]) ?? ''),
         ]);
     }
 
@@ -424,17 +433,25 @@ class PortalController extends Controller
             if ($paraOtro && $nombrePara === '') {
                 $paraOtro = false;   // sin nombre no es «para otra persona»
             }
+            // **Y las alergias de quien se atiende, cuando no es ella.** Esa
+            // persona no tiene ficha —su nombre va como texto acá al lado— así
+            // que su alergia es un dato de esta visita y vive en la cita.
             DB::update(
-                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
-                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
+                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, alergias_para = ?, personas = ? WHERE id_cita = ?',
+                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null,
+                    $paraOtro ? Alergias::limpiar($request->input('alergias_para')) : null,
+                    $personas, $idCita]
             );
 
             // Quiénes vienen, no sólo cuántas: el salón necesita saber a quién
-            // esperar. La primera no se guarda — es la clienta que reservó.
+            // esperar, **y con qué es alérgica cada una**. La primera no se
+            // guarda — es la clienta que reservó, y lo suyo va a su ficha.
             Acompanantes::guardar($idCita,
                 (array) $request->input('acomp_nombre', []),
                 (array) $request->input('acomp_apellido', []),
-                $personas);
+                $personas,
+                (array) $request->input('acomp_alergias', []));
+            Alergias::guardarDelTitular($request, $idc);
 
             $usados = Canje::aplicarACita((array) $request->input('canjes', []), $idCita, $idc);
 
@@ -677,6 +694,15 @@ class PortalController extends Controller
             // todo en serie sobre una sola clienta— y no ofrece ninguna fecha.
             'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, c.id_estado_cita, c.id_sucursal, c.id_usuario,
                     c.personas,
+                    -- **Las alergias, una por persona de la cita.** La clienta
+                    -- las carga al reservar y acá vuelve a verlas: es lo único
+                    -- que puede lastimar a alguien si nadie lo mira, así que
+                    -- tiene que poder comprobar que quedaron bien y a nombre de
+                    -- quién. Las de ella salen de su ficha; las de quien se
+                    -- atiende en su lugar, de la cita. Ver `Alergias`.
+                    c.para_otra_persona, c.nombre_para, c.alergias_para,
+                    (SELECT cl2.alergias FROM cliente cl2
+                      WHERE cl2.id_cliente = c.id_cliente) AS alergias,
                     -- **Quiénes la atienden, no sólo quien tiene la cita.**
                     --
                     -- `vw_agenda_citas.profesional` sale de `cita.id_usuario`, o
@@ -759,6 +785,10 @@ class PortalController extends Controller
 
         return view('portal.citas', [
             'prox' => $prox,
+            // Quiénes vienen con ella, para poder decir de quién es cada
+            // alergia. Se piden para TODAS las filas de una vez: una consulta
+            // por renglón sería una por cada cita de la página.
+            'acompanantes' => Acompanantes::deCitas(array_map(fn ($r) => (int) $r->id_cita, $prox)),
             // **El comprobante de cada cita, para que la clienta lo pueda ver
             // y bajar.** Existía el endpoint de descarga desde la 7.42.0 y no
             // había un solo enlace hacia él fuera de la pantalla de la atención

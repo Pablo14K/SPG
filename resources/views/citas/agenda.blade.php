@@ -69,7 +69,7 @@
                              columna de al lado—. Lo que muestra es la otra punta:
                              quién más trabaja en esa misma cita. --}}
                         <th>{{ $verTodo ? 'Profesional' : 'Colabora con' }}</th>
-                        <th>Servicios</th><th class="text-end">Duración</th>
+                        <th>Servicios</th><th class="text-end spg-movil-oculto">Duración</th>
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -117,12 +117,23 @@
                                      que abre una ventana vacía es peor que
                                      ninguno. --}}
                                 @php
+                                    $spgAcomp = $acompanantes[$c->id_cita] ?? [];
+                                    // **Quiénes se atienden en esta cita, y con qué es
+                                    // alérgica CADA una.** La fila mostraba una sola
+                                    // alergia —la de la ficha de quien reservó— así que
+                                    // en una cita de tres, dos personas se sentaban sin
+                                    // que nadie supiera con qué no se las puede tocar. Y
+                                    // en una «para otra persona» la única que salía era
+                                    // la de alguien que ese día ni viene.
+                                    $spgGente = \App\Servicios\Alergias::deLaCita($c, $spgAcomp);
+                                    $spgAlergicas = array_values(array_filter($spgGente, fn ($p) => $p->alergias !== null));
+                                    $spgVarias = count($spgGente) > 1;
+
                                     $spgDet = [];
                                     if (trim((string) $c->observaciones) !== '') { $spgDet[] = 'dejó dicho'; }
                                     if ($c->para_otra_persona) { $spgDet[] = 'para otra persona'; }
                                     if ((int) $c->personas > 1) { $spgDet[] = 'vienen ' . (int) $c->personas; }
-                                    $spgAlergias = trim((string) ($c->alergias ?? ''));
-                                    if ($spgAlergias !== '') { $spgDet[] = 'alergias'; }
+                                    if ($spgAlergicas) { $spgDet[] = 'alergias'; }
                                 @endphp
 
                                 {{-- **La alergia se ve en la fila, no escondida en el modal.**
@@ -131,13 +142,20 @@
                                      hay que verla sin abrir nada, y por eso va en rojo y con
                                      su texto puesto. Es la excepción que la regla de la ayuda
                                      contextual ya declara: lo que ADVIERTE no se esconde. --}}
-                                @if ($spgAlergias !== '')
-                                    <div class="badge-estado e-no d-inline-flex align-items-center gap-1 mb-1"
-                                         title="Alergias de {{ $c->cliente }}">
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
-                                        {{ \Illuminate\Support\Str::limit($spgAlergias, 40) }}
+                                {{-- **Y una por persona, con su nombre cuando hay varias.**
+                                     «Maní» a secas en una cita de tres no dice a quién no se
+                                     le puede dar: es media advertencia. Con una sola persona
+                                     el nombre sobra —es la de la fila— y el badge queda
+                                     exactamente como estaba. --}}
+                                @foreach ($spgAlergicas as $spgA)
+                                    <div class="mb-1">
+                                        <span class="badge-estado e-no d-inline-flex align-items-center gap-1"
+                                              title="Alergias de {{ $spgA->quien }}: {{ $spgA->alergias }}">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                            <span>@if ($spgVarias)<strong>{{ $spgA->quien }}:</strong> @endif{{ \Illuminate\Support\Str::limit($spgA->alergias, 40) }}</span>
+                                        </span>
                                     </div>
-                                @endif
+                                @endforeach
 
                                 @if ($spgDet)
                                     <button type="button" class="btn btn-sm btn-rapido spg-btn-det"
@@ -181,7 +199,7 @@
                                     @endif
                                 @endif
                             </td>
-                            <td class="text-end" data-label="Duración">{{ (int) $c->duracion_min }} min</td>
+                            <td class="text-end spg-movil-oculto" data-label="Duración">{{ (int) $c->duracion_min }} min</td>
                             <td data-label="Estado">
                                 {!! estado_badge($c->estado) !!}
                                 {{-- **Seña y cobro de la atención son dos badges, no uno.**
@@ -437,7 +455,12 @@
                              con `display:none` gana siempre: el modal no podía hacerse
                              visible ni con Bootstrap haciendo su trabajo. Se veía el
                              fondo gris y nada más. --}}
-                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || trim((string) ($c->alergias ?? '')) !== '')
+                        @php
+                            $spgAcompM = $acompanantes[$c->id_cita] ?? [];
+                            $spgGenteM = \App\Servicios\Alergias::deLaCita($c, $spgAcompM);
+                            $spgHayAlergiaM = (bool) array_filter($spgGenteM, fn ($p) => $p->alergias !== null);
+                        @endphp
+                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || $spgHayAlergiaM)
                             <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content">
@@ -498,9 +521,30 @@
                                                         @endif
                                                     </dd>
                                                 @endif
-                                                @if (trim((string) ($c->alergias ?? '')) !== '')
+                                                {{-- **Persona por persona, incluidas las que no
+                                                     declararon ninguna.**
+
+                                                     Acá «sin registrar» ES una respuesta, y hay que
+                                                     distinguirla de «no tiene»: quiere decir que
+                                                     nadie se lo preguntó. Un renglón en blanco se
+                                                     leería como que está todo bien, que es justo lo
+                                                     contrario. --}}
+                                                @if ($spgHayAlergiaM || count($spgGenteM) > 1)
                                                     <dt class="txt-no">Alergias</dt>
-                                                    <dd class="txt-no"><strong>{{ $c->alergias }}</strong></dd>
+                                                    <dd>
+                                                        <ul class="list-unstyled mb-0">
+                                                            @foreach ($spgGenteM as $spgP)
+                                                                <li class="mb-1">
+                                                                    <span class="text-muted-warm">{{ $spgP->quien }}:</span>
+                                                                    @if ($spgP->alergias !== null)
+                                                                        <strong class="txt-no">{{ $spgP->alergias }}</strong>
+                                                                    @else
+                                                                        <span class="text-muted-warm">sin registrar</span>
+                                                                    @endif
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    </dd>
                                                 @endif
                                                 {{-- **Quién más trabaja en esta cita.** La fila lo dice en
                                                      su columna, pero el detalle es lo que se abre para

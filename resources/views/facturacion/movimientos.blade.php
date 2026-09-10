@@ -164,7 +164,7 @@
             <table class="table table-sm align-middle mb-0">
                 <thead>
                     <tr><th>Cuándo</th><th class="d-none d-md-table-cell">Caja</th><th>Qué pasó</th><th>Medio</th>
-                        <th>Quién</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
+                        <th class="spg-movil-oculto">Quién</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @foreach ($movimientos as $m)
@@ -183,7 +183,7 @@
                                 @endunless
                             </td>
                             <td class="text-muted-warm" style="font-size:.84rem" data-label="Medio">{{ $m->medio }}</td>
-                            <td class="text-muted-warm" style="font-size:.84rem" data-label="Quién">{{ $m->quien ?: '—' }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" style="font-size:.84rem" data-label="Quién">{{ $m->quien ?: '—' }}</td>
                             <td class="text-end {{ $m->activo ? ((int) $m->signo > 0 ? 'txt-ok' : 'txt-no') : 'text-muted-warm' }}"
                                 style="white-space:nowrap;{{ $m->activo ? '' : 'text-decoration:line-through' }}"
                                 data-label="Monto">

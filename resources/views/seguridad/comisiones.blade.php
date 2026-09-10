@@ -11,14 +11,14 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Profesional</th><th>Sucursal</th><th>Servicio</th><th>Tipo</th>
+                    <tr><th>Profesional</th><th class="spg-movil-oculto">Sucursal</th><th>Servicio</th><th>Tipo</th>
                         <th class="text-end">Valor</th><th>Vigente desde</th><th></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Profesional">{{ $c->profesional }}</td>
-                            <td class="text-muted-warm" data-label="Sucursal">{{ $c->donde }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Sucursal">{{ $c->donde }}</td>
                             <td class="text-muted-warm" data-label="Servicio">{{ $c->servicio }}</td>
                             <td data-label="Tipo">{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</td>
                             <td class="text-end" data-label="Valor">

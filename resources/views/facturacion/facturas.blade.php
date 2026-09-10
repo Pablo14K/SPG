@@ -59,7 +59,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Nº</th><th>Fecha</th><th>Cliente</th><th>Comprobante</th>
+                        <th>Nº</th><th>Fecha</th><th>Cliente</th><th class="spg-movil-oculto">Comprobante</th>
                         <th class="text-end">Total</th><th class="text-end d-none d-md-table-cell">Cobrado</th>
                         <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
@@ -73,7 +73,7 @@
                             </td>
                             <td data-label="Fecha">{{ fecha($r->fecha_emision) }}</td>
                             <td data-label="Cliente">{{ $r->cliente }}</td>
-                            <td class="text-muted-warm" data-label="Comprobante">{{ $r->tipo_comprobante }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Comprobante">{{ $r->tipo_comprobante }}</td>
                             <td class="text-end" data-label="Total">{{ money($r->total) }}</td>
                             <td class="text-end d-none d-md-table-cell" data-label="Cobrado">{{ money($r->cobrado) }}</td>
                             <td class="text-end" data-label="Saldo">

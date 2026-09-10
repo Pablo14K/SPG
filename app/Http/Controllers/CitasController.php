@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
+use App\Servicios\Alergias;
 use App\Servicios\Asistencia;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
@@ -347,6 +348,12 @@ class CitasController extends Controller
                     -- clienta, ni cuánta gente esperar.
                     c.para_otra_persona, c.nombre_para, c.personas, c.id_cliente,
                     c.id_usuario, c.id_sucursal,
+                    -- **Y la alergia de ESA persona, que no es la de la ficha
+                    -- de al lado.** Con la cita marcada «para otra persona»,
+                    -- quien se sienta en el sillón es la del `nombre_para`: la
+                    -- alergia de la clienta que reservó no dice nada de ella,
+                    -- y hasta la 7.113.0 era la única que la fila mostraba.
+                    c.alergias_para,
                     -- **Las alergias de la clienta, en la fila.** Es el único
                     -- dato de la ficha que puede lastimar a alguien si nadie lo
                     -- mira, y hasta acá vivía dentro de `observaciones`, mezclado
@@ -609,7 +616,11 @@ class CitasController extends Controller
 
         return view('citas.form', [
             'clientes' => DB::select(
-                'SELECT c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono
+                // `alergias` viaja con cada clienta porque se la elige en esta
+                // misma pantalla: el campo se llena solo al elegirla, igual que
+                // los canjes. Sin eso arrancaría vacío y agendarle una cita le
+                // borraría lo que ya tenía cargado — ver `Alergias`.
+                'SELECT c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, c.alergias
                    FROM cliente c JOIN persona pe ON pe.id_persona = c.id_persona
                   WHERE c.activo = 1 ORDER BY pe.apellido, pe.nombre'
             ),
@@ -807,17 +818,25 @@ class CitasController extends Controller
 
             // Va aparte del `sp_agendar_cita` por el mismo motivo que en el
             // portal: el procedimiento es el del TCC y no recibe estos campos.
+            // **Y las alergias de quien se atiende, cuando no es la clienta.**
+            // Esa persona no tiene ficha —su nombre va como texto acá al
+            // lado—, así que su alergia es un dato de esta visita.
             DB::update(
-                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, personas = ? WHERE id_cita = ?',
-                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null, $personas, $idCita]
+                'UPDATE cita SET para_otra_persona = ?, nombre_para = ?, alergias_para = ?, personas = ? WHERE id_cita = ?',
+                [$paraOtro ? 1 : 0, $paraOtro ? mb_substr($nombrePara, 0, 120) : null,
+                    $paraOtro ? Alergias::limpiar($request->input('alergias_para')) : null,
+                    $personas, $idCita]
             );
 
             // Quiénes vienen, no sólo cuántas: quien atiende necesita saber a
-            // quién esperar. La primera no se guarda — es la clienta.
+            // quién esperar, **y con qué es alérgica cada una**. La primera no
+            // se guarda — es la clienta, y lo suyo va a su ficha.
             Acompanantes::guardar($idCita,
                 (array) $request->input('acomp_nombre', []),
                 (array) $request->input('acomp_apellido', []),
-                $personas);
+                $personas,
+                (array) $request->input('acomp_alergias', []));
+            Alergias::guardarDelTitular($request, $idCliente);
             Auditoria::registrar('ALTA', 'Citas', 'cita', $idCita,
                 'Cita agendada para ' . $fecha . ($equipo ? ' con varios profesionales' : ''));
 

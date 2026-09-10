@@ -104,6 +104,12 @@ return [
     // notas sueltas no las leía nadie antes de preparar una mezcla.
     'observaciones' => 'Lo que quien atiende tiene que saber antes: un color que no le gustó, cómo prefiere el lavado, lo que sea. Las alergias van en su propio campo.',
     'alergias' => 'A qué es alérgica o qué no se le puede aplicar: amoníaco, PPD, látex. Se muestra destacado antes de atenderla, así que conviene ser concreto. Vacío quiere decir «sin registrar», no «no tiene ninguna».',
+    // **Y una por cada persona de la cita** (7.113.0). Una cita puede ser
+    // para otra persona o venir tres juntas, y hasta entonces el sistema
+    // anotaba una sola alergia: la de la ficha de quien reservó. Las de los
+    // demás viven en la cita, porque esas personas no tienen ficha.
+    'alergias_titular' => 'A qué es alérgica o qué no se le puede aplicar: amoníaco, PPD, látex. Queda guardado en su ficha, así que no hay que volver a escribirlo la próxima vez. Vacío quiere decir «sin registrar», no «no tiene ninguna».',
+    'alergias_para' => 'A qué es alérgica la persona que se va a atender. Va en esta cita y no en una ficha: es alguien que el salón todavía no tiene registrado.',
     'observacion' => 'Lo que la clienta va a leer en el aviso. Se le manda tal cual.',
     'pedido' => 'Lo que se te ocurrió agregar. Quien te atiende confirma precio y tiempo en el momento.',
     'motivo' => 'Queda registrado, y es lo único que explica esta decisión dentro de tres meses. Al menos 10 caracteres.',

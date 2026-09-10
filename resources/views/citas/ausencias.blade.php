@@ -28,8 +28,8 @@
                 <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Quién</th><th>Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
-                                <th>Motivo</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                            <tr><th>Quién</th><th class="spg-movil-oculto">Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
+                                <th class="spg-movil-oculto">Motivo</th><th>Estado</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             @forelse ($rows as $a)
@@ -38,11 +38,11 @@
                                      «borrar» y no habría desde dónde deshacerlo. --}}
                                 <tr @class(['text-muted-warm' => ! $a->activo])>
                                     <td class="spg-movil-titulo" data-label="Quién">{{ $a->quien }}</td>
-                                    <td class="text-muted-warm" data-label="Dónde">{{ $a->donde }}</td>
+                                    <td class="text-muted-warm spg-movil-oculto" data-label="Dónde">{{ $a->donde }}</td>
                                     <td data-label="Tipo"><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
                                     <td data-label="Desde">{{ fecha($a->fecha_inicio) }}</td>
                                     <td data-label="Hasta">{{ fecha($a->fecha_fin) }}</td>
-                                    <td class="text-muted-warm" data-label="Motivo">{{ $a->motivo ?: '—' }}</td>
+                                    <td class="text-muted-warm spg-movil-oculto" data-label="Motivo">{{ $a->motivo ?: '—' }}</td>
                                     <td data-label="Estado">
                                         @if ($a->activo)
                                             <span class="badge-estado e-ok">Vigente</span>

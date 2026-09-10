@@ -20,6 +20,11 @@ use Throwable;
  * dato dos veces, que es lo que prohíbe la regla número dos. Por eso `orden`
  * arranca en 2: es el lugar que ocupa en el grupo.
  *
+ * **Y cada uno declara sus alergias** (7.113.0), en `cita_acompanante.alergias`:
+ * quien acompaña se atiende igual que quien reservó, y hasta entonces la cita
+ * anotaba una sola alergia —la de la ficha de la titular—. Va al lado de su
+ * nombre porque esta persona no tiene ficha donde dejarla. Ver `Alergias`.
+ *
  * Está en un servicio y no en cada controlador porque lo escriben **dos**
  * pantallas —el portal y Nueva cita— y copiado se desfasan, que es un error que
  * este proyecto ya se hizo varias veces.
@@ -30,10 +35,17 @@ class Acompanantes
      * Guarda los que vienen con la clienta. Se rehace la lista entera: lo que
      * el formulario ya no manda, deja de estar.
      *
+     * **Y cada uno con sus alergias.** Quien acompaña se atiende igual que
+     * quien reservó, así que la alergia que declara es tan importante como la
+     * de ella — y hasta la 7.113.0 no tenía dónde ir: la cita entera anotaba
+     * una sola, la de la ficha de la titular. Va acá, al lado de su nombre,
+     * porque esta persona no tiene ficha: es un dato de esta visita.
+     *
      * @param  array<int|string, mixed>  $nombres    acomp_nombre[orden]
      * @param  array<int|string, mixed>  $apellidos  acomp_apellido[orden]
+     * @param  array<int|string, mixed>  $alergias   acomp_alergias[orden]
      */
-    public static function guardar(int $idCita, array $nombres, array $apellidos, int $personas): void
+    public static function guardar(int $idCita, array $nombres, array $apellidos, int $personas, array $alergias = []): void
     {
         try {
             DB::delete('DELETE FROM cita_acompanante WHERE id_cita = ?', [$idCita]);
@@ -60,8 +72,10 @@ class Acompanantes
                 $apellido = trim((string) ($apellidos[$orden] ?? ''));
 
                 DB::insert(
-                    'INSERT INTO cita_acompanante (id_cita, orden, nombre, apellido) VALUES (?,?,?,?)',
-                    [$idCita, $orden, mb_substr($nombre, 0, 60), $apellido !== '' ? mb_substr($apellido, 0, 60) : null]
+                    'INSERT INTO cita_acompanante (id_cita, orden, nombre, apellido, alergias) VALUES (?,?,?,?,?)',
+                    [$idCita, $orden, mb_substr($nombre, 0, 60),
+                        $apellido !== '' ? mb_substr($apellido, 0, 60) : null,
+                        Alergias::limpiar($alergias[$orden] ?? null)]
                 );
             }
         } catch (Throwable $e) {
@@ -75,7 +89,7 @@ class Acompanantes
     /**
      * Los que vienen con la clienta, por cita.
      *
-     * Devuelve `[id_cita => [ {nombre, apellido, completo, id_cliente} ]]`. Se
+     * Devuelve `[id_cita => [ {nombre, apellido, completo, alergias, id_cliente} ]]`. Se
      * pide para TODAS las citas de la pantalla de una vez: una consulta por
      * fila sería una por cada renglón de la agenda.
      *
@@ -102,7 +116,7 @@ class Acompanantes
 
         $in = implode(',', array_fill(0, count($ids), '?'));
         $filas = DB::select(
-            "SELECT a.id_cita, a.orden, a.nombre, a.apellido,
+            "SELECT a.id_cita, a.orden, a.nombre, a.apellido, a.alergias,
                     (SELECT cl.id_cliente
                        FROM cliente cl
                        JOIN persona pe ON pe.id_persona = cl.id_persona
@@ -120,6 +134,7 @@ class Acompanantes
                 'nombre' => (string) $f->nombre,
                 'apellido' => (string) ($f->apellido ?? ''),
                 'completo' => trim($f->nombre . ' ' . (string) $f->apellido),
+                'alergias' => $f->alergias !== null ? (string) $f->alergias : null,
                 'id_cliente' => $f->id_cliente ? (int) $f->id_cliente : null,
             ];
         }

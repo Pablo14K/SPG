@@ -30,8 +30,8 @@
                 <thead>
                     <tr>
                         <th>Fecha</th><th>Producto</th><th>Tipo</th>
-                        <th class="text-end">Cantidad</th><th class="text-end">Precio</th>
-                        <th>Referencia</th><th>Quién</th>
+                        <th class="text-end">Cantidad</th><th class="text-end spg-movil-oculto">Precio</th>
+                        <th>Referencia</th><th class="spg-movil-oculto">Quién</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,14 +55,14 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-end" data-label="Precio">{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</td>
+                            <td class="text-end spg-movil-oculto" data-label="Precio">{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</td>
                             <td class="text-muted-warm" data-label="Referencia">
                                 {{ $m->referencia ?: '—' }}
                                 @if ($m->observaciones)
                                     <div style="font-size:.72rem">{{ $m->observaciones }}</div>
                                 @endif
                             </td>
-                            <td class="text-muted-warm" data-label="Quién">{{ $m->usuario }}</td>
+                            <td class="text-muted-warm spg-movil-oculto" data-label="Quién">{{ $m->usuario }}</td>
                         </tr>
                     @empty
                         <tr>

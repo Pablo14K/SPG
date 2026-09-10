@@ -21,6 +21,12 @@ TRUNCATE TABLE cita_pedido;
 TRUNCATE TABLE token_cita;
 TRUNCATE TABLE calificacion;
 TRUNCATE TABLE sena_solicitud;
+-- **Faltaba desde la 7.97.0, y desde la 7.113.0 lleva alergias adentro.**
+-- `TRUNCATE cita` no dispara el `ON DELETE CASCADE`, y con
+-- FOREIGN_KEY_CHECKS en 0 tampoco se queja: las filas quedaban huérfanas
+-- y viajaban en el .sql que se entrega — ahora, con el nombre de alguien
+-- y con a qué es alérgica.
+TRUNCATE TABLE cita_acompanante;
 TRUNCATE TABLE cita;
 TRUNCATE TABLE ausencia_agenda;
 

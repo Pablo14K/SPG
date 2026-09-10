@@ -1585,8 +1585,18 @@ window.SPGCarga = (function () {
 
   function reflejar() {
     bloque.style.display = chk.checked ? '' : 'none';
-    var campo = bloque.querySelector('input');
-    if (campo) { campo.required = chk.checked; if (!chk.checked) { campo.value = ''; } }
+    // **Adentro hay más de un campo desde la 7.113.0**: el nombre y las
+    // alergias de esa persona. Con `querySelector` a secas se limpiaba el
+    // primero nada más, así que desmarcar la casilla dejaba una alergia
+    // cargada a nombre de nadie — y el servidor la descarta, pero la
+    // pantalla seguiría mostrándola escrita.
+    bloque.querySelectorAll('input, textarea').forEach(function (campo) {
+      if (!chk.checked) { campo.value = ''; }
+    });
+    // El obligatorio es el nombre: sin él la cita no dice para quién es.
+    // La alergia es opcional — casi nadie tiene una.
+    var nom = bloque.querySelector('#nombre_para');
+    if (nom) { nom.required = chk.checked; }
   }
   chk.addEventListener('change', reflejar);
   reflejar();
@@ -1789,6 +1799,10 @@ window.SPGCarga = (function () {
    nombre ya lo tiene el sistema. Por eso con 1 no se dibuja nada y los
    campos arrancan en el 2.
 
+   **Y cada una carga sus alergias** (7.113.0). Antes la cita anotaba una
+   sola —la de la ficha de quien reserva—, así que en una cita de tres,
+   dos se atendían sin que nadie supiera con qué no se las puede tocar.
+
    Lo que ya estaba cargado se conserva: tras un rechazo el formulario
    vuelve con los nombres puestos, y subir o bajar el número no borra los
    que ya se habían escrito.
@@ -1815,30 +1829,43 @@ window.SPGCarga = (function () {
         var o = f.getAttribute('data-acomp-orden');
         previos[o] = {
           nombre: f.querySelector('[name^="acomp_nombre"]').value,
-          apellido: f.querySelector('[name^="acomp_apellido"]').value
+          apellido: f.querySelector('[name^="acomp_apellido"]').value,
+          alergias: f.querySelector('[name^="acomp_alergias"]').value
         };
       });
 
       caja.innerHTML = '';
       if (n < 2) { return; }
 
+      // **El rótulo lo declara la pantalla.** «¿Quién viene con vos?» es
+      // lo que se le pregunta a la clienta; en el mostrador, quien carga la
+      // cita no es la que viene — ahí la pregunta es por la clienta elegida.
+      var rotulos = (caja.getAttribute('data-acomp-titulo') || '¿Quién viene con vos?|¿Quiénes vienen con vos?').split('|');
       var titulo = document.createElement('div');
       titulo.className = 'form-label';
-      titulo.textContent = n === 2 ? '¿Quién viene con vos?' : '¿Quiénes vienen con vos?';
+      titulo.textContent = n === 2 ? rotulos[0] : (rotulos[1] || rotulos[0]);
       caja.appendChild(titulo);
 
       for (var i = 2; i <= n; i++) {
-        var p = previos[i] || { nombre: '', apellido: '' };
+        var p = previos[i] || { nombre: '', apellido: '', alergias: '' };
         var fila = document.createElement('div');
         fila.className = 'row g-2 mb-2';
         fila.setAttribute('data-acomp-orden', i);
+        // **Cada uno con sus alergias.** La cita anotaba una sola —la de la
+        // ficha de quien reserva— así que en una cita de tres, dos personas
+        // se atendían sin que nadie supiera con qué no se las puede tocar.
+        // El valor NO va en el `innerHTML`: lo escribe una persona, y
+        // pegado ahí unas comillas cierran el atributo.
         fila.innerHTML =
           '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
           ' name="acomp_nombre[' + i + ']" placeholder="Nombre" value=""></div>' +
           '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
-          ' name="acomp_apellido[' + i + ']" placeholder="Apellido" value=""></div>';
+          ' name="acomp_apellido[' + i + ']" placeholder="Apellido" value=""></div>' +
+          '<div class="col-12"><input class="form-control form-control-sm" maxlength="300"' +
+          ' name="acomp_alergias[' + i + ']" placeholder="¿Es alérgica a algo? (opcional)" value=""></div>';
         fila.querySelector('[name^="acomp_nombre"]').value = p.nombre || '';
         fila.querySelector('[name^="acomp_apellido"]').value = p.apellido || '';
+        fila.querySelector('[name^="acomp_alergias"]').value = p.alergias || '';
         caja.appendChild(fila);
       }
     }
@@ -2489,4 +2516,46 @@ document.addEventListener('DOMContentLoaded', function () {
     medio.addEventListener('change', acomodar);
     acomodar();
   });
+});
+
+// ---------------------------------------------------------------------
+//  Tarjetas mÃ³viles: BotÃ³n de expandir detalles
+//  Inserta automÃ¡ticamente un botÃ³n 'Detalles' en las filas que tienen
+//  columnas ocultas con .spg-movil-oculto, permitiendo ver esa info.
+// ---------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.innerWidth > 576) return; // Solo importa en mÃ³vil
+    
+    document.querySelectorAll('.spg-tabla-movil tbody tr').forEach(tr => {
+        // Â¿Tiene columnas ocultas?
+        if (tr.querySelectorAll('.spg-movil-oculto').length > 0) {
+            let celdaAcciones = tr.querySelector('.spg-movil-acciones');
+            
+            // Si no tiene celda de acciones, le creamos una (aunque el 99% la tiene)
+            if (!celdaAcciones) {
+                celdaAcciones = document.createElement('td');
+                celdaAcciones.className = 'spg-movil-acciones';
+                tr.appendChild(celdaAcciones);
+            }
+            
+            let btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-neutro spg-btn-detalles';
+            btn.style.marginRight = 'auto'; // Para que quede a la izquierda de los demÃ¡s botones
+            btn.innerHTML = '<i class="bi bi-chevron-down" style="transition:transform 0.2s; display:inline-block;"></i> Detalles';
+            
+            btn.addEventListener('click', function() {
+                tr.classList.toggle('spg-movil-expandido');
+                let icono = btn.querySelector('i');
+                if (tr.classList.contains('spg-movil-expandido')) {
+                    icono.style.transform = 'rotate(180deg)';
+                } else {
+                    icono.style.transform = 'rotate(0deg)';
+                }
+            });
+            
+            // Lo insertamos primero en la botonera
+            celdaAcciones.insertBefore(btn, celdaAcciones.firstChild);
+        }
+    });
 });

@@ -35,6 +35,7 @@
                         <option value="">— Elegí un cliente —</option>
                         @foreach ($clientes as $c)
                             <option value="{{ $c->id_cliente }}"
+                                data-alergias="{{ $c->alergias }}"
                                 @selected((int) old('id_cliente', $sel_cliente) === (int) $c->id_cliente)>
                                 {{ $c->apellido }}, {{ $c->nombre }}
                                 @if ($c->cedula) · {{ $c->cedula }} @endif
@@ -234,7 +235,38 @@
                         <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
                                placeholder="Nombre y apellido de quien se atiende"
                                value="{{ old('nombre_para') }}">
+
+                        {{-- **Sus alergias, que no son las de quien reservó.** La
+                             que se sienta en el sillón es ella, así que la alergia
+                             de la ficha de al lado no dice nada de lo que se le
+                             puede poner. Queda en la cita: no se le abre una ficha
+                             a alguien que el salón no registró. --}}
+                        <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
+                        <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
+                                  maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
                     </div>
+                </div>
+
+                {{-- **Las alergias de la clienta, acá y no sólo en su ficha.**
+
+                     Al agendar es cuando la clienta las cuenta por teléfono, y
+                     mandar a quien atiende a otra pantalla para anotarlas es
+                     pedirle que se acuerde después. Es el único dato de la ficha
+                     que puede lastimar a alguien si nadie lo mira.
+
+                     **Éstas van a la FICHA y no a la cita**, al revés que las de
+                     los demás: la clienta está registrada, así que le quedan para
+                     la próxima. El campo se llena solo con lo que ya tiene
+                     cargado al elegirla — ver el script del pie. --}}
+                <div class="col-12">
+                    <label class="form-label" for="alergias_titular">Alergias de la clienta</label><x-ayuda campo="alergias_titular" />
+                    <textarea class="form-control" id="alergias_titular" name="alergias_titular" rows="2"
+                              maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_titular') }}</textarea>
+                    {{-- Con qué se dibujó el campo. El guardado sólo escribe si
+                         cambió: sin esto, agendarle una cita sin tocar el campo le
+                         borraría las alergias que ya tenía —y en silencio—. --}}
+                    <input type="hidden" name="alergias_titular_base" id="alergias_titular_base"
+                           value="{{ old('alergias_titular_base', '') }}">
                 </div>
 
                 <div class="col-md-6">
@@ -248,9 +280,11 @@
                 {{-- Quiénes vienen, no sólo cuántas. La primera no se pide: es
                      la clienta de la cita, que ya está elegida arriba. --}}
                 <div class="col-12" id="bloqueAcompCita"
+                     data-acomp-titulo="¿Quién más viene?|¿Quiénes más vienen?"
                      data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
                          'nombre' => $v,
                          'apellido' => old('acomp_apellido.' . $k, ''),
+                         'alergias' => old('acomp_alergias.' . $k, ''),
                      ]])) }}"></div>
 
                 <div class="col-12">
@@ -371,6 +405,37 @@
     });
 
     refrescar();
+})();
+
+// **Las alergias de la clienta elegida, en su campo.**
+//
+// Se la elige en esta misma pantalla, así que el campo tiene que seguirla: en
+// blanco parecería que no tiene ninguna, y quien agenda sin mirarlo se las
+// borraría —el guardado sólo escribe si el valor cambió respecto del que se
+// dibujó, y ese valor es el que este script pone en el campo escondido—.
+//
+// Es el mismo patrón que los canjes: vienen los de todas y el navegador
+// muestra los de la elegida. Quien atiende ve todas las fichas igual.
+(function () {
+    var sel = document.getElementById('id_cliente'),
+        campo = document.getElementById('alergias_titular'),
+        base = document.getElementById('alergias_titular_base');
+    if (!sel || !campo || !base) { return; }
+
+    function traer() {
+        var op = sel.options[sel.selectedIndex],
+            val = (op && op.dataset.alergias) || '';
+        campo.value = val;
+        base.value = val;
+    }
+
+    sel.addEventListener('change', traer);
+
+    // Tras un rechazo el formulario vuelve con lo que se había escrito: ahí no
+    // se pisa nada, o se perdería justo lo que se estaba por corregir.
+    @if (old('alergias_titular') === null)
+        traer();
+    @endif
 })();
 </script>
 @endpush

@@ -298,7 +298,37 @@
                             <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
                             <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
                                    value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
+
+                            {{-- **Sus alergias, que no son las tuyas.** La que se
+                                 sienta en el sillón es ella, así que la alergia de
+                                 tu ficha no dice nada de lo que se le puede poner.
+                                 Queda guardada en esta cita: no le abrimos una
+                                 ficha a alguien que el salón no registró. --}}
+                            <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
+                            <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
+                                      maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
                         </div>
+                    </div>
+
+                    {{-- **Tus alergias, acá y no sólo en Mi ficha.**
+
+                         Existen desde la 7.110.0 y hay que ir a buscarlas: al
+                         reservar es cuando una se acuerda —«ojo que la tintura
+                         me irrita»— y es el único dato que puede lastimar a
+                         alguien si nadie lo mira. Viene con lo que ya está
+                         cargado, así que no se pisa sin querer.
+
+                         **Éstas van a la FICHA y no a la cita**, al revés que
+                         las de los demás: es un dato de la persona, y el salón
+                         la tiene registrada — así le queda para la próxima. --}}
+                    <div class="mb-3" style="max-width:420px">
+                        <label class="form-label" for="alergias_titular">Mis alergias</label><x-ayuda campo="alergias_titular" />
+                        <textarea class="form-control" id="alergias_titular" name="alergias_titular" rows="2"
+                                  maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_titular', $misAlergias) }}</textarea>
+                        {{-- Con qué se dibujó el campo: el guardado sólo escribe
+                             si cambió, así que reservar sin tocarlo no te borra lo
+                             que ya tenías. --}}
+                        <input type="hidden" name="alergias_titular_base" value="{{ $misAlergias }}">
                     </div>
 
                     <div class="mb-3" style="max-width:180px">
@@ -314,9 +344,11 @@
                          pide, porque es la clienta que está reservando y su nombre ya
                          lo tiene el sistema. --}}
                     <div class="mb-3" id="bloqueAcomp" style="max-width:420px"
+                         data-acomp-titulo="¿Quién viene con vos?|¿Quiénes vienen con vos?"
                          data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
                              'nombre' => $v,
                              'apellido' => old('acomp_apellido.' . $k, ''),
+                             'alergias' => old('acomp_alergias.' . $k, ''),
                          ]])) }}"></div>
 
                     <div class="mb-0">

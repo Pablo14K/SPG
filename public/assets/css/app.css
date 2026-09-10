@@ -2038,72 +2038,92 @@ html,body{max-width:100%;overflow-x:hidden;}
    En escritorio NO cambia nada: todo vive dentro de la media query.
    ===================================================================== */
 @media (max-width:575.98px){
+  /* ── Tarjetas: cada <tr> pasa a bloque compacto ── */
   .spg-tabla-movil .table thead{display:none;}
   .spg-tabla-movil .table tbody tr{
     display:block;
     border:1px solid var(--gris-calido);
-    border-radius:.5rem;
-    padding:.75rem;
-    margin-bottom:.75rem;
+    border-radius:.45rem;
+    padding:.55rem .65rem;
+    margin-bottom:.55rem;
     background:var(--blanco);
   }
   .spg-tabla-movil .table tbody tr:last-child{margin-bottom:0;}
+
+  /* ── Cada celda es un par clave-valor compacto ── */
   .spg-tabla-movil .table tbody td{
     display:flex;
     justify-content:space-between;
-    align-items:flex-start;
-    gap:.5rem;
+    align-items:baseline;
+    gap:.4rem;
     border:0;
-    padding:.25rem 0;
+    padding:.15rem 0;
     text-align:right;
+    font-size:.82rem;
     white-space:normal !important;
+    line-height:1.3;
   }
-  /* La pseudo-etiqueta sale del data-label de cada celda. */
+
+  /* ── Etiqueta desde data-label: discreta, no grita ── */
   .spg-tabla-movil .table tbody td[data-label]:before{
     content:attr(data-label);
-    font-weight:600;
-    font-size:.75rem;
+    font-weight:500;
+    font-size:.7rem;
     color:var(--gris-oscuro);
     text-transform:uppercase;
-    letter-spacing:.03em;
+    letter-spacing:.02em;
     text-align:left;
     flex-shrink:0;
-    min-width:5.5rem;
+    min-width:4.5rem;
+    opacity:.75;
   }
-  /* Celda sin data-label: no muestra pseudo-etiqueta. */
   .spg-tabla-movil .table tbody td:not([data-label]):before{display:none;}
-  /* El primer dato con label es el «título» de la tarjeta: va más grande
-     y sin etiqueta repetida para que se lea de un vistazo. */
+
+  /* ── Título de la tarjeta: el dato principal ── */
   .spg-tabla-movil .table tbody td.spg-movil-titulo{
     font-weight:600;
-    font-size:.95rem;
+    font-size:.88rem;
     text-align:left;
-    border-bottom:1px solid var(--gris-calido);
-    padding-bottom:.4rem;
-    margin-bottom:.15rem;
+    padding-bottom:.3rem;
+    margin-bottom:.1rem;
+    border-bottom:1px solid color-mix(in srgb, var(--gris-calido) 60%, transparent);
   }
   .spg-tabla-movil .table tbody td.spg-movil-titulo:before{display:none;}
-  /* La celda de acciones se separa visualmente del resto. */
+
+  /* ── Acciones: fila de botones al pie ── */
   .spg-tabla-movil .table tbody td.spg-movil-acciones{
     justify-content:flex-start;
     flex-wrap:wrap;
-    gap:.35rem;
-    padding-top:.5rem;
-    border-top:1px solid var(--gris-calido);
-    margin-top:.25rem;
+    gap:.3rem;
+    padding-top:.35rem;
+    border-top:1px solid color-mix(in srgb, var(--gris-calido) 60%, transparent);
+    margin-top:.15rem;
   }
   .spg-tabla-movil .table tbody td.spg-movil-acciones:before{display:none;}
-  /* Los badges y chips quedan a la izquierda, que es donde el ojo los busca. */
-  .spg-tabla-movil .table tbody td .badge-estado{margin-right:auto;}
-  /* Columnas que se ocultan en móvil via d-none ya están cubiertas por Bootstrap;
-     los botones dentro de las tarjetas reciben un poco más de aire. */
-  .spg-tabla-movil .table .btn-sm{min-height:36px;min-width:36px;}
 
-  /* ---- Filtros apilados en móvil ----
-     En ≤576 px cada campo se lleva el renglón entero, los botones se
-     reparten el ancho y el aviso de filtros activos no se recorta. */
+  /* ── Badges a la izquierda ── */
+  .spg-tabla-movil .table tbody td .badge-estado{margin-right:auto;}
+
+  /* ── Botones con touch target mínimo ── */
+  .spg-tabla-movil .table .btn-sm{min-height:34px;min-width:34px;}
+
+  /* ── Columnas ocultables en móvil ──
+     Usar .spg-movil-oculto en <th> y <td> de columnas secundarias
+     que aportan ruido en una tarjeta de celular. */
+  .spg-movil-oculto{display:none !important;}
+  /* Cuando la tarjeta tiene la clase spg-movil-expandido (inyectada por JS),
+     volvemos a mostrar los datos ocultos. */
+  .spg-tabla-movil .table tbody tr.spg-movil-expandido td.spg-movil-oculto{display:flex !important;}
+  /* Animación sutil para que no sea tan brusco el salto de altura */
+  .spg-tabla-movil .table tbody tr { transition: all 0.2s ease-in-out; }
+
+  /* ── Filtros apilados ── */
   .spg-filtros{flex-direction:column;align-items:stretch;}
   .spg-filtro{flex:1 1 100% !important;min-width:0 !important;}
   .spg-filtro-btns{flex-wrap:wrap;width:100%;justify-content:stretch;}
   .spg-filtro-btns .btn{flex:1 1 auto;}
+
+  /* ── El spg-panel que envuelve tablas necesita menos padding ── */
+  .spg-panel:has(.spg-tabla-movil){padding:.5rem .4rem;}
 }
+
