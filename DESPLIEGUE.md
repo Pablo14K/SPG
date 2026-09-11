@@ -720,15 +720,15 @@ Un arreglo de PHP, de una vista, del CSS o del JavaScript. Son dos pasos:
 2. En la **Consola web** del VPS, una sola línea:
 
 ```bash
-cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
+cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p sgp up -d --build
 ```
 
 Clona, **reconstruye las imágenes** —el código viaja adentro— y recrea los contenedores. La
 base no se toca, y el arranque no la va a importar porque no está vacía.
 
-> **`-p spg` no es opcional, y es lo que más caro se paga si se olvida.** Es el nombre del
-> proyecto de Compose, y de él salen los nombres de los volúmenes: con `-p spg` se reusan
-> `spg_datos_bd`, `spg_almacenamiento` y los de las imágenes, así que **los datos del salón
+> **`-p sgp` no es opcional, y es lo que más caro se paga si se olvida.** Es el nombre del
+> proyecto de Compose, y de él salen los nombres de los volúmenes: con `-p sgp` se reusan
+> `sgp_datos_bd`, `sgp_almacenamiento` y los de las imágenes, así que **los datos del salón
 > quedan intactos**. Sin la bandera, Compose deduce el nombre del **directorio**
 > (`sgp-deploy`) y crea volúmenes nuevos y vacíos: el sistema levantaría como si fuera una
 > instalación de cero, con la base del salón todavía ahí pero desconectada.

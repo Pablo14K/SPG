@@ -37,27 +37,28 @@ git push origin main
 **2.** En la **Consola web** del VPS, una sola línea:
 
 ```bash
-cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
+cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p sgp up -d --build
 ```
 
 Clona, reconstruye las cuatro imágenes y recrea los contenedores. Tarda unos
 minutos la primera vez y bastante menos después, porque Docker reusa lo que no
 cambió.
 
-> **`-p spg` sigue siendo `spg` aunque el sistema se llame SGP** (7.116.0). Es el
-> nombre del proyecto de Compose, y renombrarlo perdería los volúmenes de abajo:
-> queda con la grafía vieja a propósito. Los contenedores sí se llaman `sgp_*`
-> desde esa versión, así que **la primera vez después de la 7.116.0** hay que
-> volver a copiar el guion de respaldo y corregir la línea del cron, que nombran
-> `spg_bd`:
+> **El proyecto de Compose se llama `sgp` desde el 11/09/2026.** Ese día el
+> proyecto del servidor se dio de baja y se volvió a armar con ese nombre: los
+> volúmenes viejos `spg_*` ya no existen y la operación se recuperó del respaldo.
+> **No volver a `-p spg`**: levantaría con volúmenes nuevos y vacíos, que es
+> exactamente lo que pasó. Los contenedores se llaman `sgp_*` desde la 7.116.0,
+> así que **la primera vez después de esa versión** hay que volver a copiar el
+> guion de respaldo y corregir la línea del cron, que nombran `spg_bd`:
 >
 > ```bash
 > docker exec sgp_app cat docker/respaldo.sh > /usr/local/bin/sgp-respaldo.sh && chmod +x /usr/local/bin/sgp-respaldo.sh && crontab -l | sed 's#/usr/local/bin/spg-respaldo.sh#/usr/local/bin/sgp-respaldo.sh#; s/spg_bd/sgp_bd/g; s#/var/respaldos/spg#/var/respaldos/sgp#g' | crontab - && mv -n /var/respaldos/spg /var/respaldos/sgp 2>/dev/null; crontab -l
 > ```
 
-> **`-p spg` no es opcional.** Es el nombre del proyecto, y de él dependen los
-> volúmenes: con `-p spg` se reusan los que ya están —`spg_datos_bd`,
-> `spg_almacenamiento`, las imágenes de los servicios— y **los datos del salón
+> **`-p sgp` no es opcional.** Es el nombre del proyecto, y de él dependen los
+> volúmenes: con `-p sgp` se reusan los que ya están —`sgp_datos_bd`,
+> `sgp_almacenamiento`, las imágenes de los servicios— y **los datos del salón
 > quedan intactos**. Sin esa bandera, Compose deduce el nombre del directorio
 > (`sgp-deploy`) y crearía volúmenes nuevos y vacíos: el sistema levantaría
 > **como si fuera una instalación de cero**.
@@ -66,8 +67,8 @@ cambió.
 > **y las fotos que subiste a los servicios**, que también viven en un volumen.
 
 > **Las fotos de los servicios y el logo NO están en el repositorio**: son del
-> salón, así que viven sólo en los volúmenes `spg_imagenes_servicios` y
-> `spg_imagenes_logo`. El despliegue de arriba **no las toca** —comprobado
+> salón, así que viven sólo en los volúmenes `sgp_imagenes_servicios` y
+> `sgp_imagenes_logo`. El despliegue de arriba **no las toca** —comprobado
 > reconstruyendo y recreando los contenedores—, y si alguna vez se perdieran,
 > `sgp:diagnostico` lo dice en «Las fotos del salón»: sin eso la pantalla se
 > vería normal, sólo que con el hueco de «sin imagen de referencia».
