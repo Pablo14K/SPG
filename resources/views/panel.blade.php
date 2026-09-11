@@ -29,8 +29,12 @@
     <h1 class="sgp-saludo">Hola, {{ session('nombre') }}</h1>
 
     <div class="row g-3">
-        {{-- IZQUIERDA: las citas, y debajo la plata --}}
-        <div class="col-lg-8 d-flex flex-column gap-3">
+        {{-- IZQUIERDA: las citas, y debajo la plata.
+             **8/4 en pantalla ancha y 7/5 entre 992 y 1200 px**: con un
+             tercio de 960 px la pastilla del módulo mide 75 px y
+             «Configuración» no entra —se cortaba con «…»—; con 5/12 entra
+             entera, y la maqueta sigue siendo la misma. --}}
+        <div class="col-lg-7 col-xl-8 d-flex flex-column gap-3">
             <div class="panel-box flex-grow-1 d-flex flex-column">
                 {{-- El posesivo dice de quién son: quien no administra la
                      agenda ve LAS SUYAS, no las del salón, y el rótulo lo
@@ -119,7 +123,7 @@
                                  sólo la suya—. Un rediseño que la renombre deja la
                                  guardia mirando al vacío y no da ningún error: es el
                                  patrón que este proyecto persigue. --}}
-                            <div class="col-md-6 sgp-caja-barra">
+                            <div class="col-md-6 col-lg-12 col-xl-6 sgp-caja-barra">
                                 <div class="metric-card h-100">
                                     <div class="metric-lbl">Estado de cajas</div>
                                     <div class="d-flex align-items-center gap-2 mt-1">
@@ -174,7 +178,7 @@
 
                         {{-- `sgp-metrics` marca dónde termina la caja: la prueba
                              recorta entre las dos clases. --}}
-                        <div class="col-md-6 sgp-metrics">
+                        <div class="col-md-6 col-lg-12 col-xl-6 sgp-metrics">
                             @if ($m['ingresos_hoy'] !== null)
                                 <div class="metric-card h-100">
                                     <div class="metric-lbl">Ingresos de hoy</div>
@@ -211,26 +215,31 @@
             @endif
         </div>
 
-        {{-- DERECHA: los módulos, tres por fila --}}
-        <div class="col-lg-4">
+        {{-- DERECHA: los módulos, tres por fila.
+             **La grilla llena la caja entera en la computadora.** Con la
+             `row` de Bootstrap las nueve pastillas se apilaban arriba, del
+             tamaño de su texto, y debajo quedaba media caja vacía; se
+             reportó como «deben estar más espaciados para aprovechar el
+             espacio». `.sgp-modulos` reparte las tres filas a lo alto de la
+             caja —que ya mide lo que mide la columna de la izquierda— y en
+             pantalla chica vuelve a ser la grilla compacta de antes. --}}
+        <div class="col-lg-5 col-xl-4">
             <div class="panel-box h-100 d-flex flex-column">
-                <div class="row g-3 justify-content-center align-content-start flex-grow-1">
+                <div class="sgp-modulos">
                     @foreach (config('navegacion.modulos') as $mod)
                         @continue (! Permisos::puede($mod['mod']))
                         @php $url = Navegacion::url($mod['ruta']); @endphp
-                        <div class="col-4">
-                            @if ($url)
-                                <a href="{{ $url }}" class="sgp-modulo-pill" title="{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}">
-                                    <i class="bi bi-{{ $mod['ic'] }}"></i>
-                                    <span class="text-truncate w-100 px-1">{{ $mod['titulo'] }}</span>
-                                </a>
-                            @else
-                                <div class="sgp-modulo-pill disabled" title="Todavía no migrado">
-                                    <i class="bi bi-{{ $mod['ic'] }}"></i>
-                                    <span class="text-truncate w-100 px-1">{{ $mod['titulo'] }}</span>
-                                </div>
-                            @endif
-                        </div>
+                        @if ($url)
+                            <a href="{{ $url }}" class="sgp-modulo-pill" title="{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}">
+                                <i class="bi bi-{{ $mod['ic'] }}"></i>
+                                <span class="text-truncate w-100 px-1">{{ $mod['titulo'] }}</span>
+                            </a>
+                        @else
+                            <div class="sgp-modulo-pill disabled" title="Todavía no migrado">
+                                <i class="bi bi-{{ $mod['ic'] }}"></i>
+                                <span class="text-truncate w-100 px-1">{{ $mod['titulo'] }}</span>
+                            </div>
+                        @endif
                     @endforeach
                 </div>
             </div>

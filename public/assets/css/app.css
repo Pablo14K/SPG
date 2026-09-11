@@ -319,6 +319,12 @@ body{
   border-radius:6px;line-height:1;padding:.05rem .15rem;font-size:1.1rem;
 }
 .sgp-suc-ir:hover{color:var(--oro-claro);border-color:var(--oro-oscuro);}
+/* En el celular el combo se queda —se pidió poder cambiar de local desde
+   el teléfono— pero acotado: un nombre largo se recorta con «…» en vez de
+   empujar la cuenta fuera de la barra. */
+@media (max-width:767.98px){
+  .sgp-suc-combo{max-width:8.5rem;overflow:hidden;text-overflow:ellipsis;font-size:.68rem;padding-left:.55rem;}
+}
 
 
 /* ---- La campanita ---- */
@@ -2409,6 +2415,28 @@ html,body{max-width:100%;overflow-x:hidden;}
 .sgp-lista-cajas{font-size:.84rem;}
 .sgp-lista-cajas li{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.15rem 0;}
 .sgp-lista-cajas li > span:first-child{min-width:0;}
+
+/* La grilla de los módulos: tres columnas siempre. **En la computadora
+   llena la caja entera** —las filas se reparten a lo alto y las pastillas
+   crecen con ellas, con el ícono y el rótulo más grandes—: con la `row`
+   de Bootstrap las nueve quedaban apiladas arriba, del tamaño de su
+   texto, y debajo sobraba media caja. En el celular no hay alto que
+   repartir, así que vuelve a ser la grilla compacta. */
+.sgp-modulos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;flex:1 1 auto;}
+/* El portal tiene seis pantallas y no nueve: en dos columnas quedan tres
+   filas, que es la misma proporción que los módulos del personal. */
+.sgp-modulos-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+@media (min-width:992px){
+  .sgp-modulos{grid-auto-rows:minmax(0,1fr);gap:1rem;}
+  .sgp-modulo-pill{font-size:.78rem;gap:.55rem;border-radius:32px;padding:1rem .25rem;}
+  .sgp-modulo-pill i{font-size:1.8rem;}
+}
+/* Con la columna ancha entra el rótulo entero, un punto más grande. */
+@media (min-width:1200px){
+  .sgp-modulos{gap:1.1rem;}
+  .sgp-modulo-pill{font-size:.88rem;}
+  .sgp-modulo-pill i{font-size:1.9rem;}
+}
 
 /* Las pastillas de módulo del wireframe: oscuras, con el ícono arriba.
    Son oscuras en los DOS temas —como la barra—, así que salen de las

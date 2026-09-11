@@ -604,8 +604,8 @@ class AccesoTest extends TestCase
         $panel = $this->get(route('panel'))->assertOk()->getContent();
 
         // El grupo de la bandeja y el nivel de cada renglón, que son el gancho.
-        $this->assertStringContainsString('Falta cargar', $panel,
-            'La campanita del Administrador no muestra lo que falta cargar.');
+        $this->assertStringContainsString('>Avisos<', $panel,
+            'La campanita del Administrador no muestra lo que falta cargar, bajo «Avisos».');
         $this->assertStringContainsString('sgp-pend-nivel', $panel);
 
         // Y la otra mitad, que es la que le da valor: quien no puede resolver

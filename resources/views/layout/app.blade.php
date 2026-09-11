@@ -172,11 +172,19 @@
                     @endif
                 </button>
                 <ul class="dropdown-menu dropdown-menu-start sgp-campana-lista">
-                    {{-- **Lo que está pasando ahora va PRIMERO.** Se resuelve
-                         hoy; lo otro es una decisión sin tomar que puede
-                         esperar a la tarde. --}}
+                    {{-- **Un solo grupo, «Avisos»** (pedido del usuario, 7.118.1).
+                         Eran dos —«Ahora mismo» para lo que está pasando y «Falta
+                         cargar» para lo que falta configurar— y el usuario los
+                         quiso bajo un solo rótulo. **Lo que está pasando ahora va
+                         PRIMERO** igual: se resuelve hoy, lo otro es una decisión
+                         sin tomar que puede esperar a la tarde. Y siguen siendo
+                         dos servicios, porque de eso depende cómo se cuentan: la
+                         caja abierta deja de contar al verla, lo que falta cargar
+                         no. --}}
+                    @if ($sgpAlertas || $sgpPend)
+                        <li><h6 class="dropdown-header">Avisos</h6></li>
+                    @endif
                     @if ($sgpAlertas)
-                        <li><h6 class="dropdown-header">Ahora mismo</h6></li>
                         @foreach ($sgpAlertas as $sgpA)
                             <li>
                                 <div class="sgp-alerta @unless ($sgpA['visto']) sin-ver @endunless">
@@ -193,7 +201,6 @@
 
                     @if ($sgpPend)
                         @if ($sgpAlertas)<li><hr class="dropdown-divider"></li>@endif
-                        <li><h6 class="dropdown-header">Falta cargar</h6></li>
                         @foreach ($sgpPend as $sgpP)
                             <li>
                                 <div class="sgp-alerta sin-ver">
@@ -230,10 +237,17 @@
                  que elegir: de esta sucursal dependen la agenda que se ve, la
                  caja que se cierra y el stock que se descuenta, y quien
                  atiende tiene que poder contestar «¿dónde estoy parado?» sin
-                 abrir nada. --}}
+                 abrir nada.
+
+                 **Y también en el celular** (pedido del usuario, 7.118.1): se
+                 escondía en pantalla chica y el local sólo se leía en el
+                 desplegable de la cuenta, sin forma de cambiarlo desde el
+                 teléfono. Ahí va compacto —el nombre se recorta con «…» si no
+                 entra— y el nombre del salón ya no se dibuja, así que hay
+                 lugar. --}}
             @if ($sgpSucs)
                 <form method="post" action="{{ route('sucursal.entrar') }}"
-                      class="sgp-suc-form d-none d-md-flex align-items-center gap-1">
+                      class="sgp-suc-form d-flex align-items-center gap-1">
                     @csrf
                     <select class="sgp-suc-chip sgp-suc-combo" name="id_sucursal"
                             aria-label="Sucursal en la que estás trabajando"
@@ -274,12 +288,6 @@
                     <li><span class="dropdown-item-text sgp-drop-cabecera">
                         <strong>{{ $sgpSesion['nombre'] }}</strong>
                         <span>{{ $sgpSesion['rol_nom'] }}</span>
-                        {{-- En pantalla chica ni el combo ni la ficha de
-                             arriba se dibujan, así que acá es el único lugar
-                             donde se ve en qué local se está. --}}
-                        @if ($sgpSucursal)
-                            <span class="txt-oro d-md-none mt-1"><i class="bi bi-shop"></i> {{ $sgpSucursal }}</span>
-                        @endif
                     </span></li>
                     <li><hr class="dropdown-divider"></li>
                     @if (count((array) session('roles', [])) > 1)

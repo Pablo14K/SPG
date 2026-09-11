@@ -360,6 +360,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.118.1 | 11/09/2026 | **Cuatro ajustes sobre la 7.118.0, mirándola en el navegador.** **Los módulos del panel llenan su caja en la computadora**: con la `row` de Bootstrap las nueve pastillas se apilaban arriba, del tamaño de su texto, y debajo sobraba media caja —«deben estar más espaciados para aprovechar el espacio»—. Entra `.sgp-modulos`, una grilla de tres columnas que en pantalla ancha reparte sus filas a lo alto de la caja y agranda ícono y rótulo; en el celular vuelve a ser la grilla compacta. Y entre 992 y 1200 px la columna de los módulos pasa de 4/12 a 5/12: con un tercio de 960 px la pastilla mide 75 px y «Configuración» se cortaba con «…». **La campanita queda con un solo rótulo, «Avisos»** (pedido del usuario): «Falta cargar» pasó a llamarse así, y después el usuario pidió que la caja abierta de más fuera a ese mismo grupo, así que «Ahora mismo» se retira. Lo que está pasando sigue yendo **primero**, y siguen siendo dos servicios —`Alertas` y `Pendientes`—, porque de eso depende cómo se cuentan: la caja deja de contar al verla, lo que falta cargar no. **El combo de sucursal también en el celular** (pedido del usuario): se escondía en pantalla chica y el local sólo se leía en el desplegable de la cuenta, sin forma de cambiarlo desde el teléfono; va compacto, con el nombre recortado con «…» si no entra, en el lugar que dejó el nombre del salón. **Y el inicio del portal toma la forma del panel** (pedido del usuario, «tanto celular como PC»): el saludo como título, a la izquierda **Tus próximas citas** —todas las que vienen, no sólo la primera, con su estado y el aviso de la atrasada— y debajo **Tu nivel y tus puntos** —el nivel con su descuento, las visitas, cuántas faltan para el siguiente, y los puntos con el enlace a qué canjear—, y a la derecha las seis pantallas del portal en pastillas, del mismo catálogo que la barra, sin Inicio ni Mi cuenta. Son las mismas clases del panel: escrito dos veces se desfasa. `vw_cliente_fidelizacion` trae el NOMBRE del descuento del nivel y no cuánto descuenta, así que el porcentaje se lee de `nivel` ⋈ `descuento`. **212 pruebas · 1777 aserciones**, una nueva —el inicio del portal con dos citas por venir, comprobada en las dos direcciones: con la vista anterior falla— y dos ajustadas a los rótulos nuevos. **Y una que se salteaba en silencio**: `una_clienta_no_se_pisa_a_si_misma…` tomaba «la cita más nueva que bloquea agenda», y desde que el mes simulado se quedó sin citas futuras eso es lo que haya quedado de otra corrida — hoy pasó en verde sólo porque una cita sembrada a mano para probar el panel estaba en la base, y con la base limpia se salteaba; ahora la crea con `citaFuturaAgendada()`, como las cinco de la 7.103.1. Quedan las 2 salteadas legítimas · **sólo código: la base no se tocó** |
 | 7.118.0 | 11/09/2026 | **Seis cosas de la revisión con el sistema andando, y una era que la clienta no podía reprogramar desde el correo.** **Los enlaces de reagendar del correo no funcionaban**, reportado tal cual para VERIFICAR. La pantalla del enlace se abría —el token la deja pasar— pero el selector de horarios le pedía los días a `portal.disponibilidad`, que vive detrás del middleware de sesión: la clienta que llega desde el correo **no tiene sesión** —ése es el punto del token—, así que la consulta volvía como una redirección al ingreso, el calendario quedaba vacío y el botón nunca se habilitaba. Ni un error en pantalla: la función apagada en silencio de siempre, y desde la 7.97.0. Entra `cita.disponibilidad` (`mi-cita/disponibilidad?t=…`), donde **la credencial es el token y lo que se consulta sale de la cita** —sus servicios, su profesional, su local, para cuántas es—; el selector de `app.js` aprende a pegar sus parámetros con `&` cuando el endpoint ya trae `?`. Comprobado sin sesión, de punta a punta, en el navegador. **El panel se rehace con la maqueta que dio el usuario**: el saludo como título chico arriba a la izquierda —era una caja centrada que gastaba un cuarto de la fila en decir «hola»—, a la izquierda **Próximas citas** y debajo el **Resumen financiero** —cuántas cajas hay abiertas y cuáles, y **los ingresos de hoy contra ayer**, con la flecha y el porcentaje—, y a la derecha los nueve módulos en tres columnas, con sus íconos y colores de siempre. **«Citas hoy» y «Falta stock» se van** (pedido del usuario): lo primero ya lo dice la lista de al lado, y **el faltante de stock pasa a la campanita**, con los nombres de los productos y el enlace a la lista de compras —un número suelto no decía qué comprar ni a dónde ir, y sólo se veía desde el inicio—. De paso el CSS del panel sale de un `<style>` al pie de la vista y va a `app.css`: la página se pintaba una vez sin él y se reacomodaba después, y ese `<style>` metía `[data-tema="oscuro"]` en el HTML del panel, que es la cadena que la prueba del tema busca para comprobar que en claro no queda rastro. **Y la alerta de la caja abierta pasa a enlazar a Cajas**: apuntaba a la pantalla de detalle, que pide el id, así que `Navegacion::url()` daba null y el renglón salía sin enlace. **En la agenda, «Detalle» abre una ventana y las acciones van en dos columnas** (pedido del usuario). El botón «Vienen 2 · alergias» se va de la fila, y la fila deja de desplegar un renglón apretado entre dos citas: `#detCita{id}` es una ventana con lo que no cabe en la fila, ordenado —**La cita** (quién atiende, cada servicio con su precio y de qué persona es, el total con el precio de lista tachado y de dónde sale el descuento), **Quién viene** (para quién es, quiénes la acompañan con su historial o el botón de crearles ficha, y **las alergias de cada una, incluidas las que no declararon ninguna**), **Dejó dicho**, y **Cobros** (seña, cobrado, comprobante, lo que falta, y por persona cuando se cobra aparte)—; la ventana se dibuja **fuera de la tabla**, como manda la 7.87.4. Los siete íconos seguidos de la fila se leían como una adivinanza —«demasiado confuso»—: pasan a una grilla de dos columnas con el rótulo al lado del ícono, sacado del mismo `title` para que no se desfase del tooltip. **Sin la maqueta de WhatsApp**: la referencia visual que el usuario mandó por ahí no llegó a esta sesión, así que la ventana se armó desde la descripción —si la de WhatsApp dice otra cosa, se ajusta. **Y la paleta gana contraste donde se reportó que faltaba.** Los botones de acción se fundían con el fondo: `.btn-outline-neutro` era blanco con un borde del color de las líneas y el texto gris —en oscuro, fondo igual al de la tarjeta—; ahora lleva relleno propio, borde firme y el texto en el color principal, **12,8:1 en claro y 13,1:1 en oscuro, medidos**. Los avisos se confundían con los botones: `.e-warn` era un contorno dorado transparente al lado de botones de contorno; pasa a píldora rellena —dos formas para dos cosas, 6,5:1—. Entra **`--oro-enfasis`** para el importe destacado y el ícono de un título: en claro el oro oscuro (4,9:1 sobre blanco) y en oscuro el oro principal, porque el oscuro sobre `#1E1B17` queda en 2,5:1 —es una variable y no un selector del tema, que es la regla—. **Y `--bs-body-color-rgb` entra a los dos temas**: Bootstrap arma `.text-body` con esa variable y no con `--bs-body-color`, así que los nombres de la columna Servicios salían oscuro sobre oscuro en el tema oscuro. **211 pruebas · 1749 aserciones**, tres nuevas y dos reescritas, **las cinco comprobadas en las dos direcciones** —con la vista apuntando al endpoint del portal, sin `faltaStock`, con la ventana renombrada o con el rótulo viejo del panel, cada una falla—. **Y una que ya estaba se ponía roja por su premisa**: desde que el stock faltante suena en la campanita hay un aviso que vive en la base de prueba y sobrevive entre corridas, así que con sólo abrir la campanita en el navegador como `admin` quedaba visto y `la_campanita_baja_el_numero…` fallaba sin que el sistema hubiera cambiado — ahora limpia lo visto de esa persona dentro de su transacción. De paso, PHP toma `»` como parte de una variable: `"«$t»"` es `$t»`, indefinida; va `{$t}` · 218 rutas · **sólo código: la base no se tocó** |
 | 7.117.0 | 11/09/2026 | **Doce cosas reportadas usando el sistema, y la que las ordena es que la cita de varias personas ahora sabe QUÉ SERVICIO ES DE CUÁL.** `cita.personas` decía cuántas vienen desde la 7.57.0 y `cita_acompanante` quiénes desde la 7.97.0; faltaba lo de en medio, así que la cita era una bolsa —«tres personas: corte, mechas, manicura»— y no había forma de cobrarle a una sólo lo suyo ni de hacerle **su** factura: el mostrador dividía a mano. Entran tres columnas con el mismo criterio —**el lugar que ocupa la persona en el grupo**, como `cita_acompanante.orden` ya la nombra—: `cita_servicio.persona`, `cobro.persona` (NULL = el grupo paga junto) y `factura.persona` (NULL = toda la cita). **No son copias ni derivados** y no rompen la 1FN: un número por fila. `sp_emitir_factura` gana `p_persona` —con un número, el detalle sale sólo de los servicios de esa persona— y **`fn_factura_saldo` descuenta sólo los cobros de ESA persona**, que es lo que impide que pagando una se dé por saldada la otra. **Lo que queda igual a propósito es `uq_cita_servicio`**: el mismo servicio dos veces en la misma cita —dos cortes para dos amigas— sigue sin entrar, porque la atención, la factura y la comisión están escritas sobre «un servicio por cita» en treinta lugares; para ese caso se reservan citas aparte. Al reservar se pregunta primero para cuántas personas es y cada tarjeta dice de quién es ese servicio; al cobrar, si son dos o más, se discrimina **grupal o individual**, y el individual muestra lo que le falta a esa persona con la misma cuenta que muestra la agenda. **Un administrador ya no puede cobrarle dos veces a la misma clienta.** Se reportó tal cual —*«un administrador ya cobró pero aún no se emitió factura, y al otro admin aún le aparece la opción cobrar»*—: la pantalla del segundo es una foto de un minuto antes, y la base rechazaba el segundo cobro **después del clic** y con un mensaje que no decía que ya estaba cobrada. Ahora la fila ofrece **Emitir** en cuanto no falta plata, y **la huella de actualización en vivo incluye lo cobrado y lo facturado del día**, así que la pantalla del otro se entera sola. **En «Registrar atención» se elige menos y se decide mejor.** El combo de profesional desaparece del servicio ya agendado —eso está decidido—, la lista de lo que se suma en el sillón ofrece **sólo lo que esa persona hace** (`fn_usuario_hace_servicio`, que ahí no miraba nadie) y lo que no hace pasa a un bloque plegado **«Sumar un servicio con otra profesional»**, que es el caso real: la clienta está en el sillón, pide las uñas y eso lo hace otra — hasta acá la única salida era agendarle una cita aparte. Los productos usados se agrupan **por servicio**, con el servicio fijado en un `hidden` en vez de un combo por fila: el POST no cambia, `producto[]`, `cantidad[]` y `servicio_de[]` siguen alineados por posición. **Y «Ver atención» deja de parecer un formulario**: sin buscador y sin casillas, que sobre lo que ya pasó se leen como que ahí se decide algo. **La campanita pasa a ser la bandeja del sistema.** Entra `App\Servicios\Alertas` —lo que está **pasando**: hoy, una caja abierta desde ayer, que es una que nadie contó y con la que dos días caen en el mismo arqueo— y **el bloque «Falta cargar» del panel se muda adentro** (pedido del usuario), así que se ve desde cualquier pantalla y no sólo desde el inicio. El numerito rojo cuenta **lo que no se vio** y baja al abrirla; **lo que falta cargar es la excepción y sigue contando** hasta que alguien lo cargue, porque verlo no lo resuelve. Ver tampoco es resolver: el renglón se queda en la bandeja —la caja sigue abierta— y pierde el punto rojo, como cualquier bandeja de correo. Qué vio cada uno se guarda en **`alerta_vista`**, por persona —que la dueña la abra no significa que la recepcionista se enteró— y con una **clave estable** (`caja:12`), no con el texto: mañana el mismo aviso dice «hace 3 días» y sigue siendo el mismo. **En las tablas de Clientes, Personal y Usuarios va la foto de perfil al lado del nombre** —o sus iniciales—, con un `<x-avatar>` para las tres; **y el botón «Detalle» se va de esas tablas**, que ya tienen el suyo para ver la ficha entera: lo que se escondía ahí vuelve a ser columna, salvo el teléfono en Visitas y puntos, que es un dato de Clientes y ahí no hacía falta. **Cliente inactivo sale del panel** (pedido del usuario): cuántas fichas hay no dice qué hacer hoy. **Y en Reportes las tarjetas dejan de repetirse**: el bloque de métricas salía en las seis secciones, así que Citas, Servicios, Profesionales e Ingresos abrían con los mismos ocho números de Resumen — queda en Resumen y en Todos. **El cambio de sucursal se muda de Mi cuenta a la barra**, como combo y a la derecha (pedido del usuario): eran dos piezas para una sola cosa —un chip que decía dónde se estaba y unos botones dos pantallas más allá que lo cambiaban—, así que mover el sistema entero de local obligaba a salir de la pantalla en la que se estaba trabajando; el botón de respaldo se dibuja siempre y lo esconde `app.js`, que sin JavaScript hay que poder cambiar igual. **Y regenerar los dos volcados destapó un defecto viejo: `usuario_rol` no estaba en la base que se entrega.** Es la tabla del cambio de perspectiva, y la leen `Sesion::roles()`, `Pendientes` y la ficha de Usuarios: un salón instalado desde cero se encontraba con el ingreso y la lista de usuarios reventando por una tabla que no está — **y acá no se notaba** porque las pruebas corren contra `peluqueria_test`, que sí la tenía. El guion de actualización la crea con `IF NOT EXISTS`, y queda escrito el `diff` de tablas entre los dos `.sql` como parte de regenerarlos: lo que cambia entre ellos son los datos, nunca el esquema. **207 pruebas · 1695 aserciones**, siete nuevas y **las siete comprobadas en las dos direcciones** — sacando el `p_persona`, el tope de lo cobrado, el filtro por `hace`, la campanita de la barra o el combo, cada una falla. Y una encontró la mitad que faltaba: el servicio de alertas, su filtro por permiso y su huella en vivo estaban escritos **y la campanita era un `<a href="#">`**, o sea la función apagada en silencio de siempre, esta vez con el interruptor del lado de la vista · 83 tablas · 87 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-11_7.117.0.sql` · **código y base** |
 
@@ -676,7 +677,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SGP le habla sólo por HTTP
-tests/Feature/             Las 211 pruebas
+tests/Feature/             Las 212 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1120,6 +1121,33 @@ donde está por algo:
   y ese `<style>` metía `[data-tema="oscuro"]` en el HTML del panel, que es
   la cadena que la prueba del tema busca para comprobar que en claro no queda
   rastro.
+- **Los módulos llenan su caja en la computadora** (`.sgp-modulos`, 7.118.1).
+  Con la `row` de Bootstrap las nueve pastillas se apilaban arriba, del
+  tamaño de su texto, y debajo sobraba media caja: la grilla reparte sus
+  filas a lo alto —la caja ya mide lo que mide la columna de la izquierda— y
+  agranda ícono y rótulo a partir de 992 px; en el celular es la grilla
+  compacta. **Entre 992 y 1200 px la columna es 5/12 y no 4/12**: con un
+  tercio de 960 px la pastilla mide 75 px y «Configuración» se cortaba con
+  «…». A esa medida las dos tarjetas del resumen financiero se apilan.
+
+#### El inicio del portal es el mismo panel, para la clienta
+
+Pedido del usuario (7.118.1): *«adaptá el mismo panel actual para el portal
+de los clientes, tanto celular como PC»*. `portal/index` usa **las mismas
+clases** —`sgp-saludo`, `panel-box`, `metric-card`, `sgp-modulos`—: escrito
+dos veces se desfasa.
+
+| Dónde | Qué |
+|---|---|
+| Izquierda, arriba | **Tus próximas citas**: todas las que vienen —antes se mostraba UNA—, con su estado, «Ver cómo va» en la que está en curso y el aviso de la atrasada |
+| Izquierda, abajo | **Tu nivel y tus puntos**: el nivel con su descuento, las visitas y cuántas faltan para el siguiente; los puntos con el enlace a qué canjear |
+| Derecha | las seis pantallas del portal en pastillas de dos columnas (`.sgp-modulos-2`), del catálogo `navegacion.portal`, **sin Inicio ni Mi cuenta** |
+
+> **`vw_cliente_fidelizacion.descuento_del_nivel` es el NOMBRE del descuento**
+> («Nivel Plata»), no cuánto descuenta: el porcentaje se lee de `nivel` ⋈
+> `descuento`, y el siguiente nivel es el primero con `visitas_minimas` por
+> encima de las suyas. Lo fija
+> `ReglasDeNegocioTest::el_inicio_del_portal_tiene_la_forma_del_panel`.
 
 ### En el celular las tablas son tarjetas
 
@@ -3048,12 +3076,18 @@ e irá a parar dentro de la campana su contenido»*.
 **Lo que NO se juntó es el modelo.** Siguen siendo dos servicios y dos preguntas,
 porque de eso depende cómo se cuentan:
 
+> **Y desde la 7.118.1 llevan UN solo rótulo, «Avisos»** (pedido del usuario).
+> Eran dos grupos —«Ahora mismo» y «Falta cargar»—; el usuario renombró el
+> segundo a «Avisos» y después pidió que la caja abierta de más fuera a ese
+> mismo grupo, así que el primero se retira. El orden no cambia: lo que está
+> pasando va primero, separado con una línea de lo que falta cargar.
+
 | | `Pendientes` | `Alertas` |
 |---|---|---|
 | Qué dice | lo que falta **configurar** | lo que está **pasando** ahora |
 | Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta desde ayer, un producto al mínimo |
 | Cada cuánto cambia | una vez y no vuelve | todos los días |
-| En la bandeja | grupo **«Falta cargar»** | grupo **«Ahora mismo»**, primero |
+| En la bandeja | bajo **«Avisos»**, después | bajo **«Avisos»**, **primero** |
 | ¿Deja de contar al verlo? | **nunca** | sí |
 
 - **El numerito rojo cuenta lo que no se vio**, y baja al abrir la campanita.
@@ -3143,8 +3177,11 @@ barra, como **combo**.
 - **El botón de respaldo arranca VISIBLE y lo esconde `app.js`**
   (`data-sgp-envia`), nunca al revés: dibujado desde el JS, quien lo tenga
   caído se queda sin forma de cambiar de local.
-- **En pantalla chica el combo no se dibuja** y el local se lee en la cabecera
-  del desplegable de la cuenta, que ahí es el único lugar donde aparece.
+- **En el celular también se dibuja** (pedido del usuario, 7.118.1). Se
+  escondía en pantalla chica y el local sólo se leía en el desplegable de la
+  cuenta, sin forma de cambiarlo desde el teléfono. Va compacto —`max-width`
+  y el nombre recortado con «…» si no entra— en el lugar que deja el nombre
+  del salón, que ahí no se dibuja.
 - **No se toca `sucursal.elegir`**: esa pantalla se sigue metiendo entre el
   ingreso y el panel cuando la persona tiene varios locales y todavía no
   eligió ninguno.
@@ -5442,7 +5479,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 211 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 212 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5596,7 +5633,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**211 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**212 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

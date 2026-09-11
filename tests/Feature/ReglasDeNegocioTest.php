@@ -4457,29 +4457,20 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function una_clienta_no_se_pisa_a_si_misma_salvo_que_sea_para_otra_persona(): void
     {
-        // **La cita de partida NO puede ser una «para otra persona»**, que es
-        // justo el caso que la regla excluye a propósito: contra una de ésas no
-        // hay solape que detectar, así que la prueba mediría lo contrario de lo
-        // que dice medir. Tomaba la más nueva a secas, y el día que la más nueva
-        // resultó ser para la hija de alguien, se puso roja sin que nada
-        // hubiera cambiado en el sistema.
-        $cita = DB::selectOne(
-            'SELECT c.id_cita, c.id_cliente, c.fecha_hora FROM cita c
-               JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-              WHERE ec.bloquea_agenda = 1
-                AND c.para_otra_persona = 0
-                AND EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = c.id_cita)
-              ORDER BY c.id_cita DESC LIMIT 1'
-        );
-        if (! $cita) {
-            $this->markTestSkipped('Hace falta una cita vigente con servicios.');
-        }
+        // **La cita de partida se CREA, no se busca.** Tomaba «la más nueva
+        // que bloquea agenda», y desde que el mes simulado se quedó sin citas
+        // futuras (7.103.1) eso es lo que haya quedado de otra corrida: el
+        // 11/09/2026 pasó en verde sólo porque una cita sembrada a mano para
+        // probar el panel estaba en la base, y con la base limpia se salteaba
+        // en silencio. `citaFuturaAgendada()` la arma en un hueco libre de
+        // verdad, a nombre de una clienta que ese día no tiene ese servicio y
+        // **sin `para_otra_persona`**, que es justo el caso que la regla
+        // excluye a propósito y contra el que no habría solape que detectar.
+        $cita = $this->citaFuturaAgendada();
 
         $cli = (int) $cita->id_cliente;
-        $dur = (int) DB::scalar('SELECT fn_cita_duracion(?)', [(int) $cita->id_cita]);
-        if ($dur <= 0) {
-            $this->markTestSkipped('Esa cita dura cero: no puede solaparse con nada.');
-        }
+        $dur = (int) $cita->dur;
+        $this->assertGreaterThan(0, $dur, 'Premisa: la cita tiene que durar algo para poder solaparse.');
 
         // Justo encima de la que ya tiene: se pisan.
         $encima = date('Y-m-d H:i:s', strtotime((string) $cita->fecha_hora) + 60);
@@ -7999,8 +7990,10 @@ class ReglasDeNegocioTest extends TestCase
             'La campanita tiene que mostrar cuántas cosas hay para resolver.');
         $this->assertStringContainsString('sgp-alerta-que', $html,
             'Y el aviso entero, que es lo que dice qué hacer.');
-        $this->assertStringContainsString('Ahora mismo', $html,
-            'La bandeja agrupa: lo que pasa hoy va aparte de lo que falta cargar.');
+        $this->assertStringContainsString('>Avisos<', $html,
+            'La bandeja lleva un solo rótulo, «Avisos» (pedido del usuario, 7.118.1).');
+        $this->assertStringNotContainsString('Ahora mismo', $html,
+            'El grupo «Ahora mismo» se fue: la caja abierta va bajo «Avisos».');
 
         // A quien no maneja la caja, nada: no puede cerrarla.
         DB::update('UPDATE usuario SET id_rol = 2 WHERE id_usuario = 1');
@@ -8716,5 +8709,66 @@ class ReglasDeNegocioTest extends TestCase
         foreach (['Dejo dicho prueba ventana', 'Josefina', 'Amoniaco prueba', 'La cita', 'Quién viene', 'Dejó dicho'] as $t) {
             $this->assertStringContainsString($t, $ventana, "La ventana tiene que decir «{$t}».");
         }
+    }
+
+    /**
+     * El inicio del portal tiene la forma del panel: sus citas, su nivel, las pantallas.
+     *
+     * Pedido del usuario (7.118.1): *«adaptá el mismo panel actual para el
+     * portal de los clientes»*. Antes mostraba UNA cita en una tarjeta y
+     * cinco tarjetas apiladas. Se mide con una clienta con dos citas por
+     * venir: las dos se listan —no sólo la primera—, el nivel y los puntos
+     * salen de la misma fuente que Promociones, y las pantallas del portal
+     * salen del catálogo, sin Inicio —que es ésta— ni Mi cuenta.
+     */
+    #[Test]
+    public function el_inicio_del_portal_tiene_la_forma_del_panel(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 AND c.activo = 1 LIMIT 1'
+        );
+        $this->assertNotNull($u, 'Premisa: hace falta una cuenta de clienta.');
+        $idc = (int) $u->id_cliente;
+
+        // Dos citas por venir A SU NOMBRE. `citaFuturaAgendada()` elige una
+        // clienta libre; se le cambia la dueña, que la fila ya está agendada y
+        // el disparador del servicio repetido mira al insertar el servicio.
+        $c1 = $this->citaFuturaAgendada();
+        $c2 = $this->citaFuturaAgendada();
+        DB::update('UPDATE cita SET id_cliente = ? WHERE id_cita IN (?, ?)', [$idc, (int) $c1->id_cita, (int) $c2->id_cita]);
+        // Sin ninguna otra, para que «las dos» sea exactamente lo que se ve.
+        DB::update('UPDATE cita SET id_estado_cita = 3 WHERE id_cliente = ? AND id_cita NOT IN (?, ?)
+                      AND id_estado_cita IN (1, 2, 7)', [$idc, (int) $c1->id_cita, (int) $c2->id_cita]);
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => $idc,
+        ]); $this->conSucursal();
+
+        $html = (string) $this->get(route('portal.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('sgp-saludo', $html, 'El saludo es un título chico, como en el panel.');
+        $this->assertStringContainsString('Tus próximas citas', $html);
+        $this->assertStringContainsString('id="citaProxima' . (int) $c1->id_cita . '"', $html, 'La primera cita se lista.');
+        $this->assertStringContainsString('id="citaProxima' . (int) $c2->id_cita . '"', $html,
+            'Y la segunda: antes el inicio mostraba UNA sola.');
+        $this->assertStringContainsString('ver todas mis citas', $html);
+
+        $this->assertStringContainsString('Tu nivel y tus puntos', $html);
+        $fid = DB::selectOne('SELECT visitas, puntos FROM vw_cliente_fidelizacion WHERE id_cliente = ?', [$idc]);
+        $this->assertStringContainsString(number_format((int) ($fid->puntos ?? 0), 0, ',', '.'), $html,
+            'Los puntos son los mismos que en Promociones.');
+
+        // Las pastillas: las pantallas del portal, sin Inicio ni Mi cuenta.
+        $this->assertStringContainsString('sgp-modulos', $html, 'Las pantallas van en la grilla del panel.');
+        $ini = (int) strpos($html, 'class="sgp-modulos');
+        $grilla = substr($html, $ini, (int) strpos($html, '</div>', $ini + 20) - $ini);
+        foreach (['Reservar cita', 'Mis citas', 'Promociones', 'Valoraciones', 'Mi ficha', 'Mis recordatorios'] as $t) {
+            $this->assertStringContainsString($t, $grilla, "La grilla ofrece «{$t}».");
+        }
+        $this->assertStringNotContainsString('>Inicio<', $grilla, 'Inicio es esta pantalla: no se ofrece a sí misma.');
+        $this->assertStringNotContainsString('Mi cuenta', $grilla, 'Mi cuenta vive en el desplegable de la cuenta.');
     }
 }

@@ -54,26 +54,55 @@ class PortalController extends Controller
         AND (DATE_ADD(v.fecha_hora, INTERVAL v.duracion_min MINUTE) >= NOW()
              OR (DATE(v.fecha_hora) = CURDATE() AND c.id_estado_cita IN (5, 7)))";
 
+    /**
+     * El inicio de la clienta, con la misma forma que el panel del personal
+     * (pedido del usuario, 7.118.1): a la izquierda sus próximas citas y
+     * debajo su nivel y sus puntos —que es lo que a ella le importa mirar,
+     * como al salón le importa la caja—, a la derecha las pantallas del
+     * portal. Antes mostraba UNA cita y cinco tarjetas apiladas.
+     */
     public function index(): View
     {
         $idc = $this->cliente();
 
-        $proxima = DB::selectOne(
-            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, ec.nombre AS estado_nombre
+        // Las próximas, no sólo la primera: quien reservó dos ve las dos.
+        $proximas = DB::select(
+            'SELECT v.*, (ec.nombre = \'En proceso\') AS en_curso, ec.nombre AS estado_nombre,
+                    c.id_estado_cita
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
               WHERE c.id_cliente = ? AND ' . self::VIGENTE . '
-              ORDER BY v.fecha_hora LIMIT 1', [$idc]
+              ORDER BY v.fecha_hora LIMIT 6', [$idc]
         );
+        $proxima = $proximas[0] ?? null;
 
         // Si la están atendiendo ahora, cuánto va: es lo primero que quiere saber
         $enCurso = null;
-        if ($proxima && (int) DB::scalar('SELECT id_estado_cita FROM cita WHERE id_cita = ?', [(int) $proxima->id_cita]) === 5) {
+        if ($proxima && (int) $proxima->id_estado_cita === 5) {
             $enCurso = $this->detalleAtencion($idc, (int) $proxima->id_cita);
         }
 
-        return view('portal.index', ['proxima' => $proxima, 'enCurso' => $enCurso]);
+        // Su nivel —con el descuento que le da— y a cuántas visitas está del
+        // siguiente. `vw_cliente_fidelizacion` trae el NOMBRE del descuento,
+        // no cuánto descuenta, así que el porcentaje se lee de `nivel`.
+        $fid = DB::selectOne('SELECT * FROM vw_cliente_fidelizacion WHERE id_cliente = ?', [$idc]);
+        $visitas = (int) ($fid->visitas ?? 0);
+        $nivel = DB::selectOne(
+            'SELECT n.nombre, d.tipo, d.valor FROM nivel n
+               LEFT JOIN descuento d ON d.id_descuento = n.id_descuento
+              WHERE n.activo = 1 AND n.visitas_minimas <= ? ORDER BY n.visitas_minimas DESC LIMIT 1', [$visitas]
+        );
+        $siguiente = DB::selectOne(
+            'SELECT nombre, visitas_minimas FROM nivel
+              WHERE activo = 1 AND visitas_minimas > ? ORDER BY visitas_minimas LIMIT 1', [$visitas]
+        );
+
+        return view('portal.index', [
+            'proximas' => $proximas, 'proxima' => $proxima, 'enCurso' => $enCurso,
+            'visitas' => $visitas, 'puntos' => (int) ($fid->puntos ?? 0),
+            'nivel' => $nivel, 'siguiente' => $siguiente,
+        ]);
     }
 
     // ---------- Reservar ----------
