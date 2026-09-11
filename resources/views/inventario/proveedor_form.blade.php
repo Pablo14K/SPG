@@ -5,13 +5,13 @@
 @section('contenido')
     @php $id = $p->id_proveedor ?? 0; @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('inventario.proveedores') }}">
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('inventario.proveedores') }}">
             <i class="bi bi-arrow-left"></i> Proveedores</a>
         <h1 class="mt-1">{{ $id ? 'Editar proveedor' : 'Nuevo proveedor' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:720px">
+    <div class="sgp-panel" style="max-width:720px">
         <form method="post" action="{{ route('inventario.proveedor.guardar') }}">
             @csrf
             <input type="hidden" name="id_proveedor" value="{{ $id }}">

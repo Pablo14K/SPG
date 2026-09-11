@@ -16,8 +16,8 @@
          dónde sale ese número. Las columnas que quedan son las dos que se
          miran: la cantidad y lo que cuesta. --}}
     @if ($bajo)
-        <div class="spg-panel mb-3" style="border-left:3px solid var(--oro)">
-            <h2 class="spg-form-titulo mb-1">
+        <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
+            <h2 class="sgp-form-titulo mb-1">
                 <i class="bi bi-cart-plus"></i> Lista de compras
             </h2>
             {{-- **El mínimo es el punto de reposición**, así que llegar a él ya
@@ -30,7 +30,7 @@
                 llegó a su mínimo o quedó por debajo. Comprando esto, cada uno
                 vuelve a estar por encima.
             </p>
-            <div class="table-responsive spg-tabla-movil">
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-2">
                     <thead>
                         <tr>
@@ -44,7 +44,7 @@
                         @foreach ($bajo as $b)
                             @php $totalRepo += (float) $b->faltante * (float) $b->precio_costo; @endphp
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Producto">
+                                <td class="sgp-movil-titulo" data-label="Producto">
                                     {{ $b->nombre }}
                                     <div class="text-muted-warm" style="font-size:.78rem">
                                         {{ $b->categoria }} · hay {{ cant($b->stock_actual) }}
@@ -87,8 +87,8 @@
         </div>
     @endif
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -100,7 +100,7 @@
                     @forelse ($rows as $p)
                         @php $bajoMin = (float) $p->stock_actual < (float) $p->stock_minimo; @endphp
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Producto">{{ $p->nombre }}</td>
+                            <td class="sgp-movil-titulo" data-label="Producto">{{ $p->nombre }}</td>
                             <td class="text-muted-warm" data-label="Categoría">{{ $p->categoria }}</td>
                             <td class="text-end" data-label="Stock">
                                 <strong class="{{ $bajoMin ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
@@ -114,7 +114,7 @@
                             </td>
                             <td class="text-end text-muted-warm" data-label="Mínimo">{{ cant($p->stock_minimo) }}</td>
                             <td class="text-end" data-label="Valor a costo">{{ money((float) $p->stock_actual * (float) $p->precio_costo) }}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end sgp-movil-acciones">
                                 <a class="btn btn-sm btn-outline-neutro" title="Cargar o corregir stock"
                                    href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
                                     <i class="bi bi-plus-slash-minus"></i></a>
@@ -123,7 +123,7 @@
                     @empty
                         <tr>
                             <td colspan="6">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-clipboard-data"></i>
                                     <div class="t">No hay productos activos.</div>
                                 </div>

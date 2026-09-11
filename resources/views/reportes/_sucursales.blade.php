@@ -7,8 +7,8 @@
      Con una sucursal elegida esta pantalla no tiene qué comparar, y lo dice en
      vez de mostrar una fila que repite el resumen. --}}
 @if ($sucElegida !== '')
-    <div class="spg-panel">
-        <div class="spg-vacio">
+    <div class="sgp-panel">
+        <div class="sgp-vacio">
             <i class="bi bi-shop"></i>
             <div class="t">Estás mirando un solo local</div>
             <div class="d">
@@ -19,7 +19,7 @@
         </div>
     </div>
 @elseif (! $porSucursal)
-    <div class="spg-panel">@include('reportes._sindatos', ['ic' => 'shop'])</div>
+    <div class="sgp-panel">@include('reportes._sindatos', ['ic' => 'shop'])</div>
 @else
     @php
         // Los ingresos vienen de otra consulta —salen de la caja, no de la
@@ -30,8 +30,8 @@
         foreach ($porSucursal as $s) { $maxCitas = max($maxCitas, (int) $s->citas); }
     @endphp
 
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Comparativa de locales</h2>
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-shop"></i> Comparativa de locales</h2>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0" data-ordenable>
                 <thead>
@@ -53,7 +53,7 @@
                             <td>{{ $s->sucursal }}</td>
                             <td class="text-end">{{ (int) $s->citas }}</td>
                             <td>
-                                <span class="spg-graf-pista"><span class="spg-graf-barra"
+                                <span class="sgp-graf-pista"><span class="sgp-graf-barra"
                                       style="width:{{ $maxCitas ? round((int) $s->citas * 100 / $maxCitas) : 0 }}%"></span></span>
                             </td>
                             <td class="text-end">{{ (int) $s->atendidas }}</td>

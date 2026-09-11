@@ -3,7 +3,7 @@
 @section('titulo', 'Recuperar contraseña')
 
 @section('formulario')
-    <form class="spg-login" method="post" action="{{ route('recuperar') }}">
+    <form class="sgp-login" method="post" action="{{ route('recuperar') }}">
         @csrf
         <div class="logo-big"><i class="bi bi-key"></i></div>
         <h1 class="text-center" style="font-size:1.15rem;font-weight:500;margin-bottom:.2rem;">

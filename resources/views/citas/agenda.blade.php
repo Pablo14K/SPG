@@ -12,7 +12,7 @@
         :accion="['ruta' => 'citas.form', 't' => 'Nueva cita', 'ic' => 'calendar-plus']" />
 
     {{-- Navegación por día: el salón trabaja mirando «hoy», y de ahí se mueve --}}
-    <div class="spg-panel mb-3">
+    <div class="sgp-panel mb-3">
         <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
                 <label class="form-label" for="dia">Día</label>
@@ -55,8 +55,8 @@
         </div>
     @endif
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -68,12 +68,12 @@
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Hora" style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
-                            {{-- `spg-movil-sujeto`: en el celular este renglón va sin el
+                            <td class="sgp-movil-titulo" data-label="Hora" style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
+                            {{-- `sgp-movil-sujeto`: en el celular este renglón va sin el
                                  rótulo «CLIENTE» y en negrita, que es lo que deja leer la
                                  tarjeta de un vistazo — hora, quién, y abajo el resto con
                                  su rótulo. En escritorio no cambia nada. --}}
-                            <td data-label="Cliente" class="spg-movil-sujeto">
+                            <td data-label="Cliente" class="sgp-movil-sujeto">
                                 {{-- **Arriba va quien SE ATIENDE; abajo y en chico, quien
                                      la pidió.** Con el badge «para Josefina» al lado del
                                      nombre de la clienta, el renglón tenía dos nombres del
@@ -113,7 +113,7 @@
                                      que abre una ventana vacía es peor que
                                      ninguno. --}}
                                 @php
-                                    $spgAcomp = $acompanantes[$c->id_cita] ?? [];
+                                    $sgpAcomp = $acompanantes[$c->id_cita] ?? [];
                                     // **Quiénes se atienden en esta cita, y con qué es
                                     // alérgica CADA una.** La fila mostraba una sola
                                     // alergia —la de la ficha de quien reservó— así que
@@ -121,15 +121,15 @@
                                     // que nadie supiera con qué no se las puede tocar. Y
                                     // en una «para otra persona» la única que salía era
                                     // la de alguien que ese día ni viene.
-                                    $spgGente = \App\Servicios\Alergias::deLaCita($c, $spgAcomp);
-                                    $spgAlergicas = array_values(array_filter($spgGente, fn ($p) => $p->alergias !== null));
-                                    $spgVarias = count($spgGente) > 1;
+                                    $sgpGente = \App\Servicios\Alergias::deLaCita($c, $sgpAcomp);
+                                    $sgpAlergicas = array_values(array_filter($sgpGente, fn ($p) => $p->alergias !== null));
+                                    $sgpVarias = count($sgpGente) > 1;
 
-                                    $spgDet = [];
-                                    if (trim((string) $c->observaciones) !== '') { $spgDet[] = 'dejó dicho'; }
-                                    if ($c->para_otra_persona) { $spgDet[] = 'para otra persona'; }
-                                    if ((int) $c->personas > 1) { $spgDet[] = 'vienen ' . (int) $c->personas; }
-                                    if ($spgAlergicas) { $spgDet[] = 'alergias'; }
+                                    $sgpDet = [];
+                                    if (trim((string) $c->observaciones) !== '') { $sgpDet[] = 'dejó dicho'; }
+                                    if ($c->para_otra_persona) { $sgpDet[] = 'para otra persona'; }
+                                    if ((int) $c->personas > 1) { $sgpDet[] = 'vienen ' . (int) $c->personas; }
+                                    if ($sgpAlergicas) { $sgpDet[] = 'alergias'; }
                                 @endphp
 
                                 {{-- **La alergia se ve en la fila, no escondida en el modal.**
@@ -143,21 +143,21 @@
                                      le puede dar: es media advertencia. Con una sola persona
                                      el nombre sobra —es la de la fila— y el badge queda
                                      exactamente como estaba. --}}
-                                @foreach ($spgAlergicas as $spgA)
+                                @foreach ($sgpAlergicas as $sgpA)
                                     <div class="mb-1">
                                         <span class="badge-estado e-no d-inline-flex align-items-center gap-1"
-                                              title="Alergias de {{ $spgA->quien }}: {{ $spgA->alergias }}">
+                                              title="Alergias de {{ $sgpA->quien }}: {{ $sgpA->alergias }}">
                                             <i class="bi bi-exclamation-triangle-fill"></i>
-                                            <span>@if ($spgVarias)<strong>{{ $spgA->quien }}:</strong> @endif{{ \Illuminate\Support\Str::limit($spgA->alergias, 40) }}</span>
+                                            <span>@if ($sgpVarias)<strong>{{ $sgpA->quien }}:</strong> @endif{{ \Illuminate\Support\Str::limit($sgpA->alergias, 40) }}</span>
                                         </span>
                                     </div>
                                 @endforeach
 
-                                @if ($spgDet)
-                                    <button type="button" class="btn btn-sm btn-rapido spg-btn-det"
+                                @if ($sgpDet)
+                                    <button type="button" class="btn btn-sm btn-rapido sgp-btn-det"
                                             data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}">
                                         <i class="bi bi-chat-left-text"></i>
-                                        {{ ucfirst(implode(' · ', $spgDet)) }}</button>
+                                        {{ ucfirst(implode(' · ', $sgpDet)) }}</button>
                                 @endif
                             </td>
                             <td class="text-muted-warm" data-label="Servicios">
@@ -196,8 +196,8 @@
                                         sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detAge{{ $c->id_cita }}" aria-expanded="false"
                                         aria-controls="detAge{{ $c->id_cita }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -238,7 +238,7 @@
                                                 <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                                 <input type="hidden" name="dia" value="{{ $dia }}">
                                                 <input type="hidden" name="id_estado_cita" value="5">
-                                                <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Marcar en proceso">
+                                                <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Marcar en proceso">
                                                     <i class="bi bi-play-fill"></i></button>
                                             </form>
                                         @elseif ($c->prof_ausente ?? false)
@@ -265,7 +265,7 @@
                                          llega al guardar. --}}
                                     @if ($esHoy && ($c->fichaje_ok ?? true)
                                          && $urlAtender = Navegacion::url('citas.atender'))
-                                        <a class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Registrar atención"
+                                        <a class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Registrar atención"
                                            href="{{ $urlAtender . '?id=' . $c->id_cita }}">
                                             <i class="bi bi-clipboard-check"></i></a>
                                     @endif
@@ -276,7 +276,7 @@
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                         <input type="hidden" name="dia" value="{{ $dia }}">
                                         <input type="hidden" name="id_estado_cita" value="6">
-                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Marcar ausente"
+                                        <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Marcar ausente"
                                                 data-confirmar="¿Marcar como ausente a {{ $c->cliente }}?">
                                             <i class="bi bi-person-x"></i></button>
                                     </form>
@@ -290,14 +290,14 @@
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                         <input type="hidden" name="dia" value="{{ $dia }}">
-                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cancelar"
+                                        <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Cancelar"
                                                 data-confirmar="¿Cancelar la cita de {{ $c->cliente }} de las {{ fecha($c->fecha_hora, 'H:i') }}?">
                                             <i class="bi bi-x-lg"></i></button>
                                     </form>
                                     @endunless
 
                                     @unless ($enCurso)
-                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Reprogramar"
+                                        <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Reprogramar"
                                                 data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
                                             <i class="bi bi-calendar-event"></i></button>
                                     @endunless
@@ -309,7 +309,7 @@
                                          otra le cambia quién la atiende. Las flechas
                                          dicen «pasa de uno a otro». --}}
                                     @if ($puedeReasignar && ! $enCurso)
-                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cambiar profesional"
+                                        <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Cambiar profesional"
                                                 data-bs-toggle="modal" data-bs-target="#modalReasignar{{ $c->id_cita }}">
                                             <i class="bi bi-arrow-left-right"></i></button>
                                     @endif
@@ -325,7 +325,7 @@
                                          terminar, desde «Cobrar». --}}
                                     @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
                                          && ! $enCurso && (float) ($c->cobrado_cita ?? 0) <= 0)
-                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cobrar una seña"
+                                        <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Cobrar una seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
                                     @endif
@@ -385,11 +385,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detAge{{ $c->id_cita }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             @if ($verTodo)
                                                 <div>
                                                     <dt>Profesional</dt>
@@ -438,7 +438,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-calendar-week"></i>
                                     <div class="t">
                                         @if ($rango === '')
@@ -481,11 +481,11 @@
                              visible ni con Bootstrap haciendo su trabajo. Se veía el
                              fondo gris y nada más. --}}
                         @php
-                            $spgAcompM = $acompanantes[$c->id_cita] ?? [];
-                            $spgGenteM = \App\Servicios\Alergias::deLaCita($c, $spgAcompM);
-                            $spgHayAlergiaM = (bool) array_filter($spgGenteM, fn ($p) => $p->alergias !== null);
+                            $sgpAcompM = $acompanantes[$c->id_cita] ?? [];
+                            $sgpGenteM = \App\Servicios\Alergias::deLaCita($c, $sgpAcompM);
+                            $sgpHayAlergiaM = (bool) array_filter($sgpGenteM, fn ($p) => $p->alergias !== null);
                         @endphp
-                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || $spgHayAlergiaM)
+                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || $sgpHayAlergiaM)
                             <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content">
@@ -497,7 +497,7 @@
                                                     aria-label="Cerrar"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <dl class="spg-ficha">
+                                            <dl class="sgp-ficha">
                                                 @if ($c->para_otra_persona)
                                                     <dt>Es para</dt>
                                                     <dd>
@@ -554,15 +554,15 @@
                                                      nadie se lo preguntó. Un renglón en blanco se
                                                      leería como que está todo bien, que es justo lo
                                                      contrario. --}}
-                                                @if ($spgHayAlergiaM || count($spgGenteM) > 1)
+                                                @if ($sgpHayAlergiaM || count($sgpGenteM) > 1)
                                                     <dt class="txt-no">Alergias</dt>
                                                     <dd>
                                                         <ul class="list-unstyled mb-0">
-                                                            @foreach ($spgGenteM as $spgP)
+                                                            @foreach ($sgpGenteM as $sgpP)
                                                                 <li class="mb-1">
-                                                                    <span class="text-muted-warm">{{ $spgP->quien }}:</span>
-                                                                    @if ($spgP->alergias !== null)
-                                                                        <strong class="txt-no">{{ $spgP->alergias }}</strong>
+                                                                    <span class="text-muted-warm">{{ $sgpP->quien }}:</span>
+                                                                    @if ($sgpP->alergias !== null)
+                                                                        <strong class="txt-no">{{ $sgpP->alergias }}</strong>
                                                                     @else
                                                                         <span class="text-muted-warm">sin registrar</span>
                                                                     @endif
@@ -686,8 +686,8 @@
                                  data-agenda-personas="{{ max(1, (int) ($c->personas ?? 1)) }}"
                                  data-agenda-boton="#btnRepro{{ $c->id_cita }}">
                                 <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
-                                <div data-agenda-dias class="spg-dias mt-2"></div>
-                                <div data-agenda-horas class="spg-horas mt-2"></div>
+                                <div data-agenda-dias class="sgp-dias mt-2"></div>
+                                <div data-agenda-horas class="sgp-horas mt-2"></div>
                             </div>
                             <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
                                 Sólo se ofrecen los horarios en que {{ $c->profesional }} de verdad
@@ -916,7 +916,7 @@
                                     // Lo que **no** está abajo se queda: el descuento con su
                                     // origen, lo ya cobrado y lo que falta cobrar. Borrar la
                                     // tabla entera se llevaría eso puesto.
-                                    $spgHayDesglose = $c->estado !== 'Atendida'
+                                    $sgpHayDesglose = $c->estado !== 'Atendida'
                                         && ! empty($desglosesSena[$c->id_cita]['filas']);
                                 @endphp
                                 @if ($totalCita > 0)
@@ -928,7 +928,7 @@
                                          lee como un error de la pantalla. --}}
                                     <table class="table table-sm align-middle mb-2" style="font-size:.86rem">
                                         <tbody>
-                                            @unless ($spgHayDesglose)
+                                            @unless ($sgpHayDesglose)
                                                 @foreach (($dg['filas'] ?? []) as $fl)
                                                     <tr>
                                                         <td>
@@ -965,7 +965,7 @@
                                                     <td class="text-end">− {{ money($lista - $totalCita) }}</td>
                                                 </tr>
                                             @endif
-                                            @unless ($spgHayDesglose)
+                                            @unless ($sgpHayDesglose)
                                                 <tr style="border-top:2px solid var(--gris-calido)">
                                                     <th>Total de la cita</th>
                                                     <th class="text-end">{{ money($totalCita) }}</th>

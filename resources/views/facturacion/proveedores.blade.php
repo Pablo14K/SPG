@@ -11,18 +11,18 @@
         </div>
     @endif
 
-    <div class="spg-panel mb-3">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cuentas por pagar</h2>
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel mb-3">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Cuentas por pagar</h2>
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Proveedor</th><th>Compra</th><th>Vencimiento</th>
-                        <th class="text-end spg-movil-oculto">Total</th><th class="text-end">Saldo</th><th class="text-end">Pagar</th></tr>
+                        <th class="text-end sgp-movil-oculto">Total</th><th class="text-end">Saldo</th><th class="text-end">Pagar</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($cuentas as $c)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Proveedor">{{ $c->proveedor }}</td>
+                            <td class="sgp-movil-titulo" data-label="Proveedor">{{ $c->proveedor }}</td>
                             <td class="text-muted-warm" data-label="Compra">
                                 {{ fecha($c->fecha, 'd/m/Y') }}
                                 @if ($c->nro_factura_proveedor ?? null) · {{ $c->nro_factura_proveedor }} @endif
@@ -34,9 +34,9 @@
                                 <span class="text-muted-warm">
                                     {{ $c->vencimiento ? fecha($c->vencimiento, 'd/m/Y') : '—' }}</span>
                             </td>
-                            <td class="text-end spg-movil-oculto" data-label="Total">{{ money($c->total) }}</td>
+                            <td class="text-end sgp-movil-oculto" data-label="Total">{{ money($c->total) }}</td>
                             <td class="text-end" data-label="Saldo"><strong class="txt-no">{{ money($c->saldo) }}</strong></td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end sgp-movil-acciones">
                                 @if ($caja)
                                     <button class="btn btn-sm btn-oro" data-bs-toggle="modal"
                                             data-bs-target="#modalPago{{ $c->id_compra }}">
@@ -47,7 +47,7 @@
                     @empty
                         <tr>
                             <td colspan="6">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-check-circle"></i>
                                     <div class="t">No hay deudas pendientes con proveedores.</div>
                                 </div>
@@ -59,9 +59,9 @@
         </div>
     </div>
 
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Pagos registrados</h2>
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Pagos registrados</h2>
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Fecha</th><th>Proveedor</th>
@@ -70,12 +70,12 @@
                 <tbody>
                     @forelse ($pagos as $p)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
+                            <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
                             <td data-label="Proveedor">{{ $p->proveedor }}</td>
                             <td class="text-end" data-label="Monto">{{ money($p->monto) }}</td>
                             <td data-label="Estado">{!! estado_badge($p->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detPagP{{ $p->id_pago_proveedor }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
@@ -87,11 +87,11 @@
                                 @endif
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detPagP{{ $p->id_pago_proveedor }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             {{-- **Qué compra pagó.** El pago SÍ queda ligado a la
                                                  compra —`sp_pagar_compra` escribe el detalle— pero acá
                                                  no se veía: con el mismo proveedor repetido no había
@@ -251,7 +251,7 @@
                                     <div class="col-6">
                                         <label class="form-label">Monto</label>
                                         <div class="input-group">
-                                            <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                                            <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                                             <input class="form-control input-miles" name="monto" data-min="0"
                                                    value="{{ monto_input($c->saldo) }}" required>
                                         </div>

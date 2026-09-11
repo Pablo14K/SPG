@@ -42,9 +42,9 @@ if (! function_exists('flash')) {
      */
     function flash(string $mensaje, string $tipo = 'success'): void
     {
-        $cola = session()->get('spg_flash', []);
+        $cola = session()->get('sgp_flash', []);
         $cola[] = ['msg' => $mensaje, 'tipo' => $tipo];
-        session()->flash('spg_flash', $cola);
+        session()->flash('sgp_flash', $cola);
     }
 }
 
@@ -52,7 +52,7 @@ if (! function_exists('money')) {
     /** Dinero en guaraníes: sin decimales, separador de miles con punto. */
     function money(mixed $n): string
     {
-        return config('spg.moneda', 'Gs.') . ' ' . number_format((float) $n, 0, ',', '.');
+        return config('sgp.moneda', 'Gs.') . ' ' . number_format((float) $n, 0, ',', '.');
     }
 }
 

@@ -7,15 +7,15 @@
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock"></i> Nuevo turno</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock"></i> Nuevo turno</h2>
                 @include('seguridad._turno_form', ['t' => null])
             </div>
         </div>
 
         <div class="col-lg-7">
-            <div class="spg-panel">
-                <div class="table-responsive spg-tabla-movil">
+            <div class="sgp-panel">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Turno</th><th>Horario</th><th>Días</th>
@@ -24,7 +24,7 @@
                         <tbody>
                             @forelse ($rows as $t)
                                 <tr>
-                                    <td class="spg-movil-titulo" data-label="Turno">
+                                    <td class="sgp-movil-titulo" data-label="Turno">
                                         {{ $t->nombre }}
                                         <div class="text-muted-warm" style="font-size:.76rem">{{ $t->sucursal }}</div>
                                     </td>
@@ -33,8 +33,8 @@
                                         a {{ substr((string) $t->hora_fin, 0, 5) }}
                                     </td>
                                     <td class="text-muted-warm" style="font-size:.82rem" data-label="Días">{{ $t->dias_texto }}</td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                        <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                                 data-bs-target="#detTurno{{ $t->id_turno }}" aria-expanded="false">
                                             <i class="bi bi-chevron-down"></i> Detalle
                                         </button>
@@ -52,11 +52,11 @@
                                         </form>
                                     </td>
                                 </tr>
-                                <tr class="spg-fila-detalle">
+                                <tr class="sgp-fila-detalle">
                                     <td colspan="4">
                                         <div class="collapse" id="detTurno{{ $t->id_turno }}">
-                                            <div class="spg-det-cuerpo">
-                                                <div class="spg-det-grid">
+                                            <div class="sgp-det-cuerpo">
+                                                <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Entrada</dt>
                                                         <dd>{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min de tolerancia</dd>
@@ -79,7 +79,7 @@
                             @empty
                                 <tr>
                                     <td colspan="4">
-                                        <div class="spg-vacio">
+                                        <div class="sgp-vacio">
                                             <i class="bi bi-clock"></i>
                                             <div class="t">Todavía no hay turnos cargados.</div>
                                             <div class="d">

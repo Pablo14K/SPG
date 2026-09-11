@@ -6,10 +6,10 @@
     <x-encabezado :sub="'Total ' . ($f['activos'] ? 'de lo filtrado' : 'general')
                         . ': <strong class=\'txt-oro\'>' . money($totalFiltrado) . '</strong> (sin contar los anulados)'" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -21,14 +21,14 @@
                     @forelse ($rows as $r)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
+                            <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
                             <td data-label="Cliente">
                                 {{ $r->cliente ?: '—' }}
                             </td>
                             <td class="text-end" data-label="Monto">{{ money($r->monto) }}</td>
                             <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detCob{{ $r->id_cobro }}" aria-expanded="false"
                                         aria-controls="detCob{{ $r->id_cobro }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -41,11 +41,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detCob{{ $r->id_cobro }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             @if ($r->es_sena)
                                             <div>
                                                 <dt>Tipo</dt>
@@ -84,7 +84,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-cash-coin"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún cobro coincide con esos filtros.' : 'Todavía no hay cobros registrados.' }}</div>
                                 </div>

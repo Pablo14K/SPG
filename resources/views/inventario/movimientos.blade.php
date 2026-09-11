@@ -6,8 +6,8 @@
     <x-encabezado sub="El libro mayor del inventario: cada entrada y cada salida, con quién la registró. De acá sale el stock de cada producto." />
 
     @if ($prod)
-        <div class="spg-metrics mb-3">
-            <div class="spg-metric">
+        <div class="sgp-metrics mb-3">
+            <div class="sgp-metric">
                 <div class="lbl">{{ $prod->nombre }}</div>
                 <div class="val">
                     {{ cant($prod->stock) }}
@@ -22,10 +22,10 @@
         </div>
     @endif
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -36,7 +36,7 @@
                 <tbody>
                     @forelse ($rows as $m)
                         <tr>
-                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($m->fecha) }}</td>
+                            <td class="sgp-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($m->fecha) }}</td>
                             <td data-label="Producto">{{ $m->producto }}</td>
                             <td data-label="Tipo">
                                 @if ($m->signo === 'E')
@@ -54,18 +54,18 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detMov{{ $loop->index }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detMov{{ $loop->index }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Precio</dt>
                                                 <dd>{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</dd>
@@ -91,7 +91,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-arrow-left-right"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún movimiento con esos filtros.' : 'Todavía no hay movimientos de stock.' }}</div>
                                 </div>

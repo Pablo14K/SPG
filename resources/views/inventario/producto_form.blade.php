@@ -11,8 +11,8 @@
          informe pueden comparar el mismo frasco entre sucursales. Traerlo no
          copia nada: agrega la fila que dice que aca tambien se maneja. --}}
     @if (! empty($ajenos))
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en el catalogo<x-ayuda>Estos productos ya estan cargados en otro local. Traelos aca en vez de escribirlos de nuevo: es el mismo producto, con su unidad y su contenido.</x-ayuda></h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en el catalogo<x-ayuda>Estos productos ya estan cargados en otro local. Traelos aca en vez de escribirlos de nuevo: es el mismo producto, con su unidad y su contenido.</x-ayuda></h2>
             <div class="row g-2 align-items-end">
                 <div class="col-md-8">
                     <label class="form-label" for="traer">Producto</label>
@@ -36,12 +36,12 @@
         </div>
     @endif
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('inventario.productos') }}"><i class="bi bi-arrow-left"></i> Productos</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('inventario.productos') }}"><i class="bi bi-arrow-left"></i> Productos</a>
         <h1 class="mt-1">{{ $id ? 'Editar producto' : 'Nuevo producto' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:760px">
+    <div class="sgp-panel" style="max-width:760px">
         <form method="post" action="{{ route('inventario.producto.guardar') }}">
             @csrf
             <input type="hidden" name="id_producto" value="{{ $id }}">
@@ -73,7 +73,7 @@
             <hr class="my-4">
 
             {{-- El frasco y el mililitro --}}
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-rulers"></i> Cómo se compra y cómo se gasta<x-ayuda titulo="Envases que se gastan de a poco">Se compra por frasco de 1 litro y se usa de a 30 ml. Cargando el contenido y la unidad, quien registre la atención anota «30 ml» y el sistema descuenta la parte que corresponde del frasco. Sin eso, lo más chico que se puede descontar es un frasco entero.</x-ayuda></h2>
+            <h2 class="sgp-form-titulo mb-1"><i class="bi bi-rulers"></i> Cómo se compra y cómo se gasta<x-ayuda titulo="Envases que se gastan de a poco">Se compra por frasco de 1 litro y se usa de a 30 ml. Cargando el contenido y la unidad, quien registre la atención anota «30 ml» y el sistema descuenta la parte que corresponde del frasco. Sin eso, lo más chico que se puede descontar es un frasco entero.</x-ayuda></h2>
 
             <div class="row g-3">
                 <div class="col-md-4">
@@ -109,7 +109,7 @@
                 <div class="col-md-3">
                     <label class="form-label" for="precio_costo">Precio de costo</label><x-ayuda campo="precio_costo" />
                     <div class="input-group">
-                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                         <input class="form-control input-miles" id="precio_costo" name="precio_costo" data-min="0"
                                {{-- **`monto_input()` va DENTRO del `old()`, no envolviéndolo.**
                                     Envolviéndolo, el valor que vuelve de un rechazo —«15.000», ya
@@ -131,7 +131,7 @@
                 <div class="col-md-3">
                     <label class="form-label" for="precio_venta">Precio de venta</label><x-ayuda campo="precio_venta" />
                     <div class="input-group">
-                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                         <input class="form-control input-miles" id="precio_venta" name="precio_venta" data-min="0"
                                value="{{ monto_input(old('precio_venta', $p->precio_venta ?? 0)) }}">
                     </div>

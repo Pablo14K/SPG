@@ -20,7 +20,7 @@ use Throwable;
  */
 class Diagnostico extends Command
 {
-    protected $signature = 'spg:diagnostico {--produccion : Además, revisa lo que solo importa en el servidor}';
+    protected $signature = 'sgp:diagnostico {--produccion : Además, revisa lo que solo importa en el servidor}';
 
     protected $description = 'Revisa la conexión, la hora, las rutinas de la base y los permisos';
 
@@ -184,13 +184,13 @@ class Diagnostico extends Command
 
         // **Un solo remitente, y conviene decir cuál.**
         //
-        // El SPG y el Automatizador SIFEN saben los dos mandarle el comprobante
+        // El SGP y el Automatizador SIFEN saben los dos mandarle el comprobante
         // a la clienta —los dos adjuntan el KuDE y el XML— pero cada uno lo
         // haría con SU cuenta, y con los dos prendidos le llega dos veces desde
-        // direcciones distintas. Manda el SPG, que es el que tiene la cuenta
+        // direcciones distintas. Manda el SGP, que es el que tiene la cuenta
         // configurable; el Automatizador se calla con su `MAIL_FROM_EMAIL`
-        // vacío — y desde la 7.105.0, sobre todo, porque el SPG le manda
-        // `X-SPG-Correo: no` en cada emisión: la línea vacía dejó de ser la
+        // vacío — y desde la 7.105.0, sobre todo, porque el SGP le manda
+        // `X-SGP-Correo: no` en cada emisión: la línea vacía dejó de ser la
         // garantía y pasó a ser el respaldo. Si igual mandara,
         // `Sifen::avisoCorreo()` lo detecta por `mail_enviado` y lo dice al
         // emitir.
@@ -198,10 +198,10 @@ class Diagnostico extends Command
         // Sólo se muestra con SIFEN encendido: apagado, el módulo no existe en
         // la interfaz y esto sería ruido.
         if ((bool) config('sifen.activo')) {
-            $this->linea('La factura electrónica', 'la manda el SPG con esta misma cuenta, '
+            $this->linea('La factura electrónica', 'la manda el SGP con esta misma cuenta, '
                 . 'adjuntando el KuDE y el XML');
-            $this->linea('El Automatizador', 'no manda: el SPG se lo dice en cada emisión '
-                . '(X-SPG-Correo). Su MAIL_FROM_EMAIL vacío queda de segundo candado');
+            $this->linea('El Automatizador', 'no manda: el SGP se lo dice en cada emisión '
+                . '(X-SGP-Correo). Su MAIL_FROM_EMAIL vacío queda de segundo candado');
         } else {
             // **Apagado en silencio, que es lo que este comando existe para
             // destapar.** Con `SIFEN_ACTIVO=false` no hay ni una señal en la
@@ -271,7 +271,7 @@ class Diagnostico extends Command
             } elseif ($existe === false) {
                 $this->mal($detalle . ': ese usuario NO existe en este servidor. Todo lo que las llame '
                     . 'va a contestar error 1449. Preparalo antes de importar con: '
-                    . 'php artisan spg:preparar-sql <archivo.sql> ' . strtok($usuario, '@'));
+                    . 'php artisan sgp:preparar-sql <archivo.sql> ' . strtok($usuario, '@'));
                 $problemas++;
             } else {
                 // Las llamadas de prueba de arriba ya pasaron, así que en la
@@ -327,7 +327,7 @@ class Diagnostico extends Command
             // **Sano no es lo mismo que configurado.** Este comando contesta si
             // el sistema está bien; qué le falta cargar al salón lo contesta
             // otro, y sin nombrarlo acá nadie se entera de que existe.
-            $this->line('  <fg=gray>Qué le falta cargar al salón: php artisan spg:pendientes</>');
+            $this->line('  <fg=gray>Qué le falta cargar al salón: php artisan sgp:pendientes</>');
 
             return self::SUCCESS;
         }

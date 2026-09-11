@@ -3,10 +3,10 @@
 @section('titulo', 'Reservar cita')
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('portal.index') }}"><i class="bi bi-arrow-left"></i> Mi portal</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('portal.index') }}"><i class="bi bi-arrow-left"></i> Mi portal</a>
         <h1 class="mt-1">Reservar una cita<x-ayuda lado="bottom">Elegí los servicios y te mostramos sólo los horarios que quedan libres de verdad, con el tiempo que lleva todo junto.</x-ayuda></h1>
-        <span class="spg-titulo-linea"></span>
+        <span class="sgp-titulo-linea"></span>
     </div>
 
     {{-- **Primero el local.** Los servicios, los horarios y los profesionales
@@ -14,11 +14,11 @@
          ofrecer algo que después puede no existir ahí. Con una sola sucursal
          este bloque no aparece: se elige sola. --}}
     @if (count($sucursales) > 1)
-        <div class="spg-panel mb-3">
+        <div class="sgp-panel mb-3">
             <label class="form-label">¿En qué local? *</label>
             <div class="d-flex flex-wrap gap-2 mt-1">
                 @foreach ($sucursales as $s)
-                    <a class="spg-chip {{ (int) $s->id_sucursal === $sucursal ? 'activo' : '' }}"
+                    <a class="sgp-chip {{ (int) $s->id_sucursal === $sucursal ? 'activo' : '' }}"
                        href="{{ route('portal.reservar', ['sucursal' => $s->id_sucursal]) }}">
                         <i class="bi bi-shop"></i> {{ $s->nombre }}
                         @if ($s->ciudad)<span class="text-muted-warm">· {{ $s->ciudad }}</span>@endif
@@ -34,15 +34,15 @@
     @endif
 
     @if (! $sucursal)
-        <div class="spg-panel">
-            <div class="spg-vacio">
+        <div class="sgp-panel">
+            <div class="sgp-vacio">
                 <i class="bi bi-shop"></i>
                 <div class="t">Elegí primero la sucursal.</div>
                 <div class="d">Cada local tiene sus servicios, sus profesionales y sus horarios.</div>
             </div>
         </div>
     @else
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <form method="post" action="{{ route('portal.guardar_reserva') }}">
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
@@ -65,12 +65,12 @@
                  como que el sistema «retrocedió» y había que recorrer otra vez
                  cinco pasos ya contestados. El 99 lo acota el script al último
                  paso que exista. --}}
-            <div class="spg-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
+            <div class="sgp-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
 
-            <div class="spg-seccion" data-paso="Servicios"
+            <div class="sgp-seccion" data-paso="Servicios"
                  data-paso-requiere="servicios"
                  data-paso-error="Elegí al menos un servicio para seguir.">
-                <div class="spg-seccion-head">
+                <div class="sgp-seccion-head">
                     <label class="form-label">¿Qué te querés hacer? *</label>
                 </div>
                 {{-- **El catálogo completo vive en su propia pantalla.** Acá
@@ -110,9 +110,9 @@
                         </div>
                         <input type="hidden" name="id_turno" id="idTurno" value="{{ old('id_turno') }}">
                         <div class="d-flex gap-2 flex-wrap">
-                            <button type="button" class="spg-chip" data-turno="0">Cualquier hora</button>
+                            <button type="button" class="sgp-chip" data-turno="0">Cualquier hora</button>
                             @foreach ($turnos as $t)
-                                <button type="button" class="spg-chip" data-turno="{{ $t->id_turno }}">
+                                <button type="button" class="sgp-chip" data-turno="{{ $t->id_turno }}">
                                     {{ $t->nombre }} · {{ $t->desde }}-{{ $t->hasta }}</button>
                             @endforeach
                         </div>
@@ -138,7 +138,7 @@
                      El funcionamiento no cambió — mismo checkbox, mismo `name`,
                      mismos `data-` — así que la agenda, los canjes y el reparto
                      siguen exactamente igual. --}}
-                <div class="spg-srv-grid" data-canjes="#bloqueCanjes">
+                <div class="sgp-srv-grid" data-canjes="#bloqueCanjes">
                     @foreach ($servicios as $s)
                         <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
                             :marcado="in_array((string) $s->id_servicio, (array) old('servicios', []), true)"
@@ -209,9 +209,9 @@
                         queda reservado el tiempo que hace falta. Con el canje puesto, ese servicio
                         no se te cobra.
                     </p>
-                    <div class="spg-check-lista" id="bloqueCanjes">
+                    <div class="sgp-check-lista" id="bloqueCanjes">
                         @foreach ($canjes as $c)
-                            <div class="form-check spg-canje" data-servicio="{{ $c->id_servicio }}">
+                            <div class="form-check sgp-canje" data-servicio="{{ $c->id_servicio }}">
                                 <input class="form-check-input" type="checkbox" name="canjes[]"
                                        value="{{ $c->id_canje }}" id="cj{{ $c->id_canje }}">
                                 <label class="form-check-label" for="cj{{ $c->id_canje }}">
@@ -241,8 +241,8 @@
                  quince colgando de servicios que nadie pidió— y eso se conserva:
                  este paso **mueve** esos mismos combos acá para poder mirarlos de
                  una. Copiarlos mandaría dos valores para el mismo servicio. --}}
-            <div class="spg-seccion" data-paso="Profesionales">
-                <div class="spg-seccion-head">
+            <div class="sgp-seccion" data-paso="Profesionales">
+                <div class="sgp-seccion-head">
                     <label class="form-label">¿Con quién?</label>
                 </div>
                 <p class="text-muted-warm" style="font-size:.85rem">
@@ -252,21 +252,21 @@
                 <div data-paso-profesionales></div>
             </div>
 
-            <div class="spg-seccion" data-paso="Fecha y hora"
+            <div class="sgp-seccion" data-paso="Fecha y hora"
                  data-paso-requiere="#fecha_hora"
                  data-paso-error="Elegí el día y el horario para seguir.">
-                <div class="spg-seccion-head">
+                <div class="sgp-seccion-head">
                     <label class="form-label">¿Cuándo? *</label>
                 </div>
-                <div class="spg-cuando-caja">
+                <div class="sgp-cuando-caja">
                     <div data-agenda="{{ route('portal.disponibilidad') }}"
                          data-agenda-sujeto="Tu cita"
                          data-agenda-boton="#btnReservar">
                         <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem">
                             Elegí primero los servicios para ver los horarios disponibles.
                         </div>
-                        <div data-agenda-dias class="spg-dias mt-2"></div>
-                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                        <div data-agenda-dias class="sgp-dias mt-2"></div>
+                        <div data-agenda-horas class="sgp-horas mt-2"></div>
                     </div>
                 </div>
                 {{-- Con valor: el selector lo lee al arrancar y devuelve marcados
@@ -281,11 +281,11 @@
 
                  Arranca oculto el nombre y lo muestra el JS; sin `app.js` se
                  ven los dos campos y se reserva igual. --}}
-            <div class="spg-seccion" data-paso="Detalles">
-                <div class="spg-seccion-head">
+            <div class="sgp-seccion" data-paso="Detalles">
+                <div class="sgp-seccion-head">
                     <label class="form-label">Detalles</label>
                 </div>
-                <div class="spg-detalle-grupo">
+                <div class="sgp-detalle-grupo">
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
@@ -363,8 +363,8 @@
                  y a qué hora, y cuánto sale todo junto. Lo dibuja `app.js` con
                  los `data-` que las tarjetas ya traen, así que no puede quedar
                  desfasado de lo que la clienta está viendo. --}}
-            <div class="spg-seccion" data-paso="Confirmar">
-                <div class="spg-seccion-head">
+            <div class="sgp-seccion" data-paso="Confirmar">
+                <div class="sgp-seccion-head">
                     <label class="form-label">Tu cita quedaría así</label>
                 </div>
                 <p class="text-muted-warm" style="font-size:.85rem">
@@ -387,7 +387,7 @@
             {{-- El contenedor queda sin estilo propio: adentro va un solo aviso, que
                  ya trae el suyo. Una caja dentro de otra caja para un renglón. --}}
             <div class="mb-3" id="resumenCita" style="display:none">
-                <div class="spg-resumen-sena" data-resumen="sena-caja" style="display:none">
+                <div class="sgp-resumen-sena" data-resumen="sena-caja" style="display:none">
                     <i class="bi bi-cash-coin"></i>
                     Para confirmarla hace falta una seña de
                     <strong data-resumen="sena">Gs. 0</strong>.
@@ -405,7 +405,7 @@
                          quien confirma el pago en el mostrador, sólo que acá lo
                          arma el navegador con los `data-` que ya trae cada tarjeta:
                          así no puede quedar desfasado de lo que está marcado. --}}
-                    <ul class="spg-sena-detalle" data-resumen="sena-detalle"></ul>
+                    <ul class="sgp-sena-detalle" data-resumen="sena-detalle"></ul>
 
                     Después de reservar te mostramos dónde registrar el comprobante.
                 </div>
@@ -414,7 +414,7 @@
             {{-- `data-wiz-confirmar` lo manda a la botonera del paso, al lado de
                  «Volver»: es la acción principal de esta pantalla y tiene que
                  quedar donde el pulgar ya estaba apretando «Siguiente». --}}
-            <button class="btn btn-oro spg-reservar-btn" id="btnReservar" data-wiz-confirmar disabled>
+            <button class="btn btn-oro sgp-reservar-btn" id="btnReservar" data-wiz-confirmar disabled>
                 <i class="bi bi-calendar-check"></i> Confirmar cita</button>
             </div> <!-- /paso Confirmar -->
 

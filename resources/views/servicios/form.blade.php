@@ -13,7 +13,7 @@
         <div class="alert alert-warning">
             <strong>Este servicio también se ofrece en:</strong>
             @foreach ($tambienEn as $t)
-                <span class="spg-rol-chip">{{ $t->nombre }}</span>
+                <span class="sgp-rol-chip">{{ $t->nombre }}</span>
             @endforeach
             <div class="mt-1" style="font-size:.82rem">
                 El precio, la duración y el nombre son del catálogo, así que lo que cambies
@@ -32,8 +32,8 @@
          informe puede comparar el mismo servicio entre sucursales. Traerlo no
          copia nada: agrega la fila que dice que este local también lo ofrece. --}}
     @if (! empty($ajenos))
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en otra sucursal<x-ayuda>Estos servicios ya están cargados en otro local. Traelos acá en vez de escribirlos de nuevo: es el mismo servicio, con su precio y su duración.</x-ayuda></h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-1"><i class="bi bi-box-arrow-in-down"></i> Ya existe en otra sucursal<x-ayuda>Estos servicios ya están cargados en otro local. Traelos acá en vez de escribirlos de nuevo: es el mismo servicio, con su precio y su duración.</x-ayuda></h2>
             <div class="row g-2 align-items-end">
                 <div class="col-md-8">
                     <label class="form-label" for="traer">Servicio</label>
@@ -58,12 +58,12 @@
     @endif
     @php $id = $s->id_servicio ?? 0; @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('servicios.lista') }}"><i class="bi bi-arrow-left"></i> Servicios</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('servicios.lista') }}"><i class="bi bi-arrow-left"></i> Servicios</a>
         <h1 class="mt-1">{{ $id ? 'Editar servicio' : 'Nuevo servicio' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:720px">
+    <div class="sgp-panel" style="max-width:720px">
         {{-- `enctype`: sin esto el archivo de la imagen no viaja y el campo
              llega vacío, sin dar ningún error. --}}
         <form method="post" action="{{ route('servicios.guardar') }}" enctype="multipart/form-data">
@@ -90,7 +90,7 @@
                 <div class="col-md-4">
                     <label class="form-label" for="precio">Precio</label><x-ayuda campo="precio" />
                     <div class="input-group">
-                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                         {{-- input-miles: el JS le pone el separador al escribir y
                              num() lo interpreta del lado del servidor --}}
                         <input class="form-control input-miles" id="precio" name="precio" data-min="0"
@@ -147,7 +147,7 @@
                     <label class="form-label" for="imagen">Imagen de referencia</label><x-ayuda campo="imagen" />
                     <div class="d-flex gap-3 align-items-start flex-wrap">
                         @if ($imagenUrl ?? null)
-                            <img src="{{ $imagenUrl }}" alt="" class="spg-srv-mini">
+                            <img src="{{ $imagenUrl }}" alt="" class="sgp-srv-mini">
                         @endif
                         <div class="flex-grow-1" style="min-width:240px">
                             <input class="form-control" type="file" id="imagen" name="imagen"

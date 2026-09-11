@@ -3,7 +3,7 @@
 @section('titulo', 'Confirmar el cambio')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Confirmá el cambio</h1>
         <div class="sub">
             Te mandamos un código a <strong>{{ $email }}</strong>.
@@ -11,7 +11,7 @@
         </div>
     </div>
 
-    <div class="spg-panel" style="max-width:460px">
+    <div class="sgp-panel" style="max-width:460px">
         <form method="post" action="{{ route('cuenta.password_confirmar') }}">
             @csrf
             <div class="mb-3">

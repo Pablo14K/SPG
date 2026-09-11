@@ -49,10 +49,10 @@
             }
         @endphp
         <div class="col-12 col-md-6 col-xl-4">
-            <div class="spg-panel h-100 d-flex flex-column">
+            <div class="sgp-panel h-100 d-flex flex-column">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                     <div>
-                        <h2 class="spg-form-titulo mb-0"><i class="bi bi-safe"></i> {{ $c->nombre }}</h2>
+                        <h2 class="sgp-form-titulo mb-0"><i class="bi bi-safe"></i> {{ $c->nombre }}</h2>
                         @if (count($sucursales) > 1)
                             <div class="text-muted-warm" style="font-size:.82rem">{{ $c->sucursal }}</div>
                         @endif
@@ -254,8 +254,8 @@
         @endif
     @empty
         <div class="col-12">
-            <div class="spg-panel">
-                <div class="spg-vacio">
+            <div class="sgp-panel">
+                <div class="sgp-vacio">
                     <i class="bi bi-safe"></i>
                     <div class="t">No hay cajas cargadas</div>
                     <div class="d">

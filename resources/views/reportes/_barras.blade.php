@@ -15,11 +15,11 @@
         $v = (int) $valor($fila);
         $pct = round($v * 100 / $maximo);
     @endphp
-    <div class="spg-graf-fila">
-        <span class="spg-graf-rot" style="width:{{ $anchoRot }}">{{ $rotulo($fila) }}</span>
-        <span class="spg-graf-pista"><span class="spg-graf-barra" style="width:{{ $pct }}%"></span></span>
-        <span class="spg-graf-val">{{ $v }}</span>
+    <div class="sgp-graf-fila">
+        <span class="sgp-graf-rot" style="width:{{ $anchoRot }}">{{ $rotulo($fila) }}</span>
+        <span class="sgp-graf-pista"><span class="sgp-graf-barra" style="width:{{ $pct }}%"></span></span>
+        <span class="sgp-graf-val">{{ $v }}</span>
     </div>
 @empty
-    <p class="spg-sin-datos">{{ $vacio ?? 'Sin datos para el período seleccionado.' }}</p>
+    <p class="sgp-sin-datos">{{ $vacio ?? 'Sin datos para el período seleccionado.' }}</p>
 @endforelse

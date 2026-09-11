@@ -29,7 +29,7 @@
 services:
   bd:
     image: mariadb:10.4
-    container_name: spg_bd
+    container_name: sgp_bd
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -66,7 +66,7 @@ services:
 
   app:
     build: ./docker/php
-    container_name: spg_app
+    container_name: sgp_app
     restart: unless-stopped
     depends_on:
       bd:
@@ -95,7 +95,7 @@ services:
     # `.env` montado —donde esas claves quedaron vacías—.
     #
     # `required: false` para que quien clone pueda levantar sin correo: el
-    # sistema arranca igual y `spg:diagnostico` dice que el correo está apagado,
+    # sistema arranca igual y `sgp:diagnostico` dice que el correo está apagado,
     # que es mejor que no arrancar.
     env_file:
       - path: ./docker/php/secretos.env
@@ -118,7 +118,7 @@ services:
       - vendor_app:/app/vendor
 
   # El Automatizador SIFEN, que es OTRO proyecto: vive en su propia carpeta y el
-  # SPG sólo le habla por HTTP. Se levanta acá para que suba con el resto —si
+  # SGP sólo le habla por HTTP. Se levanta acá para que suba con el resto —si
   # está apagado, cada factura electrónica queda PENDIENTE y hay que reintentar
   # a mano, que era justo lo que pasaba antes.
   #
@@ -127,14 +127,14 @@ services:
   # falta construir nada.
   #
   # **La ruta es de ESTA computadora.** Por defecto se lo busca como carpeta
-  # hermana del proyecto; si lo tenés en otro lado, exportá `SPG_SIFEN_PATH`
+  # hermana del proyecto; si lo tenés en otro lado, exportá `SGP_SIFEN_PATH`
   # antes de levantar. Y si no está, el contenedor lo dice y se apaga solo: es a
   # propósito, porque un servidor sirviendo una carpeta vacía contestaría 404 y
-  # el SPG lee un 4xx como RECHAZADO —o sea, «no reintentes»—, cuando lo cierto
+  # el SGP lee un 4xx como RECHAZADO —o sea, «no reintentes»—, cuando lo cierto
   # es que el servicio no estaba.
   sifen:
     image: php:8.3-cli
-    container_name: spg_sifen
+    container_name: sgp_sifen
     # `on-failure` y no `unless-stopped`: cuando el Automatizador no está, el
     # contenedor avisa y sale con 0 a propósito. Con `unless-stopped` Docker lo
     # levantaría de nuevo igual y quedaría reiniciándose en bucle, repitiendo el
@@ -148,25 +148,25 @@ services:
       # su cargador sólo escribe la clave `if getenv($k) === false`.
       SIFEN_MODE: mock
       APP_URL: http://sifen:8090
-      # El tercer candado del remitente único: el comprobante lo manda el SPG,
-      # con la cuenta de «Seguridad → Correo del sistema». El SPG además le
-      # manda `X-SPG-Correo: no` en cada emisión.
+      # El tercer candado del remitente único: el comprobante lo manda el SGP,
+      # con la cuenta de «Seguridad → Correo del sistema». El SGP además le
+      # manda `X-SGP-Correo: no` en cada emisión.
       MAIL_FROM_EMAIL: ""
     ports:
       - "8090:8090"
     volumes:
       # Desde la 7.60.0 la copia versionada vive dentro del proyecto, para que
-      # el respaldo del TCC la incluya. `SPG_SIFEN_PATH` sigue mandando: quien
+      # el respaldo del TCC la incluya. `SGP_SIFEN_PATH` sigue mandando: quien
       # tenga la carpeta original afuera puede seguir apuntándole.
-      - ${SPG_SIFEN_PATH:-./_sifen}:/automatizador
+      - ${SGP_SIFEN_PATH:-./_sifen}:/automatizador
     command:
       - sh
       - -c
       - |
         if [ ! -f /automatizador/public/index.php ]; then
           echo "El Automatizador SIFEN no está en la ruta esperada."
-          echo "Se lo busca como carpeta hermana del proyecto, o donde diga SPG_SIFEN_PATH."
-          echo "El SPG funciona igual: las facturas electrónicas quedan PENDIENTE y se"
+          echo "Se lo busca como carpeta hermana del proyecto, o donde diga SGP_SIFEN_PATH."
+          echo "El SGP funciona igual: las facturas electrónicas quedan PENDIENTE y se"
           echo "reintentan desde el comprobante cuando el servicio esté."
           exit 0
         fi

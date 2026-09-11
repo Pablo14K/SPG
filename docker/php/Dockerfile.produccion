@@ -36,7 +36,7 @@ RUN { \
       echo 'expose_php=Off'; \
       echo 'upload_max_filesize=8M'; \
       echo 'post_max_size=10M'; \
-    } > /usr/local/etc/php/conf.d/spg.ini
+    } > /usr/local/etc/php/conf.d/sgp.ini
 
 ENV TZ=America/Asuncion
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

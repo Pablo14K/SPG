@@ -233,7 +233,7 @@ class AndamiajeTest extends TestCase
             $css = (string) preg_replace('#/\*.*?\*/#s', '', $css);
 
             // Sólo las propias: las de Bootstrap se dan por buenas.
-            preg_match_all('/\.(spg-[a-z0-9-]+|comp-[a-z0-9-]+)\b/', $css, $m);
+            preg_match_all('/\.(sgp-[a-z0-9-]+|comp-[a-z0-9-]+)\b/', $css, $m);
             foreach (array_unique($m[1]) as $clase) {
                 if (! str_contains($marcado, $clase)) {
                     $sinUso[] = $hoja . ' → .' . $clase;
@@ -379,7 +379,7 @@ class AndamiajeTest extends TestCase
             // dibuja todas las pantallas en su desplegable, así que buscar la
             // URL en el HTML entero la encuentra siempre y la prueba no mide
             // nada — pasó al escribirla.
-            $desde = strpos($html, '<div class="spg-cards">');
+            $desde = strpos($html, '<div class="sgp-cards">');
             $hasta = strrpos($html, '</main>');
             $tarjetas = $desde === false
                 ? ''
@@ -405,7 +405,7 @@ class AndamiajeTest extends TestCase
             // el catálogo no la conocía, así que el desplegable no la ofrecía.
             // Con una sola dirección, una pantalla que sólo viva en la
             // tarjeta pasa en verde.
-            preg_match_all('/<a class="spg-card" href="([^"#]+)/', $tarjetas, $hrefs);
+            preg_match_all('/<a class="sgp-card" href="([^"#]+)/', $tarjetas, $hrefs);
             foreach (array_unique($hrefs[1]) as $href) {
                 $this->assertContains(html_entity_decode($href), $enBarra,
                     'La tarjeta «' . $href . '» del landing de ' . $m['mod']
@@ -444,12 +444,12 @@ class AndamiajeTest extends TestCase
         // Configuración no se mudaron de URL al partir Seguridad: sus entradas se
         // llaman `seguridad.configuracion.index` y `seguridad.personal.index`.
         $html = (string) $this->get($url)->assertOk()->getContent();
-        preg_match('/<nav class="spg-migas".*?<\/nav>/s', $html, $m);
+        preg_match('/<nav class="sgp-migas".*?<\/nav>/s', $html, $m);
         $this->assertNotEmpty($m, 'La pantalla no dibujó las migas.');
         $this->assertStringContainsString((string) Navegacion::url('seguridad.configuracion.index'), $m[0],
             'La miga de Correo del sistema tiene que pasar por Configuración, que es donde vive.');
         $html = (string) $this->get(Navegacion::url('seguridad.turnos'))->assertOk()->getContent();
-        preg_match('/<nav class="spg-migas".*?<\/nav>/s', $html, $m);
+        preg_match('/<nav class="sgp-migas".*?<\/nav>/s', $html, $m);
         $this->assertStringContainsString((string) Navegacion::url('seguridad.personal.index'), $m[0] ?? '',
             'La miga de Turnos tiene que pasar por Personal.');
 
@@ -468,10 +468,10 @@ class AndamiajeTest extends TestCase
     }
 
     /**
-     * **El Automatizador SIFEN no manda correos: manda el SPG.**
+     * **El Automatizador SIFEN no manda correos: manda el SGP.**
      *
      * Los dos saben mandarle el comprobante a la clienta y los dos adjuntan el
-     * KuDE y el XML, pero cada uno lo haría **con su propia cuenta**: el SPG con
+     * KuDE y el XML, pero cada uno lo haría **con su propia cuenta**: el SGP con
      * la del salón —que el Administrador cambia desde «Seguridad → Correo del
      * sistema»— y el Automatizador con la de su `.env`, que no se toca desde el
      * sistema. Con los dos prendidos la clienta recibe lo mismo dos veces desde
@@ -497,7 +497,7 @@ class AndamiajeTest extends TestCase
             $this->assertMatchesRegularExpression(
                 '/^' . $clave . '=[ 	]*$/m', $txt,
                 $clave . ' del Automatizador tiene que quedar VACÍO en el .env.example: '
-                . 'el que le manda el comprobante a la clienta es el SPG, con la cuenta de '
+                . 'el que le manda el comprobante a la clienta es el SGP, con la cuenta de '
                 . '«Seguridad → Correo del sistema». Con los dos mandando, le llega dos veces '
                 . 'desde direcciones distintas.'
             );
@@ -568,7 +568,7 @@ class AndamiajeTest extends TestCase
      * **La cabecera que apaga el correo del Automatizador sigue enganchada.**
      *
      * El silencio del Automatizador ya no depende de un `.env` que nadie
-     * administra desde el sistema: el SPG le manda `X-SPG-Correo: no` en cada
+     * administra desde el sistema: el SGP le manda `X-SGP-Correo: no` en cada
      * emisión. Son **dos archivos de proyectos distintos** que tienen que
      * nombrar lo mismo, y si uno se renombra no da error — el Automatizador
      * vuelve a mandar el comprobante con SU cuenta y la clienta lo recibe dos
@@ -580,9 +580,9 @@ class AndamiajeTest extends TestCase
     #[Test]
     public function la_cabecera_que_calla_al_automatizador_sigue_enganchada(): void
     {
-        $spg = (string) file_get_contents(base_path('app/Servicios/Sifen.php'));
-        $this->assertStringContainsString("'X-SPG-Correo' => 'no'", $spg,
-            'El SPG dejó de decirle al Automatizador que no mande el correo: '
+        $sgp = (string) file_get_contents(base_path('app/Servicios/Sifen.php'));
+        $this->assertStringContainsString("'X-SGP-Correo' => 'no'", $sgp,
+            'El SGP dejó de decirle al Automatizador que no mande el correo: '
             . 'la clienta va a recibir el comprobante dos veces, desde dos cuentas.');
 
         $auto = base_path('_sifen/public/index.php');
@@ -590,10 +590,10 @@ class AndamiajeTest extends TestCase
             $this->markTestSkipped('El Automatizador no está en esta copia.');
         }
 
-        // PHP entrega las cabeceras en $_SERVER con ese nombre: X-SPG-Correo
-        // llega como HTTP_X_SPG_CORREO.
-        $this->assertStringContainsString('HTTP_X_SPG_CORREO', (string) file_get_contents($auto),
-            'El Automatizador dejó de leer la cabecera con la que el SPG lo calla.');
+        // PHP entrega las cabeceras en $_SERVER con ese nombre: X-SGP-Correo
+        // llega como HTTP_X_SGP_CORREO.
+        $this->assertStringContainsString('HTTP_X_SGP_CORREO', (string) file_get_contents($auto),
+            'El Automatizador dejó de leer la cabecera con la que el SGP lo calla.');
     }
 
     /**
@@ -615,7 +615,7 @@ class AndamiajeTest extends TestCase
 
         $html = (string) $this->get(route('citas.agenda'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('class="spg-ayuda"', $html,
+        $this->assertStringContainsString('class="sgp-ayuda"', $html,
             'La pantalla tendría que dibujar el ícono de ayuda del subtítulo.');
         $this->assertStringContainsString('data-bs-trigger="focus"', $html,
             'Sin el disparador `focus` el globo no se cierra al tocar afuera.');

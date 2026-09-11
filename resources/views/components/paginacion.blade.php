@@ -26,8 +26,8 @@
         $hastaP = min($pag['paginas'], $pag['pagina'] + 2);
     @endphp
 
-    <div class="spg-paginacion">
-        <div class="spg-pag-conteo">
+    <div class="sgp-paginacion">
+        <div class="sgp-pag-conteo">
             @if (! $pag['total'])
                 Sin resultados{{ $f && $f['activos'] ? ' con esos filtros' : '' }}.
             @else
@@ -41,36 +41,36 @@
         </div>
 
         @if ($pag['paginas'] > 1)
-            <nav class="spg-pag-botones" aria-label="Páginas">
+            <nav class="sgp-pag-botones" aria-label="Páginas">
                 @if ($pag['pagina'] <= 1)
-                    <span class="spg-pag inactivo" aria-disabled="true"><i class="bi bi-chevron-left"></i></span>
+                    <span class="sgp-pag inactivo" aria-disabled="true"><i class="bi bi-chevron-left"></i></span>
                 @else
-                    <a class="spg-pag" href="{{ $enlace($pag['pagina'] - 1) }}" title="Anterior">
+                    <a class="sgp-pag" href="{{ $enlace($pag['pagina'] - 1) }}" title="Anterior">
                         <i class="bi bi-chevron-left"></i></a>
                 @endif
 
                 @if ($desdeP > 1)
-                    <a class="spg-pag" href="{{ $enlace(1) }}">1</a>
-                    @if ($desdeP > 2)<span class="spg-pag-puntos">…</span>@endif
+                    <a class="sgp-pag" href="{{ $enlace(1) }}">1</a>
+                    @if ($desdeP > 2)<span class="sgp-pag-puntos">…</span>@endif
                 @endif
 
                 @for ($i = $desdeP; $i <= $hastaP; $i++)
                     @if ($i === $pag['pagina'])
-                        <span class="spg-pag activo" aria-current="page">{{ $i }}</span>
+                        <span class="sgp-pag activo" aria-current="page">{{ $i }}</span>
                     @else
-                        <a class="spg-pag" href="{{ $enlace($i) }}">{{ $i }}</a>
+                        <a class="sgp-pag" href="{{ $enlace($i) }}">{{ $i }}</a>
                     @endif
                 @endfor
 
                 @if ($hastaP < $pag['paginas'])
-                    @if ($hastaP < $pag['paginas'] - 1)<span class="spg-pag-puntos">…</span>@endif
-                    <a class="spg-pag" href="{{ $enlace($pag['paginas']) }}">{{ $pag['paginas'] }}</a>
+                    @if ($hastaP < $pag['paginas'] - 1)<span class="sgp-pag-puntos">…</span>@endif
+                    <a class="sgp-pag" href="{{ $enlace($pag['paginas']) }}">{{ $pag['paginas'] }}</a>
                 @endif
 
                 @if ($pag['pagina'] >= $pag['paginas'])
-                    <span class="spg-pag inactivo" aria-disabled="true"><i class="bi bi-chevron-right"></i></span>
+                    <span class="sgp-pag inactivo" aria-disabled="true"><i class="bi bi-chevron-right"></i></span>
                 @else
-                    <a class="spg-pag" href="{{ $enlace($pag['pagina'] + 1) }}" title="Siguiente">
+                    <a class="sgp-pag" href="{{ $enlace($pag['pagina'] + 1) }}" title="Siguiente">
                         <i class="bi bi-chevron-right"></i></a>
                 @endif
             </nav>

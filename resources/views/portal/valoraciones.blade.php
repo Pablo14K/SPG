@@ -3,13 +3,13 @@
 @section('titulo', 'Valoraciones')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Valoraciones<x-ayuda lado="bottom">Contanos cómo te fue en cada cita. Lo lee el salón para mejorar.</x-ayuda></h1>
     </div>
 
     @if ($pendientes)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-star"></i> Citas sin calificar</h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-star"></i> Citas sin calificar</h2>
             @foreach ($pendientes as $c)
                 <form method="post" action="{{ route('portal.calificar') }}"
                       class="py-2" style="border-bottom:1px solid var(--gris-calido)">
@@ -35,8 +35,8 @@
         </div>
     @endif
 
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Lo que ya calificaste</h2>
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Lo que ya calificaste</h2>
         @forelse ($hechas as $h)
             <div class="py-2" style="border-bottom:1px solid var(--gris-calido)">
                 <span class="txt-oro">{{ str_repeat('★', (int) $h->puntaje) . str_repeat('☆', 5 - (int) $h->puntaje) }}</span>
@@ -46,7 +46,7 @@
                 @endif
             </div>
         @empty
-            <div class="spg-vacio">
+            <div class="sgp-vacio">
                 <i class="bi bi-star"></i>
                 <div class="t">Todavía no calificaste ninguna cita.</div>
             </div>

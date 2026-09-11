@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado sub="Los medios por los que la clienta le escribe al salón. Salen en el pie de todas las pantallas, bajo «Centro de Ayuda y Soporte». Si no cargás ninguno, el bloque no se dibuja." />
 
-    <div class="spg-panel" style="max-width:860px">
+    <div class="sgp-panel" style="max-width:860px">
         <form method="post" action="{{ route('seguridad.contacto.guardar') }}">
             @csrf
 
@@ -50,7 +50,7 @@
                 <i class="bi bi-plus-lg"></i> Otra fila
             </button>
 
-            <div class="spg-panel" style="background:var(--blanco-hueso)">
+            <div class="sgp-panel" style="background:var(--blanco-hueso)">
                 <h3 style="font-size:.9rem;font-weight:500">Cómo se carga cada uno</h3>
                 <ul class="text-muted-warm mb-0" style="font-size:.8rem">
                     @foreach ($canales as $def)

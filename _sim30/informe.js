@@ -16,7 +16,7 @@ const {
 
 const LOG = path.join(__dirname, 'log');
 const SALIDA = process.argv[2]
-  || path.join(path.dirname(__dirname), 'Informe_QA_Simulacion_Intensiva_1_Mes_SPGLaravel.docx');
+  || path.join(path.dirname(__dirname), 'Informe_QA_Simulacion_Intensiva_1_Mes_SGPLaravel.docx');
 
 const R = JSON.parse(fs.readFileSync(path.join(LOG, 'resumen.json'), 'utf8'));
 const S = R.series || {};
@@ -273,7 +273,7 @@ const H = [];   // hijos del documento
 H.push(new Paragraph({ spacing: { before: 1750 }, children: [] }));
 H.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 60 },
-  children: [new TextRun({ text: 'SPG', size: 80, bold: true, color: ORO, font: 'Calibri' })],
+  children: [new TextRun({ text: 'SGP', size: 80, bold: true, color: ORO, font: 'Calibri' })],
 }));
 H.push(new Paragraph({
   alignment: AlignmentType.CENTER, spacing: { after: 420 },
@@ -290,7 +290,7 @@ H.push(new Paragraph({
   children: [new TextRun({ text: 'Dos meses de operación diaria, con varios usuarios trabajando en paralelo', size: 21, italics: true, color: GRIS, font: 'Calibri' })],
 }));
 H.push(tabla(['Dato', 'Valor'], [
-  ['Sistema analizado', { t: 'SPG — Laravel 13 + MariaDB 10.4', align: AlignmentType.LEFT }],
+  ['Sistema analizado', { t: 'SGP — Laravel 13 + MariaDB 10.4', align: AlignmentType.LEFT }],
   ['Versión', { t: '7.36.4 — 17/08/2026 (corrida de verificación)', align: AlignmentType.LEFT }],
   ['Período simulado', { t: fechaEs(primerDia) + ' al ' + fechaEs(ultimoDia), align: AlignmentType.LEFT }],
   ['Duración', { t: '30 días consecutivos (1 mes), en alta densidad operativa', align: AlignmentType.LEFT }],
@@ -314,7 +314,7 @@ H.push(salto());
 // =======================================================================
 H.push(h1('1. Resumen ejecutivo'));
 H.push(ricos([
-  'Se sometió al SPG ', ['versión 7.36.4', true], ' a una simulación de ',
+  'Se sometió al SGP ', ['versión 7.36.4', true], ' a una simulación de ',
   ['30 días consecutivos de operación intensiva', true], ' de una peluquería de Luque, del ',
   fechaEs(primerDia), ' al ', fechaEs(ultimoDia), '. La simulación arrancó desde una ',
   ['instalación limpia', true], ' —la misma base que recibe el salón el primer día, sin una sola cita ni factura— y toda la operación se generó ',
@@ -750,7 +750,7 @@ if (filasTimb.length) H.push(tabla(['Timbrado', 'Rango usado'], filasTimb, [3000
 
 H.push(h2('10.4 Facturación electrónica (SIFEN)'));
 H.push(ricos([
-  'El SPG no habla con la DNIT: arma el comprobante que ya numeró con su timbrado y se lo manda al Automatizador. ',
+  'El SGP no habla con la DNIT: arma el comprobante que ya numeró con su timbrado y se lo manda al Automatizador. ',
   'Se declaran los tipos que ', ['config/sifen.php', true], ' lista en tipos_electronicos, que son la Factura y la Nota de crédito.',
 ]));
 H.push(tabla(['Tipo de comprobante', 'Emitidos', 'Declarados', 'Cobertura'], [
@@ -1191,8 +1191,8 @@ H.push(p('Los guiones quedan versionados en _sim60/. Desde la raíz del proyecto
 //  Documento
 // =======================================================================
 const doc = new Document({
-  creator: 'Equipo de QA — Simulación operativa SPG',
-  title: 'Informe de Simulación Operativa y QA — SPG 7.36.4',
+  creator: 'Equipo de QA — Simulación operativa SGP',
+  title: 'Informe de Simulación Operativa y QA — SGP 7.36.4',
   description: 'Simulación intensiva de 30 días con usuarios en paralelo',
   numbering: {
     config: [{
@@ -1218,7 +1218,7 @@ const doc = new Document({
           alignment: AlignmentType.CENTER,
           border: { top: { style: BorderStyle.SINGLE, size: 4, color: BORDE, space: 8 } },
           children: [
-            new TextRun({ text: 'SPG 7.36.4 · Informe de Simulación Operativa y QA · ', size: 15, color: GRIS, font: 'Calibri' }),
+            new TextRun({ text: 'SGP 7.36.4 · Informe de Simulación Operativa y QA · ', size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ children: [PageNumber.CURRENT], size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ text: ' / ', size: 15, color: GRIS, font: 'Calibri' }),
             new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 15, color: GRIS, font: 'Calibri' }),

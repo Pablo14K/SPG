@@ -215,7 +215,7 @@ return [
         // para cargar alergias»: sin `barra` esta pantalla sólo salía en el pie
         // y en el desplegable de la cuenta, o sea en dos lugares donde nadie la
         // busca. Una función que no se encuentra es indistinguible de una que
-        // no está — el mismo problema que `spg:pendientes` tuvo en la 7.61.0.
+        // no está — el mismo problema que `sgp:pendientes` tuvo en la 7.61.0.
         ['ruta' => 'portal.ficha',        'titulo' => 'Mi ficha',       'ic' => 'person-vcard', 'barra' => true],
         ['ruta' => 'portal.preferencias', 'titulo' => 'Mis recordatorios', 'ic' => 'bell'],
         ['ruta' => 'cuenta.index',        'titulo' => 'Mi cuenta',      'ic' => 'gear'],

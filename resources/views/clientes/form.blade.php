@@ -5,12 +5,12 @@
 @section('contenido')
     @php $id = $c->id_cliente ?? 0; @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('clientes.lista') }}"><i class="bi bi-arrow-left"></i> Clientes</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('clientes.lista') }}"><i class="bi bi-arrow-left"></i> Clientes</a>
         <h1 class="mt-1">{{ $id ? 'Editar cliente' : 'Nuevo cliente' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:720px">
+    <div class="sgp-panel" style="max-width:720px">
         <form method="post" action="{{ route('clientes.guardar') }}">
             @csrf
             <input type="hidden" name="id_cliente" value="{{ $id }}">

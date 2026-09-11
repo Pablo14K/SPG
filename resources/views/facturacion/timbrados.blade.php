@@ -7,8 +7,8 @@
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2">
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2">
                     <i class="bi bi-file-earmark-text"></i>
                     {{ $editar ? 'Editar timbrado' : 'Nuevo timbrado' }}
                 </h2>
@@ -99,8 +99,8 @@
         </div>
 
         <div class="col-lg-7">
-            <div class="spg-panel">
-                <div class="table-responsive spg-tabla-movil">
+            <div class="sgp-panel">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr>
@@ -111,7 +111,7 @@
                         <tbody>
                             @forelse ($rows as $t)
                                 <tr>
-                                    <td class="spg-movil-titulo" data-label="Timbrado">
+                                    <td class="sgp-movil-titulo" data-label="Timbrado">
                                         <strong>{{ $t->nro_timbrado }}</strong>
                                         <div class="text-muted-warm" style="font-size:.76rem">
                                             {{ $t->establecimiento }}-{{ $t->punto_expedicion }} · {{ $t->sucursal }}
@@ -129,8 +129,8 @@
                                             <span class="badge-estado e-no">Vencido</span>
                                         @endif
                                     </td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                        <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                                 data-bs-target="#detTimb{{ $t->id_timbrado }}" aria-expanded="false">
                                             <i class="bi bi-chevron-down"></i> Detalle
                                         </button>
@@ -147,11 +147,11 @@
                                         </form>
                                     </td>
                                 </tr>
-                                <tr class="spg-fila-detalle">
+                                <tr class="sgp-fila-detalle">
                                     <td colspan="4">
                                         <div class="collapse" id="detTimb{{ $t->id_timbrado }}">
-                                            <div class="spg-det-cuerpo">
-                                                <div class="spg-det-grid">
+                                            <div class="sgp-det-cuerpo">
+                                                <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Comprobante</dt>
                                                         <dd>{{ $t->comprobante }}</dd>
@@ -168,7 +168,7 @@
                             @empty
                                 <tr>
                                     <td colspan="4">
-                                        <div class="spg-vacio">
+                                        <div class="sgp-vacio">
                                             <i class="bi bi-file-earmark-text"></i>
                                             <div class="t">No hay timbrados cargados.</div>
                                             <div class="d">Sin timbrado vigente no se puede emitir ningún comprobante.</div>

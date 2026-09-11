@@ -10,7 +10,7 @@
      transfiere por su cuenta y sube el comprobante; lo único que el sistema
      hace es decirle a dónde. Por eso acá no hay ningún token ni credencial:
      son los mismos datos que hoy se pasan por WhatsApp, escritos una vez. --}}
-<div class="spg-panel mb-3">
+<div class="sgp-panel mb-3">
     <p class="text-muted-warm mb-0" style="font-size:.88rem">
         <i class="bi bi-info-circle"></i>
         La clienta ve estas cuentas <strong>al registrar su seña</strong>, y ve
@@ -20,7 +20,7 @@
 </div>
 
 @if (count($sucursales) > 1)
-    <div class="spg-panel mb-3">
+    <div class="sgp-panel mb-3">
         <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
                 <label class="form-label" for="suc">Sucursal</label>
@@ -39,8 +39,8 @@
 
 <div class="row g-3">
     <div class="col-lg-5">
-        <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2">
+        <div class="sgp-panel">
+            <h2 class="sgp-form-titulo mb-2">
                 <i class="bi bi-{{ $editar ? 'pencil' : 'plus-circle' }}"></i>
                 {{ $editar ? 'Editar la cuenta' : 'Cargar una cuenta' }}</h2>
 
@@ -53,9 +53,9 @@
 
                 {{-- ---------------------------------------------------------
                      1. Dónde está la plata --}}
-                <div class="spg-paso">
-                    <span class="spg-paso-n">1</span>
-                    <div class="spg-paso-t">¿Dónde está la cuenta?</div>
+                <div class="sgp-paso">
+                    <span class="sgp-paso-n">1</span>
+                    <div class="sgp-paso-t">¿Dónde está la cuenta?</div>
                 </div>
 
                 <div class="row g-2 mb-3">
@@ -89,9 +89,9 @@
                      Por eso el tipo se guarda: permite validarlo y sobre todo
                      DECIRLE a la clienta por dónde buscarlo, que es como
                      funciona la pantalla de su banco. --}}
-                <div class="spg-paso">
-                    <span class="spg-paso-n">2</span>
-                    <div class="spg-paso-t">El alias
+                <div class="sgp-paso">
+                    <span class="sgp-paso-n">2</span>
+                    <div class="sgp-paso-t">El alias
                         <span class="text-muted-warm">— con esto solo alcanza para transferir</span></div>
                 </div>
 
@@ -131,9 +131,9 @@
 
                 {{-- ---------------------------------------------------------
                      3. El respaldo, para quien no transfiere por alias --}}
-                <div class="spg-paso">
-                    <span class="spg-paso-n">3</span>
-                    <div class="spg-paso-t">Los datos de siempre
+                <div class="sgp-paso">
+                    <span class="sgp-paso-n">3</span>
+                    <div class="sgp-paso-t">Los datos de siempre
                         <span class="text-muted-warm">— por si transfiere sin alias</span></div>
                 </div>
 
@@ -192,11 +192,11 @@
     </div>
 
     <div class="col-lg-7">
-        <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-bank"></i> Cuentas de este local</h2>
+        <div class="sgp-panel">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-bank"></i> Cuentas de este local</h2>
 
             @if (! $datos)
-                <div class="spg-vacio">
+                <div class="sgp-vacio">
                     <i class="bi bi-bank"></i>
                     <div class="t">Todavía no cargaste ninguna cuenta</div>
                     <div class="d">
@@ -205,7 +205,7 @@
                     </div>
                 </div>
             @else
-                <div class="table-responsive spg-tabla-movil">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
@@ -216,13 +216,13 @@
                         <tbody>
                             @foreach ($datos as $d)
                                 <tr @class(['text-muted-warm' => ! $d->activo])>
-                                    <td class="spg-movil-titulo" data-label="Dónde">
+                                    <td class="sgp-movil-titulo" data-label="Dónde">
                                         <div>{{ $d->entidad }}</div>
                                         <div class="text-muted-warm" style="font-size:.8rem">{{ $d->medio }}</div>
                                     </td>
                                     <td data-label="Alias">
                                         @if ($d->alias)
-                                            <div class="spg-cuenta-nro">{{ $d->alias }}</div>
+                                            <div class="sgp-cuenta-nro">{{ $d->alias }}</div>
                                             <div class="text-muted-warm" style="font-size:.8rem">
                                                 {{ $tiposAlias[$d->alias_tipo] ?? 'alias' }}</div>
                                         @else
@@ -250,7 +250,7 @@
                                         @if ($d->saldo === null)
                                             <span class="text-muted-warm" style="font-size:.85rem">sin declarar</span>
                                         @else
-                                            <div class="spg-cuenta-nro">{{ money($d->saldo) }}</div>
+                                            <div class="sgp-cuenta-nro">{{ money($d->saldo) }}</div>
                                             <div class="text-muted-warm" style="font-size:.78rem">
                                                 declarado {{ money($d->saldo_declarado) }}
                                                 el {{ fecha($d->saldo_declarado_en) }}
@@ -268,7 +268,7 @@
                                             <span class="badge-estado e-muted">no</span>
                                         @endif
                                     </td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
                                         {{-- **Reordenar con flechas, no con un número.**
                                              El campo «orden» hacía elegir un número para
                                              ordenar dos o tres filas; acá se ve el efecto
@@ -341,7 +341,7 @@
                         <label class="form-label" for="saldo{{ $d->id_dato_pago }}">
                             ¿Cuánto dice el banco que hay?</label>
                         <div class="input-group">
-                            <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                            <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                             <input class="form-control input-miles" id="saldo{{ $d->id_dato_pago }}"
                                    name="saldo" data-min="0"
                                    value="{{ $d->saldo_declarado === null ? '' : monto_input($d->saldo_declarado) }}">

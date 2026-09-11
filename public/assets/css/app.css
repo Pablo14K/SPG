@@ -1,5 +1,5 @@
 /* =====================================================================
-   SPG — Identidad visual
+   SGP — Identidad visual
    Neutros cálidos + acento oro champagne. El oro solo en acción/jerarquía.
    ===================================================================== */
 :root{
@@ -150,12 +150,12 @@
 
 /* La barra superior ya es negra en el tema claro, así que en oscuro
    quedaría pegada al fondo. Se le deja un borde para que se despegue. */
-[data-tema="oscuro"] .spg-topbar{border-bottom:1px solid var(--gris-calido);}
+[data-tema="oscuro"] .sgp-topbar{border-bottom:1px solid var(--gris-calido);}
 
 /* Las sombras suaves no se ven sobre fondo oscuro: lo que separa un
    panel del fondo pasa a ser el borde. */
-[data-tema="oscuro"] .spg-panel,
-[data-tema="oscuro"] .spg-card{box-shadow:none;border-color:var(--gris-calido);}
+[data-tema="oscuro"] .sgp-panel,
+[data-tema="oscuro"] .sgp-card{box-shadow:none;border-color:var(--gris-calido);}
 
 /* El navegador dibuja los controles nativos (fechas, horas, selects) con
    su propio esquema: sin esto, un campo de fecha sale blanco. */
@@ -181,14 +181,14 @@ body{
 }
 
 /* ---- Barra superior ---- */
-.spg-topbar{
+.sgp-topbar{
   background:var(--sup-oscura);
   padding:.7rem 1.4rem;
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:1030;
 }
-.spg-brand{display:flex;align-items:center;gap:.7rem;text-decoration:none;}
-.spg-logo{
+.sgp-brand{display:flex;align-items:center;gap:.7rem;text-decoration:none;}
+.sgp-logo{
   width:34px;height:34px;border-radius:9px;background:var(--oro);
   display:flex;align-items:center;justify-content:center;color:var(--negro);font-size:1.2rem;
 }
@@ -207,46 +207,46 @@ body{
 
    **Quitando el logo vuelve todo**, porque la clase la pone el marcado sólo
    cuando hay imagen. */
-.spg-logo.tiene-img{
+.sgp-logo.tiene-img{
   background:none;border-radius:0;width:auto;max-width:190px;
 }
-.spg-logo.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
+.sgp-logo.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
 
 /* La cara de quien está en sesión: su foto, o sus iniciales sobre el oro.
    Un monigote genérico igual para todos no distingue a nadie, que es lo único
    que un avatar tiene que hacer. */
-.spg-avatar{
+.sgp-avatar{
   width:26px;height:26px;border-radius:50%;background:var(--oro);color:var(--negro);
   display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
   font-size:.68rem;font-weight:600;letter-spacing:.02em;flex:0 0 auto;
 }
-.spg-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.sgp-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
 /* **Con foto, el oro NO se pinta debajo.** Ese oro es el fondo de las iniciales
    —el avatar por defecto—, y con la imagen encima se veía justo mientras ésta
    cargaba: un segundo de disco dorado y después la cara, que se reportó como
    «parpadeo de la foto de perfil». Es el mismo defecto que el logo del salón
    tuvo en la 7.112.0. Sin fondo, mientras la foto llega no se ve nada — y
    «nada» se lee como que está cargando, no como que es otro avatar. */
-.spg-avatar.tiene-img{background:transparent;}
-.spg-avatar-lg{
+.sgp-avatar.tiene-img{background:transparent;}
+.sgp-avatar-lg{
   width:64px;height:64px;font-size:1.35rem;border:1px solid var(--gris-calido);
 }
-.spg-brand-name{color:var(--oro);font-size:1.05rem;font-weight:500;letter-spacing:.3px;}
-.spg-topbar .spg-user{color:var(--sobre-oscura);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
+.sgp-brand-name{color:var(--oro);font-size:1.05rem;font-weight:500;letter-spacing:.3px;}
+.sgp-topbar .sgp-user{color:var(--sobre-oscura);font-size:.85rem;display:flex;align-items:center;gap:.9rem;}
 /* Sin restringir a "a": en la barra hay enlaces y también botones (Módulos),
    y un <button> no hereda el color, se queda con el del navegador. */
-.spg-topbar .spg-user-link{
+.sgp-topbar .sgp-user-link{
   color:var(--sobre-oscura);text-decoration:none;
   background:none;border:none;padding:0;font:inherit;line-height:1;
   display:inline-flex;align-items:center;gap:.35rem;transition:color .15s;
 }
-.spg-topbar .spg-user-link:hover,
-.spg-topbar .spg-user-link:focus-visible,
-.spg-topbar .spg-user-link[aria-expanded="true"]{color:var(--oro-claro);}
+.sgp-topbar .sgp-user-link:hover,
+.sgp-topbar .sgp-user-link:focus-visible,
+.sgp-topbar .sgp-user-link[aria-expanded="true"]{color:var(--oro-claro);}
 /* El rol se muestra con el oro en contorno, no en relleno: en la barra ya
    están el logo y el nombre del local en oro sólido, y tres bloques dorados
    juntos le quitan fuerza al acento. */
-.spg-rol-chip{
+.sgp-rol-chip{
   background:transparent;color:var(--oro-claro);border:1px solid var(--oro-oscuro);
   font-size:.72rem;font-weight:500;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
 }
@@ -259,15 +259,15 @@ body{
    El oro se usa acá porque esto es jerarquía, no adorno: es el dato que
    contesta «¿dónde estoy parado?». Sobre la barra oscura, `--oro` con texto
    `--negro` da 8,5:1. */
-.spg-suc-chip{
+.sgp-suc-chip{
   background:var(--oro);color:var(--negro);border:1px solid var(--oro-oscuro);
   font-size:.72rem;font-weight:600;padding:.1rem .6rem;border-radius:20px;white-space:nowrap;
 }
-.spg-suc-chip i{font-size:.75rem;}
+.sgp-suc-chip i{font-size:.75rem;}
 
 /* El desplegable abierto se marca con el oro claro, igual que el hover */
-.spg-dropdown{--bs-dropdown-link-active-bg:var(--oro);font-size:.88rem;}
-.spg-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
+.sgp-dropdown{--bs-dropdown-link-active-bg:var(--oro);font-size:.88rem;}
+.sgp-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
 
 /* ---- Accesos rápidos ---- */
 /* Atajos de navegación y altas rápidas. Son acción, así que van en oro, con
@@ -277,20 +277,20 @@ body{
      al tocar  blanco + texto negro       (confirma el clic con un destello)
    El contorno en reposo es lo que evita que compitan con el botón primario
    de la pantalla, que sí es oro macizo de entrada. */
-.spg-chip{
+.sgp-chip{
   display:inline-flex;align-items:center;gap:.3rem;
   background:var(--oro-suave);border:1px solid var(--oro);border-radius:20px;
   padding:.2rem .7rem;font-size:.78rem;color:var(--oro-texto);text-decoration:none;
   transition:background .12s,color .12s,border-color .12s;white-space:nowrap;
 }
-.spg-chip:hover,.spg-chip:focus-visible{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);}
-.spg-chip:active{background:var(--blanco);border-color:var(--oro-oscuro);color:var(--negro);}
-.spg-chip i{font-size:.85rem;}
+.sgp-chip:hover,.sgp-chip:focus-visible{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);}
+.sgp-chip:active{background:var(--blanco);border-color:var(--oro-oscuro);color:var(--negro);}
+.sgp-chip i{font-size:.85rem;}
 /* Elegido y sigue elegido: el día y la hora que la clienta tocó en el selector
-   de la agenda. Estaba escrito sólo anidado en `.agenda-grupo` y `.spg-atajos`,
+   de la agenda. Estaba escrito sólo anidado en `.agenda-grupo` y `.sgp-atajos`,
    dos contenedores que ninguna vista dibuja, así que el JS ponía la clase y no
    la respondía nadie: se tocaba un día y no cambiaba nada en pantalla. */
-.spg-chip.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
+.sgp-chip.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
 
 /* Alta rápida dentro de un formulario: "Nuevo cliente", "Nueva sucursal",
    "Agregar fila". Mismo lenguaje que los chips. Se define con las variables
@@ -312,41 +312,41 @@ body{
 }
 
 /* ---- Migas / encabezado de página ---- */
-.spg-page-head{padding:1.3rem 0 .3rem;}
-.spg-page-head h1{font-size:1.3rem;font-weight:500;margin:0;}
-.spg-page-head .sub{font-size:.85rem;color:var(--gris-oscuro);margin-top:.15rem;}
-.spg-back{color:var(--oro-oscuro);text-decoration:none;font-size:.85rem;}
-.spg-back:hover{text-decoration:underline;}
+.sgp-page-head{padding:1.3rem 0 .3rem;}
+.sgp-page-head h1{font-size:1.3rem;font-weight:500;margin:0;}
+.sgp-page-head .sub{font-size:.85rem;color:var(--gris-oscuro);margin-top:.15rem;}
+.sgp-back{color:var(--oro-oscuro);text-decoration:none;font-size:.85rem;}
+.sgp-back:hover{text-decoration:underline;}
 
 /* ---- Grilla de tarjetas de módulos ---- */
-.spg-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;padding:.6rem 0 2rem;}
-.spg-card{
+.sgp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;padding:.6rem 0 2rem;}
+.sgp-card{
   background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);
   padding:1.1rem;text-decoration:none;color:var(--carbon);display:block;transition:border-color .15s,transform .15s;
 }
-.spg-card:hover{border-color:var(--oro);transform:translateY(-2px);}
-.spg-card .ic{
+.sgp-card:hover{border-color:var(--oro);transform:translateY(-2px);}
+.sgp-card .ic{
   width:42px;height:42px;border-radius:10px;background:var(--blanco-hueso);
   display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gris-oscuro);
 }
-.spg-card:hover .ic{color:var(--oro-oscuro);}
-.spg-card h3{font-size:1rem;font-weight:500;margin:.8rem 0 .35rem;}
-.spg-card p{font-size:.78rem;color:var(--gris-oscuro);margin:0;line-height:1.5;}
+.sgp-card:hover .ic{color:var(--oro-oscuro);}
+.sgp-card h3{font-size:1rem;font-weight:500;margin:.8rem 0 .35rem;}
+.sgp-card p{font-size:.78rem;color:var(--gris-oscuro);margin:0;line-height:1.5;}
 /* La tarjeta oscura —Seguridad— es oscura en LOS DOS temas, por identidad, así
    que va con las variables que NO se invierten. Estaba escrita con `--carbon`
    y `--blanco-hueso`, que en el tema claro daban justo lo que hacía falta y se
    dan vuelta al invertir la paleta: el fondo pasaba a ser claro y el título
    también, y la tarjeta quedaba ilegible. Es el mismo error que dejó los
    enlaces del pie en 1,5:1 hasta la 7.2.1. */
-.spg-card.dark{background:var(--sup-oscura-2);border-color:var(--sup-oscura-borde);}
-.spg-card.dark .ic{background:var(--sup-oscura);color:var(--oro);}
-.spg-card.dark h3{color:var(--sobre-oscura);}
-.spg-card.dark p{color:var(--sobre-oscura-tenue);}
-.spg-card.dark:hover{border-color:var(--oro);}
-.spg-card.dark:hover .ic{color:var(--oro-claro);}
+.sgp-card.dark{background:var(--sup-oscura-2);border-color:var(--sup-oscura-borde);}
+.sgp-card.dark .ic{background:var(--sup-oscura);color:var(--oro);}
+.sgp-card.dark h3{color:var(--sobre-oscura);}
+.sgp-card.dark p{color:var(--sobre-oscura-tenue);}
+.sgp-card.dark:hover{border-color:var(--oro);}
+.sgp-card.dark:hover .ic{color:var(--oro-claro);}
 
 /* ---- Contenedores de contenido ---- */
-.spg-panel{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1.2rem;}
+.sgp-panel{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1.2rem;}
 
 /* ---- Tablas ---- */
 .table thead th{background:var(--blanco-hueso);color:var(--gris-oscuro);font-weight:500;font-size:.8rem;
@@ -357,8 +357,8 @@ body{
    cita ya elegida, y entre cien filas iguales hay que poder encontrarla de un
    vistazo. Va en `--oro-tinte`, que es el de los avisos, no en `--oro-suave`,
    que es para fondos de acción: la fila no es un botón. */
-.table tbody tr.spg-fila-elegida > td{background:var(--oro-tinte);}
-.table tbody tr.spg-fila-elegida > td:first-child{box-shadow:inset 3px 0 0 var(--oro);}
+.table tbody tr.sgp-fila-elegida > td{background:var(--oro-tinte);}
+.table tbody tr.sgp-fila-elegida > td:first-child{box-shadow:inset 3px 0 0 var(--oro);}
 
 /* ---- Filas de detalle expandibles ----
    El detalle que estaba en columnas extra ahora se esconde detrás de un botón.
@@ -372,29 +372,29 @@ body{
      cuando está cerrado.
    · El borde superior se saca porque la fila de arriba ya lo tiene.
    · En tema oscuro los colores se ajustan solos gracias a las variables. */
-.spg-fila-detalle > td{padding:0 !important;border-top:0 !important;background:transparent;}
-.spg-fila-detalle .spg-det-cuerpo{
+.sgp-fila-detalle > td{padding:0 !important;border-top:0 !important;background:transparent;}
+.sgp-fila-detalle .sgp-det-cuerpo{
   padding:.8rem 1.2rem;background:var(--oro-tinte);border-bottom:1px solid var(--gris-calido);
 }
-.spg-fila-detalle .spg-det-cuerpo dl{margin:0;font-size:.88rem;}
-.spg-fila-detalle .spg-det-cuerpo dt{color:var(--gris-oscuro);font-weight:500;font-size:.78rem;
+.sgp-fila-detalle .sgp-det-cuerpo dl{margin:0;font-size:.88rem;}
+.sgp-fila-detalle .sgp-det-cuerpo dt{color:var(--gris-oscuro);font-weight:500;font-size:.78rem;
   text-transform:uppercase;letter-spacing:.02em;margin-bottom:.1rem;}
-.spg-fila-detalle .spg-det-cuerpo dd{margin-bottom:.6rem;}
-.spg-fila-detalle .spg-det-cuerpo dd:last-child{margin-bottom:0;}
+.sgp-fila-detalle .sgp-det-cuerpo dd{margin-bottom:.6rem;}
+.sgp-fila-detalle .sgp-det-cuerpo dd:last-child{margin-bottom:0;}
 /* Layout en grilla cuando hay espacio: dos o tres pares al lado */
-.spg-det-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:0 1.5rem;}
+.sgp-det-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:0 1.5rem;}
 
 /* Botón chevron que rota al expandir */
-.spg-btn-detalle{
+.sgp-btn-detalle{
   display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
   background:none;border:1px solid var(--gris-calido);border-radius:var(--radius);
   color:var(--gris-oscuro);font-size:.78rem;padding:.22rem .55rem;cursor:pointer;
   transition:transform .2s ease,border-color .15s;white-space:nowrap;
 }
-.spg-btn-detalle:hover{border-color:var(--oro);color:var(--oro-oscuro);}
-.spg-btn-detalle .bi{transition:transform .25s ease;font-size:.65rem;}
-.spg-btn-detalle[aria-expanded="true"] .bi{transform:rotate(180deg);}
-.spg-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-oscuro);}
+.sgp-btn-detalle:hover{border-color:var(--oro);color:var(--oro-oscuro);}
+.sgp-btn-detalle .bi{transition:transform .25s ease;font-size:.65rem;}
+.sgp-btn-detalle[aria-expanded="true"] .bi{transform:rotate(180deg);}
+.sgp-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-oscuro);}
 
 /* ---- Botones ---- */
 .btn-oro{background:var(--oro);border:none;color:var(--negro);font-weight:500;}
@@ -419,41 +419,41 @@ body{
 .e-muted{background:var(--gris-calido);color:var(--gris-oscuro);}
 
 /* ---- Barra de caja del panel ---- */
-.spg-caja-barra{
+.sgp-caja-barra{
   display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
   background:var(--blanco);border:1px solid var(--gris-calido);border-left:4px solid var(--oro);
   border-radius:var(--radius);padding:.75rem 1rem;margin-top:.9rem;
 }
-.spg-caja-estado{display:flex;align-items:center;gap:.6rem;font-size:.87rem;flex-wrap:wrap;}
-.spg-caja-estado > i{font-size:1.3rem;color:var(--oro-oscuro);}
-.spg-caja-saldo{font-weight:500;color:var(--oro-oscuro);background:var(--blanco-hueso);
+.sgp-caja-estado{display:flex;align-items:center;gap:.6rem;font-size:.87rem;flex-wrap:wrap;}
+.sgp-caja-estado > i{font-size:1.3rem;color:var(--oro-oscuro);}
+.sgp-caja-saldo{font-weight:500;color:var(--oro-oscuro);background:var(--blanco-hueso);
   border-radius:20px;padding:.1rem .7rem;font-size:.85rem;}
 /* Una fila por caja abierta: con dos cajones el panel las lista a las dos. */
-.spg-caja-lista{display:flex;flex-direction:column;gap:.3rem;}
-.spg-caja-item{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.sgp-caja-lista{display:flex;flex-direction:column;gap:.3rem;}
+.sgp-caja-item{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
 
 /* ---- Métricas del dashboard ---- */
-.spg-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:.4rem;}
-.spg-metric{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1rem 1.1rem;}
-.spg-metric .lbl{font-size:.75rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
-.spg-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
-.spg-metric .val.oro{color:var(--oro-oscuro);}
+.sgp-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:.4rem;}
+.sgp-metric{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1rem 1.1rem;}
+.sgp-metric .lbl{font-size:.75rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
+.sgp-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
+.sgp-metric .val.oro{color:var(--oro-oscuro);}
 
 /* Variante compacta: para un informe con siete números seguidos, la tarjeta
    normal ocupa demasiado alto. El rótulo deja de ir en mayúsculas —que obliga
    a partirlo— y el número baja de 1.6 a 1.25rem, que sigue lejísimos del
    texto de al lado. */
-.spg-metrics-compacto{grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.55rem;}
-.spg-metrics-compacto .spg-metric{padding:.55rem .7rem;}
-.spg-metrics-compacto .lbl{text-transform:none;letter-spacing:0;font-size:.76rem;line-height:1.25;}
-.spg-metrics-compacto .val{font-size:1.25rem;margin-top:.1rem;}
+.sgp-metrics-compacto{grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.55rem;}
+.sgp-metrics-compacto .sgp-metric{padding:.55rem .7rem;}
+.sgp-metrics-compacto .lbl{text-transform:none;letter-spacing:0;font-size:.76rem;line-height:1.25;}
+.sgp-metrics-compacto .val{font-size:1.25rem;margin-top:.1rem;}
 
 /* ---- Cuánto va sumando (Registrar atención) ---- */
-.spg-suma-at{margin-top:.7rem;padding:.6rem .8rem;border:1px solid var(--gris-calido);
+.sgp-suma-at{margin-top:.7rem;padding:.6rem .8rem;border:1px solid var(--gris-calido);
     border-radius:var(--radius);background:var(--blanco);}
-.spg-suma-fila{display:flex;justify-content:space-between;align-items:baseline;
+.sgp-suma-fila{display:flex;justify-content:space-between;align-items:baseline;
     gap:1rem;font-size:.85rem;padding:.15rem 0;}
-.spg-suma-total{border-top:1px solid var(--gris-calido);margin-top:.3rem;
+.sgp-suma-total{border-top:1px solid var(--gris-calido);margin-top:.3rem;
     padding-top:.4rem;font-size:.95rem;}
 
 /* ---- Falta cargar (panel) ----
@@ -465,7 +465,7 @@ body{
    El nivel se pinta con lo que cada color ya significa en esta paleta: el
    rojo semántico para lo que impide, el oro para lo que hace decidir distinto,
    y neutros cálidos para lo que sólo conviene. */
-.spg-falta{
+.sgp-falta{
   display:flex;gap:.75rem;align-items:flex-start;
   padding:.75rem .85rem;
   border-radius:var(--radius, .6rem);
@@ -475,31 +475,31 @@ body{
   margin-bottom:.5rem;
   transition:border-color .15s, box-shadow .15s;
 }
-.spg-falta:last-child{margin-bottom:0;}
-.spg-falta:hover{box-shadow:0 1px 4px rgba(0,0,0,.06);}
-.spg-falta-txt{flex:1 1 auto;font-size:.85rem;line-height:1.4;min-width:0;}
-.spg-falta-donde{font-size:.78rem;margin-top:.2rem;}
-.spg-falta-donde a{color:var(--oro-oscuro);text-decoration:underline;text-decoration-color:var(--oro-claro);}
-.spg-falta-donde a:hover{color:var(--oro-texto);text-decoration-color:var(--oro);}
-.spg-falta-nivel{
+.sgp-falta:last-child{margin-bottom:0;}
+.sgp-falta:hover{box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.sgp-falta-txt{flex:1 1 auto;font-size:.85rem;line-height:1.4;min-width:0;}
+.sgp-falta-donde{font-size:.78rem;margin-top:.2rem;}
+.sgp-falta-donde a{color:var(--oro-oscuro);text-decoration:underline;text-decoration-color:var(--oro-claro);}
+.sgp-falta-donde a:hover{color:var(--oro-texto);text-decoration-color:var(--oro);}
+.sgp-falta-nivel{
   flex:0 0 auto;min-width:5.2rem;text-align:center;
   font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;
   padding:.2rem .55rem;border-radius:999px;border:1px solid transparent;
   margin-top:.05rem;
 }
-.spg-falta-impide{
+.sgp-falta-impide{
   background:var(--rojo-tinte);color:var(--rojo);border-color:var(--rojo);
 }
-.spg-falta-confunde{
+.sgp-falta-confunde{
   background:var(--oro-tinte);color:var(--oro-texto);border-color:var(--oro);
 }
-.spg-falta-conviene{
+.sgp-falta-conviene{
   background:transparent;color:var(--gris-oscuro);border-color:var(--gris-calido);
 }
 /* El borde lateral de la tarjeta toma el color del nivel. */
-.spg-falta:has(.spg-falta-impide){border-left-color:var(--rojo);}
-.spg-falta:has(.spg-falta-confunde){border-left-color:var(--oro);}
-.spg-falta:has(.spg-falta-conviene){border-left-color:var(--gris-calido);}
+.sgp-falta:has(.sgp-falta-impide){border-left-color:var(--rojo);}
+.sgp-falta:has(.sgp-falta-confunde){border-left-color:var(--oro);}
+.sgp-falta:has(.sgp-falta-conviene){border-left-color:var(--gris-calido);}
 
 
 /* ---- Login ---- */
@@ -507,16 +507,16 @@ body{
    hermanos de la tarjeta, así que en fila quedaban PEGADOS A SU IZQUIERDA,
    fuera del recuadro y contra el margen. «Ese nombre de usuario ya está en
    uso» aparecía en el borde de la pantalla, lejos del campo que lo causó. */
-.spg-login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:.75rem;}
-.spg-login{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:16px;padding:2rem;width:100%;max-width:390px;}
+.sgp-login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:.75rem;}
+.sgp-login{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:16px;padding:2rem;width:100%;max-width:390px;}
 /* Mismo ancho que la tarjeta, para que se lean como una sola pieza. */
-.spg-login-wrap > .alert{width:100%;max-width:390px;margin-bottom:0;}
-.spg-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
+.sgp-login-wrap > .alert{width:100%;max-width:390px;margin-bottom:0;}
+.sgp-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
   justify-content:center;color:var(--negro);font-size:1.9rem;margin:0 auto 1rem;}
 /* Igual que en la barra: con logo cargado, el fondo dorado del ícono por
-   defecto se va y el logo puede ser ancho. Ver `.spg-logo.tiene-img`. */
-.spg-login .logo-big.tiene-img{background:none;border-radius:0;width:auto;max-width:240px;height:64px;}
-.spg-login .logo-big.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
+   defecto se va y el logo puede ser ancho. Ver `.sgp-logo.tiene-img`. */
+.sgp-login .logo-big.tiene-img{background:none;border-radius:0;width:auto;max-width:240px;height:64px;}
+.sgp-login .logo-big.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
 
 /* ---- Form ---- */
 .form-label{font-size:.82rem;color:var(--gris-oscuro);font-weight:500;}
@@ -591,30 +591,30 @@ body{
 
 /* ---- Selector de disponibilidad ----
    Los días y las horas son atajos de navegación, así que usan el nivel
-   secundario del oro (.spg-chip) con sus tres estados. El elegido queda en
+   secundario del oro (.sgp-chip) con sus tres estados. El elegido queda en
    oro macizo, que es lo único seleccionado de la pantalla. *
 .agenda-aviso{margin:.3rem 0;}
 
 /* ---- Comprobante (detalle e impresión de factura) ----
    El oro aparece solo en el número del comprobante y en el total: son los dos
    datos que se buscan primero. El resto va en los neutros cálidos. */
-.spg-comprobante{border-top:3px solid var(--oro);position:relative;}
+.sgp-comprobante{border-top:3px solid var(--oro);position:relative;}
 /* Sello de anulada: no debe poder confundirse con un comprobante válido *
 
 /* ---- Impresión ----
    Se imprime solo el comprobante: fuera la barra superior, los accesos rápidos,
    los botones y el listado de cobros (que es información interna). */
 @media print{
-  /* **Todo lo que sirve para navegar sobra en el papel.** `.spg-nav` no
+  /* **Todo lo que sirve para navegar sobra en el papel.** `.sgp-nav` no
      estaba en esta lista, así que la barra de módulos y su desplegable
      salían impresos encima del comprobante: en la hoja aparecían «Panel ·
      Citas · Clientes · Tesorería» y los enlaces del menú, que en pantalla
      el hover mantiene ocultos pero al imprimir se dibujan todos. */
-  .spg-topbar,.spg-nav,.spg-nav-menu,.spg-migas,
-  .no-imprimir,.alert,footer,.spg-footer{display:none !important;}
+  .sgp-topbar,.sgp-nav,.sgp-nav-menu,.sgp-migas,
+  .no-imprimir,.alert,footer,.sgp-footer{display:none !important;}
   body{background:var(--blanco);}
   main.container{padding:0 !important;max-width:100% !important;}
-  .spg-comprobante{border:none;padding:0;}
+  .sgp-comprobante{border:none;padding:0;}
   a[href]:after{content:none !important;}
   .table{font-size:.82rem;}
 }
@@ -622,26 +622,26 @@ body{
 /* ---- Responsive (móviles) ---- */
 html,body{max-width:100%;overflow-x:hidden;}
 @media (max-width:768px){
-  .spg-cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;}
+  .sgp-cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;}
 }
 @media (max-width:576px){
-  .spg-topbar{padding:.6rem .9rem;}
-  .spg-brand-name{font-size:.95rem;}
-  .spg-user{gap:.55rem;font-size:.8rem;}
-  .spg-user .spg-user-nombre{display:none;}      /* en móvil, solo ícono + rol + salir */
-  .spg-page-head h1{font-size:1.15rem;}
-  .spg-cards{grid-template-columns:1fr 1fr;gap:.6rem;}
-  .spg-card{padding:.9rem;}
-  .spg-card .ic{width:38px;height:38px;font-size:1.2rem;}
-  .spg-card h3{font-size:.92rem;margin-top:.6rem;}
-  .spg-card p{font-size:.72rem;}
-  .spg-metric .val{font-size:1.35rem;}
-  .spg-panel{padding:.9rem;}
+  .sgp-topbar{padding:.6rem .9rem;}
+  .sgp-brand-name{font-size:.95rem;}
+  .sgp-user{gap:.55rem;font-size:.8rem;}
+  .sgp-user .sgp-user-nombre{display:none;}      /* en móvil, solo ícono + rol + salir */
+  .sgp-page-head h1{font-size:1.15rem;}
+  .sgp-cards{grid-template-columns:1fr 1fr;gap:.6rem;}
+  .sgp-card{padding:.9rem;}
+  .sgp-card .ic{width:38px;height:38px;font-size:1.2rem;}
+  .sgp-card h3{font-size:.92rem;margin-top:.6rem;}
+  .sgp-card p{font-size:.72rem;}
+  .sgp-metric .val{font-size:1.35rem;}
+  .sgp-panel{padding:.9rem;}
   .table{font-size:.85rem;}
   .btn{font-size:.9rem;}
 }
 @media (max-width:380px){
-  .spg-cards{grid-template-columns:1fr;}
+  .sgp-cards{grid-template-columns:1fr;}
 }
 
 /* ---------------------------------------------------------------------
@@ -657,48 +657,48 @@ html,body{max-width:100%;overflow-x:hidden;}
    y está repetido en el pie.
    --------------------------------------------------------------------- */
 @media (max-width:576px){
-  .spg-topbar{padding:.45rem .7rem;gap:.5rem;}
-  .spg-brand{gap:.45rem;}
-  .spg-brand-sub{display:none;}          /* decorativo: el pie lo repite */
-  .spg-brand-name{font-size:.9rem;}
+  .sgp-topbar{padding:.45rem .7rem;gap:.5rem;}
+  .sgp-brand{gap:.45rem;}
+  .sgp-brand-sub{display:none;}          /* decorativo: el pie lo repite */
+  .sgp-brand-name{font-size:.9rem;}
 
   /* La barra queda pegada a la cabecera achicada, no a los 52 px de antes:
      con el valor viejo dejaba una franja muerta encima. */
-  .spg-nav{top:44px;}
-  .spg-nav-in{padding:0 .4rem;gap:0;}
-  .spg-nav-item{padding:.45rem .55rem;font-size:.78rem;gap:.28rem;}
+  .sgp-nav{top:44px;}
+  .sgp-nav-in{padding:0 .4rem;gap:0;}
+  .sgp-nav-item{padding:.45rem .55rem;font-size:.78rem;gap:.28rem;}
 
   /* La ficha del rol sale: la sucursal es lo que cambia entre sesiones y
      por eso es la que se queda (7.31.1). El rol sigue en Mi cuenta. */
-  .spg-rol-chip{display:none;}
+  .sgp-rol-chip{display:none;}
 
   /* El scroll horizontal de la barra sin la barrita gris encima, que en
      táctil no hace falta y roba 6 px de alto. */
-  .spg-nav-in::-webkit-scrollbar{display:none;}
-  .spg-nav-in{scrollbar-width:none;}
+  .sgp-nav-in::-webkit-scrollbar{display:none;}
+  .sgp-nav-in{scrollbar-width:none;}
 }
 
 /* ---------------------------------------------------------------------
    Días de la semana de un turno
    Es una casilla marcada, no un atajo: por eso usa el oro de
-   .form-check-input:checked y no los tres estados de .spg-chip.
+   .form-check-input:checked y no los tres estados de .sgp-chip.
    La casilla real queda oculta pero sigue ahí, así el teclado y el lector
    de pantalla la encuentran igual.
    --------------------------------------------------------------------- */
-.spg-dias{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
-.spg-horas{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+.sgp-dias{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
+.sgp-horas{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;}
 
 /* En el portal «Reservar» y «Mis citas» pertenecen a Citas. En móvil el
    grupo es un desplegable nativo (funciona aunque no cargue JavaScript) y no
    roba ancho a la barra. */
 
 @media (max-width:576px){
-  .spg-portal-citas-grid .table thead{display:none;}
-  .spg-portal-citas-grid .table tbody tr{display:block;border-bottom:1px solid var(--gris-calido);padding:.65rem 0;}
-  .spg-portal-citas-grid .table tbody tr:last-child{border-bottom:0;}
-  .spg-portal-citas-grid .table tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;border:0;padding:.18rem 0;text-align:right;white-space:normal;}
-  .spg-portal-citas-grid .table tbody td:first-child{font-weight:600;}
-  .spg-portal-citas-grid .table tbody td:last-child{justify-content:flex-end;flex-wrap:wrap;}
+  .sgp-portal-citas-grid .table thead{display:none;}
+  .sgp-portal-citas-grid .table tbody tr{display:block;border-bottom:1px solid var(--gris-calido);padding:.65rem 0;}
+  .sgp-portal-citas-grid .table tbody tr:last-child{border-bottom:0;}
+  .sgp-portal-citas-grid .table tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;border:0;padding:.18rem 0;text-align:right;white-space:normal;}
+  .sgp-portal-citas-grid .table tbody td:first-child{font-weight:600;}
+  .sgp-portal-citas-grid .table tbody td:last-child{justify-content:flex-end;flex-wrap:wrap;}
 }
 
 /* ---- Selector de agenda: el día y la hora se eligen con COMBOS ----
@@ -710,16 +710,16 @@ html,body{max-width:100%;overflow-x:hidden;}
    No hay oro acá y es a propósito: elegir la fecha no es la acción principal
    de la pantalla, es un paso para llegar a ella. El oro se lo lleva el botón
    de reservar, que es lo que la regla del oro pide. */
-.spg-agenda-fila{
+.sgp-agenda-fila{
   display:flex;flex-wrap:wrap;gap:.6rem;width:100%;
 }
-.spg-agenda-campo{flex:1 1 9rem;min-width:8rem;}
-.spg-agenda-campo .form-label{
+.sgp-agenda-campo{flex:1 1 9rem;min-width:8rem;}
+.sgp-agenda-campo .form-label{
   font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
   color:var(--gris-oscuro);margin-bottom:.15rem;
 }
 /* Las horas en cifras tabulares: alineadas, la lista se recorre más rápido. */
-.spg-agenda-campo select{font-variant-numeric:tabular-nums;}
+.sgp-agenda-campo select{font-variant-numeric:tabular-nums;}
 
 /* **En el celular cada combo se lleva el renglón entero.**
 
@@ -732,23 +732,23 @@ html,body{max-width:100%;overflow-x:hidden;}
    De paso el control crece: 44 px de alto es el mínimo cómodo para el dedo, y
    estos tres se tocan uno tras otro. */
 @media (max-width:575.98px){
-  .spg-agenda-campo{flex:1 1 100%;min-width:0;}
-  .spg-agenda-campo select{font-size:1rem;padding-top:.5rem;padding-bottom:.5rem;}
-  .spg-agenda-campo .form-label{font-size:.75rem;}
+  .sgp-agenda-campo{flex:1 1 100%;min-width:0;}
+  .sgp-agenda-campo select{font-size:1rem;padding-top:.5rem;padding-bottom:.5rem;}
+  .sgp-agenda-campo .form-label{font-size:.75rem;}
 }
-.spg-dia{cursor:pointer;user-select:none;}
-.spg-dia input{position:absolute;opacity:0;width:0;height:0;}
-.spg-dia span{
+.sgp-dia{cursor:pointer;user-select:none;}
+.sgp-dia input{position:absolute;opacity:0;width:0;height:0;}
+.sgp-dia span{
   display:inline-block;min-width:2.6rem;text-align:center;
   border:1px solid var(--gris-calido);border-radius:20px;
   padding:.22rem .55rem;font-size:.78rem;color:var(--gris-oscuro);
   background:var(--blanco);transition:.12s;
 }
-.spg-dia input:checked + span{
+.sgp-dia input:checked + span{
   background:var(--oro-suave);border-color:var(--oro);color:var(--oro-texto);font-weight:600;
 }
-.spg-dia input:focus-visible + span{outline:2px solid var(--oro);outline-offset:2px;}
-.spg-dia:hover span{border-color:var(--oro);}
+.sgp-dia input:focus-visible + span{outline:2px solid var(--oro);outline-offset:2px;}
+.sgp-dia:hover span{border-color:var(--oro);}
 
 /* =====================================================================
    PROTOTIPO DE LISTADO
@@ -759,22 +759,22 @@ html,body{max-width:100%;overflow-x:hidden;}
    ===================================================================== */
 
 /* ---- Migas de pan: dónde estoy y cómo vuelvo ---- */
-.spg-migas{
+.sgp-migas{
   display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;
   font-size:.78rem;color:var(--gris-oscuro);padding:.55rem 0 .1rem;
 }
-.spg-migas a{color:var(--gris-oscuro);text-decoration:none;display:inline-flex;align-items:center;gap:.28rem;}
-.spg-migas a:hover,.spg-migas a:focus-visible{color:var(--oro-oscuro);text-decoration:underline;}
-.spg-migas span[aria-current]{color:var(--carbon);font-weight:500;}
-.spg-miga-sep{font-size:.62rem;color:var(--gris-calido);}
+.sgp-migas a{color:var(--gris-oscuro);text-decoration:none;display:inline-flex;align-items:center;gap:.28rem;}
+.sgp-migas a:hover,.sgp-migas a:focus-visible{color:var(--oro-oscuro);text-decoration:underline;}
+.sgp-migas span[aria-current]{color:var(--carbon);font-weight:500;}
+.sgp-miga-sep{font-size:.62rem;color:var(--gris-calido);}
 
 /* ---- Encabezado de pantalla ---- */
-.spg-head-flex{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.8rem;}
-.spg-head-txt{min-width:0;}
-.spg-head-acciones{display:flex;gap:.5rem;flex-wrap:wrap;}
+.sgp-head-flex{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.8rem;}
+.sgp-head-txt{min-width:0;}
+.sgp-head-acciones{display:flex;gap:.5rem;flex-wrap:wrap;}
 
 /* ---- Barra de filtros ---- */
-.spg-filtros{
+.sgp-filtros{
   display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;
   background:var(--blanco-hueso);border:1px solid var(--gris-calido);
   border-radius:var(--radius);padding:.75rem .9rem;margin-bottom:1rem;
@@ -782,42 +782,42 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* La casilla que pliega los filtros en el celular: nunca se dibuja. La
    etiqueta que la acciona sólo existe en pantalla angosta (ver la media
    query de las tarjetas móviles). */
-.spg-filtros-int{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
-.spg-filtros-plegar{display:none;}
-.spg-filtros .form-label{
+.sgp-filtros-int{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+.sgp-filtros-plegar{display:none;}
+.sgp-filtros .form-label{
   font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;
   color:var(--gris-oscuro);margin-bottom:.2rem;font-weight:500;
 }
-.spg-filtro{min-width:130px;}
-.spg-filtro-btns{display:flex;gap:.4rem;align-items:center;padding-bottom:.05rem;margin-left:auto;}
+.sgp-filtro{min-width:130px;}
+.sgp-filtro-btns{display:flex;gap:.4rem;align-items:center;padding-bottom:.05rem;margin-left:auto;}
 /* El aviso va en --oro-tinte, no en --oro-suave: es información, no acción.
    (Ver la regla del oro: el tinte es para badges y avisos.) */
-.spg-filtro-aviso{
+.sgp-filtro-aviso{
   flex-basis:100%;font-size:.75rem;color:var(--oro-oscuro);
   background:var(--oro-tinte);border-radius:6px;padding:.25rem .6rem;
   display:inline-flex;align-items:center;gap:.35rem;width:fit-content;
 }
 
 /* ---- Pie del listado: conteo + páginas ---- */
-.spg-paginacion{
+.sgp-paginacion{
   display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.7rem;
   border-top:1px solid var(--gris-calido);margin-top:.2rem;padding-top:.8rem;
 }
-.spg-pag-conteo{font-size:.82rem;color:var(--gris-oscuro);}
-.spg-pag-conteo strong{color:var(--carbon);font-variant-numeric:tabular-nums;}
-.spg-pag-botones{display:flex;gap:.25rem;flex-wrap:wrap;}
-.spg-pag{
+.sgp-pag-conteo{font-size:.82rem;color:var(--gris-oscuro);}
+.sgp-pag-conteo strong{color:var(--carbon);font-variant-numeric:tabular-nums;}
+.sgp-pag-botones{display:flex;gap:.25rem;flex-wrap:wrap;}
+.sgp-pag{
   display:inline-flex;align-items:center;justify-content:center;
   min-width:2rem;height:2rem;padding:0 .45rem;
   border:1px solid var(--gris-calido);border-radius:7px;background:var(--blanco);
   color:var(--gris-oscuro);text-decoration:none;font-size:.82rem;
   font-variant-numeric:tabular-nums;transition:.12s;
 }
-.spg-pag:hover,.spg-pag:focus-visible{border-color:var(--oro);color:var(--oro-texto);background:var(--oro-suave);}
+.sgp-pag:hover,.sgp-pag:focus-visible{border-color:var(--oro);color:var(--oro-texto);background:var(--oro-suave);}
 /* La página actual es jerarquía, no adorno: por eso lleva el oro macizo */
-.spg-pag.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
-.spg-pag.inactivo{opacity:.4;pointer-events:none;}
-.spg-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
+.sgp-pag.activo{background:var(--oro);border-color:var(--oro-oscuro);color:var(--negro);font-weight:600;}
+.sgp-pag.inactivo{opacity:.4;pointer-events:none;}
+.sgp-pag-puntos{color:var(--gris-oscuro);padding:0 .15rem;align-self:center;font-size:.8rem;}
 
 /* ---- Fila vacía de una tabla ---- */
 /* ---------------------------------------------------------------
@@ -830,7 +830,7 @@ html,body{max-width:100%;overflow-x:hidden;}
    el resto queda en neutros cálidos. Si el oro estuviera en las quince
    tarjetas, la elegida dejaría de distinguirse.
    --------------------------------------------------------------- */
-.spg-srv-grid{display:grid;gap:.75rem;
+.sgp-srv-grid{display:grid;gap:.75rem;
   grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
 
 /* **El catálogo NO scrollea adentro suyo, y eso se probó al revés.**
@@ -851,43 +851,43 @@ html,body{max-width:100%;overflow-x:hidden;}
    desde la 7.110.0, así que el catálogo ya no compite con el selector de fecha
    ni con el botón— y el gesto vuelve a ser uno solo en toda la pantalla. */
 
-.spg-srv-card{display:flex;flex-direction:column;
+.sgp-srv-card{display:flex;flex-direction:column;
   border:1px solid var(--gris-calido);border-radius:10px;overflow:hidden;
   background:var(--blanco);transition:border-color .15s,box-shadow .15s;}
-.spg-srv-card:hover{border-color:var(--oro-claro);}
+.sgp-srv-card:hover{border-color:var(--oro-claro);}
 /* Lo que de verdad marca el servicio. El combo de profesional queda FUERA de
    esta etiqueta: adentro, el desplegable del navegador no abre en el celular. */
-.spg-srv-toque{display:flex;flex-direction:column;cursor:pointer;flex:1 1 auto;}
-.spg-srv-extra{padding:0 .6rem .6rem;}
-.spg-srv-extra .form-select{width:100%;}
-.spg-srv-card.elegida{border-color:var(--oro);box-shadow:0 0 0 2px var(--oro-suave);}
+.sgp-srv-toque{display:flex;flex-direction:column;cursor:pointer;flex:1 1 auto;}
+.sgp-srv-extra{padding:0 .6rem .6rem;}
+.sgp-srv-extra .form-select{width:100%;}
+.sgp-srv-card.elegida{border-color:var(--oro);box-shadow:0 0 0 2px var(--oro-suave);}
 
 /* `aspect-ratio` y no una altura fija: así la grilla no se desalinea cuando
    una foto viene más alta que otra. */
-.spg-srv-img{position:relative;aspect-ratio:4/3;background:var(--blanco-hueso);
+.sgp-srv-img{position:relative;aspect-ratio:4/3;background:var(--blanco-hueso);
   display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.spg-srv-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.sgp-srv-img img{width:100%;height:100%;object-fit:cover;display:block;}
 
-.spg-srv-sinimg{display:flex;flex-direction:column;align-items:center;gap:.2rem;
+.sgp-srv-sinimg{display:flex;flex-direction:column;align-items:center;gap:.2rem;
   color:var(--gris-oscuro);text-align:center;padding:.5rem;}
-.spg-srv-sinimg i{font-size:1.5rem;opacity:.5;}
-.spg-srv-sinimg span{font-size:.68rem;line-height:1.2;}
+.sgp-srv-sinimg i{font-size:1.5rem;opacity:.5;}
+.sgp-srv-sinimg span{font-size:.68rem;line-height:1.2;}
 
 /* El check va sobre la imagen, no debajo del texto: es lo que se toca y tiene
    que verse sin buscarlo. */
-.spg-srv-check{position:absolute;top:.4rem;left:.4rem;width:1.15rem;height:1.15rem;
+.sgp-srv-check{position:absolute;top:.4rem;left:.4rem;width:1.15rem;height:1.15rem;
   box-shadow:0 0 0 2px var(--blanco);}
 
-.spg-srv-cuerpo{padding:.5rem .6rem .6rem;display:flex;flex-direction:column;gap:.15rem;}
-.spg-srv-nombre{font-size:.87rem;font-weight:500;line-height:1.25;}
-.spg-srv-desc{font-size:.74rem;color:var(--gris-oscuro);line-height:1.3;
+.sgp-srv-cuerpo{padding:.5rem .6rem .6rem;display:flex;flex-direction:column;gap:.15rem;}
+.sgp-srv-nombre{font-size:.87rem;font-weight:500;line-height:1.25;}
+.sgp-srv-desc{font-size:.74rem;color:var(--gris-oscuro);line-height:1.3;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.spg-srv-precio{font-size:1rem;font-weight:600;color:var(--oro-texto);}
+.sgp-srv-precio{font-size:1rem;font-weight:600;color:var(--oro-texto);}
 /* El de lista tachado, en neutro: lo que se lee de una es lo que va a pagar,
    y el tachado está para explicar por qué el otro número es más chico. */
-.spg-srv-lista{color:var(--gris-oscuro);font-weight:400;font-size:.82rem;margin-right:.25rem;}
-.spg-srv-off{font-size:.66rem;vertical-align:middle;}
-.spg-srv-dur{font-size:.73rem;color:var(--gris-oscuro);}
+.sgp-srv-lista{color:var(--gris-oscuro);font-weight:400;font-size:.82rem;margin-right:.25rem;}
+.sgp-srv-off{font-size:.66rem;vertical-align:middle;}
+.sgp-srv-dur{font-size:.73rem;color:var(--gris-oscuro);}
 
 /* **En el celular la tarjeta se achica, y sobre todo la foto.**
 
@@ -902,13 +902,13 @@ html,body{max-width:100%;overflow-x:hidden;}
    así la tarjeta es más baja sin recortar de más—. En el escritorio no cambia
    nada. */
 @media (max-width:575.98px){
-  .spg-srv-grid{gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));}
-  .spg-srv-img{aspect-ratio:3/2;}
-  .spg-srv-cuerpo{padding:.4rem .45rem .5rem;}
-  .spg-srv-extra{padding:0 .45rem .5rem;}
-  .spg-srv-nombre{font-size:.8rem;}
-  .spg-srv-precio{font-size:.9rem;}
-  .spg-srv-desc{-webkit-line-clamp:1;}
+  .sgp-srv-grid{gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));}
+  .sgp-srv-img{aspect-ratio:3/2;}
+  .sgp-srv-cuerpo{padding:.4rem .45rem .5rem;}
+  .sgp-srv-extra{padding:0 .45rem .5rem;}
+  .sgp-srv-nombre{font-size:.8rem;}
+  .sgp-srv-precio{font-size:.9rem;}
+  .sgp-srv-desc{-webkit-line-clamp:1;}
 
   /* **La tarjeta elegida NO cambia de tamaño**, y eso es lo que se pidió.
 
@@ -920,13 +920,13 @@ html,body{max-width:100%;overflow-x:hidden;}
      se acaba de mover.
 
      El motivo de aquella regla desapareció: el combo ya no se dibuja acá
-     mientras el asistente esté andando (ver `.spg-wiz-on` más abajo), porque
+     mientras el asistente esté andando (ver `.sgp-wiz-on` más abajo), porque
      el paso «Profesionales» pregunta exactamente eso una pantalla después.
      Sin combo adentro, la tarjeta no necesita crecer para nada.
 
      Lo que marca la elegida sigue siendo el oro del borde, que no ocupa un
      píxel de más. */
-  .spg-srv-extra .form-select{font-size:.85rem;padding-top:.42rem;padding-bottom:.42rem;}
+  .sgp-srv-extra .form-select{font-size:.85rem;padding-top:.42rem;padding-bottom:.42rem;}
 }
 
 /* ---------------------------------------------------------------
@@ -942,14 +942,14 @@ html,body{max-width:100%;overflow-x:hidden;}
    con el botón principal de la pantalla; recién al pasar el mouse o al
    abrirse toma el oro suave de fondo.
    --------------------------------------------------------------- */
-.spg-ayuda{display:inline-flex;align-items:center;justify-content:center;
+.sgp-ayuda{display:inline-flex;align-items:center;justify-content:center;
   width:1.15rem;height:1.15rem;padding:0;margin-left:.3rem;vertical-align:-.15em;
   border:0;border-radius:50%;background:transparent;color:var(--oro-texto);
   font-size:.92rem;line-height:1;cursor:pointer;
   transition:background-color .15s,color .15s;}
-.spg-ayuda:hover,.spg-ayuda:focus{background:var(--oro-suave);color:var(--oro-texto);outline:0;}
-.spg-ayuda:focus-visible{box-shadow:0 0 0 2px var(--oro);}
-.spg-ayuda i{display:block;}
+.sgp-ayuda:hover,.sgp-ayuda:focus{background:var(--oro-suave);color:var(--oro-texto);outline:0;}
+.sgp-ayuda:focus-visible{box-shadow:0 0 0 2px var(--oro);}
+.sgp-ayuda i{display:block;}
 
 /* El globo, con los mismos neutros cálidos que el resto. Bootstrap lo
    dibuja con sus propias variables, así que se pisan las de él y no se
@@ -972,33 +972,33 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 
 /* La miniatura de la ficha del servicio, donde se sube la imagen. */
-.spg-srv-mini{width:120px;height:90px;object-fit:cover;border-radius:8px;
+.sgp-srv-mini{width:120px;height:90px;object-fit:cover;border-radius:8px;
   border:1px solid var(--gris-calido);}
 
 /* Los pasos numerados de un formulario largo. El número va en oro suave y no
    en oro macizo: es jerarquía, no acción — el oro lleno se reserva para lo que
    hay que apretar. */
-.spg-paso{display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem;
+.sgp-paso{display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem;
   padding-top:.35rem;border-top:1px solid var(--gris-calido);}
-.spg-paso:first-of-type{border-top:none;padding-top:0;}
-.spg-paso-n{display:inline-flex;align-items:center;justify-content:center;
+.sgp-paso:first-of-type{border-top:none;padding-top:0;}
+.sgp-paso-n{display:inline-flex;align-items:center;justify-content:center;
   width:1.4rem;height:1.4rem;border-radius:50%;flex:0 0 auto;
   background:var(--oro-suave);color:var(--oro-texto);
   font-size:.78rem;font-weight:600;}
-.spg-paso-t{font-size:.92rem;font-weight:600;}
+.sgp-paso-t{font-size:.92rem;font-weight:600;}
 
 /* A dónde transferir la seña. Va en neutros y NO en oro: es un dato para
    copiar, no una acción ni una jerarquía — el oro se reserva para lo que hay
    que tocar. El número sí va en monoespaciada, que es lo que hace que no se
    copie mal un dígito. */
-.spg-cuentas-tit{font-size:.82rem;font-weight:600;color:var(--gris-oscuro);
+.sgp-cuentas-tit{font-size:.82rem;font-weight:600;color:var(--gris-oscuro);
   margin-bottom:.4rem;}
-.spg-cuenta{border:1px solid var(--gris-calido);border-radius:8px;
+.sgp-cuenta{border:1px solid var(--gris-calido);border-radius:8px;
   padding:.55rem .7rem;margin-bottom:.45rem;background:var(--blanco-hueso);}
-.spg-cuenta:last-child{margin-bottom:0;}
-.spg-cuenta-cab{font-size:.86rem;margin-bottom:.35rem;
+.sgp-cuenta:last-child{margin-bottom:0;}
+.sgp-cuenta-cab{font-size:.86rem;margin-bottom:.35rem;
   padding-bottom:.3rem;border-bottom:1px solid var(--gris-calido);}
-.spg-cuenta-nro{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+.sgp-cuenta-nro{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:1.02rem;letter-spacing:.02em;word-break:break-all;display:block;}
 
 /* **Cada dato con su rótulo.** Antes los valores salían sueltos y pegados con
@@ -1008,24 +1008,24 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* La columna del rótulo da para «ALIAS (Nº DE CELULAR)», que es el más largo:
    el tipo de alias pasó a vivir ahí en la 7.112.0, y con 7,5 rem partía en dos
    renglones. */
-.spg-cuenta-dato{display:grid;grid-template-columns:minmax(0,9.2rem) 1fr;
+.sgp-cuenta-dato{display:grid;grid-template-columns:minmax(0,9.2rem) 1fr;
   gap:.2rem .6rem;align-items:baseline;padding:.18rem 0;}
-.spg-cuenta-rot{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;
+.sgp-cuenta-rot{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;
   letter-spacing:.03em;}
-.spg-cuenta-val{font-size:.9rem;min-width:0;word-break:break-word;}
+.sgp-cuenta-val{font-size:.9rem;min-width:0;word-break:break-word;}
 @media (max-width:420px){
   /* En un teléfono angosto la grilla de dos columnas deja el valor en 4 rem:
      un número de cuenta no entra. Rótulo arriba, valor abajo. */
-  .spg-cuenta-dato{grid-template-columns:1fr;gap:0;}
+  .sgp-cuenta-dato{grid-template-columns:1fr;gap:0;}
 }
 
-.spg-cuenta-obs{font-size:.79rem;color:var(--gris-oscuro);margin-top:.35rem;
+.sgp-cuenta-obs{font-size:.79rem;color:var(--gris-oscuro);margin-top:.35rem;
   padding-top:.3rem;border-top:1px dashed var(--gris-calido);}
 
-.spg-vacio{text-align:center;color:var(--gris-oscuro);padding:2.2rem 1rem;}
-.spg-vacio i{font-size:1.7rem;color:var(--gris-calido);display:block;margin-bottom:.4rem;}
-.spg-vacio .t{font-size:.92rem;color:var(--carbon);margin-bottom:.15rem;}
-.spg-vacio .d{font-size:.8rem;}
+.sgp-vacio{text-align:center;color:var(--gris-oscuro);padding:2.2rem 1rem;}
+.sgp-vacio i{font-size:1.7rem;color:var(--gris-calido);display:block;margin-bottom:.4rem;}
+.sgp-vacio .t{font-size:.92rem;color:var(--carbon);margin-bottom:.15rem;}
+.sgp-vacio .d{font-size:.8rem;}
 
 /* Resumen de lo que está mostrando el filtro (total cobrado, stock actual…).
    Va en oro tinte porque informa, no es un botón. *
@@ -1040,32 +1040,32 @@ html,body{max-width:100%;overflow-x:hidden;}
    ===================================================================== */
 
 /* ---- Marca con bajada ---- */
-.spg-brand-txt{display:flex;flex-direction:column;line-height:1.15;}
-.spg-brand-sub{font-size:.68rem;color:var(--gris-oscuro);letter-spacing:.04em;text-transform:uppercase;}
+.sgp-brand-txt{display:flex;flex-direction:column;line-height:1.15;}
+.sgp-brand-sub{font-size:.68rem;color:var(--gris-oscuro);letter-spacing:.04em;text-transform:uppercase;}
 
 /* Cabecera del desplegable de la cuenta */
-.spg-drop-cabecera{display:flex;flex-direction:column;line-height:1.3;padding:.25rem 1rem;}
-.spg-drop-cabecera strong{font-size:.88rem;color:var(--carbon);}
-.spg-drop-cabecera span{font-size:.75rem;color:var(--gris-oscuro);}
+.sgp-drop-cabecera{display:flex;flex-direction:column;line-height:1.3;padding:.25rem 1rem;}
+.sgp-drop-cabecera strong{font-size:.88rem;color:var(--carbon);}
+.sgp-drop-cabecera span{font-size:.75rem;color:var(--gris-oscuro);}
 
 /* ---- Panel de navegación: los módulos siempre a la vista ----
    Va en carbón, un escalón más claro que la barra negra de arriba, para que
    se lean como dos niveles y no como una sola franja negra. El módulo actual
    se marca con el oro: es jerarquía —dónde estoy—, no decoración. */
-.spg-nav{background:var(--sup-oscura-2);border-bottom:1px solid var(--sup-oscura-borde);position:sticky;top:52px;z-index:1020;}
-.spg-nav-in{
+.sgp-nav{background:var(--sup-oscura-2);border-bottom:1px solid var(--sup-oscura-borde);position:sticky;top:52px;z-index:1020;}
+.sgp-nav-in{
   display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:thin;
   max-width:1320px;margin:0 auto;padding:0 .8rem;
 }
-.spg-nav-item{
+.sgp-nav-item{
   display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap;
   padding:.6rem .8rem;color:var(--sobre-oscura);text-decoration:none;font-size:.82rem;
   border-bottom:2px solid transparent;transition:color .13s,border-color .13s;
 }
-.spg-nav-item i{font-size:.95rem;opacity:.85;}
-.spg-nav-item:hover,.spg-nav-item:focus-visible{color:var(--oro-claro);}
-.spg-nav-item.activo{color:var(--oro);border-bottom-color:var(--oro);font-weight:500;}
-.spg-nav-item.activo i{opacity:1;}
+.sgp-nav-item i{font-size:.95rem;opacity:.85;}
+.sgp-nav-item:hover,.sgp-nav-item:focus-visible{color:var(--oro-claro);}
+.sgp-nav-item.activo{color:var(--oro);border-bottom-color:var(--oro);font-weight:500;}
+.sgp-nav-item.activo i{opacity:1;}
 
 /* ---- El módulo se abre al pasar el mouse ----
    Llegar a una pantalla eran dos clics con una tarjeta de por medio, y eso se
@@ -1081,23 +1081,23 @@ html,body{max-width:100%;overflow-x:hidden;}
      el hover no existe y el navegador lo emula con el primer toque: tocar
      «Clientes» abriría el menú en vez de entrar al módulo, o sea que el atajo
      rompería la navegación normal. Ahí la barra se queda como estaba.
-   · **`overflow` vuelve a `visible` en ese caso.** `.spg-nav-in` scrollea en
+   · **`overflow` vuelve a `visible` en ese caso.** `.sgp-nav-in` scrollea en
      horizontal para las pantallas angostas, y un desplegable dentro de un
      contenedor con overflow se recorta: se vería la primera línea y nada más. */
 /* El interruptor del acordeón del cajón: en escritorio no existe. */
-.spg-nav-int{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
-.spg-nav-tog{display:none;}
-.spg-nav-todo{display:none !important;}
+.sgp-nav-int{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+.sgp-nav-tog{display:none;}
+.sgp-nav-todo{display:none !important;}
 
 @media (hover:hover) and (min-width:768px) {
-  .spg-nav-in{overflow:visible;}
-  .spg-nav-grupo{position:relative;display:inline-flex;}
-  .spg-nav-flecha{font-size:.6rem !important;opacity:.5 !important;margin-left:-.15rem;
+  .sgp-nav-in{overflow:visible;}
+  .sgp-nav-grupo{position:relative;display:inline-flex;}
+  .sgp-nav-flecha{font-size:.6rem !important;opacity:.5 !important;margin-left:-.15rem;
                   transition:transform .13s,opacity .13s;}
-  .spg-nav-grupo:hover .spg-nav-flecha,
-  .spg-nav-grupo:focus-within .spg-nav-flecha{opacity:.9 !important;transform:rotate(180deg);}
+  .sgp-nav-grupo:hover .sgp-nav-flecha,
+  .sgp-nav-grupo:focus-within .sgp-nav-flecha{opacity:.9 !important;transform:rotate(180deg);}
 
-  .spg-nav-menu{
+  .sgp-nav-menu{
     position:absolute;top:100%;left:0;min-width:210px;z-index:1030;
     background:var(--sup-oscura);border:1px solid var(--sup-oscura-borde);
     border-top:2px solid var(--oro);border-radius:0 0 6px 6px;
@@ -1113,23 +1113,23 @@ html,body{max-width:100%;overflow-x:hidden;}
     opacity:0;visibility:hidden;transform:translateY(-4px);
     transition:opacity .13s,transform .13s,visibility .13s;
   }
-  .spg-nav-grupo:hover .spg-nav-menu,
-  .spg-nav-grupo:focus-within .spg-nav-menu{opacity:1;visibility:visible;transform:none;}
+  .sgp-nav-grupo:hover .sgp-nav-menu,
+  .sgp-nav-grupo:focus-within .sgp-nav-menu{opacity:1;visibility:visible;transform:none;}
 
-  .spg-nav-menu a{
+  .sgp-nav-menu a{
     display:flex;align-items:center;gap:.55rem;white-space:nowrap;
     padding:.45rem .6rem;border-radius:4px;
     color:var(--sobre-oscura);text-decoration:none;font-size:.8rem;
   }
-  .spg-nav-menu a i{font-size:.9rem;opacity:.7;width:1rem;text-align:center;}
-  .spg-nav-menu a:hover,.spg-nav-menu a:focus-visible{background:var(--sup-oscura-2);color:var(--oro-claro);}
-  .spg-nav-menu a:hover i,.spg-nav-menu a:focus-visible i{opacity:1;}
-  .spg-nav-menu a.activo{color:var(--oro);font-weight:500;}
-  .spg-nav-menu a.activo i{opacity:1;}
+  .sgp-nav-menu a i{font-size:.9rem;opacity:.7;width:1rem;text-align:center;}
+  .sgp-nav-menu a:hover,.sgp-nav-menu a:focus-visible{background:var(--sup-oscura-2);color:var(--oro-claro);}
+  .sgp-nav-menu a:hover i,.sgp-nav-menu a:focus-visible i{opacity:1;}
+  .sgp-nav-menu a.activo{color:var(--oro);font-weight:500;}
+  .sgp-nav-menu a.activo i{opacity:1;}
 
   /* El último módulo queda pegado al borde derecho: su menú se alinea al
      revés para no salirse de la pantalla. */
-  .spg-nav-grupo:last-child .spg-nav-menu{left:auto;right:0;}
+  .sgp-nav-grupo:last-child .sgp-nav-menu{left:auto;right:0;}
 
   /* ---- El submenú que abre AL COSTADO ----
      Tesorería tiene ocho pantallas y con los rótulos intercalados el menú
@@ -1137,107 +1137,107 @@ html,body{max-width:100%;overflow-x:hidden;}
      Cobros, Caja, Pagos— y cada uno abre su división a un costado, que es lo
      que pidió el usuario. El grupo de una sola pantalla no abre nada: se
      dibuja como enlace directo (lo decide el marcado, no el CSS). */
-  .spg-nav-sub-wrap{position:relative;}
-  .spg-nav-sub-flecha{margin-left:auto;font-size:.65rem !important;opacity:.45 !important;}
-  .spg-nav-sub-wrap:hover .spg-nav-sub-flecha,
-  .spg-nav-sub-wrap:focus-within .spg-nav-sub-flecha{opacity:.9 !important;}
-  .spg-nav-sub{
+  .sgp-nav-sub-wrap{position:relative;}
+  .sgp-nav-sub-flecha{margin-left:auto;font-size:.65rem !important;opacity:.45 !important;}
+  .sgp-nav-sub-wrap:hover .sgp-nav-sub-flecha,
+  .sgp-nav-sub-wrap:focus-within .sgp-nav-sub-flecha{opacity:.9 !important;}
+  .sgp-nav-sub{
     position:absolute;left:100%;top:-.3rem;min-width:13rem;
     background:var(--sup-oscura);border:1px solid var(--sup-oscura-borde);
     border-radius:var(--radius);padding:.3rem 0;
     box-shadow:0 8px 24px rgba(0,0,0,.35);
     opacity:0;visibility:hidden;transform:translateX(-4px);
     transition:opacity .12s ease,transform .12s ease;z-index:1;}
-  .spg-nav-sub-wrap:hover>.spg-nav-sub,
-  .spg-nav-sub-wrap:focus-within>.spg-nav-sub{opacity:1;visibility:visible;transform:none;}
+  .sgp-nav-sub-wrap:hover>.sgp-nav-sub,
+  .sgp-nav-sub-wrap:focus-within>.sgp-nav-sub{opacity:1;visibility:visible;transform:none;}
   /* Si el módulo cae a la derecha de la pantalla, su submenú también se da
      vuelta: si no, se sale por el borde y no se puede leer. */
-  .spg-nav-grupo:last-child .spg-nav-sub{left:auto;right:100%;transform:translateX(4px);}
-  .spg-nav-grupo:last-child .spg-nav-sub-wrap:hover>.spg-nav-sub{transform:none;}
+  .sgp-nav-grupo:last-child .sgp-nav-sub{left:auto;right:100%;transform:translateX(4px);}
+  .sgp-nav-grupo:last-child .sgp-nav-sub-wrap:hover>.sgp-nav-sub{transform:none;}
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .spg-nav-menu,.spg-nav-flecha,.spg-nav-sub{transition:none;}
+  .sgp-nav-menu,.sgp-nav-flecha,.sgp-nav-sub{transition:none;}
 }
 
 /* ---- Pie ---- */
-.spg-footer{background:var(--sup-oscura);color:var(--sobre-oscura);margin-top:2.5rem;}
+.sgp-footer{background:var(--sup-oscura);color:var(--sobre-oscura);margin-top:2.5rem;}
 /* Las secciones van en tres columnas, no en una lista larga: apiladas
    estiraban el pie y dejaban una franja negra enorme abajo. */
 /* Con solo dos bloques, una grilla a lo ancho de 1320px los tiraba contra los
    bordes opuestos y dejaba un vacío enorme en el medio. Se los trata como un
    par centrado y con ancho acotado: se leen juntos, sin hueco. */
-.spg-footer-in{
+.sgp-footer-in{
   max-width:1240px;margin:0 auto;padding:1.7rem 1.2rem 1.1rem;
   display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;
   gap:1.5rem 2.5rem;
 }
-.spg-footer-marca{flex:0 1 230px;}
-.spg-footer-secciones{flex:0 1 440px;}
-.spg-footer-ayuda{flex:0 1 200px;}
-.spg-footer-version{flex:0 1 160px;}
-.spg-footer-col h3{
+.sgp-footer-marca{flex:0 1 230px;}
+.sgp-footer-secciones{flex:0 1 440px;}
+.sgp-footer-ayuda{flex:0 1 200px;}
+.sgp-footer-version{flex:0 1 160px;}
+.sgp-footer-col h3{
   font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;
   color:var(--oro);margin:0 0 .6rem;font-weight:600;
 }
-.spg-footer-col ul{list-style:none;margin:0;padding:0;}
-.spg-footer-col li{margin-bottom:.3rem;font-size:.82rem;}
-.spg-footer-col a{color:var(--sobre-oscura);text-decoration:none;}
-.spg-footer-col a:hover,.spg-footer-col a:focus-visible{color:var(--oro-claro);text-decoration:underline;}
+.sgp-footer-col ul{list-style:none;margin:0;padding:0;}
+.sgp-footer-col li{margin-bottom:.3rem;font-size:.82rem;}
+.sgp-footer-col a{color:var(--sobre-oscura);text-decoration:none;}
+.sgp-footer-col a:hover,.sgp-footer-col a:focus-visible{color:var(--oro-claro);text-decoration:underline;}
 /* 3 columnas: con 8 secciones quedan 3 + 3 + 2.
    `minmax(0,1fr)` y no `1fr` a secas: dentro de un contenedor que se encoge,
    `1fr` se resuelve como max-content y cada columna toma el ancho de su enlace
    más largo, así que los nombres quedaban desparejos en vez de alineados. */
-.spg-footer-grid{
+.sgp-footer-grid{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   gap:.2rem 1rem;width:100%;
 }
-.spg-footer-logo{
+.sgp-footer-logo{
   display:flex;align-items:center;gap:.45rem;
   color:var(--oro);font-size:1rem;font-weight:500;margin-bottom:.35rem;
 }
-.spg-footer-tcc{font-size:.75rem;color:var(--sobre-oscura-tenue);margin:0;max-width:30ch;line-height:1.45;}
+.sgp-footer-tcc{font-size:.75rem;color:var(--sobre-oscura-tenue);margin:0;max-width:30ch;line-height:1.45;}
 /* El rótulo va centrado sobre la grilla de enlaces, no pegado al borde de la
    columna. Se centra con flex y no con text-align para que el eje sea el mismo
    para los dos: si se centrara cada uno por su cuenta respecto de la columna,
    el título quedaría corrido cuando la grilla no ocupa todo el ancho. */
-.spg-footer-secciones{display:flex;flex-direction:column;align-items:center;}
-.spg-footer-secciones h3{text-align:center;}
+.sgp-footer-secciones{display:flex;flex-direction:column;align-items:center;}
+.sgp-footer-secciones h3{text-align:center;}
 /* El contacto es una acción —abre el chat—, así que lleva el ícono en oro.
    El texto se queda en el neutro del pie: si el renglón entero fuera dorado
    competiría con el rótulo de la columna. */
-.spg-contacto{display:inline-flex;align-items:center;gap:.4rem;}
-.spg-contacto i{color:var(--oro);font-size:.95rem;}
-.spg-contacto:hover i,.spg-contacto:focus-visible i{color:var(--oro-claro);}
+.sgp-contacto{display:inline-flex;align-items:center;gap:.4rem;}
+.sgp-contacto i{color:var(--oro);font-size:.95rem;}
+.sgp-contacto:hover i,.sgp-contacto:focus-visible i{color:var(--oro-claro);}
 
 /* Versión del sistema. El número va en oro porque es jerarquía —es el dato
    del bloque—, y la fecha en el gris del pie. */
-.spg-version-nro{
+.sgp-version-nro{
   color:var(--oro);font-size:1.05rem;font-weight:500;
   font-variant-numeric:tabular-nums;line-height:1.1;
 }
-.spg-version-fecha{font-size:.75rem;color:var(--sobre-oscura-tenue);margin-top:.2rem;}
-.spg-footer-pie{
+.sgp-version-fecha{font-size:.75rem;color:var(--sobre-oscura-tenue);margin-top:.2rem;}
+.sgp-footer-pie{
   border-top:1px solid var(--sup-oscura-borde);text-align:center;
   padding:.85rem 1rem;font-size:.75rem;color:var(--sobre-oscura-tenue);
   display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;
 }
-.spg-footer-sep{color:var(--sup-oscura-borde);}
+.sgp-footer-sep{color:var(--sup-oscura-borde);}
 
 @media (max-width:820px){
-  .spg-footer-in{justify-content:flex-start;gap:1.2rem;}
-  .spg-footer-marca,.spg-footer-secciones,
-  .spg-footer-ayuda,.spg-footer-version{flex:1 1 100%;}
-  .spg-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-  .spg-footer-secciones{align-items:flex-start;}
-  .spg-footer-secciones h3{text-align:left;}
-  .spg-nav{top:0;position:static;}
-  .spg-brand-sub{display:none;}
+  .sgp-footer-in{justify-content:flex-start;gap:1.2rem;}
+  .sgp-footer-marca,.sgp-footer-secciones,
+  .sgp-footer-ayuda,.sgp-footer-version{flex:1 1 100%;}
+  .sgp-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .sgp-footer-secciones{align-items:flex-start;}
+  .sgp-footer-secciones h3{text-align:left;}
+  .sgp-nav{top:0;position:static;}
+  .sgp-brand-sub{display:none;}
 }
 
 /* Subtítulo de una sección dentro de un formulario largo */
-.spg-form-titulo{font-size:.95rem;font-weight:500;margin:0 0 .3rem;}
-.spg-form-titulo i{color:var(--oro-oscuro);}
+.sgp-form-titulo{font-size:.95rem;font-weight:500;margin:0 0 .3rem;}
+.sgp-form-titulo i{color:var(--oro-oscuro);}
 
 /* Vista previa de cómo va a quedar el bloque del pie, dentro de Configuración.
    Repite el fondo negro para que se vea tal cual, no como una lista suelta. *
@@ -1246,24 +1246,24 @@ html,body{max-width:100%;overflow-x:hidden;}
    sueltos en el HTML; ahora es una clase y sale igual en las tres. *
 
 /* Niveles de fidelización: se leen como una escalera, de menos a más visitas */
-.spg-niveles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;}
-.spg-nivel{
+.sgp-niveles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;}
+.sgp-nivel{
   border:1px solid var(--gris-calido);border-radius:10px;padding:.65rem .8rem;background:var(--blanco);
 }
-.spg-nivel-baja{opacity:.55;border-style:dashed;}
-.spg-nivel-nombre{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
-.spg-nivel-req{font-size:.75rem;color:var(--gris-oscuro);}
-.spg-nivel-desc{font-size:.78rem;margin-top:.25rem;}
-.spg-nivel-clientes{
+.sgp-nivel-baja{opacity:.55;border-style:dashed;}
+.sgp-nivel-nombre{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
+.sgp-nivel-req{font-size:.75rem;color:var(--gris-oscuro);}
+.sgp-nivel-desc{font-size:.78rem;margin-top:.25rem;}
+.sgp-nivel-clientes{
   font-size:.72rem;color:var(--gris-oscuro);margin-top:.35rem;
   border-top:1px dashed var(--gris-calido);padding-top:.3rem;
 }
 
 /* Vuelto del mostrador. Es una cuenta de apoyo, no un dato que se guarde:
    por eso va separado del resto del formulario con un borde punteado. */
-.spg-vuelto{border-top:1px dashed var(--gris-calido);padding-top:.8rem;}
-.spg-vuelto-res{font-size:.87rem;min-height:1.2rem;}
-.spg-vuelto-monto{
+.sgp-vuelto{border-top:1px dashed var(--gris-calido);padding-top:.8rem;}
+.sgp-vuelto-res{font-size:.87rem;min-height:1.2rem;}
+.sgp-vuelto-monto{
   background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;
   border-radius:8px;padding:.35rem .7rem;display:inline-block;font-size:1rem;
 }
@@ -1297,27 +1297,27 @@ html,body{max-width:100%;overflow-x:hidden;}
    «el sistema no responde», cuando en realidad está trabajando. Son tres
    piezas, y cada una responde a una espera distinta:
 
-     .spg-barra-carga   la página entera se está yendo a buscar
+     .sgp-barra-carga   la página entera se está yendo a buscar
      .btn.cargando      ese botón concreto disparó algo y está esperando
-     .spg-spinner       un pedazo de pantalla se está llenando por fetch
+     .sgp-spinner       un pedazo de pantalla se está llenando por fetch
 
    Todo en oro, que es donde el sistema ya pone la acción.
    ===================================================================== */
 
 /* --- Barra superior: la página se está cargando --------------------- */
-.spg-barra-carga{
+.sgp-barra-carga{
   position:fixed;top:0;left:0;right:0;height:3px;z-index:2000;
   background:transparent;pointer-events:none;
   opacity:0;transition:opacity .15s ease;
 }
-.spg-barra-carga.visible{opacity:1;}
-.spg-barra-carga::before{
+.sgp-barra-carga.visible{opacity:1;}
+.sgp-barra-carga::before{
   content:"";display:block;height:100%;width:40%;
   background:linear-gradient(90deg,
     transparent, var(--oro-claro) 30%, var(--oro) 50%, var(--oro-claro) 70%, transparent);
-  animation:spg-barra 1.1s ease-in-out infinite;
+  animation:sgp-barra 1.1s ease-in-out infinite;
 }
-@keyframes spg-barra{
+@keyframes sgp-barra{
   0%  {transform:translateX(-100%);}
   100%{transform:translateX(350%);}
 }
@@ -1334,7 +1334,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   width:.9rem;height:.9rem;
   border:2px solid currentColor;border-right-color:transparent;
   border-radius:50%;opacity:.85;
-  animation:spg-giro .6s linear infinite;
+  animation:sgp-giro .6s linear infinite;
 }
 /* Sin ícono adentro el spinner no tiene dónde ir: se centra y se apaga
    el texto, que si no queda montado encima. */
@@ -1342,32 +1342,32 @@ html,body{max-width:100%;overflow-x:hidden;}
 .btn.cargando.sin-icono::after{left:50%;margin-left:-.45rem;color:var(--negro);}
 .btn-oro.cargando.sin-icono::after{border-color:var(--negro);border-right-color:transparent;}
 
-@keyframes spg-giro{to{transform:rotate(360deg);}}
+@keyframes sgp-giro{to{transform:rotate(360deg);}}
 
 /* --- Spinner suelto, para bloques que se llenan por fetch ----------- */
-.spg-spinner{
+.sgp-spinner{
   display:inline-block;vertical-align:-.15em;
   width:1rem;height:1rem;
   border:2px solid var(--oro-suave);border-right-color:var(--oro);
   border-radius:50%;
-  animation:spg-giro .6s linear infinite;
+  animation:sgp-giro .6s linear infinite;
 }
-.spg-spinner.grande{width:1.6rem;height:1.6rem;border-width:3px;}
+.sgp-spinner.grande{width:1.6rem;height:1.6rem;border-width:3px;}
 
 /* Línea de «buscando…»: spinner + texto, en el tono de los muted */
-.spg-cargando-texto{
+.sgp-cargando-texto{
   display:inline-flex;align-items:center;gap:.5rem;
   color:var(--gris-oscuro);font-size:.85rem;
 }
 
 /* Bloque que se está actualizando: se apaga un poco y no se puede tocar,
    así no se hace clic sobre datos que están por cambiar. */
-.spg-actualizando{opacity:.5;pointer-events:none;transition:opacity .2s ease;}
+.sgp-actualizando{opacity:.5;pointer-events:none;transition:opacity .2s ease;}
 
 /* --- Respeto por quien pidió menos movimiento ----------------------- */
 @media (prefers-reduced-motion:reduce){
-  .spg-barra-carga::before{animation:none;width:100%;opacity:.5;}
-  .btn.cargando::after,.spg-spinner{animation-duration:2.5s;}
+  .sgp-barra-carga::before{animation:none;width:100%;opacity:.5;}
+  .btn.cargando::after,.sgp-spinner{animation-duration:2.5s;}
 }
 
 /* Acá vivían las dos clases del renglón de cuenta del modal de cobro. Se
@@ -1391,8 +1391,8 @@ html,body{max-width:100%;overflow-x:hidden;}
 @media (max-width:576px){
   /* La barra ya scrollea sola; lo que faltaba era que no se pegue al borde
      y que cada ítem se pueda tocar con el dedo. */
-  .spg-nav-in{padding-inline:.6rem;gap:.15rem;}
-  .spg-nav-item{padding:.55rem .6rem;font-size:.82rem;}
+  .sgp-nav-in{padding-inline:.6rem;gap:.15rem;}
+  .sgp-nav-item{padding:.55rem .6rem;font-size:.82rem;}
 
   /* Una tabla de acciones en 360 px no entra: las celdas de botones pasan a
      ocupar la fila entera y los botones se reparten el ancho. */
@@ -1402,22 +1402,22 @@ html,body{max-width:100%;overflow-x:hidden;}
   .table td form.d-inline{display:inline-block;}
 
   /* El encabezado de página deja de competir con el contenido. */
-  .spg-page-head h1{font-size:1.15rem;}
-  .spg-page-head .sub{font-size:.8rem;}
-  .spg-head-flex{flex-direction:column;align-items:stretch;gap:.5rem;}
-  .spg-head-acciones .btn{width:100%;}
+  .sgp-page-head h1{font-size:1.15rem;}
+  .sgp-page-head .sub{font-size:.8rem;}
+  .sgp-head-flex{flex-direction:column;align-items:stretch;gap:.5rem;}
+  .sgp-head-acciones .btn{width:100%;}
 
   /* Los modales del portal —seña, pedido— llegaban pegados a los bordes. */
   .modal-dialog{margin:.5rem;}
 
   /* El pie en una sola columna: en dos, los enlaces quedan de una palabra. */
-  .spg-footer-grid{grid-template-columns:1fr !important;}
+  .sgp-footer-grid{grid-template-columns:1fr !important;}
 }
 
 /* Rótulo que separa grupos dentro de una lista de casillas: lo agendado y lo
    que se agrega en el sillón. Neutro a propósito — es una división, no una
    acción, así que no lleva oro. */
-.spg-grupo-rotulo{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
+.sgp-grupo-rotulo{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;
   color:var(--gris-oscuro);font-weight:600;padding:.2rem 0 .1rem;
   border-bottom:1px solid var(--gris-calido);margin-bottom:.3rem;}
 
@@ -1428,7 +1428,7 @@ html,body{max-width:100%;overflow-x:hidden;}
    que leer una por una. Dos por fila desde 480 px, y la lista con su
    propio scroll para que el botón de cerrar sesión no se vaya de pantalla.
    -------------------------------------------------------------------- */
-.spg-suc-grid {
+.sgp-suc-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: .5rem;
@@ -1439,7 +1439,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 
 @media (min-width: 480px) {
-    .spg-suc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sgp-suc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* --------------------------------------------------------------------
@@ -1450,18 +1450,18 @@ html,body{max-width:100%;overflow-x:hidden;}
    que se comparan entre sí. Un poco más de aire y de cuerpo cambia
    bastante cuánto cuesta leerlas.
    -------------------------------------------------------------------- */
-.spg-reporte .table {
+.sgp-reporte .table {
     font-size: .95rem;
     line-height: 1.45;
 }
 
-.spg-reporte .table th,
-.spg-reporte .table td {
+.sgp-reporte .table th,
+.sgp-reporte .table td {
     padding: .7rem .85rem;
     vertical-align: middle;
 }
 
-.spg-reporte .table thead th {
+.sgp-reporte .table thead th {
     font-size: .78rem;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -1471,24 +1471,24 @@ html,body{max-width:100%;overflow-x:hidden;}
 
 /* Cada bloque en su propio panel, separado del anterior: son informes
    distintos, no una lista continua. */
-.spg-reporte h2 {
+.sgp-reporte h2 {
     font-size: 1.08rem;
     margin: 2.2rem 0 .8rem;
     padding-bottom: .35rem;
     border-bottom: 1px solid var(--gris-calido);
 }
 
-.spg-reporte h2:first-of-type { margin-top: 1rem; }
+.sgp-reporte h2:first-of-type { margin-top: 1rem; }
 
 /* Las filas alternadas ayudan a seguir el renglón en una tabla ancha. */
-.spg-reporte .table tbody tr:nth-child(even) { background: var(--blanco-hueso); }
+.sgp-reporte .table tbody tr:nth-child(even) { background: var(--blanco-hueso); }
 
 /* Una ficha de dos columnas para el detalle de algo: el rótulo a la izquierda
    y el valor al lado, que se lee más rápido que un párrafo. */
-.spg-ficha{display:grid;grid-template-columns:auto 1fr;gap:.35rem .9rem;margin:0;}
-.spg-ficha dt{font-size:.76rem;text-transform:uppercase;letter-spacing:.03em;
+.sgp-ficha{display:grid;grid-template-columns:auto 1fr;gap:.35rem .9rem;margin:0;}
+.sgp-ficha dt{font-size:.76rem;text-transform:uppercase;letter-spacing:.03em;
     color:var(--gris-oscuro);font-weight:400;padding-top:.1rem;}
-.spg-ficha dd{margin:0;font-size:.9rem;}
+.sgp-ficha dd{margin:0;font-size:.9rem;}
 
 /* Un botón del tamaño de un ícono, para no romper el renglón de una tabla. */
 
@@ -1498,70 +1498,70 @@ html,body{max-width:100%;overflow-x:hidden;}
    colores nuevos: son los mismos neutros cálidos y el mismo oro de siempre. */
 
 /* Las pestañas son enlaces de verdad, así que cada informe tiene su URL. */
-.spg-tabs{display:flex;gap:.15rem;flex-wrap:wrap;margin-bottom:1rem;
+.sgp-tabs{display:flex;gap:.15rem;flex-wrap:wrap;margin-bottom:1rem;
     border-bottom:1px solid var(--gris-calido);}
-.spg-tab{display:inline-flex;align-items:center;gap:.4rem;
+.sgp-tab{display:inline-flex;align-items:center;gap:.4rem;
     padding:.5rem .85rem;font-size:.87rem;text-decoration:none;
     color:var(--gris-oscuro);border-bottom:2px solid transparent;
     border-radius:var(--radius) var(--radius) 0 0;white-space:nowrap;}
-.spg-tab:hover{color:var(--oro-texto);background:var(--blanco-hueso);}
-.spg-tab.activo{color:var(--oro-oscuro);border-bottom-color:var(--oro);font-weight:500;
+.sgp-tab:hover{color:var(--oro-texto);background:var(--blanco-hueso);}
+.sgp-tab.activo{color:var(--oro-oscuro);border-bottom-color:var(--oro);font-weight:500;
     background:var(--blanco);}
-.spg-tab i{font-size:.95rem;opacity:.8;}
-.spg-tab.activo i{opacity:1;}
+.sgp-tab i{font-size:.95rem;opacity:.8;}
+.sgp-tab.activo i{opacity:1;}
 
 /* Las de adentro de un informe —Por día / Por hora— son pastillas, para que
    no compitan con las de arriba: son dos jerarquías distintas. */
-.spg-subtabs .nav-link{font-size:.82rem;padding:.28rem .7rem;color:var(--gris-oscuro);}
-.spg-subtabs .nav-link.active{background:var(--oro-suave);color:var(--oro-texto);}
+.sgp-subtabs .nav-link{font-size:.82rem;padding:.28rem .7rem;color:var(--gris-oscuro);}
+.sgp-subtabs .nav-link.active{background:var(--oro-suave);color:var(--oro-texto);}
 
 /* El gráfico de barras. Dos divs y un `width` en por ciento: no hace falta
    librería, y una de CDN habría que mantenerla al día. */
-.spg-graf-fila{display:flex;align-items:center;gap:.5rem;margin-bottom:.28rem;}
-.spg-graf-rot{font-size:.8rem;color:var(--gris-oscuro);flex:0 0 auto;
+.sgp-graf-fila{display:flex;align-items:center;gap:.5rem;margin-bottom:.28rem;}
+.sgp-graf-rot{font-size:.8rem;color:var(--gris-oscuro);flex:0 0 auto;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.spg-graf-pista{flex:1 1 auto;display:block;background:var(--gris-calido);
+.sgp-graf-pista{flex:1 1 auto;display:block;background:var(--gris-calido);
     border-radius:4px;height:14px;overflow:hidden;min-width:40px;}
-.spg-graf-barra{display:block;background:var(--oro);height:100%;border-radius:4px;}
-.spg-graf-val{flex:0 0 auto;width:34px;text-align:right;font-size:.8rem;
+.sgp-graf-barra{display:block;background:var(--oro);height:100%;border-radius:4px;}
+.sgp-graf-val{flex:0 0 auto;width:34px;text-align:right;font-size:.8rem;
     font-variant-numeric:tabular-nums;}
-.spg-graf-val-ancho{width:auto;min-width:92px;}
-.spg-graf-mas{display:inline-block;margin-top:.5rem;font-size:.82rem;}
-.spg-sin-datos{color:var(--gris-oscuro);font-size:.85rem;margin:0;}
+.sgp-graf-val-ancho{width:auto;min-width:92px;}
+.sgp-graf-mas{display:inline-block;margin-top:.5rem;font-size:.82rem;}
+.sgp-sin-datos{color:var(--gris-oscuro);font-size:.85rem;margin:0;}
 
 /* Los atajos de período y los botones de bajada, en un solo renglón. */
-.spg-atajos-per{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;
+.sgp-atajos-per{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;
     margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--gris-calido);}
-.spg-atajos-sep{flex:1 1 auto;}
-.spg-filtros-rep .spg-filtros{margin-bottom:0;}
+.sgp-atajos-sep{flex:1 1 auto;}
+.sgp-filtros-rep .sgp-filtros{margin-bottom:0;}
 
 /* El pie de una tarjeta: el porcentaje debajo del número. Va chico a
    propósito —es contexto del número, no otro número—. */
-.spg-metric-pie{font-size:.72rem;color:var(--gris-oscuro);margin-top:.15rem;}
+.sgp-metric-pie{font-size:.72rem;color:var(--gris-oscuro);margin-top:.15rem;}
 
 /* El total de una tabla del informe se separa del cuerpo. */
-.spg-reporte tfoot th{border-top:2px solid var(--gris-calido);
+.sgp-reporte tfoot th{border-top:2px solid var(--gris-calido);
     background:var(--blanco-hueso);font-size:.85rem;}
 
 @media (max-width: 575px) {
     /* En el celular las pestañas scrollean en horizontal en vez de apilarse
        en cinco filas, que dejaría el informe abajo del pliegue. */
-    .spg-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
-    .spg-tabs::-webkit-scrollbar{display:none;}
-    .spg-tab{padding:.45rem .6rem;font-size:.8rem;}
-    .spg-graf-rot{max-width:38vw;}
+    .sgp-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+    .sgp-tabs::-webkit-scrollbar{display:none;}
+    .sgp-tab{padding:.45rem .6rem;font-size:.8rem;}
+    .sgp-graf-rot{max-width:38vw;}
 }
 
 /* **El resumen del informe va compacto**, y esto pisaba la variante.
    Estas dos reglas repetían el tamaño base —1.55rem y el mismo padding— pero
-   con un selector más específico, así que `.spg-metrics-compacto` no llegaba a
+   con un selector más específico, así que `.sgp-metrics-compacto` no llegaba a
    aplicarse nunca: son siete números seguidos y cada tarjeta medía 148 px de
    alto. Acá sólo queda lo que la variante NO decide. */
-.spg-reporte .spg-metric .val { font-variant-numeric: tabular-nums; }
+.sgp-reporte .sgp-metric .val { font-variant-numeric: tabular-nums; }
 
 /* Los números en columna se comparan de un vistazo si comparten ancho. */
-.spg-reporte .table td.text-end,
-.spg-reporte .table th.text-end {
+.sgp-reporte .table td.text-end,
+.sgp-reporte .table th.text-end {
     font-variant-numeric: tabular-nums;
 }
 
@@ -1582,9 +1582,9 @@ html,body{max-width:100%;overflow-x:hidden;}
    a necesitar scroll para mostrar los nueve.
    -------------------------------------------------------------------- */
 /* El interruptor no se ve nunca: lo único que hace es guardar el estado. */
-.spg-cajon-int { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
-.spg-cajon-btn { display: none; }
-.spg-cajon-fondo {
+.sgp-cajon-int { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.sgp-cajon-btn { display: none; }
+.sgp-cajon-fondo {
     position: fixed; inset: 44px 0 0 0; background: rgba(0,0,0,.45);
     opacity: 0; visibility: hidden; transition: opacity .18s ease;
     z-index: 1030; cursor: pointer;
@@ -1595,7 +1595,7 @@ html,body{max-width:100%;overflow-x:hidden;}
        Antes era un riel fijo de 54 px y el contenido se corría con
        `margin-left`, que **seguía aplicándose en el Panel —donde la barra ni
        se dibuja—**: de ahí el hueco al costado en el celular. */
-    .spg-nav-mod {
+    .sgp-nav-mod {
         position: fixed;
         top: 44px;
         bottom: 0;
@@ -1609,7 +1609,7 @@ html,body{max-width:100%;overflow-x:hidden;}
         transition: transform .18s ease;
     }
 
-    .spg-nav-mod .spg-nav-in {
+    .sgp-nav-mod .sgp-nav-in {
         flex-direction: column;
         align-items: stretch;
         gap: .1rem;
@@ -1619,7 +1619,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 
     /* Rótulo al lado del ícono y de tamaño normal: apilados y a .58rem no se
        leían, que es lo que se reportó. Acá sobra el ancho. */
-    .spg-nav-mod .spg-nav-item {
+    .sgp-nav-mod .sgp-nav-item {
         flex-direction: row;
         justify-content: flex-start;
         gap: .6rem;
@@ -1632,79 +1632,79 @@ html,body{max-width:100%;overflow-x:hidden;}
         line-height: 1.2;
     }
 
-    .spg-nav-mod .spg-nav-item i { font-size: 1rem; width: 1.2rem; text-align: center; }
-    .spg-nav-mod .spg-nav-item.activo {
+    .sgp-nav-mod .sgp-nav-item i { font-size: 1rem; width: 1.2rem; text-align: center; }
+    .sgp-nav-mod .sgp-nav-item.activo {
         border-bottom-color: transparent;
         border-left-color: var(--oro);
         background: rgba(201, 168, 76, .1);
     }
 
     /* **El contenido NO se corre.** El cajón tapa, no empuja. */
-    main.container, .spg-migas, footer, .spg-footer { margin-left: 0; }
+    main.container, .sgp-migas, footer, .sgp-footer { margin-left: 0; }
 
     /* **El desplegable pasa a ser un acordeón.** El de escritorio no cabe
        acá y el hover no existe en táctil, así que antes se escondía del todo
        y tocar el módulo navegaba: las ocho pantallas de Tesorería quedaban a
        dos pantallas de distancia. Ahora la fila abre el grupo ahí mismo. */
-    .spg-nav-grupo { position: relative; }
-    .spg-nav-menu { display: none; }
-    .spg-nav-int:checked ~ .spg-nav-menu {
+    .sgp-nav-grupo { position: relative; }
+    .sgp-nav-menu { display: none; }
+    .sgp-nav-int:checked ~ .sgp-nav-menu {
         display: block; position: static; opacity: 1; visibility: visible;
         transform: none; min-width: 0; box-shadow: none; border: 0;
         border-radius: 0; padding: .1rem 0 .3rem .9rem; background: transparent;
     }
-    .spg-nav-menu a {
+    .sgp-nav-menu a {
         display: flex; align-items: center; gap: .5rem;
         padding: .45rem .5rem; font-size: .85rem; border-radius: var(--radius);
         color: var(--sobre-oscura-tenue); text-decoration: none;
     }
-    .spg-nav-menu a i { font-size: .9rem; width: 1rem; text-align: center; opacity: .7; }
-    .spg-nav-menu a.activo { color: var(--oro); }
-    .spg-nav-todo { display: flex !important; }
+    .sgp-nav-menu a i { font-size: .9rem; width: 1rem; text-align: center; opacity: .7; }
+    .sgp-nav-menu a.activo { color: var(--oro); }
+    .sgp-nav-todo { display: flex !important; }
 
     /* La etiqueta tapa la fila entera: en el celular tocar el módulo
        DESPLIEGA, que es lo que se pidió. El enlace al módulo sigue estando —
        es el primer renglón de adentro, «Ver …». */
-    .spg-nav-tog {
+    .sgp-nav-tog {
         display: block; position: absolute; inset: 0 0 auto 0; height: 2.4rem;
         cursor: pointer; z-index: 1;
     }
-    .spg-nav-int:checked ~ .spg-nav-item .spg-nav-flecha { transform: rotate(180deg); }
-    .spg-nav-flecha { transition: transform .15s ease; opacity: .6; }
+    .sgp-nav-int:checked ~ .sgp-nav-item .sgp-nav-flecha { transform: rotate(180deg); }
+    .sgp-nav-flecha { transition: transform .15s ease; opacity: .6; }
 
     /* Los grupos de segundo nivel (Tesorería) se aplanan: en el cajón no hay
        lugar para un submenú al costado, y el rótulo alcanza para agrupar. */
-    .spg-nav-sub-wrap { display: block; }
-    .spg-nav-sub-tit .spg-nav-sub-flecha { display: none; }
-    .spg-nav-sub { display: block; padding-left: .8rem; }
+    .sgp-nav-sub-wrap { display: block; }
+    .sgp-nav-sub-tit .sgp-nav-sub-flecha { display: none; }
+    .sgp-nav-sub { display: block; padding-left: .8rem; }
 
     /* El botón del cajón sólo existe acá. */
-    .spg-cajon-btn {
+    .sgp-cajon-btn {
         display: inline-flex; align-items: center; justify-content: center;
         width: 34px; height: 34px; margin-right: .1rem; flex: 0 0 auto;
         border-radius: var(--radius); cursor: pointer;
         color: var(--sobre-oscura); font-size: 1.25rem; line-height: 1;
     }
-    .spg-cajon-btn:hover, .spg-cajon-int:focus-visible + .spg-topbar .spg-cajon-btn {
+    .sgp-cajon-btn:hover, .sgp-cajon-int:focus-visible + .sgp-topbar .sgp-cajon-btn {
         background: var(--sup-oscura-2); color: var(--oro-claro);
     }
 
-    .spg-cajon-int:checked ~ .spg-nav-mod { transform: none; }
+    .sgp-cajon-int:checked ~ .sgp-nav-mod { transform: none; }
 
     /* El fondo que cierra el cajón al tocar afuera. Es el propio `<label>`
        repetido por CSS, así que no hace falta JavaScript. */
-    .spg-cajon-int:checked ~ .spg-cajon-fondo {
+    .sgp-cajon-int:checked ~ .sgp-cajon-fondo {
         opacity: 1; visibility: visible;
     }
 }
 
 @media (min-width: 992px) {
     /* En escritorio la barra es horizontal y el cajón no existe. */
-    .spg-cajon-fondo { display: none; }
+    .sgp-cajon-fondo { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .spg-nav-mod, .spg-cajon-fondo { transition: none; }
+    .sgp-nav-mod, .sgp-cajon-fondo { transition: none; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1717,13 +1717,13 @@ html,body{max-width:100%;overflow-x:hidden;}
 
    El `summary` se dibuja como botón, y el marcador triangular se saca: con el
    ícono al lado se lee como una flecha de más.                              */
-.spg-desple { position: relative; }
+.sgp-desple { position: relative; }
 
-.spg-desple > summary { list-style: none; cursor: pointer; }
-.spg-desple > summary::-webkit-details-marker { display: none; }
-.spg-desple > summary::marker { content: ''; }
+.sgp-desple > summary { list-style: none; cursor: pointer; }
+.sgp-desple > summary::-webkit-details-marker { display: none; }
+.sgp-desple > summary::marker { content: ''; }
 
-.spg-desple-menu {
+.sgp-desple-menu {
     position: absolute;
     z-index: 20;
     min-width: 220px;
@@ -1735,7 +1735,7 @@ html,body{max-width:100%;overflow-x:hidden;}
     box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12);
 }
 
-.spg-desple-menu a {
+.sgp-desple-menu a {
     display: block;
     padding: .45rem .6rem;
     border-radius: .35rem;
@@ -1745,12 +1745,12 @@ html,body{max-width:100%;overflow-x:hidden;}
     white-space: nowrap;
 }
 
-.spg-desple-menu a:hover,
-.spg-desple-menu a:focus { background: var(--oro-tinte); color: var(--negro); }
+.sgp-desple-menu a:hover,
+.sgp-desple-menu a:focus { background: var(--oro-tinte); color: var(--negro); }
 
 /* Pegado al borde derecho no se sale de la pantalla en el celular. */
 @media (max-width: 575.98px) {
-    .spg-desple-menu { right: 0; }
+    .sgp-desple-menu { right: 0; }
 }
 
 
@@ -1768,39 +1768,39 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* **Del resumen de la reserva queda sólo la seña.** Los servicios, la
    duración y el total los dice el repaso del último paso del asistente, con
    el día, la hora y quién atiende cada uno — que es más de lo que este bloque
-   mostraba. Se fueron entonces `.spg-resumen`, `.spg-resumen-tit`,
-   `.spg-resumen-dur`, `.spg-resumen-lista` y `.spg-resumen-total`: la misma
+   mostraba. Se fueron entonces `.sgp-resumen`, `.sgp-resumen-tit`,
+   `.sgp-resumen-dur`, `.sgp-resumen-lista` y `.sgp-resumen-total`: la misma
    cuenta dos veces en la misma pantalla.
 
    La seña se queda porque contesta otra pregunta —no cuánto sale, sino cuánto
    hay que adelantar para que la reserva valga— y va en el tinte de aviso, que
    es lo que la identidad reserva para «esto hay que saberlo antes». */
-.spg-resumen-sena{
+.sgp-resumen-sena{
   padding:.5rem .6rem;border-radius:var(--radius);
   background:var(--oro-tinte);color:var(--oro-texto);font-size:.8rem;line-height:1.35;
 }
 /* De dónde sale la seña, servicio por servicio. Sólo se dibuja con más de uno:
    con uno solo repetiría el número del renglón de arriba. */
-.spg-sena-detalle{list-style:none;margin:.4rem 0 .3rem;padding:0;}
-.spg-sena-detalle li{
+.sgp-sena-detalle{list-style:none;margin:.4rem 0 .3rem;padding:0;}
+.sgp-sena-detalle li{
   display:flex;justify-content:space-between;gap:.8rem;
   padding:.12rem 0;border-top:1px solid rgba(138,108,30,.22);
 }
-.spg-sena-detalle li:first-child{border-top:0;}
+.sgp-sena-detalle li:first-child{border-top:0;}
 
 /* El atajo al detalle de la cita: se lee de una y ocupa un renglón chico.
    Antes era una «i» gris del tamaño del texto, indistinguible del resto de
    la fila — «el tesoro escondido». */
-.spg-btn-det{
+.sgp-btn-det{
   display:inline-flex;align-items:center;gap:.3rem;
   margin-top:.2rem;padding:.1rem .45rem;font-size:.72rem;line-height:1.3;
 }
-.spg-btn-det i{font-size:.75rem;}
+.sgp-btn-det i{font-size:.75rem;}
 
 
 /* El aviso de que algo cambió mientras mirabas. Abajo a la derecha y por
    encima de todo, pero sin tapar nada: es una novedad, no un error. */
-.spg-vivo{
+.sgp-vivo{
   position:fixed;right:1rem;bottom:1rem;z-index:1080;
   display:flex;align-items:center;gap:.6rem;
   padding:.55rem .8rem;border-radius:10px;
@@ -1810,7 +1810,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   font-size:.85rem;max-width:min(92vw,26rem);
 }
 @media (max-width:575.98px){
-  .spg-vivo{left:1rem;right:1rem;justify-content:space-between;}
+  .sgp-vivo{left:1rem;right:1rem;justify-content:space-between;}
 }
 
 
@@ -1822,7 +1822,7 @@ html,body{max-width:100%;overflow-x:hidden;}
    ===================================================================== */
 
 /* --- Línea decorativa bajo el título de la página -------------------- */
-.spg-titulo-linea {
+.sgp-titulo-linea {
   display: block;
   width: 48px;
   height: 3px;
@@ -1833,25 +1833,25 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 
 /* --- Sección lógica del formulario ----------------------------------- */
-.spg-seccion {
+.sgp-seccion {
   position: relative;
   padding: 1.1rem 0 1.3rem;
   border-bottom: 1px solid var(--gris-calido);
 }
-.spg-seccion:last-of-type { border-bottom: none; }
+.sgp-seccion:last-of-type { border-bottom: none; }
 
-[data-tema="oscuro"] .spg-seccion {
+[data-tema="oscuro"] .sgp-seccion {
   border-bottom-color: var(--gris-calido);
 }
 
 /* --- Encabezado de sección con paso numerado ------------------------- */
-.spg-seccion-head {
+.sgp-seccion-head {
   display: flex;
   align-items: center;
   gap: .55rem;
   margin-bottom: .65rem;
 }
-.spg-seccion-head .form-label {
+.sgp-seccion-head .form-label {
   font-size: .92rem;
   font-weight: 600;
   color: var(--carbon);
@@ -1859,34 +1859,34 @@ html,body{max-width:100%;overflow-x:hidden;}
 }
 
 /* **El círculo dorado con el número de paso se fue con el asistente.**
-   Lo dibujaba `<span class="spg-paso">1</span>` en reservar; ahora los pasos
-   los numera la barra del asistente (`.spg-wiz-bola`), así que ese marcado ya
+   Lo dibujaba `<span class="sgp-paso">1</span>` en reservar; ahora los pasos
+   los numera la barra del asistente (`.sgp-wiz-bola`), así que ese marcado ya
    no existe.
 
    Y sacarlo arregla otra cosa: **el nombre estaba usado dos veces**. Datos de
-   pago tiene su propio `.spg-paso`, que es un RENGLÓN con el número al lado
+   pago tiene su propio `.sgp-paso`, que es un RENGLÓN con el número al lado
    del título, y esta regla —declarada más abajo— le ganaba por cascada y lo
    aplastaba a un círculo de 1,55 rem con el título encima. Un mismo nombre
    para dos cosas distintas no da error: rompe la que se declaró primero. */
 
 /* --- Sub-panel para agrupar campos sueltos (detalles) ---------------- */
-.spg-detalle-grupo {
+.sgp-detalle-grupo {
   background: var(--blanco-hueso);
   border: 1px solid var(--gris-calido);
   border-radius: var(--radius);
   padding: .85rem 1rem;
 }
 
-[data-tema="oscuro"] .spg-detalle-grupo {
+[data-tema="oscuro"] .sgp-detalle-grupo {
   background: rgba(255, 255, 255, .02);
   border-color: var(--gris-calido);
 }
 
-/* `.spg-resumen-destacado` se fue con el resumen de dos columnas: era el
+/* `.sgp-resumen-destacado` se fue con el resumen de dos columnas: era el
    realce de la tarjeta pegada a la derecha, que ya no existe. */
 
 /* --- Botón reservar más prominente ----------------------------------- */
-.spg-reservar-btn {
+.sgp-reservar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1899,14 +1899,14 @@ html,body{max-width:100%;overflow-x:hidden;}
   letter-spacing: .02em;
   transition: background .15s, transform .1s, box-shadow .15s;
 }
-.spg-reservar-btn:hover:not(:disabled) {
+.sgp-reservar-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(201, 168, 76, .35);
 }
-.spg-reservar-btn:active:not(:disabled) {
+.sgp-reservar-btn:active:not(:disabled) {
   transform: translateY(0);
 }
-.spg-reservar-btn:disabled {
+.sgp-reservar-btn:disabled {
   opacity: .5;
 }
 
@@ -1917,53 +1917,53 @@ html,body{max-width:100%;overflow-x:hidden;}
    toca otra cosa: la tarjeta recién tocada quedaba levantada 2 px, que junto
    al borde de oro se lee como que la selección hace crecer el cuadro. Es la
    misma razón por la que el desplegable de la barra se acota a `hover:hover`. */
-.spg-srv-card {
+.sgp-srv-card {
   transition: border-color .15s, box-shadow .15s, transform .15s;
 }
 @media (hover:hover){
-  .spg-srv-card:hover {
+  .sgp-srv-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, .10);
   }
 }
-.spg-srv-card.elegida {
+.sgp-srv-card.elegida {
   box-shadow: 0 0 0 2px var(--oro-suave), 0 4px 16px rgba(201, 168, 76, .12);
 }
 
-[data-tema="oscuro"] .spg-srv-card:hover {
+[data-tema="oscuro"] .sgp-srv-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, .30);
 }
-[data-tema="oscuro"] .spg-srv-card.elegida {
+[data-tema="oscuro"] .sgp-srv-card.elegida {
   box-shadow: 0 0 0 2px var(--oro-suave), 0 4px 16px rgba(201, 168, 76, .08);
 }
 
 /* --- Contenedor de disponibilidad con fondo sutil -------------------- */
-.spg-cuando-caja {
+.sgp-cuando-caja {
   background: var(--blanco-hueso);
   border: 1px solid var(--gris-calido);
   border-radius: var(--radius);
   padding: .85rem 1rem;
 }
 
-[data-tema="oscuro"] .spg-cuando-caja {
+[data-tema="oscuro"] .sgp-cuando-caja {
   background: rgba(255, 255, 255, .02);
   border-color: var(--gris-calido);
 }
 
 /* **Las dos columnas de reservar se fueron con el asistente.** Eran
-   `.spg-reserva-layout` y sus dos hijas: el formulario a la izquierda y el
+   `.sgp-reserva-layout` y sus dos hijas: el formulario a la izquierda y el
    resumen pegado a la derecha. Con un paso por pantalla ya no hay dos cosas
    que mirar a la vez —el resumen ES el último paso— así que el marcado dejó de
    existir y las reglas quedaban sin nada a lo que aplicar. */
 
 /* --- Responsive: las secciones se aprietan en móvil ------------------ */
 @media (max-width: 575.98px) {
-  .spg-seccion { padding: .8rem 0 1rem; }
-  .spg-seccion-head .form-label { font-size: .85rem; }
-  .spg-detalle-grupo { padding: .7rem .75rem; }
-  .spg-cuando-caja { padding: .7rem .75rem; }
-  .spg-reservar-btn { font-size: .92rem; padding: .6rem 1rem; }
-  .spg-titulo-linea { width: 36px; height: 2.5px; }
+  .sgp-seccion { padding: .8rem 0 1rem; }
+  .sgp-seccion-head .form-label { font-size: .85rem; }
+  .sgp-detalle-grupo { padding: .7rem .75rem; }
+  .sgp-cuando-caja { padding: .7rem .75rem; }
+  .sgp-reservar-btn { font-size: .92rem; padding: .6rem 1rem; }
+  .sgp-titulo-linea { width: 36px; height: 2.5px; }
 }
 
 /* --- El asistente de reserva: un paso por pantalla ------------------
@@ -1973,7 +1973,7 @@ html,body{max-width:100%;overflow-x:hidden;}
    Nada de esto inventa un color.
 
    **Sin `app.js` no aplica nada**: el `display:none` cuelga de
-   `.spg-wiz-on`, que la pone el script. Con el JS caído se ven los
+   `.sgp-wiz-on`, que la pone el script. Con el JS caído se ven los
    pasos uno abajo del otro y se reserva igual, como antes. */
 /* **El combo de profesional no se pregunta dos veces.**
 
@@ -1985,113 +1985,113 @@ html,body{max-width:100%;overflow-x:hidden;}
 
    Se esconde **sólo mientras el asistente esté andando** y **sólo mientras el
    combo siga dentro de la tarjeta**: al moverlo, el nodo deja de tener
-   `.spg-srv-card` de ancestro y esta regla no lo alcanza. Sin JavaScript no
-   existe `.spg-wiz-on`, así que se ven todos y se elige profesional igual. */
-.spg-wiz-on .spg-srv-card .spg-srv-extra{display:none;}
+   `.sgp-srv-card` de ancestro y esta regla no lo alcanza. Sin JavaScript no
+   existe `.sgp-wiz-on`, así que se ven todos y se elige profesional igual. */
+.sgp-wiz-on .sgp-srv-card .sgp-srv-extra{display:none;}
 
-.spg-wiz-on > [data-paso]{display:none;}
-.spg-wiz-on > [data-paso].spg-wiz-activo{display:block;animation:spgWizEntra .18s ease-out;}
-@keyframes spgWizEntra{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.sgp-wiz-on > [data-paso]{display:none;}
+.sgp-wiz-on > [data-paso].sgp-wiz-activo{display:block;animation:sgpWizEntra .18s ease-out;}
+@keyframes sgpWizEntra{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 @media (prefers-reduced-motion:reduce){
-  .spg-wiz-on > [data-paso].spg-wiz-activo{animation:none;}
+  .sgp-wiz-on > [data-paso].sgp-wiz-activo{animation:none;}
 }
 
-.spg-wiz-barra{
+.sgp-wiz-barra{
   display:flex;gap:.25rem;list-style:none;margin:0 0 1rem;padding:0;
   overflow-x:auto;scrollbar-width:none;
 }
-.spg-wiz-barra::-webkit-scrollbar{display:none;}
-.spg-wiz-item{
+.sgp-wiz-barra::-webkit-scrollbar{display:none;}
+.sgp-wiz-item{
   display:flex;flex-direction:column;align-items:center;gap:.25rem;
   flex:1 1 0;min-width:64px;position:relative;padding-top:.15rem;
   font-size:.7rem;color:var(--gris-oscuro);text-align:center;
 }
 /* La línea que une los pasos: se dibuja hacia atrás, así el primero no
    arrastra una línea que sale de la nada. */
-.spg-wiz-item + .spg-wiz-item::before{
+.sgp-wiz-item + .sgp-wiz-item::before{
   content:"";position:absolute;top:calc(.15rem + 13px);right:50%;left:-50%;
   height:2px;background:var(--gris-calido);z-index:0;
 }
-.spg-wiz-item.hecho + .spg-wiz-item::before,
-.spg-wiz-item.activo::before{background:var(--oro);}
-.spg-wiz-bola{
+.sgp-wiz-item.hecho + .sgp-wiz-item::before,
+.sgp-wiz-item.activo::before{background:var(--oro);}
+.sgp-wiz-bola{
   position:relative;z-index:1;
   width:26px;height:26px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   background:var(--blanco);border:2px solid var(--gris-calido);
   font-size:.78rem;font-weight:500;color:var(--gris-oscuro);
 }
-.spg-wiz-item.activo .spg-wiz-bola{
+.sgp-wiz-item.activo .sgp-wiz-bola{
   background:var(--oro);border-color:var(--oro);color:var(--negro);
 }
-.spg-wiz-item.activo .spg-wiz-tit{color:var(--oro-texto);font-weight:500;}
-.spg-wiz-item.hecho .spg-wiz-bola{
+.sgp-wiz-item.activo .sgp-wiz-tit{color:var(--oro-texto);font-weight:500;}
+.sgp-wiz-item.hecho .sgp-wiz-bola{
   background:var(--verde-tinte);border-color:var(--verde);color:var(--verde);
 }
-.spg-wiz-item.hecho{cursor:pointer;}
-.spg-wiz-tit{line-height:1.1;}
+.sgp-wiz-item.hecho{cursor:pointer;}
+.sgp-wiz-tit{line-height:1.1;}
 
-.spg-wiz-nav{
+.sgp-wiz-nav{
   display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;
   margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--gris-calido);
 }
 /* En el celular los dos botones ocupan el ancho: son el único destino
    del pulgar en esa pantalla. */
 @media (max-width:575.98px){
-  .spg-wiz-nav .btn{flex:1 1 auto;justify-content:center;}
-  .spg-wiz-tit{display:none;}
-  .spg-wiz-item{min-width:0;}
+  .sgp-wiz-nav .btn{flex:1 1 auto;justify-content:center;}
+  .sgp-wiz-tit{display:none;}
+  .sgp-wiz-item{min-width:0;}
 }
 
 /* --- El repaso del último paso: «tu cita quedaría así» --- */
-.spg-wiz-repaso{
+.sgp-wiz-repaso{
   border:1px solid var(--gris-calido);border-radius:.6rem;overflow:hidden;
   background:var(--blanco);
 }
-.spg-wiz-repaso-dia{
+.sgp-wiz-repaso-dia{
   display:flex;align-items:center;gap:.5rem;
   padding:.6rem .8rem;border-bottom:1px solid var(--gris-calido);
   font-weight:500;
 }
-.spg-wiz-linea{
+.sgp-wiz-linea{
   display:flex;gap:.7rem;align-items:flex-start;
   padding:.7rem .8rem;border-bottom:1px solid var(--gris-calido);
 }
-.spg-wiz-linea:last-child{border-bottom:0;}
-.spg-wiz-linea-ic{
+.sgp-wiz-linea:last-child{border-bottom:0;}
+.sgp-wiz-linea-ic{
   width:34px;height:34px;border-radius:.5rem;flex:0 0 auto;
   display:flex;align-items:center;justify-content:center;
   background:var(--oro-tinte);color:var(--oro-texto);
 }
-.spg-wiz-linea-cuerpo{flex:1 1 auto;min-width:0;}
-.spg-wiz-linea-nom{font-weight:500;}
-.spg-wiz-linea-quien{font-size:.8rem;color:var(--gris-oscuro);}
-.spg-wiz-linea-val{white-space:nowrap;font-weight:500;}
-.spg-wiz-cifras{
+.sgp-wiz-linea-cuerpo{flex:1 1 auto;min-width:0;}
+.sgp-wiz-linea-nom{font-weight:500;}
+.sgp-wiz-linea-quien{font-size:.8rem;color:var(--gris-oscuro);}
+.sgp-wiz-linea-val{white-space:nowrap;font-weight:500;}
+.sgp-wiz-cifras{
   display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.8rem;
 }
-.spg-wiz-cifra{
+.sgp-wiz-cifra{
   border:1px solid var(--gris-calido);border-radius:.6rem;padding:.6rem .7rem;
   background:var(--blanco);
 }
-.spg-wiz-cifra .r{font-size:.74rem;color:var(--gris-oscuro);display:block;}
-.spg-wiz-cifra .v{font-weight:500;}
+.sgp-wiz-cifra .r{font-size:.74rem;color:var(--gris-oscuro);display:block;}
+.sgp-wiz-cifra .v{font-weight:500;}
 
 /* =====================================================================
    TABLAS CONVERTIDAS EN TARJETAS PARA MÓVIL
-   Patrón genérico: se agrega `spg-tabla-movil` al wrapper y `data-label`
+   Patrón genérico: se agrega `sgp-tabla-movil` al wrapper y `data-label`
    a cada `<td>` de la vista. En ≤575.98 px las filas se vuelven tarjetas
    verticales con pares etiqueta-valor.
 
-   El CSS del portal (`.spg-portal-citas-grid`) fue el prototipo de esto;
+   El CSS del portal (`.sgp-portal-citas-grid`) fue el prototipo de esto;
    ahora se generaliza para las ~40 pantallas de gestión interna.
 
    En escritorio NO cambia nada: todo vive dentro de la media query.
    ===================================================================== */
 @media (max-width:575.98px){
   /* ── Tarjetas: cada <tr> pasa a bloque compacto ── */
-  .spg-tabla-movil .table thead{display:none;}
-  .spg-tabla-movil .table tbody tr{
+  .sgp-tabla-movil .table thead{display:none;}
+  .sgp-tabla-movil .table tbody tr{
     display:block;
     border:1px solid var(--gris-calido);
     border-radius:.45rem;
@@ -2099,7 +2099,7 @@ html,body{max-width:100%;overflow-x:hidden;}
     margin-bottom:.55rem;
     background:var(--blanco);
   }
-  .spg-tabla-movil .table tbody tr:last-child{margin-bottom:0;}
+  .sgp-tabla-movil .table tbody tr:last-child{margin-bottom:0;}
 
   /* ── Cada celda es un par clave-valor compacto ──
 
@@ -2108,7 +2108,7 @@ html,body{max-width:100%;overflow-x:hidden;}
      quedaba alineada a la derecha, con el renglón partido y el rótulo
      flotando a la otra punta: se leía como una tabla contable y no como
      una ficha. Se reportó como «información ambigua y saturada». */
-  .spg-tabla-movil .table tbody td{
+  .sgp-tabla-movil .table tbody td{
     display:flex;
     flex-wrap:wrap;
     justify-content:flex-start;
@@ -2123,7 +2123,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   }
 
   /* ── Etiqueta desde data-label: discreta, no grita ── */
-  .spg-tabla-movil .table tbody td[data-label]:before{
+  .sgp-tabla-movil .table tbody td[data-label]:before{
     content:attr(data-label);
     font-weight:500;
     font-size:.66rem;
@@ -2135,34 +2135,34 @@ html,body{max-width:100%;overflow-x:hidden;}
     min-width:5.4rem;
     opacity:.7;
   }
-  .spg-tabla-movil .table tbody td:not([data-label]):before{display:none;}
+  .sgp-tabla-movil .table tbody td:not([data-label]):before{display:none;}
 
   /* ── El sujeto de la fila: sin rótulo y en negrita ──
      En la agenda es la clienta; en Cobros, quién pagó. Un rótulo «CLIENTE»
      sobre el único nombre grande de la tarjeta no aclara nada, y quitarlo
      es lo que deja leer la tarjeta de un vistazo: hora, quién, y abajo
      el resto con su rótulo. */
-  .spg-tabla-movil .table tbody td.spg-movil-sujeto{
+  .sgp-tabla-movil .table tbody td.sgp-movil-sujeto{
     display:block;
     font-weight:600;
     font-size:.92rem;
     color:var(--negro);
     padding-bottom:.25rem;
   }
-  .spg-tabla-movil .table tbody td.spg-movil-sujeto:before{display:none;}
+  .sgp-tabla-movil .table tbody td.sgp-movil-sujeto:before{display:none;}
 
   /* ── Los botones de sólo ícono dicen qué hacen ──
      En escritorio el `title` sale al pasar el mouse; en el celular no hay
      mouse, así que seis íconos seguidos eran seis adivinanzas. El texto
      sale del mismo `title`, o sea que no se puede desfasar del tooltip. */
-  .spg-tabla-movil .table tbody td.spg-movil-acciones .btn.spg-btn-ico[title]::after{
+  .sgp-tabla-movil .table tbody td.sgp-movil-acciones .btn.sgp-btn-ico[title]::after{
     content:attr(title);
     margin-left:.3rem;
     font-size:.78rem;
   }
 
   /* ── Título de la tarjeta: el dato principal ── */
-  .spg-tabla-movil .table tbody td.spg-movil-titulo{
+  .sgp-tabla-movil .table tbody td.sgp-movil-titulo{
     font-weight:600;
     font-size:.88rem;
     text-align:left;
@@ -2170,10 +2170,10 @@ html,body{max-width:100%;overflow-x:hidden;}
     margin-bottom:.1rem;
     border-bottom:1px solid color-mix(in srgb, var(--gris-calido) 60%, transparent);
   }
-  .spg-tabla-movil .table tbody td.spg-movil-titulo:before{display:none;}
+  .sgp-tabla-movil .table tbody td.sgp-movil-titulo:before{display:none;}
 
   /* ── Acciones: fila de botones al pie ── */
-  .spg-tabla-movil .table tbody td.spg-movil-acciones{
+  .sgp-tabla-movil .table tbody td.sgp-movil-acciones{
     justify-content:flex-start;
     flex-wrap:wrap;
     gap:.3rem;
@@ -2181,64 +2181,64 @@ html,body{max-width:100%;overflow-x:hidden;}
     border-top:1px solid color-mix(in srgb, var(--gris-calido) 60%, transparent);
     margin-top:.15rem;
   }
-  .spg-tabla-movil .table tbody td.spg-movil-acciones:before{display:none;}
+  .sgp-tabla-movil .table tbody td.sgp-movil-acciones:before{display:none;}
 
   /* ── Los badges van uno al lado del otro, sin estirarse ── */
-  .spg-tabla-movil .table tbody td .badge-estado{margin:0;}
+  .sgp-tabla-movil .table tbody td .badge-estado{margin:0;}
 
-  /* ── La fila de detalle (`.spg-fila-detalle`) NO es otra tarjeta ──
+  /* ── La fila de detalle (`.sgp-fila-detalle`) NO es otra tarjeta ──
      Con la regla general de arriba cada `<tr>` pasa a tarjeta, y la fila
      desplegable heredaba borde, relleno y margen: plegada quedaba como una
      caja vacía entre dos citas, y desplegada como una tarjeta suelta sin
      dueño. Acá se pega a la de arriba —sin borde propio, con el cuerpo
      dibujado como pie de la tarjeta— y la tarjeta que la abre pierde sus
      esquinas de abajo sólo mientras está abierta. */
-  .spg-tabla-movil .table tbody tr.spg-fila-detalle{
+  .sgp-tabla-movil .table tbody tr.sgp-fila-detalle{
     border:0;padding:0;margin:0 0 .55rem;background:transparent;border-radius:0;
   }
-  .spg-tabla-movil .table tbody tr.spg-fila-detalle > td{display:block;padding:0 !important;}
-  .spg-tabla-movil .table tbody tr.spg-fila-detalle .spg-det-cuerpo{
+  .sgp-tabla-movil .table tbody tr.sgp-fila-detalle > td{display:block;padding:0 !important;}
+  .sgp-tabla-movil .table tbody tr.sgp-fila-detalle .sgp-det-cuerpo{
     border:1px solid var(--gris-calido);border-top:0;
     border-radius:0 0 .45rem .45rem;padding:.6rem .65rem;
   }
-  .spg-tabla-movil .table tbody tr:has(+ .spg-fila-detalle){margin-bottom:0;}
-  .spg-tabla-movil .table tbody tr:has(.spg-btn-detalle[aria-expanded="true"]){
+  .sgp-tabla-movil .table tbody tr:has(+ .sgp-fila-detalle){margin-bottom:0;}
+  .sgp-tabla-movil .table tbody tr:has(.sgp-btn-detalle[aria-expanded="true"]){
     border-bottom-left-radius:0;border-bottom-right-radius:0;
   }
 
   /* ── Botones con touch target mínimo ── */
-  .spg-tabla-movil .table .btn-sm{min-height:34px;min-width:34px;}
+  .sgp-tabla-movil .table .btn-sm{min-height:34px;min-width:34px;}
 
   /* ── Columnas ocultables en móvil ──
-     Usar .spg-movil-oculto en <th> y <td> de columnas secundarias
+     Usar .sgp-movil-oculto en <th> y <td> de columnas secundarias
      que aportan ruido en una tarjeta de celular. */
-  .spg-movil-oculto{display:none !important;}
-  /* Cuando la tarjeta tiene la clase spg-movil-expandido (inyectada por JS),
+  .sgp-movil-oculto{display:none !important;}
+  /* Cuando la tarjeta tiene la clase sgp-movil-expandido (inyectada por JS),
      volvemos a mostrar los datos ocultos. */
-  .spg-tabla-movil .table tbody tr.spg-movil-expandido td.spg-movil-oculto{display:flex !important;}
+  .sgp-tabla-movil .table tbody tr.sgp-movil-expandido td.sgp-movil-oculto{display:flex !important;}
   /* Animación sutil para que no sea tan brusco el salto de altura */
-  .spg-tabla-movil .table tbody tr { transition: all 0.2s ease-in-out; }
+  .sgp-tabla-movil .table tbody tr { transition: all 0.2s ease-in-out; }
 
   /* ── Filtros apilados, y PLEGADOS hasta que se los pida ──
-     La casilla `.spg-filtros-int` y su etiqueta son la misma pieza que el
+     La casilla `.sgp-filtros-int` y su etiqueta son la misma pieza que el
      cajón de módulos: CSS puro, sin JavaScript. Con un filtro aplicado la
      casilla viene marcada desde el servidor y la barra arranca abierta. */
-  .spg-filtros{flex-direction:column;align-items:stretch;gap:.5rem;}
-  .spg-filtros-plegar{
+  .sgp-filtros{flex-direction:column;align-items:stretch;gap:.5rem;}
+  .sgp-filtros-plegar{
     display:flex;align-items:center;gap:.4rem;
     font-weight:500;font-size:.88rem;color:var(--negro);
     cursor:pointer;user-select:none;margin:0;
   }
-  .spg-filtros-plegar .badge-estado{font-size:.68rem;}
-  .spg-filtros-flecha{margin-left:auto;transition:transform .2s;}
-  .spg-filtros-int:checked ~ .spg-filtros-plegar .spg-filtros-flecha{transform:rotate(180deg);}
-  .spg-filtros-int:not(:checked) ~ .spg-filtro,
-  .spg-filtros-int:not(:checked) ~ .spg-filtro-btns{display:none;}
-  .spg-filtro{flex:1 1 100% !important;min-width:0 !important;}
-  .spg-filtro-btns{flex-wrap:wrap;width:100%;justify-content:stretch;}
-  .spg-filtro-btns .btn{flex:1 1 auto;}
+  .sgp-filtros-plegar .badge-estado{font-size:.68rem;}
+  .sgp-filtros-flecha{margin-left:auto;transition:transform .2s;}
+  .sgp-filtros-int:checked ~ .sgp-filtros-plegar .sgp-filtros-flecha{transform:rotate(180deg);}
+  .sgp-filtros-int:not(:checked) ~ .sgp-filtro,
+  .sgp-filtros-int:not(:checked) ~ .sgp-filtro-btns{display:none;}
+  .sgp-filtro{flex:1 1 100% !important;min-width:0 !important;}
+  .sgp-filtro-btns{flex-wrap:wrap;width:100%;justify-content:stretch;}
+  .sgp-filtro-btns .btn{flex:1 1 auto;}
 
-  /* ── El spg-panel que envuelve tablas necesita menos padding ── */
-  .spg-panel:has(.spg-tabla-movil){padding:.5rem .4rem;}
+  /* ── El sgp-panel que envuelve tablas necesita menos padding ── */
+  .sgp-panel:has(.sgp-tabla-movil){padding:.5rem .4rem;}
 }
 

@@ -3,7 +3,7 @@
 @section('titulo', 'Activar la huella')
 
 @section('formulario')
-    <div class="spg-login" style="text-align:center">
+    <div class="sgp-login" style="text-align:center">
         <div class="logo-big"><i class="bi bi-fingerprint"></i></div>
         <h1 style="font-size:1.15rem;font-weight:500;margin-bottom:.4rem">¿Entrar con tu huella?</h1>
         <p class="text-muted-warm" style="font-size:.88rem;margin-bottom:1.2rem">
@@ -51,19 +51,19 @@
     // Si acá no se puede usar la huella, no tiene sentido ofrecerla — pero hay
     // que decir POR QUÉ: no es lo mismo un equipo sin lector que una conexión
     // sin HTTPS, y confundirlos manda a revisar lo que no es.
-    SPGBio.estado().then(function (e) {
+    SGPBio.estado().then(function (e) {
         if (!e.ok) {
             document.getElementById('btnActivar').disabled = true;
-            decir(SPGBio.motivoTexto(e.motivo));
+            decir(SGPBio.motivoTexto(e.motivo));
         }
     });
 
     document.getElementById('btnActivar').addEventListener('click', function () {
         decir('Seguí las indicaciones del sistema…');
-        SPGBio.register(urls, csrf).then(function (res) {
+        SGPBio.register(urls, csrf).then(function (res) {
             if (!res.ok) { decir(res.error || 'No se pudo activar.'); return; }
             // Se recuerda en ESTE navegador para ofrecerle la huella al entrar
-            SPGBio.recordar(res.username, res.email);
+            SGPBio.recordar(res.username, res.email);
             window.location.href = home;
         }).catch(function (e) {
             decir('No se pudo activar la huella. Podés seguir entrando con tu contraseña.');

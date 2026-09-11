@@ -9,10 +9,10 @@
         sub="Registro de clientes del salón, con sus datos de contacto. Las visitas, los puntos y el nivel se miran en Promociones → Visitas y puntos."
         :accion="['ruta' => 'clientes.form', 't' => 'Nuevo cliente', 'ic' => 'person-plus']" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -30,7 +30,7 @@
                     @forelse ($clientes as $c)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Cliente">
+                            <td class="sgp-movil-titulo" data-label="Cliente">
                                 <a class="link-oro" href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     {{ $c->apellido . ', ' . $c->nombre }}</a>
                             </td>
@@ -42,8 +42,8 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detCli{{ $c->id_cliente }}" aria-expanded="false"
                                         aria-controls="detCli{{ $c->id_cliente }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -82,11 +82,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detCli{{ $c->id_cliente }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Cédula</dt>
                                                 <dd>{{ $c->cedula ?: '—' }}</dd>
@@ -103,7 +103,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-people"></i>
                                     <div class="t">
                                         {{ $f['activos'] ? 'Ningún cliente coincide con esos filtros.' : 'Todavía no hay clientes cargados.' }}

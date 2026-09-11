@@ -15,10 +15,10 @@ define('QA_ROOT', dirname(__DIR__));
 require QA_ROOT . '/vendor/autoload.php';
 
 $app = require QA_ROOT . '/bootstrap/app.php';
-$app->useStoragePath('/tmp/spg-qa-storage');
+$app->useStoragePath('/tmp/sgp-qa-storage');
 
 foreach (['framework/views', 'framework/cache', 'framework/sessions', 'logs', 'app'] as $d) {
-    @mkdir('/tmp/spg-qa-storage/' . $d, 0777, true);
+    @mkdir('/tmp/sgp-qa-storage/' . $d, 0777, true);
 }
 
 $GLOBALS['qa_app'] = $app;

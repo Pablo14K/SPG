@@ -9,8 +9,8 @@
 @section('contenido')
     @php use App\Servicios\Permisos; @endphp
 
-    <div class="spg-page-head no-imprimir">
-        <a class="spg-back" href="{{ route('facturacion.facturas') }}"><i class="bi bi-arrow-left"></i> Facturas</a>
+    <div class="sgp-page-head no-imprimir">
+        <a class="sgp-back" href="{{ route('facturacion.facturas') }}"><i class="bi bi-arrow-left"></i> Facturas</a>
         <h1 class="mt-1">Comprobante {{ $f->nro_comprobante }}</h1>
     </div>
 
@@ -38,9 +38,9 @@
     </div>
 
     {{-- El comprobante. Esto es lo único que sale en papel. --}}
-    <div class="spg-panel spg-comprobante">
+    <div class="sgp-panel sgp-comprobante">
         @if ($f->estado === 'Anulada')
-            <div class="spg-sello-anulada">ANULADA</div>
+            <div class="sgp-sello-anulada">ANULADA</div>
         @endif
 
         {{-- **La misma cabecera que el KuDE**, para que los dos papeles del
@@ -89,7 +89,7 @@
             </div>
         </div>
 
-        <div class="table-responsive spg-tabla-movil mt-3">
+        <div class="table-responsive sgp-tabla-movil mt-3">
             <table class="table table-sm align-middle">
                 <thead>
                     <tr>
@@ -108,7 +108,7 @@
                                 : null;
                         @endphp
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Detalle">
+                            <td class="sgp-movil-titulo" data-label="Detalle">
                                 {{ $l->item }}
                                 @if ($cj)
                                     <span class="badge-estado e-ok">canjeado por {{ entero($cj->puntos) }} puntos</span>
@@ -189,15 +189,15 @@
 
     {{-- Los cobros, incluida la seña, que va atada a la cita y no a la factura --}}
     @if ($cobros)
-        <div class="spg-panel mt-3 no-imprimir">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cobros de este comprobante</h2>
-            <div class="table-responsive spg-tabla-movil">
+        <div class="sgp-panel mt-3 no-imprimir">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Cobros de este comprobante</h2>
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Fecha</th><th>Medio</th><th>Detalle</th><th class="text-end">Monto</th><th>Estado</th></tr></thead>
                     <tbody>
                         @foreach ($cobros as $c)
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha) }}</td>
+                                <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($c->fecha) }}</td>
                                 <td data-label="Medio">
                                     {{ $c->metodo }}
                                     @if ($c->es_sena)<span class="badge-estado e-warn">seña</span>@endif
@@ -226,8 +226,8 @@
     @endif
 
     @if ($notas)
-        <div class="spg-panel mt-3 no-imprimir">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-arrow-counterclockwise"></i> Notas de crédito</h2>
+        <div class="sgp-panel mt-3 no-imprimir">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-arrow-counterclockwise"></i> Notas de crédito</h2>
             @foreach ($notas as $n)
                 <div class="d-flex justify-content-between align-items-center py-1">
                     <div>
@@ -245,8 +245,8 @@
          comprobante es de los que se declaran: el Ticket es interno y no sale
          del salón, que es lo que se emite cuando la clienta no pide factura. --}}
     @if ($sifenAplica)
-        <div class="spg-panel mt-3 no-imprimir">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cloud-arrow-up"></i> Facturación electrónica</h2>
+        <div class="sgp-panel mt-3 no-imprimir">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cloud-arrow-up"></i> Facturación electrónica</h2>
 
             @if ($sifenEstado && $sifenEstado->estado === 'ENVIADO')
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">

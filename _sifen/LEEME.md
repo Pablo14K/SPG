@@ -1,7 +1,7 @@
 # Automatizador SIFEN — copia versionada
 
 **Este proyecto es de terceros y vive acá por una sola razón: el repositorio del
-SPG es el respaldo del TCC**, y hasta la 7.60.0 una parte del sistema que
+SGP es el respaldo del TCC**, y hasta la 7.60.0 una parte del sistema que
 funciona —la que genera el KuDE y manda el comprobante por correo— era una
 carpeta suelta fuera de git. Lo que se tocara ahí no quedaba en ningún historial.
 
@@ -16,7 +16,7 @@ carpeta suelta fuera de git. Lo que se tocara ahí no quedaba en ningún histori
 Para levantarlo hace falta copiar `.env.example` a `.env` y completar esas
 claves. `docker compose up` lo arranca solo: es un servicio más.
 
-## Qué se le tocó desde el SPG
+## Qué se le tocó desde el SGP
 
 La **7.52.0** modificó cuatro archivos para que el comprobante salga a nombre
 del salón y no del archivo de ejemplo:
@@ -26,5 +26,5 @@ del salón y no del archivo de ejemplo:
 - `motor/Service/InvoiceMapper.php` — lleva el nombre y la ciudad del local
 - `motor/Service/KudeService.php` — la paleta del salón y los rótulos
 
-**El SPG sigue hablándole sólo por HTTP.** No se copió código de un lado al
+**El SGP sigue hablándole sólo por HTTP.** No se copió código de un lado al
 otro: esto es una copia para que exista respaldo, no una fusión.

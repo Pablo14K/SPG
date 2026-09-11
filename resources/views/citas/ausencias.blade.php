@@ -7,8 +7,8 @@
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-x"></i> Nueva excepción</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-calendar-x"></i> Nueva excepción</h2>
 
                 <form method="post" action="{{ route('citas.ausencia.guardar') }}">
                     @csrf
@@ -24,8 +24,8 @@
         </div>
 
         <div class="col-lg-7">
-            <div class="spg-panel">
-                <div class="table-responsive spg-tabla-movil">
+            <div class="sgp-panel">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Quién</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
@@ -38,7 +38,7 @@
                                      «borrar» y no habría desde dónde deshacerlo. --}}
                                 {{-- Main row: only essential columns --}}
                                 <tr @class(['text-muted-warm' => ! $a->activo])>
-                                    <td class="spg-movil-titulo" data-label="Quién">{{ $a->quien }}</td>
+                                    <td class="sgp-movil-titulo" data-label="Quién">{{ $a->quien }}</td>
                                     <td data-label="Tipo"><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
                                     <td data-label="Desde">{{ fecha($a->fecha_inicio) }}</td>
                                     <td data-label="Hasta">{{ fecha($a->fecha_fin) }}</td>
@@ -49,8 +49,8 @@
                                             <span class="badge-estado e-muted">De baja</span>
                                         @endif
                                     </td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                        <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                                 data-bs-target="#detAus{{ $a->id_ausencia }}" aria-expanded="false"
                                                 aria-controls="detAus{{ $a->id_ausencia }}">
                                             <i class="bi bi-chevron-down"></i> Detalle
@@ -87,11 +87,11 @@
                                     </td>
                                 </tr>
                                 {{-- Expandable detail row --}}
-                                <tr class="spg-fila-detalle">
+                                <tr class="sgp-fila-detalle">
                                     <td colspan="6">
                                         <div class="collapse" id="detAus{{ $a->id_ausencia }}">
-                                            <div class="spg-det-cuerpo">
-                                                <div class="spg-det-grid">
+                                            <div class="sgp-det-cuerpo">
+                                                <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Dónde</dt>
                                                         <dd>{{ $a->donde }}</dd>
@@ -108,7 +108,7 @@
                             @empty
                                 <tr>
                                     <td colspan="6">
-                                        <div class="spg-vacio">
+                                        <div class="sgp-vacio">
                                             <i class="bi bi-calendar-x"></i>
                                             <div class="t">No hay excepciones cargadas.</div>
                                             <div class="d">Cargá una cuando el salón cierre o alguien se ausente.</div>

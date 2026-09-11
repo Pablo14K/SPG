@@ -44,7 +44,7 @@
 @endphp
 
 @if ($texto !== '')
-    <button type="button" class="spg-ayuda" aria-label="{{ $etiqueta }}"
+    <button type="button" class="sgp-ayuda" aria-label="{{ $etiqueta }}"
             data-bs-toggle="popover" data-bs-trigger="focus"
             data-bs-placement="{{ $attributes->get('lado', 'top') }}"
             @if ($titulo) data-bs-title="{{ $titulo }}" @endif

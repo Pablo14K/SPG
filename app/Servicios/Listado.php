@@ -146,8 +146,8 @@ class Listado
      */
     public static function paginacion(int $total, ?int $porPagina = null, string $param = 'p'): array
     {
-        $porPagina ??= (int) config('spg.lista.por_pagina', 20);
-        $porPagina = max(5, min($porPagina, (int) config('spg.lista.max_por_pagina', 200)));
+        $porPagina ??= (int) config('sgp.lista.por_pagina', 20);
+        $porPagina = max(5, min($porPagina, (int) config('sgp.lista.max_por_pagina', 200)));
         $total = max(0, $total);
         $paginas = max(1, (int) ceil($total / $porPagina));
 

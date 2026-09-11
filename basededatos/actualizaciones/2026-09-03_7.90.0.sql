@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.90.0 — La cuenta de correo que envía los avisos se elige desde
+-- SGP 7.90.0 — La cuenta de correo que envía los avisos se elige desde
 --              el sistema, y sólo la cambia el Administrador.
 -- =====================================================================
 --

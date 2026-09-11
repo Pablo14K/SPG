@@ -166,13 +166,13 @@ $fut = DB::selectOne('SELECT c.id_cita, c.id_cliente, c.fecha_hora FROM cita c
                        WHERE c.id_estado_cita IN (1,2) AND c.fecha_hora BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 20 HOUR)
                        ORDER BY c.fecha_hora LIMIT 1');
 if ($fut) {
-    Illuminate\Support\Facades\Artisan::call('spg:notificaciones');
+    Illuminate\Support\Facades\Artisan::call('sgp:notificaciones');
     $rec = DB::selectOne("SELECT id_notificacion, estado, mensaje FROM notificacion
                            WHERE id_cita=? AND id_tipo_notificacion=1 ORDER BY id_notificacion DESC LIMIT 1", [(int) $fut->id_cita]);
     if ($rec) {
         // Se cancela y se vuelve a correr el cron
         $adm->post('/citas/cancelar', ['id_cita' => (int) $fut->id_cita, 'dia' => $hoy])->seguir();
-        Illuminate\Support\Facades\Artisan::call('spg:notificaciones');
+        Illuminate\Support\Facades\Artisan::call('sgp:notificaciones');
         $rec2 = DB::selectOne('SELECT estado, fecha_envio FROM notificacion WHERE id_notificacion=?', [(int) $rec->id_notificacion]);
         sim_log(['tipo' => 'CIERRE', 'caso' => 'E_RECORDATORIO_CANCELADA', 'cita' => (int) $fut->id_cita,
                  'estado_antes' => $rec->estado, 'estado_despues' => $rec2->estado ?? null, 'mensaje' => $rec->mensaje]);
@@ -199,7 +199,7 @@ if ($conRec) {
         $nueva = date('Y-m-d', strtotime('+6 day')) . ' ' . $jj['horas'][0]['hora'];
     }
     $adm->post('/citas/reprogramar', ['id_cita' => (int) $conRec->id_cita, 'nueva_fecha' => $nueva, 'dia' => $hoy])->seguir();
-    Illuminate\Support\Facades\Artisan::call('spg:notificaciones');
+    Illuminate\Support\Facades\Artisan::call('sgp:notificaciones');
     $cuantos = (int) DB::scalar('SELECT COUNT(*) FROM notificacion WHERE id_cita=? AND id_tipo_notificacion=1', [(int) $conRec->id_cita]);
     $fh = (string) DB::scalar('SELECT fecha_hora FROM cita WHERE id_cita=?', [(int) $conRec->id_cita]);
     $coincide = str_contains((string) $conRec->mensaje, date('d/m/Y \a \l\a\s H:i', strtotime($fh)));

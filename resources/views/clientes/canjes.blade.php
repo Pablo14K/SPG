@@ -5,8 +5,8 @@
 @section('contenido')
     <x-encabezado sub="Qué servicios puede llevarse una clienta a cambio de sus puntos." />
 
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-1"><i class="bi bi-gift"></i> Sumar un servicio a los canjes<x-ayuda>La clienta ve estos servicios en su portal y los canjea sola. Al canjearlo se le descuentan los puntos y le queda guardado para usar en una cita, hasta la fecha que fije la vigencia.</x-ayuda></h2>
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-1"><i class="bi bi-gift"></i> Sumar un servicio a los canjes<x-ayuda>La clienta ve estos servicios en su portal y los canjea sola. Al canjearlo se le descuentan los puntos y le queda guardado para usar en una cita, hasta la fecha que fije la vigencia.</x-ayuda></h2>
 
         <form method="post" action="{{ route('clientes.canje.guardar') }}" class="row g-2 align-items-end">
             @csrf
@@ -71,9 +71,9 @@
     </div>
 
     @if ($rows)
-        <div class="spg-panel mt-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-list-check"></i> Lo que se puede canjear</h2>
-            <div class="table-responsive spg-tabla-movil">
+        <div class="sgp-panel mt-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-list-check"></i> Lo que se puede canjear</h2>
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr>
@@ -86,7 +86,7 @@
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Servicio">
+                                <td class="sgp-movil-titulo" data-label="Servicio">
                                     {{ $r->nombre }}
                                     <div class="text-muted-warm" style="font-size:.8rem">{{ $r->categoria }}</div>
                                 </td>
@@ -114,7 +114,7 @@
                                         <span class="badge-estado e-ok">Se ofrece</span>
                                     @endif
                                 </td>
-                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
                                     <button class="btn btn-sm btn-outline-neutro"
                                             form="fc{{ $r->id_servicio_canjeable }}">Guardar</button>
                                     <button class="btn btn-sm btn-outline-neutro"
@@ -149,9 +149,9 @@
     @endif
 
     @if ($canjeados)
-        <div class="spg-panel mt-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos canjes de las clientas</h2>
-            <div class="table-responsive spg-tabla-movil">
+        <div class="sgp-panel mt-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos canjes de las clientas</h2>
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr><th>Cuándo</th><th>Clienta</th><th>Servicio</th><th>Estado</th><th class="text-end"></th></tr>
@@ -159,7 +159,7 @@
                     <tbody>
                         @foreach ($canjeados as $c)
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Cuándo" style="white-space:nowrap">{{ fecha($c->fecha, 'd/m/Y') }}</td>
+                                <td class="sgp-movil-titulo" data-label="Cuándo" style="white-space:nowrap">{{ fecha($c->fecha, 'd/m/Y') }}</td>
                                 <td data-label="Clienta">{{ $c->cliente }}</td>
                                 <td data-label="Servicio">{{ $c->servicio }}</td>
                                 <td data-label="Estado">
@@ -173,17 +173,17 @@
                                     @endswitch
                                 </td>
                                 <td class="text-end" style="white-space:nowrap">
-                                    <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                             data-bs-target="#detCanjeH{{ $loop->index }}" aria-expanded="false">
                                         <i class="bi bi-chevron-down"></i> Detalle
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="spg-fila-detalle">
+                            <tr class="sgp-fila-detalle">
                                 <td colspan="5">
                                     <div class="collapse" id="detCanjeH{{ $loop->index }}">
-                                        <div class="spg-det-cuerpo">
-                                            <div class="spg-det-grid">
+                                        <div class="sgp-det-cuerpo">
+                                            <div class="sgp-det-grid">
                                                 <div>
                                                     <dt>Puntos</dt>
                                                     <dd>{{ (int) $c->puntos }}</dd>

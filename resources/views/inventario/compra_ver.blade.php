@@ -3,8 +3,8 @@
 @section('titulo', 'Detalle de compra')
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('inventario.compras') }}"><i class="bi bi-arrow-left"></i> Compras</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('inventario.compras') }}"><i class="bi bi-arrow-left"></i> Compras</a>
         <h1 class="mt-1">Compra a {{ $compra->proveedor }}</h1>
         <div class="sub">
             {{ fecha($compra->fecha) }}
@@ -17,7 +17,7 @@
          llega con la mercadería: se recibe el pedido, se paga, y la factura
          aparece días más tarde. Pidiéndolo sólo al registrar la compra, o se
          inventaba uno o quedaba en blanco para siempre. --}}
-    <div class="spg-panel mb-3">
+    <div class="sgp-panel mb-3">
         <form method="post" action="{{ route('inventario.compra.factura') }}"
               class="d-flex gap-2 align-items-end flex-wrap">
             @csrf
@@ -52,29 +52,29 @@
         </form>
     </div>
 
-    <div class="spg-metrics mb-3">
-        <div class="spg-metric">
+    <div class="sgp-metrics mb-3">
+        <div class="sgp-metric">
             <div class="lbl">Total</div>
             <div class="val oro">{{ money($compra->total) }}</div>
         </div>
-        <div class="spg-metric">
+        <div class="sgp-metric">
             <div class="lbl">Saldo</div>
             <div class="val">{{ money($compra->saldo) }}</div>
         </div>
-        <div class="spg-metric">
+        <div class="sgp-metric">
             <div class="lbl">Vencimiento</div>
             <div class="val" style="font-size:1rem">
                 {{ $compra->vencimiento ? fecha($compra->vencimiento, 'd/m/Y') : '—' }}
             </div>
         </div>
-        <div class="spg-metric">
+        <div class="sgp-metric">
             <div class="lbl">Estado</div>
             <div class="val" style="font-size:1rem">{!! estado_badge($compra->estado) !!}</div>
         </div>
     </div>
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -85,7 +85,7 @@
                 <tbody>
                     @foreach ($lineas as $l)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Producto">{{ $l->nombre }}</td>
+                            <td class="sgp-movil-titulo" data-label="Producto">{{ $l->nombre }}</td>
                             <td class="text-muted-warm" data-label="Categoría">{{ $l->categoria }}</td>
                             <td class="text-end" data-label="Cantidad">{{ cant($l->cantidad) }} {{ $l->unidad_medida }}</td>
                             <td class="text-end" data-label="Precio">{{ money($l->precio_unitario) }}</td>
@@ -113,18 +113,18 @@
          **El monto que se muestra es `monto_aplicado`, no el del pago**: un
          pago puede cubrir varias compras, y poner el total acá diría que a
          esta se le aplicó más de lo que se le aplicó. --}}
-    <div class="spg-panel mt-3">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Pagos de esta compra</h2>
+    <div class="sgp-panel mt-3">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-stack"></i> Pagos de esta compra</h2>
 
         @if ($pagos)
-            <div class="table-responsive spg-tabla-movil">
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Fecha</th><th>Medio</th><th>Referencia</th>
                         <th class="text-end">Aplicado</th><th>Estado</th></tr></thead>
                     <tbody>
                         @foreach ($pagos as $p)
                             <tr class="{{ $p->estado === 'Anulado' ? 'text-muted-warm' : '' }}">
-                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
+                                <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
                                 <td data-label="Medio">{{ $p->metodo }}</td>
                                 <td class="text-muted-warm" data-label="Referencia">{{ $p->referencia ?: '—' }}</td>
                                 <td class="text-end" data-label="Aplicado">{{ money($p->monto) }}</td>

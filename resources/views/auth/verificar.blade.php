@@ -3,7 +3,7 @@
 @section('titulo', 'Verificá tu cuenta')
 
 @section('formulario')
-    <form class="spg-login" method="post" action="{{ route('verificar') }}">
+    <form class="sgp-login" method="post" action="{{ route('verificar') }}">
         @csrf
         <div class="logo-big"><i class="bi bi-envelope-check"></i></div>
         <h1 class="text-center" style="font-size:1.15rem;font-weight:500;margin-bottom:.2rem;">

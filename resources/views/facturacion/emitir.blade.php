@@ -89,7 +89,7 @@
         </div>
     @endif
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>
@@ -102,7 +102,7 @@
                              consulta) y marcada: si no, con cien citas en la lista
                              hay que buscar a la clienta a mano justo después de
                              haberla señalado en la pantalla anterior. --}}
-                        <tr @class(['spg-fila-elegida' => $elegida])>
+                        <tr @class(['sgp-fila-elegida' => $elegida])>
                             <td>
                                 {{ fecha($c->fecha_hora) }}
                                 @if ($elegida)
@@ -201,7 +201,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-receipt"></i>
                                     <div class="t">No hay citas atendidas pendientes de facturar.</div>
                                     <div class="d">Registrá primero la atención de una cita.</div>

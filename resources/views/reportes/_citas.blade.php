@@ -12,8 +12,8 @@
 
 <div class="row g-3">
     <div class="col-lg-5">
-        <div class="spg-panel h-100">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-list-check"></i> Cómo terminaron</h2>
+        <div class="sgp-panel h-100">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-list-check"></i> Cómo terminaron</h2>
             {{-- **Todos los estados que existan**, no una lista escrita a mano:
                  así uno nuevo aparece solo. Es el mismo error que tuvo el panel
                  cuando enumeraba estados y se quedó corto al entrar «Atrasada». --}}
@@ -43,8 +43,8 @@
     </div>
 
     <div class="col-lg-7">
-        <div class="spg-panel h-100">
-            <ul class="nav nav-pills spg-subtabs mb-3" role="tablist">
+        <div class="sgp-panel h-100">
+            <ul class="nav nav-pills sgp-subtabs mb-3" role="tablist">
                 <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill"
                     data-bs-target="#demDia" type="button"><i class="bi bi-calendar-week"></i> Por día</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="pill"

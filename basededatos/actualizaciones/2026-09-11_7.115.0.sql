@@ -5,7 +5,7 @@
 --  adentro. **No toca ni una fila**: es un disparador, y un disparador se
 --  reemplaza entero (DROP + CREATE), así que volver a correr esto es inocuo.
 --
---      docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" \
+--      docker exec sgp_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" \
 --        --default-character-set=utf8mb4 peluqueria_bd \
 --        < basededatos/actualizaciones/2026-09-11_7.115.0.sql'
 --
@@ -14,7 +14,7 @@
 --                        no del dueño de la cita
 --
 --  Al terminar, comprobar con:
---      docker exec spg_app php artisan spg:diagnostico --produccion
+--      docker exec sgp_app php artisan sgp:diagnostico --produccion
 --  Tiene que seguir diciendo 17 disparadores, y «Todo en orden».
 -- =========================================================================
 

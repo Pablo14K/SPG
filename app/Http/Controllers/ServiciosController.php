@@ -751,7 +751,7 @@ class ServiciosController extends Controller
     /**
      * Cuántos guaraníes facturados valen un punto.
      *
-     * Vivía en `config/spg.php`, o sea que cambiarlo era editar código y volver
+     * Vivía en `config/sgp.php`, o sea que cambiarlo era editar código y volver
      * a desplegar. Es un número del negocio —lo decide el salón— y va con los
      * descuentos porque contesta la misma pregunta que ellos: **cuánto se le
      * devuelve al cliente por comprar acá.**

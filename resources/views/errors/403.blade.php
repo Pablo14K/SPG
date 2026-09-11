@@ -22,7 +22,7 @@
 </head>
 <body>
 <div class="container" style="max-width:520px;margin-top:12vh">
-    <div class="spg-panel text-center">
+    <div class="sgp-panel text-center">
         <div style="font-size:2.2rem;color:var(--oro)">&#128274;</div>
         <h1 style="font-size:1.15rem;font-weight:500;margin:.6rem 0">Sin permiso</h1>
         <p class="text-muted-warm" style="font-size:.9rem">

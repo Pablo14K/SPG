@@ -52,7 +52,7 @@ final class TxtParser
             $tipo = strtoupper((string)($campos[0] ?? ''));
 
             switch ($tipo) {
-                // EMI: quien emite. Lo manda el SPG desde la 7.52.0.
+                // EMI: quien emite. Lo manda el SGP desde la 7.52.0.
                 //
                 // **Es opcional y esa es la gracia**: sin esta linea se usan
                 // los datos de config/.env, asi que un .txt viejo o de otro
@@ -88,7 +88,7 @@ final class TxtParser
                         'condicion'       => $campos[5] ?? '1',
                         'moneda'          => strtoupper($campos[6] ?? 'PYG'),
                         // D011 iTipTra. Ausente = 1 (venta de mercaderia),
-                        // que es como se comportaba antes de que el SPG lo
+                        // que es como se comportaba antes de que el SGP lo
                         // mandara: un .txt viejo no cambia de significado.
                         'tipo_transaccion' => $campos[7] ?? '',
                     ];

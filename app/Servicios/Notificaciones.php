@@ -146,7 +146,7 @@ class Notificaciones
      *
      * **Va a venir esperando a alguien y la atiende otra persona**, así que
      * enterarse en el sillón es la peor forma. El aviso sale por la misma cola
-     * que los demás —`spg:notificaciones` la despacha— y por eso esto no
+     * que los demás —`sgp:notificaciones` la despacha— y por eso esto no
      * bloquea el cambio: si el correo falla, la cita ya está reasignada.
      *
      * Devuelve `false` cuando esa clienta no tiene correo cargado: no es un
@@ -442,7 +442,7 @@ class Notificaciones
      * hace la transferencia — que es justo lo que la pantalla le promete.
      *
      * Pero un sillón bloqueado por alguien que nunca pagó tampoco puede quedar
-     * así para siempre. Pasado `spg.agenda.sena_horas` sin confirmar, la cita
+     * así para siempre. Pasado `sgp.agenda.sena_horas` sin confirmar, la cita
      * se cancela y se le avisa, con el motivo escrito: no desaparece en
      * silencio, que es lo que haría que la clienta se presentara igual.
      *
@@ -452,7 +452,7 @@ class Notificaciones
      */
     public static function cancelarSenasVencidas(): int
     {
-        $horas = (int) config('spg.agenda.sena_horas', 24);
+        $horas = (int) config('sgp.agenda.sena_horas', 24);
         if ($horas <= 0) {
             return 0;   // el salón apagó el plazo
         }
@@ -519,7 +519,7 @@ class Notificaciones
      * mande desde la web, pero acá se manda desde **dos** lados que no son lo
      * mismo:
      *
-     *   · `spg:notificaciones`, que corre en el contenedor del planificador y
+     *   · `sgp:notificaciones`, que corre en el contenedor del planificador y
      *     **no tiene petición ninguna**. Ahí Laravel cae en `app.url` — bien si
      *     está cargada, y en `http://localhost` si no;
      *   · una acción de pantalla —dar de baja a alguien, cargar una ausencia—,
@@ -546,7 +546,7 @@ class Notificaciones
      * correo sale con un enlace que no lleva a ningún lado**. No se puede
      * inventar la dirección buena, así que al menos queda registrado: es la
      * diferencia entre un correo roto que alguien reporta dentro de un mes y uno
-     * que dejó una línea en el log el mismo día. `spg:diagnostico` lo comprueba
+     * que dejó una línea en el log el mismo día. `sgp:diagnostico` lo comprueba
      * antes, que es donde de verdad hay que enterarse.
      */
     private static function base(): string
@@ -554,7 +554,7 @@ class Notificaciones
         $url = rtrim((string) config('app.url'), '/');
 
         if ($url === '' || str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
-            Log::warning('SPG: APP_URL apunta a «' . ($url ?: 'nada')
+            Log::warning('SGP: APP_URL apunta a «' . ($url ?: 'nada')
                 . '», así que los enlaces de los correos no van a servir fuera de esta máquina.');
         }
 

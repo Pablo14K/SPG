@@ -1,4 +1,4 @@
-# SPG — Sistema de Gestión para Peluquería
+# SGP — Sistema de Gestión para Peluquería
 
 Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingeniería en
 Informática. **Laravel 13 + MariaDB.**
@@ -66,7 +66,7 @@ http://localhost:8000 · `admin` / `admin123` · `cliente` / `cliente123`
 | `docker compose down` | apaga, **conservando** las bases |
 | `docker compose down -v` | apaga y **borra** las bases, para empezar de cero |
 | `docker compose exec app php artisan test` | corre las 160 pruebas |
-| `docker compose exec app php artisan spg:diagnostico` | la revisión del entorno |
+| `docker compose exec app php artisan sgp:diagnostico` | la revisión del entorno |
 | `docker compose exec bd mysql -uroot -proot peluqueria_bd` | entrar a la base |
 
 ### El Automatizador SIFEN
@@ -78,7 +78,7 @@ Es un proyecto aparte y vive fuera de esta carpeta, así que el compose lo busca
 hermana** (`../Sifen_version/sifen_final/sifen_automatizador`). Si lo tenés en otro lado:
 
 ```bash
-SPG_SIFEN_PATH=/ruta/a/sifen_automatizador docker compose up
+SGP_SIFEN_PATH=/ruta/a/sifen_automatizador docker compose up
 ```
 
 **Si no lo tenés, no pasa nada**: ese contenedor avisa y se apaga solo, y el resto del sistema
@@ -109,7 +109,7 @@ que hayas cargado a mano.
 Para saber si es eso antes de tocar nada:
 
 ```bash
-docker compose exec app php artisan spg:diagnostico
+docker compose exec app php artisan sgp:diagnostico
 ```
 
 Compara la base contra `basededatos/peluqueria_bd(base).sql` y te dice qué falta.
@@ -126,7 +126,7 @@ Compara la base contra `basededatos/peluqueria_bd(base).sql` y te dice qué falt
 
 > Son esos dos nombres y no hay un tercero: **`peluqueria_bd_test` no existe**. Es el error
 > fácil, y engaña — la pantalla de ingreso sigue contestando 200 porque no toca la base hasta
-> que apretás Ingresar, y recién ahí sale «Unknown database». `spg:diagnostico` lo dice en la
+> que apretás Ingresar, y recién ahí sale «Unknown database». `sgp:diagnostico` lo dice en la
 > primera línea.
 
 Se cambia esa línea y se reinicia:
@@ -164,7 +164,7 @@ cp docker/php/secretos.env.example docker/php/secretos.env   # y completar
 
 Sin ese archivo el sistema levanta igual, sólo que **sin correo** — o sea sin código de
 verificación, sin recuperación de contraseña, sin segundo factor y sin recordatorios.
-`docker compose exec app php artisan spg:diagnostico` lo dice en su sección de correo, que
+`docker compose exec app php artisan sgp:diagnostico` lo dice en su sección de correo, que
 existe justamente porque un correo apagado no se nota: la pantalla sigue diciendo «te enviamos
 un código».
 
@@ -172,8 +172,8 @@ un código».
 
 ```bash
 docker compose exec app php artisan test
-docker compose exec app php artisan spg:diagnostico
-docker compose exec app php artisan spg:pendientes
+docker compose exec app php artisan sgp:diagnostico
+docker compose exec app php artisan sgp:pendientes
 docker compose exec -T bd mysql -uroot -proot peluqueria_test
 ```
 
@@ -216,7 +216,7 @@ app/
     Notificaciones.php     la cola de avisos por correo
     WebAuthn.php           ingreso con huella, en PHP puro (CBOR, COSE→PEM, OpenSSL)
   Http/Controllers/        un controlador por módulo
-  Console/Commands/        spg:diagnostico · spg:preparar-sql · spg:notificaciones
+  Console/Commands/        sgp:diagnostico · sgp:preparar-sql · sgp:notificaciones
 resources/views/           Blade, con el mismo Bootstrap y la paleta oro champagne
 tests/Feature/             las 160 pruebas
 DESPLIEGUE.md              cómo publicarlo en el VPS

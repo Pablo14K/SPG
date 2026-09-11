@@ -3,13 +3,13 @@
 @section('titulo', 'Mi portal')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Hola, {{ session('nombre') }}<x-ayuda lado="bottom">Desde acá reservás una cita, mirás las que tenés y nos contás cómo te fue.</x-ayuda></h1>
     </div>
 
     @if ($proxima)
-        <div class="spg-panel mb-3" style="border-left:3px solid var(--oro)">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Tu próxima cita</h2>
+        <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Tu próxima cita</h2>
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
                     <div style="font-size:1.1rem">
@@ -47,35 +47,35 @@
             </div>
         </div>
     @else
-        <div class="spg-panel mb-3 text-center">
+        <div class="sgp-panel mb-3 text-center">
             <p class="mb-2">No tenés ninguna cita reservada.</p>
             <a class="btn btn-oro" href="{{ route('portal.reservar') }}">
                 <i class="bi bi-calendar-plus"></i> Reservar una cita</a>
         </div>
     @endif
 
-    <div class="spg-cards">
-        <a class="spg-card" href="{{ route('portal.reservar') }}">
+    <div class="sgp-cards">
+        <a class="sgp-card" href="{{ route('portal.reservar') }}">
             <div class="ic"><i class="bi bi-calendar-plus"></i></div>
             <h3>Reservar cita</h3>
             <p>Elegí servicio, profesional y horario</p>
         </a>
-        <a class="spg-card" href="{{ route('portal.citas') }}">
+        <a class="sgp-card" href="{{ route('portal.citas') }}">
             <div class="ic"><i class="bi bi-calendar-week"></i></div>
             <h3>Mis citas</h3>
             <p>Próximas y anteriores</p>
         </a>
-        <a class="spg-card" href="{{ route('portal.promociones') }}">
+        <a class="sgp-card" href="{{ route('portal.promociones') }}">
             <div class="ic"><i class="bi bi-percent"></i></div>
             <h3>Promociones</h3>
             <p>Tu nivel y los descuentos vigentes</p>
         </a>
-        <a class="spg-card" href="{{ route('portal.valoraciones') }}">
+        <a class="sgp-card" href="{{ route('portal.valoraciones') }}">
             <div class="ic"><i class="bi bi-star"></i></div>
             <h3>Valoraciones</h3>
             <p>Contanos cómo te fue</p>
         </a>
-        <a class="spg-card" href="{{ route('portal.preferencias') }}">
+        <a class="sgp-card" href="{{ route('portal.preferencias') }}">
             <div class="ic"><i class="bi bi-bell"></i></div>
             <h3>Mis recordatorios</h3>
             <p>Con cuánta anticipación te avisamos</p>

@@ -3,8 +3,8 @@
 @section('titulo', 'Historial del cliente')
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('clientes.lista') }}"><i class="bi bi-arrow-left"></i> Clientes</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('clientes.lista') }}"><i class="bi bi-arrow-left"></i> Clientes</a>
         <h1 class="mt-1">{{ $c->nombre }} {{ $c->apellido }}</h1>
         <div class="sub">{{ $c->telefono ?: 'Sin teléfono' }} · {{ $c->email ?: 'Sin email' }}</div>
     </div>
@@ -20,20 +20,20 @@
     @endif
 
     @if ($fid)
-        <div class="spg-metrics">
-            <div class="spg-metric">
+        <div class="sgp-metrics">
+            <div class="sgp-metric">
                 <div class="lbl">Nivel</div>
                 <div class="val oro">{{ $fid->nivel ?: 'Bronce' }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Visitas</div>
                 <div class="val">{{ (int) $fid->visitas }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Puntos</div>
                 <div class="val">{{ (int) $fid->puntos }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Descuento</div>
                 <div class="val" style="font-size:1rem">{{ $fid->descuento_del_nivel ?: '—' }}</div>
             </div>
@@ -52,28 +52,28 @@
          mes cualquiera diría que su servicio favorito es el único que se hizo
          ese mes. Es el perfil de la persona, no el total de lo filtrado. --}}
     @if ($perfil && (int) $perfil->visitas > 0)
-        <div class="spg-panel mt-2">
+        <div class="sgp-panel mt-2">
             <h2 style="font-size:1rem;font-weight:500;margin-bottom:.8rem;">
                 <i class="bi bi-person-badge"></i> Su perfil
                 <x-ayuda>Sale de todo su historial, no de lo que estés filtrando abajo.</x-ayuda>
             </h2>
 
-            <div class="spg-metrics mb-3">
-                <div class="spg-metric">
+            <div class="sgp-metrics mb-3">
+                <div class="sgp-metric">
                     <div class="lbl">Visitas</div>
                     <div class="val">{{ (int) $perfil->visitas }}</div>
                 </div>
-                <div class="spg-metric">
+                <div class="sgp-metric">
                     <div class="lbl">Servicios</div>
                     <div class="val">{{ (int) $perfil->servicios }}</div>
                 </div>
-                <div class="spg-metric">
+                <div class="sgp-metric">
                     {{-- **Facturado, no cobrado.** Sale de los precios del historial:
                          son dos números distintos y el rótulo tiene que decir cuál. --}}
                     <div class="lbl">Facturado</div>
                     <div class="val" style="font-size:1rem">{{ money($perfil->gastado ?? 0) }}</div>
                 </div>
-                <div class="spg-metric">
+                <div class="sgp-metric">
                     <div class="lbl">Viene cada</div>
                     <div class="val" style="font-size:1rem">
                         @if ($perfil->cada_dias)
@@ -85,11 +85,11 @@
                         @endif
                     </div>
                 </div>
-                <div class="spg-metric">
+                <div class="sgp-metric">
                     <div class="lbl">Última</div>
                     <div class="val" style="font-size:1rem">{{ fecha($perfil->ultima, 'd/m/Y') }}</div>
                 </div>
-                <div class="spg-metric">
+                <div class="sgp-metric">
                     <div class="lbl">Cliente desde</div>
                     <div class="val" style="font-size:1rem">{{ fecha($perfil->primera, 'd/m/Y') }}</div>
                 </div>
@@ -100,14 +100,14 @@
                     <div class="form-label mb-1">Lo que más pide</div>
                     @php $topSrv = max(1, (int) ($favoritos[0]->veces ?? 1)); @endphp
                     @foreach ($favoritos as $sv)
-                        <div class="spg-graf-fila">
-                            <div class="spg-graf-rot" style="width:9rem">{{ $sv->servicio }}</div>
+                        <div class="sgp-graf-fila">
+                            <div class="sgp-graf-rot" style="width:9rem">{{ $sv->servicio }}</div>
                             {{-- La barra es un `width` en por ciento sobre dos divs: no
                                  entra ninguna librería, la misma decisión que Reportes. --}}
-                            <div class="spg-graf-pista">
-                                <div class="spg-graf-barra" style="width:{{ round((int) $sv->veces / $topSrv * 100) }}%"></div>
+                            <div class="sgp-graf-pista">
+                                <div class="sgp-graf-barra" style="width:{{ round((int) $sv->veces / $topSrv * 100) }}%"></div>
                             </div>
-                            <div class="spg-graf-val spg-graf-val-ancho">
+                            <div class="sgp-graf-val sgp-graf-val-ancho">
                                 {{ (int) $sv->veces }}×
                                 <span class="text-muted-warm">· {{ money($sv->gastado) }}</span>
                             </div>
@@ -124,12 +124,12 @@
                         $topDia = max(1, (int) ($porDia[0]->visitas ?? 1));
                     @endphp
                     @foreach (array_slice($porDia, 0, 4) as $d)
-                        <div class="spg-graf-fila">
-                            <div class="spg-graf-rot" style="width:4.6rem">{{ $nomDia[(int) $d->dia] ?? '—' }}</div>
-                            <div class="spg-graf-pista">
-                                <div class="spg-graf-barra" style="width:{{ round((int) $d->visitas / $topDia * 100) }}%"></div>
+                        <div class="sgp-graf-fila">
+                            <div class="sgp-graf-rot" style="width:4.6rem">{{ $nomDia[(int) $d->dia] ?? '—' }}</div>
+                            <div class="sgp-graf-pista">
+                                <div class="sgp-graf-barra" style="width:{{ round((int) $d->visitas / $topDia * 100) }}%"></div>
                             </div>
-                            <div class="spg-graf-val">{{ (int) $d->visitas }}</div>
+                            <div class="sgp-graf-val">{{ (int) $d->visitas }}</div>
                         </div>
                     @endforeach
                 </div>
@@ -138,12 +138,12 @@
                     <div class="form-label mb-1">A qué hora</div>
                     @php $topHora = max(1, (int) ($porHora[0]->visitas ?? 1)); @endphp
                     @foreach (array_slice($porHora, 0, 4) as $h)
-                        <div class="spg-graf-fila">
-                            <div class="spg-graf-rot" style="width:3.2rem">{{ sprintf('%02d:00', (int) $h->hora) }}</div>
-                            <div class="spg-graf-pista">
-                                <div class="spg-graf-barra" style="width:{{ round((int) $h->visitas / $topHora * 100) }}%"></div>
+                        <div class="sgp-graf-fila">
+                            <div class="sgp-graf-rot" style="width:3.2rem">{{ sprintf('%02d:00', (int) $h->hora) }}</div>
+                            <div class="sgp-graf-pista">
+                                <div class="sgp-graf-barra" style="width:{{ round((int) $h->visitas / $topHora * 100) }}%"></div>
                             </div>
-                            <div class="spg-graf-val">{{ (int) $h->visitas }}</div>
+                            <div class="sgp-graf-val">{{ (int) $h->visitas }}</div>
                         </div>
                     @endforeach
                 </div>
@@ -164,9 +164,9 @@
 
     <x-filtros :f="$f" />
 
-    <div class="spg-panel mt-2">
+    <div class="sgp-panel mt-2">
         <h2 style="font-size:1rem;font-weight:500;margin-bottom:.8rem;">Historial de servicios</h2>
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Fecha</th><th>Servicio</th><th class="text-end"></th></tr>
@@ -174,20 +174,20 @@
                 <tbody>
                     @forelse ($hist as $h)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($h->fecha_hora) }}</td>
+                            <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($h->fecha_hora) }}</td>
                             <td data-label="Servicio">{{ $h->servicio }}</td>
                             <td class="text-end" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detHist{{ $loop->index }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="3">
                                 <div class="collapse" id="detHist{{ $loop->index }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Profesional</dt>
                                                 <dd>{{ $h->profesional }}</dd>

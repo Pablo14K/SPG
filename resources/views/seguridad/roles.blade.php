@@ -31,12 +31,12 @@
                 $editable = (int) $rol->es_personal === 1 && ! $esAdmin;
             @endphp
 
-            <div class="spg-panel mb-3">
+            <div class="sgp-panel mb-3">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div>
                         <h2 style="font-size:1rem;font-weight:500;margin:0">
                             {{ $rol->nombre }}
-                            @if ($esAdmin)<span class="spg-rol-chip">superadministrador</span>@endif
+                            @if ($esAdmin)<span class="sgp-rol-chip">superadministrador</span>@endif
                             @if (! $rol->es_personal)<span class="badge-estado e-muted">portal</span>@endif
                             @if (! $rol->activo)<span class="badge-estado e-no">inactivo</span>@endif
                         </h2>
@@ -139,8 +139,8 @@
 
     <div class="row g-3">
         <div class="col-lg-6">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> Rol nuevo</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-plus-lg"></i> Rol nuevo</h2>
                 <form method="post" action="{{ route('seguridad.rol.crear') }}">
                     @csrf
                     <div class="mb-2">
@@ -165,8 +165,8 @@
         </div>
 
         <div class="col-lg-6">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-pencil"></i> Roles del salón<x-ayuda>Acá se le cambia el nombre y la descripción a un rol. No se puede eliminar uno que tenga usuarios, ni el Administrador ni el Cliente: esos dos los referencia el código.</x-ayuda></h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-pencil"></i> Roles del salón<x-ayuda>Acá se le cambia el nombre y la descripción a un rol. No se puede eliminar uno que tenga usuarios, ni el Administrador ni el Cliente: esos dos los referencia el código.</x-ayuda></h2>
                 @foreach ($roles as $rol)
                     <div class="d-flex justify-content-between align-items-center py-1">
                         <span>{{ $rol->nombre }}

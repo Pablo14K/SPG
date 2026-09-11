@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Facturación electrónica: el puente con el Automatizador SIFEN.
  *
- * El SPG **no habla con la DNIT ni firma nada**. Toma un comprobante que ya
+ * El SGP **no habla con la DNIT ni firma nada**. Toma un comprobante que ya
  * emitió y numeró —con su timbrado y su correlativo, como siempre—, lo escribe
  * en el formato de texto que el Automatizador entiende y se lo manda. Lo que
  * vuelve es el CDC, que es el número con el que la DNIT reconoce el documento,
@@ -22,7 +22,7 @@ use Throwable;
  * TRES REGLAS QUE NO HAY QUE PERDER:
  *
  *  1. **Emitir y enviar son dos cosas separadas.** La factura se emite en el
- *     SPG y queda válida aunque el Automatizador esté caído; el envío es un
+ *     SGP y queda válida aunque el Automatizador esté caído; el envío es un
  *     paso posterior que se puede repetir. Si emitir dependiera de que un
  *     servicio externo conteste, un corte de internet dejaría al salón sin
  *     poder cobrar.
@@ -184,7 +184,7 @@ class Sifen
      * Son líneas separadas por `|`: una FAC con la cabecera, una CLI con el
      * cliente y una ITM por renglón. El total NO se escribe — lo calcula el
      * Automatizador desde los ítems, y el precio va con el IVA INCLUIDO, que
-     * es como lo guarda el SPG.
+     * es como lo guarda el SGP.
      *
      * Se devuelve el texto para poder mirarlo antes de mandarlo: es la forma
      * de saber qué se envió cuando la DNIT rechaza algo.
@@ -341,7 +341,7 @@ class Sifen
         // total del que la clienta pagó.**
         //
         // El Automatizador calcula el total sumando `cantidad × precio` de cada
-        // ITM —no se le manda—, y el descuento del SPG no vive en el renglón:
+        // ITM —no se le manda—, y el descuento del SGP no vive en el renglón:
         // `factura_descuento` lo guarda por factura, que es lo correcto para el
         // modelo (una promoción o el nivel se aplican a la venta, no a una
         // línea). Mandando el precio de lista, el KuDE y el XML declaraban el
@@ -516,7 +516,7 @@ class Sifen
     /**
      * Cabeceras de toda petición al Automatizador.
      *
-     * **`X-SPG-Correo: no` es lo que garantiza que haya UN solo remitente.**
+     * **`X-SGP-Correo: no` es lo que garantiza que haya UN solo remitente.**
      * La cuenta que manda los correos del salón se carga en «Seguridad →
      * Correo del sistema», y de ahí salen el código de verificación, la
      * recuperación, el segundo factor, los recordatorios **y el comprobante
@@ -527,14 +527,14 @@ class Sifen
      * Hasta la 7.105.0 su silencio dependía de que ese `.env` dejara
      * `MAIL_FROM_EMAIL` vacío, o sea de que nadie lo completara de buena fe.
      * Eso no es una garantía: es una convención escrita en un archivo de
-     * ejemplo. Ahora **lo decide el SPG en cada envío**, así que la clienta no
+     * ejemplo. Ahora **lo decide el SGP en cada envío**, así que la clienta no
      * puede recibir el comprobante desde una dirección que el salón no cargó.
      */
     private static function cabeceras(): array
     {
         return [
             'X-API-Token' => (string) config('sifen.token'),
-            'X-SPG-Correo' => 'no',
+            'X-SGP-Correo' => 'no',
         ];
     }
 
@@ -614,9 +614,9 @@ class Sifen
     /**
      * Qué contar sobre el correo del comprobante.
      *
-     * **El que le manda el comprobante a la clienta es el SPG, no el
+     * **El que le manda el comprobante a la clienta es el SGP, no el
      * Automatizador**, y eso es una decisión, no un accidente. Las dos cosas
-     * saben mandarlo —el Automatizador adjunta el KuDE y el XML, y el SPG
+     * saben mandarlo —el Automatizador adjunta el KuDE y el XML, y el SGP
      * también, desde la copia local que guarda al declarar— pero cada uno lo
      * haría **con su propia cuenta de correo**: la del salón, que el
      * Administrador cambia desde «Seguridad → Correo del sistema», y la del
@@ -624,11 +624,11 @@ class Sifen
      *
      * Con los dos prendidos la clienta recibe **el mismo comprobante dos veces,
      * desde dos direcciones distintas**, y cambiar la cuenta en la pantalla
-     * arregla sólo la mitad. Por eso hay un único remitente: el SPG, que es el
+     * arregla sólo la mitad. Por eso hay un único remitente: el SGP, que es el
      * que tiene la cuenta configurable.
      *
-     * El Automatizador se calla porque **el SPG se lo dice en cada envío**
-     * (`X-SPG-Correo: no`, ver `cabeceras()`), y además su `construirMail()`
+     * El Automatizador se calla porque **el SGP se lo dice en cada envío**
+     * (`X-SGP-Correo: no`, ver `cabeceras()`), y además su `construirMail()`
      * devuelve null con `MAIL_FROM_EMAIL` vacío. Son dos candados y el que
      * manda es el primero: el segundo vive en un archivo que nadie administra
      * desde el sistema.
@@ -640,10 +640,10 @@ class Sifen
     private static function avisoCorreo(string $correo, ?bool $enviado): string
     {
         if ($enviado === true) {
-            Log::warning('SPG: el Automatizador SIFEN también mandó el comprobante por correo, '
-                . 'con SU cuenta, ignorando la cabecera X-SPG-Correo. Del otro lado hay una '
+            Log::warning('SGP: el Automatizador SIFEN también mandó el comprobante por correo, '
+                . 'con SU cuenta, ignorando la cabecera X-SGP-Correo. Del otro lado hay una '
                 . 'versión anterior a la 7.105.0: actualizala, o dejá MAIL_FROM_EMAIL vacío en '
-                . 'su .env. El que manda es el SPG, con la cuenta de «Seguridad → Correo del '
+                . 'su .env. El que manda es el SGP, con la cuenta de «Seguridad → Correo del '
                 . 'sistema».');
 
             return 'Ojo: el Automatizador también le mandó el comprobante, con otra cuenta. '

@@ -299,14 +299,14 @@ class Agenda
             // agendaba igual, porque sin turnos cargados la base tampoco los
             // bloquea. Sigue siendo la red para el salón que todavía no usa
             // turnos: lo que cambia es que ahora se puede ajustar sin tocar
-            // código, en `config/spg.php`.
+            // código, en `config/sgp.php`.
             $turnos = [[
-                (string) config('spg.agenda.abre', '08:00:00'),
-                (string) config('spg.agenda.cierra', '20:00:00'),
+                (string) config('sgp.agenda.abre', '08:00:00'),
+                (string) config('sgp.agenda.cierra', '20:00:00'),
             ]];
         }
 
-        $paso = (int) config('spg.agenda.paso_min', 15);
+        $paso = (int) config('sgp.agenda.paso_min', 15);
         $libres = [];
         $ahora = time();
 
@@ -442,7 +442,7 @@ class Agenda
      */
     private static function gridDelDia(array $datos, string $fecha): array
     {
-        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $paso = (int) config('sgp.agenda.paso_min', 15) * 60;
         $ahora = time();
         $grid = [];
         foreach ($datos as $d) {
@@ -475,8 +475,8 @@ class Agenda
                 return [];
             }
             $turnos = [[
-                (string) config('spg.agenda.abre', '08:00:00'),
-                (string) config('spg.agenda.cierra', '20:00:00'),
+                (string) config('sgp.agenda.abre', '08:00:00'),
+                (string) config('sgp.agenda.cierra', '20:00:00'),
             ]];
         }
         $out = [];
@@ -959,7 +959,7 @@ class Agenda
     public static function franjasDe(int $idUsuario, string $fecha, int $duracion, ?array $datos = null,
                                      ?int $idSucursal = null): array
     {
-        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $paso = (int) config('sgp.agenda.paso_min', 15) * 60;
         $out = [];
         $ini = null;
         $ult = null;
@@ -1154,7 +1154,7 @@ class Agenda
         }
         $info = self::infoServicios($sids);
         $nombreSrv = fn (array $ids) => self::enumerar(array_map(fn ($sid) => $info[$sid]['nombre'] ?? '', $ids));
-        $dias = (int) config('spg.agenda.dias_vista', 60);
+        $dias = (int) config('sgp.agenda.dias_vista', 60);
         $hoy = date('Y-m-d');
 
         $lineas = [];
@@ -1468,7 +1468,7 @@ class Agenda
         if ($duracion <= 0) {
             return [];
         }
-        $dias = max(1, min($dias, (int) config('spg.agenda.dias_vista', 60)));
+        $dias = max(1, min($dias, (int) config('sgp.agenda.dias_vista', 60)));
         $d = strtotime($desde);
         $hasta = date('Y-m-d', strtotime('+' . ($dias - 1) . ' day', $d));
 

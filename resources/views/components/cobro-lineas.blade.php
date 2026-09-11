@@ -4,7 +4,7 @@
     así que cobrar desde la agenda —que es como se cobra en el mostrador— daba
     una sola línea, en efectivo, sin campos de tarjeta ni de banco y sin vuelto.
 
-    Las clases `spg-cobro-*` NO son decorativas: son las que busca `app.js` para
+    Las clases `sgp-cobro-*` NO son decorativas: son las que busca `app.js` para
     clonar el molde, mostrar el detalle del medio elegido y calcular el vuelto.
     Si se renombran, el modal deja de armarse y no avisa.
 
@@ -15,7 +15,7 @@
     · $cajas   las cajas abiertas del local, para elegir a cuál entra la plata
 --}}
 @php $cajasAbiertas = $cajas ?? \App\Servicios\Caja::abiertasDe(); @endphp
-                            <div class="spg-cobro" data-saldo="{{ (float) $max }}"
+                            <div class="sgp-cobro" data-saldo="{{ (float) $max }}"
                                      data-sugerido="{{ (float) ($sugerido ?? $max) }}">
                                 {{-- **A qué caja entra la plata.** El bloque es el
                                      mismo que usan los pagos: escrito dos veces, uno
@@ -26,16 +26,16 @@
                                     'rotulo' => '¿A qué caja entra?',
                                 ])
 
-                                <div class="spg-cobro-lineas"></div>
+                                <div class="sgp-cobro-lineas"></div>
 
                                 {{-- El aire de arriba no es adorno: las líneas se van
                                      apilando y sin separación el botón queda pegado al
                                      último campo, como si fuera parte de esa línea. --}}
-                                <button type="button" class="btn btn-sm btn-rapido spg-cobro-add mt-3">
+                                <button type="button" class="btn btn-sm btn-rapido sgp-cobro-add mt-3">
                                     <i class="bi bi-plus-lg"></i> Otro medio de pago
                                 </button>
 
-                                <div class="spg-cobro-total mt-3"></div>
+                                <div class="sgp-cobro-total mt-3"></div>
 
                                 {{-- **El vuelto es del EFECTIVO, no del cobro entero.**
                                      Se compara contra lo que se paga en billetes: en un
@@ -44,7 +44,7 @@
                                      sigue siendo el monto de la línea—: entra un billete
                                      de 100.000 por un cobro de 30.000 y en el cajón
                                      quedan 30.000, no 100.000. --}}
-                                <div class="mt-3 spg-vuelto-bloque"
+                                <div class="mt-3 sgp-vuelto-bloque"
                                      style="border-top:1px solid var(--gris-calido);padding-top:.7rem">
                                     <label class="form-label mb-1" for="vuelto{{ $uid }}">
                                         <i class="bi bi-cash"></i> Vuelto <span class="text-muted-warm">(sólo la parte en efectivo)</span>
@@ -53,23 +53,23 @@
                                         ¿Con cuánto billete paga?
                                     </div>
                                     <div class="input-group input-group-sm" style="max-width:260px">
-                                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
-                                        <input class="form-control input-miles spg-vuelto-recibido"
+                                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
+                                        <input class="form-control input-miles sgp-vuelto-recibido"
                                                id="vuelto{{ $uid }}" data-min="0" autocomplete="off">
                                     </div>
-                                    <div class="spg-vuelto-res mt-2"></div>
+                                    <div class="sgp-vuelto-res mt-2"></div>
                                 </div>
                             </div>
 
-                            {{-- El molde de una línea. Va como hermano de `.spg-cobro`,
+                            {{-- El molde de una línea. Va como hermano de `.sgp-cobro`,
                                  que es donde lo busca el JS. Al ser un <template> no se
                                  dibuja ni se envía: sólo se clona. --}}
-                            <template class="spg-cobro-molde">
-                                <div class="spg-cobro-linea border-top pt-2 mt-2">
+                            <template class="sgp-cobro-molde">
+                                <div class="sgp-cobro-linea border-top pt-2 mt-2">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
                                             <label class="form-label">Medio de pago</label>
-                                            <select class="form-select form-select-sm spg-cobro-metodo" name="metodo[]">
+                                            <select class="form-select form-select-sm sgp-cobro-metodo" name="metodo[]">
                                                 <option value="0" data-tipo="">— ninguno —</option>
                                                 @foreach ($metodos as $m)
                                                     <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
@@ -80,8 +80,8 @@
                                         <div class="col-md-3">
                                             <label class="form-label">Monto</label>
                                             <div class="input-group input-group-sm">
-                                                <span class="input-group-text">{{ config('spg.moneda') }}</span>
-                                                <input class="form-control input-miles spg-cobro-monto" name="monto[]" data-min="0">
+                                                <span class="input-group-text">{{ config('sgp.moneda') }}</span>
+                                                <input class="form-control input-miles sgp-cobro-monto" name="monto[]" data-min="0">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -90,7 +90,7 @@
                                                    placeholder="Nº de operación, boleta…">
                                         </div>
                                         <div class="col-md-1 text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-neutro spg-cobro-quitar"
+                                            <button type="button" class="btn btn-sm btn-outline-neutro sgp-cobro-quitar"
                                                     title="Quitar este medio de pago" aria-label="Quitar este medio de pago">
                                                 <i class="bi bi-x-lg"></i>
                                             </button>
@@ -101,7 +101,7 @@
                                          es NOT NULL en `cobro_tarjeta`, por eso es un
                                          select con dos opciones y no un campo libre: si
                                          llegaba vacío, el cobro entero fallaba con 1048. --}}
-                                    <div class="row g-2 mt-1 spg-extra-tarjeta">
+                                    <div class="row g-2 mt-1 sgp-extra-tarjeta">
                                         <div class="col-md-3">
                                             <label class="form-label">Marca</label>
                                             <input class="form-control form-control-sm" name="marca[]"
@@ -138,7 +138,7 @@
                                          los mismos campos: una transferencia no tiene número de
                                          cheque y un cheque no tiene número de operación.
                                          `data-solo` dice para cuál es cada uno. --}}
-                                    <div class="row g-2 mt-1 spg-extra-banco">
+                                    <div class="row g-2 mt-1 sgp-extra-banco">
                                         <div class="col-md-4">
                                             <label class="form-label">Banco</label>
                                             <input class="form-control form-control-sm" name="banco[]"
@@ -153,7 +153,7 @@
                                             <input class="form-control form-control-sm" name="nro_operacion[]">
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label spg-fecha-banco">Fecha</label>
+                                            <label class="form-label sgp-fecha-banco">Fecha</label>
                                             <input class="form-control form-control-sm" name="fecha_emision[]" type="date">
                                         </div>
                                     </div>

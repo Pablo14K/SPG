@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.101.0 — El precio con descuento se ve al elegir el servicio
+-- SGP 7.101.0 — El precio con descuento se ve al elegir el servicio
 -- =====================================================================
 --
 -- El catálogo del portal mostraba siempre el precio de lista, así que una

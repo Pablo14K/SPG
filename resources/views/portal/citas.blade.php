@@ -3,25 +3,25 @@
 @section('titulo', 'Mis citas')
 
 @section('contenido')
-    <div class="spg-page-head spg-head-flex">
-        <div class="spg-head-txt">
+    <div class="sgp-page-head sgp-head-flex">
+        <div class="sgp-head-txt">
             <h1>Mis citas<x-ayuda lado="bottom">Arriba las que todavía no ocurrieron; abajo, el historial.</x-ayuda></h1>
         </div>
-        <div class="spg-head-acciones">
+        <div class="sgp-head-acciones">
             <a class="btn btn-oro" href="{{ route('portal.reservar') }}">
                 <i class="bi bi-calendar-plus"></i> Reservar</a>
         </div>
     </div>
 
-    <div class="spg-panel mb-3 spg-portal-citas-grid">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Próximas</h2>
+    <div class="sgp-panel mb-3 sgp-portal-citas-grid">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Próximas</h2>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesionales</th><th>Estado</th><th class="text-end"></th></tr></thead>
                 <tbody>
                     @forelse ($prox as $c)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Fecha"><strong>{{ fecha($c->fecha_hora) }}</strong></td>
+                            <td class="sgp-movil-titulo" data-label="Fecha"><strong>{{ fecha($c->fecha_hora) }}</strong></td>
                             <td class="text-muted-warm" data-label="Servicios">
                                 {{ $c->servicios ?: '—' }}
                                 {{-- **Lo que cargaste de alergias, y de quién es cada
@@ -32,13 +32,13 @@
                                      nombre sobra —sos vos—; con varias, cada una la
                                      suya. --}}
                                 @php
-                                    $spgGente = \App\Servicios\Alergias::deLaCita($c, $acompanantes[$c->id_cita] ?? []);
-                                    $spgAlergicas = array_values(array_filter($spgGente, fn ($p) => $p->alergias !== null));
+                                    $sgpGente = \App\Servicios\Alergias::deLaCita($c, $acompanantes[$c->id_cita] ?? []);
+                                    $sgpAlergicas = array_values(array_filter($sgpGente, fn ($p) => $p->alergias !== null));
                                 @endphp
-                                @foreach ($spgAlergicas as $spgA)
+                                @foreach ($sgpAlergicas as $sgpA)
                                     <div class="txt-no" style="font-size:.82rem">
                                         <i class="bi bi-exclamation-triangle-fill"></i>
-                                        @if (count($spgGente) > 1)<strong>{{ $spgA->quien }}:</strong> @endif{{ $spgA->alergias }}
+                                        @if (count($sgpGente) > 1)<strong>{{ $sgpA->quien }}:</strong> @endif{{ $sgpA->alergias }}
                                     </div>
                                 @endforeach
                             </td>
@@ -68,7 +68,7 @@
                                         sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
                                 {{-- **Se puede seguir hasta que el pago esté cerrado.**
                                      Antes el botón sólo estaba con la cita «En proceso», así
                                      que la clienta veía el detalle mientras la atendían y lo
@@ -89,10 +89,10 @@
                                          navegador, y no uno de Bootstrap**: así funciona
                                          con `app.js` caído. Agendar la cita en el teléfono
                                          no puede depender de que cargue una librería. --}}
-                                    <details class="spg-desple d-inline-block">
+                                    <details class="sgp-desple d-inline-block">
                                         <summary class="btn btn-sm btn-rapido">
                                             <i class="bi bi-calendar-plus"></i> Calendario</summary>
-                                        <div class="spg-desple-menu">
+                                        <div class="sgp-desple-menu">
                                             <a download href="{{ route('cita.calendario', ['id' => $c->id_cita]) }}">
                                                 <i class="bi bi-phone"></i> Calendario del celular</a>
                                             <a target="_blank" rel="noopener"
@@ -201,8 +201,8 @@
                                                          data-agenda-boton="#btnRp{{ $c->id_cita }}"
                                                          class="mb-2">
                                                         <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
-                                                        <div data-agenda-dias class="spg-dias mt-2"></div>
-                                                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                                                        <div data-agenda-dias class="sgp-dias mt-2"></div>
+                                                        <div data-agenda-horas class="sgp-horas mt-2"></div>
                                                     </div>
 
                                                     {{-- El motivo no es burocracia: es lo que le deja al
@@ -232,7 +232,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-calendar-week"></i>
                                     <div class="t">No tenés citas próximas.</div>
                                     <div class="d">Reservá una con el botón de arriba.</div>
@@ -259,15 +259,15 @@
     </div>
 
     @if ($pasadas)
-        <div class="spg-panel spg-portal-citas-grid">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Anteriores</h2>
+        <div class="sgp-panel sgp-portal-citas-grid">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Anteriores</h2>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Fecha</th><th>Servicios</th><th>Profesionales</th><th>Estado</th><th>Comprobante</th></tr></thead>
                     <tbody>
                         @foreach ($pasadas as $c)
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha_hora) }}</td>
+                                <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($c->fecha_hora) }}</td>
                                 <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
                                 {{-- Ídem: una cita pasada también pudo atenderse entre varias. --}}
                                 <td data-label="Profesionales">{{ $c->profesionales ?: $c->profesional }}</td>
@@ -354,8 +354,8 @@
                                  pueden cobrar en cuentas distintas. --}}
                             @php $ctas = $cuentas[(int) $c->id_sucursal] ?? []; @endphp
                             @if ($ctas)
-                                <div class="spg-cuentas mt-3">
-                                    <div class="spg-cuentas-tit">
+                                <div class="sgp-cuentas mt-3">
+                                    <div class="sgp-cuentas-tit">
                                         <i class="bi bi-bank"></i> Podés transferir a:
                                     </div>
                                     {{-- **Cada dato con su rótulo, y el alias primero.**
@@ -377,8 +377,8 @@
                                          para comprobar que se le está mandando a quien
                                          corresponde. --}}
                                     @foreach ($ctas as $ct)
-                                        <div class="spg-cuenta">
-                                            <div class="spg-cuenta-cab">
+                                        <div class="sgp-cuenta">
+                                            <div class="sgp-cuenta-cab">
                                                 <strong>{{ $ct->entidad }}</strong>
                                                 <span class="text-muted-warm">· {{ $ct->medio }}</span>
                                             </div>
@@ -397,33 +397,33 @@
 
                                                      El nombre sale de `Pagos`, el mismo que usa la
                                                      pantalla donde el salón lo carga. --}}
-                                                <div class="spg-cuenta-dato">
-                                                    <span class="spg-cuenta-rot">{{ \App\Servicios\Pagos::rotuloAlias($ct->alias_tipo) }}</span>
-                                                    <span class="spg-cuenta-val">
-                                                        <span class="spg-cuenta-nro">{{ $ct->alias }}</span>
+                                                <div class="sgp-cuenta-dato">
+                                                    <span class="sgp-cuenta-rot">{{ \App\Servicios\Pagos::rotuloAlias($ct->alias_tipo) }}</span>
+                                                    <span class="sgp-cuenta-val">
+                                                        <span class="sgp-cuenta-nro">{{ $ct->alias }}</span>
                                                     </span>
                                                 </div>
                                             @endif
 
                                             @if ($ct->numero_cuenta)
-                                                <div class="spg-cuenta-dato">
-                                                    <span class="spg-cuenta-rot">N.º de cuenta</span>
-                                                    <span class="spg-cuenta-val">
-                                                        <span class="spg-cuenta-nro">{{ $ct->numero_cuenta }}</span>
+                                                <div class="sgp-cuenta-dato">
+                                                    <span class="sgp-cuenta-rot">N.º de cuenta</span>
+                                                    <span class="sgp-cuenta-val">
+                                                        <span class="sgp-cuenta-nro">{{ $ct->numero_cuenta }}</span>
                                                     </span>
                                                 </div>
                                             @endif
 
                                             @if ($ct->tipo_cuenta)
-                                                <div class="spg-cuenta-dato">
-                                                    <span class="spg-cuenta-rot">Tipo de cuenta</span>
-                                                    <span class="spg-cuenta-val">{{ $ct->tipo_cuenta }}</span>
+                                                <div class="sgp-cuenta-dato">
+                                                    <span class="sgp-cuenta-rot">Tipo de cuenta</span>
+                                                    <span class="sgp-cuenta-val">{{ $ct->tipo_cuenta }}</span>
                                                 </div>
                                             @endif
 
-                                            <div class="spg-cuenta-dato">
-                                                <span class="spg-cuenta-rot">Titular</span>
-                                                <span class="spg-cuenta-val">{{ $ct->titular }}</span>
+                                            <div class="sgp-cuenta-dato">
+                                                <span class="sgp-cuenta-rot">Titular</span>
+                                                <span class="sgp-cuenta-val">{{ $ct->titular }}</span>
                                             </div>
 
                                             {{-- **El documento no se repite si ES el alias.** Con un
@@ -431,9 +431,9 @@
                                                  veces con dos significados, que es justo lo que hacía
                                                  ilegible el bloque. --}}
                                             @if ($ct->documento && $ct->documento !== $ct->alias)
-                                                <div class="spg-cuenta-dato">
-                                                    <span class="spg-cuenta-rot">Documento</span>
-                                                    <span class="spg-cuenta-val">{{ $ct->documento }}</span>
+                                                <div class="sgp-cuenta-dato">
+                                                    <span class="sgp-cuenta-rot">Documento</span>
+                                                    <span class="sgp-cuenta-val">{{ $ct->documento }}</span>
                                                 </div>
                                             @endif
 
@@ -441,7 +441,7 @@
                                                  comprobante» al pie de una tarjeta se lee como un
                                                  botón que no hace nada. --}}
                                             @if ($ct->observacion)
-                                                <div class="spg-cuenta-obs">
+                                                <div class="sgp-cuenta-obs">
                                                     <i class="bi bi-info-circle"></i>
                                                     {{ $ct->observacion }}
                                                 </div>

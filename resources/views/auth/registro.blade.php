@@ -3,7 +3,7 @@
 @section('titulo', 'Crear cuenta')
 
 @section('formulario')
-    <form class="spg-login" method="post" action="{{ route('registro') }}">
+    <form class="sgp-login" method="post" action="{{ route('registro') }}">
         @csrf
         @include('layout._marca', ['modo' => 'grande'])
         <h1 class="text-center" style="font-size:1.2rem;font-weight:500;margin-bottom:.2rem;">Crear tu cuenta</h1>

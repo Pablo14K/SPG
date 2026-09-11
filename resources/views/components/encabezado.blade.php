@@ -51,9 +51,9 @@
     $migas[] = ['t' => $tituloFinal, 'url' => null, 'ic' => null];
 @endphp
 
-<nav class="spg-migas" aria-label="Dónde estoy">
+<nav class="sgp-migas" aria-label="Dónde estoy">
     @foreach ($migas as $i => $m)
-        @if ($i)<i class="bi bi-chevron-right spg-miga-sep" aria-hidden="true"></i>@endif
+        @if ($i)<i class="bi bi-chevron-right sgp-miga-sep" aria-hidden="true"></i>@endif
         @if ($m['url'])
             <a href="{{ $m['url'] }}">
                 @if ($m['ic'])<i class="bi bi-{{ $m['ic'] }}"></i>@endif{{ $m['t'] }}</a>
@@ -63,8 +63,8 @@
     @endforeach
 </nav>
 
-<div class="spg-page-head spg-head-flex">
-    <div class="spg-head-txt">
+<div class="sgp-page-head sgp-head-flex">
+    <div class="sgp-head-txt">
         {{-- **La explicación se guarda detrás del ícono.** Estaba siempre a la
              vista, debajo del título de cada pantalla: para quien ya sabe qué
              hace ahí es un párrafo que hay que saltear cada vez que entra. No se
@@ -77,7 +77,7 @@
     </div>
 
     @if ($accion || $acciones)
-        <div class="spg-head-acciones">
+        <div class="sgp-head-acciones">
             @foreach ($acciones as $a)
                 @if ($url = Navegacion::url($a['ruta']))
                     <a class="btn btn-outline-neutro" href="{{ $url }}">

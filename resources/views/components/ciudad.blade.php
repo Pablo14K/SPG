@@ -20,7 +20,7 @@
 @props(['name' => 'ciudad', 'id' => 'ciudad', 'valor' => '', 'sm' => false])
 
 @php
-    $lista = config('spg.ciudades', []);
+    $lista = config('sgp.ciudades', []);
     $valor = (string) $valor;
     // Una ciudad guardada que no está en la lista —cargada antes, o de otro
     // departamento— tiene que volver a salir tal cual al editar.
@@ -28,7 +28,7 @@
     $chico = $sm ? ' form-select-sm' : '';
 @endphp
 
-<select class="form-select{{ $chico }} spg-ciudad" id="{{ $id }}" name="{{ $name }}"
+<select class="form-select{{ $chico }} sgp-ciudad" id="{{ $id }}" name="{{ $name }}"
         data-otra="#{{ $id }}Otra">
     <option value="">— Elegí la ciudad —</option>
     @foreach ($lista as $c)
@@ -41,7 +41,7 @@
      está en «Otra»; si el JS no cargó se ven los dos y el campo sigue
      funcionando, que es la regla de siempre: un adorno tiene que poder
      faltar. --}}
-<div id="{{ $id }}Otra" class="spg-ciudad-otra mt-2">
+<div id="{{ $id }}Otra" class="sgp-ciudad-otra mt-2">
     <input class="form-control{{ $sm ? ' form-control-sm' : '' }}" name="{{ $name }}_otra"
            value="{{ $esOtra ? $valor : '' }}" placeholder="¿Cuál? Escribila acá"
            aria-label="Otra ciudad">

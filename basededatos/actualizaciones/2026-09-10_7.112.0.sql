@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.112.0 — La foto de perfil de cada persona
+-- SGP 7.112.0 — La foto de perfil de cada persona
 -- =====================================================================
 --
 -- **Va en `persona`, no en `usuario`.** Es la cara de alguien, y la regla

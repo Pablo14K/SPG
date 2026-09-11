@@ -22,8 +22,8 @@
             : ['ruta' => route('seguridad.usuarios'), 't' => 'Usuarios'];
     @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ $vuelve['ruta'] }}"><i class="bi bi-arrow-left"></i> {{ $vuelve['t'] }}</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ $vuelve['ruta'] }}"><i class="bi bi-arrow-left"></i> {{ $vuelve['t'] }}</a>
         <h1 class="mt-1">
             @if ($desdePersonal)
                 {{ $id ? 'Ficha de ' . ($u->nombre ?? 'la profesional') : 'Nueva profesional' }}
@@ -38,7 +38,7 @@
 
     <div class="row g-3">
         <div class="col-lg-9">
-            <div class="spg-panel">
+            <div class="sgp-panel">
                 <form method="post" action="{{ route('seguridad.usuario.guardar') }}" id="formUsuario">
                     @csrf
                     <input type="hidden" name="id_usuario" value="{{ $id }}">
@@ -71,7 +71,7 @@
                          sucursales, servicios y turnos. --}}
                     <div>
                     <div id="fmPersona">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> ¿A quién?</h2>
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-person"></i> ¿A quién?</h2>
 
                     {{-- **La persona se ELIGE, no se tipea.**
 
@@ -119,7 +119,7 @@
                     </div>{{-- /fmPersona --}}
 
                     <div id="fmCuenta">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta y acceso</h2>
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta y acceso</h2>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label" for="username">Usuario *</label><x-ayuda campo="username" />
@@ -163,7 +163,7 @@
                                  casillas —sucursales, turnos, servicios— así
                                  que acá se usa lo mismo. --}}
                             <label class="form-label" for="rol{{ $roles[0]->id_rol ?? 0 }}">Roles *</label><x-ayuda campo="id_rol" />
-                            @php $spgMisRoles = (array) old('roles', $misRoles ?: [($u->id_rol ?? 0)]); @endphp
+                            @php $sgpMisRoles = (array) old('roles', $misRoles ?: [($u->id_rol ?? 0)]); @endphp
                             <div class="border rounded p-2" id="gRoles" style="max-height:9rem;overflow:auto">
                                 @foreach ($roles as $r)
                                     <div class="form-check">
@@ -174,7 +174,7 @@
                                         <input class="form-check-input" type="checkbox" name="roles[]"
                                                id="rol{{ $r->id_rol }}" value="{{ $r->id_rol }}"
                                                data-exige-turno="{{ (int) ($r->exige_turno ?? 1) }}"
-                                               @checked(in_array((int) $r->id_rol, array_map('intval', $spgMisRoles), true))>
+                                               @checked(in_array((int) $r->id_rol, array_map('intval', $sgpMisRoles), true))>
                                         <label class="form-check-label" for="rol{{ $r->id_rol }}">{{ $r->nombre }}</label>
                                     </div>
                                 @endforeach
@@ -189,7 +189,7 @@
                     </div>{{-- /fmCuenta --}}
 
                     <div id="fmTrabajo">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursales donde trabaja</h2>
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-shop"></i> Sucursales donde trabaja</h2>
                     {{-- **Una sola pregunta, no dos.** Acá había además un selector de
                          «Sucursal principal» que repetía lo mismo con otras palabras: en
                          cuál está HOY lo decide la sesión al entrar, no la ficha. Lo que
@@ -231,9 +231,9 @@
                          Lo que queda acá es lo que de verdad cuelga de la cuenta:
                          sucursales a las que entra y turnos que trabaja. --}}
 
-                    @php $spgAdminRol = (int) config('permisos.rol_admin', 1); @endphp
-                    <div id="spgTurnosCuenta" data-admin-rol="{{ $spgAdminRol }}">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja<x-ayuda>Solo hace falta para cuentas que también atienden servicios. Un Administrador sin rol Profesional no necesita turno.</x-ayuda></h2>
+                    @php $sgpAdminRol = (int) config('permisos.rol_admin', 1); @endphp
+                    <div id="sgpTurnosCuenta" data-admin-rol="{{ $sgpAdminRol }}">
+                    <h2 class="sgp-form-titulo mb-1"><i class="bi bi-clock"></i> Turnos que trabaja<x-ayuda>Solo hace falta para cuentas que también atienden servicios. Un Administrador sin rol Profesional no necesita turno.</x-ayuda></h2>
                     <div class="mb-3">
                         @if (count($turnos) > 1)
                             <div class="form-check mb-1">
@@ -268,7 +268,7 @@
                     </div>{{-- /fmTrabajo --}}
                     </div>
 
-                    <div id="spgCrearTurnoCuenta">
+                    <div id="sgpCrearTurnoCuenta">
                     <button type="button" class="btn btn-sm btn-rapido mb-3"
                             data-bs-toggle="modal" data-bs-target="#modalTurnoRapido">
                         <i class="bi bi-plus-lg"></i> Crear un turno</button>
@@ -408,7 +408,7 @@
          selector cerrado obligaría a mantener el padrón entero del país para
          que alguien pueda poner su localidad. --}}
     <datalist id="ciudadesPy">
-        @foreach (config('spg.ciudades', []) as $ciudad)
+        @foreach (config('sgp.ciudades', []) as $ciudad)
             <option value="{{ $ciudad }}"></option>
         @endforeach
     </datalist>
@@ -438,10 +438,10 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const bloque = document.getElementById('spgTurnosCuenta');
+    const bloque = document.getElementById('sgpTurnosCuenta');
     if (!bloque) return;
     const admin = String(bloque.dataset.adminRol);
-    const crear = document.getElementById('spgCrearTurnoCuenta');
+    const crear = document.getElementById('sgpCrearTurnoCuenta');
     const roles = Array.from(document.querySelectorAll('#gRoles input[name="roles[]"]'));
     function actualizar() {
         // **Lo decide el rol, no un id.** Antes era «cualquier rol que no sea

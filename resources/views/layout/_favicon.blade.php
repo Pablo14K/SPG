@@ -14,10 +14,10 @@
     Va en un partial y no copiado en cada `<head>` por el motivo de siempre: son
     siete pantallas con cabecera propia, y copiado se desfasan.
 --}}
-@php $spgIco = \App\Servicios\Config::logo(); @endphp
-@if ($spgIco)
-    <link rel="icon" href="{{ $spgIco }}">
-    <link rel="apple-touch-icon" href="{{ $spgIco }}">
+@php $sgpIco = \App\Servicios\Config::logo(); @endphp
+@if ($sgpIco)
+    <link rel="icon" href="{{ $sgpIco }}">
+    <link rel="apple-touch-icon" href="{{ $sgpIco }}">
 @else
     <link rel="icon" href="data:image/svg+xml,{{ rawurlencode(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="#C9A84C">'

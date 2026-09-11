@@ -3,7 +3,7 @@
 @section('titulo', 'Mi ficha')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <div>
             <h1>Mi ficha<x-ayuda lado="bottom">Lo que el salón tiene anotado de vos. Las alergias las cargás vos; el resto se cambia pidiéndolo en el salón.</x-ayuda></h1>
         </div>
@@ -15,14 +15,14 @@
                  pantalla que puede lastimar a alguien si nadie lo mira, y es lo
                  único que la clienta puede cargar: ponerlo debajo de sus datos
                  de contacto lo convertiría en un campo más de un formulario. --}}
-            <div class="spg-panel">
+            <div class="sgp-panel">
                 @include('portal._alergias', ['alergias' => $yo->alergias ?? ''])
             </div>
         </div>
 
         <div class="col-lg-6">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2">
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2">
                     <i class="bi bi-person-vcard txt-oro"></i> Mis datos
                 </h2>
                 <dl class="row mb-0" style="font-size:.9rem">

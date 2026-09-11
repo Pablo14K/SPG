@@ -84,7 +84,7 @@
 
         <label class="form-label" for="monto_contado{{ $sufijo }}">Dinero contado en el cajón *</label><x-ayuda campo="monto_contado" />
         <div class="input-group">
-            <span class="input-group-text">{{ config('spg.moneda') }}</span>
+            <span class="input-group-text">{{ config('sgp.moneda') }}</span>
             <input class="form-control input-miles" id="monto_contado{{ $sufijo }}" name="monto_contado"
                data-min="0" required autocomplete="off"
                data-arqueo="#arqueoEsperado{{ $sufijo }}" data-arqueo-salida="#arqueoDif{{ $sufijo }}"

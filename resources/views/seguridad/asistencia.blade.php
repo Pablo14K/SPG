@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado sub="Quiénes trabajan hoy, según el turno que tienen asignado. <strong>No se escriben horarios a mano</strong>: se ficha con un botón y queda la hora del clic." />
 
-    <div class="spg-panel mb-3">
+    <div class="sgp-panel mb-3">
         <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
                 <label class="form-label" for="fecha">Día</label>
@@ -19,8 +19,8 @@
         </form>
     </div>
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -31,7 +31,7 @@
                 <tbody>
                     @forelse ($filas as $f)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Profesional">{{ $f->profesional }}</td>
+                            <td class="sgp-movil-titulo" data-label="Profesional">{{ $f->profesional }}</td>
                             <td data-label="Entrada">{{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
                             <td data-label="Salida">
                                 {{ $f->hora_salida ? substr((string) $f->hora_salida, 0, 5) : '—' }}
@@ -58,8 +58,8 @@
                                     <span class="badge-estado e-muted">Sin fichar</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
@@ -155,11 +155,11 @@
                                 @endif
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Turno y Sucursal</dt>
                                                 <dd>
@@ -175,7 +175,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-calendar-check"></i>
                                     <div class="t">Ese día no trabaja nadie.</div>
                                     <div class="d">
@@ -325,13 +325,13 @@
          los seis meses de operación esa tabla deja de decir nada. El panel se
          dibuja aunque no haya filas, que si no el filtro que no encuentra nada
          desaparece junto con la respuesta. --}}
-    <div class="spg-panel mt-3">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos registros</h2>
+    <div class="sgp-panel mt-3">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Últimos registros</h2>
 
         <x-filtros :f="$fa" />
 
         @if ($rows)
-            <div class="table-responsive spg-tabla-movil">
+            <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr><th>Fecha</th><th>Profesional</th><th>Entrada</th><th>Salida</th><th>Estado</th><th class="text-end"></th></tr>
@@ -339,7 +339,7 @@
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
-                                <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
+                                <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
                                 <td data-label="Profesional">{{ $r->profesional }}</td>
                                 <td data-label="Entrada">{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
                                 <td data-label="Salida">{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
@@ -352,18 +352,18 @@
                                         <span class="badge-estado e-no">Sin aviso</span>
                                     @endif
                                 </td>
-                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                    <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                    <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                             data-bs-target="#detUltAsis{{ $loop->index }}" aria-expanded="false">
                                         <i class="bi bi-chevron-down"></i> Detalle
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="spg-fila-detalle">
+                            <tr class="sgp-fila-detalle">
                                 <td colspan="6">
                                     <div class="collapse" id="detUltAsis{{ $loop->index }}">
-                                        <div class="spg-det-cuerpo">
-                                            <div class="spg-det-grid">
+                                        <div class="sgp-det-cuerpo">
+                                            <div class="sgp-det-grid">
                                                 <div>
                                                     <dt>Turno</dt>
                                                     <dd>{{ $r->turno }}</dd>
@@ -378,7 +378,7 @@
                 </table>
             </div>
         @else
-            <div class="spg-vacio">
+            <div class="sgp-vacio">
                 <i class="bi bi-clock-history"></i>
                 <div class="t">No hay registros con esos filtros</div>
                 <div class="d">Probá con otro rango de fechas o sacando algún filtro.</div>

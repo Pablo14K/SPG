@@ -3,11 +3,11 @@
 @section('titulo', 'Mis recordatorios')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Mis recordatorios<x-ayuda lado="bottom">Elegí con cuánta anticipación querés que te avisemos por correo. También decide la alarma que se guarda en el calendario de tu teléfono.</x-ayuda></h1>
     </div>
 
-    <div class="spg-panel" style="max-width:520px">
+    <div class="sgp-panel" style="max-width:520px">
         <form method="post" action="{{ route('portal.preferencias') }}">
             @csrf
 

@@ -9,7 +9,7 @@
          propio. Ahora van en grilla de dos, la lista tiene su propio scroll y
          arriba hay un buscador — que **filtra lo ya dibujado**, así que sin
          JavaScript se siguen viendo todas. --}}
-    <div class="spg-panel" style="max-width:720px;width:100%">
+    <div class="sgp-panel" style="max-width:720px;width:100%">
         <h1 style="font-size:1.15rem;font-weight:500;margin-bottom:.2rem">
             <i class="bi bi-shop txt-oro"></i> ¿En qué sucursal vas a trabajar?
         </h1>
@@ -26,7 +26,7 @@
             </div>
         @endif
 
-        <div id="listaSucursales" class="spg-suc-grid">
+        <div id="listaSucursales" class="sgp-suc-grid">
             @foreach ($sucursales as $s)
                 <form method="post" action="{{ route('sucursal.entrar') }}">
                     @csrf

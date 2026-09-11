@@ -13,7 +13,7 @@
         </div>
     @endif
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         {{-- **A quién falta facturarle.** Esta pantalla lista lo emitido, o sea justo
      lo que NO permite darse cuenta de lo que falta: atender y facturar son dos
      pasos, la clienta no siempre pide comprobante, y la cita queda Atendida sin
@@ -23,12 +23,12 @@
      vacía el bloque no se dibuja — un panel que dice «no falta ninguna» es
      ruido todos los días para avisar una vez por semana. --}}
 @if (! empty($sinFacturar))
-    <div class="spg-panel mb-3" style="border-left:3px solid var(--oro)">
-        <h2 class="spg-form-titulo mb-2">
+    <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
+        <h2 class="sgp-form-titulo mb-2">
             <i class="bi bi-receipt"></i>
             Falta facturar {{ count($sinFacturar) }} atención{{ count($sinFacturar) === 1 ? '' : 'es' }}
         </h2>
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table table-sm align-middle mb-0" style="font-size:.86rem">
                 <thead>
                     <tr><th>Cuándo</th><th>Clienta</th><th class="text-end">Total</th><th></th></tr>
@@ -36,11 +36,11 @@
                 <tbody>
                     @foreach ($sinFacturar as $sf)
                         <tr>
-                            <td class="text-muted-warm spg-movil-titulo" style="white-space:nowrap" data-label="Cuándo">
+                            <td class="text-muted-warm sgp-movil-titulo" style="white-space:nowrap" data-label="Cuándo">
                                 {{ fecha($sf->fecha_hora, 'd/m H:i') }}</td>
                             <td data-label="Clienta">{{ $sf->cliente }}</td>
                             <td class="text-end" data-label="Total">{{ money($sf->total) }}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end sgp-movil-acciones">
                                 <a class="btn btn-sm btn-oro"
                                    href="{{ route('facturacion.emitir', ['cita' => $sf->id_cita]) }}">
                                     Emitir</a>
@@ -55,7 +55,7 @@
 
 <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -68,7 +68,7 @@
                     @forelse ($rows as $r)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Nº">
+                            <td class="sgp-movil-titulo" style="white-space:nowrap" data-label="Nº">
                                 <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     {{ $r->nro_comprobante }}</a>
                             </td>
@@ -81,8 +81,8 @@
                                     <span class="txt-ok">saldada</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detFac{{ $r->id_factura }}" aria-expanded="false"
                                         aria-controls="detFac{{ $r->id_factura }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -102,11 +102,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detFac{{ $r->id_factura }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Fecha</dt>
                                                 <dd>{{ fecha($r->fecha_emision) }}</dd>
@@ -139,7 +139,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-receipt"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún comprobante coincide con esos filtros.' : 'Todavía no se emitió ningún comprobante.' }}</div>
                                     <div class="d">Se emiten desde una cita ya atendida.</div>
@@ -186,7 +186,7 @@
                                  etiqueta para un cobro que el 90 % de las veces es en
                                  efectivo.
 
-                                 Los `spg-cobro-*` no son clases decorativas: son las que
+                                 Los `sgp-cobro-*` no son clases decorativas: son las que
                                  busca el bloque de `app.js`. Si se las renombra, el
                                  modal deja de armarse y no avisa. --}}
                             <x-cobro-lineas :uid="$r->id_factura" :max="(float) $r->saldo" :metodos="$metodos" />

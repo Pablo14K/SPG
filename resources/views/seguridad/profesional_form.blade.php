@@ -12,7 +12,7 @@
 
 <div class="row g-3">
     <div class="col-lg-8">
-        <div class="spg-panel">
+        <div class="sgp-panel">
             <form method="post" action="{{ route('seguridad.profesional.guardar') }}">
                 @csrf
                 <input type="hidden" name="id_persona" value="{{ $id }}">
@@ -21,7 +21,7 @@
                      CUENTA —rol, sucursales, turnos— vive en la ficha de
                      usuario; acá va lo que es de la persona, que sigue siendo
                      cierto aunque nunca entre al sistema. --}}
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Datos de la persona</h2>
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-person"></i> Datos de la persona</h2>
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
@@ -68,7 +68,7 @@
 
                      Está acá y no en la ficha de usuario porque es de la PERSONA:
                      saber peinar no depende de tener cuenta de sistema. --}}
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios que hace<x-ayuda>Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique a lo suyo: la agenda deja de ofrecerlo para el resto.</x-ayuda></h2>
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios que hace<x-ayuda>Si no marcás ninguno, hace todos. Marcá sólo cuando alguien se dedique a lo suyo: la agenda deja de ofrecerlo para el resto.</x-ayuda></h2>
                 <div class="mb-3">
                     <div class="form-check mb-1">
                         <input class="form-check-input" type="checkbox" id="gServiciosTodo" data-marca-todo="#gServicios">
@@ -95,8 +95,8 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta del sistema</h2>
+        <div class="sgp-panel">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-key"></i> Cuenta del sistema</h2>
 
             @if (! $id)
                 <p class="text-muted-warm mb-0" style="font-size:.86rem">

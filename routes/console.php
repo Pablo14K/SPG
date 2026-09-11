@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Schedule;
 
 // Los avisos a las clientas. Cada 10 minutos alcanza: el recordatorio se manda
 // con un día de anticipación, no al minuto.
-Schedule::command('spg:notificaciones')
+Schedule::command('sgp:notificaciones')
     ->everyTenMinutes()
     ->withoutOverlapping()   // si una pasada se demora, la siguiente no se le encima
     ->runInBackground();

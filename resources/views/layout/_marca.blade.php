@@ -9,7 +9,7 @@
 
     Modos:
       · `grande` — el círculo de las pantallas de acceso (`.logo-big`)
-      · `barra`  — la pastilla de la barra superior (`.spg-logo`)
+      · `barra`  — la pastilla de la barra superior (`.sgp-logo`)
       · `linea`  — al lado de un texto, como en el pie
 
     **El contenedor lo dibuja este partial, no la vista.** Es lo que hace
@@ -23,23 +23,23 @@
     que haya imagen.
 --}}
 @php
-    $spgMarca = \App\Servicios\Config::logo();
+    $sgpMarca = \App\Servicios\Config::logo();
     $modo = $modo ?? 'linea';
-    $spgCaja = ['grande' => 'logo-big', 'barra' => 'spg-logo'][$modo] ?? '';
+    $sgpCaja = ['grande' => 'logo-big', 'barra' => 'sgp-logo'][$modo] ?? '';
 @endphp
-@if ($spgCaja !== '')
-    <span class="{{ $spgCaja }}{{ $spgMarca ? ' tiene-img' : '' }}">
-        @if ($spgMarca)
-            <img src="{{ $spgMarca }}" alt="">
+@if ($sgpCaja !== '')
+    <span class="{{ $sgpCaja }}{{ $sgpMarca ? ' tiene-img' : '' }}">
+        @if ($sgpMarca)
+            <img src="{{ $sgpMarca }}" alt="">
         @else
             <i class="bi bi-scissors"></i>
         @endif
     </span>
-@elseif ($spgMarca)
+@elseif ($sgpMarca)
     {{-- **Al lado de un texto, el logo conserva su proporción.** Encerrado en
          1,1 em de ancho, un logo apaisado —los que traen el nombre del salón
          adentro lo son casi siempre— quedaba reducido a un puntito ilegible. --}}
-    <img src="{{ $spgMarca }}" alt=""
+    <img src="{{ $sgpMarca }}" alt=""
          style="height:1.4em;width:auto;max-width:7em;object-fit:contain;vertical-align:-.35em">
 @else
     <i class="bi bi-scissors"></i>

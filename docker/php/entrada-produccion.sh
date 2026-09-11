@@ -12,7 +12,7 @@ set -e
 cd /app
 
 falta() {
-    echo "== SPG: $1"
+    echo "== SGP: $1"
     echo "== El contenedor se apaga a propósito: es preferible a servir mal."
     exit 1
 }
@@ -45,7 +45,7 @@ falta() {
 # arranque no depende de que Packagist conteste. Esto es la red por si la
 # imagen se armó a mano.
 if [ ! -f vendor/autoload.php ]; then
-    echo "== SPG: vendor/ no está en la imagen, instalando (esto no debería pasar) =="
+    echo "== SGP: vendor/ no está en la imagen, instalando (esto no debería pasar) =="
     composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader
 fi
 
@@ -129,7 +129,7 @@ tablas=$(printf '%s' "$tablas" | tr -dc '0-9')
 # y el esquema completo tiene 80 tablas. Con la base cargada esto da 97 —80
 # tablas más 17 vistas— y no se hace nada.
 if [ "${tablas:-0}" -lt 10 ]; then
-    echo "== SPG: la base '$BD_NOMBRE' está vacía ($tablas tablas): importando =="
+    echo "== SGP: la base '$BD_NOMBRE' está vacía ($tablas tablas): importando =="
 
     if [ ! -f "$SQL" ]; then
         falta "no encuentro $SQL — la imagen se construyó mal."
@@ -143,13 +143,13 @@ if [ "${tablas:-0}" -lt 10 ]; then
 
     rutinas=$(mysql_ -N -B -e "SELECT COUNT(*) FROM information_schema.routines
                                 WHERE routine_schema = '$BD_NOMBRE';" 2>/dev/null || echo 0)
-    echo "== SPG: importada · $(mysql_ -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$BD_NOMBRE';") tablas y vistas · $rutinas rutinas =="
+    echo "== SGP: importada · $(mysql_ -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$BD_NOMBRE';") tablas y vistas · $rutinas rutinas =="
 
     # **Las 60 rutinas SON la lógica de negocio.** Un import cortado a la mitad
     # deja el sistema andando y fallando de a poco, que es lo peor que puede
     # pasar acá. Se avisa fuerte, pero no se frena: con las tablas puestas se
     # puede entrar a mirar qué pasó.
-    [ "${rutinas:-0}" -ge 63 ] || echo "== SPG: OJO, esperaba 63 rutinas y hay $rutinas: el import quedó a medias =="
+    [ "${rutinas:-0}" -ge 63 ] || echo "== SGP: OJO, esperaba 63 rutinas y hay $rutinas: el import quedó a medias =="
 fi
 
 # ---------------------------------------------------------------------------
@@ -169,9 +169,9 @@ php artisan optimize
 #
 # NO frena el arranque: informa y sigue. Si frenara, una observación menor
 # —un correo sin configurar— dejaría al salón sin sistema.
-php artisan spg:diagnostico --produccion \
-    || echo "== SPG: el diagnóstico marcó cosas para revisar (ver arriba) =="
+php artisan sgp:diagnostico --produccion \
+    || echo "== SGP: el diagnóstico marcó cosas para revisar (ver arriba) =="
 
-echo "== SPG: php-fpm listo. El HTTP lo atiende Caddy. =="
+echo "== SGP: php-fpm listo. El HTTP lo atiende Caddy. =="
 
 exec php-fpm

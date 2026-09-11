@@ -10,7 +10,7 @@
      · $volver    'cuenta' para regresar a Mi cuenta; nada para Mi ficha --}}
 @php $volver = $volver ?? ''; @endphp
 
-<h2 class="spg-form-titulo mb-2">
+<h2 class="sgp-form-titulo mb-2">
     <i class="bi bi-exclamation-triangle txt-oro"></i> ¿Sos alérgica a algo?
 </h2>
 <p class="text-muted-warm" style="font-size:.85rem">

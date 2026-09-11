@@ -1373,10 +1373,10 @@ class PersonalController extends Controller
             $fin += 1440;   // el turno termina al día siguiente
         }
 
-        $desde = $ini - (int) config('spg.fichaje.gracia_antes_min', 60);
+        $desde = $ini - (int) config('sgp.fichaje.gracia_antes_min', 60);
         $hasta = $accion === 'entrada'
             ? $ini + (int) ($turno->flexibilidad_entrada_min ?? 15)
-            : $fin + (int) config('spg.fichaje.gracia_despues_min', 120);
+            : $fin + (int) config('sgp.fichaje.gracia_despues_min', 120);
         $ahoraM = $enMinutos(ahora_bd('H:i:s'));
 
         if ($hasta - $desde >= 1440) {
@@ -1522,7 +1522,7 @@ class PersonalController extends Controller
         $aMinutos = static function (string $hora): int {
             return (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
         };
-        $pausaMin = (int) config('spg.agenda.descanso_turnos_min', 60);
+        $pausaMin = (int) config('sgp.agenda.descanso_turnos_min', 60);
         $nuevoIni = $aMinutos($d['hora_inicio'] . ':00');
         $nuevoFin = $aMinutos($d['hora_fin'] . ':00');
         foreach ($existentes as $otro) {

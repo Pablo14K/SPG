@@ -8,8 +8,8 @@
 {{-- **Acá no se listan las otras cajas.** La lista sirve para elegir; esta
      pantalla, para trabajar con la elegida. Por eso es tan vacía: lo único que
      hay que poder hacer es ver cuánto hay, mirar sus movimientos y cerrarla. --}}
-<div class="spg-page-head">
-    <a class="spg-back" href="{{ route('facturacion.cajas') }}">
+<div class="sgp-page-head">
+    <a class="sgp-back" href="{{ route('facturacion.cajas') }}">
         <i class="bi bi-arrow-left"></i> Cajas</a>
     <h1 class="mt-1">
         <i class="bi bi-safe"></i> {{ $cajon->nombre }}
@@ -29,18 +29,18 @@
 </div>
 
 @if ($abierta)
-    <div class="spg-panel mb-3">
-        <div class="spg-metrics spg-metrics-compacto">
-            <div class="spg-metric">
+    <div class="sgp-panel mb-3">
+        <div class="sgp-metrics sgp-metrics-compacto">
+            <div class="sgp-metric">
                 <div class="lbl">Efectivo esperado</div>
                 <div class="val oro">{{ money($saldo) }}</div>
-                <div class="spg-metric-pie">lo que tiene que estar en el cajón</div>
+                <div class="sgp-metric-pie">lo que tiene que estar en el cajón</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Monto de apertura</div>
                 <div class="val">{{ money($abierta->monto_inicial) }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Cobrado en efectivo</div>
                 <div class="val">{{ money($abierta->cobros_efectivo) }}</div>
             </div>
@@ -77,8 +77,8 @@
 @else
     {{-- **Abrir es la única acción posible acá**, así que va sola y sin ruido:
          sin caja abierta no se cobra, no se factura y no se paga. --}}
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir esta caja<x-ayuda>El monto inicial es el efectivo con el que arranca el cajón. Al cerrar se cuenta lo que hay y el sistema dice si cuadra.</x-ayuda></h2>
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-unlock"></i> Abrir esta caja<x-ayuda>El monto inicial es el efectivo con el que arranca el cajón. Al cerrar se cuenta lo que hay y el sistema dice si cuadra.</x-ayuda></h2>
 
         <form method="post" action="{{ route('facturacion.caja.abrir') }}"
               class="d-flex gap-2 align-items-end flex-wrap">

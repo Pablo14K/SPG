@@ -9,7 +9,7 @@
 
     <div class="row g-3">
         <div class="col-lg-8">
-            <div class="spg-panel">
+            <div class="sgp-panel">
                 <form method="post" action="{{ route('inventario.compra.guardar') }}" id="formCompra">
                     @csrf
 
@@ -51,7 +51,7 @@
                          y el salón no tenía cómo saber cuánto le vence la semana
                          que viene. --}}
                     <div id="bloqueCuotas" class="d-none mb-3 p-3 rounded" style="border:1px solid var(--gris-calido)">
-                        <h2 class="spg-form-titulo mb-1"><i class="bi bi-calendar2-week"></i> ¿En cuántas cuotas?<x-ayuda>Se reparte el total en partes iguales y se propone una fecha por mes. Cambiá lo que haga falta: no todos los proveedores cobran igual.</x-ayuda></h2>
+                        <h2 class="sgp-form-titulo mb-1"><i class="bi bi-calendar2-week"></i> ¿En cuántas cuotas?<x-ayuda>Se reparte el total en partes iguales y se propone una fecha por mes. Cambiá lo que haga falta: no todos los proveedores cobran igual.</x-ayuda></h2>
 
                         <div class="row g-2 align-items-end mb-2">
                             <div class="col-auto">
@@ -85,7 +85,7 @@
                                 <div class="col-md-4">
                                     <label class="form-label">Monto</label>
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                                         <input class="form-control input-miles" name="cuota_monto[]" data-min="0">
                                     </div>
                                 </div>
@@ -93,7 +93,7 @@
                         </template>
                     </div>
 
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-list-ul"></i> Productos<x-ayuda>Elegí el producto de la lista siempre que exista. Si escribís el nombre a mano y ya estaba cargado —aunque sea con un espacio de más—, el sistema lo reconoce y le suma el stock en vez de crear un duplicado.</x-ayuda></h2>
+                    <h2 class="sgp-form-titulo mb-1"><i class="bi bi-list-ul"></i> Productos<x-ayuda>Elegí el producto de la lista siempre que exista. Si escribís el nombre a mano y ya estaba cargado —aunque sea con un espacio de más—, el sistema lo reconoce y le suma el stock en vez de crear un duplicado.</x-ayuda></h2>
 
                     {{-- Las filas se redibujan con lo que había cargado: al crear
                          un proveedor desde el costado se vuelve acá, y perder la
@@ -158,7 +158,7 @@
                                          cuánto tendría que haber, y eso obligaba a abrir
                                          Inventario en otra pestaña y volver. --}}
                                     <div class="input-group input-group-sm">
-                                        <button type="button" class="btn btn-outline-neutro spg-buscar-prod"
+                                        <button type="button" class="btn btn-outline-neutro sgp-buscar-prod"
                                                 data-bs-toggle="modal" data-bs-target="#modalBuscarProd"
                                                 title="Buscar en el catálogo" aria-label="Buscar en el catálogo">
                                             <i class="bi bi-search"></i></button>
@@ -201,7 +201,7 @@
                                          por error sólo se podía «borrar» vaciando sus
                                          tres campos a mano — y si quedaba algo, el
                                          renglón entraba a la compra. --}}
-                                    <button type="button" class="btn btn-sm btn-outline-neutro spg-quitar-fila"
+                                    <button type="button" class="btn btn-sm btn-outline-neutro sgp-quitar-fila"
                                             title="Quitar este renglón" aria-label="Quitar este renglón">
                                         <i class="bi bi-x-lg"></i></button>
                                 </div>
@@ -263,7 +263,7 @@
                                                         <td class="text-end text-muted-warm">
                                                             {{ $p->ultimo_precio !== null ? money($p->ultimo_precio) : '—' }}</td>
                                                         <td class="text-end">
-                                                            <button type="button" class="btn btn-sm btn-oro spg-elegir-prod"
+                                                            <button type="button" class="btn btn-sm btn-oro sgp-elegir-prod"
                                                                     data-bs-dismiss="modal"
                                                                     data-id="{{ $p->id_producto }}"
                                                                     data-nombre="{{ $p->nombre }}"
@@ -308,8 +308,8 @@
 
         <div class="col-lg-4">
             @if (Permisos::puede('inventario.proveedores'))
-                <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-truck"></i> ¿El proveedor no está cargado?<x-ayuda>Crealo acá mismo, sin perder las líneas que ya escribiste.</x-ayuda></h2>
+                <div class="sgp-panel">
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-truck"></i> ¿El proveedor no está cargado?<x-ayuda>Crealo acá mismo, sin perder las líneas que ya escribiste.</x-ayuda></h2>
                     {{-- data-borrador: las filas de la compra ya cargadas
                          vuelven con el redirect. --}}
                     <form method="post" action="{{ route('inventario.proveedor.rapido') }}"
@@ -394,7 +394,7 @@
             var monto = base + (i === n - 1 ? resto : 0);
             if (monto > 0) { fila.querySelector('[name="cuota_monto[]"]').value = String(monto); }
             filas.appendChild(fila);
-            if (window.SPG) { window.SPG.prepararCampos(fila); }
+            if (window.SGP) { window.SGP.prepararCampos(fila); }
         }
         aviso.textContent = total > 0
             ? 'Se reparten ' + total.toLocaleString('es-PY') + ' en ' + n + ' cuota(s).'
@@ -510,7 +510,7 @@
     // dónde cargar y el botón de agregar clona la primera, que ya no existe.
     // Si es la última, se vacía en vez de sacarse.
     document.getElementById('filasCompra').addEventListener('click', function (ev) {
-        var boton = ev.target.closest('.spg-quitar-fila');
+        var boton = ev.target.closest('.sgp-quitar-fila');
         if (!boton) return;
 
         var cont = this, fila = boton.closest('.filaCompra');
@@ -533,11 +533,11 @@
     var filaBuscando = null;
 
     document.getElementById('filasCompra').addEventListener('click', function (ev) {
-        var lupa = ev.target.closest('.spg-buscar-prod');
+        var lupa = ev.target.closest('.sgp-buscar-prod');
         if (lupa) filaBuscando = lupa.closest('.filaCompra');
     });
 
-    document.querySelectorAll('.spg-elegir-prod').forEach(function (b) {
+    document.querySelectorAll('.sgp-elegir-prod').forEach(function (b) {
         b.addEventListener('click', function () {
             var fila = filaBuscando || document.querySelector('.filaCompra');
             if (!fila) return;

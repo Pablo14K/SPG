@@ -19,11 +19,11 @@ use Illuminate\Console\Command;
  * Este comando no toca el original: escribe una copia con el definidor
  * cambiado, y avisa cuántos reemplazó.
  *
- *   php artisan spg:preparar-sql "Referencias/peluqueria_bd(base).sql" spg_user
+ *   php artisan sgp:preparar-sql "Referencias/peluqueria_bd(base).sql" sgp_user
  */
 class PrepararSql extends Command
 {
-    protected $signature = 'spg:preparar-sql
+    protected $signature = 'sgp:preparar-sql
                             {archivo : El .sql a preparar}
                             {usuario : El usuario de MySQL del servidor (sin el @host)}
                             {--host=% : El host del usuario; % sirve para cualquiera}
@@ -79,7 +79,7 @@ class PrepararSql extends Command
             . $usuario . '\'@\'' . $host . '\';</>');
         $this->line('    <fg=green>SET GLOBAL log_bin_trust_function_creators = 1;</>   <fg=gray>(desde root, si hay binlog)</>');
         $this->newLine();
-        $this->line('  <fg=gray>Después de importar, comprobalo con:</> php artisan spg:diagnostico --produccion');
+        $this->line('  <fg=gray>Después de importar, comprobalo con:</> php artisan sgp:diagnostico --produccion');
 
         return self::SUCCESS;
     }

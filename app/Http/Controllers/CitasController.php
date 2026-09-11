@@ -126,7 +126,7 @@ class CitasController extends Controller
         // pantalla, así que viaja en la consulta.
         $idCliente = (int) $request->query('id_cliente', 0);
         $dias = array_values(array_diff(
-            Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas, $pedidos),
+            Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('sgp.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas, $pedidos),
             Agenda::diasYaTomados($idCliente, $servicios)
         ));
 
@@ -615,9 +615,9 @@ class CitasController extends Controller
         // servicios de la cita anterior, que es justo lo que no se quiere.
         //
         // Se distingue por el rastro que deja cada camino: el error redirige
-        // con `spg_form_error`. Sin esa marca, la visita es nueva y se olvida
+        // con `sgp_form_error`. Sin esa marca, la visita es nueva y se olvida
         // lo que haya quedado. No hace falta ningún botón.
-        if (! $request->session()->get('spg_form_error')) {
+        if (! $request->session()->get('sgp_form_error')) {
             $request->session()->forget('_old_input');
         }
 
@@ -697,7 +697,7 @@ class CitasController extends Controller
         if ($error) {
             flash($error, 'error');
 
-            return redirect()->route('citas.form')->with("spg_form_error", true)->withInput();
+            return redirect()->route('citas.form')->with("sgp_form_error", true)->withInput();
         }
 
         // A quién le toca cada servicio: la pantalla manda prof_servicio[id],
@@ -712,7 +712,7 @@ class CitasController extends Controller
         if ($dur <= 0) {
             flash('Los servicios elegidos no son válidos.', 'error');
 
-            return redirect()->route('citas.form')->with("spg_form_error", true)->withInput();
+            return redirect()->route('citas.form')->with("sgp_form_error", true)->withInput();
         }
 
         // Exclusividad + hueco de CADA profesional. Se vuelve a preguntar acá
@@ -731,7 +731,7 @@ class CitasController extends Controller
             flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
 
             // Con la marca, que si no la pantalla vuelve en blanco (7.17.0).
-            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('sgp_form_error', true)->withInput();
         }
 
         // **Lo que el asistente exige en «Detalles», el servidor lo vuelve a
@@ -742,7 +742,7 @@ class CitasController extends Controller
         if ($aviso = Acompanantes::avisoFaltantes((array) $request->input('acomp_nombre', []), $personas)) {
             flash($aviso, 'error');
 
-            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('sgp_form_error', true)->withInput();
         }
 
         $idSucursal = Sucursales::activa();
@@ -761,7 +761,7 @@ class CitasController extends Controller
                         Agenda::pedidosDe($asignacion), $idSucursal)
                     ?? 'A esa hora no queda ningún profesional libre para lo que elegiste. Elegí otro horario.', 'warning');
 
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
             }
             $asignacion = $r['reparto'];
         }
@@ -789,7 +789,7 @@ class CitasController extends Controller
                 );
                 flash($nombreProf . ' no trabaja ese día. Elegí otra fecha o profesional.', 'warning');
 
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
             }
         }
 
@@ -797,14 +797,14 @@ class CitasController extends Controller
             if ($idAyuda > 0 && ! $this->esPersonalActivo((int) $idAyuda)) {
                 flash('Uno de los profesionales elegidos ya no está activo.', 'error');
 
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
             }
         }
 
         if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {
             flash($problema, 'warning');
 
-            return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
         }
 
         // La cita dura el bloque más largo: los profesionales trabajan en
@@ -826,7 +826,7 @@ class CitasController extends Controller
             flash('Si la cita es para otra persona, escribí su nombre: es lo que ve '
                 . 'quien atiende ese día.', 'error');
 
-            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('sgp_form_error', true)->withInput();
         }
 
         try {
@@ -891,7 +891,7 @@ class CitasController extends Controller
                     ? substr($msg, $desde, $hasta - $desde + 28)
                     : 'Esa clienta ya tiene ese servicio agendado para ese mismo día.', 'warning');
 
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
             }
 
             if (! str_contains($msg, 'disponible') && ! str_contains($msg, 'habilitado')) {
@@ -904,7 +904,7 @@ class CitasController extends Controller
                     ? 'El profesional no está habilitado para alguno de esos servicios.'
                     : 'No se pudo agendar la cita. El detalle quedó registrado.'), 'error');
 
-            return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with("sgp_form_error", true)->withInput();
         }
 
         return redirect()->route('citas.agenda', ['dia' => substr($fecha, 0, 10)]);
@@ -1581,7 +1581,7 @@ class CitasController extends Controller
         if ($error) {
             flash($error, 'error');
 
-            return $volver->with("spg_form_error", true)->withInput();
+            return $volver->with("sgp_form_error", true)->withInput();
         }
 
         // Avisar si el bloqueo pisa citas ya agendadas

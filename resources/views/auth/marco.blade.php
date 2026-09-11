@@ -15,8 +15,8 @@
     <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
 </head>
 <body>
-<div class="spg-login-wrap">
-    @foreach (session('spg_flash', []) as $f)
+<div class="sgp-login-wrap">
+    @foreach (session('sgp_flash', []) as $f)
         @php $cls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$f['tipo']] ?? 'secondary'; @endphp
         <div class="alert alert-{{ $cls }}" style="font-size:.85rem">{{ $f['msg'] }}</div>
     @endforeach

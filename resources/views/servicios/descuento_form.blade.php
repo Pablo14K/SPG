@@ -5,8 +5,8 @@
 @section('contenido')
     @php $id = $d->id_descuento ?? 0; @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('servicios.descuentos') }}"><i class="bi bi-arrow-left"></i> Descuentos</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('servicios.descuentos') }}"><i class="bi bi-arrow-left"></i> Descuentos</a>
         <h1 class="mt-1">{{ $id ? 'Editar descuento' : 'Nuevo descuento' }}</h1>
     </div>
 
@@ -17,7 +17,7 @@
         </div>
     @endif
 
-    <div class="spg-panel" style="max-width:820px">
+    <div class="sgp-panel" style="max-width:820px">
         <form method="post" action="{{ route('servicios.descuento.guardar') }}">
             @csrf
             <input type="hidden" name="id_descuento" value="{{ $id }}">
@@ -75,7 +75,7 @@
             @unless ($nivel)
                 <hr class="my-4">
 
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿A qué servicios aplica?<x-ayuda>Si no marcás ninguno, el descuento se aplica al total de la factura. Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.</x-ayuda></h2>
+                <h2 class="sgp-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿A qué servicios aplica?<x-ayuda>Si no marcás ninguno, el descuento se aplica al total de la factura. Marcando algunos, «20 % en coloración» no le descuenta la manicura de la misma factura.</x-ayuda></h2>
 
                 <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
                     <input class="form-control form-control-sm" data-filtra="#listaServicios"
@@ -98,7 +98,7 @@
                     </div>
                 </div>
 
-                <div id="listaServicios" class="spg-check-lista">
+                <div id="listaServicios" class="sgp-check-lista">
                     @foreach ($servicios as $s)
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="servicios[]"

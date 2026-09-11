@@ -12,9 +12,9 @@
 
 @php use App\Servicios\Navegacion; @endphp
 
-<div class="spg-page-head d-flex justify-content-between align-items-end">
+<div class="sgp-page-head d-flex justify-content-between align-items-end">
     <div>
-        <a class="spg-back" href="{{ Navegacion::url('panel') }}"><i class="bi bi-arrow-left"></i> Panel</a>
+        <a class="sgp-back" href="{{ Navegacion::url('panel') }}"><i class="bi bi-arrow-left"></i> Panel</a>
         <h1 class="mt-1"><i class="bi bi-{{ $icono }}"></i> {{ $titulo }}</h1>
         <div class="sub">{{ $desc }}</div>
     </div>
@@ -32,13 +32,13 @@
 
 @foreach ($porGrupo as $grupo => $tarjetas)
     @if ($grupo !== '')
-        <h2 class="spg-form-titulo mt-3 mb-2">{{ $grupo }}</h2>
+        <h2 class="sgp-form-titulo mt-3 mb-2">{{ $grupo }}</h2>
     @endif
-    <div class="spg-cards">
+    <div class="sgp-cards">
         @foreach ($tarjetas as $s)
             @php $url = Navegacion::url($s['ruta']) . ($s['ancla'] ?? ''); @endphp
             @if (Navegacion::url($s['ruta']))
-                <a class="spg-card" href="{{ $url }}">
+                <a class="sgp-card" href="{{ $url }}">
                     <div class="ic"><i class="bi bi-{{ $s['ic'] }}"></i></div>
                     <h3>{{ $s['t'] }}</h3>
                     <p>{{ $s['d'] }}</p>

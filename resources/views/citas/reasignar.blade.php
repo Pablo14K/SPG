@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado sub="Pasarle a otro profesional las citas futuras de alguien que no va a estar." />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <form method="get" action="{{ route('citas.reasignar') }}" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label" for="de">¿De quién son las citas?</label>
@@ -30,7 +30,7 @@
     </div>
 
     @if ($de && ! $citas)
-        <div class="spg-panel mt-3">
+        <div class="sgp-panel mt-3">
             <p class="mb-0 text-muted-warm">
                 {{ $origen->nombre ?? 'Esa persona' }} no tiene citas futuras. No hay nada que reasignar.
             </p>
@@ -42,8 +42,8 @@
             @csrf
             <input type="hidden" name="de" value="{{ $de }}">
 
-            <div class="spg-panel mt-3">
-                <div class="table-responsive spg-tabla-movil">
+            <div class="sgp-panel mt-3">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
@@ -66,20 +66,20 @@
                                                name="citas[]" value="{{ $c->id_cita }}" checked
                                                aria-label="Reasignar esta cita">
                                     </td>
-                                    <td class="spg-movil-titulo" data-label="Cuándo">{{ fecha($c->fecha_hora, 'd/m/Y H:i') }}</td>
+                                    <td class="sgp-movil-titulo" data-label="Cuándo">{{ fecha($c->fecha_hora, 'd/m/Y H:i') }}</td>
                                     <td data-label="Clienta">{{ $c->cliente }}</td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                        <button type="button" class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                        <button type="button" class="sgp-btn-detalle" data-bs-toggle="collapse"
                                                 data-bs-target="#detRea{{ $c->id_cita }}" aria-expanded="false">
                                             <i class="bi bi-chevron-down"></i> Detalle
                                         </button>
                                     </td>
                                 </tr>
-                                <tr class="spg-fila-detalle">
+                                <tr class="sgp-fila-detalle">
                                     <td colspan="4">
                                         <div class="collapse" id="detRea{{ $c->id_cita }}">
-                                            <div class="spg-det-cuerpo">
-                                                <div class="spg-det-grid">
+                                            <div class="sgp-det-cuerpo">
+                                                <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Servicios</dt>
                                                         <dd>{{ $c->servicios ?: '—' }}</dd>
@@ -99,7 +99,7 @@
                 </div>
             </div>
 
-            <div class="spg-panel mt-3">
+            <div class="sgp-panel mt-3">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-6">
                         <label class="form-label" for="a">¿A quién se las paso?</label>

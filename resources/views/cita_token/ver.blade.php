@@ -20,13 +20,13 @@
         <h1 style="font-size:1.2rem;font-weight:500">{{ config('app.name') }}</h1>
     </div>
 
-    @foreach (session('spg_flash', []) as $f)
+    @foreach (session('sgp_flash', []) as $f)
         @php $cls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$f['tipo']] ?? 'secondary'; @endphp
         <div class="alert alert-{{ $cls }}" style="font-size:.88rem">{{ $f['msg'] }}</div>
     @endforeach
 
     @if (! $cita)
-        <div class="spg-panel text-center">
+        <div class="sgp-panel text-center">
             <div style="font-size:2rem;color:var(--oro)"><i class="bi bi-link-45deg"></i></div>
             <h2 style="font-size:1.05rem;font-weight:500">Ese enlace ya no sirve</h2>
             <p class="text-muted-warm" style="font-size:.9rem">
@@ -35,8 +35,8 @@
             </p>
         </div>
     @else
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Tu cita</h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-calendar-event"></i> Tu cita</h2>
             <p class="mb-1">
                 <strong>{{ fecha($cita->fecha_hora) }}</strong>
                 @if ($cal) · {{ (int) $cal->duracion_min }} min @endif
@@ -81,16 +81,16 @@
              El servidor lo rechaza igual; acá se deja de ofrecer, porque un
              formulario que va a contestar que no promete lo que no cumple. --}}
         @if ($yaCambio)
-            <div class="spg-panel mb-3">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
+            <div class="sgp-panel mb-3">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
                 <p class="text-muted-warm mb-0" style="font-size:.88rem">
                     Ya cambiaste el día de esta cita una vez, que es el único cambio que se puede
                     hacer desde acá. Si necesitás moverla otra vez, escribinos y lo vemos.
                 </p>
             </div>
         @else
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-arrow-repeat"></i> Cambiar la fecha</h2>
             <form method="post" action="{{ route('cita.token.guardar') }}">
                 @csrf
                 <input type="hidden" name="t" value="{{ $codigo }}">
@@ -110,8 +110,8 @@
                          data-agenda-sucursal="{{ (int) ($ctx->id_sucursal ?? 0) }}"
                          data-agenda-boton="#btnReprog">
                         <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
-                        <div data-agenda-dias class="spg-dias mt-2"></div>
-                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                        <div data-agenda-dias class="sgp-dias mt-2"></div>
+                        <div data-agenda-horas class="sgp-horas mt-2"></div>
                     </div>
                 </div>
 
@@ -125,8 +125,8 @@
         </div>
         @endif
 
-        <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-x-circle"></i> ¿No vas a poder venir?</h2>
+        <div class="sgp-panel">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-x-circle"></i> ¿No vas a poder venir?</h2>
             <form method="post" action="{{ route('cita.token.guardar') }}">
                 @csrf
                 <input type="hidden" name="t" value="{{ $codigo }}">

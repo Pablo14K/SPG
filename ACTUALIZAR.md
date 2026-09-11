@@ -1,4 +1,4 @@
-# Actualizar el SPG — guía de bolsillo
+# Actualizar el SGP — guía de bolsillo
 
 Para el servidor de todos los días. Lo largo —por qué cada cosa es así— está en
 `DESPLIEGUE.md`; acá van sólo los pasos, **los que están comprobados en el VPS**.
@@ -11,7 +11,7 @@ Para el servidor de todos los días. Lo largo —por qué cada cosa es así— e
 |---|---|---|
 | **Consola web** | hPanel → VPS → botón arriba a la derecha | **acá se actualiza**, y se hacen los respaldos |
 | **El panel** | hPanel → VPS → Administrador de Docker → Proyectos | ver los contenedores y sus logs |
-| **Terminal de un contenedor** | en el panel, `Terminal` en la tarjeta de `spg_app` | comandos del proyecto (`php artisan …`) |
+| **Terminal de un contenedor** | en el panel, `Terminal` en la tarjeta de `sgp_app` | comandos del proyecto (`php artisan …`) |
 
 Dos cosas que conviene tener claras antes de empezar:
 
@@ -19,7 +19,7 @@ Dos cosas que conviene tener claras antes de empezar:
   el clon por defecto ya trae el código.
 - **El proyecto NO vive en ninguna carpeta del servidor.** El código viaja dentro
   de las imágenes; en `/docker/spg` sólo queda el compose. Por eso lo que
-  necesita un archivo del proyecto se corre **dentro de `spg_app`**, donde está
+  necesita un archivo del proyecto se corre **dentro de `sgp_app`**, donde está
   en `/app`.
 
 ---
@@ -37,18 +37,29 @@ git push origin main
 **2.** En la **Consola web** del VPS, una sola línea:
 
 ```bash
-cd /tmp && rm -rf spg-deploy && git clone https://github.com/Pablo14K/SPG.git spg-deploy && cd spg-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
+cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
 ```
 
 Clona, reconstruye las cuatro imágenes y recrea los contenedores. Tarda unos
 minutos la primera vez y bastante menos después, porque Docker reusa lo que no
 cambió.
 
+> **`-p spg` sigue siendo `spg` aunque el sistema se llame SGP** (7.116.0). Es el
+> nombre del proyecto de Compose, y renombrarlo perdería los volúmenes de abajo:
+> queda con la grafía vieja a propósito. Los contenedores sí se llaman `sgp_*`
+> desde esa versión, así que **la primera vez después de la 7.116.0** hay que
+> volver a copiar el guion de respaldo y corregir la línea del cron, que nombran
+> `spg_bd`:
+>
+> ```bash
+> docker exec sgp_app cat docker/respaldo.sh > /usr/local/bin/sgp-respaldo.sh && chmod +x /usr/local/bin/sgp-respaldo.sh && crontab -l | sed 's#/usr/local/bin/spg-respaldo.sh#/usr/local/bin/sgp-respaldo.sh#; s/spg_bd/sgp_bd/g; s#/var/respaldos/spg#/var/respaldos/sgp#g' | crontab - && mv -n /var/respaldos/spg /var/respaldos/sgp 2>/dev/null; crontab -l
+> ```
+
 > **`-p spg` no es opcional.** Es el nombre del proyecto, y de él dependen los
 > volúmenes: con `-p spg` se reusan los que ya están —`spg_datos_bd`,
 > `spg_almacenamiento`, las imágenes de los servicios— y **los datos del salón
 > quedan intactos**. Sin esa bandera, Compose deduce el nombre del directorio
-> (`spg-deploy`) y crearía volúmenes nuevos y vacíos: el sistema levantaría
+> (`sgp-deploy`) y crearía volúmenes nuevos y vacíos: el sistema levantaría
 > **como si fuera una instalación de cero**.
 
 > **Y nunca `down -v`.** En desarrollo es lo normal; acá borra la base del salón
@@ -58,19 +69,19 @@ cambió.
 > salón, así que viven sólo en los volúmenes `spg_imagenes_servicios` y
 > `spg_imagenes_logo`. El despliegue de arriba **no las toca** —comprobado
 > reconstruyendo y recreando los contenedores—, y si alguna vez se perdieran,
-> `spg:diagnostico` lo dice en «Las fotos del salón»: sin eso la pantalla se
+> `sgp:diagnostico` lo dice en «Las fotos del salón»: sin eso la pantalla se
 > vería normal, sólo que con el hueco de «sin imagen de referencia».
 
 ### Comprobar que salió
 
 ```bash
-docker exec spg_app grep -m1 "'version'" config/spg.php
+docker exec sgp_app grep -m1 "'version'" config/sgp.php
 ```
 
 Tiene que decir la versión que acabás de subir. Y que el sitio responde:
 
 ```bash
-curl -sI https://spg.columbiatcc.online/ | head -3
+curl -sI https://sgp.columbiatcc.online/ | head -3
 ```
 
 **302** hacia `/entrar` es lo correcto.
@@ -94,13 +105,13 @@ git log --name-only --oneline -5 | grep -c "peluqueria_bd(base).sql"
 Desde la **Consola web**:
 
 ```bash
-mkdir -p /var/respaldos/spg && docker exec spg_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/spg/peluqueria_bd_$(date +%F_%H%M).sql
+mkdir -p /var/respaldos/sgp && docker exec sgp_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/sgp/peluqueria_bd_$(date +%F_%H%M).sql
 ```
 
 Y comprobá que pesó algo — un archivo de 0 bytes es lo mismo que no tener nada:
 
 ```bash
-ls -lh /var/respaldos/spg/
+ls -lh /var/respaldos/sgp/
 ```
 
 ### Paso 2 · Subir y desplegar
@@ -112,14 +123,14 @@ Igual que el caso 1: `git push origin main` y la línea de la Consola web.
 Desde la misma **Consola web**:
 
 ```bash
-docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql'
+docker exec sgp_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql'
 ```
 
 Cambiá el nombre por el de la versión que estés aplicando. Los guiones viven en
 `basededatos/actualizaciones/`, uno por versión que toca la base:
 
 ```bash
-docker exec spg_app ls basededatos/actualizaciones/
+docker exec sgp_app ls basededatos/actualizaciones/
 ```
 
 > **Se pueden volver a correr sin miedo.** Una rutina se reemplaza entera
@@ -130,7 +141,7 @@ docker exec spg_app ls basededatos/actualizaciones/
 ### Paso 4 · Comprobar
 
 ```bash
-docker exec spg_app php artisan spg:diagnostico --produccion
+docker exec sgp_app php artisan sgp:diagnostico --produccion
 ```
 
 Tiene que terminar en **«Todo en orden.»** Si marca que faltan rutinas o
@@ -146,7 +157,7 @@ así que es lo último que se prueba, no lo primero.
 ### Ver qué hay
 
 ```bash
-ls -lht /var/respaldos/spg/
+ls -lht /var/respaldos/sgp/
 ```
 
 Del más nuevo al más viejo. Lo que importa no es cuántos sino el **peso**: un
@@ -154,7 +165,7 @@ volcado completo ronda los **300 KB**, así que uno de unos pocos bytes salió
 mal.
 
 ```bash
-tail -1 /var/respaldos/spg/$(ls -t /var/respaldos/spg | head -1)
+tail -1 /var/respaldos/sgp/$(ls -t /var/respaldos/sgp | head -1)
 ```
 
 Tiene que terminar en **`-- Dump completed`**. Si termina cortado, se
@@ -172,7 +183,7 @@ los guiones de `basededatos/actualizaciones/` posteriores a esa fecha**. Para ve
 cuáles hay:
 
 ```bash
-docker exec spg_app ls basededatos/actualizaciones/
+docker exec sgp_app ls basededatos/actualizaciones/
 ```
 
 ### Los cinco pasos
@@ -180,14 +191,14 @@ docker exec spg_app ls basededatos/actualizaciones/
 **1 · Respaldá lo de AHORA.** Es lo que hace reversible la restauración:
 
 ```bash
-docker exec spg_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/spg/ANTES_DE_RESTAURAR_$(date +%F_%H%M).sql
+docker exec sgp_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/sgp/ANTES_DE_RESTAURAR_$(date +%F_%H%M).sql
 ```
 
 **2 · Parar lo que escribe.** El planificador corre cada minuto y puede meter una
 fila a mitad de la carga:
 
 ```bash
-docker stop spg_cron spg_app
+docker stop sgp_cron sgp_app
 ```
 
 > **Desde acá el salón está caído**, así que los dos pasos que siguen van
@@ -196,26 +207,26 @@ docker stop spg_cron spg_app
 **3 · Cargar el respaldo** (cambiá el nombre del archivo):
 
 ```bash
-docker exec -i spg_bd sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < /var/respaldos/spg/peluqueria_bd_2026-09-04_0220.sql
+docker exec -i sgp_bd sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' < /var/respaldos/sgp/peluqueria_bd_2026-09-04_0220.sql
 ```
 
 **4 · Levantar todo:**
 
 ```bash
-docker start spg_app spg_cron
+docker start sgp_app sgp_cron
 ```
 
 **5 · Volver a aplicar los guiones de base posteriores** a la fecha del
 respaldo, uno por uno:
 
 ```bash
-docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.97.0.sql'
+docker exec sgp_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.97.0.sql'
 ```
 
 Y comprobar:
 
 ```bash
-docker exec spg_app php artisan spg:diagnostico --produccion
+docker exec sgp_app php artisan sgp:diagnostico --produccion
 ```
 
 **«Todo en orden.»** Si dice que faltan columnas o rutinas, quedó un guion sin
@@ -224,7 +235,7 @@ aplicar.
 ### Las dos cosas que se pagan caro acá
 
 > **La contraseña va DENTRO de comillas simples, adentro de un `sh -c`.** Escrita
-> como `docker exec -i spg_bd mysql -p"$MYSQL_ROOT_PASSWORD"`, la variable la
+> como `docker exec -i sgp_bd mysql -p"$MYSQL_ROOT_PASSWORD"`, la variable la
 > expande **el shell del servidor** —donde no existe— y se manda una contraseña
 > vacía: `ERROR 1045 Access denied`. Con `sh -c '…'` la resuelve el contenedor,
 > que es el único que la tiene.
@@ -236,7 +247,7 @@ aplicar.
 > **Las fotos no vuelven con el respaldo.** Las de los servicios y el logo viven
 > en otro volumen y el `mysqldump` sólo guarda la base — restaurar a un punto
 > anterior deja las fotos de hoy, que normalmente es lo que se quiere. Si un
-> servicio nombra una foto que ya no está, `spg:diagnostico` lo dice en «Las
+> servicio nombra una foto que ya no está, `sgp:diagnostico` lo dice en «Las
 > fotos del salón».
 
 ---
@@ -261,8 +272,8 @@ Si dicen `Up 2 days` justo después de un despliegue, no se recreó nada.
 > **Y el panel todavía tiene guardada la URL con `master`**, la rama que se
 > borró. Si algún día querés volver a usar el botón, hay que rehacer el proyecto
 > con **Componer → URL** apuntando a
-> `https://github.com/Pablo14K/SPG/blob/main/docker-compose.produccion.yml`, con
-> el mismo nombre de proyecto `spg`. Mientras tanto, la línea de la Consola web
+> `https://github.com/Pablo14K/SGP/blob/main/docker-compose.produccion.yml`, con
+> el mismo nombre de proyecto `sgp`. Mientras tanto, la línea de la Consola web
 > hace exactamente lo mismo y está comprobada.
 
 ---
@@ -272,8 +283,8 @@ Si dicen `Up 2 days` justo después de un despliegue, no se recreó nada.
 | Síntoma | Dónde mirar |
 |---|---|
 | El `up --build` falla | lo que imprime en la consola, que ahí sí se ve entero |
-| Un contenedor no levanta | `docker logs spg_bd` (o `spg_app`) |
-| El sitio da 500 | `docker exec spg_app tail -30 storage/logs/laravel-$(date +%F).log` |
+| Un contenedor no levanta | `docker logs sgp_bd` (o `sgp_app`) |
+| El sitio da 500 | `docker exec sgp_app tail -30 storage/logs/laravel-$(date +%F).log` |
 | El sitio no responde | ¿está Traefik levantado? `docker ps --filter name=traefik` |
 | Sigue el código viejo | no se recreó: repetí el `up --build` y mirá el tiempo de actividad |
 | `no such file or directory` al clonar | quedó en otra rama: el repositorio tiene **sólo `main`** |

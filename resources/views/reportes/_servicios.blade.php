@@ -5,8 +5,8 @@
      que pueden llevar varios—, que es lo que permite decir «la mitad de lo que
      hacemos son cortes» sin sacar la cuenta a mano. --}}
 @if ($servicios)
-    <div class="spg-panel">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios realizados</h2>
+    <div class="sgp-panel">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-scissors"></i> Servicios realizados</h2>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
                 <thead>
@@ -35,7 +35,7 @@
                             <td class="text-muted-warm">{{ $s->categoria }}</td>
                             <td class="text-end">{{ $veces }}</td>
                             <td>
-                                <span class="spg-graf-pista"><span class="spg-graf-barra"
+                                <span class="sgp-graf-pista"><span class="sgp-graf-barra"
                                       style="width:{{ $pctBarra }}%"></span></span>
                             </td>
                             <td class="text-end text-muted-warm">{{ round($pctTotal, 1) }} %</td>
@@ -63,5 +63,5 @@
         </p>
     </div>
 @else
-    <div class="spg-panel">@include('reportes._sindatos', ['ic' => 'scissors'])</div>
+    <div class="sgp-panel">@include('reportes._sindatos', ['ic' => 'scissors'])</div>
 @endif

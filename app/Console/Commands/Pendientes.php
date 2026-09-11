@@ -21,7 +21,7 @@ use Illuminate\Console\Command;
  */
 class Pendientes extends Command
 {
-    protected $signature = 'spg:pendientes';
+    protected $signature = 'sgp:pendientes';
 
     protected $description = 'Qué datos le faltan al salón para que el sistema funcione completo';
 

@@ -1,5 +1,5 @@
 // =====================================================================
-//  SPG — comportamientos comunes de la interfaz
+//  SGP — comportamientos comunes de la interfaz
 //  1. Separador de miles automático en los campos numéricos
 //  2. Confirmación en botones marcados con data-confirmar
 //  3. Evita el doble envío accidental de un formulario
@@ -16,12 +16,12 @@
 //  espera en blanco se lee como «se colgó» cuando en realidad está
 //  trabajando. Acá se le pone cara a esa espera.
 //
-//  Se expone como `SPGCarga` para que las pantallas que traen su propio
+//  Se expone como `SGPCarga` para que las pantallas que traen su propio
 //  JavaScript (la agenda, el portal) lo usen en vez de inventar el suyo.
 //
 //  Nada de esto es funcional: si el JS no carga, todo sigue andando igual.
 // ---------------------------------------------------------------------
-window.SPGCarga = (function () {
+window.SGPCarga = (function () {
   'use strict';
 
   var barra = null;
@@ -31,7 +31,7 @@ window.SPGCarga = (function () {
   function elemento() {
     if (!barra) {
       barra = document.createElement('div');
-      barra.className = 'spg-barra-carga';
+      barra.className = 'sgp-barra-carga';
       barra.setAttribute('role', 'status');
       barra.setAttribute('aria-live', 'polite');
       barra.setAttribute('aria-label', 'Cargando');
@@ -80,11 +80,11 @@ window.SPGCarga = (function () {
   // rehacer y lo devuelve a la normalidad pase lo que pase.
   function envolver(promesa, bloque) {
     mostrar();
-    if (bloque) bloque.classList.add('spg-actualizando');
+    if (bloque) bloque.classList.add('sgp-actualizando');
 
     return promesa.finally(function () {
       ocultar();
-      if (bloque) bloque.classList.remove('spg-actualizando');
+      if (bloque) bloque.classList.remove('sgp-actualizando');
     });
   }
 
@@ -133,7 +133,7 @@ window.SPGCarga = (function () {
     if (!navegaDeVerdad(a, ev)) return;
     // Si algo canceló el clic (una confirmación que se respondió que no),
     // no hay navegación que anunciar.
-    setTimeout(function () { if (!ev.defaultPrevented) window.SPGCarga.mostrar(); }, 0);
+    setTimeout(function () { if (!ev.defaultPrevented) window.SGPCarga.mostrar(); }, 0);
   });
 
   // Al enviar un formulario. Va en la fase de captura y ANTES que el
@@ -146,8 +146,8 @@ window.SPGCarga = (function () {
 
     setTimeout(function () {
       if (ev.defaultPrevented) return;
-      window.SPGCarga.mostrar();
-      if (ev.submitter) window.SPGCarga.ocupar(ev.submitter);
+      window.SGPCarga.mostrar();
+      if (ev.submitter) window.SGPCarga.ocupar(ev.submitter);
     }, 0);
   });
 })();
@@ -160,11 +160,11 @@ window.SPGCarga = (function () {
 // ---------------------------------------------------------------------
 (function () {
   'use strict';
-  document.querySelectorAll('.spg-tel').forEach(function (grupo) {
-    var sel = grupo.querySelector('.spg-tel-pais');
-    var num = grupo.querySelector('.spg-tel-num');
+  document.querySelectorAll('.sgp-tel').forEach(function (grupo) {
+    var sel = grupo.querySelector('.sgp-tel-pais');
+    var num = grupo.querySelector('.sgp-tel-num');
     if (!sel || !num) return;
-    var pista = grupo.parentNode.querySelector('.spg-tel-pista');
+    var pista = grupo.parentNode.querySelector('.sgp-tel-pista');
 
     function opcion() { return sel.options[sel.selectedIndex]; }
 
@@ -182,8 +182,8 @@ window.SPGCarga = (function () {
       // El 0 (o troncal del país) no va cuando se usa el código internacional
       if (tr && v.indexOf(tr) === 0 && v.length > tr.length) {
         v = v.slice(tr.length);
-        num.classList.add('spg-tel-ajustado');
-        setTimeout(function () { num.classList.remove('spg-tel-ajustado'); }, 900);
+        num.classList.add('sgp-tel-ajustado');
+        setTimeout(function () { num.classList.remove('sgp-tel-ajustado'); }, 900);
       }
       var max = parseInt(o.getAttribute('data-max'), 10) || 15;
       if (v.length > max) v = v.slice(0, max);
@@ -278,7 +278,7 @@ window.SPGCarga = (function () {
 
   // Si app.js se cargó a medias, reservar tiene que seguir andando igual: la
   // señal de carga es un adorno, no parte del funcionamiento.
-  var SPGCarga = window.SPGCarga || { envolver: function (p) { return p; } };
+  var SGPCarga = window.SGPCarga || { envolver: function (p) { return p; } };
 
   function elegidos() {
     if (fijos.servicios.length) { return fijos.servicios; }
@@ -367,15 +367,15 @@ window.SPGCarga = (function () {
   }
 
   function pedir(extra, destino) {
-    return SPGCarga
+    return SGPCarga
       .envolver(fetch(url + '?' + params(extra).toString(),
         { headers: { 'Accept': 'application/json' } }), destino)
       .then(function (r) { return r.json(); });
   }
 
   function cargando(el, texto) {
-    el.innerHTML = '<span class="spg-cargando-texto">'
-      + '<span class="spg-spinner"></span> ' + texto + '</span>';
+    el.innerHTML = '<span class="sgp-cargando-texto">'
+      + '<span class="sgp-spinner"></span> ' + texto + '</span>';
   }
 
   function limpiar() {
@@ -453,7 +453,7 @@ window.SPGCarga = (function () {
   // contestaba «No se pudo consultar la agenda» sin decir nada mas.
   function campoCombo(id, etiqueta) {
     var caja = document.createElement('div');
-    caja.className = 'spg-agenda-campo';
+    caja.className = 'sgp-agenda-campo';
     var lab = document.createElement('label');
     lab.className = 'form-label';
     lab.setAttribute('for', id);
@@ -493,7 +493,7 @@ window.SPGCarga = (function () {
     agendaSelectId++;
 
     var fila = document.createElement('div');
-    fila.className = 'spg-agenda-fila';
+    fila.className = 'sgp-agenda-fila';
     var mes = campoCombo('agMes' + agendaSelectId, '1. Mes');
     var dia = campoCombo('agDia' + agendaSelectId, '2. Día');
     fila.appendChild(mes.caja);
@@ -557,7 +557,7 @@ window.SPGCarga = (function () {
     pedir({ fecha: f }, horasEl).then(function (d) {
       if (mia !== consulta || miEleccion !== eleccion) { return; }
       horasEl.innerHTML = '';
-      delete cont.dataset.spgEleccion;
+      delete cont.dataset.sgpEleccion;
       if (!d.ok || !d.horas || !d.horas.length) {
         // **Se dice POR QUÉ, con nombres.** «Ese día ya no tiene horarios
         // libres» no decía cuál de las decisiones es la que no cierra: el
@@ -571,7 +571,7 @@ window.SPGCarga = (function () {
       }
 
       var fila = document.createElement('div');
-      fila.className = 'spg-agenda-fila';
+      fila.className = 'sgp-agenda-fila';
       var hora = campoCombo('agHora' + agendaSelectId, '3. Hora');
       fila.appendChild(hora.caja);
       horasEl.appendChild(fila);
@@ -588,7 +588,7 @@ window.SPGCarga = (function () {
         if (!hora.sel.value) {
           if (campo) campo.value = '';
           if (btn) btn.disabled = true;
-          delete cont.dataset.spgEleccion;
+          delete cont.dataset.sgpEleccion;
 
           return;
         }
@@ -600,7 +600,7 @@ window.SPGCarga = (function () {
         // «con quien esté disponible» pasa a tener nombre antes de confirmar.
         var h = d.horas.filter(function (x) { return x.hora === hora.sel.value; })[0];
         if (h) {
-          cont.dataset.spgEleccion = JSON.stringify({ duracion: h.duracion, quienes: h.quienes || '', nombres: h.nombres || {} });
+          cont.dataset.sgpEleccion = JSON.stringify({ duracion: h.duracion, quienes: h.quienes || '', nombres: h.nombres || {} });
           aviso.textContent = 'A las ' + h.hora + ' ' + sujeto.toLowerCase() + ' dura ' + h.duracion + ' minutos'
             + (h.quienes ? ' · ' + h.quienes : '') + '.';
         }
@@ -836,10 +836,10 @@ window.SPGCarga = (function () {
       return;
     }
 
-    var caja = document.getElementById('spgConfirmar');
+    var caja = document.getElementById('sgpConfirmar');
     if (!caja) {
       caja = document.createElement('div');
-      caja.id = 'spgConfirmar';
+      caja.id = 'sgpConfirmar';
       caja.className = 'modal fade';
       caja.tabIndex = -1;
       caja.setAttribute('aria-hidden', 'true');
@@ -849,10 +849,10 @@ window.SPGCarga = (function () {
         + '<div class="modal-header"><h5 class="modal-title" style="font-size:1rem">'
         + '<i class="bi bi-question-circle"></i> Confirmá</h5>'
         + '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>'
-        + '<div class="modal-body" id="spgConfirmarTxt" style="font-size:.9rem"></div>'
+        + '<div class="modal-body" id="sgpConfirmarTxt" style="font-size:.9rem"></div>'
         + '<div class="modal-footer">'
         + '<button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>'
-        + '<button type="button" class="btn btn-oro" id="spgConfirmarSi">Sí, seguir</button>'
+        + '<button type="button" class="btn btn-oro" id="sgpConfirmarSi">Sí, seguir</button>'
         + '</div></div></div>';
       document.body.appendChild(caja);
     }
@@ -861,19 +861,19 @@ window.SPGCarga = (function () {
     // `data-algo` no aparece en ninguna vista y `AndamiajeTest` lo marca como
     // JS apuntando a un marcado que no existe — que es justo lo que esa prueba
     // tiene que detectar, y no conviene enseñarle a mirar para otro lado.
-    caja.querySelector('#spgConfirmarTxt').textContent = texto;
+    caja.querySelector('#sgpConfirmarTxt').textContent = texto;
     var modal = window.bootstrap.Modal.getOrCreateInstance(caja);
 
     // El botón se reemplaza para no acumular escuchas de confirmaciones
     // anteriores: si no, el segundo «sí» dispararía también la primera acción.
-    var si = caja.querySelector('#spgConfirmarSi');
+    var si = caja.querySelector('#sgpConfirmarSi');
     var nuevo = si.cloneNode(true);
     si.parentNode.replaceChild(nuevo, si);
     nuevo.addEventListener('click', function () { modal.hide(); alAceptar(); });
 
     modal.show();
   }
-  window.SPGConfirmar = confirmar;
+  window.SGPConfirmar = confirmar;
 
   // ---------------------------------------------------------------------
   // Los avisos que se dibujan como ventana (`flash($msg, 'modal')`)
@@ -881,13 +881,13 @@ window.SPGCarga = (function () {
   // Se abren solos: es lo que los distingue de la franja, que se cierra sin
   // leerse. Si Bootstrap no cargó no pasa nada — el marcado deja una franja de
   // respaldo con el mismo texto, así que el aviso nunca desaparece.
-  document.querySelectorAll('[data-spg-abrir]').forEach(function (caja) {
+  document.querySelectorAll('[data-sgp-abrir]').forEach(function (caja) {
     if (!window.bootstrap || !window.bootstrap.Modal) return;
     window.bootstrap.Modal.getOrCreateInstance(caja).show();
 
     // Recién ahora se saca la franja de respaldo: si la ventana no se pudo
     // abrir, el texto tiene que seguir estando en algún lado.
-    var respaldo = document.querySelector('[data-spg-respaldo="' + caja.id + '"]');
+    var respaldo = document.querySelector('[data-sgp-respaldo="' + caja.id + '"]');
     if (respaldo) respaldo.remove();
   });
 
@@ -938,8 +938,8 @@ window.SPGCarga = (function () {
       form.querySelectorAll('button[disabled]').forEach(function (b) { b.disabled = false; });
       // Y se apaga la señal de carga: dejarla girando sobre un formulario
       // que ya no está esperando nada es peor que no haberla puesto.
-      form.querySelectorAll('.btn.cargando').forEach(function (b) { window.SPGCarga.liberar(b); });
-      window.SPGCarga.todoListo();
+      form.querySelectorAll('.btn.cargando').forEach(function (b) { window.SGPCarga.liberar(b); });
+      window.SGPCarga.todoListo();
     }, 8000);
   });
 
@@ -963,7 +963,7 @@ window.SPGCarga = (function () {
     iniciar();
   }
 
-  window.SPG = { prepararCampos: prepararCampos, prepararFiltros: prepararFiltros, valorNumerico: valorNumerico };
+  window.SGP = { prepararCampos: prepararCampos, prepararFiltros: prepararFiltros, valorNumerico: valorNumerico };
 })();
 
 // ---------------------------------------------------------------------
@@ -1024,15 +1024,15 @@ window.SPGCarga = (function () {
 //  Los campos de tarjeta o de banco aparecen solo cuando el medio elegido
 //  los necesita, para no llenar la pantalla de campos que no van.
 //
-//  Va al final del archivo a propósito: usa window.SPG, que se define arriba.
+//  Va al final del archivo a propósito: usa window.SGP, que se define arriba.
 // ---------------------------------------------------------------------
 (function () {
   'use strict';
-  document.querySelectorAll('.spg-cobro').forEach(function (caja) {
-    var molde   = caja.parentNode.querySelector('.spg-cobro-molde');
-    var cont    = caja.querySelector('.spg-cobro-lineas');
-    var agregar = caja.querySelector('.spg-cobro-add');
-    var resumen = caja.querySelector('.spg-cobro-total');
+  document.querySelectorAll('.sgp-cobro').forEach(function (caja) {
+    var molde   = caja.parentNode.querySelector('.sgp-cobro-molde');
+    var cont    = caja.querySelector('.sgp-cobro-lineas');
+    var agregar = caja.querySelector('.sgp-cobro-add');
+    var resumen = caja.querySelector('.sgp-cobro-total');
     var saldo   = parseFloat(caja.getAttribute('data-saldo') || '0');
     // Lo que viene propuesto en la primera linea. Casi siempre es todo lo
     // que falta, pero confirmando una sena es el monto de LA SENA: proponer
@@ -1049,14 +1049,14 @@ window.SPGCarga = (function () {
 
     function recalcular() {
       var suma = 0;
-      cont.querySelectorAll('.spg-cobro-monto').forEach(function (i) { suma += aNumero(i.value); });
+      cont.querySelectorAll('.sgp-cobro-monto').forEach(function (i) { suma += aNumero(i.value); });
       var falta = saldo - suma;
       var texto, clase;
       if (suma === 0)        { texto = 'Sin montos cargados.'; clase = 'text-muted-warm'; }
       else if (falta > 0.5)  { texto = 'Suma ' + miles(suma) + ' · queda pendiente ' + miles(falta); clase = 'txt-oro'; }
       else if (falta < -0.5) { texto = 'Suma ' + miles(suma) + ' · se pasa ' + miles(-falta) + ' del saldo'; clase = 'txt-no'; }
       else                   { texto = 'Suma ' + miles(suma) + ' · cubre todo el saldo'; clase = 'txt-ok'; }
-      resumen.className = 'spg-cobro-total mt-3 ' + clase;
+      resumen.className = 'sgp-cobro-total mt-3 ' + clase;
       resumen.textContent = texto;
       // No dejar enviar si se pasa del saldo
       var f = caja.closest('form');
@@ -1076,10 +1076,10 @@ window.SPGCarga = (function () {
     };
 
     function ajustarExtras(linea) {
-      var sel = linea.querySelector('.spg-cobro-metodo');
+      var sel = linea.querySelector('.sgp-cobro-metodo');
       var tipo = sel.options[sel.selectedIndex].getAttribute('data-tipo');
-      linea.querySelector('.spg-extra-tarjeta').style.display = (tipo === 'TARJETA') ? '' : 'none';
-      linea.querySelector('.spg-extra-banco').style.display   = (tipo === 'BANCO' || tipo === 'CHEQUE') ? '' : 'none';
+      linea.querySelector('.sgp-extra-tarjeta').style.display = (tipo === 'TARJETA') ? '' : 'none';
+      linea.querySelector('.sgp-extra-banco').style.display   = (tipo === 'BANCO' || tipo === 'CHEQUE') ? '' : 'none';
 
       // Transferencia y cheque comparten la tabla, no los campos: una
       // transferencia no tiene número de cheque y un cheque no tiene número
@@ -1092,7 +1092,7 @@ window.SPGCarga = (function () {
       });
 
       // Y la fecha se llama distinto en cada uno
-      var fe = linea.querySelector('.spg-fecha-banco');
+      var fe = linea.querySelector('.sgp-fecha-banco');
       if (fe) fe.textContent = (tipo === 'CHEQUE') ? 'Fecha del cheque' : 'Fecha de la transferencia';
 
       var ref = linea.querySelector('[name="referencia[]"]');
@@ -1104,10 +1104,10 @@ window.SPGCarga = (function () {
     // El vuelto es una cuenta de EFECTIVO: preguntar «¿con cuánto paga?» en una
     // transferencia no tiene sentido, no hay billete ni cambio que dar.
     function ajustarVuelto() {
-      var bloque = caja.querySelector('.spg-vuelto-bloque');
+      var bloque = caja.querySelector('.sgp-vuelto-bloque');
       if (!bloque) return;
       var hayEfectivo = false;
-      cont.querySelectorAll('.spg-cobro-metodo').forEach(function (s) {
+      cont.querySelectorAll('.sgp-cobro-metodo').forEach(function (s) {
         var op = s.options[s.selectedIndex];
         if (op && op.getAttribute('data-tipo') === 'EFECTIVO') hayEfectivo = true;
       });
@@ -1119,14 +1119,14 @@ window.SPGCarga = (function () {
     function nuevaLinea(monto) {
       var linea = molde.content.firstElementChild.cloneNode(true);
       cont.appendChild(linea);
-      if (monto) linea.querySelector('.spg-cobro-monto').value = miles(monto);
+      if (monto) linea.querySelector('.sgp-cobro-monto').value = miles(monto);
       ajustarExtras(linea);
-      linea.querySelector('.spg-cobro-metodo').addEventListener('change', function () { ajustarExtras(linea); recalcular(); });
-      linea.querySelector('.spg-cobro-monto').addEventListener('input', recalcular);
-      linea.querySelector('.spg-cobro-quitar').addEventListener('click', function () {
+      linea.querySelector('.sgp-cobro-metodo').addEventListener('change', function () { ajustarExtras(linea); recalcular(); });
+      linea.querySelector('.sgp-cobro-monto').addEventListener('input', recalcular);
+      linea.querySelector('.sgp-cobro-quitar').addEventListener('click', function () {
         if (cont.children.length > 1) { linea.remove(); recalcular(); }
       });
-      if (window.SPG) window.SPG.prepararCampos(linea);
+      if (window.SGP) window.SGP.prepararCampos(linea);
       recalcular();
       return linea;
     }
@@ -1140,8 +1140,8 @@ window.SPGCarga = (function () {
     //  vuelto no cambia ni el saldo de la factura ni lo que queda en el
     //  cajón (entra 100.000 y salen 30.000: neto, los 70.000 del cobro).
     // ---------------------------------------------------------------
-    var recibido = caja.querySelector('.spg-vuelto-recibido');
-    var vueltoRes = caja.querySelector('.spg-vuelto-res');
+    var recibido = caja.querySelector('.sgp-vuelto-recibido');
+    var vueltoRes = caja.querySelector('.sgp-vuelto-res');
 
     function calcularVuelto() {
       if (!recibido || !vueltoRes) return;
@@ -1154,24 +1154,24 @@ window.SPGCarga = (function () {
       // vuelto. La transferencia no se paga con billetes: no hay cambio que
       // dar por esa parte.
       var aCobrar = 0;
-      cont.querySelectorAll('.spg-cobro-linea').forEach(function (l) {
-        var sel = l.querySelector('.spg-cobro-metodo');
+      cont.querySelectorAll('.sgp-cobro-linea').forEach(function (l) {
+        var sel = l.querySelector('.sgp-cobro-metodo');
         var op = sel && sel.options[sel.selectedIndex];
         if (op && op.getAttribute('data-tipo') === 'EFECTIVO') {
-          aCobrar += aNumero(l.querySelector('.spg-cobro-monto').value);
+          aCobrar += aNumero(l.querySelector('.sgp-cobro-monto').value);
         }
       });
 
-      if (dado <= 0 || aCobrar <= 0) { vueltoRes.textContent = ''; vueltoRes.className = 'spg-vuelto-res mt-2'; return; }
+      if (dado <= 0 || aCobrar <= 0) { vueltoRes.textContent = ''; vueltoRes.className = 'sgp-vuelto-res mt-2'; return; }
       var v = dado - aCobrar;
       if (v < -0.5) {
-        vueltoRes.className = 'spg-vuelto-res mt-2 txt-no';
+        vueltoRes.className = 'sgp-vuelto-res mt-2 txt-no';
         vueltoRes.textContent = 'Falta ' + miles(-v) + ' para cubrir los ' + miles(aCobrar) + ' en efectivo.';
       } else if (v < 0.5) {
-        vueltoRes.className = 'spg-vuelto-res mt-2 txt-ok';
+        vueltoRes.className = 'sgp-vuelto-res mt-2 txt-ok';
         vueltoRes.textContent = 'Justo: no hay vuelto.';
       } else {
-        vueltoRes.className = 'spg-vuelto-res mt-2 spg-vuelto-monto';
+        vueltoRes.className = 'sgp-vuelto-res mt-2 sgp-vuelto-monto';
         vueltoRes.textContent = 'Vuelto a entregar: ' + miles(v);
       }
     }
@@ -1275,7 +1275,7 @@ window.SPGCarga = (function () {
       el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    caja.querySelectorAll('.spg-canje').forEach(function (f) {
+    caja.querySelectorAll('.sgp-canje').forEach(function (f) {
       var chk = f.querySelector('input[type="checkbox"]');
       var srv = cont.querySelector('.srv[value="' + f.dataset.servicio + '"]');
       if (!chk || !srv) { return; }
@@ -1370,7 +1370,7 @@ window.SPGCarga = (function () {
 //  de siempre — un adorno tiene que poder faltar.
 // ---------------------------------------------------------------------
 (function () {
-  document.querySelectorAll('select.spg-ciudad[data-otra]').forEach(function (sel) {
+  document.querySelectorAll('select.sgp-ciudad[data-otra]').forEach(function (sel) {
     var otra = document.querySelector(sel.getAttribute('data-otra'));
     if (!otra) return;
 
@@ -1682,7 +1682,7 @@ window.SPGCarga = (function () {
     var total = 0, sena = 0, min = 0, cuantos = 0;
 
     casillas.forEach(function (c) {
-      var tarjeta = c.closest('.spg-srv-card');
+      var tarjeta = c.closest('.sgp-srv-card');
       // El borde de oro se pone al marcar, no al recargar.
       if (tarjeta) { tarjeta.classList.toggle('elegida', c.checked); }
       if (!c.checked) { return; }
@@ -1710,10 +1710,10 @@ window.SPGCarga = (function () {
       lista.textContent = '';
       casillas.forEach(function (c) {
         if (!c.checked) { return; }
-        var tarjeta = c.closest('.spg-srv-card');
+        var tarjeta = c.closest('.sgp-srv-card');
         var li = document.createElement('li');
         var n = document.createElement('span');
-        n.textContent = tarjeta ? (tarjeta.querySelector('.spg-srv-nombre') || {}).textContent : '';
+        n.textContent = tarjeta ? (tarjeta.querySelector('.sgp-srv-nombre') || {}).textContent : '';
         var v = document.createElement('b');
         v.textContent = gs(parseFloat(c.getAttribute('data-precio')) || 0);
         li.appendChild(n);
@@ -2069,10 +2069,10 @@ window.SPGCarga = (function () {
   var avisado = false;
 
   // ¿Hay algo que perder si recargamos? Un modal abierto o un campo que
-  // la persona tocó. `data-spg-tocado` lo pone el primer `input`.
+  // la persona tocó. `data-sgp-tocado` lo pone el primer `input`.
   function hayAlgoQuePerder() {
     if (document.querySelector('.modal.show')) { return true; }
-    if (document.querySelector('[data-spg-tocado]')) { return true; }
+    if (document.querySelector('[data-sgp-tocado]')) { return true; }
 
     return false;
   }
@@ -2082,7 +2082,7 @@ window.SPGCarga = (function () {
     avisado = true;
 
     var barra = document.createElement('div');
-    barra.className = 'spg-vivo';
+    barra.className = 'sgp-vivo';
     barra.setAttribute('role', 'status');
 
     var txt = document.createElement('span');
@@ -2122,7 +2122,7 @@ window.SPGCarga = (function () {
   // El primer campo tocado marca la página como «no la pises».
   document.addEventListener('input', function (e) {
     var t = e.target;
-    if (t && t.form) { t.setAttribute('data-spg-tocado', '1'); }
+    if (t && t.form) { t.setAttribute('data-sgp-tocado', '1'); }
   }, true);
 
   document.addEventListener('visibilitychange', function () {
@@ -2151,7 +2151,7 @@ window.SPGCarga = (function () {
    TRES COSAS QUE NO HAY QUE ROMPER AL TOCARLO:
 
    1) **Sin `app.js` se ven TODOS los pasos y se reserva igual.** El CSS
-      esconde sólo bajo `.spg-wiz-on`, y esa clase la pone este script.
+      esconde sólo bajo `.sgp-wiz-on`, y esa clase la pone este script.
       Es la regla de siempre: lo que adorna puede faltar.
 
    2) **`required` se saca del paso escondido.** Un campo obligatorio
@@ -2181,20 +2181,20 @@ window.SPGCarga = (function () {
     });
     if (pasos.length < 2) return;
 
-    caja.classList.add('spg-wiz-on');
+    caja.classList.add('sgp-wiz-on');
     var actual = 0;
 
     // ---- La barra de pasos ----
     var barra = document.createElement('ol');
-    barra.className = 'spg-wiz-barra';
+    barra.className = 'sgp-wiz-barra';
     pasos.forEach(function (p, i) {
       var li = document.createElement('li');
-      li.className = 'spg-wiz-item';
+      li.className = 'sgp-wiz-item';
       var bola = document.createElement('span');
-      bola.className = 'spg-wiz-bola';
+      bola.className = 'sgp-wiz-bola';
       bola.textContent = String(i + 1);
       var tit = document.createElement('span');
-      tit.className = 'spg-wiz-tit';
+      tit.className = 'sgp-wiz-tit';
       tit.textContent = p.getAttribute('data-paso') || ('Paso ' + (i + 1));
       li.appendChild(bola);
       li.appendChild(tit);
@@ -2208,7 +2208,7 @@ window.SPGCarga = (function () {
     // ---- La botonera de cada paso ----
     pasos.forEach(function (p, i) {
       var nav = document.createElement('div');
-      nav.className = 'spg-wiz-nav';
+      nav.className = 'sgp-wiz-nav';
 
       if (i > 0) {
         var atras = document.createElement('button');
@@ -2275,7 +2275,7 @@ window.SPGCarga = (function () {
         caja2 = document.createElement('div');
         caja2.className = 'alert alert-warning py-2 mt-2';
         caja2.setAttribute('data-wiz-aviso', '');
-        p.insertBefore(caja2, p.querySelector('.spg-wiz-nav'));
+        p.insertBefore(caja2, p.querySelector('.sgp-wiz-nav'));
       }
       caja2.textContent = texto;
       caja2.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -2308,17 +2308,17 @@ window.SPGCarga = (function () {
       actual = i;
       pasos.forEach(function (p, k) {
         var activo = k === i;
-        p.classList.toggle('spg-wiz-activo', activo);
+        p.classList.toggle('sgp-wiz-activo', activo);
         trabar(p, !activo);
       });
-      barra.querySelectorAll('.spg-wiz-item').forEach(function (li, k) {
+      barra.querySelectorAll('.sgp-wiz-item').forEach(function (li, k) {
         li.classList.toggle('hecho', k < i);
         li.classList.toggle('activo', k === i);
       });
       // **Cada paso se arma al ENTRAR, no antes.** El de profesionales
       // sólo puede saber qué servicios hay cuando ya se eligieron, y el
       // repaso sólo tiene sentido cuando ya no queda nada por cambiar.
-      document.dispatchEvent(new CustomEvent('spg:asistente-paso', {
+      document.dispatchEvent(new CustomEvent('sgp:asistente-paso', {
         detail: { caja: caja, paso: pasos[i], indice: i, ultimo: i === pasos.length - 1, pasos: pasos },
       }));
       if (!inicial) { caja.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
@@ -2351,14 +2351,14 @@ window.SPGCarga = (function () {
    es justo el defecto que este proyecto ya se hizo copiando formularios.
    Al salir del paso vuelve a su tarjeta.
    ------------------------------------------------------------------ */
-document.addEventListener('spg:asistente-paso', function (e) {
+document.addEventListener('sgp:asistente-paso', function (e) {
   var paso = e.detail.paso;
   var caja = e.detail.caja;
   var destino = caja.querySelector('[data-paso-profesionales]');
   if (!destino) return;
 
   function devolver() {
-    destino.querySelectorAll('.spg-srv-extra').forEach(function (ex) {
+    destino.querySelectorAll('.sgp-srv-extra').forEach(function (ex) {
       var card = document.querySelector('[data-srv-card="' + ex.getAttribute('data-de-card') + '"]');
       if (card) { card.appendChild(ex); }
     });
@@ -2372,26 +2372,26 @@ document.addEventListener('spg:asistente-paso', function (e) {
   devolver();
   var hay = 0;
   document.querySelectorAll('.srv:checked').forEach(function (c) {
-    var card = c.closest('.spg-srv-card');
-    var ex = card && card.querySelector('.spg-srv-extra');
+    var card = c.closest('.sgp-srv-card');
+    var ex = card && card.querySelector('.sgp-srv-extra');
     if (!card || !ex) { return; }
 
     ex.setAttribute('data-de-card', card.getAttribute('data-srv-card'));
 
     var fila = document.createElement('div');
-    fila.className = 'spg-wiz-linea';
+    fila.className = 'sgp-wiz-linea';
 
     var ic = document.createElement('div');
-    ic.className = 'spg-wiz-linea-ic';
+    ic.className = 'sgp-wiz-linea-ic';
     ic.innerHTML = '<i class="bi bi-scissors"></i>';
 
     var cuerpo = document.createElement('div');
-    cuerpo.className = 'spg-wiz-linea-cuerpo';
+    cuerpo.className = 'sgp-wiz-linea-cuerpo';
     var nom = document.createElement('div');
-    nom.className = 'spg-wiz-linea-nom';
-    nom.textContent = (card.querySelector('.spg-srv-nombre') || {}).textContent || '';
+    nom.className = 'sgp-wiz-linea-nom';
+    nom.textContent = (card.querySelector('.sgp-srv-nombre') || {}).textContent || '';
     var dur = document.createElement('div');
-    dur.className = 'spg-wiz-linea-quien';
+    dur.className = 'sgp-wiz-linea-quien';
     dur.textContent = (c.getAttribute('data-duracion') || '') + ' min';
     cuerpo.appendChild(nom);
     cuerpo.appendChild(dur);
@@ -2424,7 +2424,7 @@ document.addEventListener('spg:asistente-paso', function (e) {
    pregunta nada al servidor**, así que no puede quedar desfasado de lo
    que la clienta está viendo.
    ------------------------------------------------------------------ */
-document.addEventListener('spg:asistente-paso', function (e) {
+document.addEventListener('sgp:asistente-paso', function (e) {
   if (!e.detail.ultimo) return;
   var destino = e.detail.caja.querySelector('[data-wiz-repaso]');
   if (!destino) return;
@@ -2441,13 +2441,13 @@ document.addEventListener('spg:asistente-paso', function (e) {
 
   destino.textContent = '';
   var caja = document.createElement('div');
-  caja.className = 'spg-wiz-repaso';
+  caja.className = 'sgp-wiz-repaso';
 
   // --- El día y la hora, arriba ---
   var campo = document.getElementById('fecha_hora');
   var cuando = campo && String(campo.value || '').trim();
   var dia = document.createElement('div');
-  dia.className = 'spg-wiz-repaso-dia';
+  dia.className = 'sgp-wiz-repaso-dia';
   dia.innerHTML = '<i class="bi bi-calendar-event"></i>';
   dia.appendChild(txt('span', '', cuando
     ? new Date(cuando.replace(' ', 'T')).toLocaleString('es-PY', {
@@ -2458,33 +2458,33 @@ document.addEventListener('spg:asistente-paso', function (e) {
   // --- Un renglón por servicio, con quién lo hace ---
   //
   // **Lo que el selector de horario ya decidió, manda.** A esa hora el
-  // servidor dijo cuánto dura y quién atiende cada cosa (`spgEleccion`), así
+  // servidor dijo cuánto dura y quién atiende cada cosa (`sgpEleccion`), así
   // que «con quien esté disponible» pasa a tener nombre y la duración deja de
   // ser la suma —que es el peor caso— para ser la de verdad.
   var eleccion = null;
   try {
     var ag = document.querySelector('[data-agenda]');
-    eleccion = ag && ag.dataset.spgEleccion ? JSON.parse(ag.dataset.spgEleccion) : null;
+    eleccion = ag && ag.dataset.sgpEleccion ? JSON.parse(ag.dataset.sgpEleccion) : null;
   } catch (e) { eleccion = null; }
 
   var total = 0, min = 0, cuantos = 0;
   document.querySelectorAll('.srv:checked').forEach(function (c) {
-    var card = c.closest('.spg-srv-card');
+    var card = c.closest('.sgp-srv-card');
     var precio = parseFloat(c.getAttribute('data-precio')) || 0;
     total += precio;
     min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
     cuantos++;
 
     var fila = document.createElement('div');
-    fila.className = 'spg-wiz-linea';
+    fila.className = 'sgp-wiz-linea';
     var ic = document.createElement('div');
-    ic.className = 'spg-wiz-linea-ic';
+    ic.className = 'sgp-wiz-linea-ic';
     ic.innerHTML = '<i class="bi bi-scissors"></i>';
 
     var cuerpo = document.createElement('div');
-    cuerpo.className = 'spg-wiz-linea-cuerpo';
-    cuerpo.appendChild(txt('div', 'spg-wiz-linea-nom',
-      card ? ((card.querySelector('.spg-srv-nombre') || {}).textContent || '') : ''));
+    cuerpo.className = 'sgp-wiz-linea-cuerpo';
+    cuerpo.appendChild(txt('div', 'sgp-wiz-linea-nom',
+      card ? ((card.querySelector('.sgp-srv-nombre') || {}).textContent || '') : ''));
 
     // Quién lo hace sale del combo de esa tarjeta; el combo puede estar
     // movido al paso de profesionales, así que se lo busca por `name`.
@@ -2497,34 +2497,34 @@ document.addEventListener('spg:asistente-paso', function (e) {
     var quien = elegido && sel.options[sel.selectedIndex]
       ? sel.options[sel.selectedIndex].textContent.trim().split('·')[0].trim() : '';
     var asignada = !quien && eleccion && eleccion.nombres && eleccion.nombres[c.value];
-    cuerpo.appendChild(txt('div', 'spg-wiz-linea-quien',
+    cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
       quien ? quien : (asignada ? 'con ' + asignada + ' (asignada para ese horario)' : 'con quien esté disponible')));
 
     fila.appendChild(ic);
     fila.appendChild(cuerpo);
-    fila.appendChild(txt('div', 'spg-wiz-linea-val', gs(precio)));
+    fila.appendChild(txt('div', 'sgp-wiz-linea-val', gs(precio)));
     caja.appendChild(fila);
   });
 
   if (!cuantos) {
-    caja.appendChild(txt('div', 'spg-wiz-linea', 'Todavía no elegiste ningún servicio.'));
+    caja.appendChild(txt('div', 'sgp-wiz-linea', 'Todavía no elegiste ningún servicio.'));
   }
   destino.appendChild(caja);
 
   // --- Duración y total, como en la maqueta ---
   var cifras = document.createElement('div');
-  cifras.className = 'spg-wiz-cifras';
+  cifras.className = 'sgp-wiz-cifras';
 
   if (eleccion && eleccion.duracion) { min = parseInt(eleccion.duracion, 10) || min; }
   var c1 = document.createElement('div');
-  c1.className = 'spg-wiz-cifra';
+  c1.className = 'sgp-wiz-cifra';
   c1.appendChild(txt('span', 'r', 'Duración total'));
   c1.appendChild(txt('span', 'v', min >= 60
     ? (Math.floor(min / 60) + ' h ' + (min % 60 ? (min % 60) + ' min' : '')).trim()
     : min + ' min'));
 
   var c2 = document.createElement('div');
-  c2.className = 'spg-wiz-cifra';
+  c2.className = 'sgp-wiz-cifra';
   c2.appendChild(txt('span', 'r', 'Total'));
   c2.appendChild(txt('span', 'v', gs(total)));
 
@@ -2577,7 +2577,7 @@ document.addEventListener('DOMContentLoaded', function () {
 //
 //  Una tabla con siete columnas no entra en un celular, así que las que
 //  aportan menos —el medio de pago, la flexibilidad de entrada— van con
-//  `.spg-movil-oculto` y aparecen con este botón.
+//  `.sgp-movil-oculto` y aparecen con este botón.
 //
 //  **Se llama «Más», no «Detalles».** En la agenda, al lado de «Detalle»
 //  —el botón que abre la atención— quedaban dos botones con casi la misma
@@ -2587,19 +2587,19 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
   if (window.innerWidth > 576) return;   // sólo importa en el celular
 
-  document.querySelectorAll('.spg-tabla-movil tbody tr').forEach(function (tr) {
-    if (!tr.querySelectorAll('.spg-movil-oculto').length) return;
+  document.querySelectorAll('.sgp-tabla-movil tbody tr').forEach(function (tr) {
+    if (!tr.querySelectorAll('.sgp-movil-oculto').length) return;
 
-    var celda = tr.querySelector('.spg-movil-acciones');
+    var celda = tr.querySelector('.sgp-movil-acciones');
     if (!celda) {
       celda = document.createElement('td');
-      celda.className = 'spg-movil-acciones';
+      celda.className = 'sgp-movil-acciones';
       tr.appendChild(celda);
     }
 
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn btn-sm btn-outline-neutro spg-btn-detalles';
+    btn.className = 'btn btn-sm btn-outline-neutro sgp-btn-detalles';
     btn.setAttribute('aria-expanded', 'false');
     var ic = document.createElement('i');
     ic.className = 'bi bi-chevron-down';
@@ -2609,7 +2609,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.appendChild(document.createTextNode(' Más'));
 
     btn.addEventListener('click', function () {
-      var abierto = tr.classList.toggle('spg-movil-expandido');
+      var abierto = tr.classList.toggle('sgp-movil-expandido');
       ic.style.transform = abierto ? 'rotate(180deg)' : 'rotate(0deg)';
       btn.setAttribute('aria-expanded', abierto ? 'true' : 'false');
     });

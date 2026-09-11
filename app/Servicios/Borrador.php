@@ -68,7 +68,7 @@ class Borrador
         // —volver de un alta rápida es exactamente el caso en que hay que
         // conservarlo—.
         return $datos
-            ? $destino->with('spg_form_error', true)->withInput($datos)
+            ? $destino->with('sgp_form_error', true)->withInput($datos)
             : $destino;
     }
 

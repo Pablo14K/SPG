@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.101.0 — La nota de crédito puede ser por PARTE del comprobante
+-- SGP 7.101.0 — La nota de crédito puede ser por PARTE del comprobante
 -- =====================================================================
 --
 -- Copiaba el detalle entero, así que la única nota posible era por el

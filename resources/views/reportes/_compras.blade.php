@@ -8,21 +8,21 @@
      su propio bloque, con el aviso. Las compras sí se filtran. --}}
 <div class="row g-3">
     <div class="col-12">
-        <div class="spg-metrics spg-metrics-compacto">
-            <div class="spg-metric">
+        <div class="sgp-metrics sgp-metrics-compacto">
+            <div class="sgp-metric">
                 <div class="lbl">Compras del período</div>
                 <div class="val">{{ (int) ($compras->cantidad ?? 0) }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Total comprado</div>
                 <div class="val">{{ money($compras->total ?? 0) }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Saldo de esas compras</div>
                 <div class="val @if ((float) ($compras->saldo ?? 0) > 0) txt-no @endif">
                     {{ money($compras->saldo ?? 0) }}</div>
             </div>
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Deuda viva total</div>
                 <div class="val @if ($prov) txt-no @endif">
                     @php $deuda = 0; foreach ($prov as $p) { $deuda += (float) $p->saldo; } @endphp
@@ -32,8 +32,8 @@
     </div>
 
     <div class="col-lg-6">
-        <div class="spg-panel h-100">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-truck"></i> Compras por proveedor</h2>
+        <div class="sgp-panel h-100">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-truck"></i> Compras por proveedor</h2>
             @if ($comprasProv)
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0" data-ordenable>
@@ -60,8 +60,8 @@
     </div>
 
     <div class="col-lg-6">
-        <div class="spg-panel h-100">
-            <h2 class="spg-form-titulo mb-2">
+        <div class="sgp-panel h-100">
+            <h2 class="sgp-form-titulo mb-2">
                 <i class="bi bi-exclamation-triangle"></i> Lo que se debe hoy
             </h2>
             <p class="text-muted-warm mb-2" style="font-size:.8rem">

@@ -3,7 +3,7 @@
 /**
  * Facturación electrónica — Automatizador SIFEN.
  *
- * El SPG **no habla con la DNIT**: le pasa el comprobante ya numerado al
+ * El SGP **no habla con la DNIT**: le pasa el comprobante ya numerado al
  * Automatizador SIFEN, que es un proyecto aparte, y éste se encarga de firmar,
  * enviar y devolver el CDC. Acá sólo vive cómo llegar hasta él.
  *
@@ -40,7 +40,7 @@ return [
     'timeout' => (int) env('SIFEN_TIMEOUT', 60),
 
     /*
-     * Qué tipos de comprobante del SPG se mandan. La DNIT recibe facturas y
+     * Qué tipos de comprobante del SGP se mandan. La DNIT recibe facturas y
      * notas de crédito; el Ticket es un comprobante interno del salón y no
      * sale de acá — que es justamente lo que se emite cuando la clienta no
      * pide factura.

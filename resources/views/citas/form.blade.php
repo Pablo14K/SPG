@@ -7,7 +7,7 @@
 
     <x-encabezado sub="La fecha no se escribe a mano: se eligen los servicios y el sistema muestra los horarios que quedan libres de verdad." />
 
-    <div class="spg-panel" style="max-width:900px">
+    <div class="sgp-panel" style="max-width:900px">
         <form method="post" action="{{ route('citas.guardar') }}" id="formCita">
             @csrf
 
@@ -21,7 +21,7 @@
                  qué falta.
 
                  **Sin `app.js` se ve todo junto, como antes.** --}}
-            <div class="spg-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
+            <div class="sgp-wiz" data-asistente data-asistente-inicio="{{ old('fecha_hora') ? 99 : 0 }}">
 
             <div data-paso="Cliente" data-paso-requiere="#id_cliente"
                  data-paso-error="Elegí la clienta para seguir.">
@@ -88,7 +88,7 @@
                          que quien atiende ve la foto de lo que le están
                          pidiendo — «mechas» es una palabra, la foto es el
                          resultado. --}}
-                    <div class="spg-srv-grid" id="listaServicios" data-canjes="#bloqueCanjes">
+                    <div class="sgp-srv-grid" id="listaServicios" data-canjes="#bloqueCanjes">
                         @foreach ($servicios as $s)
                             <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
                                 :marcado="in_array($s->id_servicio, old('servicios', []), false)">
@@ -161,8 +161,8 @@
                             Elegí primero los servicios para ver los horarios disponibles.
                         </div>
 
-                        <div data-agenda-dias class="spg-dias mt-2"></div>
-                        <div data-agenda-horas class="spg-horas mt-2"></div>
+                        <div data-agenda-dias class="sgp-dias mt-2"></div>
+                        <div data-agenda-horas class="sgp-horas mt-2"></div>
                     </div>
 
                     <input type="hidden" name="fecha_hora" id="fecha_hora" value="{{ old('fecha_hora') }}">
@@ -189,9 +189,9 @@
                             reemplaza al servicio, lo acompaña. El servicio ocupa el mismo tiempo en la
                             agenda; lo único que cambia es que no se cobra.
                         </p>
-                        <div class="spg-check-lista">
+                        <div class="sgp-check-lista">
                             @foreach ($canjes as $cj)
-                                <div class="form-check spg-canje" data-cliente="{{ $cj->id_cliente }}"
+                                <div class="form-check sgp-canje" data-cliente="{{ $cj->id_cliente }}"
                                      data-servicio="{{ $cj->id_servicio }}" hidden>
                                     <input class="form-check-input" type="checkbox" name="canjes[]"
                                            value="{{ $cj->id_canje }}" id="cjm{{ $cj->id_canje }}"
@@ -373,7 +373,7 @@
     var sel = document.getElementById('id_cliente');
     if (!bloque || !sel) { return; }
 
-    var filas = bloque.querySelectorAll('.spg-canje');
+    var filas = bloque.querySelectorAll('.sgp-canje');
 
     function refrescar() {
         var cli = sel.value;

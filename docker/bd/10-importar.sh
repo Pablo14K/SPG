@@ -46,7 +46,7 @@ importar() {
     echo "     listo: $rutinas rutinas"
 }
 
-echo "== SPG: preparando las bases =="
+echo "== SGP: preparando las bases =="
 
 crear peluqueria_bd
 crear peluqueria_test
@@ -55,4 +55,4 @@ importar peluqueria_bd   "$BASE"
 importar peluqueria_test "$SIMULACION"
 
 
-echo "== SPG: bases listas =="
+echo "== SGP: bases listas =="

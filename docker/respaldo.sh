@@ -2,7 +2,7 @@
 # Respaldo de la base, para correr DESDE EL SERVIDOR (no adentro de un
 # contenedor). Se agenda en el cron del host:
 #
-#   0 3 * * * /docker/spg/docker/respaldo.sh >> /var/log/spg-respaldo.log 2>&1
+#   0 3 * * * /docker/spg/docker/respaldo.sh >> /var/log/sgp-respaldo.log 2>&1
 #
 # Por qué existe, y por qué el cron es del host y no del compose: los datos del
 # salón viven en un **volumen de Docker**, y un `docker compose down -v` mal
@@ -15,11 +15,11 @@ set -e
 # respaldo a dos cosas que en el servidor no se cumplen: que el guion se corra
 # desde la carpeta del proyecto, y que el nombre del proyecto de Compose sea el
 # que Compose deduce del directorio —el panel de Hostinger le pone el suyo—.
-# `container_name: spg_bd` es fijo, así que esto anda desde cualquier lado.
-CONTENEDOR=${SPG_BD:-spg_bd}
+# `container_name: sgp_bd` es fijo, así que esto anda desde cualquier lado.
+CONTENEDOR=${SGP_BD:-sgp_bd}
 
-# Dónde caen los volcados. Se puede cambiar con SPG_RESPALDOS.
-DESTINO=${SPG_RESPALDOS:-/var/respaldos/spg}
+# Dónde caen los volcados. Se puede cambiar con SGP_RESPALDOS.
+DESTINO=${SGP_RESPALDOS:-/var/respaldos/sgp}
 FECHA=$(date +%Y-%m-%d_%H%M)
 ARCHIVO="$DESTINO/peluqueria_bd_$FECHA.sql"
 
@@ -56,7 +56,7 @@ find "$DESTINO" -name 'peluqueria_bd_*.sql.gz' -mtime +14 -delete
 # que la base se pierde con el servidor. Bajarlo a otra máquina, una vez por
 # semana como mínimo:
 #
-#   scp root@servidor:/var/respaldos/spg/*.gz .
+#   scp root@servidor:/var/respaldos/sgp/*.gz .
 #
 # Y probar que restaura, aunque sea una vez: un respaldo que nunca se restauró
 # es una suposición, no un respaldo.

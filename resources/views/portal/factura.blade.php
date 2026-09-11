@@ -3,14 +3,14 @@
 @section('titulo', 'Comprobante ' . $f->nro)
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('portal.citas') }}">
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('portal.citas') }}">
             <i class="bi bi-arrow-left"></i> Mis citas</a>
         <h1 class="mt-1">Comprobante {{ $f->nro }}</h1>
         <div class="sub">Lo que se te cobró en esa cita, con el detalle de cada servicio.</div>
     </div>
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         @include('portal._factura_cuerpo', ['papel' => false])
 
         <div class="mt-3 d-flex gap-2 flex-wrap">

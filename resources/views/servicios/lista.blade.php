@@ -7,10 +7,10 @@
         sub="Lo que ofrece el salón: precio, duración e IVA. La duración es la que usa la agenda para calcular los huecos."
         :accion="['ruta' => 'servicios.form', 't' => 'Nuevo servicio', 'ic' => 'plus-lg']" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -23,7 +23,7 @@
                     @forelse ($rows as $s)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Servicio">
+                            <td class="sgp-movil-titulo" data-label="Servicio">
                                 {{ $s->nombre }}
                                 {{-- **El badge «exclusivo» se fue.** Desde la 7.43.0
                                      lo que decide si dos servicios pueden hacerse a la
@@ -47,8 +47,8 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detSrv{{ $s->id_servicio }}" aria-expanded="false"
                                         aria-controls="detSrv{{ $s->id_servicio }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -85,11 +85,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detSrv{{ $s->id_servicio }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Categoría</dt>
                                                 <dd>{{ $s->categoria }}</dd>
@@ -128,7 +128,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-scissors"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún servicio coincide con esos filtros.' : 'Todavía no hay servicios cargados.' }}</div>
                                     <div class="d">{{ $f['activos'] ? 'Probá con menos filtros.' : 'Sin servicios no se pueden agendar citas.' }}</div>

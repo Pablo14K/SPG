@@ -23,26 +23,26 @@
          cada nivel, que lo calcula `fn_cliente_nivel` por cantidad de
          visitas. --}}
     @if ($niveles)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-award"></i> Niveles de fidelización<x-ayuda>El nivel se calcula solo por cantidad de visitas. Acá se decide desde cuántas empieza cada uno y qué descuento le corresponde; el nombre no se cambia porque lo nombran los comprobantes ya emitidos.</x-ayuda></h2>
-            <div class="spg-niveles">
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-award"></i> Niveles de fidelización<x-ayuda>El nivel se calcula solo por cantidad de visitas. Acá se decide desde cuántas empieza cada uno y qué descuento le corresponde; el nombre no se cambia porque lo nombran los comprobantes ya emitidos.</x-ayuda></h2>
+            <div class="sgp-niveles">
                 @foreach ($niveles as $n)
                     {{-- **El nivel dado de baja se sigue viendo, apagado.** Si
                          desapareciera de la lista, el botón que lo apaga sería
                          indistinguible de uno que lo borra y no habría desde
                          dónde volver a encenderlo — es el defecto que la 7.62.1
                          corrigió con «Disponible acá». --}}
-                    <div class="spg-nivel{{ $n->activo ? '' : ' spg-nivel-baja' }}">
-                        <div class="spg-nivel-nombre">{{ $n->nombre }}</div>
-                        <div class="spg-nivel-req">
+                    <div class="sgp-nivel{{ $n->activo ? '' : ' sgp-nivel-baja' }}">
+                        <div class="sgp-nivel-nombre">{{ $n->nombre }}</div>
+                        <div class="sgp-nivel-req">
                             @if ($n->activo)
                                 desde {{ (int) $n->visitas_minimas }} visita{{ (int) $n->visitas_minimas === 1 ? '' : 's' }}
                             @else
                                 <span class="badge-estado e-muted">Dado de baja</span>
                             @endif
                         </div>
-                        <div class="spg-nivel-desc">{{ $n->descuento ?: 'sin descuento' }}</div>
-                        <div class="spg-nivel-clientes">
+                        <div class="sgp-nivel-desc">{{ $n->descuento ?: 'sin descuento' }}</div>
+                        <div class="sgp-nivel-clientes">
                             @if ($n->activo)
                                 {{ (int) $n->clientes }} cliente{{ (int) $n->clientes === 1 ? '' : 's' }}
                             @else
@@ -142,7 +142,7 @@
          contesta la misma pregunta que los descuentos —cuánto le devuelve el
          salón al cliente por comprar acá— y porque lo decide el salón, no quien
          programa: antes cambiarlo era editar código y volver a desplegar. --}}
-    <div class="spg-panel mb-3">
+    <div class="sgp-panel mb-3">
         <form method="post" action="{{ route('servicios.puntos.guardar') }}"
               class="d-flex align-items-end gap-2 flex-wrap">
             @csrf
@@ -153,7 +153,7 @@
                 <div class="d-flex align-items-center gap-2">
                     <span>1 punto por cada</span>
                     <div class="input-group" style="width:190px">
-                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                         <input class="form-control input-miles" id="puntos_cada_gs" name="puntos_cada_gs"
                                data-min="100" data-max="10000000"
                                value="{{ monto_input($puntosCadaGs) }}" required>
@@ -174,8 +174,8 @@
         </p>
     </div>
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
@@ -190,7 +190,7 @@
                                     && (! $d->fecha_fin || $d->fecha_fin >= date('Y-m-d'));
                         @endphp
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Promoción">
+                            <td class="sgp-movil-titulo" data-label="Promoción">
                                 {{ $d->nombre }}
                                 @if ($d->descripcion)
                                     <div class="text-muted-warm" style="font-size:.76rem">{{ $d->descripcion }}</div>
@@ -208,8 +208,8 @@
                                     <span class="badge-estado e-warn">Fuera de fecha</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detDesc{{ $d->id_descuento }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
@@ -226,11 +226,11 @@
                                 </form>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detDesc{{ $d->id_descuento }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Vigencia</dt>
                                                 <dd>
@@ -251,7 +251,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-percent"></i>
                                     <div class="t">Todavía no hay promociones cargados.</div>
                                     <div class="d">Los de los niveles de fidelización se crean solos con el sistema.</div>

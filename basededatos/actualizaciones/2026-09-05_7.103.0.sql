@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.103.0 — Cuándo se creó cada cajón
+-- SGP 7.103.0 — Cuándo se creó cada cajón
 -- =====================================================================
 --
 -- La lista de cajas se ordenaba por `id_caja_fisica`, que **es** el orden

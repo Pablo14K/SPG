@@ -13,7 +13,7 @@
          igual que la casa central. No copia stock: sólo dice qué se maneja
          acá, y cada sede lleva el suyo desde cero. --}}
     @if (($otras ?? []) && collect($otras)->sum('faltan') > 0)
-        <div class="spg-panel mb-3">
+        <div class="sgp-panel mb-3">
             <form method="post" action="{{ route('inventario.productos.traer_todos') }}"
                   class="d-flex gap-2 align-items-end flex-wrap">
                 @csrf
@@ -41,10 +41,10 @@
         </div>
     @endif
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -63,7 +63,7 @@
                             $bajo = $mio && (float) $p->stock_actual < (float) $p->stock_minimo;
                         @endphp
                         <tr class="{{ $mio ? '' : 'text-muted-warm' }}">
-                            <td class="spg-movil-titulo" data-label="Producto">
+                            <td class="sgp-movil-titulo" data-label="Producto">
                                 {{ $p->nombre }}
                                 @if (producto_fraccionado((array) $p))
                                     <span class="badge-estado e-prog" title="Se consume por partes">
@@ -95,8 +95,8 @@
                                     <span class="badge-estado e-ok">Activo</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detProd{{ $p->id_producto }}" aria-expanded="false"
                                         aria-controls="detProd{{ $p->id_producto }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -129,11 +129,11 @@
                                 @endif
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detProd{{ $p->id_producto }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Categoría</dt>
                                                 <dd>{{ $p->categoria }}</dd>
@@ -155,7 +155,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-box-seam"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún producto coincide con esos filtros.' : 'Todavía no hay productos cargados.' }}</div>
                                     <div class="d">Sin productos no se puede registrar el consumo de una atención.</div>

@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.110.0 — La cuenta bancaria del local, para saber si hay plata
+-- SGP 7.110.0 — La cuenta bancaria del local, para saber si hay plata
 --               antes de pagarle a un profesional o a un proveedor
 -- =====================================================================
 --

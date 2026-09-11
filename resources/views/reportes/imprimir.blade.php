@@ -40,7 +40,7 @@
         </style>
     @endif
 </head>
-<body class="spg-imprimir">
+<body class="sgp-imprimir">
 
 <div class="container py-3" style="max-width:900px">
 
@@ -218,7 +218,7 @@
     @endif
 
     <p class="text-muted-warm mt-4" style="font-size:.72rem">
-        {{ config('app.name') }} · Sistema de gestión v{{ config('spg.version') }} ·
+        {{ config('app.name') }} · Sistema de gestión v{{ config('sgp.version') }} ·
         Los ingresos corresponden a cobros registrados en el período; lo devuelto, a las notas de crédito emitidas en él.
     </p>
 </div>

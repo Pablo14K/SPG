@@ -139,7 +139,7 @@ class PortalController extends Controller
         $dias = array_values(array_diff(
             Agenda::diasDelTurno(
                 Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                    (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, $pedidos),
+                                    (int) config('sgp.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, $pedidos),
                 $turno),
             Agenda::diasYaTomados($idCliente, $servicios)
         ));
@@ -514,7 +514,7 @@ class PortalController extends Controller
             // alguien que nunca pagó. Se le guarda por un plazo y se le dice
             // cuál es — `Notificaciones::cancelarSenasVencidas()` la suelta
             // después y le avisa, así que no desaparece en silencio.
-            $horas = (int) config('spg.agenda.sena_horas', 24);
+            $horas = (int) config('sgp.agenda.sena_horas', 24);
 
             $canje = $usados ? ' Usaste ' . $usados . ' canje(s): ese servicio no se te cobra.' : '';
 

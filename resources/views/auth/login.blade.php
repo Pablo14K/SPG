@@ -1,4 +1,4 @@
-@php $spgLogo = \App\Servicios\Config::logo(); @endphp
+@php $sgpLogo = \App\Servicios\Config::logo(); @endphp
 {{--
     Ingreso al sistema.
 
@@ -22,13 +22,13 @@
     <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
 </head>
 <body>
-<div class="spg-login-wrap">
+<div class="sgp-login-wrap">
     {{-- Los avisos que llegan redirigidos hasta acá. Esta pantalla NO los
          dibujaba —sólo los errores de validación del propio formulario—, así
          que todo lo que mandara a la gente al ingreso se perdía en silencio:
          el «alguien entró a tu cuenta desde otro equipo» no lo veía nadie.
          `auth/marco` sí los dibuja, pero el ingreso no usa ese layout. --}}
-    @foreach (session('spg_flash', []) as $f)
+    @foreach (session('sgp_flash', []) as $f)
         @php $cls = ['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'][$f['tipo']] ?? 'secondary'; @endphp
         <div class="alert alert-{{ $cls }}" style="font-size:.85rem">{{ $f['msg'] }}</div>
     @endforeach
@@ -36,7 +36,7 @@
          porque no hay nada que preguntar. Cuando este navegador no recuerda
          ninguna, en su lugar se ofrece el botón chico de abajo del formulario:
          dibujar este panel ahí duplicaría el logo y el título. --}}
-    <div class="spg-login" id="bioPanel" style="display:none;text-align:center">
+    <div class="sgp-login" id="bioPanel" style="display:none;text-align:center">
         @include('layout._marca', ['modo' => 'grande'])
         <h1 style="font-size:1.2rem;font-weight:500;margin-bottom:.2rem;">{{ config('app.name') }}</h1>
         <p class="text-muted-warm" style="font-size:.85rem;margin-bottom:1.1rem;">Ingresá con tu huella</p>
@@ -66,7 +66,7 @@
         </p>
     </div>
 
-    <form class="spg-login" id="formLogin" method="post" action="{{ route('login') }}">
+    <form class="sgp-login" id="formLogin" method="post" action="{{ route('login') }}">
         @csrf
         @include('layout._marca', ['modo' => 'grande'])
         <h1 class="text-center" style="font-size:1.25rem;font-weight:500;margin-bottom:.2rem;">
@@ -102,7 +102,7 @@
         {{-- Sólo aparece cuando el intento anterior chocó con una sesión ya
              abierta. Es la salida para quien cerró el navegador sin salir: la
              marca queda puesta hasta que alguien sale de verdad. --}}
-        @if (session('spg_sesion_ocupada'))
+        @if (session('sgp_sesion_ocupada'))
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="forzar" value="1" id="forzar">
                 <label class="form-check-label" for="forzar" style="font-size:.85rem">
@@ -145,7 +145,7 @@
          Quién es la persona lo resuelve el navegador: al tocarlo ofrece las
          huellas guardadas para este sitio, y **se entra a la cuenta que registró
          la que se elija**, porque la credencial apunta a una sola. --}}
-    <div class="spg-login mt-3" id="bioSuelto" style="display:none;text-align:center">
+    <div class="sgp-login mt-3" id="bioSuelto" style="display:none;text-align:center">
         <p class="text-muted-warm mb-2" style="font-size:.85rem">O entrá con tu huella</p>
         <button id="bioBtnSuelto" class="btn btn-oro" type="button" aria-label="Entrar con huella"
                 style="width:58px;height:58px;border-radius:50%;font-size:1.5rem">
@@ -183,7 +183,7 @@
         verify:  @json(route('webauthn.login'))
     };
 
-    var guardado = SPGBio.guardado();
+    var guardado = SGPBio.guardado();
     var panel = document.getElementById('bioPanel'),
         formL = document.getElementById('formLogin'),
         suelto = document.getElementById('bioSuelto'),
@@ -218,7 +218,7 @@
     // sin ninguna, el formulario queda a la vista y la huella se ofrece al lado,
     // porque puede que en este equipo nadie la haya activado. En los dos casos
     // el navegador es el que resuelve de quién es la credencial.
-    SPGBio.available().then(function (ok) {
+    SGPBio.available().then(function (ok) {
         if (!ok) { mostrarClave(false); return; }
         if (guardado && guardado.login) {
             document.getElementById('bioEmail').textContent = guardado.email || guardado.login;
@@ -240,7 +240,7 @@
     // evitar.
     document.getElementById('otraCuenta').addEventListener('click', function (e) {
         e.preventDefault();
-        SPGBio.olvidar();
+        SGPBio.olvidar();
         guardado = null;
         campoUsuario.value = '';
         campoClave.value = '';
@@ -250,7 +250,7 @@
 
     function entrarConHuella() {
         msg.textContent = 'Esperando tu huella…';
-        SPGBio.login(urls, guardado ? guardado.login : '', csrf).then(function (res) {
+        SGPBio.login(urls, guardado ? guardado.login : '', csrf).then(function (res) {
             if (!res.ok) { throw new Error(res.error || 'No se pudo validar.'); }
             window.location.href = res.redirect;
         }).catch(function (e) {

@@ -24,7 +24,7 @@ $app = require SIM_ROOT . '/bootstrap/app.php';
 //
 // Es una decisión DEL BANCO DE PRUEBAS, no del sistema: no se toca ni una línea
 // de la aplicación, sólo se le dice dónde escribir sus archivos temporales.
-$app->useStoragePath('/tmp/spg-sim-storage');
+$app->useStoragePath('/tmp/sgp-sim-storage');
 $GLOBALS['sim_app'] = $app;
 $GLOBALS['sim_kernel'] = $app->make(Illuminate\Contracts\Http\Kernel::class);
 $GLOBALS['sim_kernel']->bootstrap();
@@ -127,7 +127,7 @@ class Nav
         $req = Request::create($uri, $metodo, $datos, $this->cookies, $archivos, [
             'HTTP_HOST' => 'localhost',
             'REMOTE_ADDR' => '127.0.0.1',
-            'HTTP_USER_AGENT' => 'SPG-Simulador',
+            'HTTP_USER_AGENT' => 'SGP-Simulador',
         ]);
 
         try {
@@ -158,7 +158,7 @@ class Nav
         try {
             $s = $req->hasSession() ? $req->session() : null;
             if ($s) {
-                foreach ((array) $s->get('spg_flash', []) as $f) {
+                foreach ((array) $s->get('sgp_flash', []) as $f) {
                     $this->flash[] = ($f['tipo'] ?? '?') . ': ' . ($f['msg'] ?? '');
                 }
                 foreach ((array) $s->get('errors', []) as $e) {

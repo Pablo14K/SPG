@@ -230,7 +230,7 @@ class WebAuthn
 
         $motivo = self::motivoClientData($cd, 'webauthn.get');
         if ($motivo !== null) {
-            Log::warning('SPG: la huella no validó — ' . $motivo);
+            Log::warning('SGP: la huella no validó — ' . $motivo);
 
             return false;
         }

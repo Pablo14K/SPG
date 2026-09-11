@@ -10,7 +10,7 @@ use Throwable;
 /**
  * Qué le falta CARGAR al salón para que el sistema haga todo lo que sabe.
  *
- * **No busca errores: busca decisiones sin tomar.** `spg:diagnostico` contesta
+ * **No busca errores: busca decisiones sin tomar.** `sgp:diagnostico` contesta
  * «¿el sistema está sano?»; esto contesta «¿está configurado?», que es otra
  * pregunta y hasta la 7.60.0 no la contestaba nadie.
  *

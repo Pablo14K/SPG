@@ -23,7 +23,7 @@
 @include('reportes._resumen')
 
 @foreach ($bloques as $clave => [$titulo, $ic])
-    <div class="spg-todos-sep">
+    <div class="sgp-todos-sep">
         <h2><i class="bi bi-{{ $ic }}"></i> {{ $titulo }}</h2>
         <a href="{{ route('reportes.index', array_merge(request()->except(['r', 'export']), ['r' => $clave])) }}"
            title="Ver sólo este informe">ver aparte <i class="bi bi-arrow-right"></i></a>

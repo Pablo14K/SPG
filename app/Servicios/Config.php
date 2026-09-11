@@ -12,12 +12,12 @@ use Throwable;
 /**
  * Los números del negocio que decide el salón, no quien programa.
  *
- * `config/spg.php` sigue siendo el lugar de las constantes **técnicas** —el
+ * `config/sgp.php` sigue siendo el lugar de las constantes **técnicas** —el
  * paso de la agenda, cuántas filas por página, la gracia del fichaje—. Lo que
  * vive acá es distinto: son decisiones comerciales que cambian sin desplegar
  * nada, y que por eso están en la base y se editan desde una pantalla.
  *
- * **`config/spg.php` queda igual y hace de respaldo.** Si la tabla todavía no
+ * **`config/sgp.php` queda igual y hace de respaldo.** Si la tabla todavía no
  * existe —una base vieja que no se reimportó— se usa el valor de ahí en vez de
  * reventar: el salón sigue acumulando puntos como siempre hasta que actualice.
  */
@@ -37,7 +37,7 @@ class Config
             return self::$puntosCadaGs;
         }
 
-        $porDefecto = (int) config('spg.puntos_cada_gs', 10000);
+        $porDefecto = (int) config('sgp.puntos_cada_gs', 10000);
 
         try {
             $v = (int) DB::scalar('SELECT puntos_cada_gs FROM configuracion WHERE id_configuracion = 1');
@@ -144,7 +144,7 @@ class Config
     {
         $n = trim((string) (self::identidad()->nombre_salon ?? ''));
 
-        return $n !== '' ? $n : (string) config('app.name', 'SPG');
+        return $n !== '' ? $n : (string) config('app.name', 'SGP');
     }
 
     /**
@@ -191,7 +191,7 @@ class Config
                 // puede leer y no hay que reventar por eso. Queda como si no
                 // estuviera cargada, y el sistema cae al `.env`.
                 $clave = '';
-                Log::warning('SPG: no se pudo descifrar la clave del correo del sistema; '
+                Log::warning('SGP: no se pudo descifrar la clave del correo del sistema; '
                     . 'se usa la del entorno. Volvé a cargarla en Seguridad → Correo del sistema.');
             }
         }
@@ -226,7 +226,7 @@ class Config
                 );
             }
         } catch (Throwable $e) {
-            Log::error('SPG: no se pudo guardar el correo del sistema.', ['error' => $e->getMessage()]);
+            Log::error('SGP: no se pudo guardar el correo del sistema.', ['error' => $e->getMessage()]);
 
             return false;
         }
@@ -247,7 +247,7 @@ class Config
      * formulario dejó de ser una comodidad para pasar a ser la única fuente.
      * Es a propósito —una cuenta que se cambia desde una pantalla es mejor que
      * una que se cambia editando un archivo y volviendo a desplegar— y **no
-     * queda en silencio**: `spg:diagnostico` lo cuenta como problema y el panel
+     * queda en silencio**: `sgp:diagnostico` lo cuenta como problema y el panel
      * lo lista en lo que falta cargar.
      *
      * **Gmail rechaza un remitente que no sea la cuenta autenticada**, así que

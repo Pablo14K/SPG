@@ -9,7 +9,7 @@
 
     <div class="row g-3">
         <div class="col-lg-7">
-            <div class="spg-panel">
+            <div class="sgp-panel">
                 <form method="post" action="{{ route('inventario.ajuste.guardar') }}" id="formAjuste">
                     @csrf
 
@@ -86,7 +86,7 @@
                         <div class="col-md-4">
                             <label class="form-label" for="precio_unitario">Precio unitario</label><x-ayuda campo="precio_unitario" />
                             <div class="input-group">
-                                <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                                <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                                 <input class="form-control input-miles" id="precio_unitario"
                                        name="precio_unitario" data-min="0" value="{{ old('precio_unitario') }}">
                             </div>
@@ -110,8 +110,8 @@
 
         <div class="col-lg-5">
             @if (Permisos::puede('inventario.productos'))
-                <div class="spg-panel">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> ¿El producto todavía no existe?<x-ayuda>Crealo acá mismo con su stock inicial, sin perder lo que ya cargaste.</x-ayuda></h2>
+                <div class="sgp-panel">
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-plus-lg"></i> ¿El producto todavía no existe?<x-ayuda>Crealo acá mismo con su stock inicial, sin perder lo que ya cargaste.</x-ayuda></h2>
                     {{-- data-borrador: lo cargado en el ajuste vuelve con el
                          redirect en vez de perderse al crear el producto. --}}
                     <form method="post" action="{{ route('inventario.producto.rapido') }}"

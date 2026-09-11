@@ -15,46 +15,46 @@
 {{-- **Las cuatro cifras salen de LO FILTRADO, no del total.** Si se pide un
      local y un mes, «cuántas cuadraron» tiene que hablar de ese local y ese
      mes — un resumen que mide otra cosa que la tabla es peor que no tenerlo. --}}
-<div class="spg-metrics spg-metrics-compacto mb-3">
-    <div class="spg-metric">
+<div class="sgp-metrics sgp-metrics-compacto mb-3">
+    <div class="sgp-metric">
         <div class="lbl">Cajas cerradas</div>
         <div class="val">{{ $cerradas }}</div>
     </div>
-    <div class="spg-metric">
+    <div class="sgp-metric">
         <div class="lbl">Cuadraron</div>
         <div class="val">{{ $cuadran }}</div>
     </div>
-    <div class="spg-metric">
+    <div class="sgp-metric">
         <div class="lbl">Sin conteo</div>
         <div class="val">{{ $sinConteo }}</div>
-        <div class="spg-metric-pie">cerradas sin contar el cajón</div>
+        <div class="sgp-metric-pie">cerradas sin contar el cajón</div>
     </div>
-    <div class="spg-metric">
+    <div class="sgp-metric">
         <div class="lbl">Diferencia acumulada</div>
         <div class="val {{ abs($difTotal) < 0.01 ? '' : ($difTotal < 0 ? 'txt-no' : 'txt-oro') }}">
             {{ money($difTotal) }}</div>
-        <div class="spg-metric-pie">de las que no cuadraron</div>
+        <div class="sgp-metric-pie">de las que no cuadraron</div>
     </div>
 </div>
 
-<div class="spg-panel">
-    <div class="table-responsive spg-tabla-movil">
+<div class="sgp-panel">
+    <div class="table-responsive sgp-tabla-movil">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
                     {{-- **Un cierre sin su apertura no se puede juzgar.** «Cerró
                          con Gs. 40.000 de diferencia» significa una cosa si la caja
                          estuvo abierta dos horas y otra si estuvo tres días. --}}
-                    <th>Abierta</th><th>Cerrada</th><th>Caja</th><th class="spg-movil-oculto">Sucursal</th>
+                    <th>Abierta</th><th>Cerrada</th><th>Caja</th><th class="sgp-movil-oculto">Sucursal</th>
                     {{-- **Quién abrió y quién cerró son DOS personas y dos
                          responsabilidades.** La columna mostraba una sola —el
                          que hizo el arqueo, y si no, el que abrió— así que
                          frente a una diferencia no se sabía a quién preguntarle
                          qué: quien dejó la caja armada no es necesariamente
                          quien contó al final. --}}
-                    <th class="spg-movil-oculto">Abrió</th><th class="spg-movil-oculto">Cerró</th>
+                    <th class="sgp-movil-oculto">Abrió</th><th class="sgp-movil-oculto">Cerró</th>
                     <th class="text-end">Esperado</th>
-                    <th class="text-end spg-movil-oculto">Contado</th>
+                    <th class="text-end sgp-movil-oculto">Contado</th>
                     <th class="text-end">Diferencia</th>
                     <th>Detalle</th>
                 </tr>
@@ -62,20 +62,20 @@
             <tbody>
                 @forelse ($rows as $c)
                     <tr>
-                        <td class="text-muted-warm spg-movil-titulo" style="white-space:nowrap" data-label="Abierta">
+                        <td class="text-muted-warm sgp-movil-titulo" style="white-space:nowrap" data-label="Abierta">
                             {{ $c->fecha_apertura ? fecha($c->fecha_apertura, 'd/m/Y H:i') : '—' }}</td>
                         <td style="white-space:nowrap" data-label="Cerrada">{{ fecha($c->fecha_cierre, 'd/m/Y H:i') }}</td>
                         <td data-label="Caja">{{ $c->caja_nombre }}</td>
-                        <td class="text-muted-warm spg-movil-oculto" data-label="Sucursal">{{ $c->sucursal_nombre }}</td>
-                        <td class="text-muted-warm spg-movil-oculto" data-label="Abrió">{{ $c->responsable ?? '—' }}</td>
-                        <td class="text-muted-warm spg-movil-oculto" data-label="Cerró">
+                        <td class="text-muted-warm sgp-movil-oculto" data-label="Sucursal">{{ $c->sucursal_nombre }}</td>
+                        <td class="text-muted-warm sgp-movil-oculto" data-label="Abrió">{{ $c->responsable ?? '—' }}</td>
+                        <td class="text-muted-warm sgp-movil-oculto" data-label="Cerró">
                             {{-- Sin `arqueo_por` es una caja cerrada antes de que el
                                  arqueo existiera: se dice, en vez de repetir a quien
                                  abrió como si hubiera contado él. --}}
                             {{ $c->arqueo_por ?: '—' }}
                         </td>
                         <td class="text-end" data-label="Esperado">{{ money($c->saldo ?? 0) }}</td>
-                        <td class="text-end spg-movil-oculto" data-label="Contado">
+                        <td class="text-end sgp-movil-oculto" data-label="Contado">
                             {{-- «—» y no «Gs. 0» cuando no se contó: un cero ahí
                                  se lee como «cuadró», que es justo lo que no se
                                  sabe de las cajas cerradas antes del arqueo. --}}
@@ -105,7 +105,7 @@
                 @empty
                     <tr>
                         <td colspan="10">
-                            <div class="spg-vacio">
+                            <div class="sgp-vacio">
                                 <i class="bi bi-clipboard-check"></i>
                                 <div class="t">No hay arqueos con esos filtros</div>
                                 <div class="d">El arqueo aparece cuando se cierra una caja.</div>

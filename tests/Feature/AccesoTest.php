@@ -511,11 +511,11 @@ class AccesoTest extends TestCase
         // **dentro de un módulo y no en el Panel**: ahí la barra no va, porque
         // el Panel ya muestra los módulos en tarjetas y la repetiría.
         $this->get(route('clientes.lista'))->assertOk()
-             ->assertSee('spg-nav-menu', false)
+             ->assertSee('sgp-nav-menu', false)
              ->assertSee('Nueva cita');
 
         $this->get(route('panel'))->assertOk()
-             ->assertDontSee('spg-nav-menu', false);
+             ->assertDontSee('sgp-nav-menu', false);
     }
 
     /**
@@ -554,7 +554,7 @@ class AccesoTest extends TestCase
      * El panel dice qué falta cargar, y sólo a quien puede cargarlo.
      *
      * **Es el motivo de existir del bloque**: la misma pregunta la contesta
-     * `spg:pendientes`, pero quien configura el salón no abre una terminal, así
+     * `sgp:pendientes`, pero quien configura el salón no abre una terminal, así
      * que un aviso que sólo vive ahí es un aviso que nadie lee — la función
      * apagada en silencio de siempre.
      *
@@ -587,7 +587,7 @@ class AccesoTest extends TestCase
 
         $this->assertStringContainsString('Falta cargar', $panel,
             'El panel del Administrador no muestra lo que falta cargar.');
-        $this->assertStringContainsString('spg-falta-nivel', $panel);
+        $this->assertStringContainsString('sgp-falta-nivel', $panel);
 
         // Y la otra mitad, que es la que le da valor: quien no puede resolver
         // nada, no ve nada. **La sesión se arma a mano y no se ingresa con
@@ -605,7 +605,7 @@ class AccesoTest extends TestCase
         $this->conMarcaDeSesion();
 
         $suyo = (string) $this->get(route('panel'))->assertOk()->getContent();
-        $this->assertStringNotContainsString('spg-falta-nivel', $suyo,
+        $this->assertStringNotContainsString('sgp-falta-nivel', $suyo,
             'El Profesional ve pendientes que no tiene permiso para resolver.');
     }
 

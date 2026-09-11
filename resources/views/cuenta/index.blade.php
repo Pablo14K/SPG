@@ -3,7 +3,7 @@
 @section('titulo', 'Mi cuenta')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Mi cuenta<x-ayuda lado="bottom">Tus datos, tu contraseña, el ingreso con huella y cómo se ve el sistema.</x-ayuda></h1>
     </div>
 
@@ -16,8 +16,8 @@
 
     <div class="row g-3">
         <div class="col-lg-6">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-person"></i> Tus datos</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-person"></i> Tus datos</h2>
 
                 {{-- **La foto de perfil, arriba de sus datos.** Es de la PERSONA
                      (`persona.foto`), así que es la misma cara la vea quien la
@@ -27,11 +27,11 @@
                      **Sin foto van las iniciales, no un monigote genérico**: un
                      avatar igual para todos no distingue a nadie, que es lo único
                      que un avatar tiene que hacer. --}}
-                @php $spgFoto = \App\Servicios\Imagen::url($perfil->foto ?? null, 'personas'); @endphp
+                @php $sgpFoto = \App\Servicios\Imagen::url($perfil->foto ?? null, 'personas'); @endphp
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="spg-avatar spg-avatar-lg {{ $spgFoto ? 'tiene-img' : '' }}">
-                        @if ($spgFoto)
-                            <img src="{{ $spgFoto }}" alt="Tu foto de perfil">
+                    <span class="sgp-avatar sgp-avatar-lg {{ $sgpFoto ? 'tiene-img' : '' }}">
+                        @if ($sgpFoto)
+                            <img src="{{ $sgpFoto }}" alt="Tu foto de perfil">
                         @else
                             {{ \App\Servicios\Perfil::inicialesDe($perfil->nombre, (string) $perfil->apellido) }}
                         @endif
@@ -45,7 +45,7 @@
                             <button class="btn btn-sm btn-oro"><i class="bi bi-upload"></i> Subir</button>
                         </form>
                         <div class="form-text mt-1">PNG, JPG o WEBP, hasta 512 KB.</div>
-                        @if ($spgFoto)
+                        @if ($sgpFoto)
                             <form method="post" action="{{ route('cuenta.foto_quitar') }}" class="mt-1">
                                 @csrf
                                 <button class="btn btn-sm btn-outline-neutro"
@@ -76,8 +76,8 @@
                  persona tiene más de una asignada: con una sola no hay nada
                  que elegir, y un selector de una opción es ruido. --}}
             @if (count($misSucursales) > 1)
-                <div class="spg-panel mt-3">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal<x-ayuda>La agenda, la caja y el stock que ves son los de este local. Al cambiar, cambia todo el sistema — no hace falta cerrar sesión.</x-ayuda></h2>
+                <div class="sgp-panel mt-3">
+                    <h2 class="sgp-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal<x-ayuda>La agenda, la caja y el stock que ves son los de este local. Al cambiar, cambia todo el sistema — no hace falta cerrar sesión.</x-ayuda></h2>
                     <div class="d-flex flex-wrap gap-2">
                         @foreach ($misSucursales as $s)
                             <form method="post" action="{{ route('sucursal.entrar') }}">
@@ -96,8 +96,8 @@
             {{-- Tema de la interfaz. Es una preferencia de cada persona, no del
                  salón: dos que comparten la computadora pueden tener uno cada
                  una, porque va atada a la cuenta y no al navegador. --}}
-            <div class="spg-panel mt-3">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-circle-half"></i> Apariencia<x-ayuda>El tema oscuro usa los mismos colores del salón, con los fondos al revés. Se aplica en todas las pantallas y queda guardado para la próxima vez.</x-ayuda></h2>
+            <div class="sgp-panel mt-3">
+                <h2 class="sgp-form-titulo mb-1"><i class="bi bi-circle-half"></i> Apariencia<x-ayuda>El tema oscuro usa los mismos colores del salón, con los fondos al revés. Se aplica en todas las pantallas y queda guardado para la próxima vez.</x-ayuda></h2>
 
                 <form method="post" action="{{ route('cuenta.tema') }}" class="d-flex gap-2 flex-wrap">
                     @csrf
@@ -123,13 +123,13 @@
                  Va primero de esta columna: es lo único de esta pantalla que
                  puede lastimar a alguien si nadie lo mira. --}}
             @if ($alergias !== null)
-                <div class="spg-panel mb-3">
+                <div class="sgp-panel mb-3">
                     @include('portal._alergias', ['alergias' => $alergias, 'volver' => 'cuenta'])
                 </div>
             @endif
 
-            <div class="spg-panel mb-3">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-fingerprint"></i> Ingreso con huella<x-ayuda>Entrar apoyando el dedo, sin escribir la contraseña. La huella no sale de tu equipo: el sistema solo guarda una clave pública para comprobar que sos vos.</x-ayuda></h2>
+            <div class="sgp-panel mb-3">
+                <h2 class="sgp-form-titulo mb-1"><i class="bi bi-fingerprint"></i> Ingreso con huella<x-ayuda>Entrar apoyando el dedo, sin escribir la contraseña. La huella no sale de tu equipo: el sistema solo guarda una clave pública para comprobar que sos vos.</x-ayuda></h2>
 
                 <div id="bioEstado" class="mb-2" style="font-size:.85rem">
                     @if ($bioActivo)
@@ -151,8 +151,8 @@
                 @endif
             </div>
 
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-1"><i class="bi bi-shield-lock"></i> Cambiar la contraseña<x-ayuda>Después de cargarla te mandamos un código al correo para confirmar. Saber la contraseña actual no alcanza: si alguien se sienta en una computadora con tu sesión abierta, el código es lo que le impide dejarte afuera de tu propia cuenta.</x-ayuda></h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-1"><i class="bi bi-shield-lock"></i> Cambiar la contraseña<x-ayuda>Después de cargarla te mandamos un código al correo para confirmar. Saber la contraseña actual no alcanza: si alguien se sienta en una computadora con tu sesión abierta, el código es lo que le impide dejarte afuera de tu propia cuenta.</x-ayuda></h2>
 
                 @if (! $perfil->email)
                     {{-- Al Administrador no se le dice «pedile al Administrador»:
@@ -204,18 +204,18 @@
 
     function decir(txt) { aviso.textContent = txt; aviso.classList.remove('d-none'); }
 
-    SPGBio.estado().then(function (e) {
+    SGPBio.estado().then(function (e) {
         if (!e.ok) {
             document.getElementById('btnBioActivar').disabled = true;
-            decir(SPGBio.motivoTexto(e.motivo));
+            decir(SGPBio.motivoTexto(e.motivo));
         }
     });
 
     document.getElementById('btnBioActivar').addEventListener('click', function () {
         decir('Seguí las indicaciones del sistema…');
-        SPGBio.register(urls, csrf).then(function (res) {
+        SGPBio.register(urls, csrf).then(function (res) {
             if (!res.ok) { decir(res.error || 'No se pudo activar.'); return; }
-            SPGBio.recordar(res.username, res.email);
+            SGPBio.recordar(res.username, res.email);
             // **Cada cuenta tiene la suya.** Activarla acá no toca la de nadie
             // más: la credencial apunta a esta cuenta, y al entrar el navegador
             // ofrece las guardadas y se entra a la que registró la elegida.
@@ -234,7 +234,7 @@
                 body: '_token=' + encodeURIComponent(csrf)
             }).then(function () {
                 // Este navegador deja de ofrecer la huella en el ingreso
-                SPGBio.olvidar();
+                SGPBio.olvidar();
                 window.location.reload();
             });
         });

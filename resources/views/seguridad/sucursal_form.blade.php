@@ -5,13 +5,13 @@
 @section('contenido')
     @php $id = $s->id_sucursal ?? 0; @endphp
 
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('seguridad.sucursales') }}">
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('seguridad.sucursales') }}">
             <i class="bi bi-arrow-left"></i> Sucursales</a>
         <h1 class="mt-1">{{ $id ? 'Editar sucursal' : 'Nueva sucursal' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:640px">
+    <div class="sgp-panel" style="max-width:640px">
         <form method="post" action="{{ route('seguridad.sucursal.guardar') }}">
             @csrf
             <input type="hidden" name="id_sucursal" value="{{ $id }}">

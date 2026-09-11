@@ -5,10 +5,10 @@
 @section('contenido')
     <x-encabezado sub="Qué se hizo, quién y cuándo. Las anulaciones y reversiones las registra la propia base con un disparador, así que quedan aunque nadie las anote desde la aplicación." />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Módulo</th>
@@ -18,12 +18,12 @@
                     @forelse ($rows as $a)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($a->fecha) }}</td>
+                            <td class="sgp-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($a->fecha) }}</td>
                             <td data-label="Usuario">{{ $a->usuario }}</td>
                             <td data-label="Acción"><span class="badge-estado e-prog">{{ $a->accion }}</span></td>
                             <td class="text-muted-warm" data-label="Módulo">{{ $a->modulo }}</td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detAud{{ $a->id_auditoria }}" aria-expanded="false"
                                         aria-controls="detAud{{ $a->id_auditoria }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -31,11 +31,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detAud{{ $a->id_auditoria }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Sucursal</dt>
                                                 <dd>{{ $a->sucursal }}</dd>
@@ -56,7 +56,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-journal-text"></i>
                                     <div class="t">{{ $f['activos'] ? 'Nada coincide con esos filtros.' : 'Todavía no hay registros de auditoría.' }}</div>
                                 </div>

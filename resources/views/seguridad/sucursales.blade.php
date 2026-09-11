@@ -18,7 +18,7 @@
          Se ven en la pantalla de ingreso —o sea antes de que nadie entre— y en
          la barra de arriba de todas las pantallas. Antes vivían en `APP_NAME`,
          así que cambiarlos era editar el `.env` y volver a desplegar. --}}
-    <div class="spg-panel mb-3" style="max-width:860px">
+    <div class="sgp-panel mb-3" style="max-width:860px">
         <h2 style="font-size:1rem;font-weight:500;">Identidad del salón</h2>
         <p class="text-muted-warm mb-3" style="font-size:.82rem">
             Son de <strong>todo el sistema, no de cada sucursal</strong>: se ven en la pantalla de
@@ -92,8 +92,8 @@
         @endif
     </div>
 
-    <div class="spg-panel">
-        <div class="table-responsive spg-tabla-movil">
+    <div class="sgp-panel">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
                     <tr><th>Nombre</th><th>Teléfono</th>
@@ -102,7 +102,7 @@
                 <tbody>
                     @forelse ($rows as $s)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Nombre">{{ $s->nombre }}</td>
+                            <td class="sgp-movil-titulo" data-label="Nombre">{{ $s->nombre }}</td>
                             <td data-label="Teléfono">{{ $s->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Personal">{{ (int) $s->personal }}</td>
                             <td data-label="Estado">
@@ -112,8 +112,8 @@
                                     <span class="badge-estado e-muted">Inactiva</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detSuc{{ $s->id_sucursal }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
@@ -130,11 +130,11 @@
                                 </form>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detSuc{{ $s->id_sucursal }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>RUC</dt>
                                                 <dd>{{ $s->ruc ?: '—' }}</dd>
@@ -151,7 +151,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-shop"></i>
                                     <div class="t">No hay sucursales cargadas.</div>
                                 </div>

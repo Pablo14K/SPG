@@ -583,7 +583,7 @@ function faseCierre(int $dia, int $dow): void
 
     // El cron de avisos
     try {
-        Illuminate\Support\Facades\Artisan::call('spg:notificaciones');
+        Illuminate\Support\Facades\Artisan::call('sgp:notificaciones');
         sim_log(['tipo' => 'CRON', 'salida' => trim(Illuminate\Support\Facades\Artisan::output())]);
     } catch (Throwable $e) {
         sim_incidente('CRON_FALLO', $e->getMessage(), 'ALTO');

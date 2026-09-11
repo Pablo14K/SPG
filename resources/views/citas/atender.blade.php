@@ -83,8 +83,8 @@
          muestra acá, el pedido no le llega a nadie. --}}
     @php $pendientes = array_filter($pedidos, fn ($p) => ! $p->atendido); @endphp
     @if ($pendientes)
-        <div class="spg-panel mb-3" style="border-left:3px solid var(--oro)">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-chat-dots"></i> Pedidos de la clienta</h2>
+        <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-chat-dots"></i> Pedidos de la clienta</h2>
             @foreach ($pendientes as $p)
                 <div class="d-flex justify-content-between align-items-center gap-2 py-1">
                     <div>
@@ -110,8 +110,8 @@
         <input type="hidden" name="dia" value="{{ substr((string) $cita->fecha_hora, 0, 10) }}">
 
         {{-- 1. Servicios realizados --}}
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿Qué se le hizo?<x-ayuda>Vienen marcados los que se habían agendado. Lo que quede sin marcar y no se haya realizado antes se saca de la cita, así no se le cobra a la clienta un servicio que no recibió.</x-ayuda></h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿Qué se le hizo?<x-ayuda>Vienen marcados los que se habían agendado. Lo que quede sin marcar y no se haya realizado antes se saca de la cita, así no se le cobra a la clienta un servicio que no recibió.</x-ayuda></h2>
 
             <input class="form-control form-control-sm mb-2" data-filtra="#listaServiciosAt"
                    placeholder="Buscar un servicio…" autocomplete="off">
@@ -168,16 +168,16 @@
                 </div>
             @endif
 
-            <div class="spg-check-lista" id="listaServiciosAt">
+            <div class="sgp-check-lista" id="listaServiciosAt">
                 @if ($pedidos->isNotEmpty())
-                    <div class="spg-grupo-rotulo">Lo que se agendo</div>
+                    <div class="sgp-grupo-rotulo">Lo que se agendo</div>
                     @foreach ($pedidos as $s)
                         @include('citas._servicio_check')
                     @endforeach
                 @endif
 
                 @if ($extras->isNotEmpty())
-                    <div class="spg-grupo-rotulo mt-2">Se agrega durante la atencion</div>
+                    <div class="sgp-grupo-rotulo mt-2">Se agrega durante la atencion</div>
                     @foreach ($extras as $s)
                         @include('citas._servicio_check')
                     @endforeach
@@ -199,26 +199,26 @@
                  Arranca con el número del servidor, así que sin `app.js` se
                  ve igual lo que hay marcado ahora. --}}
             @php
-                $spgTotalIni = collect($servicios)
+                $sgpTotalIni = collect($servicios)
                     ->filter(fn ($x) => $x->agendado || $x->ya)
                     ->sum(fn ($x) => (float) $x->precio);
-                $spgSena = (float) ($senaCobrada ?? 0);
+                $sgpSena = (float) ($senaCobrada ?? 0);
             @endphp
-            <div class="spg-suma-at" id="sumaAtencion"
-                 data-sena="{{ $spgSena }}">
-                <div class="spg-suma-fila">
+            <div class="sgp-suma-at" id="sumaAtencion"
+                 data-sena="{{ $sgpSena }}">
+                <div class="sgp-suma-fila">
                     <span>Servicios marcados</span>
-                    <strong data-suma="total">{{ money($spgTotalIni) }}</strong>
+                    <strong data-suma="total">{{ money($sgpTotalIni) }}</strong>
                 </div>
-                @if ($spgSena > 0)
-                    <div class="spg-suma-fila">
+                @if ($sgpSena > 0)
+                    <div class="sgp-suma-fila">
                         <span>Ya pagó de seña</span>
-                        <strong class="txt-ok">− {{ money($spgSena) }}</strong>
+                        <strong class="txt-ok">− {{ money($sgpSena) }}</strong>
                     </div>
                 @endif
-                <div class="spg-suma-fila spg-suma-total">
-                    <span>{{ $spgSena > 0 ? 'Queda por cobrar' : 'A cobrar' }}</span>
-                    <strong class="val oro" data-suma="cobrar">{{ money(max(0, $spgTotalIni - $spgSena)) }}</strong>
+                <div class="sgp-suma-fila sgp-suma-total">
+                    <span>{{ $sgpSena > 0 ? 'Queda por cobrar' : 'A cobrar' }}</span>
+                    <strong class="val oro" data-suma="cobrar">{{ money(max(0, $sgpTotalIni - $sgpSena)) }}</strong>
                 </div>
             </div>
         </div>
@@ -238,8 +238,8 @@
              no se cargó ninguno **se dice**, en vez de dejar el hueco: un bloque
              que desaparece no distingue «no se usó nada» de «esto se rompió». --}}
         @if ($soloLectura)
-            <div class="spg-panel mb-3">
-                <h2 class="spg-form-titulo mb-2">
+            <div class="sgp-panel mb-3">
+                <h2 class="sgp-form-titulo mb-2">
                     <i class="bi bi-box-seam"></i> Productos que se usaron
                 </h2>
                 @if ($usados)
@@ -261,7 +261,7 @@
                         </table>
                     </div>
                 @else
-                    <div class="spg-vacio">
+                    <div class="sgp-vacio">
                         <i class="bi bi-box-seam"></i>
                         <div class="t">No se cargó ningún producto en esta atención.</div>
                         <div class="d">
@@ -273,8 +273,8 @@
                 @endif
             </div>
         @else
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?<x-ayuda>Cargá lo que realmente se usó: no es una cantidad fija por servicio, cambia según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.</x-ayuda></h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-1"><i class="bi bi-box-seam"></i> ¿Qué productos se usaron?<x-ayuda>Cargá lo que realmente se usó: no es una cantidad fija por servicio, cambia según el pelo de cada clienta. Los productos fraccionados van en su unidad de consumo —30 ml de un frasco de 1 litro— y el sistema traduce solo lo que descuenta del stock.</x-ayuda></h2>
 
             {{-- **Un local que no maneja ningún producto tiene que decirlo.** El
                  catálogo es único desde la 7.33.0 y `producto_sucursal` dice qué
@@ -366,7 +366,7 @@
         @endif
 
         {{-- 3. Observaciones --}}
-        <div class="spg-panel mb-3">
+        <div class="sgp-panel mb-3">
             <label class="form-label" for="observaciones">Observaciones de la atención</label><x-ayuda campo="observaciones" />
             <textarea class="form-control" id="observaciones" name="observaciones" rows="2"
                       @disabled((bool) $factura)></textarea>
@@ -386,8 +386,8 @@
     {{-- Con la cita cerrada esto ya se muestra arriba: repetirlo sería la misma
          tabla dos veces en la misma pantalla. --}}
     @if ($usados && ! $soloLectura)
-        <div class="spg-panel mt-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Productos ya cargados en esta cita</h2>
+        <div class="sgp-panel mt-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Productos ya cargados en esta cita</h2>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Producto</th><th>Servicio</th><th class="text-end">Cantidad</th></tr></thead>
@@ -460,7 +460,7 @@
 
 // La unidad del campo depende del producto elegido: «ml» para los fraccionados
 // y la unidad de compra para el resto. Se actualiza sola al cambiar el select.
-function spgUnidad(fila) {
+function sgpUnidad(fila) {
     var sel = fila.querySelector('select[name="producto[]"]');
     var eti = fila.querySelector('.unidadProducto');
     if (!sel || !eti) { return; }
@@ -469,7 +469,7 @@ function spgUnidad(fila) {
 }
 
 document.getElementById('filasProductos')?.addEventListener('change', function (e) {
-    if (e.target.name === 'producto[]') { spgUnidad(e.target.closest('.filaProducto')); }
+    if (e.target.name === 'producto[]') { sgpUnidad(e.target.closest('.filaProducto')); }
 });
 
 // **Nunca se queda sin ninguna fila**: con cero, «Otra fila» clona algo que ya
@@ -482,7 +482,7 @@ document.getElementById('filasProductos')?.addEventListener('click', function (e
     if (cont.querySelectorAll('.filaProducto').length > 1) { fila.remove(); return; }
     fila.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
     fila.querySelectorAll('input').forEach(function (i) { i.value = ''; });
-    spgUnidad(fila);
+    sgpUnidad(fila);
 });
 
 // Una fila más para cargar productos, clonando la última vacía
@@ -492,7 +492,7 @@ document.getElementById('masProductos')?.addEventListener('click', function () {
     copia.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
     copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
     cont.appendChild(copia);
-    spgUnidad(copia);
+    sgpUnidad(copia);
 });
 </script>
 @endpush

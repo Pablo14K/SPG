@@ -19,7 +19,7 @@ use App\Servicios\Config;
 use App\Servicios\Pagos;
 use App\Servicios\Perfil;
 use App\Servicios\Permisos;
-use App\Servicios\Notificaciones as NotificacionesSPG;
+use App\Servicios\Notificaciones as NotificacionesSGP;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
 use App\Servicios\Sucursales;
@@ -2292,7 +2292,7 @@ class ReglasDeNegocioTest extends TestCase
     /**
      * Cuánto vale un punto lo decide el salón, no un archivo de código.
      *
-     * Vivía en `config/spg.php`, así que cambiarlo era editar código y volver a
+     * Vivía en `config/sgp.php`, así que cambiarlo era editar código y volver a
      * desplegar. Es un número del negocio: pasa a la base y se edita desde la
      * pantalla de promociones, con el mismo permiso que ellas —subirlo o
      * bajarlo es fijar cuánto regala el salón—.
@@ -2552,7 +2552,7 @@ class ReglasDeNegocioTest extends TestCase
         $base = ['id_usuario' => 0, 'id_sucursal' => $suc, 'servicios' => [$srv], 'fecha_hora' => $cuando];
         // El último: la cola de avisos se acumula de una petición a la otra.
         $ultimoAviso = function (): string {
-            $msgs = array_column((array) session('spg_flash', []), 'msg');
+            $msgs = array_column((array) session('sgp_flash', []), 'msg');
 
             return (string) ($msgs ? end($msgs) : '');
         };
@@ -2715,7 +2715,7 @@ class ReglasDeNegocioTest extends TestCase
         $enBarra = array_filter(Navegacion::portal(), fn ($p) => $p['barra']);
         $this->assertNotEmpty($enBarra, 'El portal tiene que declarar qué va en la barra.');
 
-        $r->assertSee('spg-nav-item', false);
+        $r->assertSee('sgp-nav-item', false);
         foreach ($enBarra as $p) {
             $r->assertSee($p['url'], false);
         }
@@ -3620,7 +3620,7 @@ class ReglasDeNegocioTest extends TestCase
      * **El comprobante electrónico declara el total CON descuento.**
      *
      * El Automatizador calcula el total sumando `cantidad × precio` de cada
-     * renglón —no se le manda—, y el descuento del SPG vive por factura
+     * renglón —no se le manda—, y el descuento del SGP vive por factura
      * (`factura_descuento`), no por renglón. Mandando el precio de lista, el
      * KuDE y el XML declaraban el subtotal sin descontar: la factura decía una
      * cosa y el comprobante interno, el cobro y la caja decían otra.
@@ -4755,7 +4755,7 @@ class ReglasDeNegocioTest extends TestCase
         $reprogramada = $crear((int) $clientes[2]->id_cliente, date('Y-m-d H:i:s', strtotime('-2 days')), 2);
         $reprogramadaFutura = $crear((int) $clientes[3]->id_cliente, date('Y-m-d H:i:s', strtotime('+2 hours')), 2);
 
-        $this->artisan('spg:notificaciones', ['--max' => 0]);
+        $this->artisan('sgp:notificaciones', ['--max' => 0]);
 
         $estado = fn (int $id) => (int) DB::scalar(
             'SELECT id_estado_cita FROM cita WHERE id_cita = ?', [$id]);
@@ -4776,7 +4776,7 @@ class ReglasDeNegocioTest extends TestCase
         // mismo servicio el mismo día, y la primera ya tiene la suya.
         $pasada = $crear((int) $clientes[4]->id_cliente,
             date('Y-m-d H:i:s', strtotime('-' . (CitasVencidas::MINUTOS_SIN_PRESENTARSE + 10) . ' minutes')), 1);
-        $this->artisan('spg:notificaciones', ['--max' => 0]);
+        $this->artisan('sgp:notificaciones', ['--max' => 0]);
 
         $this->assertSame(6, $estado($pasada),
             'Pasada la tolerancia, la clienta que no se presentó queda ausente: es lo que se pidió.');
@@ -5308,7 +5308,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // **Y avisó**, con el monto y el saldo nombrados: un «no alcanza» a
         // secas no dice qué comprobar.
-        $avisos = array_column(session('spg_flash', []), 'msg');
+        $avisos = array_column(session('sgp_flash', []), 'msg');
         $this->assertNotEmpty(preg_grep('/declaró/', $avisos),
             'El pago tiene que avisar que se lleva más de lo que la cuenta declara.');
 
@@ -5712,21 +5712,21 @@ class ReglasDeNegocioTest extends TestCase
      */
     public function test_la_sesion_se_cierra_por_inactividad_y_lo_dice(): void
     {
-        $minutos = (int) config('spg.sesion.inactividad_min', 30);
+        $minutos = (int) config('sgp.sesion.inactividad_min', 30);
         $this->assertGreaterThan(0, $minutos, 'Tiene que haber un plazo configurado.');
 
         $this->entrarComo('admin', 'admin123');
         $this->get(route('panel'))->assertOk();
 
         // Recién usado: sigue adentro.
-        session(['spg_ultima_actividad' => time() - 60]);
+        session(['sgp_ultima_actividad' => time() - 60]);
         $this->get(route('panel'))->assertOk();
 
         // Pasado el plazo: afuera, y con el motivo.
-        session(['spg_ultima_actividad' => time() - ($minutos * 60 + 60)]);
+        session(['sgp_ultima_actividad' => time() - ($minutos * 60 + 60)]);
         $this->get(route('panel'))->assertRedirect(route('login'));
 
-        $avisos = array_column((array) session('spg_flash', []), 'msg');
+        $avisos = array_column((array) session('sgp_flash', []), 'msg');
         $this->assertNotEmpty($avisos, 'El cierre por inactividad tiene que dejar un aviso.');
         $this->assertStringContainsString('sin que se usara el sistema', implode(' ', $avisos),
             'El aviso tiene que decir el motivo: sin eso, caer en el ingreso parece una falla.');
@@ -5752,7 +5752,7 @@ class ReglasDeNegocioTest extends TestCase
         // dijera.
         $cita = $this->citaFuturaAgendada();
 
-        $token = NotificacionesSPG::tokenDeCita((int) $cita->id_cita);
+        $token = NotificacionesSGP::tokenDeCita((int) $cita->id_cita);
         $this->assertNotSame('', (string) $token, 'Hace falta un token para entrar por el enlace.');
 
         // La cita ya uso su unico cambio.
@@ -6314,7 +6314,7 @@ class ReglasDeNegocioTest extends TestCase
         $dur = Agenda::duracionPrevista($srv, 1, 1, null, $pedidos);
         $horas = Agenda::slots(null, $dia, $dur, null, 1, $srv, 1, $pedidos);
 
-        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $paso = (int) config('sgp.agenda.paso_min', 15) * 60;
         $esperado = [];
         for ($m = $ini + 60 * 60; $m + $dur * 60 <= $fin - 60 * 60; $m += $paso) {
             $esperado[] = date('H:i', $m);
@@ -6851,7 +6851,7 @@ class ReglasDeNegocioTest extends TestCase
     /**
      * El comprobante electrónico declara el descuento en vez de negarlo.
      *
-     * El KuDE imprimía «DESCUENTO: 0 %» sobre una factura con descuento: el SPG
+     * El KuDE imprimía «DESCUENTO: 0 %» sobre una factura con descuento: el SGP
      * reparte el descuento entre los renglones antes de mandarlo —el total lo
      * calcula el Automatizador sumándolos— así que del otro lado no quedaba
      * rastro de que hubiera existido. La clienta veía un papel con los precios
@@ -7137,7 +7137,7 @@ class ReglasDeNegocioTest extends TestCase
     #[Test]
     public function el_portal_pagina_sus_citas_y_las_dos_tablas_no_se_pisan(): void
     {
-        config(['spg.lista.por_pagina' => 5]);
+        config(['sgp.lista.por_pagina' => 5]);
 
         // La clienta con más historial: con menos de una página la paginación
         // no se dibuja y la prueba pasaría sin medir nada.
@@ -7353,7 +7353,7 @@ class ReglasDeNegocioTest extends TestCase
 
         // --- Sin foto: van las iniciales, no un monigote genérico ---
         $sinFoto = (string) $this->get(route('cuenta.index'))->assertOk()->getContent();
-        $this->assertStringContainsString('spg-avatar', $sinFoto);
+        $this->assertStringContainsString('sgp-avatar', $sinFoto);
         // Y el oro de las iniciales se pinta: la clase que lo apaga no está.
         $this->assertStringNotContainsString('tiene-img', $sinFoto,
             'Sin foto el avatar lleva su fondo de oro: `tiene-img` es sólo para cuando hay imagen.');
@@ -7364,7 +7364,7 @@ class ReglasDeNegocioTest extends TestCase
         // CONTENIDO con `getimagesize` y no la extensión, que es su defensa
         // principal; y el contenedor no trae GD, así que la imagen de mentira
         // de Laravel no se puede generar acá.
-        $tmp = tempnam(sys_get_temp_dir(), 'spg') . '.png';
+        $tmp = tempnam(sys_get_temp_dir(), 'sgp') . '.png';
         file_put_contents($tmp, base64_decode(self::PNG_MINIMO));
         $nombre = '';
 
@@ -7392,7 +7392,7 @@ class ReglasDeNegocioTest extends TestCase
             // dos se miden: la clase que apaga el fondo y el `preload` en el
             // `<head>`, que pide la imagen junto con el CSS y no después de
             // dibujar la barra.
-            $this->assertStringContainsString('spg-avatar tiene-img', $conFoto,
+            $this->assertStringContainsString('sgp-avatar tiene-img', $conFoto,
                 'Con foto, el avatar de la barra apaga el fondo de oro: si no, se ve debajo mientras la foto carga.');
             $this->assertMatchesRegularExpression('/<link rel="preload" as="image" href="[^"]*' . preg_quote($nombre, '/') . '/', $conFoto,
                 'La foto de perfil se precarga desde el <head>, para que esté antes de que haya que dibujarla.');
@@ -7945,8 +7945,8 @@ class ReglasDeNegocioTest extends TestCase
         $barra = function (): string {
             Caja::olvidar();
             $html = (string) $this->get(route('panel'))->assertOk()->getContent();
-            $ini = strpos($html, 'spg-caja-barra');
-            $fin = strpos($html, 'spg-metrics');
+            $ini = strpos($html, 'sgp-caja-barra');
+            $fin = strpos($html, 'sgp-metrics');
             $this->assertNotFalse($ini, 'El panel no dibujó la barra de caja.');
 
             return substr($html, $ini, $fin - $ini);

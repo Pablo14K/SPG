@@ -7,30 +7,30 @@
 @section('contenido')
     @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Panel principal<x-ayuda lado="bottom">Cada tarjeta es un módulo. Entrá al que necesites y adentro vas a encontrar sus pantallas.</x-ayuda></h1>
         <div class="sub">Hola, {{ session('nombre') }}.</div>
     </div>
 
     @if ($verCaja)
-        <div class="spg-caja-barra">
-            <div class="spg-caja-estado">
+        <div class="sgp-caja-barra">
+            <div class="sgp-caja-estado">
                 <i class="bi bi-safe"></i>
                 {{-- Todas las abiertas del local, no «la mía»: con dos cajones
                      abiertos cada administrador veía una caja y un saldo
                      distintos en el mismo panel. --}}
                 @if ($cajas)
-                    <div class="spg-caja-lista">
+                    <div class="sgp-caja-lista">
                         @if (count($cajas) > 1)
                             <span><strong class="txt-ok">{{ count($cajas) }} cajas abiertas</strong> en este local</span>
                         @endif
                         @foreach ($cajas as $c)
-                            <span class="spg-caja-item">
+                            <span class="sgp-caja-item">
                                 <span><strong>{{ $c->nombre }}</strong>
                                     @if (count($cajas) === 1)<strong class="txt-ok">abierta</strong>@endif
                                     por {{ $c->responsable }}
                                     · desde {{ fecha($c->fecha_apertura, 'd/m H:i') }}</span>
-                                <span class="spg-caja-saldo">{{ money($c->saldo) }}</span>
+                                <span class="sgp-caja-saldo">{{ money($c->saldo) }}</span>
                             </span>
                         @endforeach
                     </div>
@@ -50,25 +50,25 @@
     {{-- Cada número se dibuja sólo si el controlador lo calculó, y lo calcula
          sólo para quien tiene el módulo del que sale. Un `null` acá no es un
          cero: es «esto no es tuyo». --}}
-    <div class="spg-metrics mt-3">
-        <div class="spg-metric">
+    <div class="sgp-metrics mt-3">
+        <div class="sgp-metric">
             <div class="lbl">{{ $verTodo ? 'Citas de hoy' : 'Mis citas de hoy' }}</div>
             <div class="val">{{ $m['citas_hoy'] }}</div>
         </div>
         @if ($m['clientes'] !== null)
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Clientes activos</div>
                 <div class="val">{{ $m['clientes'] }}</div>
             </div>
         @endif
         @if ($m['bajo_stock'] !== null)
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Productos bajo stock</div>
                 <div class="val">{{ $m['bajo_stock'] }}</div>
             </div>
         @endif
         @if ($m['ingresos_hoy'] !== null)
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Ingresos de hoy</div>
                 <div class="val oro">{{ money($m['ingresos_hoy']) }}</div>
             </div>
@@ -92,7 +92,7 @@
                  quien atiende—: las junta para que alguien las resuelva. --}}
             @if ($atrasadas)
                 <div class="col-lg-6">
-                    <div class="spg-panel h-100" style="border-left:4px solid var(--oro);">
+                    <div class="sgp-panel h-100" style="border-left:4px solid var(--oro);">
                         <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
                             <h2 style="font-size:.95rem;font-weight:500;margin:0;">
                                 <i class="bi bi-clock-history txt-oro"></i>
@@ -130,7 +130,7 @@
 
             @if ($proximas)
                 <div class="col-lg-{{ $atrasadas ? 6 : 12 }}">
-                    <div class="spg-panel h-100">
+                    <div class="sgp-panel h-100">
                         <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
                             <h2 style="font-size:.95rem;font-weight:500;margin:0;">
                                 {{ $verTodo ? 'Próximas citas' : 'Tus próximas citas' }}</h2>
@@ -173,12 +173,12 @@
          desde la 7.34.1— no quedaba forma de llegar a ningún módulo.
 
          Solo se dibujan las que el rol puede abrir. --}}
-    <div class="spg-cards">
+    <div class="sgp-cards">
         @foreach (config('navegacion.modulos') as $mod)
             @continue (! Permisos::puede($mod['mod']))
             @php $url = Navegacion::url($mod['ruta']); @endphp
             @if ($url)
-                <a class="spg-card {{ ! empty($mod['dark']) ? 'dark' : '' }}" href="{{ $url }}">
+                <a class="sgp-card {{ ! empty($mod['dark']) ? 'dark' : '' }}" href="{{ $url }}">
                     <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
                     <h3>{{ $mod['titulo'] }}</h3>
                     <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
@@ -186,7 +186,7 @@
             @else
                 {{-- Módulo todavía no migrado a Laravel: se muestra apagado en
                      lugar de esconderlo, así se ve el avance de la migración. --}}
-                <div class="spg-card" style="opacity:.45;cursor:not-allowed" title="Todavía no migrado">
+                <div class="sgp-card" style="opacity:.45;cursor:not-allowed" title="Todavía no migrado">
                     <div class="ic"><i class="bi bi-{{ $mod['ic'] }}"></i></div>
                     <h3>{{ $mod['titulo'] }}</h3>
                     <p>{{ Navegacion::subDe($mod['mod'], $mod['sub']) }}</p>
@@ -205,7 +205,7 @@
          Sólo se dibuja si hay algo, y sólo trae lo que ESTA persona puede
          resolver: el filtro por permiso está en `Pendientes::mios()`. --}}
     @if ($pendientes)
-        <div class="spg-panel mt-3" style="background:transparent;border:0;padding:0;">
+        <div class="sgp-panel mt-3" style="background:transparent;border:0;padding:0;">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
                  style="border-bottom:1px solid var(--gris-calido);padding-bottom:.6rem;">
                 <h2 style="font-size:.9rem;font-weight:600;margin:0;display:flex;align-items:center;gap:.4rem;color:var(--carbon);">
@@ -229,16 +229,16 @@
                         // CSS aparezca en algún marcado, y una interpolada no
                         // aparece — quedarían las tres como CSS sin uso.
                         [$cls, $rot] = match ($p['nivel']) {
-                            'IMPIDE'   => ['spg-falta-impide', 'Impide'],
-                            'CONFUNDE' => ['spg-falta-confunde', 'Confunde'],
-                            default    => ['spg-falta-conviene', 'Conviene'],
+                            'IMPIDE'   => ['sgp-falta-impide', 'Impide'],
+                            'CONFUNDE' => ['sgp-falta-confunde', 'Confunde'],
+                            default    => ['sgp-falta-conviene', 'Conviene'],
                         };
                     @endphp
-                    <div class="spg-falta">
-                        <span class="spg-falta-nivel {{ $cls }}">{{ $rot }}</span>
-                        <span class="spg-falta-txt">
+                    <div class="sgp-falta">
+                        <span class="sgp-falta-nivel {{ $cls }}">{{ $rot }}</span>
+                        <span class="sgp-falta-txt">
                             {{ $p['que'] }}
-                            <span class="d-block text-muted-warm spg-falta-donde">
+                            <span class="d-block text-muted-warm sgp-falta-donde">
                                 @if ($url)
                                     <i class="bi bi-arrow-right-short"></i><a href="{{ $url }}">{{ $p['donde'] }}</a>
                                 @else

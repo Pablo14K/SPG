@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.113.0 — Las alergias de CADA persona que se atiende en la cita
+-- SGP 7.113.0 — Las alergias de CADA persona que se atiende en la cita
 -- =====================================================================
 --
 -- `cliente.alergias` (7.108.0) alcanza mientras la cita sea de una sola

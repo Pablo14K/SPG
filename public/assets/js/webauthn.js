@@ -1,5 +1,5 @@
 // Ayudas para el login biométrico (WebAuthn) del sistema
-window.SPGBio = (function () {
+window.SGPBio = (function () {
   function b64urlToBuf(s) {
     s = s.replace(/-/g, '+').replace(/_/g, '/');
     var pad = s.length % 4; if (pad) s += '='.repeat(4 - pad);
@@ -108,9 +108,9 @@ window.SPGBio = (function () {
   }
 
   // Recordar/olvidar en el navegador el usuario con huella activa
-  function recordar(login, email) { try { localStorage.setItem('spg_bio', JSON.stringify({ login: login, email: email })); } catch (e) {} }
-  function olvidar() { try { localStorage.removeItem('spg_bio'); } catch (e) {} }
-  function guardado() { try { return JSON.parse(localStorage.getItem('spg_bio') || 'null'); } catch (e) { return null; } }
+  function recordar(login, email) { try { localStorage.setItem('sgp_bio', JSON.stringify({ login: login, email: email })); } catch (e) {} }
+  function olvidar() { try { localStorage.removeItem('sgp_bio'); } catch (e) {} }
+  function guardado() { try { return JSON.parse(localStorage.getItem('sgp_bio') || 'null'); } catch (e) { return null; } }
 
   return { available: available, estado: estado, motivoTexto: motivoTexto, register: register,
            login: login, recordar: recordar, olvidar: olvidar, guardado: guardado };

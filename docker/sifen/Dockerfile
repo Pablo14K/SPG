@@ -1,4 +1,4 @@
-# El Automatizador SIFEN. Es OTRO proyecto: el SPG sólo le habla por HTTP.
+# El Automatizador SIFEN. Es OTRO proyecto: el SGP sólo le habla por HTTP.
 #
 # Se hornea por lo mismo que los demás: montarlo del host no funciona en el
 # panel. Con SIFEN_ACTIVO=false este contenedor no lo usa nadie.

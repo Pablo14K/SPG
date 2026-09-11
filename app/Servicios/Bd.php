@@ -50,7 +50,7 @@ class Bd
      *
      * Ejemplo: sp_agendar_cita(?,?,?,?,?, @salida) → el id de la cita nueva.
      */
-    public static function procedimientoConSalida(string $nombre, array $parametros = [], string $variable = 'spg_salida'): ?string
+    public static function procedimientoConSalida(string $nombre, array $parametros = [], string $variable = 'sgp_salida'): ?string
     {
         $pdo = DB::connection()->getPdo();
         $marcadores = self::marcadores(count($parametros));
@@ -70,7 +70,7 @@ class Bd
      * Igual que el anterior pero devolviendo un entero, que es el caso normal
      * (todos los procedimientos del sistema devuelven un id).
      */
-    public static function idDe(string $nombre, array $parametros = [], string $variable = 'spg_salida'): int
+    public static function idDe(string $nombre, array $parametros = [], string $variable = 'sgp_salida'): int
     {
         return (int) self::procedimientoConSalida($nombre, $parametros, $variable);
     }

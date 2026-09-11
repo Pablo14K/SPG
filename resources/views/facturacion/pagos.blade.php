@@ -7,8 +7,8 @@
 
     <div class="row g-3">
         <div class="col-12">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-wallet2"></i> Liquidar</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-wallet2"></i> Liquidar</h2>
 
                 {{-- **De qué cajón sale la plata.** Con uno solo no se pregunta,
                      pero se dice cuál es: quien liquida tiene que saber en qué
@@ -26,7 +26,7 @@
                     </p>
                 @endif
 
-                <div class="table-responsive spg-tabla-movil">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table table-sm align-middle mb-0">
                         {{-- **Cuánto se le debe, no sólo cuántos servicios.**
                              La tabla decía «3 pendientes» y ofrecía Liquidar:
@@ -37,7 +37,7 @@
                         <tbody>
                             @forelse ($profs as $p)
                                 <tr>
-                                    <td class="spg-movil-titulo" data-label="Profesional">
+                                    <td class="sgp-movil-titulo" data-label="Profesional">
                                         {{ $p->nombre }} {{ $p->apellido }}
                                         @if ($p->desde_cuando)
                                             <div class="text-muted-warm" style="font-size:.75rem">
@@ -66,7 +66,7 @@
                                             <span class="text-muted-warm">—</span>
                                         @endif
                                     </td>
-                                    <td class="text-end spg-movil-acciones">
+                                    <td class="text-end sgp-movil-acciones">
                                         @if ((int) $p->pendientes)
                                             <form method="post" action="{{ route('facturacion.pagar_personal') }}"
                                                   class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
@@ -116,13 +116,13 @@
         </div>
 
         <div class="col-12">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-clock-history"></i> Liquidaciones</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-clock-history"></i> Liquidaciones</h2>
                 {{-- Cortaba con `LIMIT 200` sin decirlo: a partir de la fila 201
                      las liquidaciones dejaban de existir para quien mira. --}}
                 <x-filtros :f="$f" />
                 <x-paginacion :pag="$pag" :f="$f" />
-                <div class="table-responsive spg-tabla-movil">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Fecha</th><th>Profesional</th>
@@ -131,11 +131,11 @@
                         <tbody>
                             @forelse ($rows as $r)
                                 <tr>
-                                    <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
+                                    <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
                                     <td data-label="Profesional">{{ $r->beneficiario ?? $r->profesional ?? '—' }}</td>
                                     <td class="text-end" data-label="Monto">{{ money($r->monto ?? 0) }}</td>
-                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                        <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                                 data-bs-target="#detLiq{{ $r->id_pago_personal }}" aria-expanded="false">
                                             <i class="bi bi-chevron-down"></i> Detalle
                                         </button>
@@ -147,11 +147,11 @@
                                         @endif
                                     </td>
                                 </tr>
-                                <tr class="spg-fila-detalle">
+                                <tr class="sgp-fila-detalle">
                                     <td colspan="4">
                                         <div class="collapse" id="detLiq{{ $r->id_pago_personal }}">
-                                            <div class="spg-det-cuerpo">
-                                                <div class="spg-det-grid">
+                                            <div class="sgp-det-cuerpo">
+                                                <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Período</dt>
                                                         <dd>{{ $r->periodo }}</dd>
@@ -168,7 +168,7 @@
                             @empty
                                 <tr>
                                     <td colspan="4">
-                                        <div class="spg-vacio">
+                                        <div class="sgp-vacio">
                                             <i class="bi bi-wallet2"></i>
                                             <div class="t">Todavía no se liquidó ningún pago.</div>
                                         </div>

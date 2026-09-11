@@ -21,8 +21,8 @@
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="spg-panel">
-                <h2 class="spg-form-titulo mb-2"><i class="bi bi-plus-lg"></i> Nueva zona</h2>
+            <div class="sgp-panel">
+                <h2 class="sgp-form-titulo mb-2"><i class="bi bi-plus-lg"></i> Nueva zona</h2>
                 <form method="post" action="{{ route('servicios.zona.crear') }}" class="d-flex gap-2">
                     @csrf
                     <input class="form-control" name="nombre" placeholder="Ej. Cabello" required maxlength="60">
@@ -36,8 +36,8 @@
         </div>
 
         <div class="col-lg-7">
-            <div class="spg-panel">
-                <div class="table-responsive spg-tabla-movil">
+            <div class="sgp-panel">
+                <div class="table-responsive sgp-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr><th>Zona</th><th class="text-end">Servicios</th><th class="text-end">Acciones</th></tr>
@@ -45,7 +45,7 @@
                         <tbody>
                             @forelse ($rows as $z)
                                 <tr>
-                                    <td class="spg-movil-titulo" data-label="Zona">
+                                    <td class="sgp-movil-titulo" data-label="Zona">
                                         <form method="post" action="{{ route('servicios.zona.editar') }}"
                                               class="d-flex gap-2 align-items-center">
                                             @csrf
@@ -57,7 +57,7 @@
                                         </form>
                                     </td>
                                     <td class="text-end" data-label="Servicios">{{ entero($z->usos) }}</td>
-                                    <td class="text-end spg-movil-acciones">
+                                    <td class="text-end sgp-movil-acciones">
                                         {{-- No se borra con servicios adentro: quedarían sin zona y
                                              pasarían a poder hacerse junto con cualquier cosa, en
                                              silencio. El servidor lo vuelve a comprobar. --}}

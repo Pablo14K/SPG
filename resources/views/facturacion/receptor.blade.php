@@ -45,8 +45,8 @@
 
         <div class="row g-3">
             <div class="col-lg-7">
-                <div class="spg-panel mb-3">
-                    <h2 class="spg-form-titulo mb-1">
+                <div class="sgp-panel mb-3">
+                    <h2 class="sgp-form-titulo mb-1">
                         <i class="bi bi-{{ $inn ? 'envelope' : 'person-vcard' }}"></i>
                         {{ $inn ? '¿A dónde se la mandamos?' : '¿A nombre de quién?' }}
                         @unless ($inn)<x-ayuda>Si no pide la factura a su nombre, dejalo en consumidor final.</x-ayuda>@endunless
@@ -87,8 +87,8 @@
                     </div>
                 </div>
 
-                <div class="spg-panel mb-3">
-                    <h2 class="spg-form-titulo mb-1"><i class="bi bi-envelope-at"></i> ¿A dónde se la mandamos?<x-ayuda>La factura le llega por correo apenas se emite. Si lo dejás vacío, la factura vale igual pero no le llega a nadie.</x-ayuda></h2>
+                <div class="sgp-panel mb-3">
+                    <h2 class="sgp-form-titulo mb-1"><i class="bi bi-envelope-at"></i> ¿A dónde se la mandamos?<x-ayuda>La factura le llega por correo apenas se emite. Si lo dejás vacío, la factura vale igual pero no le llega a nadie.</x-ayuda></h2>
 
                     <div class="mb-3">
                         <label class="form-label" for="email">Correo electrónico</label><x-ayuda>Es a donde le llega la factura.</x-ayuda>
@@ -123,8 +123,8 @@
             </div>
 
             <div class="col-lg-5">
-                <div class="spg-panel mb-3">
-                    <h2 class="spg-form-titulo mb-2"><i class="bi bi-receipt"></i> Qué se va a emitir</h2>
+                <div class="sgp-panel mb-3">
+                    <h2 class="sgp-form-titulo mb-2"><i class="bi bi-receipt"></i> Qué se va a emitir</h2>
 
                     <div class="d-flex justify-content-between mb-1" style="font-size:.9rem">
                         <span class="text-muted-warm">Comprobante</span>

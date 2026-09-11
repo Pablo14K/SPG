@@ -41,7 +41,7 @@
 @else
     {{-- **Vacío se dice, no se deja el bloque en blanco.** Una tabla sin filas
          es indistinguible de una pantalla rota. --}}
-    <div class="spg-vacio">
+    <div class="sgp-vacio">
         <i class="bi bi-list-ul"></i>
         <div class="t">Sin movimientos hoy</div>
         <div class="d">Todavía no entró ni salió nada de {{ $cajon ?? 'esta caja' }} en el día de hoy.</div>

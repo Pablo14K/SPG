@@ -18,8 +18,8 @@
 
 <x-filtros :f="$f" />
 
-<div class="spg-panel">
-    <div class="table-responsive spg-tabla-movil">
+<div class="sgp-panel">
+    <div class="table-responsive sgp-tabla-movil">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
@@ -29,7 +29,7 @@
             <tbody>
                 @forelse ($rows as $r)
                     <tr>
-                        <td class="spg-movil-titulo" data-label="Nombre">{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
+                        <td class="sgp-movil-titulo" data-label="Nombre">{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
                         <td data-label="Cuenta del sistema">
                             {{-- **«Sin cuenta» no es un error y hay que decirlo así.**
                                  Es alguien que atiende y no entra al sistema, que es
@@ -46,8 +46,8 @@
                                 @endif
                             @endif
                         </td>
-                        <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                            <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                        <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                            <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                     data-bs-target="#detProf{{ $r->id_persona }}" aria-expanded="false"
                                     aria-controls="detProf{{ $r->id_persona }}">
                                 <i class="bi bi-chevron-down"></i> Detalle
@@ -57,11 +57,11 @@
                                 <i class="bi bi-pencil"></i></a>
                         </td>
                     </tr>
-                    <tr class="spg-fila-detalle">
+                    <tr class="sgp-fila-detalle">
                         <td colspan="3">
                             <div class="collapse" id="detProf{{ $r->id_persona }}">
-                                <div class="spg-det-cuerpo">
-                                    <div class="spg-det-grid">
+                                <div class="sgp-det-cuerpo">
+                                    <div class="sgp-det-grid">
                                         <div>
                                             <dt>Cédula</dt>
                                             <dd>{{ $r->cedula ?: '—' }}</dd>
@@ -83,7 +83,7 @@
                 @empty
                     <tr>
                         <td colspan="3">
-                            <div class="spg-vacio">
+                            <div class="sgp-vacio">
                                 <i class="bi bi-people"></i>
                                 <div class="t">No hay profesionales cargados</div>
                                 <div class="d">Cargá al equipo con el botón de arriba.</div>

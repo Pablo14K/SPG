@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.97.0 — Quiénes son las otras personas que vienen con la clienta
+-- SGP 7.97.0 — Quiénes son las otras personas que vienen con la clienta
 -- =====================================================================
 --
 -- `cita.personas` decía CUÁNTAS venían y nada más, así que el salón sabía

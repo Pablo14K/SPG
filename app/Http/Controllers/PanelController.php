@@ -163,7 +163,7 @@ class PanelController extends Controller
         usort($cajas, static fn ($a, $b) => strcmp((string) $a->nombre, (string) $b->nombre));
 
         // **Lo que falta CARGAR se ve acá, no en una terminal.**
-        // `spg:pendientes` contesta la misma pregunta, pero quien configura el
+        // `sgp:pendientes` contesta la misma pregunta, pero quien configura el
         // salón es la dueña en el navegador: un comando que nunca va a correr
         // es lo mismo que no tenerlo — la función apagada en silencio de
         // siempre.

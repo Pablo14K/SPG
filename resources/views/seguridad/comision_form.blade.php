@@ -3,12 +3,12 @@
 @section('titulo', $editar ? 'Editar comisión' : 'Nueva comisión')
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('seguridad.comisiones') }}"><i class="bi bi-arrow-left"></i> Comisiones</a>
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('seguridad.comisiones') }}"><i class="bi bi-arrow-left"></i> Comisiones</a>
         <h1 class="mt-1">{{ $editar ? 'Editar comisión' : 'Nueva comisión' }}</h1>
     </div>
 
-    <div class="spg-panel" style="max-width:640px">
+    <div class="sgp-panel" style="max-width:640px">
         {{-- **Editar una comisión cambia lo que ya se liquidó, y hay que
              decirlo.** `fn_comision_servicio` la calcula al vuelo tomando la
              vigente a la fecha del servicio, así que tocar el valor mueve

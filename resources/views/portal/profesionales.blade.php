@@ -3,8 +3,8 @@
 @section('titulo', 'Nuestro equipo')
 
 @section('contenido')
-    <div class="spg-page-head">
-        <a class="spg-back" href="{{ route('portal.reservar') }}">
+    <div class="sgp-page-head">
+        <a class="sgp-back" href="{{ route('portal.reservar') }}">
             <i class="bi bi-arrow-left"></i> Reservar</a>
         <h1 class="mt-1">Nuestro equipo<x-ayuda lado="bottom">Qué hace cada una y en qué horario atiende. Sirve para elegir antes de reservar: de nada vale que haga mechas si trabaja cuando no podés venir.</x-ayuda></h1>
     </div>
@@ -14,7 +14,7 @@
          compite con lo único que se viene a hacer. Esto se mira antes, una vez,
          y por eso tiene su propia pantalla. --}}
     @if (count($sucursales) > 1)
-        <div class="spg-panel mb-3">
+        <div class="sgp-panel mb-3">
             <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
                 <div>
                     <label class="form-label" for="suc">Local</label>
@@ -32,8 +32,8 @@
     @endif
 
     @if (! $equipo)
-        <div class="spg-panel">
-            <div class="spg-vacio">
+        <div class="sgp-panel">
+            <div class="sgp-vacio">
                 <i class="bi bi-people"></i>
                 <div class="t">Todavía no hay profesionales en este local</div>
                 <div class="d">Podés reservar igual: te asignamos a quien esté disponible.</div>
@@ -43,8 +43,8 @@
         <div class="row g-3">
             @foreach ($equipo as $p)
                 <div class="col-md-6 col-lg-4">
-                    <div class="spg-panel h-100">
-                        <h2 class="spg-form-titulo mb-1">
+                    <div class="sgp-panel h-100">
+                        <h2 class="sgp-form-titulo mb-1">
                             <i class="bi bi-person-circle"></i> {{ $p->nombre }}</h2>
 
                         @if ($p->puntaje !== null)

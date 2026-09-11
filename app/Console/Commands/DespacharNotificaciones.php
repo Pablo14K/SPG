@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  */
 class DespacharNotificaciones extends Command
 {
-    protected $signature = 'spg:notificaciones {--max=25 : Cuántos correos como mucho en esta pasada}';
+    protected $signature = 'sgp:notificaciones {--max=25 : Cuántos correos como mucho en esta pasada}';
 
     protected $description = 'Genera recordatorios y manda los avisos pendientes a las clientas';
 

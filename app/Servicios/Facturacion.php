@@ -198,7 +198,7 @@ class Facturacion
     {
         $total = self::total($idFactura);
         // La relación la decide el salón desde Servicios → Descuentos, así que
-        // sale de la base y no de `config/spg.php` — que queda de respaldo por
+        // sale de la base y no de `config/sgp.php` — que queda de respaldo por
         // si la tabla todavía no está.
         $puntos = (int) floor($total / Config::puntosCadaGs());
         if ($puntos <= 0) {

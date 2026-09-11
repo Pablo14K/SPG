@@ -1,4 +1,4 @@
-# El SPG en el VPS. El de desarrollo es `docker-compose.yml`, y son archivos
+# El SGP en el VPS. El de desarrollo es `docker-compose.yml`, y son archivos
 # distintos a propósito: aquél publica la base en el 3307 y sirve con
 # `artisan serve`, dos cosas que en un servidor con IP pública van de aceptables
 # a peligrosas.
@@ -43,8 +43,8 @@ services:
     build:
       context: .
       dockerfile: docker/bd/Dockerfile
-    image: spg-bd
-    container_name: spg_bd
+    image: sgp-bd
+    container_name: sgp_bd
     restart: unless-stopped
     # **Sin `ports:`.** No es un olvido: así a la base sólo se llega desde la
     # red interna de Docker. Para entrar a mano:
@@ -57,8 +57,8 @@ services:
       # **Si falta, Compose aborta con un mensaje claro que nombra el archivo.
       # Si está pero VACÍO, sigue adelante en silencio** y MariaDB se apaga
       # apenas arranca. Ese es el caso feo, porque lo que se ve arriba es
-      # «container spg_bd is unhealthy», que no dice nada. El error de verdad
-      # está en `docker logs spg_bd`.
+      # «container sgp_bd is unhealthy», que no dice nada. El error de verdad
+      # está en `docker logs sgp_bd`.
       - ./docker/php/secretos.env
     command:
       - --character-set-server=utf8mb4
@@ -84,8 +84,8 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile.produccion
-    image: spg-app
-    container_name: spg_app
+    image: sgp-app
+    container_name: sgp_app
     restart: unless-stopped
     depends_on:
       bd:
@@ -119,8 +119,8 @@ services:
     build:
       context: .
       dockerfile: docker/caddy/Dockerfile
-    image: spg-web
-    container_name: spg_web
+    image: sgp-web
+    container_name: sgp_web
     restart: unless-stopped
     depends_on:
       - app
@@ -155,7 +155,7 @@ services:
       - traefik.enable=true
       # **El dominio va ESCRITO, no interpolado, y es a propósito.** Las
       # etiquetas las resuelve COMPOSE, que lee el shell o un `.env` del
-      # directorio del proyecto — nunca el `env_file`. Un `${SPG_DOMINIO}` acá
+      # directorio del proyecto — nunca el `env_file`. Un `${SGP_DOMINIO}` acá
       # habría quedado en `Host(``)`: vacío, sin coincidir con nada, y Traefik
       # no rutearía jamás sin dar un solo error. Es la misma trampa que dejó los
       # correos sin nombre de remitente en la 7.87.1.
@@ -166,23 +166,23 @@ services:
       #
       # **Si cambia el subdominio hay que tocarlo en DOS lugares**: acá y en
       # `APP_URL` de `docker/php/env.produccion`.
-      - traefik.http.routers.spg.rule=Host(`spg.columbiatcc.online`)
-      - traefik.http.routers.spg.entrypoints=websecure
-      - traefik.http.routers.spg.tls.certresolver=letsencrypt
+      - traefik.http.routers.sgp.rule=Host(`sgp.columbiatcc.online`)
+      - traefik.http.routers.sgp.entrypoints=websecure
+      - traefik.http.routers.sgp.tls.certresolver=letsencrypt
       # El puerto de Caddy adentro del contenedor. Traefik habla HTTP con él;
       # el TLS ya lo terminó afuera.
-      - traefik.http.services.spg.loadbalancer.server.port=80
+      - traefik.http.services.sgp.loadbalancer.server.port=80
 
   # El planificador. En un VPS con panel esto sería una línea de cron; con
   # contenedores es un servicio más, y así se apaga y se prende con el resto.
   #
   # Es la misma imagen que `app` y comparte su `storage`, pero en vez de servir
   # HTTP corre `schedule:run` cada minuto, que es lo que Laravel espera. El
-  # scheduler ya declara `spg:notificaciones` cada diez minutos con
+  # scheduler ya declara `sgp:notificaciones` cada diez minutos con
   # `withoutOverlapping()`, así que dos corridas no se pisan.
   cron:
-    image: spg-app
-    container_name: spg_cron
+    image: sgp-app
+    container_name: sgp_cron
     restart: unless-stopped
     depends_on:
       app:
@@ -200,7 +200,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        echo "== SPG: planificador andando (schedule:run cada minuto) =="
+        echo "== SGP: planificador andando (schedule:run cada minuto) =="
         while true; do
           php /app/artisan schedule:run --no-interaction >> /app/storage/logs/cron.log 2>&1 || true
           sleep 60
@@ -222,13 +222,13 @@ services:
   # al archivo**, porque su cargador sólo escribe la clave `if getenv($k) ===
   # false`. Lo que no está acá lo sigue tomando del ejemplo.
   #
-  # **Sin `ports:`**: el SPG le habla por la red interna.
+  # **Sin `ports:`**: el SGP le habla por la red interna.
   sifen:
     build:
       context: .
       dockerfile: docker/sifen/Dockerfile
-    image: spg-sifen
-    container_name: spg_sifen
+    image: sgp-sifen
+    container_name: sgp_sifen
     restart: unless-stopped
     environment:
       TZ: America/Asuncion
@@ -241,16 +241,16 @@ services:
       # los despliegues**. Con el certificado puesto, esto pasa a `prod`.
       SIFEN_MODE: mock
 
-      # De acá salen las `xml_url` y `kude_url` que devuelve. El SPG no las usa
+      # De acá salen las `xml_url` y `kude_url` que devuelve. El SGP no las usa
       # —se baja las copias armando la dirección desde `SIFEN_URL`, que es la
       # que de verdad está usando— pero vacío devolvía rutas relativas que no
       # llevan a ningún lado.
       APP_URL: http://sifen:8090
 
-      # **El tercer candado del remitente único.** El SPG ya le manda
-      # `X-SPG-Correo: no` en cada emisión (7.105.0) y el ejemplo lo trae
+      # **El tercer candado del remitente único.** El SGP ya le manda
+      # `X-SGP-Correo: no` en cada emisión (7.105.0) y el ejemplo lo trae
       # vacío; esto lo deja vacío **desde el compose**, que es lo único que
-      # nadie va a llenar de buena fe. El comprobante lo manda el SPG, con la
+      # nadie va a llenar de buena fe. El comprobante lo manda el SGP, con la
       # cuenta de «Seguridad → Correo del sistema».
       MAIL_FROM_EMAIL: ""
     volumes:
@@ -258,7 +258,7 @@ services:
       # `.pem` versionado es un `.pem` publicado. En un volumen sobreviven al
       # despliegue, que reconstruye la imagen entera.
       - sifen_certs:/automatizador/certs
-      # Lo que genera: el XML firmado y el KuDE. El SPG se baja su copia y la
+      # Lo que genera: el XML firmado y el KuDE. El SGP se baja su copia y la
       # guarda en `storage/app/sifen/<factura>/`, así que esto es el original —
       # y en un volumen no se pierde al redesplegar.
       - sifen_salida:/automatizador/salida

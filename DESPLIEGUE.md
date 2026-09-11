@@ -1,7 +1,7 @@
-# Despliegue del SPG
+# Despliegue del SGP
 
-El sistema se publica en **`https://spg.columbiatcc.online`**, sobre un **VPS de Hostinger
-con Docker**. El dominio se compró entre varios grupos de la facultad, así que el SPG vive en
+El sistema se publica en **`https://sgp.columbiatcc.online`**, sobre un **VPS de Hostinger
+con Docker**. El dominio se compró entre varios grupos de la facultad, así que el SGP vive en
 un subdominio y **comparte el servidor con otros proyectos**: eso decide buena parte de lo que
 está escrito acá abajo.
 
@@ -17,7 +17,7 @@ está escrito acá abajo.
 
 | Antes había que… | Con Docker |
 |---|---|
-| Reescribir los **84 `DEFINER`** con `spg:preparar-sql`, o error 1449 en la pantalla de ingreso | **No hace falta**: adentro del contenedor se importa y se consulta como root |
+| Reescribir los **84 `DEFINER`** con `sgp:preparar-sql`, o error 1449 en la pantalla de ingreso | **No hace falta**: adentro del contenedor se importa y se consulta como root |
 | Confirmarle al proveedor que hay **PHP 8.3** | **Ya está**: la imagen es `php:8.3-fpm` |
 | Fijar la **zona horaria** del sistema operativo y de MySQL | **Ya está**: el compose clava `TZ` y `--default-time-zone=-03:00` |
 | Pedir `CREATE ROUTINE`, `TRIGGER` y `log_bin_trust_function_creators` | **Ya está** en el compose |
@@ -51,7 +51,7 @@ Un registro **A**, en el panel donde se administre `columbiatcc.online`:
 
 ```
 Tipo   Nombre   Valor              TTL
-A      spg      <IP del VPS>       3600
+A      sgp      <IP del VPS>       3600
 ```
 
 **Dónde se carga depende de dónde apunten los nameservers del dominio**, y no de quién lo
@@ -69,7 +69,7 @@ pagó:
 Y comprobarlo **antes de seguir**, porque el certificado depende de esto:
 
 ```bash
-dig +short spg.columbiatcc.online
+dig +short sgp.columbiatcc.online
 ```
 
 Tiene que devolver la IP del VPS. **Si todavía no propagó, no sigas**: Traefik le pide el
@@ -81,12 +81,12 @@ certificado hasta la semana siguiente.
 
 ## 1b. Traefik: el proxy que reparte los dominios
 
-**El SPG no publica ningún puerto.** Quien escucha el 80 y el 443 del VPS es **Traefik**, que
+**El SGP no publica ningún puerto.** Quien escucha el 80 y el 443 del VPS es **Traefik**, que
 se despliega una vez desde el panel —está entre las plantillas de proyecto— y reparte cada
 pedido al contenedor que corresponde según el dominio. Así conviven varios proyectos de la
 facultad en el mismo servidor sin pelearse por los puertos web.
 
-Lo que hay que saber antes de desplegar el SPG:
+Lo que hay que saber antes de desplegar el SGP:
 
 | Qué | Detalle |
 |---|---|
@@ -109,18 +109,18 @@ Lo que hay que saber antes de desplegar el SPG:
 >
 > **Por qué funciona igual**: compartiendo la red del servidor, Traefik alcanza las IP `172.x`
 > de los contenedores directamente, porque el host tiene ruta hacia los puentes de Docker.
-> Descubre `spg_web` por el socket, lee sus etiquetas y le habla a su IP en el 80. Lo único
+> Descubre `sgp_web` por el socket, lee sus etiquetas y le habla a su IP en el 80. Lo único
 > que hace falta es que Traefik esté levantado —es otro proyecto del panel— y que el
 > contenedor esté en **una sola** red, que es el caso.
 
 > **Si algún día Traefik pasa a modo bridge**, hay que hacer las dos cosas: volver a poner la
-> red compartida como `external` en el compose del SPG **y** agregarle la etiqueta
+> red compartida como `external` en el compose del SGP **y** agregarle la etiqueta
 > `traefik.docker.network` con su nombre. Sin la segunda, estando en dos redes Traefik puede
 > elegir la IP equivocada y contestar 504 sin explicar por qué.
 
-### Levantar Traefik: se hace UNA vez, y va ANTES que el SPG
+### Levantar Traefik: se hace UNA vez, y va ANTES que el SGP
 
-El orden importa. Si el SPG sube primero, queda corriendo y **inalcanzable desde afuera** —no
+El orden importa. Si el SGP sube primero, queda corriendo y **inalcanzable desde afuera** —no
 publica ningún puerto—, así que parece roto cuando en realidad falta el portero.
 
 **1 · Desplegarlo desde el panel.** hPanel → VPS → **Administrador de Docker** → **Proyectos**
@@ -128,7 +128,7 @@ publica ningún puerto—, así que parece roto cuando en realidad falta el port
 
 | Campo | Qué poner |
 |---|---|
-| Dominio | cualquiera que apunte al VPS — se usa para el dashboard, no para rutear el SPG |
+| Dominio | cualquiera que apunte al VPS — se usa para el dashboard, no para rutear el SGP |
 | Correo | a donde Let's Encrypt avisa si un certificado está por vencer |
 
 **2 · Comprobar que quedó andando**, desde la **Consola web**:
@@ -142,7 +142,7 @@ Tiene que aparecer el contenedor arriba y **algo escuchando el 80 y el 443**. Si
 los tiene tomados otra cosa —un Apache o un nginx del sistema—, Traefik no arranca y hay que
 apagar al otro primero.
 
-**3 · Recién ahora, desplegar el SPG.** El resto de esta guía, desde el punto 2.
+**3 · Recién ahora, desplegar el SGP.** El resto de esta guía, desde el punto 2.
 
 #### El compose que levanta la plantilla
 
@@ -190,34 +190,34 @@ volumes:
   letsencrypt:
 ```
 
-#### Lo único que el SPG le pide
+#### Lo único que el SGP le pide
 
 Cinco etiquetas en el servicio `web` de `docker-compose.produccion.yml`, y nada más:
 
 ```yaml
     labels:
       - traefik.enable=true
-      - traefik.http.routers.spg.rule=Host(`spg.columbiatcc.online`)
-      - traefik.http.routers.spg.entrypoints=websecure
-      - traefik.http.routers.spg.tls.certresolver=letsencrypt
-      - traefik.http.services.spg.loadbalancer.server.port=80
+      - traefik.http.routers.sgp.rule=Host(`sgp.columbiatcc.online`)
+      - traefik.http.routers.sgp.entrypoints=websecure
+      - traefik.http.routers.sgp.tls.certresolver=letsencrypt
+      - traefik.http.services.sgp.loadbalancer.server.port=80
 ```
 
 | Etiqueta | Qué dice |
 |---|---|
 | `traefik.enable` | publicá este contenedor — sin esto Traefik lo ignora |
-| `…routers.spg.rule` | **con qué dominio** se le entra |
-| `…routers.spg.entrypoints` | por el 443; del 80 se ocupa la redirección |
+| `…routers.sgp.rule` | **con qué dominio** se le entra |
+| `…routers.sgp.entrypoints` | por el 443; del 80 se ocupa la redirección |
 | `…tls.certresolver` | sacale el certificado con `letsencrypt` |
 | `…loadbalancer.server.port` | el puerto **de adentro** del contenedor, el de Caddy |
 
 Tres cosas que se pagan caro si se cambian sin pensarlas:
 
-- **`spg` es el nombre del router y del servicio**, y tiene que ser único en todo el VPS. Si
+- **`sgp` es el nombre del router y del servicio**, y tiene que ser único en todo el VPS. Si
   otro proyecto usa el mismo, uno de los dos deja de rutear.
 - **El dominio va escrito, no interpolado.** Las etiquetas las resuelve **Compose**, que lee
   el shell o un `.env` del directorio del proyecto — **nunca el `env_file`**. Un
-  `${SPG_DOMINIO}` habría quedado en `` Host(``) ``: vacío, sin coincidir con nada, y sin dar
+  `${SGP_DOMINIO}` habría quedado en `` Host(``) ``: vacío, sin coincidir con nada, y sin dar
   un solo error. Es la misma trampa que dejó los correos sin nombre de remitente en la 7.87.1.
 - **Si cambia el subdominio hay que tocarlo en DOS lugares**: acá y en `APP_URL` de
   `docker/php/env.produccion`. Con uno solo, el sitio abre y los correos salen con enlaces a
@@ -228,13 +228,13 @@ Tres cosas que se pagan caro si se cambian sin pensarlas:
 Desde la **Consola web**, sin depender del navegador ni del DNS:
 
 ```bash
-curl -sI -H 'Host: spg.columbiatcc.online' http://127.0.0.1/ | head -3
+curl -sI -H 'Host: sgp.columbiatcc.online' http://127.0.0.1/ | head -3
 ```
 
 Tiene que contestar **308** hacia `https://`. Y después, ya con el certificado:
 
 ```bash
-curl -sI https://spg.columbiatcc.online/ | head -3
+curl -sI https://sgp.columbiatcc.online/ | head -3
 ```
 
 **302 hacia `/entrar`** es lo correcto: el sistema manda al ingreso.
@@ -286,14 +286,14 @@ antes de construir.
 Detected GIT platform: github-raw
 Trying HTTPS clone: https://github.com/Pablo14K/SPG.git
 Cloning into '/tmp/hstgr-…'...
-Image spg-app Built · Image spg-cron Built
+Image sgp-app Built · Image sgp-cron Built
 ```
 
 Así que `basededatos/`, el código y el `Caddyfile` llegan, y los dos `build` funcionan. Se
 pega esta URL y se le pone nombre al proyecto:
 
 ```
-https://raw.githubusercontent.com/Pablo14K/SPG/refs/heads/master/docker-compose.produccion.yml
+https://raw.githubusercontent.com/Pablo14K/SGP/refs/heads/master/docker-compose.produccion.yml
 ```
 
 ### El precio, escrito para que nadie lo descubra tarde
@@ -322,14 +322,14 @@ Si a `secretos.env` le falta alguna variable, MariaDB arranca sin contraseña y 
 que se ve arriba es esto, que no sirve de nada:
 
 ```
-Container spg_bd Error dependency bd failed to start
-dependency failed to start: container spg_bd is unhealthy
+Container sgp_bd Error dependency bd failed to start
+dependency failed to start: container sgp_bd is unhealthy
 ```
 
 **El error de verdad está en el log del contenedor:**
 
 ```bash
-docker logs spg_bd
+docker logs sgp_bd
 ```
 
 Ahí se lee `database is uninitialized and password option is not specified`. Es el patrón de
@@ -426,11 +426,11 @@ rm -rf /docker/spg/docker/php/env.produccion /docker/spg/docker/caddy/Caddyfile
 **2. El volumen de la base ya NO hace falta tocarlo.** Desde la 7.87.2 el arranque de la
 aplicación comprueba la base y **la importa sola si está vacía**, así que un volumen que quedó
 inicializado a medias se arregla en el despliegue siguiente sin entrar por consola. En el log
-del contenedor `spg_app` se ve:
+del contenedor `sgp_app` se ve:
 
 ```
-== SPG: la base 'peluqueria_bd' está vacía (0 tablas): importando ==
-== SPG: importada · 97 tablas y vistas · 60 rutinas ==
+== SGP: la base 'peluqueria_bd' está vacía (0 tablas): importando ==
+== SGP: importada · 97 tablas y vistas · 60 rutinas ==
 ```
 
 Con la base ya cargada no dice nada de eso y **no toca un solo dato**: sólo importa si hay
@@ -461,7 +461,7 @@ Las reglas son tres: **22 (SSH), 80 y 443**. Nada más.
 
 > **El 80 no es opcional aunque todo vaya por HTTPS**: Let's Encrypt valida por ahí, así que
 > sin el 80 abierto el certificado no se emite ni se renueva. Los dos puertos los usa
-> **Traefik**, no el SPG — este proyecto no publica ninguno.
+> **Traefik**, no el SGP — este proyecto no publica ninguno.
 
 > **Ojo con `ufw enable` si igual se lo usa**: sin una regla para el 22 puesta **antes**, el
 > comando corta la propia sesión SSH y se entra sólo por la consola web del panel.
@@ -485,7 +485,7 @@ Desde la consola web, con git —que es lo que hace que actualizar después sea 
 y no volver a subir un ZIP entero:
 
 ```bash
-git clone https://github.com/Pablo14K/SPG.git /opt/spg && cd /opt/spg
+git clone https://github.com/Pablo14K/SPG.git /opt/sgp && cd /opt/sgp
 ```
 
 Si el repositorio es **privado**, git va a pedir usuario y contraseña, y GitHub ya no acepta
@@ -516,8 +516,8 @@ a medias con la configuración equivocada:
 APP_KEY=                 # se genera abajo
 MYSQL_ROOT_PASSWORD=     # una larga y al azar
 DB_PASSWORD=             # LA MISMA que la de arriba
-SPG_DOMINIO=spg.columbiatcc.online
-SPG_EMAIL_TLS=           # heredado de cuando Caddy sacaba el certificado; hoy lo hace Traefik
+SGP_DOMINIO=sgp.columbiatcc.online
+SGP_EMAIL_TLS=           # heredado de cuando Caddy sacaba el certificado; hoy lo hace Traefik
 MAIL_USERNAME=           # la cuenta de Gmail
 MAIL_PASSWORD=           # la contraseña de aplicación NUEVA
 MAIL_FROM_ADDRESS=       # la MISMA cuenta que se autentica, o Gmail rechaza
@@ -544,13 +544,13 @@ echo "APP_KEY=base64:$(openssl rand -base64 32)"
 ## 6. Levantar
 
 **Si antes se intentó desde el Administrador de Docker, hay que limpiar primero.** Los
-contenedores llevan nombre fijo (`spg_bd`, `spg_app`…), así que los que quedaron del intento
+contenedores llevan nombre fijo (`sgp_bd`, `sgp_app`…), así que los que quedaron del intento
 fallido chocan con éstos. Y el volumen de la base **tiene que salir**: MariaDB corre el guion
 de importación **una sola vez, con el volumen vacío**, así que uno a medio inicializar deja
 el sistema andando contra una base sin tablas y sin decir nada.
 
 ```bash
-docker rm -f spg_bd spg_app spg_web spg_cron spg_sifen
+docker rm -f sgp_bd sgp_app sgp_web sgp_cron sgp_sifen
 ```
 
 ```bash
@@ -563,7 +563,7 @@ docker volume ls -q | grep -E 'datos_bd|vendor_app|caddy_' | xargs -r docker vol
 Y ahora sí:
 
 ```bash
-cd /opt/spg
+cd /opt/sgp
 docker compose -f docker-compose.produccion.yml up -d --build
 docker compose -f docker-compose.produccion.yml logs -f
 ```
@@ -581,7 +581,7 @@ recibirían recordatorios de citas que no existen.
 ## 7. Comprobarlo, no darlo por bueno
 
 ```bash
-docker compose -f docker-compose.produccion.yml exec app php artisan spg:diagnostico --produccion
+docker compose -f docker-compose.produccion.yml exec app php artisan sgp:diagnostico --produccion
 ```
 
 Revisa la conexión, los dos relojes, que estén los 21 procedimientos / 39 funciones / 17
@@ -594,7 +594,7 @@ Tiene que terminar en **«Todo en orden.»**
 
 Después, a mano, y esto no se puede saltear:
 
-1. Abrir `https://spg.columbiatcc.online` y ver que **el candado esté** (sin HTTPS no hay
+1. Abrir `https://sgp.columbiatcc.online` y ver que **el candado esté** (sin HTTPS no hay
    ingreso con huella).
 2. Entrar con `admin` y con `cliente`.
 3. Agendar una cita y ver que la agenda ofrezca horarios.
@@ -602,12 +602,12 @@ Después, a mano, y esto no se puede saltear:
    Es la comprobación que más veces salvó a este proyecto.
 5. Emitir un comprobante y ver el desglose del IVA.
 6. Pedir un código por correo (recuperar contraseña), comprobar **que llega** y que el enlace
-   del correo diga `https://spg.columbiatcc.online`, no `localhost`.
+   del correo diga `https://sgp.columbiatcc.online`, no `localhost`.
 
 Y lo que le falta CARGAR al salón —que es otra pregunta— lo contesta:
 
 ```bash
-docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendientes
+docker compose -f docker-compose.produccion.yml exec app php artisan sgp:pendientes
 ```
 
 ---
@@ -619,11 +619,11 @@ docker compose -f docker-compose.produccion.yml exec app php artisan spg:pendien
 > | Camino | Dónde está el proyecto |
 > |---|---|
 > | Administrador de Docker (punto 2) | **en ninguna carpeta del host**: viaja dentro de las imágenes. En `/docker/spg` está sólo el compose |
-> | Consola web (puntos 4 a 6) | donde lo clonaste, en este documento `/opt/spg` |
+> | Consola web (puntos 4 a 6) | donde lo clonaste, en este documento `/opt/sgp` |
 >
 > Por eso los comandos que necesitan un archivo del proyecto —el guion de actualización, por
-> ejemplo— lo sacan **de adentro del contenedor** con `docker exec spg_app cat …`. Para salir
-> de dudas: `ls -d /docker/spg /opt/spg 2>/dev/null`.
+> ejemplo— lo sacan **de adentro del contenedor** con `docker exec sgp_app cat …`. Para salir
+> de dudas: `ls -d /docker/spg /opt/sgp 2>/dev/null`.
 
 **El planificador ya está**: es el servicio `cron` del compose, que corre `schedule:run` cada
 minuto. Sin él no salen los recordatorios, las citas vencidas no se cierran y las señas sin
@@ -638,7 +638,7 @@ docker compose -f docker-compose.produccion.yml logs cron | tail
 primero se lo saca de ahí, una sola vez:
 
 ```bash
-docker exec spg_app cat docker/respaldo.sh > /usr/local/bin/spg-respaldo.sh && chmod +x /usr/local/bin/spg-respaldo.sh
+docker exec sgp_app cat docker/respaldo.sh > /usr/local/bin/sgp-respaldo.sh && chmod +x /usr/local/bin/sgp-respaldo.sh
 ```
 
 Y se agenda:
@@ -648,20 +648,20 @@ crontab -e
 ```
 
 ```
-0 3 * * * /usr/local/bin/spg-respaldo.sh >> /var/log/spg-respaldo.log 2>&1
+0 3 * * * /usr/local/bin/sgp-respaldo.sh >> /var/log/sgp-respaldo.log 2>&1
 ```
 
 > **Va a `/usr/local/bin` y no a la carpeta del proyecto** por el mismo motivo de siempre: ahí
-> no hay proyecto. Y el guion le habla al contenedor por su nombre fijo (`spg_bd`), así que no
-> depende de desde dónde se lo corra. Al probarlo, `bash /usr/local/bin/spg-respaldo.sh` tiene
-> que dejar un archivo con peso en `/var/respaldos/spg`.
+> no hay proyecto. Y el guion le habla al contenedor por su nombre fijo (`sgp_bd`), así que no
+> depende de desde dónde se lo corra. Al probarlo, `bash /usr/local/bin/sgp-respaldo.sh` tiene
+> que dejar un archivo con peso en `/var/respaldos/sgp`.
 
 > **El volumen de Docker NO es un respaldo: es el mismo disco.** Un `docker compose down -v`
 > mal tipeado borra la base sin preguntar. Y un archivo guardado en el mismo servidor tampoco
 > alcanza — hay que **bajarlo a otra máquina**, una vez por semana como mínimo:
 >
 > ```bash
-> scp root@<IP>:/var/respaldos/spg/*.gz .
+> scp root@<IP>:/var/respaldos/sgp/*.gz .
 > ```
 >
 > Un respaldo que nunca se restauró es una suposición, no un respaldo.
@@ -720,7 +720,7 @@ Un arreglo de PHP, de una vista, del CSS o del JavaScript. Son dos pasos:
 2. En la **Consola web** del VPS, una sola línea:
 
 ```bash
-cd /tmp && rm -rf spg-deploy && git clone https://github.com/Pablo14K/SPG.git spg-deploy && cd spg-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
+cd /tmp && rm -rf sgp-deploy && git clone https://github.com/Pablo14K/SPG.git sgp-deploy && cd sgp-deploy && docker compose -f docker-compose.produccion.yml -p spg up -d --build
 ```
 
 Clona, **reconstruye las imágenes** —el código viaja adentro— y recrea los contenedores. La
@@ -730,7 +730,7 @@ base no se toca, y el arranque no la va a importar porque no está vacía.
 > proyecto de Compose, y de él salen los nombres de los volúmenes: con `-p spg` se reusan
 > `spg_datos_bd`, `spg_almacenamiento` y los de las imágenes, así que **los datos del salón
 > quedan intactos**. Sin la bandera, Compose deduce el nombre del **directorio**
-> (`spg-deploy`) y crea volúmenes nuevos y vacíos: el sistema levantaría como si fuera una
+> (`sgp-deploy`) y crea volúmenes nuevos y vacíos: el sistema levantaría como si fuera una
 > instalación de cero, con la base del salón todavía ahí pero desconectada.
 
 > **El rebuild no es opcional.** En el servidor OPcache corre con `validate_timestamps=0`, o
@@ -756,13 +756,13 @@ Un `Up 2 days` justo después de un despliegue quiere decir que no se recreó na
 > a tener **una sola rama, `main`**, para que el clon por defecto traiga el código — antes
 > `git clone` caía en un `main` vacío y dejaba sólo un README de 5 bytes. Si algún día se
 > quiere volver al botón, hay que rehacer el proyecto con **Componer → URL** apuntando a
-> `.../blob/main/docker-compose.produccion.yml`, con el mismo nombre `spg`.
+> `.../blob/main/docker-compose.produccion.yml`, con el mismo nombre `sgp`.
 
 **Comprobar que la versión nueva es la que está corriendo** — se lee de adentro de la imagen,
 que es lo que de verdad se está sirviendo:
 
 ```bash
-docker exec spg_app grep -m1 "'version'" config/spg.php
+docker exec sgp_app grep -m1 "'version'" config/sgp.php
 ```
 
 Tiene que decir la que acabás de subir. Si dice la anterior, el despliegue no reconstruyó.
@@ -775,11 +775,11 @@ Tiene que decir la que acabás de subir. Si dice la anterior, el despliegue no r
 sólo actúa con la base vacía —es a propósito: sobre una cargada, importar sería borrar la
 operación del salón— así que una columna nueva **no se aplica sola**.
 
-El sistema te lo dice, y ése es el punto: `spg:diagnostico` compara la base contra el `.sql`
+El sistema te lo dice, y ése es el punto: `sgp:diagnostico` compara la base contra el `.sql`
 que se entrega y nombra lo que falta.
 
 ```bash
-docker exec spg_app php artisan spg:diagnostico --produccion
+docker exec sgp_app php artisan sgp:diagnostico --produccion
 ```
 
 También sale en el log del contenedor en cada arranque. Si aparece algo como «faltan
@@ -788,13 +788,13 @@ También sale en el log del contenedor en cada arranque. Si aparece algo como «
 **1. Respaldo antes de tocar nada.** Es la única red que hay:
 
 ```bash
-mkdir -p /var/respaldos/spg && docker exec spg_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/spg/peluqueria_bd_$(date +%F_%H%M).sql
+mkdir -p /var/respaldos/sgp && docker exec sgp_bd sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --routines --triggers --events --single-transaction --default-character-set=utf8mb4 peluqueria_bd' > /var/respaldos/sgp/peluqueria_bd_$(date +%F_%H%M).sql
 ```
 
 Y comprobar que pesó algo, que un archivo de 0 bytes es lo mismo que no tener nada:
 
 ```bash
-ls -lh /var/respaldos/spg/
+ls -lh /var/respaldos/sgp/
 ```
 
 > **Se escribe entero y no se llama a `docker/respaldo.sh`.** Ese guion existe en el
@@ -806,19 +806,19 @@ ls -lh /var/respaldos/spg/
 la versión en el nombre, y viaja en el repositorio como cualquier otro archivo:
 
 ```bash
-docker exec spg_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql'
+docker exec sgp_app sh -c 'mysql --skip-ssl -hbd -uroot -p"$DB_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd < basededatos/actualizaciones/2026-09-03_7.90.0.sql'
 ```
 
 Para ver cuáles hay:
 
 ```bash
-docker exec spg_app ls basededatos/actualizaciones/
+docker exec sgp_app ls basededatos/actualizaciones/
 ```
 
 > **Todo pasa DENTRO del contenedor de la aplicación, no en el disco del servidor.** El
 > proyecto no queda en ninguna carpeta del host —ver el punto 2—: lo único que hay es el
 > compose. El código, y con él `basededatos/`, viaja **dentro de la imagen**. Por eso el
-> comando corre en `spg_app`, cuyo directorio de trabajo es `/app`, y le habla a MariaDB por
+> comando corre en `sgp_app`, cuyo directorio de trabajo es `/app`, y le habla a MariaDB por
 > el nombre del servicio (`-hbd`) con la contraseña que ya tiene en el entorno.
 
 > **Los guiones de `actualizaciones/` no tocan datos y se pueden volver a correr.** Una rutina
@@ -873,7 +873,7 @@ desplegar sin contenedores vuelven a hacer falta:
 - **Los 84 `DEFINER`.** Las rutinas se crearon con ``DEFINER=`root`@`localhost` ``. Importadas
   con el usuario limitado de un panel, MySQL contesta **error 1449** la primera vez que algo
   llame a una función — o sea en la pantalla de ingreso. Lo resuelve
-  `php artisan spg:preparar-sql <archivo> <usuario>`, que reescribe los definidores y pasa
+  `php artisan sgp:preparar-sql <archivo> <usuario>`, que reescribe los definidores y pasa
   `SQL SECURITY DEFINER` a `INVOKER`. **Adentro del contenedor no hace falta porque se conecta
   como root**, y eso no compra inseguridad: la base no publica ningún puerto.
 - **`log_bin_trust_function_creators = 1`.** Sin esto, con el binlog activo **las funciones no

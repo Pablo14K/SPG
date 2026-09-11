@@ -5,7 +5,7 @@
 --  adentro. **No toca ni una fila**: son seis rutinas, y una rutina se
 --  reemplaza entera (DROP + CREATE), así que volver a correr esto es inocuo.
 --
---      docker exec -i spg_bd sh -c 'mysql --skip-ssl -uroot \
+--      docker exec -i sgp_bd sh -c 'mysql --skip-ssl -uroot \
 --        -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 peluqueria_bd' \
 --        < basededatos/actualizaciones/2026-09-01_7.88.0.sql
 --
@@ -19,7 +19,7 @@
 --    · sp_emitir_factura        usa la regla nueva
 --
 --  Al terminar, comprobar con:
---      docker exec spg_app php artisan spg:diagnostico --produccion
+--      docker exec sgp_app php artisan sgp:diagnostico --produccion
 --  Tiene que decir 22 procedimientos y 41 funciones, y «Todo en orden».
 -- =========================================================================
 

@@ -1,5 +1,5 @@
 -- =====================================================================
--- SPG 7.108.0 — Roles que no llevan turno, y las alergias de la clienta
+-- SGP 7.108.0 — Roles que no llevan turno, y las alergias de la clienta
 -- =====================================================================
 --
 -- Dos columnas nuevas, ninguna derivada de nada: las dos guardan un hecho

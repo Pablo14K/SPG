@@ -21,7 +21,7 @@
         $idPlegar = 'fltPlegar' . substr(md5(implode(',', array_keys($f['campos']))), 0, 6);
     @endphp
 
-    <form class="spg-filtros" method="get" action="{{ url()->current() }}">
+    <form class="sgp-filtros" method="get" action="{{ url()->current() }}">
         {{-- **En el celular la barra arranca PLEGADA.** Con cinco campos y el
              botón, los filtros ocupaban la primera pantalla entera y la lista
              —que es lo que se vino a ver— quedaba dos pantallas más abajo. Se
@@ -32,16 +32,16 @@
              Con algún filtro puesto arranca abierta, que si no la persona no ve
              por qué la lista está recortada. En escritorio no cambia nada: la
              etiqueta no se dibuja y los campos se ven siempre. --}}
-        <input type="checkbox" id="{{ $idPlegar }}" class="spg-filtros-int" aria-hidden="true"
+        <input type="checkbox" id="{{ $idPlegar }}" class="sgp-filtros-int" aria-hidden="true"
                @checked($hayFiltros)>
-        <label for="{{ $idPlegar }}" class="spg-filtros-plegar" role="button" tabindex="0">
+        <label for="{{ $idPlegar }}" class="sgp-filtros-plegar" role="button" tabindex="0">
             <i class="bi bi-funnel"></i>
             Filtros
             {{-- El espacio antes de la arroba no es cosmético: «Filtros@if» pegado
                  NO es una directiva para Blade (su patrón lleva \B delante), así
                  que compilaba el @endif suelto y reventaba con ParseError. --}}
             @if ($hayFiltros) <span class="badge-estado e-proc">{{ $f['activos'] }}</span> @endif
-            <i class="bi bi-chevron-down spg-filtros-flecha"></i>
+            <i class="bi bi-chevron-down sgp-filtros-flecha"></i>
         </label>
         @foreach ($ocultos as $ok => $ov)
             <input type="hidden" name="{{ $ok }}" value="{{ $ov }}">
@@ -53,7 +53,7 @@
                 $ancho = $def['ancho'] ?? ($tipo === 'texto' ? '260px' : '170px');
             @endphp
 
-            <div class="spg-filtro" style="flex:0 1 {{ $ancho }}">
+            <div class="sgp-filtro" style="flex:0 1 {{ $ancho }}">
                 <label class="form-label" for="flt_{{ $clave }}">{{ $def['etiqueta'] ?? $clave }}</label>
 
                 @if ($tipo === 'select')
@@ -76,7 +76,7 @@
             </div>
         @endforeach
 
-        <div class="spg-filtro-btns">
+        <div class="sgp-filtro-btns">
             <button class="btn btn-sm btn-oro" type="submit"><i class="bi bi-funnel"></i> Filtrar</button>
 
             @if ($hayFiltros)
@@ -101,7 +101,7 @@
         </div>
 
         @if ($hayFiltros)
-            <div class="spg-filtro-aviso">
+            <div class="sgp-filtro-aviso">
                 <i class="bi bi-funnel-fill"></i>
                 {{ $f['activos'] }} filtro{{ $f['activos'] > 1 ? 's' : '' }}
                 aplicado{{ $f['activos'] > 1 ? 's' : '' }}

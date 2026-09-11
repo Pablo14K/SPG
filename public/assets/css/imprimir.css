@@ -1,10 +1,10 @@
 /* =====================================================================
-   SPG — Las pantallas que se imprimen: el informe y los listados.
+   SGP — Las pantallas que se imprimen: el informe y los listados.
 
    **Este archivo estaba entero muerto y no se notaba.** Sus 87 líneas
-   apuntaban a `.spg-imp-body`, `.spg-hoja`, `.spg-imp-tabla` y compañía —
+   apuntaban a `.sgp-imp-body`, `.sgp-hoja`, `.sgp-imp-tabla` y compañía —
    una familia de clases que NINGUNA vista dibuja—, mientras que las tres
-   pantallas que lo enlazan usan `<body class="spg-imprimir">` con clases de
+   pantallas que lo enlazan usan `<body class="sgp-imprimir">` con clases de
    Bootstrap. Es el mismo caso del selector de disponibilidad de la 7.1.0 y
    del bloque de cobro de la 7.4.0: código correcto apuntando a un marcado
    que nunca existió, o que dejó de existir en la migración a Laravel.
@@ -17,36 +17,36 @@
 
 @page { size: A4; margin: 1.4cm; }
 
-.spg-imprimir {
+.sgp-imprimir {
     background: #fff;
     color: #000;
 }
 
 /* La caja del contenido no necesita respirar en papel: el margen lo pone
    `@page`, y sumarle el del contenedor come una línea por hoja. */
-.spg-imprimir .container {
+.sgp-imprimir .container {
     max-width: none !important;
     padding: 0 !important;
 }
 
 /* Lo que sirve para volver o para apretar un botón no va al papel. */
-.spg-imprimir .no-imprimir,
-.spg-imprimir .btn { display: none !important; }
+.sgp-imprimir .no-imprimir,
+.sgp-imprimir .btn { display: none !important; }
 
 /* --- Tablas ---------------------------------------------------------- */
-.spg-imprimir .table {
+.sgp-imprimir .table {
     font-size: 9.5pt;
     border-collapse: collapse;
     width: 100%;
 }
 
-.spg-imprimir .table th,
-.spg-imprimir .table td {
+.sgp-imprimir .table th,
+.sgp-imprimir .table td {
     border: 1px solid #bbb;
     padding: .22rem .4rem;
 }
 
-.spg-imprimir .table thead th {
+.sgp-imprimir .table thead th {
     background: #eee;
     font-weight: 600;
     /* Sin esto el navegador descarta los fondos al imprimir y la cabecera
@@ -57,21 +57,21 @@
 
 /* Que una tabla larga repita su cabecera en cada hoja en vez de dejarla
    sola al pie de la anterior. */
-.spg-imprimir thead { display: table-header-group; }
-.spg-imprimir tr,
-.spg-imprimir h2 { break-inside: avoid; page-break-inside: avoid; }
+.sgp-imprimir thead { display: table-header-group; }
+.sgp-imprimir tr,
+.sgp-imprimir h2 { break-inside: avoid; page-break-inside: avoid; }
 
 /* Un bloque del informe no arranca con su título al final de la hoja. */
-.spg-imprimir h2 { break-after: avoid; page-break-after: avoid; }
+.sgp-imprimir h2 { break-after: avoid; page-break-after: avoid; }
 
 /* --- Legibilidad en tinta -------------------------------------------- */
 /* Los neutros cálidos del sistema son para pantalla: sobre papel blanco un
    gris claro se pierde, así que el texto secundario se oscurece. */
-.spg-imprimir .text-muted-warm { color: #555 !important; }
+.sgp-imprimir .text-muted-warm { color: #555 !important; }
 
 /* El oro es identidad, no información: impreso en blanco y negro queda un
    gris pálido que se lee peor que el texto normal. */
-.spg-imprimir .txt-oro { color: #000 !important; font-weight: 600; }
+.sgp-imprimir .txt-oro { color: #000 !important; font-weight: 600; }
 
 /* La dirección de cada enlace no aporta nada en una hoja. */
-.spg-imprimir a[href]::after { content: none !important; }
+.sgp-imprimir a[href]::after { content: none !important; }

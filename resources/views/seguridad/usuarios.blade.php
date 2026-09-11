@@ -22,10 +22,10 @@
                'q' => request()->query('desde') === 'personal' ? ['desde' => 'personal'] : []]
             : null" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 {{-- **Dos listas, no una con todo mezclado.**
                      «Usuarios» contesta *¿quién entra al sistema y con qué rol?*
@@ -49,7 +49,7 @@
                 <tbody>
                     @forelse ($rows as $u)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Nombre">{{ $u->nombre }} {{ $u->apellido }}</td>
+                            <td class="sgp-movil-titulo" data-label="Nombre">{{ $u->nombre }} {{ $u->apellido }}</td>
 
                             @if ($comoPersonal)
                                 <td class="text-muted-warm" style="font-size:.82rem" data-label="Servicios que hace">
@@ -77,8 +77,8 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detUsr{{ $u->id_usuario }}" aria-expanded="false"
                                         aria-controls="detUsr{{ $u->id_usuario }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -105,11 +105,11 @@
                                 @endif
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detUsr{{ $u->id_usuario }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             @if ($comoPersonal)
                                                 <div>
                                                     <dt>Contacto</dt>
@@ -146,7 +146,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-person-badge"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún usuario coincide con esos filtros.' : 'Todavía no hay personal cargado.' }}</div>
                                 </div>

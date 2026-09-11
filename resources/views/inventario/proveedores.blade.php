@@ -9,10 +9,10 @@
         sub="Quiénes le venden al salón y cuánto se les debe. El saldo lo calcula la base con las compras confirmadas menos los pagos."
         :accion="['modal' => '#modalProveedor', 't' => 'Nuevo proveedor', 'ic' => 'plus-lg']" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -23,7 +23,7 @@
                 <tbody>
                     @forelse ($rows as $p)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Proveedor">{{ $p->nombre }}</td>
+                            <td class="sgp-movil-titulo" data-label="Proveedor">{{ $p->nombre }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $p->saldo > 0.01)
                                     <strong class="txt-no">{{ money($p->saldo) }}</strong>
@@ -38,8 +38,8 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detProv{{ $p->id_proveedor }}" aria-expanded="false">
                                     <i class="bi bi-chevron-down"></i> Detalle
                                 </button>
@@ -72,11 +72,11 @@
                                 </form>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detProv{{ $p->id_proveedor }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>RUC</dt>
                                                 <dd>{{ $p->ruc ?: '—' }}</dd>
@@ -97,7 +97,7 @@
                     @empty
                         <tr>
                             <td colspan="4">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-truck"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún proveedor coincide con esos filtros.' : 'Todavía no hay proveedores cargados.' }}</div>
                                     <div class="d">Se cargan al registrar la primera compra, o desde acá.</div>

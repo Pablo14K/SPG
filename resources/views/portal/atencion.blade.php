@@ -3,7 +3,7 @@
 @section('titulo', 'Mi atención')
 
 @section('contenido')
-    <div class="spg-page-head">
+    <div class="sgp-page-head">
         <h1>Tu atención</h1>
         <div class="sub">
             Con {{ $cita->profesional }} · {{ fecha($cita->fecha_hora) }}
@@ -13,25 +13,25 @@
 
     {{-- El total es lo cargado hasta ahora, no un comprobante: el comprobante
          lo emite el salón al terminar. --}}
-    <div class="spg-metrics mb-3">
-        <div class="spg-metric">
+    <div class="sgp-metrics mb-3">
+        <div class="sgp-metric">
             <div class="lbl">Va sumando</div>
             <div class="val oro" id="mTotal">{{ money($total) }}</div>
         </div>
         @if ($sena > 0)
-            <div class="spg-metric">
+            <div class="sgp-metric">
                 <div class="lbl">Ya señaste</div>
                 <div class="val" id="mSena">{{ money($sena) }}</div>
             </div>
         @endif
-        <div class="spg-metric">
+        <div class="sgp-metric">
             <div class="lbl">Te quedaría por pagar</div>
             <div class="val" id="mPagar">{{ money($aPagar) }}</div>
         </div>
     </div>
 
-    <div class="spg-panel mb-3">
-        <h2 class="spg-form-titulo mb-2"><i class="bi bi-scissors"></i> Lo que te están haciendo</h2>
+    <div class="sgp-panel mb-3">
+        <h2 class="sgp-form-titulo mb-2"><i class="bi bi-scissors"></i> Lo que te están haciendo</h2>
         <div id="listaServicios">
             @foreach ($servicios as $s)
                 <div class="d-flex justify-content-between align-items-center py-1">
@@ -47,8 +47,8 @@
     </div>
 
     @if ($productos)
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-box-seam"></i> Productos que te están usando</h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-box-seam"></i> Productos que te están usando</h2>
             <div id="listaProductos">
                 @foreach ($productos as $p)
                     <div class="d-flex justify-content-between py-1">
@@ -66,8 +66,8 @@
     @endif
 
     @if ($enCurso)
-        <div class="spg-panel">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-chat-dots"></i> ¿Querés agregar algo?<x-ayuda>Pedilo acá y quien te está atendiendo lo va a ver. Te lo confirma en el momento, porque depende de si hay tiempo y producto.</x-ayuda></h2>
+        <div class="sgp-panel">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-chat-dots"></i> ¿Querés agregar algo?<x-ayuda>Pedilo acá y quien te está atendiendo lo va a ver. Te lo confirma en el momento, porque depende de si hay tiempo y producto.</x-ayuda></h2>
             <button class="btn btn-oro" data-bs-toggle="modal" data-bs-target="#modalPedir">
                 <i class="bi bi-plus-lg"></i> Pedir algo más</button>
 
@@ -140,8 +140,8 @@
          quedaba sin saber si el cobro entró ni con qué comprobante — que es
          justo lo que va a querer mirar si algo no cuadra. --}}
     @if ($comprobante || (float) $cobrado > 0)
-        <div class="spg-panel mt-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-receipt"></i> Tu pago</h2>
+        <div class="sgp-panel mt-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-receipt"></i> Tu pago</h2>
             <table class="table table-sm mb-0" style="font-size:.9rem">
                 @if ($comprobante)
                     <tr>

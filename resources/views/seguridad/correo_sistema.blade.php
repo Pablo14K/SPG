@@ -5,7 +5,7 @@
 @section('contenido')
     <x-encabezado sub="La cuenta desde la que salen los avisos: el código de verificación, la recuperación de contraseña, el segundo factor y los recordatorios de cita." />
 
-    <div class="spg-panel" style="max-width:640px">
+    <div class="sgp-panel" style="max-width:640px">
 
         {{-- **Qué cuenta manda hoy.** Un correo apagado no se nota —la pantalla
              igual dice «te enviamos un código»—, así que lo primero es decir de
@@ -102,12 +102,12 @@
     </div>
 
     {{-- **Esta cuenta cubre TODO, incluida la factura electrónica.**
-         Las dos cosas saben mandar el comprobante —el SPG y el Automatizador
+         Las dos cosas saben mandar el comprobante —el SGP y el Automatizador
          SIFEN, y las dos adjuntan el KuDE y el XML— pero cada una lo haría con
          su propia cuenta, y con las dos prendidas la clienta lo recibe dos
          veces desde direcciones distintas. Por eso el que manda es uno solo: el
-         SPG, que es el que tiene la cuenta configurable. --}}
-    <div class="spg-panel mt-3" style="max-width:640px">
+         SGP, que es el que tiene la cuenta configurable. --}}
+    <div class="sgp-panel mt-3" style="max-width:640px">
         <h2 class="h6"><i class="bi bi-check2-circle"></i> Qué sale con esta cuenta</h2>
         <ul class="text-muted-warm mb-2" style="font-size:.84rem">
             <li>El <strong>código de verificación</strong> al crear una cuenta.</li>
@@ -119,7 +119,7 @@
         <p class="text-muted-warm mb-0" style="font-size:.82rem">
             <i class="bi bi-info-circle"></i>
             El Automatizador SIFEN <strong>no manda correos</strong>: genera el comprobante y el
-            SPG se baja el PDF y el XML para adjuntarlos. Es a propósito — si los dos mandaran,
+            SGP se baja el PDF y el XML para adjuntarlos. Es a propósito — si los dos mandaran,
             la clienta recibiría lo mismo dos veces desde direcciones distintas, y cambiar la
             cuenta acá arreglaría sólo la mitad. Si alguna vez vuelve a mandar, el sistema lo
             avisa al emitir.

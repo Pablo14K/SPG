@@ -22,7 +22,7 @@
     <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
     <link href="{{ recurso('css/imprimir.css') }}" rel="stylesheet" media="print">
 </head>
-<body class="spg-imprimir">
+<body class="sgp-imprimir">
 
 <div class="container py-3">
 
@@ -81,7 +81,7 @@
 
     <p class="text-muted-warm mt-3" style="font-size:.72rem">
         {{ count($filas) }} {{ count($filas) === 1 ? 'fila' : 'filas' }} ·
-        {{ config('app.name') }} · Sistema de gestión v{{ config('spg.version') }}
+        {{ config('app.name') }} · Sistema de gestión v{{ config('sgp.version') }}
     </p>
 </div>
 

@@ -57,7 +57,7 @@ class AuthController extends Controller
 
             return back()
                 ->withInput($request->only('usuario'))
-                ->with('spg_sesion_ocupada', true)
+                ->with('sgp_sesion_ocupada', true)
                 // **Con varios locales hay que decir la consecuencia.** Una
                 // cuenta es una identidad: entrar igual cierra la sesión de la
                 // otra sucursal en medio de su jornada, y quien está ahí se

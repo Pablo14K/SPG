@@ -22,7 +22,7 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.115.2',
+    'version' => '7.116.0',
     'version_fecha' => '2026-09-11',
 
     'moneda' => 'Gs.',
@@ -63,7 +63,7 @@ return [
         // la clienta lo pierde mientras hace la transferencia y termina
         // llamando al salón, que es lo que esto viene a evitar.
         //
-        // Pasado el plazo sin confirmar, `spg:notificaciones` la cancela y le
+        // Pasado el plazo sin confirmar, `sgp:notificaciones` la cancela y le
         // avisa. Sin plazo, un sillón queda bloqueado para siempre por alguien
         // que nunca pagó.
         'sena_horas' => 24,

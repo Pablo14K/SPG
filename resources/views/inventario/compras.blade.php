@@ -7,10 +7,10 @@
         sub="Mercadería que entró al depósito. Al confirmarse, la base genera los movimientos de stock y actualiza el precio de costo."
         :accion="['ruta' => 'inventario.compra_form', 't' => 'Nueva compra', 'ic' => 'bag-plus']" />
 
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <x-filtros :f="$f" />
 
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -21,12 +21,12 @@
                 <tbody>
                     @forelse ($rows as $c)
                         <tr>
-                            <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha, 'd/m/Y') }}</td>
+                            <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($c->fecha, 'd/m/Y') }}</td>
                             <td data-label="Proveedor">{{ $c->proveedor }}</td>
                             <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
                             <td data-label="Estado">{!! estado_badge($c->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detComp{{ $c->id_compra }}" aria-expanded="false"
                                         aria-controls="detComp{{ $c->id_compra }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -40,11 +40,11 @@
                                     <i class="bi bi-eye"></i></a>
                             </td>
                         </tr>
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="5">
                                 <div class="collapse" id="detComp{{ $c->id_compra }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 {{-- **Sin número se dice y se puede cargar de una.** El papel
                                                      del proveedor no siempre llega con la mercadería, así que
@@ -88,7 +88,7 @@
                     @empty
                         <tr>
                             <td colspan="5">
-                                <div class="spg-vacio">
+                                <div class="sgp-vacio">
                                     <i class="bi bi-bag"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ninguna compra coincide con esos filtros.' : 'Todavía no hay compras registradas.' }}</div>
                                     <div class="d">Registrá una para que entre la mercadería al stock.</div>
@@ -124,10 +124,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="spg-suma-at mb-3">
-                        <div class="spg-suma-fila"><span>Proveedor</span><strong id="facCompraProv">—</strong></div>
-                        <div class="spg-suma-fila"><span>Fecha de la compra</span><strong id="facCompraFecha">—</strong></div>
-                        <div class="spg-suma-fila spg-suma-total"><span>Total</span>
+                    <div class="sgp-suma-at mb-3">
+                        <div class="sgp-suma-fila"><span>Proveedor</span><strong id="facCompraProv">—</strong></div>
+                        <div class="sgp-suma-fila"><span>Fecha de la compra</span><strong id="facCompraFecha">—</strong></div>
+                        <div class="sgp-suma-fila sgp-suma-total"><span>Total</span>
                             <strong class="val oro" id="facCompraTotal">—</strong></div>
                     </div>
                     <label class="form-label" for="facCompraNro">Número de la factura</label><x-ayuda>Como viene impreso en el papel del proveedor.</x-ayuda>

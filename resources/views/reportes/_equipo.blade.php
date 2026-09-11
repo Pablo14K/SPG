@@ -8,10 +8,10 @@
      Se ordena en el navegador (`data-ordenable`), sin recargar: es la misma
      tabla ya dibujada. --}}
 @if ($equipo)
-    <div class="spg-panel">
+    <div class="sgp-panel">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <h2 class="spg-form-titulo mb-0"><i class="bi bi-people"></i> El equipo</h2>
-            <ul class="nav nav-pills spg-subtabs" role="tablist">
+            <h2 class="sgp-form-titulo mb-0"><i class="bi bi-people"></i> El equipo</h2>
+            <ul class="nav nav-pills sgp-subtabs" role="tablist">
                 <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill"
                     data-bs-target="#eqAtencion" type="button">Atención</button></li>
                 <li class="nav-item"><button class="nav-link" data-bs-toggle="pill"
@@ -95,7 +95,7 @@
                                     <td>{{ $e->profesional }}</td>
                                     <td class="text-end">{{ (int) $e->servicios }}</td>
                                     <td>
-                                        <span class="spg-graf-pista"><span class="spg-graf-barra"
+                                        <span class="sgp-graf-pista"><span class="sgp-graf-barra"
                                               style="width:{{ $maxGen > 0 ? round((float) $e->generado * 100 / $maxGen) : 0 }}%"></span></span>
                                     </td>
                                     <td class="text-end">{{ money($e->generado) }}</td>
@@ -131,5 +131,5 @@
         </div>
     </div>
 @else
-    <div class="spg-panel">@include('reportes._sindatos', ['ic' => 'people'])</div>
+    <div class="sgp-panel">@include('reportes._sindatos', ['ic' => 'people'])</div>
 @endif

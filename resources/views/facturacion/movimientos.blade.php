@@ -25,8 +25,8 @@
             @endif
         </div>
     @else
-        <div class="spg-panel mb-3">
-            <h2 class="spg-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja<x-ayuda>Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi, la plata que se saca para el cambio, un retiro. Queda en el arqueo, así que el cierre cuadra con lo que hay de verdad.</x-ayuda></h2>
+        <div class="sgp-panel mb-3">
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja<x-ayuda>Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi, la plata que se saca para el cambio, un retiro. Queda en el arqueo, así que el cierre cuadra con lo que hay de verdad.</x-ayuda></h2>
 
             <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
                   class="row g-2 align-items-end" enctype="multipart/form-data">
@@ -85,7 +85,7 @@
                 <div class="col-md-3">
                     <label class="form-label" for="mc_monto">Monto</label><x-ayuda campo="mc_monto" />
                     <div class="input-group">
-                        <span class="input-group-text">{{ config('spg.moneda') }}</span>
+                        <span class="input-group-text">{{ config('sgp.moneda') }}</span>
                         <input class="form-control input-miles" id="mc_monto" name="monto"
                                value="{{ old('monto') }}" data-min="1" required>
                     </div>
@@ -102,7 +102,7 @@
                      lo exige, porque un retiro no tiene comprobante que adjuntar y
                      pedírselo sería inventar un papel. --}}
                 <div class="col-12 mt-2" id="mc_doc" hidden>
-                    <div class="spg-panel" style="background:var(--oro-tinte)">
+                    <div class="sgp-panel" style="background:var(--oro-tinte)">
                         <div class="row g-2 align-items-end">
                             <div class="col-12">
                                 <strong style="font-size:.85rem">Respaldo del gasto</strong>
@@ -160,7 +160,7 @@
     </div>
 
     @if (count($movimientos))
-        <div class="table-responsive spg-tabla-movil">
+        <div class="table-responsive sgp-tabla-movil">
             <table class="table table-sm align-middle mb-0">
                 <thead>
                     <tr><th>Cuándo</th><th>Qué pasó</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
@@ -169,7 +169,7 @@
                     @foreach ($movimientos as $m)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Cuándo">{{ fecha($m->cuando, 'd/m H:i') }}</td>
+                            <td class="sgp-movil-titulo" style="white-space:nowrap" data-label="Cuándo">{{ fecha($m->cuando, 'd/m H:i') }}</td>
                             <td data-label="Qué pasó">
                                 {{-- El color dice el signo y el texto dice qué es:
                                      un cobro y una liquidación son los dos
@@ -185,8 +185,8 @@
                                 style="white-space:nowrap;{{ $m->activo ? '' : 'text-decoration:line-through' }}"
                                 data-label="Monto">
                                 {{ (int) $m->signo > 0 ? '+' : '−' }} {{ money($m->monto) }}</td>
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
                                         data-bs-target="#detMov{{ $m->id_ref }}" aria-expanded="false"
                                         aria-controls="detMov{{ $m->id_ref }}">
                                     <i class="bi bi-chevron-down"></i> Detalle
@@ -203,11 +203,11 @@
                             </td>
                         </tr>
                         {{-- Expandable detail row --}}
-                        <tr class="spg-fila-detalle">
+                        <tr class="sgp-fila-detalle">
                             <td colspan="4">
                                 <div class="collapse" id="detMov{{ $m->id_ref }}">
-                                    <div class="spg-det-cuerpo">
-                                        <div class="spg-det-grid">
+                                    <div class="sgp-det-cuerpo">
+                                        <div class="sgp-det-grid">
                                             <div>
                                                 <dt>Caja</dt>
                                                 <dd>{{ $m->caja_nombre }}</dd>
@@ -265,8 +265,8 @@
             @endif
         @endforeach
     @else
-        <div class="spg-panel">
-            <div class="spg-vacio">
+        <div class="sgp-panel">
+            <div class="sgp-vacio">
                 <i class="bi bi-cash-coin"></i>
                 <div class="t">No hay movimientos con esos filtros</div>
                 <div class="d">Probá con otro rango de fechas o con otra caja.</div>

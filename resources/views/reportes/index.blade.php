@@ -3,9 +3,9 @@
 @section('titulo', 'Reportes · ' . ($secciones[$seccion][0] ?? ''))
 
 @section('contenido')
-{{-- `spg-reporte` le da a las tablas del informe el aire que una lista de
+{{-- `sgp-reporte` le da a las tablas del informe el aire que una lista de
      operación no necesita: acá los números se comparan entre sí. --}}
-<div class="spg-reporte">
+<div class="sgp-reporte">
     <x-encabezado
         :sub="'Del <strong>' . fecha($desde, 'd/m/Y') . '</strong> al <strong>' . fecha($hasta, 'd/m/Y') . '</strong>. Los ingresos son los <strong>cobros registrados</strong>, que es la plata que entró de verdad, no lo facturado.'" />
 
@@ -15,12 +15,12 @@
          El «Histórico» era un botón grande al lado de los otros dos, y hace
          exactamente lo mismo que ellos —poner un rango— así que va como un
          atajo más. --}}
-    <div class="spg-panel spg-filtros-rep mb-3">
+    <div class="sgp-panel sgp-filtros-rep mb-3">
         {{-- La sección viaja escondida: cambiar un filtro no tiene por qué
              devolverte al Resumen si estabas mirando Ingresos. --}}
         <x-filtros :f="$f" :ocultos="['r' => $seccion]" />
 
-        <div class="spg-atajos-per">
+        <div class="sgp-atajos-per">
             @php
                 $atajos = [
                     'Este mes' => [date('Y-m-01'), date('Y-m-t')],
@@ -35,7 +35,7 @@
                     {{ $texto }}</a>
             @endforeach
 
-            <span class="spg-atajos-sep"></span>
+            <span class="sgp-atajos-sep"></span>
 
             {{-- **Bajar lo que se está mirando.** Los dos salen del mismo rango
                  y los mismos filtros que la pantalla.
@@ -61,9 +61,9 @@
          Son enlaces de verdad (`<a href>`), no pestañas de JavaScript: así
          cada informe tiene su URL y se puede compartir o recargar, y anda con
          `app.js` caído. --}}
-    <nav class="spg-tabs" aria-label="Informes">
+    <nav class="sgp-tabs" aria-label="Informes">
         @foreach ($secciones as $clave => [$titulo, $ic, $ayuda])
-            <a class="spg-tab {{ $seccion === $clave ? 'activo' : '' }}" title="{{ $ayuda }}"
+            <a class="sgp-tab {{ $seccion === $clave ? 'activo' : '' }}" title="{{ $ayuda }}"
                href="{{ route('reportes.index', array_merge(request()->except(['r', 'page', 'export']), ['r' => $clave])) }}">
                 <i class="bi bi-{{ $ic }}"></i><span>{{ $titulo }}</span></a>
         @endforeach
@@ -75,7 +75,7 @@
          En Compras el resumen es otro —lo comprado y lo que se debe— y lo pone
          su propia sección; repetir acá las citas sería ruido. --}}
     @if (! in_array($seccion, ['compras'], true))
-        <div class="spg-metrics spg-metrics-compacto mb-3">
+        <div class="sgp-metrics sgp-metrics-compacto mb-3">
             {{-- **Las cuatro cifras de citas tienen que sumar el total.**
                  Antes eran «100 citas · 20 atendidas · 7 canceladas · 0 no
                  vino» y quedaban 73 sin explicar: quien lo lee supone que algo
@@ -85,47 +85,47 @@
                  el total: contra el total, un informe del mes en curso decía
                  «20 % de asistencia» sólo porque faltaban 73 citas por pasar —
                  y con ese número el salón decide. --}}
-            <div class="spg-metric"><div class="lbl">Citas del período</div>
+            <div class="sgp-metric"><div class="lbl">Citas del período</div>
                 <div class="val">{{ (int) $citas->total }}</div>
                 @if ((int) $citas->pendientes > 0)
-                    <div class="spg-metric-pie">{{ (int) $citas->pendientes }} todavía por ocurrir</div>
+                    <div class="sgp-metric-pie">{{ (int) $citas->pendientes }} todavía por ocurrir</div>
                 @endif
             </div>
-            <div class="spg-metric"><div class="lbl">Atendidas</div>
+            <div class="sgp-metric"><div class="lbl">Atendidas</div>
                 <div class="val">{{ (int) $citas->atendidas }}</div>
                 @if ($pctAsistencia !== null)
-                    <div class="spg-metric-pie">{{ round($pctAsistencia, 1) }} % de las {{ $cerradas }} ya ocurridas</div>
+                    <div class="sgp-metric-pie">{{ round($pctAsistencia, 1) }} % de las {{ $cerradas }} ya ocurridas</div>
                 @endif
             </div>
-            <div class="spg-metric"><div class="lbl">Pendientes</div>
+            <div class="sgp-metric"><div class="lbl">Pendientes</div>
                 <div class="val">{{ (int) $citas->pendientes }}</div>
-                <div class="spg-metric-pie">agendadas, todavía sin ocurrir</div>
+                <div class="sgp-metric-pie">agendadas, todavía sin ocurrir</div>
             </div>
-            <div class="spg-metric"><div class="lbl">Canceladas</div>
+            <div class="sgp-metric"><div class="lbl">Canceladas</div>
                 <div class="val">{{ (int) $citas->canceladas }}</div>
                 @if ($pctCancelacion !== null)
-                    <div class="spg-metric-pie">{{ round($pctCancelacion, 1) }} % de las ya ocurridas</div>
+                    <div class="sgp-metric-pie">{{ round($pctCancelacion, 1) }} % de las ya ocurridas</div>
                 @endif
             </div>
-            <div class="spg-metric"><div class="lbl">No vino la clienta</div>
+            <div class="sgp-metric"><div class="lbl">No vino la clienta</div>
                 <div class="val">{{ (int) $citas->ausencias }}</div>
                 @if ($pctAusencia !== null)
-                    <div class="spg-metric-pie">{{ round($pctAusencia, 1) }} % de las ya ocurridas</div>
+                    <div class="sgp-metric-pie">{{ round($pctAusencia, 1) }} % de las ya ocurridas</div>
                 @endif
             </div>
-            <div class="spg-metric"><div class="lbl">Ingresos cobrados</div>
+            <div class="sgp-metric"><div class="lbl">Ingresos cobrados</div>
                 <div class="val oro">{{ money($ingresos) }}</div></div>
             {{-- Lo devuelto sólo se muestra si hubo devoluciones: un «Gs. 0»
                  fijo sería ruido en un salón que no devuelve nunca. --}}
             @if ($devoluciones > 0)
-                <div class="spg-metric"><div class="lbl">Ingreso neto</div>
+                <div class="sgp-metric"><div class="lbl">Ingreso neto</div>
                     <div class="val oro">{{ money($ingresos - $devoluciones) }}</div>
-                    <div class="spg-metric-pie txt-no">− {{ money($devoluciones) }} devuelto</div>
+                    <div class="sgp-metric-pie txt-no">− {{ money($devoluciones) }} devuelto</div>
                 </div>
             @endif
-            <div class="spg-metric"><div class="lbl">Ticket promedio cobrado</div>
+            <div class="sgp-metric"><div class="lbl">Ticket promedio cobrado</div>
                 <div class="val">{{ money($ticket) }}</div>
-                <div class="spg-metric-pie">lo cobrado ÷ citas atendidas</div>
+                <div class="sgp-metric-pie">lo cobrado ÷ citas atendidas</div>
             </div>
         </div>
     @endif

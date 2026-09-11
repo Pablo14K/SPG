@@ -285,7 +285,7 @@ class CimientosTest extends TestCase
                 // No alcanza con recorrer lo que PHP ofrece: así sólo se
                 // detectaría que ofrece de más. Se recorre **la grilla entera**
                 // del día, así también se ve lo que esconde de más.
-                for ($m = 6 * 60; $m <= 22 * 60; $m += config('spg.agenda.paso_min', 15)) {
+                for ($m = 6 * 60; $m <= 22 * 60; $m += config('sgp.agenda.paso_min', 15)) {
                     $hora = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
                     $php = in_array($hora, $ofrecidos, true);
                     $bd = Agenda::huecoLibre($id, "$dia $hora:00", $duracion);
