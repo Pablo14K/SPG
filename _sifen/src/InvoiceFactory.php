@@ -99,19 +99,33 @@ final class InvoiceFactory
                 throw new RuntimeException("IVA inválido '{$it['iva']}' en ítem '{$it['codigo']}' (use 10, 5 o 0).");
             }
             $afectacion = $iva === 0 ? 3 : 1; // 1=gravado, 3=exento
+
+            // **El precio unitario es el de LISTA y el descuento va aparte**, que
+            // es como lo modela el SIFEN: E721 dPUniProSer es el precio «incluidos
+            // impuestos» y EA002 dDescItem el descuento particular sobre ese
+            // precio unitario; EA008 dTotOpeItem = (E721 − EA002) × cantidad.
+            //
+            // El campo 5 del ITM trae el NETO —el emisor reparte su descuento
+            // entre los renglones antes de mandar— y el campo 7, opcional, el
+            // precio de lista: la diferencia es el descuento del renglón. Sin
+            // campo 7 (un emisor viejo) lista = neto y el descuento es 0, o sea
+            // exactamente lo de antes. **El total del documento no cambia**: se
+            // sigue armando con el neto (precio − descuento).
+            //
+            // Hasta acá el precio de lista era «sólo para el KuDE» y el XML
+            // declaraba el neto como precio unitario, sin descuento: válido, pero
+            // el KuDE es la representación gráfica del XML y decían cosas
+            // distintas. Ahora los dos dicen precio, descuento y total.
+            $neto  = (float)$it['precio_unitario'];
+            $lista = max($neto, (float)($it['precio_lista'] ?? $neto));
             $items[] = [
                 'codigo'                    => (string)($it['codigo'] !== '' ? $it['codigo'] : '001'),
                 'descripcion'               => (string)$it['descripcion'],
                 'unidad_codigo'             => '77',   // 77 = UNI (unidad)
                 'unidad_descripcion'        => 'UNI',
                 'cantidad'                  => (float)$it['cantidad'],
-                'precio_unitario'           => (float)$it['precio_unitario'],
-                // **Sólo para el KuDE: NO entra en ningún cálculo fiscal.**
-                // El total del documento se sigue armando con `precio_unitario`,
-                // que ya viene neto. Esto es el precio de lista, para poder
-                // imprimir el descuento que el emisor aplicó a la venta en vez
-                // de un «DESCUENTO: 0 %» que contradice a su comprobante.
-                'precio_lista'              => (float)($it['precio_lista'] ?? $it['precio_unitario']),
+                'precio_unitario'           => $lista,
+                'descuento_item'            => $lista - $neto,
                 'afectacion_iva'            => $afectacion,
                 'descripcion_afectacion_iva'=> $afectacion === 3 ? 'Exento' : 'Gravado IVA',
                 'proporcion_iva'            => 100,
@@ -126,7 +140,7 @@ final class InvoiceFactory
         $decimales = ($moneda === 'PYG') ? 0 : 2;
         $totalDoc  = 0.0;
         foreach ($items as $it) {
-            $totalDoc += round($it['cantidad'] * $it['precio_unitario'], $decimales);
+            $totalDoc += round($it['cantidad'] * ($it['precio_unitario'] - $it['descuento_item']), $decimales);
         }
         $totalDoc = round($totalDoc, $decimales);
 

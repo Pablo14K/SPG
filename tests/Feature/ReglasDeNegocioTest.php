@@ -7973,4 +7973,100 @@ class ReglasDeNegocioTest extends TestCase
         $this->conSucursal($suc);
         $comprobar($barra(), 'quien abrió la caja B');
     }
+
+    /**
+     * El XML y el KuDE del Automatizador dicen lo mismo: precio de lista,
+     * descuento en monto, y neto bajo su tasa.
+     *
+     * Pedido del usuario sobre el KuDE: PRECIO UNITARIO, DESCUENTO en monto —un
+     * servicio de 100.000 al 20 % muestra 20.000 y 80.000 bajo «10%»—, EXENTA,
+     * 5 %, 10 %; y sin la fila «DESCUENTO» del pie, que iba en cero. Y como el
+     * KuDE es la representación gráfica del XML, el XML declara lo mismo: E721
+     * el precio de lista, EA002 el descuento particular por ítem con su EA003,
+     * EA008 el neto; y en el pie F009 y F011. **El total no cambia**: EA008
+     * sale del neto, que es el campo 5 del ITM, como siempre.
+     *
+     * Corre las clases del Automatizador en el mismo proceso —son PHP puro,
+     * sin dependencias— sobre un TXT con un ítem descontado, otro sin campo 7
+     * y uno exento con descuento. Con el `SifenXmlBuilder` de antes, E727
+     * salía neto y EA008 descontado dos veces; con el KuDE de antes, sale
+     * «%DESC» y «DESCUENTO: 0 %».
+     */
+    #[Test]
+    public function el_xml_y_el_kude_declaran_el_precio_de_lista_y_el_descuento_por_item(): void
+    {
+        foreach (['src/TxtParser.php', 'src/InvoiceFactory.php', 'motor/Service/TotalsCalculator.php',
+                  'motor/Service/InvoiceMapper.php', 'motor/Service/SifenXmlBuilder.php',
+                  'motor/Support/FileStore.php', 'motor/Service/QrCode.php', 'motor/Service/KudeService.php'] as $archivo) {
+            if (! is_file(base_path('_sifen/' . $archivo))) {
+                $this->markTestSkipped('El Automatizador no está en esta copia.');
+            }
+            require_once base_path('_sifen/' . $archivo);
+        }
+
+        $txt = "EMI|Eternal Beauty|80000000|5|Av. Aquino 1234|Luque|021000000|f@salon.com|96021|PELUQUERIA|28283352|2026-08-22|2027-08-22|Sucursal Luque\n"
+             . "FAC|001|001|0009901|2026-09-11|1|PYG|2\n"
+             . "CLI|CI|5777742|Noelia Villalba|noelia@correo.com||0981000000\n"
+             . "ITM|S001|Corte de dama|1|80000|10|100000\n"      // 20 % de descuento
+             . "ITM|S002|Brushing|1|60000|10\n"                  // sin campo 7: sin descuento
+             . "ITM|S003|Manicura exenta|1|45000|0|50000\n";     // exenta, 10 %
+
+        $cruda = (new \Automatizador\TxtParser())->parse($txt)[0];
+        $built = (new \Automatizador\InvoiceFactory([]))->build($cruda);
+        $items = $built['invoice']['items'];
+
+        $this->assertSame(100000.0, $items[0]['precio_unitario'], 'E721 es el precio de LISTA.');
+        $this->assertSame(20000.0, $items[0]['descuento_item'], 'EA002 es lista − neto.');
+        $this->assertSame(0.0, $items[1]['descuento_item'], 'Sin campo 7 no hay descuento.');
+        $this->assertSame(185000.0, array_sum(array_column($built['invoice']['payments'], 'monto')),
+            'El total del documento sale del NETO: 80.000 + 60.000 + 45.000.');
+
+        $payload = (new \App\Service\InvoiceMapper())->buildPayload($built['emitter'], $built['invoice'], []);
+        $tot = $payload['totales'];
+        $this->assertSame(80000.0, (float) $payload['items'][0]['ea008'], 'EA008 = (E721 − EA002) × cantidad.');
+        $this->assertSame(185000.0, (float) $tot['total_neto']);
+        $this->assertSame(25000.0, (float) $tot['total_descuento'], 'F009: suma de los EA002.');
+        $this->assertSame(25000.0, (float) $tot['descuento_total'], 'F011: particulares + globales.');
+        $this->assertSame(140000.0, (float) $tot['subtotal_10']);
+        $this->assertSame(45000.0, (float) $tot['subtotal_exenta']);
+
+        // ---- El XML ----
+        $xml = (new \App\Service\SifenXmlBuilder())->build(
+            ['namespace' => 'http://ekuatia.set.gov.py/sifen/xsd'], $payload,
+            str_repeat('0', 44), '123456789');
+        $campo = function (string $tag) use ($xml): array {
+            preg_match_all('/<' . $tag . '>([^<]*)<\/' . $tag . '>/', $xml, $m);
+
+            return $m[1];
+        };
+        $this->assertSame(['100000', '60000', '50000'], $campo('dPUniProSer'));
+        $this->assertSame(['100000', '60000', '50000'], $campo('dTotBruOpeItem'), 'E727 = E721 × cantidad, ANTES del descuento.');
+        $this->assertSame(['20000', '5000'], $campo('dDescItem'), 'Sólo los ítems con descuento lo declaran.');
+        $this->assertSame(['20', '10'], $campo('dPorcDesIt'), 'EA003 = EA002 × 100 / E721.');
+        $this->assertSame(['80000', '60000', '45000'], $campo('dTotOpeItem'), 'EA008 es el neto, descontado UNA vez.');
+        $this->assertSame(['25000'], $campo('dTotDesc'));
+        $this->assertSame(['25000'], $campo('dDescTotal'));
+        $this->assertSame(['185000'], $campo('dTotGralOpe'), 'El total declarado no cambia.');
+        $this->assertSame(['185000'], $campo('dMonTiPag'));
+
+        // ---- El KuDE: la tabla dice lo mismo ----
+        $dir = sys_get_temp_dir() . '/kude_' . uniqid();
+        $pdf = (string) file_get_contents((new \App\Service\KudeService($dir))->generate([
+            'cdc' => str_repeat('0', 44), 'qr_text' => 'https://ekuatia.set.gov.py/consultas/qr?x=1',
+            'emisor' => $payload['emisor'], 'cliente' => $payload['cliente'],
+            'documento' => $payload['documento'], 'items' => $payload['items'], 'totales' => $tot,
+        ]));
+        array_map('unlink', glob($dir . '/*') ?: []);
+        @rmdir($dir);
+
+        // El KuDE se escribe sin comprimir, así que el texto se puede leer tal cual.
+        $this->assertStringContainsString('(DESCUENTO)', $pdf, 'La columna se llama DESCUENTO.');
+        $this->assertStringContainsString('(100.000)', $pdf, 'PRECIO UNITARIO es el de lista.');
+        $this->assertStringContainsString('(20.000)', $pdf, 'El descuento va en MONTO, no en porcentaje.');
+        $this->assertStringContainsString('(80.000)', $pdf, 'Bajo 10% va el neto.');
+        $this->assertStringNotContainsString('%DESC', $pdf, 'Ya no hay columna de porcentaje.');
+        $this->assertStringNotContainsString('DESCUENTO: 0', $pdf, 'La fila DESCUENTO del pie se fue.');
+        $this->assertLessThan(strpos($pdf, '(DESCUENTO)'), strpos($pdf, '(UNITARIO)'),
+            'El orden es PRECIO UNITARIO y después DESCUENTO.');
+    }
 }

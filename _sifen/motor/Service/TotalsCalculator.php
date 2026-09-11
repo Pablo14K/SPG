@@ -60,7 +60,9 @@ final class TotalsCalculator
             'subtotal_exonerada' => 0.0,
             'subtotal_5' => 0.0,
             'subtotal_10' => 0.0,
-            'total_descuento' => 0.0,
+            'total_descuento' => 0.0,           // F009 dTotDesc: suma de los EA002 (particular por ítem)
+            'total_descuento_global' => 0.0,    // F033 dTotDescGlotem: suma de los EA004
+            'descuento_total' => 0.0,           // F011 dDescTotal: los dos juntos
             'total_anticipo' => 0.0,
             'redondeo' => 0.0,
             'total_bruto' => 0.0,
@@ -78,7 +80,11 @@ final class TotalsCalculator
             $ea008 = (float) $item['ea008'];
             $tasa = (float) ($item['tasa_iva'] ?? 0);
             $afec = (int) ($item['afectacion_iva'] ?? 1);
-            $f['total_descuento'] += (float) ($item['descuento_item'] ?? 0) + (float) ($item['descuento_global_item'] ?? 0);
+            // Manual v150: F009 es la suma de los EA002, F033 la de los EA004 y
+            // F011 la de los dos. Iban los dos sumados en F009 y F011 quedaba en
+            // cero: sin descuentos no se notaba.
+            $f['total_descuento'] += (float) ($item['descuento_item'] ?? 0);
+            $f['total_descuento_global'] += (float) ($item['descuento_global_item'] ?? 0);
             $f['total_anticipo'] += (float) ($item['anticipo_item'] ?? 0) + (float) ($item['anticipo_global_item'] ?? 0);
             $f['total_bruto'] += $ea008;
 
@@ -105,6 +111,7 @@ final class TotalsCalculator
             }
         }
 
+        $f['descuento_total'] = round($f['total_descuento'] + $f['total_descuento_global'], $decimals);
         $f['total_neto'] = round($f['total_bruto'] - $f['redondeo'], $decimals);
         $f['total_iva'] = round($f['iva_5'] + $f['iva_10'], $decimals);
         $f['total_base_gravada'] = round($f['base_gravada_5'] + $f['base_gravada_10'], $decimals);

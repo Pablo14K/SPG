@@ -114,17 +114,16 @@ final class TxtParser
                         'cantidad'        => $campos[3] ?? '0',
                         'precio_unitario' => $campos[4] ?? '0',
                         'iva'             => $campos[5] ?? '10',
-                        // **Campo opcional, y sólo para mostrar.** El precio que
-                        // se declara sigue siendo el del campo 5, ya neto: el
-                        // emisor reparte el descuento de la venta entre los
-                        // renglones antes de mandarlo, porque el total lo calcula
-                        // este sistema sumándolos.
-                        //
-                        // Éste es el precio de lista, y sirve para que el KuDE
-                        // pueda imprimir el descuento en vez de un «0 %» que
-                        // contradice al comprobante del emisor. Si no viene, cae
-                        // en el neto y no hay descuento que mostrar — que es
-                        // exactamente el comportamiento anterior.
+                        // **Campo opcional: el precio de LISTA.** El campo 5 trae
+                        // el neto —el emisor reparte el descuento de la venta
+                        // entre los renglones antes de mandarlo, porque el total
+                        // lo calcula este sistema sumándolos— y la diferencia
+                        // entre los dos es el descuento del renglón, que
+                        // `InvoiceFactory` convierte en `descuento_item`: el XML
+                        // lo declara (E721 lista, EA002 descuento, EA008 neto) y
+                        // el KuDE lo imprime en su columna. Si no viene, cae en
+                        // el neto y no hay descuento — que es exactamente el
+                        // comportamiento anterior, con el mismo total.
                         'precio_lista'    => $campos[6] ?? ($campos[4] ?? '0'),
                     ];
                     $tieneDatos = true;

@@ -94,7 +94,7 @@ final class KudeService
         // Tope de tabla = margen + encabezado(80) + separación(3) + banda título(14) + receptor(55) = 152.
         $rowsTop     = self::PAGE_H - self::MARGIN - 152.0 - 24.0;               // bajo la cabecera de la tabla
         $qrTop       = self::MARGIN + 14.0 + 90.0;                               // techo de la zona QR/CDC (anclada al pie)
-        $totalsH     = 5 * self::ROW_H;                                          // SUBTOTAL+DESCUENTO+TOTAL+letras+IVA
+        $totalsH     = 4 * self::ROW_H;                                          // SUBTOTAL+TOTAL+letras+IVA
         $perPage     = (int) floor(($rowsTop - $qrTop) / self::ROW_H);           // filas en páginas de continuación
         $perPageLast = (int) floor(($rowsTop - $qrTop - $totalsH) / self::ROW_H); // la última reserva lugar a totales
 
@@ -198,6 +198,37 @@ final class KudeService
             $scale = min(100.0, ($available / ($estimatedWidth * $safety)) * 100.0);
             $safeDrawnWidth = $estimatedWidth * $safety * ($scale / 100.0);
             $tx = $cellX + $cellW - $pad - $safeDrawnWidth;
+            $font = $bold ? '/F2' : '/F1';
+
+            $stream .= sprintf(
+                "q %.2f %.2f %.2f %.2f re W n BT 0 0 0 rg %s %.1f Tf %.2f Tz %.2f %.2f Td (%s) Tj ET Q 0 0 0 rg\n",
+                $cellX,
+                $ty - $sz - 4,
+                $cellW,
+                ($sz * 2) + 8,
+                $font,
+                $sz,
+                $scale,
+                $tx,
+                $ty,
+                $esc($txt)
+            );
+        };
+
+        // Como `$numberCell`, pero centrada: es lo que se pidió para las
+        // columnas 5% y 10%, cabecera y valores.
+        $centerCell = function (string $txt, float $cellX, float $ty, float $cellW, float $sz = 7.5, bool $bold = false) use (&$stream, $esc, $estimateTextWidth): void {
+            if ($txt === '') {
+                return;
+            }
+
+            $pad = 2.0;
+            $safety = 1.08;
+            $available = max(1.0, $cellW - ($pad * 2));
+            $estimatedWidth = $estimateTextWidth($txt, $sz, $bold);
+            $scale = min(100.0, ($available / ($estimatedWidth * $safety)) * 100.0);
+            $safeDrawnWidth = $estimatedWidth * $safety * ($scale / 100.0);
+            $tx = $cellX + ($cellW - $safeDrawnWidth) / 2;
             $font = $bold ? '/F2' : '/F1';
 
             $stream .= sprintf(
@@ -350,7 +381,11 @@ final class KudeService
         // ---- TABLA DE ÍTEMS ----
         $tTop = $ry - 55;
         $tW = $W - 2 * $mg;
-        $colW = [48, 206, 35, 70, 60, 60]; // REF,DESC,%DESC,PRECIO,EXENTA,5%
+        // **El orden lo pidió el usuario**: precio, DESCUENTO en monto —no en
+        // porcentaje—, y recién después lo que va a cada tasa, ya descontado.
+        // Con un servicio de 100.000 al 20 %: PRECIO UNITARIO 100.000,
+        // DESCUENTO 20.000, 10% 80.000. Las tres columnas se explican entre sí.
+        $colW = [48, 190, 70, 60, 55, 55]; // REF,DESC,PRECIO,DESCUENTO,EXENTA,5%
         $colW[] = $tW - array_sum($colW); // 10%
         $colX = [$mg];
         foreach ($colW as $i => $w) {
@@ -365,11 +400,17 @@ final class KudeService
         // que una banda maciza hace de mas en una tabla larga.
         $stream .= sprintf("q %s RG 1 w %.2f %.2f m %.2f %.2f l S Q\n",
             self::ORO, $mg, $tTop - 24, $mg + $tW, $tTop - 24);
-        $headers = ['REF', 'DESCRIPCIÓN', '%DESC', 'PRECIO\nUNITARIO', 'EXENTA', '5%', '10%'];
+        $headers = ['REF', 'DESCRIPCIÓN', 'PRECIO\nUNITARIO', 'DESCUENTO', 'EXENTA', '5%', '10%'];
+        // Las dos últimas —5% y 10%— van centradas, cabecera y valores.
+        $centradas = [5, 6];
         foreach ($headers as $hi => $hdr) {
             $cx = $colX[$hi] + 2;
             $hLines = explode('\n', $hdr);
             foreach ($hLines as $k => $hl) {
+                if (in_array($hi, $centradas, true)) {
+                    $centerCell($hl, $colX[$hi], $tTop - 10 - ($k * 9), $colW[$hi], 7, true);
+                    continue;
+                }
                 $stream .= sprintf("BT /F2 7 Tf %s rg %.2f %.2f Td (%s) Tj 0 0 0 rg ET\n",
                     self::NEGRO,
                     $cx, $tTop - 10 - ($k * 9), $this->pdfStr($hl)
@@ -399,33 +440,24 @@ final class KudeService
             $v5     = ($item['tasa_iva'] == 5 && $item['afectacion_iva'] != 3) ? (float) $item['ea008'] : 0;
             $v10    = ($item['tasa_iva'] == 10 && $item['afectacion_iva'] != 3) ? (float) $item['ea008'] : 0;
 
-            // **El descuento va en la columna %DESC, que para eso está.**
-            //
-            // Cuando el emisor aplica un descuento sobre la venta entera lo
-            // reparte entre los renglones antes de mandarlos, porque el total lo
-            // calcula este sistema sumándolos. Sin decirlo, el KuDE quedaba con
-            // los precios unitarios corridos —75.000 impreso como 74.648— y una
-            // línea «DESCUENTO: 0 %» al pie: matemáticamente cuadraba y se leía
-            // como un error.
-            //
-            // Con el precio de lista en el campo 7 del ITM se puede mostrar como
-            // corresponde: **PRECIO UNITARIO es el de lista, %DESC lo que se
-            // descontó, y el importe de la derecha el neto** — o sea que las tres
-            // columnas se explican entre sí. Sin ese campo —un emisor viejo— la
-            // resta da cero y sale exactamente lo de antes.
-            $lista = (float) ($item['precio_lista'] ?? $item['precio_unitario']);
-            $neto  = (float) $item['precio_unitario'];
-            $pDesc = $lista > 0 && $lista > $neto ? ($lista - $neto) * 100 / $lista : 0.0;
+            // **El descuento va en su columna, en MONTO.** Es lo mismo que el
+            // XML declara: PRECIO UNITARIO es E721 (el de lista), DESCUENTO es
+            // EA002 × cantidad —lo que se descontó en el renglón— y el importe
+            // bajo cada tasa es EA008, el neto. Antes iba como porcentaje
+            // («%DESC»), que obligaba a la clienta a hacer la cuenta; y antes de
+            // eso ni se mostraba, con los precios unitarios corridos —75.000
+            // impreso como 74.648— y un «DESCUENTO: 0 %» al pie.
+            $precio = (float) $item['precio_unitario'];
+            $desc   = (float) ($item['descuento_item'] ?? 0) * (float) $item['cantidad'];
 
             $iy = $itemY - 11;
             $text((string) $item['codigo'],                  $colX[0] + 2, $iy, 7.5);
-            $text(mb_strimwidth((string) $item['descripcion'], 0, 38, '...'), $colX[1] + 2, $iy, 7.5);
-            $numberCell($pDesc > 0 ? rtrim(rtrim(number_format($pDesc, 2, ',', '.'), '0'), ',') : '0',
-                                                              $colX[2], $iy, $colW[2], 7.5);
-            $numberCell($fmt($lista),                         $colX[3], $iy, $colW[3], 7.5);
+            $text(mb_strimwidth((string) $item['descripcion'], 0, 35, '...'), $colX[1] + 2, $iy, 7.5);
+            $numberCell($fmt($precio),                        $colX[2], $iy, $colW[2], 7.5);
+            $numberCell($desc > 0 ? $fmt($desc) : '0',        $colX[3], $iy, $colW[3], 7.5);
             $numberCell($exenta > 0 ? $fmt($exenta) : '',      $colX[4], $iy, $colW[4], 7.5);
-            $numberCell($v5 > 0 ? $fmt($v5) : '',              $colX[5], $iy, $colW[5], 7.5);
-            $numberCell($v10 > 0 ? $fmt($v10) : '',            $colX[6], $iy, $colW[6], 7.5);
+            $centerCell($v5 > 0 ? $fmt($v5) : '',              $colX[5], $iy, $colW[5], 7.5);
+            $centerCell($v10 > 0 ? $fmt($v10) : '',            $colX[6], $iy, $colW[6], 7.5);
 
             $itemY -= $rowH;
         }
@@ -440,32 +472,20 @@ final class KudeService
             $rect($mg, $stY - 18, $tW, 18, false);
             $text('SUBTOTAL', $colX[0] + 2, $stY - 11, 8, true);
             $numberCell($fmt((float) $tot['subtotal_exenta']), $colX[4], $stY - 11, $colW[4], 8, true);
-            $numberCell($fmt((float) $tot['subtotal_5']),      $colX[5], $stY - 11, $colW[5], 8, true);
-            $numberCell($fmt((float) $tot['subtotal_10']),     $colX[6], $stY - 11, $colW[6], 8, true);
+            $centerCell($fmt((float) $tot['subtotal_5']),      $colX[5], $stY - 11, $colW[5], 8, true);
+            $centerCell($fmt((float) $tot['subtotal_10']),     $colX[6], $stY - 11, $colW[6], 8, true);
             $stY -= 18;
 
-            // **Este DESCUENTO es el GLOBAL, y va en cero a propósito.**
-            //
-            // No es que no haya descuento: es que se aplicó por renglón y se
-            // muestra en la columna «%DESC» de cada ítem, que para eso está.
-            // Ponerlo también acá sería contarlo dos veces —y romper el bloque,
-            // porque los importes de la derecha ya son netos: SUBTOTAL es la
-            // suma de los netos, así que `SUBTOTAL − DESCUENTO = TOTAL` sólo se
-            // cumple con esta fila en cero.
-            //
-            // La 7.108.0 la puso en el monto repartido y con eso el pie dejaba
-            // de sumar: 159.250 − 750 ≠ 159.250. Se agregó además una fila
-            // «IMPORTE SIN DESCUENTO» para explicar la diferencia, que era
-            // tapar el síntoma con un renglón de más.
-            $rect($mg, $stY - 18, $tW, 18, false);
-            $text('DESCUENTO: 0 %', $colX[0] + 2, $stY - 11, 8);
-            $numberCell('0', $colX[6], $stY - 11, $colW[6], 8);
-            $stY -= 18;
+            // **No hay fila DESCUENTO al pie**, por pedido del usuario: el
+            // descuento es uno solo y va desglosado por renglón, en su columna.
+            // Repetirlo acá era contarlo dos veces —y en cero, como estaba, se
+            // leía como que no hubo ninguno—. Los importes de la derecha ya son
+            // netos, así que SUBTOTAL y TOTAL cierran solos.
 
             // Total operación
             $rect($mg, $stY - 18, $tW, 18, false);
             $text('TOTAL DE LA OPERACION:', $colX[0] + 2, $stY - 11, 8, true);
-            $numberCell($fmt((float) $tot['total_neto']), $colX[6], $stY - 11, $colW[6], 9, true);
+            $centerCell($fmt((float) $tot['total_neto']), $colX[6], $stY - 11, $colW[6], 9, true);
             $stY -= 18;
 
             // Total en letras

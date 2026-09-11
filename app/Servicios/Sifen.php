@@ -401,12 +401,15 @@ class Sifen
         // niega el descuento que sí se le hizo, con los precios unitarios
         // corridos (75.000 impreso como 74.648) y sin nada que lo explique.
         //
-        // Va como **séptimo campo opcional del ITM: el precio de lista**, y es
-        // sólo para mostrar. La elección importa y es deliberada:
+        // Va como **séptimo campo opcional del ITM: el precio de lista**. La
+        // elección importa y es deliberada:
         //
-        //  · **El precio que se declara sigue siendo el neto** (campo 5). El
-        //    total del comprobante lo calcula el Automatizador sumando esos
-        //    netos, así que no cambia ni un guaraní respecto de hoy.
+        //  · **El total que se declara sigue siendo el de los netos** (campo
+        //    5). Desde la 7.115.2 el Automatizador declara el ítem como lo
+        //    modela el SIFEN —precio de lista (E721), descuento (EA002) y
+        //    total del ítem neto (EA008)— y el KuDE imprime lo mismo; pero
+        //    EA008 sale del neto, así que el total del comprobante no cambia
+        //    ni un guaraní respecto de mandar sólo el campo 5.
         //  · **Un Automatizador viejo ignora el campo** —su parser lee del 1 al
         //    5 y descarta el resto— y se comporta exactamente como ahora. Al
         //    revés también: si el campo no viene, cae en el neto y no hay

@@ -198,17 +198,30 @@ final class SifenXmlBuilder
             $this->t($dom, $gItem, 'dCantProSer', $this->num((float) $item['cantidad']), $ns);
 
             // gValorItem: dPUniProSer, dTotBruOpeItem, gValorRestaItem(... dTotOpeItem)
-            $bruto    = (float) $item['ea008'];
+            //
+            // Manual v150: E727 dTotBruOpeItem = E721 (precio unitario) × E711
+            // (cantidad), o sea el BRUTO, antes del descuento; y EA008
+            // dTotOpeItem = (E721 − EA002 − EA004 − …) × E711, que es lo que la
+            // calculadora ya dejó en `ea008`. Acá se usaba el neto como bruto y
+            // se le volvía a restar el descuento: con descuento cero no se
+            // notaba, y con descuento el total del ítem salía descontado dos
+            // veces.
+            $precio   = (float) $item['precio_unitario'];
             $descItem = (float) ($item['descuento_item'] ?? 0);
             $descGlo  = (float) ($item['descuento_global_item'] ?? 0);
-            $totOpeIt = max(0.0, $bruto - $descItem - $descGlo);
+            $bruto    = $precio * (float) $item['cantidad'];
+            $totOpeIt = (float) $item['ea008'];
 
             $gVal = $this->g($dom, $gItem, 'gValorItem', $ns);
-            $this->t($dom, $gVal, 'dPUniProSer', $this->num((float) $item['precio_unitario']), $ns);
+            $this->t($dom, $gVal, 'dPUniProSer', $this->num($precio), $ns);
             $this->t($dom, $gVal, 'dTotBruOpeItem', $this->num($bruto), $ns);
             $gRes = $this->g($dom, $gVal, 'gValorRestaItem', $ns);
             if ($descItem > 0) {
                 $this->t($dom, $gRes, 'dDescItem', $this->num($descItem), $ns);
+                // EA003: obligatorio si EA002 > 0, y vale EA002 × 100 / E721.
+                if ($precio > 0) {
+                    $this->t($dom, $gRes, 'dPorcDesIt', $this->num($descItem * 100 / $precio), $ns);
+                }
             }
             if ($descGlo > 0) {
                 $this->t($dom, $gRes, 'dDescGloItem', $this->num($descGlo), $ns);
