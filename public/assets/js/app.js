@@ -367,8 +367,11 @@ window.SGPCarga = (function () {
   }
 
   function pedir(extra, destino) {
+    // El endpoint puede venir con su propia consulta —el del enlace del
+    // correo lleva el token en `?t=`—: ahí lo nuestro va con `&`.
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
     return SGPCarga
-      .envolver(fetch(url + '?' + params(extra).toString(),
+      .envolver(fetch(url + sep + params(extra).toString(),
         { headers: { 'Accept': 'application/json' } }), destino)
       .then(function (r) { return r.json(); });
   }

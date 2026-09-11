@@ -9,13 +9,13 @@ use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use Throwable;
 
 /**
  * El panel principal: por dónde se entra a todo lo demás.
  *
- * Muestra cuatro números del día, el estado de la caja, las tarjetas de los
- * módulos que el rol puede abrir y las próximas citas.
+ * Muestra las próximas citas, el resumen financiero —las cajas abiertas y
+ * lo cobrado hoy contra ayer— y las tarjetas de los módulos que el rol puede
+ * abrir. Lo que hay que resolver ahora va en la campanita, no acá.
  */
 class PanelController extends Controller
 {
@@ -25,36 +25,22 @@ class PanelController extends Controller
         $todaLaAgenda = Permisos::veTodaLaAgenda();
 
         // **Cada número se muestra sólo a quien tiene el módulo del que sale**
-        // (SE-01). Antes se calculaban los cuatro sin filtrar y la vista los
-        // dibujaba siempre, así que una empleada entraba y veía cuánto facturó
-        // el salón hoy, cuántas citas hay en total y cuántos productos faltan.
-        // Es la misma fuga que la 7.13.1 corrigió para la barra de caja: ahí se
-        // arregló la barra y no las métricas de al lado.
+        // (SE-01). Antes se calculaban sin filtrar y la vista los dibujaba
+        // siempre, así que una empleada entraba y veía cuánto facturó el salón
+        // hoy. Es la misma fuga que la 7.13.1 corrigió para la barra de caja:
+        // ahí se arregló la barra y no las métricas de al lado.
         //
         // Las citas siguen la regla de siempre —`veTodaLaAgenda()`, que es la
         // que comparten la agenda y las próximas citas—: quien no administra la
         // agenda ve las suyas, y el rótulo lo dice.
-        $par = ['d' => $hoy];
-        $soloMias = '';
-        if (! $todaLaAgenda) {
-            $soloMias = ' AND id_usuario = :yo';
-            $par['yo'] = (int) session('uid');
-        }
 
-        $soloMias .= Sucursales::filtro('cita', $par);
-
+        // **«Citas hoy», «Clientes activos» y «Falta stock» salieron del panel**
+        // (pedido del usuario, 7.117.0 y 7.118.0). Eran números que no pedían
+        // ninguna acción: cuántas citas hay ya lo dice la lista de al lado,
+        // cuántas fichas hay no dice qué hacer hoy, y el faltante de stock
+        // pasa a la campanita —`Alertas::faltaStock()`—, con los nombres y el
+        // enlace, que es lo que un número suelto no daba.
         $metricas = [
-            'citas_hoy' => (int) DB::scalar(
-                "SELECT COUNT(*) FROM cita
-                  WHERE DATE(fecha_hora) = :d AND id_estado_cita NOT IN (3,6) $soloMias", $par
-            ),
-            // **«Clientes activos» salió del panel** (pedido del usuario, 7.117.0).
-            // Era un número que no pedía ninguna acción: cuántas fichas hay no
-            // dice qué hacer hoy, y el panel es para eso. La clave se conserva
-            // en NULL —que la vista lee como «esto no se dibuja»— para no tocar
-            // el contrato con la pantalla, que la administra otra persona.
-            'clientes' => null,
-            'bajo_stock' => Permisos::puede('inventario.stock') ? $this->bajoStock() : null,
             // **Los ingresos son los de ESTE local, no los del negocio entero.**
             // Era la única métrica del panel que no filtraba por sucursal: las
             // citas, el stock y la caja ya lo hacían, así que la sede 2 veía la
@@ -64,16 +50,13 @@ class PanelController extends Controller
             // pocos que pudieran no tenerla —una seña vieja— se ubican por la
             // cita. Sin caja abierta no se cobra, así que en la práctica siempre
             // hay una.
-            'ingresos_hoy' => Permisos::puede('facturacion.cobros')
-                ? (float) DB::scalar(
-                    'SELECT COALESCE(SUM(co.monto),0)
-                       FROM cobro co
-                       LEFT JOIN caja k ON k.id_caja = co.id_caja
-                       LEFT JOIN cita ci ON ci.id_cita = co.id_cita
-                      WHERE DATE(co.fecha) = :d AND co.id_estado_cobro = 1
-                        AND (:s = 0 OR COALESCE(k.id_sucursal, ci.id_sucursal) = :s2)',
-                    ['d' => $hoy, 's' => Sucursales::activa(), 's2' => Sucursales::activa()]
-                )
+            'ingresos_hoy' => Permisos::puede('facturacion.cobros') ? $this->cobradoEl($hoy) : null,
+            // **Y contra ayer**, que es lo que le da sentido al número de hoy:
+            // Gs. 400.000 a media mañana es poco o mucho según lo que se cobró
+            // el día anterior a la misma hora... o el día entero, que es lo
+            // que se compara acá y lo que la maqueta pide: «↑ % vs ayer».
+            'ingresos_ayer' => Permisos::puede('facturacion.cobros')
+                ? $this->cobradoEl(date('Y-m-d', strtotime($hoy . ' -1 day')))
                 : null,
         ];
 
@@ -181,21 +164,22 @@ class PanelController extends Controller
     }
 
     /**
-     * Productos que cayeron al mínimo o por debajo: es lo que hay que comprar.
-     * Del local en el que se está trabajando — el faltante del otro no es algo
-     * que esta persona pueda resolver.
+     * Lo cobrado un día en este local: la sucursal del cobro sale de su caja,
+     * que es donde entró; los pocos que pudieran no tenerla —una seña vieja— se
+     * ubican por la cita.
      */
-    private function bajoStock(): int
+    private function cobradoEl(string $dia): float
     {
-        try {
-            $par = [];
+        $suc = Sucursales::activa();
 
-            return (int) DB::scalar(
-                'SELECT COUNT(*) FROM vw_producto_bajo_stock WHERE 1=1'
-                . Sucursales::filtro('vw_producto_bajo_stock', $par), $par
-            );
-        } catch (Throwable) {
-            return 0;
-        }
+        return (float) DB::scalar(
+            'SELECT COALESCE(SUM(co.monto),0)
+               FROM cobro co
+               LEFT JOIN caja k ON k.id_caja = co.id_caja
+               LEFT JOIN cita ci ON ci.id_cita = co.id_cita
+              WHERE DATE(co.fecha) = :d AND co.id_estado_cobro = 1
+                AND (:s = 0 OR COALESCE(k.id_sucursal, ci.id_sucursal) = :s2)',
+            ['d' => $dia, 's' => $suc, 's2' => $suc]
+        );
     }
 }

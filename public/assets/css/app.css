@@ -32,6 +32,12 @@
      --oro-suave: con --oro-oscuro el contraste queda en 3,9:1 y la letra
      chica no se lee bien; con este llega a 5,7:1 y cumple AA. */
   --oro-texto:#6B5314;
+  /* El oro para TEXTO suelto sobre el fondo de la página o de una
+     tarjeta —un importe destacado, el ícono de un título—. En claro es el
+     oro oscuro, que sobre blanco llega a 4,9:1; en oscuro pasa al oro
+     principal, porque el oscuro sobre #1E1B17 queda en 2,5:1 y no se lee.
+     Es una variable y no un selector del tema, que es la regla. */
+  --oro-enfasis:#8A6C1E;
 
   /* ---------------------------------------------------------------
      Superficies que van OSCURAS en los dos temas: la barra superior,
@@ -60,6 +66,11 @@
      --------------------------------------------------------------- */
   --bs-body-bg:var(--blanco-hueso);
   --bs-body-color:var(--carbon);
+  /* Las utilidades de Bootstrap (`.text-body`, `.bg-body`) NO leen
+     `--bs-body-color`: leen su versión en RGB, y sin esta línea la
+     tomaban del valor compilado —el gris frío del framework— que en el
+     tema oscuro seguía siendo oscuro sobre oscuro. */
+  --bs-body-color-rgb:26,26,26;
   --bs-emphasis-color:var(--negro);
   --bs-border-color:var(--gris-calido);
   --bs-border-color-translucent:var(--gris-calido);
@@ -128,6 +139,7 @@
      así que la jerarquía de tres pasos se mantiene igual. */
   --oro-suave:#3B3018;
   --oro-texto:#E8CC80;
+  --oro-enfasis:#C9A84C;
 
   /* --- Barra superior, barra de módulos y pie ---
      Ya eran oscuras en el tema claro, así que sólo se profundizan un
@@ -140,6 +152,7 @@
 
   /* --- Lo que Bootstrap no toma de las variables de arriba --- */
   --bs-emphasis-color:var(--carbon);
+  --bs-body-color-rgb:237,233,225;
   --bs-secondary-bg:#26221D;
   --bs-tertiary-bg:#1A1714;
   /* El oro oscuro casi no se ve sobre el fondo: los enlaces pasan al claro */
@@ -477,11 +490,60 @@ body{
 .sgp-btn-detalle[aria-expanded="true"] .bi{transform:rotate(180deg);}
 .sgp-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-oscuro);}
 
+/* ---- Las acciones de la fila de la agenda ----
+   Siete íconos en fila se leían como una adivinanza —se reportó como
+   «demasiado confuso»—: van en DOS columnas, cada uno con su nombre al
+   lado del ícono. El nombre sale del `title`, así que no se puede desfasar
+   del tooltip; y los avisos («falta fichaje», «sin cobrar») ocupan las dos
+   columnas, que no son un botón y no tienen por qué parecerlo. */
+.sgp-acciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem;min-width:220px;text-align:left;}
+.sgp-acciones > form{margin:0;display:block;}
+.sgp-acciones .btn{
+  width:100%;display:inline-flex;align-items:center;justify-content:flex-start;gap:.4rem;
+  font-size:.76rem;padding:.3rem .55rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sgp-acciones .btn .bi{flex-shrink:0;}
+.sgp-acciones .sgp-btn-ico[title]::after{content:attr(title);overflow:hidden;text-overflow:ellipsis;}
+.sgp-acciones .badge-estado{grid-column:1 / -1;justify-self:start;}
+.sgp-acciones > .text-muted-warm{grid-column:1 / -1;}
+
+/* ---- La ficha de la cita, en su ventana ----
+   Cuatro bloques con título, en dos columnas cuando hay ancho. Los
+   rótulos van chicos y en mayúsculas, como en las fichas plegables de las
+   demás listas: es la misma jerarquía, en otro contenedor. */
+.sgp-cita-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem 1.5rem;}
+.sgp-cita-bloque{
+  background:var(--blanco-hueso);border:1px solid var(--gris-calido);
+  border-radius:calc(var(--radius) - 4px);padding:.75rem .9rem;font-size:.88rem;
+}
+.sgp-cita-ancho{grid-column:1 / -1;}
+.sgp-cita-bloque h6{
+  font-size:.8rem;font-weight:600;margin:0 0 .5rem;color:var(--carbon);
+  display:flex;align-items:center;gap:.4rem;padding-bottom:.35rem;border-bottom:1px solid var(--gris-calido);
+}
+.sgp-cita-bloque h6 .bi{color:var(--oro-enfasis);}
+.sgp-cita-bloque dl{margin:0;}
+.sgp-cita-bloque dt{color:var(--gris-oscuro);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.1rem;}
+.sgp-cita-bloque dd{margin-bottom:.6rem;}
+.sgp-cita-bloque dd:last-child{margin-bottom:0;}
+/* Los cobros son pares cortos: rótulo y valor en la misma línea. */
+.sgp-cita-cobros{display:grid;grid-template-columns:max-content 1fr;gap:.25rem 1rem;align-items:baseline;}
+.sgp-cita-cobros dt,.sgp-cita-cobros dd{margin:0;}
+
 /* ---- Botones ---- */
 .btn-oro{background:var(--oro);border:none;color:var(--negro);font-weight:500;}
 .btn-oro:hover{background:var(--oro-oscuro);color:var(--blanco);}
-.btn-outline-neutro{background:var(--blanco);border:1px solid var(--gris-calido);color:var(--gris-oscuro);}
-.btn-outline-neutro:hover{border-color:var(--gris-oscuro);color:var(--carbon);}
+/* **El botón secundario tiene que verse como botón.** Era blanco con un
+   borde del color de las líneas de la tabla y el texto en gris: sobre la
+   tarjeta blanca se fundía con el fondo, y en el tema oscuro —fondo del
+   botón igual al de la tarjeta— directamente desaparecía. Se reportó así:
+   «los botones de acción se mezclan con el fondo». Ahora lleva relleno
+   propio —un paso más oscuro que la tarjeta—, borde firme y el texto en
+   el color principal: 12,8:1 en claro y 13,1:1 en oscuro, medidos. El hover es
+   el oro suave, el mismo escalón que las altas rápidas. */
+.btn-outline-neutro{background:var(--bs-secondary-bg);border:1px solid var(--gris-oscuro);color:var(--carbon);font-weight:500;}
+.btn-outline-neutro:hover{background:var(--oro-suave);border-color:var(--oro);color:var(--oro-texto);}
+.btn-outline-neutro:focus-visible{box-shadow:0 0 0 .2rem rgba(201,168,76,.35);}
 /* Sirve tanto para <a> como para <button class="btn btn-link link-oro"> */
 .link-oro{color:var(--oro-oscuro);text-decoration:none;}
 .link-oro:hover,.link-oro:focus{color:var(--oro-oscuro);text-decoration:underline;}
@@ -495,29 +557,28 @@ body{
 .e-ok{background:var(--verde-tinte);color:var(--verde);}
 .e-prog{background:var(--blanco-hueso);color:var(--gris-oscuro);box-shadow:inset 0 0 0 1px var(--gris-calido);}
 .e-proc{background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;}
-.e-warn{background:transparent;color:var(--oro-oscuro);box-shadow:inset 0 0 0 1px var(--oro);}
+/* **Un aviso no es un botón, y se tiene que ver.** El de advertencia era
+   transparente con un contorno dorado: al lado de los botones de contorno
+   de la fila se leía como uno más de ellos, y se reportó como que «se
+   mezclan con los avisos». Los badges van rellenos y en píldora; los
+   botones, rectangulares y con relleno gris. Dos formas para dos cosas. */
+.e-warn{background:var(--oro-tinte);color:var(--oro-texto);box-shadow:inset 0 0 0 1px var(--oro);}
 .e-no{background:var(--rojo-tinte);color:var(--rojo);}
 .e-muted{background:var(--gris-calido);color:var(--gris-oscuro);}
 
-/* ---- Barra de caja del panel ---- */
-.sgp-caja-barra{
-  display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
-  background:var(--blanco);border:1px solid var(--gris-calido);border-left:4px solid var(--oro);
-  border-radius:var(--radius);padding:.75rem 1rem;margin-top:.9rem;
-}
- /* **El interior de la barra de caja se fue con el rediseño del panel.**
-   Eran `.sgp-caja-estado`, `.sgp-caja-saldo`, `.sgp-caja-lista` y
-   `.sgp-caja-item`: el panel las dibuja ahora con sus propias tarjetas. La
-   clase del contenedor —`.sgp-caja-barra`— se conserva y no es decorativa: es
-   el gancho por el que la prueba encuentra la barra para comprobar que estén
-   TODAS las cajas abiertas. */
+/* **La barra de caja del panel ya no tiene regla propia.** Eran
+   `.sgp-caja-barra`, `.sgp-caja-estado`, `.sgp-caja-saldo`, `.sgp-caja-lista`
+   y `.sgp-caja-item`: desde la 7.118.0 el resumen financiero la dibuja con
+   `.metric-card`, como a los ingresos. La clase `.sgp-caja-barra` sigue en el
+   marcado y no es decorativa: es el gancho por el que la prueba encuentra el
+   bloque para comprobar que estén TODAS las cajas abiertas. */
 
 /* ---- Métricas del dashboard ---- */
 .sgp-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:.4rem;}
 .sgp-metric{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:var(--radius);padding:1rem 1.1rem;}
 .sgp-metric .lbl{font-size:.75rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
 .sgp-metric .val{font-size:1.6rem;font-weight:500;margin-top:.2rem;}
-.sgp-metric .val.oro{color:var(--oro-oscuro);}
+.sgp-metric .val.oro{color:var(--oro-enfasis);}
 
 /* Variante compacta: para un informe con siete números seguidos, la tarjeta
    normal ocupa demasiado alto. El rótulo deja de ir en mayúsculas —que obliga
@@ -629,7 +690,7 @@ body{
 /* Para no escribir colores a mano en las vistas */
 .txt-ok{color:var(--verde);}
 .txt-no{color:var(--rojo);}
-.txt-oro{color:var(--oro-oscuro);}
+.txt-oro{color:var(--oro-enfasis);}
 
 /* ---- Selector de disponibilidad ----
    Los días y las horas son atajos de navegación, así que usan el nivel
@@ -2223,6 +2284,8 @@ html,body{max-width:100%;overflow-x:hidden;}
     margin-top:.15rem;
   }
   .sgp-tabla-movil .table tbody td.sgp-movil-acciones:before{display:none;}
+  /* La grilla de dos columnas de la agenda ocupa el ancho de la tarjeta. */
+  .sgp-tabla-movil .table tbody td.sgp-movil-acciones .sgp-acciones{width:100%;min-width:0;}
 
   /* ── Los badges van uno al lado del otro, sin estirarse ── */
   .sgp-tabla-movil .table tbody td .badge-estado{margin:0;}
@@ -2291,91 +2354,74 @@ html,body{max-width:100%;overflow-x:hidden;}
    y se reacomodaba después, y el `[data-tema="oscuro"]` quedaba dentro
    del HTML del panel. Acá llega junto con el resto de la hoja.
 
-   **Los `[data-tema="oscuro"]` de abajo son deuda declarada.** La regla
-   del proyecto es que ese bloque redefina VARIABLES y nada más: un
-   selector de componente ahí es la señal de que algo se escribió con un
-   color que no se da vuelta solo. Se conservan tal cual para no cambiar
-   el diseño en esta tanda; el arreglo de fondo es que estas superficies
-   salgan de una variable que ya invierta.
+   **La forma es la de la maqueta del usuario (7.118.0)**: el saludo como
+   título chico, a la izquierda las citas y el resumen financiero, a la
+   derecha los módulos en tres columnas. Las superficies salen de las
+   variables de siempre —`--blanco` para la caja, `--blanco-hueso` para lo
+   de adentro— así que **el tema oscuro las da vuelta solo**: no queda un
+   solo `[data-tema="oscuro"]` acá, que es la regla del proyecto.
    ===================================================================== */
 
-    /* Contenedores grises del wireframe */
-    .panel-box {
-        background-color: var(--gris-calido);
-        border-radius: var(--radius);
-        padding: 1rem;
-        height: 100%;
-    }
-    [data-tema="oscuro"] .panel-box {
-        background-color: var(--sup-oscura-2);
-    }
+/* El saludo: un título, no un cartel. Arriba a la izquierda y chico. */
+.sgp-saludo{font-size:1.15rem;font-weight:500;margin:.9rem 0 .8rem;color:var(--carbon);}
 
-    /* Fondos internos para listas y métricas */
-    .panel-box-inner {
-        background-color: var(--blanco-hueso);
-        border-radius: var(--radius);
-        padding: 0.75rem;
-        height: 100%;
-    }
-    [data-tema="oscuro"] .panel-box-inner {
-        background-color: var(--sup-oscura);
-    }
+/* Las cajas grandes del wireframe: fondo de tarjeta, borde cálido. */
+.panel-box{
+  background:var(--blanco);border:1px solid var(--gris-calido);
+  border-radius:var(--radius);padding:1rem 1.1rem;
+}
+.panel-box-titulo{
+  font-size:.95rem;font-weight:500;margin:0 0 .7rem;color:var(--carbon);
+  display:flex;align-items:center;gap:.45rem;
+}
+.panel-box-titulo .bi{color:var(--oro-enfasis);}
 
-    /* Diseño de pastillas (pills) negras para módulos del wireframe */
-    .sgp-modulo-pill {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--negro);
-        color: var(--blanco-hueso);
-        border-radius: 40px;
-        padding: 0.85rem 0.2rem;
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 0.8rem;
-        transition: all 0.2s ease-in-out;
-        text-align: center;
-        height: 100%;
-        line-height: 1.1;
-        gap: 0.35rem;
-    }
-    .sgp-modulo-pill i {
-        font-size: 1.25rem;
-    }
-    .sgp-modulo-pill:hover {
-        background-color: var(--oro);
-        color: var(--negro);
-        transform: translateY(-2px);
-    }
-    [data-tema="oscuro"] .sgp-modulo-pill {
-        background-color: var(--negro);
-        color: var(--sobre-oscura);
-        border: 1px solid var(--sup-oscura-borde);
-    }
-    [data-tema="oscuro"] .sgp-modulo-pill:hover {
-        background-color: var(--oro);
-        color: var(--negro);
-        border-color: var(--oro);
-    }
-    .sgp-modulo-pill.disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
+/* Lo de adentro va un paso más al fondo, para que se lea como contenido
+   y no como otra caja. */
+.panel-box-inner{
+  background:var(--blanco-hueso);border-radius:calc(var(--radius) - 4px);
+  padding:.6rem .8rem;max-height:300px;overflow:auto;
+}
 
-    /* Tarjetas de métricas */
-    .metric-card {
-        background-color: var(--blanco-hueso);
-        border-radius: var(--radius);
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-    [data-tema="oscuro"] .metric-card {
-        background-color: var(--sup-oscura);
-    }
-    .metric-value {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: var(--oro-oscuro);
-    }
+/* Las listas de citas del panel: un renglón por cita, quién a la
+   izquierda y la hora a la derecha. */
+.sgp-lista-cab{
+  display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+  font-size:.82rem;padding-bottom:.25rem;margin-bottom:.2rem;
+  border-bottom:1px solid var(--gris-calido);
+}
+.sgp-lista-citas{font-size:.84rem;}
+.sgp-lista-citas li{
+  display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+  padding:.3rem 0;border-bottom:1px dashed var(--gris-calido);
+}
+.sgp-lista-citas li:last-child{border-bottom:0;}
+.sgp-lista-citas li > span:first-child{min-width:0;}
+
+/* Las tarjetas del resumen financiero */
+.metric-card{
+  background:var(--blanco-hueso);border-radius:calc(var(--radius) - 4px);
+  padding:.75rem .9rem;
+}
+.metric-lbl{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
+.metric-value{font-size:1.5rem;font-weight:600;color:var(--oro-enfasis);line-height:1.15;margin-top:.15rem;}
+.metric-comparado{font-size:.8rem;margin-top:.2rem;}
+.sgp-lista-cajas{font-size:.84rem;}
+.sgp-lista-cajas li{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.15rem 0;}
+.sgp-lista-cajas li > span:first-child{min-width:0;}
+
+/* Las pastillas de módulo del wireframe: oscuras, con el ícono arriba.
+   Son oscuras en los DOS temas —como la barra—, así que salen de las
+   variables que no se invierten. */
+.sgp-modulo-pill{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;
+  background:var(--sup-oscura);color:var(--sobre-oscura);
+  border:1px solid var(--sup-oscura-borde);border-radius:40px;
+  padding:.85rem .15rem;text-decoration:none;font-weight:500;font-size:.74rem;
+  text-align:center;height:100%;line-height:1.1;
+  transition:background-color .2s ease-in-out,color .2s ease-in-out,transform .2s ease-in-out;
+}
+.sgp-modulo-pill i{font-size:1.25rem;color:var(--oro);}
+.sgp-modulo-pill:hover{background:var(--oro);color:var(--negro);border-color:var(--oro);transform:translateY(-2px);}
+.sgp-modulo-pill:hover i{color:var(--negro);}
+.sgp-modulo-pill.disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}

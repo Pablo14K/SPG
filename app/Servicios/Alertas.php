@@ -13,8 +13,8 @@ use Throwable;
  * No es `Pendientes`, y la diferencia vale tenerla escrita. `Pendientes` dice
  * qué falta CARGAR —un timbrado, un turno, el correo—: decisiones sin tomar,
  * que se resuelven una vez. Esto dice qué está ocurriendo en la operación de
- * hoy y se corrige en el momento: una caja que quedó abierta desde ayer, y lo
- * que se vaya sumando. Un aviso de configuración y uno de operación mezclados
+ * hoy y se corrige en el momento: una caja que quedó abierta desde ayer, un
+ * producto que llegó al mínimo. Un aviso de configuración y uno de operación mezclados
  * en la misma lista hacen que el segundo se lea como el primero, y el segundo
  * es el que no puede esperar.
  *
@@ -121,14 +121,61 @@ class Alertas
     {
         self::$puntos = [];
 
-        try {
-            self::cajasAbiertasDeMas();
-        } catch (Throwable) {
-            // Un aviso que falla no puede tirar el panel: es un aviso.
-            return self::$puntos;
+        // Cada uno en su propio `try`: un aviso que falla no puede tirar el
+        // panel —es un aviso—, y tampoco tiene por qué llevarse a los demás.
+        foreach (['cajasAbiertasDeMas', 'faltaStock'] as $punto) {
+            try {
+                self::$punto();
+            } catch (Throwable) {
+                continue;
+            }
         }
 
         return self::$puntos;
+    }
+
+    /**
+     * Productos que cayeron al mínimo o por debajo: hay que reponer.
+     *
+     * **Vivía en el panel como un número —«Falta stock: 3»— y salió de ahí**
+     * (pedido del usuario, 7.118.0): un número suelto no dice qué falta ni a
+     * dónde ir, y sólo se veía desde el inicio. Acá va con los nombres, con
+     * el enlace a la lista de compras, y se ve desde cualquier pantalla. Del
+     * local en el que se está parado: el faltante del otro no es algo que
+     * esta persona pueda resolver desde acá.
+     *
+     * La identidad del aviso es **QUÉ falta**, no cuántos: si mañana se
+     * agrega un producto a la lista, es un aviso nuevo y vuelve a contar —
+     * marcarlo visto ayer no tapa el que apareció hoy—. Se resuelve solo al
+     * reponer: sin productos por debajo del mínimo, no hay renglón.
+     */
+    private static function faltaStock(): void
+    {
+        $par = [];
+        $filas = DB::select(
+            'SELECT id_producto, nombre, faltante FROM vw_producto_bajo_stock WHERE 1=1'
+            . Sucursales::filtro('vw_producto_bajo_stock', $par) . ' ORDER BY nombre', $par
+        );
+        if (! $filas) {
+            return;
+        }
+
+        $n = count($filas);
+        $nombres = array_map(static fn ($f) => (string) $f->nombre, $filas);
+        $lista = implode(', ', array_slice($nombres, 0, 3))
+            . ($n > 3 ? ' y ' . ($n - 3) . ' más' : '');
+        $ids = array_map(static fn ($f) => (int) $f->id_producto, $filas);
+        sort($ids);
+
+        self::$puntos[] = [
+            'nivel' => 'STOCK',
+            'que' => ($n === 1 ? 'Un producto llegó al mínimo: ' : $n . ' productos llegaron al mínimo: ')
+                . $lista . '. Hay que reponer antes de que falte en el sillón.',
+            'donde' => 'Inventario → Stock',
+            'ruta' => 'inventario.stock',
+            'permiso' => 'inventario.stock',
+            'clave' => 'stock:' . (int) Sucursales::activa() . ':' . substr(md5(implode(',', $ids)), 0, 12),
+        ];
     }
 
     /**
@@ -177,8 +224,13 @@ class Alertas
                     . ' (la abrió ' . $c->responsable . ' el ' . fecha($c->fecha_apertura, 'd/m') . ' a las '
                     . fecha($c->fecha_apertura, 'H:i') . '). Hay que hacer el arqueo y cerrarla: '
                     . 'con dos días en el mismo arqueo, una diferencia ya no dice de qué día vino.',
-                'donde' => 'Tesorería → Caja',
-                'ruta' => 'facturacion.caja',
+                'donde' => 'Tesorería → Cajas',
+                // **`facturacion.cajas`, la lista, y no `facturacion.caja`**:
+                // aquélla es la pantalla de UNA caja, que necesita su id, así
+                // que `Navegacion::url()` devuelve null y el aviso salía sin
+                // enlace — un aviso que no lleva a ningún lado es la mitad
+                // de un aviso.
+                'ruta' => 'facturacion.cajas',
                 'permiso' => 'facturacion.caja',
                 // **La identidad es el CAJÓN, no el texto.** Mañana el mismo
                 // aviso va a decir «hace 3 días» en vez de «hace 2», y sigue

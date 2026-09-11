@@ -8,6 +8,7 @@ use App\Servicios\Agenda;
 use App\Servicios\Auditoria;
 use App\Servicios\Calendario;
 use App\Servicios\Notificaciones;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -74,6 +75,69 @@ class CitaTokenController extends Controller
             // no lo abre. Se ofrecen las dos vías.
             'urlGoogle' => $cal ? Calendario::urlGoogle($cal, Calendario::lugar()) : null,
         ]);
+    }
+
+    /**
+     * Los días y las horas libres para reprogramar ESTA cita, sin sesión.
+     *
+     * **Era el defecto de «los enlaces del correo no funcionan».** La pantalla
+     * del enlace se abría bien —el token la deja pasar—, pero el selector de
+     * horarios le pedía los días a `portal.disponibilidad`, que vive detrás
+     * del middleware de sesión: la clienta que llega desde el correo **no
+     * tiene sesión** —ése es el punto del token—, así que la consulta
+     * contestaba con una redirección al ingreso, el calendario se quedaba
+     * vacío y el botón «Reprogramar» nunca se habilitaba. Sin un solo error
+     * en pantalla: la función apagada en silencio de siempre.
+     *
+     * Acá la credencial es el token, igual que en el resto de la pantalla, y
+     * **lo que se consulta sale de la cita y no de la URL**: sus servicios,
+     * su profesional, su local y para cuántas personas es. Reprogramar no
+     * pregunta nada de eso; sólo cuándo.
+     */
+    public function disponibilidad(Request $request): JsonResponse
+    {
+        $cita = Notificaciones::citaPorToken((string) $request->query('t', ''));
+        if (! $cita) {
+            return response()->json(['ok' => false, 'motivo' => 'Ese enlace ya no sirve. Pedile uno nuevo al salón.']);
+        }
+
+        $ctx = DB::selectOne(
+            'SELECT c.id_usuario, c.id_sucursal, c.personas,
+                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
+                      WHERE cs.id_cita = c.id_cita) AS servicios_ids
+               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
+        );
+        $servicios = array_values(array_filter(array_map('intval', explode(',', (string) ($ctx->servicios_ids ?? '')))));
+        $idUsuario = ((int) ($ctx->id_usuario ?? 0)) ?: null;
+        $suc = ((int) ($ctx->id_sucursal ?? 0)) ?: null;
+        $personas = max(1, min(20, (int) ($ctx->personas ?? 1)));
+
+        $duracion = Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario, []);
+        if ($duracion <= 0) {
+            return response()->json(['ok' => false, 'motivo' => 'Esa cita no tiene servicios cargados: hablá con el salón.']);
+        }
+
+        $fecha = (string) $request->query('fecha', '');
+        if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            return response()->json(['ok' => true, 'duracion' => $duracion]
+                + Agenda::horasDelDia($idUsuario, $fecha, $duracion, $suc, $servicios, $personas, [], null));
+        }
+
+        // Los días en que la clienta ya tiene esos servicios no se ofrecen,
+        // como en el portal: el disparador los rechazaría al guardar, con
+        // todo ya elegido. El día de ESTA cita entra en esa lista y es lo
+        // correcto — moverla a otra hora del mismo día no es cambiar de día.
+        $dias = array_values(array_diff(
+            Agenda::diasConCupo($idUsuario, date('Y-m-d'),
+                                (int) config('sgp.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, []),
+            Agenda::diasYaTomados((int) $cita->id_cliente, $servicios)
+        ));
+
+        return response()->json(['ok' => true, 'duracion' => $duracion, 'duracion_fija' => true,
+            'dias' => $dias,
+            'motivo' => $dias ? null
+                : (Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas, [])
+                    ?? Agenda::porQueNoHayDia($servicios, $personas, [], $suc))]);
     }
 
     public function guardar(Request $request): RedirectResponse

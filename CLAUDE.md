@@ -360,6 +360,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.118.0 | 11/09/2026 | **Seis cosas de la revisión con el sistema andando, y una era que la clienta no podía reprogramar desde el correo.** **Los enlaces de reagendar del correo no funcionaban**, reportado tal cual para VERIFICAR. La pantalla del enlace se abría —el token la deja pasar— pero el selector de horarios le pedía los días a `portal.disponibilidad`, que vive detrás del middleware de sesión: la clienta que llega desde el correo **no tiene sesión** —ése es el punto del token—, así que la consulta volvía como una redirección al ingreso, el calendario quedaba vacío y el botón nunca se habilitaba. Ni un error en pantalla: la función apagada en silencio de siempre, y desde la 7.97.0. Entra `cita.disponibilidad` (`mi-cita/disponibilidad?t=…`), donde **la credencial es el token y lo que se consulta sale de la cita** —sus servicios, su profesional, su local, para cuántas es—; el selector de `app.js` aprende a pegar sus parámetros con `&` cuando el endpoint ya trae `?`. Comprobado sin sesión, de punta a punta, en el navegador. **El panel se rehace con la maqueta que dio el usuario**: el saludo como título chico arriba a la izquierda —era una caja centrada que gastaba un cuarto de la fila en decir «hola»—, a la izquierda **Próximas citas** y debajo el **Resumen financiero** —cuántas cajas hay abiertas y cuáles, y **los ingresos de hoy contra ayer**, con la flecha y el porcentaje—, y a la derecha los nueve módulos en tres columnas, con sus íconos y colores de siempre. **«Citas hoy» y «Falta stock» se van** (pedido del usuario): lo primero ya lo dice la lista de al lado, y **el faltante de stock pasa a la campanita**, con los nombres de los productos y el enlace a la lista de compras —un número suelto no decía qué comprar ni a dónde ir, y sólo se veía desde el inicio—. De paso el CSS del panel sale de un `<style>` al pie de la vista y va a `app.css`: la página se pintaba una vez sin él y se reacomodaba después, y ese `<style>` metía `[data-tema="oscuro"]` en el HTML del panel, que es la cadena que la prueba del tema busca para comprobar que en claro no queda rastro. **Y la alerta de la caja abierta pasa a enlazar a Cajas**: apuntaba a la pantalla de detalle, que pide el id, así que `Navegacion::url()` daba null y el renglón salía sin enlace. **En la agenda, «Detalle» abre una ventana y las acciones van en dos columnas** (pedido del usuario). El botón «Vienen 2 · alergias» se va de la fila, y la fila deja de desplegar un renglón apretado entre dos citas: `#detCita{id}` es una ventana con lo que no cabe en la fila, ordenado —**La cita** (quién atiende, cada servicio con su precio y de qué persona es, el total con el precio de lista tachado y de dónde sale el descuento), **Quién viene** (para quién es, quiénes la acompañan con su historial o el botón de crearles ficha, y **las alergias de cada una, incluidas las que no declararon ninguna**), **Dejó dicho**, y **Cobros** (seña, cobrado, comprobante, lo que falta, y por persona cuando se cobra aparte)—; la ventana se dibuja **fuera de la tabla**, como manda la 7.87.4. Los siete íconos seguidos de la fila se leían como una adivinanza —«demasiado confuso»—: pasan a una grilla de dos columnas con el rótulo al lado del ícono, sacado del mismo `title` para que no se desfase del tooltip. **Sin la maqueta de WhatsApp**: la referencia visual que el usuario mandó por ahí no llegó a esta sesión, así que la ventana se armó desde la descripción —si la de WhatsApp dice otra cosa, se ajusta. **Y la paleta gana contraste donde se reportó que faltaba.** Los botones de acción se fundían con el fondo: `.btn-outline-neutro` era blanco con un borde del color de las líneas y el texto gris —en oscuro, fondo igual al de la tarjeta—; ahora lleva relleno propio, borde firme y el texto en el color principal, **12,8:1 en claro y 13,1:1 en oscuro, medidos**. Los avisos se confundían con los botones: `.e-warn` era un contorno dorado transparente al lado de botones de contorno; pasa a píldora rellena —dos formas para dos cosas, 6,5:1—. Entra **`--oro-enfasis`** para el importe destacado y el ícono de un título: en claro el oro oscuro (4,9:1 sobre blanco) y en oscuro el oro principal, porque el oscuro sobre `#1E1B17` queda en 2,5:1 —es una variable y no un selector del tema, que es la regla—. **Y `--bs-body-color-rgb` entra a los dos temas**: Bootstrap arma `.text-body` con esa variable y no con `--bs-body-color`, así que los nombres de la columna Servicios salían oscuro sobre oscuro en el tema oscuro. **211 pruebas · 1749 aserciones**, tres nuevas y dos reescritas, **las cinco comprobadas en las dos direcciones** —con la vista apuntando al endpoint del portal, sin `faltaStock`, con la ventana renombrada o con el rótulo viejo del panel, cada una falla—. **Y una que ya estaba se ponía roja por su premisa**: desde que el stock faltante suena en la campanita hay un aviso que vive en la base de prueba y sobrevive entre corridas, así que con sólo abrir la campanita en el navegador como `admin` quedaba visto y `la_campanita_baja_el_numero…` fallaba sin que el sistema hubiera cambiado — ahora limpia lo visto de esa persona dentro de su transacción. De paso, PHP toma `»` como parte de una variable: `"«$t»"` es `$t»`, indefinida; va `{$t}` · 218 rutas · **sólo código: la base no se tocó** |
 | 7.117.0 | 11/09/2026 | **Doce cosas reportadas usando el sistema, y la que las ordena es que la cita de varias personas ahora sabe QUÉ SERVICIO ES DE CUÁL.** `cita.personas` decía cuántas vienen desde la 7.57.0 y `cita_acompanante` quiénes desde la 7.97.0; faltaba lo de en medio, así que la cita era una bolsa —«tres personas: corte, mechas, manicura»— y no había forma de cobrarle a una sólo lo suyo ni de hacerle **su** factura: el mostrador dividía a mano. Entran tres columnas con el mismo criterio —**el lugar que ocupa la persona en el grupo**, como `cita_acompanante.orden` ya la nombra—: `cita_servicio.persona`, `cobro.persona` (NULL = el grupo paga junto) y `factura.persona` (NULL = toda la cita). **No son copias ni derivados** y no rompen la 1FN: un número por fila. `sp_emitir_factura` gana `p_persona` —con un número, el detalle sale sólo de los servicios de esa persona— y **`fn_factura_saldo` descuenta sólo los cobros de ESA persona**, que es lo que impide que pagando una se dé por saldada la otra. **Lo que queda igual a propósito es `uq_cita_servicio`**: el mismo servicio dos veces en la misma cita —dos cortes para dos amigas— sigue sin entrar, porque la atención, la factura y la comisión están escritas sobre «un servicio por cita» en treinta lugares; para ese caso se reservan citas aparte. Al reservar se pregunta primero para cuántas personas es y cada tarjeta dice de quién es ese servicio; al cobrar, si son dos o más, se discrimina **grupal o individual**, y el individual muestra lo que le falta a esa persona con la misma cuenta que muestra la agenda. **Un administrador ya no puede cobrarle dos veces a la misma clienta.** Se reportó tal cual —*«un administrador ya cobró pero aún no se emitió factura, y al otro admin aún le aparece la opción cobrar»*—: la pantalla del segundo es una foto de un minuto antes, y la base rechazaba el segundo cobro **después del clic** y con un mensaje que no decía que ya estaba cobrada. Ahora la fila ofrece **Emitir** en cuanto no falta plata, y **la huella de actualización en vivo incluye lo cobrado y lo facturado del día**, así que la pantalla del otro se entera sola. **En «Registrar atención» se elige menos y se decide mejor.** El combo de profesional desaparece del servicio ya agendado —eso está decidido—, la lista de lo que se suma en el sillón ofrece **sólo lo que esa persona hace** (`fn_usuario_hace_servicio`, que ahí no miraba nadie) y lo que no hace pasa a un bloque plegado **«Sumar un servicio con otra profesional»**, que es el caso real: la clienta está en el sillón, pide las uñas y eso lo hace otra — hasta acá la única salida era agendarle una cita aparte. Los productos usados se agrupan **por servicio**, con el servicio fijado en un `hidden` en vez de un combo por fila: el POST no cambia, `producto[]`, `cantidad[]` y `servicio_de[]` siguen alineados por posición. **Y «Ver atención» deja de parecer un formulario**: sin buscador y sin casillas, que sobre lo que ya pasó se leen como que ahí se decide algo. **La campanita pasa a ser la bandeja del sistema.** Entra `App\Servicios\Alertas` —lo que está **pasando**: hoy, una caja abierta desde ayer, que es una que nadie contó y con la que dos días caen en el mismo arqueo— y **el bloque «Falta cargar» del panel se muda adentro** (pedido del usuario), así que se ve desde cualquier pantalla y no sólo desde el inicio. El numerito rojo cuenta **lo que no se vio** y baja al abrirla; **lo que falta cargar es la excepción y sigue contando** hasta que alguien lo cargue, porque verlo no lo resuelve. Ver tampoco es resolver: el renglón se queda en la bandeja —la caja sigue abierta— y pierde el punto rojo, como cualquier bandeja de correo. Qué vio cada uno se guarda en **`alerta_vista`**, por persona —que la dueña la abra no significa que la recepcionista se enteró— y con una **clave estable** (`caja:12`), no con el texto: mañana el mismo aviso dice «hace 3 días» y sigue siendo el mismo. **En las tablas de Clientes, Personal y Usuarios va la foto de perfil al lado del nombre** —o sus iniciales—, con un `<x-avatar>` para las tres; **y el botón «Detalle» se va de esas tablas**, que ya tienen el suyo para ver la ficha entera: lo que se escondía ahí vuelve a ser columna, salvo el teléfono en Visitas y puntos, que es un dato de Clientes y ahí no hacía falta. **Cliente inactivo sale del panel** (pedido del usuario): cuántas fichas hay no dice qué hacer hoy. **Y en Reportes las tarjetas dejan de repetirse**: el bloque de métricas salía en las seis secciones, así que Citas, Servicios, Profesionales e Ingresos abrían con los mismos ocho números de Resumen — queda en Resumen y en Todos. **El cambio de sucursal se muda de Mi cuenta a la barra**, como combo y a la derecha (pedido del usuario): eran dos piezas para una sola cosa —un chip que decía dónde se estaba y unos botones dos pantallas más allá que lo cambiaban—, así que mover el sistema entero de local obligaba a salir de la pantalla en la que se estaba trabajando; el botón de respaldo se dibuja siempre y lo esconde `app.js`, que sin JavaScript hay que poder cambiar igual. **Y regenerar los dos volcados destapó un defecto viejo: `usuario_rol` no estaba en la base que se entrega.** Es la tabla del cambio de perspectiva, y la leen `Sesion::roles()`, `Pendientes` y la ficha de Usuarios: un salón instalado desde cero se encontraba con el ingreso y la lista de usuarios reventando por una tabla que no está — **y acá no se notaba** porque las pruebas corren contra `peluqueria_test`, que sí la tenía. El guion de actualización la crea con `IF NOT EXISTS`, y queda escrito el `diff` de tablas entre los dos `.sql` como parte de regenerarlos: lo que cambia entre ellos son los datos, nunca el esquema. **207 pruebas · 1695 aserciones**, siete nuevas y **las siete comprobadas en las dos direcciones** — sacando el `p_persona`, el tope de lo cobrado, el filtro por `hace`, la campanita de la barra o el combo, cada una falla. Y una encontró la mitad que faltaba: el servicio de alertas, su filtro por permiso y su huella en vivo estaban escritos **y la campanita era un `<a href="#">`**, o sea la función apagada en silencio de siempre, esta vez con el interruptor del lado de la vista · 83 tablas · 87 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-11_7.117.0.sql` · **código y base** |
 
 | 7.116.1 | 11/09/2026 | **El proyecto de Compose del servidor pasa a llamarse `sgp`, porque el usuario lo volvió a armar así y los volúmenes viejos ya no existen.** La 7.116.0 dejó `-p spg` a propósito —de ese nombre salen los volúmenes— y ese mismo día el proyecto del servidor se dio de baja y se levantó de nuevo como `sgp`: `docker volume ls` mostró sólo `sgp_*`, ningún `spg_*`, y el sistema arrancó con la base limpia. **La operación se recuperó del respaldo** `/var/respaldos/spg/peluqueria_bd_2026-09-11_0419.sql`, posterior a los dos guiones aplicados esa madrugada, así que no hubo nada que reaplicar. Las fotos —de perfil, de servicios y el logo— no viajan en el `.sql` y se vuelven a subir a mano; las copias locales del KuDE y el XML tampoco, y en `mock` no tienen valor fiscal. Los tres documentos pasan a **`-p sgp`** y a los volúmenes `sgp_*`, con el aviso de que **volver a `-p spg` sería repetir el accidente** · **sólo documentación** |
@@ -575,7 +576,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **217 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **218 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -617,7 +618,7 @@ app/
     Borrador.php           No perder lo escrito al usar un alta rápida
     Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Pendientes.php         Qué le falta CARGAR al salón: el panel y sgp:pendientes
-    Alertas.php            Qué está pasando AHORA: lo de «Ahora mismo» de la campanita
+    Alertas.php            Qué está pasando AHORA: la caja abierta de más, el stock al mínimo
     Navegacion.php         Migas, módulos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
@@ -658,7 +659,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 216 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 218 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -675,7 +676,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SGP le habla sólo por HTTP
-tests/Feature/             Las 201 pruebas
+tests/Feature/             Las 211 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -801,6 +802,24 @@ Lo neutro (`.btn-outline-neutro`) queda para Cancelar, editar, activar/desactiva
 acciones secundarias que **no** son atajos ni altas rápidas. Si todo fuera dorado, el botón
 principal dejaría de destacarse.
 
+> **Y lo neutro tiene que verse como botón.** Era blanco con un borde del color de las
+> líneas de la tabla y el texto gris: sobre la tarjeta blanca se fundía con el fondo, y en
+> el tema oscuro —fondo igual al de la tarjeta— desaparecía; se reportó como *«los botones
+> de acción se mezclan con el fondo»*. Desde la 7.118.0 lleva relleno propio
+> (`--bs-secondary-bg`, un paso más oscuro que la tarjeta), borde firme y el texto en el
+> color principal: **12,8:1 en claro y 13,1:1 en oscuro**, medidos. El hover es el oro
+> suave, el mismo escalón que las altas rápidas.
+>
+> **Un aviso no es un botón.** `.e-warn` era un contorno dorado transparente, y al lado de
+> los botones de contorno de la fila se leía como uno más — *«se mezclan con los avisos»*.
+> Los badges van **rellenos y en píldora** (6,5:1); los botones, rectangulares y con relleno
+> gris. Dos formas para dos cosas.
+>
+> **`--oro-enfasis` es el oro para un dato destacado** —un importe, el ícono de un título—
+> y por eso existe aparte: en claro es el oro oscuro (4,9:1 sobre blanco) y en oscuro el
+> oro principal, porque el oscuro sobre `#1E1B17` queda en 2,5:1 y no se lee. Es una
+> variable y no un selector del tema, que es la regla de abajo.
+
 **Colores semánticos** — los únicos fuera de la identidad, y solo para comunicar estado,
 nunca para decorar. Están declarados como variables; no escribir hex sueltos en las vistas
 (hay utilidades `.txt-ok`, `.txt-no`, `.txt-oro`).
@@ -920,6 +939,12 @@ Tres reglas al tocarlo:
 
 `color-scheme:dark` va declarado porque si no los campos nativos de fecha y hora salen blancos.
 **Las dos vistas de impresión no llevan el atributo**: el papel siempre va en claro.
+
+> **Bootstrap arma `.text-body` con `--bs-body-color-rgb`, no con `--bs-body-color`.** Los
+> dos temas la declaran desde la 7.118.0 (`26,26,26` y `237,233,225`): sin ella, la
+> columna Servicios de la agenda —que usa `.text-body` para el nombre— salía **oscuro sobre
+> oscuro** en el tema oscuro, y ningún otro sitio lo delataba. Si pisás una variable de
+> color de Bootstrap, mirá si tiene su gemela `-rgb`.
 
 
 ## Las fotos que sube el salón
@@ -1066,6 +1091,36 @@ y dice la causa probable y cómo recuperarlas. Comprobado en las dos direcciones
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
 
+### El panel: lo que hay que mirar, no lo que hay que contar
+
+Tiene la forma de la maqueta que dio el usuario (7.118.0), y cada pieza está
+donde está por algo:
+
+| Dónde | Qué | Por qué |
+|---|---|---|
+| Arriba a la izquierda, chico | **Hola, Nombre** | es un título, no un cartel: en una caja centrada gastaba un cuarto de la fila en decir «hola» |
+| Izquierda, arriba | **Próximas citas** (o **Mis próximas citas**) | las atrasadas primero, en rojo y con «hace N»; el posesivo dice de quién son |
+| Izquierda, abajo | **Resumen financiero**: estado de cajas · ingresos de hoy | cuántas cajas hay abiertas y cuáles —las mismas para todos—, y lo cobrado hoy **contra ayer**, con la flecha y el porcentaje: un número solo no dice si el día viene bien o mal |
+| Derecha | los nueve módulos, tres por fila | con sus íconos y colores de siempre |
+
+- **«Citas hoy», «Clientes activos» y «Falta stock» se fueron** (pedido del
+  usuario, 7.117.0 y 7.118.0). Eran números que no pedían ninguna acción:
+  cuántas citas hay ya lo dice la lista de al lado, cuántas fichas hay no
+  dice qué hacer hoy, y el faltante de stock pasó a la campanita **con los
+  nombres y el enlace**, que es lo que un número suelto no daba.
+- **Cada bloque se dibuja sólo para quien lo tiene.** El resumen financiero
+  no aparece sin `facturacion.caja` ni `facturacion.cobros`: un bloque vacío
+  titulado «financiero» promete algo que a esa persona no le corresponde.
+- **`sgp-caja-barra` y `sgp-metrics` no son decorativas**: son los ganchos
+  entre los que la prueba del panel recorta para comprobar que se listen
+  todas las cajas abiertas del local. Un rediseño que las renombre deja la
+  guardia mirando al vacío sin dar error.
+- **El CSS del panel vive en `app.css`.** Estaba en un `<style>` al pie de la
+  vista, así que la página se pintaba una vez sin él y se reacomodaba después;
+  y ese `<style>` metía `[data-tema="oscuro"]` en el HTML del panel, que es
+  la cadena que la prueba del tema busca para comprobar que en claro no queda
+  rastro.
+
 ### En el celular las tablas son tarjetas
 
 Una tabla de siete columnas no entra en 375 px, y se reportó como *«la
@@ -1112,6 +1167,17 @@ Tres decisiones que conviene no revertir:
   desplegable— quedó al lado del ojo que abre la atención registrada, que
   también decía «Detalle»: el segundo pasa a **«Atención»**, que es lo que
   abre. Y el botón de «Más» se llama así y no «Detalles» por lo mismo.
+- **En la agenda, «Detalle» abre una VENTANA y las acciones van en dos
+  columnas** (pedido del usuario, 7.118.0). El desplegable de la fila
+  —`#detAge`— se fue, y con él el botón «Vienen 2 · alergias»: lo que no cabe
+  en la fila se lee mejor ordenado en `#detCita{id}` —La cita · Quién viene ·
+  Dejó dicho · Cobros— que apretado entre dos citas. La ventana se dibuja
+  **fuera de la tabla**, por lo de la 7.87.4. Y los siete íconos seguidos
+  pasan a `.sgp-acciones`, una grilla de dos columnas con el rótulo al lado
+  del ícono —sacado del `title`, para que no se desfase del tooltip—: en una
+  fila se leían como una adivinanza. `.sgp-fila-detalle` y `.sgp-btn-detalle`
+  siguen en las otras listas. Lo fija
+  `ReglasDeNegocioTest::la_agenda_abre_el_detalle_de_la_cita_en_una_ventana_y_las_acciones_en_dos_columnas`.
 - **El aviso contradictorio no se dibuja.** «Sin confirmar · falta seña» sobre
   una cita Cancelada, Ausente o Atendida es ruido: se acota a los estados en
   que todavía significa algo.
@@ -2985,7 +3051,7 @@ porque de eso depende cómo se cuentan:
 | | `Pendientes` | `Alertas` |
 |---|---|---|
 | Qué dice | lo que falta **configurar** | lo que está **pasando** ahora |
-| Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta desde ayer |
+| Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta desde ayer, un producto al mínimo |
 | Cada cuánto cambia | una vez y no vuelve | todos los días |
 | En la bandeja | grupo **«Falta cargar»** | grupo **«Ahora mismo»**, primero |
 | ¿Deja de contar al verlo? | **nunca** | sí |
@@ -3012,7 +3078,19 @@ porque de eso depende cómo se cuentan:
   manda una lista, y sin eso un POST armado a mano marcaría cualquier cosa o
   llenaría la tabla de basura.
 - **Cada renglón lleva su permiso**, igual que antes: la campanita de quien no
-  maneja la caja no tiene por qué sonar por una caja.
+  maneja la caja no tiene por qué sonar por una caja, ni la de quien no repone
+  por un faltante.
+- **El stock que llegó al mínimo suena acá, con los nombres** (7.118.0). Era
+  un número en el panel —«Falta stock: 3»— que no decía qué falta ni a dónde
+  ir, y sólo se veía desde el inicio; el usuario lo sacó del panel. El
+  renglón nombra los productos —los tres primeros y «N más»—, enlaza a
+  Inventario → Stock, que es la lista de compras, y es del local en que se
+  está parado. **Su clave es QUÉ falta** (`stock:<sucursal>:<huella de los
+  ids>`): si mañana cae otro producto es un aviso nuevo y vuelve a contar,
+  y se resuelve solo al reponer. Lo fija
+  `ReglasDeNegocioTest::la_campanita_avisa_el_stock_que_llego_al_minimo_y_solo_a_quien_repone`.
+- **Y el renglón de la caja enlaza a Cajas**, no a la pantalla de una caja:
+  ésa pide el id, `Navegacion::url()` daba null y el aviso salía sin enlace.
 - **La dibuja el layout, no el panel**, y por eso se ve desde cualquier
   pantalla: lo que lista hay que resolverlo ahora, no cuando alguien vuelva al
   inicio. Sólo para el personal — una campana que nunca va a sonar es marcado
@@ -3174,6 +3252,17 @@ Cuatro decisiones que conviene no revertir:
 - **El enlace del correo** (`token_cita`) permite reprogramar o cancelar **sin iniciar
   sesión**: la mayoría de las clientas que agendan en el local no tienen cuenta. El token es
   la credencial, dura 30 días y muere al cancelar.
+  > **Y los horarios que ofrece también salen sin sesión**, que es lo que faltaba. La
+  > pantalla del enlace le pedía los días a `portal.disponibilidad`, que exige sesión: la
+  > consulta volvía como una redirección al ingreso, el calendario quedaba vacío y el botón
+  > nunca se habilitaba —«los links de reagendar por los correos no funcionan»—, sin un
+  > solo error en pantalla, desde la 7.97.0. Desde la 7.118.0 usa **`cita.disponibilidad`**
+  > (`mi-cita/disponibilidad?t=…`): el token es la credencial y **lo que se consulta sale de
+  > la cita** —sus servicios, su profesional, su local, para cuántas personas es—, porque
+  > reprogramar no pregunta nada de eso. Va con `throttle`. Y el selector de `app.js` pega
+  > sus parámetros con `&` cuando el endpoint ya trae `?`. Lo fija
+  > `ReglasDeNegocioTest::el_enlace_del_correo_ofrece_horarios_sin_sesion`, que mide como
+  > llega la clienta —sin sesión— y que el del portal sigue exigiéndola.
 - **Los avisos internos también se mandan, y le llegan al equipo que puede resolverlos.**
   Los de `tipo_notificacion.destinatario = 'INTERNO'` —que un producto llegó al mínimo, que
   se cerró una caja— **no llegaban a nadie**: el despachador tomaba sólo los de destinatario
@@ -3360,9 +3449,10 @@ carga 15, 5 y 1 ml y exige que el stock baje exactamente eso.
 elegido (`data-unidad` en cada opción). Sin eso no se sabe si «30» son 30 ml o 30 frascos, y
 la unidad depende de qué producto se eligió en esa misma fila.
 
-**El aviso de reposición** sale de `vw_producto_bajo_stock`: el panel muestra cuántos
-productos hay por reponer (`PanelController::bajoStock`) e Inventario → Stock lista cuáles,
-con cuánta plata hay que ir a comprar.
+**El aviso de reposición** sale de `vw_producto_bajo_stock`: **la campanita nombra los
+productos que llegaron al mínimo** (`Alertas::faltaStock()`, desde la 7.118.0) e Inventario →
+Stock lista cuáles, con cuánta plata hay que ir a comprar. El panel mostraba un número
+—«Falta stock: 3»— y se sacó por pedido del usuario: no decía qué comprar ni a dónde ir.
 
 > Acá decía que lo dibujaba un componente `<x-aviso-stock>`. **Ese componente no existe**:
 > los ocho que hay son `<x-encabezado>`, `<x-filtros>`, `<x-paginacion>`, `<x-landing>`,
@@ -5352,7 +5442,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 201 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 211 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5506,7 +5596,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**201 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**211 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

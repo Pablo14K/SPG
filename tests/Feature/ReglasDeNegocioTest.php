@@ -1635,23 +1635,29 @@ class ReglasDeNegocioTest extends TestCase
               ->assertDontSee('Productos bajo stock');
 
         // Y lo que sí es suyo se sigue viendo, con el rótulo que corresponde:
-        // no son «las citas de hoy», son las suyas.
-        // El rediseño de la 7.117.0 acortó el rótulo a «Mis citas hoy». Lo que
-        // la regla pide es el posesivo —no son «las citas de hoy», son las
-        // suyas—, y eso se conserva.
-        $panel->assertSee('Mis citas hoy');
+        // no son «las próximas citas», son las suyas. El rediseño de la
+        // 7.118.0 —la maqueta del usuario— dejó una sola lista de citas, así
+        // que el posesivo va en su título.
+        $panel->assertSee('Mis próximas citas');
 
         // El Administrador ve todo, que es el otro lado de la misma regla.
         $admin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
             [(int) config('permisos.rol_admin', 1)]);
         session(['uid' => $admin, 'rol' => (int) config('permisos.rol_admin', 1),
                  'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
-        // Los dos rótulos que el rediseño acortó. Lo que se mide sigue siendo
-        // lo mismo: el Administrador ve la plata del día, y sus citas se
-        // nombran sin el posesivo porque son las del salón.
+        // Lo que se mide sigue siendo lo mismo: el Administrador ve la plata
+        // del día —y contra ayer, que es lo que la maqueta pide—, y sus citas
+        // se nombran sin el posesivo porque son las del salón.
+        //
+        // **Y lo que salió del panel no vuelve** (pedido del usuario, 7.118.0):
+        // «Citas hoy» lo dice la lista de al lado, y el faltante de stock pasa
+        // a la campanita con los nombres y el enlace, que un número no daba.
         $this->get(route('panel'))->assertOk()
-             ->assertSee('Ingresos de Hoy')
-             ->assertSee('Citas hoy');
+             ->assertSee('Ingresos de hoy')
+             ->assertSee('ayer')
+             ->assertSee('Próximas citas')
+             ->assertDontSee('Citas hoy')
+             ->assertDontSee('Falta stock');
     }
 
     /**
@@ -7737,17 +7743,17 @@ class ReglasDeNegocioTest extends TestCase
         Caja::olvidar();
 
         $cita = $this->citaFuturaAgendada($suc);
-        // La observacion no es decorado: el desplegable de la fila —y con el
-        // su ancla `detAge`, que es por donde esta prueba encuentra el
-        // renglon— solo se dibuja cuando hay algo que mostrar ahi.
-        DB::update('UPDATE cita SET id_estado_cita = 4, observaciones = ? WHERE id_cita = ?',
-            ['Prueba del doble cobro', (int) $cita->id_cita]);
+        DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [(int) $cita->id_cita]);
 
+        // La celda de acciones de ESA fila: arranca en el botón «Detalle»
+        // —que apunta a la ventana de la cita— y termina con la fila. Desde
+        // la 7.118.0 el botón está siempre, así que no hace falta cargarle
+        // una observación a la cita para que aparezca el ancla.
         $fila = function () use ($cita): string {
             $html = (string) $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
-            $ini = strpos($html, '#detAge' . (int) $cita->id_cita . '"');
+            $ini = strpos($html, '#detCita' . (int) $cita->id_cita . '"');
             $this->assertNotFalse($ini, 'La cita tiene que aparecer en la agenda de su día.');
-            $fin = strpos($html, 'id="detAge' . (int) $cita->id_cita . '"', (int) $ini);
+            $fin = strpos($html, '</tr>', (int) $ini);
 
             return substr($html, (int) $ini, ($fin ?: strlen($html)) - (int) $ini);
         };
@@ -8029,6 +8035,15 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComo('admin', 'admin123');
         $suc = (int) session('id_sucursal');
         $cajon = $this->cajonDe($suc);
+
+        // **La premisa se garantiza: esta persona no vio nada todavía.** Desde
+        // que el stock faltante suena en la campanita (7.118.0) hay avisos
+        // que viven en la base de prueba y sobreviven entre corridas —el
+        // faltante no lo crea esta prueba—, así que con sólo abrir la
+        // campanita en el navegador como `admin` uno de ellos quedaba visto y
+        // la prueba se ponía roja sin que el sistema hubiera cambiado. Va
+        // dentro de la transacción: no toca lo que la persona vio de verdad.
+        DB::delete('DELETE FROM alerta_vista WHERE id_usuario = 1');
 
         // Una caja vieja abierta —la alerta— y algo sin cargar —el pendiente—.
         DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
@@ -8535,5 +8550,171 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertStringNotContainsString('DESCUENTO: 0', $pdf, 'La fila DESCUENTO del pie se fue.');
         $this->assertLessThan(strpos($pdf, '(DESCUENTO)'), strpos($pdf, '(UNITARIO)'),
             'El orden es PRECIO UNITARIO y después DESCUENTO.');
+    }
+
+    // -----------------------------------------------------------------
+    //  7.118.0 — el enlace del correo, la campanita con el stock, la agenda
+    // -----------------------------------------------------------------
+
+    /**
+     * El enlace del correo ofrece horarios SIN sesión.
+     *
+     * Reportado tal cual: *«los links de reagendar por los correos no
+     * funcionan»*. La pantalla del enlace se abría —el token la deja pasar—,
+     * pero el selector de horarios le pedía los días a `portal.disponibilidad`,
+     * que vive detrás del middleware de sesión. La clienta que llega desde el
+     * correo **no tiene sesión** —ése es el punto del token—, así que la
+     * consulta volvía como una redirección al ingreso, el calendario quedaba
+     * vacío y el botón «Reprogramar» nunca se habilitaba. Ni un error en
+     * pantalla: la función apagada en silencio de siempre.
+     *
+     * Se mide como llega la clienta —sin sesión— y en las dos direcciones: el
+     * endpoint del token contesta con días, y el del portal sigue exigiendo
+     * sesión, que es lo correcto para quien entra por ahí.
+     */
+    #[Test]
+    public function el_enlace_del_correo_ofrece_horarios_sin_sesion(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+        $token = Notificaciones::tokenDeCita((int) $cita->id_cita);
+
+        // La pantalla del enlace apunta al endpoint del token, no al del portal.
+        $html = (string) $this->get(route('cita.token', ['t' => $token]))->assertOk()->getContent();
+        $this->assertStringContainsString('data-agenda=', $html,
+            'La pantalla del enlace dibuja el selector de horarios.');
+        $this->assertStringContainsString('mi-cita/disponibilidad', $html,
+            'Y le pide los días al endpoint del token: el del portal exige sesión y ella no tiene.');
+        $this->assertStringNotContainsString('portal/disponibilidad', $html,
+            'Apuntando al del portal, la consulta vuelve como redirección y el calendario queda vacío.');
+
+        // El endpoint contesta sin sesión, con días de verdad.
+        $r = $this->getJson(route('cita.disponibilidad', ['t' => $token]))->assertOk()->json();
+        $this->assertTrue((bool) ($r['ok'] ?? false), 'Con un token vigente tiene que contestar.');
+        $this->assertNotEmpty($r['dias'] ?? [], 'Y ofrecer días: sin eso el botón nunca se habilita.');
+        $this->assertGreaterThan(0, (int) ($r['duracion'] ?? 0), 'La duración sale de la cita.');
+
+        // Y las horas de uno de esos días.
+        $h = $this->getJson(route('cita.disponibilidad', ['t' => $token, 'fecha' => $r['dias'][0]]))->assertOk()->json();
+        $this->assertTrue((bool) ($h['ok'] ?? false));
+        $this->assertNotEmpty($h['horas'] ?? [], 'El día ofrecido tiene que tener horas.');
+
+        // Un token inventado no contesta nada de la agenda de nadie.
+        $malo = $this->getJson(route('cita.disponibilidad', ['t' => str_repeat('0', 48)]))->assertOk()->json();
+        $this->assertFalse((bool) ($malo['ok'] ?? true), 'Sin token válido no hay horarios.');
+
+        // La otra dirección: el del portal SIGUE pidiendo sesión.
+        $this->get(route('portal.disponibilidad', ['servicios' => [1]]))->assertRedirect();
+    }
+
+    /**
+     * El stock que llegó al mínimo suena en la campanita, con los nombres.
+     *
+     * «Falta stock» era un número en el panel —«3»— que no decía qué falta ni
+     * a dónde ir, y sólo se veía desde el inicio; el usuario lo sacó del
+     * panel y pidió que fuera a la campanita. Acá va con los nombres y el
+     * enlace a la lista de compras, y sólo a quien tiene `inventario.stock`:
+     * al Profesional un faltante que no puede reponer le tapa lo suyo.
+     */
+    #[Test]
+    public function la_campanita_avisa_el_stock_que_llego_al_minimo_y_solo_a_quien_repone(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        // Se garantiza la premisa: un producto de este local por debajo del
+        // mínimo, con un nombre que no pueda estar en la pantalla por otro
+        // motivo. Y el resto por encima, para que el aviso hable de ÉSTE.
+        DB::update('UPDATE producto_sucursal SET stock_minimo = 0.01 WHERE id_sucursal = ?', [$suc]);
+        $prod = DB::selectOne('SELECT ps.id_producto FROM producto_sucursal ps
+                                 JOIN producto p ON p.id_producto = ps.id_producto
+                                WHERE ps.id_sucursal = ? AND p.activo = 1 ORDER BY ps.id_producto LIMIT 1', [$suc]);
+        $this->assertNotNull($prod, 'Premisa: este local maneja al menos un producto.');
+        DB::update('UPDATE producto SET nombre = ? WHERE id_producto = ?',
+            ['Tintura prueba campanita', (int) $prod->id_producto]);
+        DB::update('UPDATE producto_sucursal SET stock_minimo = 999999 WHERE id_producto = ? AND id_sucursal = ?',
+            [(int) $prod->id_producto, $suc]);
+
+        $stock = array_values(array_filter(Alertas::mias(), fn ($a) => $a['nivel'] === 'STOCK'));
+        $this->assertCount(1, $stock, 'El faltante de stock tiene que estar en la campanita, como un solo aviso.');
+        $this->assertStringContainsString('Tintura prueba campanita', $stock[0]['que'],
+            'Con el NOMBRE: «3 productos» no dice qué comprar.');
+        $this->assertSame('inventario.stock', $stock[0]['permiso']);
+        $this->assertSame('inventario.stock', $stock[0]['ruta'], 'Y con el enlace a la lista de compras.');
+        $this->assertStringStartsWith('stock:' . $suc . ':', $stock[0]['clave'],
+            'La clave es estable y del local: mañana, con el mismo faltante, es el mismo aviso.');
+
+        // Y la barra lo dibuja, desde cualquier pantalla: no sólo el panel.
+        $html = (string) $this->get(route('citas.agenda'))->assertOk()->getContent();
+        $this->assertStringContainsString('Tintura prueba campanita', $html,
+            'La campanita tiene que nombrar el producto que falta.');
+        $this->assertStringContainsString('Inventario → Stock', $html,
+            'Y decir dónde se resuelve.');
+
+        // El panel ya no lo cuenta: se fue a la campanita.
+        $this->get(route('panel'))->assertOk()->assertDontSee('Falta stock');
+
+        // A quien no repone, nada.
+        DB::delete("DELETE FROM rol_modulo WHERE id_rol = 2 AND modulo IN ('inventario','inventario.stock')");
+        DB::update('UPDATE usuario SET id_rol = 2 WHERE id_usuario = 1');
+        session(['rol' => 2]);
+        Permisos::olvidar();
+        $this->assertSame([], array_values(array_filter(Alertas::mias(), fn ($a) => $a['nivel'] === 'STOCK')),
+            'El Profesional no repone stock: avisarle es ruido que le tapa lo que sí es suyo.');
+    }
+
+    /**
+     * «Detalle» abre la cita en una ventana, y las acciones van en dos columnas.
+     *
+     * Pedido del usuario sobre la agenda: sacar el botón «Vienen 2 · alergias»
+     * y que «Detalle» abra una ventana emergente con la información mejor
+     * estructurada, y los botones de acción en dos columnas porque en una
+     * fila se confundían. La fila se queda con lo que ADVIERTE —el estado, la
+     * seña, las alergias— y todo lo demás va a la ventana: quién viene, qué
+     * se pidió, lo que dejó dicho, lo cobrado.
+     *
+     * Se mide el andamiaje, que es lo que se rompe sin dar error: el botón
+     * apunta a la ventana, la ventana existe fuera de la tabla, y trae lo que
+     * la fila dejó de mostrar.
+     */
+    #[Test]
+    public function la_agenda_abre_el_detalle_de_la_cita_en_una_ventana_y_las_acciones_en_dos_columnas(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $cita = $this->citaFuturaAgendada((int) session('id_sucursal'));
+
+        // Lo que la ventana tiene que mostrar: una acompañante con su alergia
+        // y lo que la clienta dejó dicho. Con la cita de dos, la fila nombra a
+        // quién es cada alergia y la ventana lista a las dos.
+        DB::update('UPDATE cita SET personas = 2, observaciones = ? WHERE id_cita = ?',
+            ['Dejo dicho prueba ventana', (int) $cita->id_cita]);
+        DB::insert('INSERT INTO cita_acompanante (id_cita, orden, nombre, apellido, alergias) VALUES (?, 2, ?, ?, ?)',
+            [(int) $cita->id_cita, 'Josefina', 'Villalba Prueba', 'Amoniaco prueba']);
+
+        $html = (string) $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
+        $id = (int) $cita->id_cita;
+
+        // La fila: el botón «Detalle» apunta a la ventana, y las acciones van
+        // en la grilla de dos columnas.
+        $ini = strpos($html, '#detCita' . $id . '"');
+        $this->assertNotFalse($ini, 'La fila tiene que ofrecer «Detalle» apuntando a la ventana de ESA cita.');
+        $fila = substr($html, (int) $ini, (int) strpos($html, '</tr>', (int) $ini) - (int) $ini);
+        // El botón entero: el `title` va antes del `data-bs-target`.
+        $boton = substr($html, max(0, (int) $ini - 900), 900);
+        $this->assertStringContainsString('title="Detalle"', $boton, 'El botón se llama «Detalle».');
+        $this->assertStringContainsString('sgp-acciones', $boton,
+            'Las acciones van en la grilla de dos columnas, no en una fila.');
+        $this->assertStringNotContainsString('Vienen 2', $fila, 'El botón «Vienen 2 · alergias» se fue de la fila.');
+        $this->assertStringNotContainsString('detAge' . $id, $html, 'El desplegable de la fila ya no existe: lo reemplaza la ventana.');
+
+        // La ventana: existe, fuera de la tabla, y trae lo que la fila ya no muestra.
+        $v = strpos($html, 'id="detCita' . $id . '"');
+        $this->assertNotFalse($v, 'La ventana de la cita tiene que dibujarse.');
+        $this->assertGreaterThan((int) strpos($html, '</table>'), $v,
+            'Y fuera de la tabla: dentro de un <tr> hereda cualquier display:none y no se puede mostrar.');
+        $finV = (int) strpos($html, 'modal fade', $v + 10) ?: strlen($html);
+        $ventana = substr($html, $v, $finV - $v);
+        foreach (['Dejo dicho prueba ventana', 'Josefina', 'Amoniaco prueba', 'La cita', 'Quién viene', 'Dejó dicho'] as $t) {
+            $this->assertStringContainsString($t, $ventana, "La ventana tiene que decir «{$t}».");
+        }
     }
 }

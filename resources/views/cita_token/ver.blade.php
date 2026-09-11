@@ -103,7 +103,12 @@
                 <div class="mb-2">
                     <label class="form-label">Nueva fecha y hora</label><x-ayuda campo="fecha_hora" />
                     <input type="hidden" name="fecha_hora" required>
-                    <div data-agenda="{{ route('portal.disponibilidad') }}"
+                    {{-- **El endpoint del token, no el del portal.** El del
+                         portal pide sesión, y quien llega desde el correo no
+                         tiene: la consulta volvía como una redirección al
+                         ingreso, el calendario quedaba vacío y el botón nunca
+                         se habilitaba — «los enlaces del correo no funcionan». --}}
+                    <div data-agenda="{{ route('cita.disponibilidad', ['t' => $codigo]) }}"
                          data-agenda-sujeto="Tu cita"
                          data-agenda-servicios="{{ $ctx->servicios_ids ?? '' }}"
                          data-agenda-profesional="{{ (int) ($ctx->id_usuario ?? 0) }}"

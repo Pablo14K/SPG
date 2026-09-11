@@ -11,55 +11,55 @@
      prueba del tema busca para comprobar que en claro no queda rastro — con
      eso la cadena aparecía siempre y el guardia dejaba de medir.
 
-     Las reglas son las mismas, movidas tal cual: no cambia un píxel. --}}
-
+     **La forma es la de la maqueta que dio el usuario (7.118.0)**: el saludo
+     como título chico arriba a la izquierda, a la izquierda las próximas
+     citas y debajo el resumen financiero —cajas abiertas e ingresos de hoy
+     contra ayer—, y a la derecha los nueve módulos en tres columnas. Lo que
+     había en la fila de abajo —«Citas hoy», «Falta stock»— se va: el primero
+     ya lo dice la lista de al lado, y el faltante de stock pasa a la
+     campanita, con los nombres y el enlace, que un número suelto no daba. --}}
 
 @section('contenido')
     @php use App\Servicios\Navegacion; use App\Servicios\Permisos; @endphp
 
-    <div class="row g-2">
-        {{-- COLUMNA IZQUIERDA: Saludo e Ingresos --}}
-        <div class="col-lg-3 col-md-4 d-flex flex-column gap-2">
-            {{-- Saludo --}}
-            <div class="panel-box d-flex align-items-center justify-content-center text-center py-3">
-                <h1 class="m-0" style="font-size: 1.05rem; font-weight: 500;">
-                    Hola, {{ session('nombre') }}
-                </h1>
-            </div>
+    {{-- **El saludo es un título, no un cartel.** Vivía en una caja propia,
+         centrado y grande, y eso ocupaba un cuarto de la fila para decir
+         «hola»; como título chico arriba a la izquierda —que es lo que es— el
+         espacio queda para lo que sí hay que mirar. --}}
+    <h1 class="sgp-saludo">Hola, {{ session('nombre') }}</h1>
 
-            {{-- Solo Ingresos --}}
-            <div class="panel-box flex-grow-1 d-flex flex-column justify-content-center text-center">
-                @if ($m['ingresos_hoy'] !== null)
-                    <div class="text-muted-warm mb-1" style="font-size: .85rem;">Ingresos de Hoy</div>
-                    <div class="metric-value">{{ money($m['ingresos_hoy']) }}</div>
-                @else
-                    <div class="text-muted-warm" style="font-size: .85rem;">Ingresos no disponibles</div>
-                @endif
-            </div>
-        </div>
-
-        {{-- COLUMNA CENTRAL: Próximas Citas (y Atrasadas) --}}
-        <div class="col-lg-5 col-md-8">
-            <div class="panel-box d-flex flex-column h-100">
-                <h2 class="text-center mb-2" style="font-size: 1.05rem; font-weight: 500;">
-                    Próximas citas
+    <div class="row g-3">
+        {{-- IZQUIERDA: las citas, y debajo la plata --}}
+        <div class="col-lg-8 d-flex flex-column gap-3">
+            <div class="panel-box flex-grow-1 d-flex flex-column">
+                {{-- El posesivo dice de quién son: quien no administra la
+                     agenda ve LAS SUYAS, no las del salón, y el rótulo lo
+                     tiene que decir. --}}
+                <h2 class="panel-box-titulo">
+                    <i class="bi bi-calendar-check"></i>
+                    {{ $verTodo ? 'Próximas citas' : 'Mis próximas citas' }}
                 </h2>
 
-                <div class="panel-box-inner overflow-auto" style="max-height: 250px;">
+                <div class="panel-box-inner flex-grow-1">
                     @if ($atrasadas || $proximas)
                         @if ($atrasadas)
                             <div class="mb-2">
-                                <div class="d-flex justify-content-between align-items-center mb-1 pb-1" style="border-bottom:1px solid var(--gris-calido)">
-                                    <strong class="txt-no" style="font-size:.85rem"><i class="bi bi-clock-history"></i> Atrasadas <span class="badge-estado e-warn">{{ $atrasadasTotal }}</span></strong>
+                                <div class="sgp-lista-cab">
+                                    <strong class="txt-no"><i class="bi bi-clock-history"></i> Atrasadas
+                                        <span class="badge-estado e-no">{{ $atrasadasTotal }}</span></strong>
+                                    @if (Navegacion::existe('citas.agenda'))
+                                        <a class="link-oro" style="font-size:.78rem" href="{{ Navegacion::url('citas.agenda') }}">ir a la agenda &rarr;</a>
+                                    @endif
                                 </div>
-                                <ul class="list-unstyled mb-0" style="font-size:.8rem">
+                                <ul class="list-unstyled mb-0 sgp-lista-citas">
                                     @foreach ($atrasadas as $c)
                                         @php $min = (int) round((strtotime(ahora_bd()) - strtotime($c->fecha_hora)) / 60); @endphp
-                                        <li class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
+                                        <li>
                                             <span class="text-truncate pe-2">
                                                 <strong>{{ $c->cliente }}</strong>
+                                                <span class="text-muted-warm"> · {{ $c->servicios }}</span>
                                             </span>
-                                            <span class="txt-no fw-bold" style="white-space:nowrap">{{ $min < 60 ? $min . ' min' : intdiv($min, 60) . ' h' }}</span>
+                                            <span class="txt-no fw-bold" style="white-space:nowrap">hace {{ $min < 60 ? $min . ' min' : intdiv($min, 60) . ' h' }}</span>
                                         </li>
                                     @endforeach
                                 </ul>
@@ -68,21 +68,25 @@
 
                         @if ($proximas)
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-1 pb-1" style="border-bottom:1px solid var(--gris-calido)">
-                                    <strong style="font-size:.85rem; color: var(--carbon);">{{ $verTodo ? 'Por atender' : 'Mis próximas' }}</strong>
-                                </div>
-                                <ul class="list-unstyled mb-0" style="font-size:.8rem">
+                                @if ($atrasadas)
+                                    <div class="sgp-lista-cab"><strong>{{ $verTodo ? 'Por atender' : 'Mis próximas' }}</strong></div>
+                                @endif
+                                <ul class="list-unstyled mb-0 sgp-lista-citas">
                                     @foreach ($proximas as $c)
                                         {{-- El `id` es el gancho de la prueba que fija que una
                                              cita ATENDIDA deje de anunciarse como próxima: sin
                                              él no hay forma de decir «ésta y no otra». --}}
-                                        <li id="citaProxima{{ (int) $c->id_cita }}"
-                                            class="d-flex justify-content-between align-items-center py-1" style="border-bottom:1px dashed var(--gris-calido)">
+                                        <li id="citaProxima{{ (int) $c->id_cita }}">
                                             <span class="text-truncate pe-2">
                                                 <strong>{{ $c->cliente }}</strong>
+                                                <span class="text-muted-warm"> · {{ $c->servicios }}</span>
+                                                @if ($verTodo && $c->profesional)
+                                                    <span class="text-muted-warm d-none d-md-inline"> · {{ $c->profesional }}</span>
+                                                @endif
                                             </span>
-                                            <span class="text-muted-warm text-end" style="white-space:nowrap">
-                                                <strong style="color: var(--carbon);">{{ fecha($c->fecha_hora, 'H:i') }}</strong>
+                                            <span class="text-end" style="white-space:nowrap">
+                                                <span class="text-muted-warm" style="font-size:.78rem">{{ fecha($c->fecha_hora, 'd/m') }}</span>
+                                                <strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong>
                                             </span>
                                         </li>
                                     @endforeach
@@ -90,19 +94,127 @@
                             </div>
                         @endif
                     @else
-                        <div class="h-100 d-flex flex-column align-items-center justify-content-center text-muted-warm text-center py-4">
-                            <i class="bi bi-calendar-check fs-2 mb-2"></i>
-                            <p class="m-0" style="font-size: .85rem;">No hay citas pendientes.</p>
+                        <div class="sgp-vacio py-4">
+                            <i class="bi bi-calendar-check"></i>
+                            <div class="t">No hay citas pendientes.</div>
                         </div>
                     @endif
                 </div>
             </div>
+
+            {{-- **El resumen financiero**, sólo a quien tiene la caja o los
+                 cobros: si no tiene ninguna de las dos, la caja entera no se
+                 dibuja —un bloque vacío titulado «financiero» promete algo
+                 que a esa persona no le corresponde—. --}}
+            @if ($verCaja || $m['ingresos_hoy'] !== null)
+                <div class="panel-box">
+                    <h2 class="panel-box-titulo"><i class="bi bi-graph-up-arrow"></i> Resumen financiero</h2>
+                    <div class="row g-3">
+                        @if ($verCaja)
+                            {{-- **La clase `sgp-caja-barra` no es decorativa: es el
+                                 gancho.** La prueba del panel recorta desde acá hasta
+                                 `sgp-metrics` para comprobar que se listen TODAS las
+                                 cajas abiertas del local y las mismas para todos —el
+                                 defecto de la 7.115.1, donde cada administrador veía
+                                 sólo la suya—. Un rediseño que la renombre deja la
+                                 guardia mirando al vacío y no da ningún error: es el
+                                 patrón que este proyecto persigue. --}}
+                            <div class="col-md-6 sgp-caja-barra">
+                                <div class="metric-card h-100">
+                                    <div class="metric-lbl">Estado de cajas</div>
+                                    <div class="d-flex align-items-center gap-2 mt-1">
+                                        <i class="bi bi-safe2 txt-oro" style="font-size:1.4rem"></i>
+                                        {{-- **Cuántas hay abiertas, no sólo cuáles.** Con dos
+                                             cajones el número es lo que dice de un vistazo si
+                                             falta cerrar alguno; sin él hay que contar los
+                                             renglones. --}}
+                                        <strong style="font-size:1.05rem">
+                                            @if ($cajas)
+                                                {{ count($cajas) }} {{ count($cajas) === 1 ? 'caja abierta' : 'cajas abiertas' }}
+                                            @else
+                                                Ninguna caja abierta
+                                            @endif
+                                        </strong>
+                                    </div>
+                                    @if ($cajas)
+                                        <ul class="list-unstyled mb-0 mt-2 sgp-lista-cajas">
+                                            @foreach ($cajas as $c)
+                                                @php
+                                                    // **El título se arma acá y no con `@if` dentro del
+                                                    // atributo.** `@endif@if` pegados no los compila
+                                                    // Blade —su patrón lleva `\B` delante de la arroba—
+                                                    // así que el segundo deja de ser una directiva y el
+                                                    // `@endif` queda huérfano: la pantalla entera
+                                                    // revienta con 500. Es la trampa que este proyecto
+                                                    // ya pagó con el correo del comprobante.
+                                                    $sgpTit = $c->nombre
+                                                        . ($c->responsable ? ' · abierta por ' . $c->responsable : '')
+                                                        . ($c->fecha_apertura ? ' · el ' . fecha($c->fecha_apertura) : '');
+                                                @endphp
+                                                <li title="{{ $sgpTit }}">
+                                                    <span class="text-truncate">
+                                                        {{ $c->nombre }}
+                                                        @if ($c->responsable)
+                                                            <span class="text-muted-warm" style="font-size:.76rem">· {{ $c->responsable }}</span>
+                                                        @endif
+                                                    </span>
+                                                    <strong>{{ money($c->saldo) }}</strong>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    @elseif (Navegacion::url('facturacion.cajas'))
+                                        <div class="text-muted-warm mt-1" style="font-size:.8rem">
+                                            Sin caja abierta no se cobra.
+                                            <a class="link-oro" href="{{ Navegacion::url('facturacion.cajas') }}">Abrir una &rarr;</a>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- `sgp-metrics` marca dónde termina la caja: la prueba
+                             recorta entre las dos clases. --}}
+                        <div class="col-md-6 sgp-metrics">
+                            @if ($m['ingresos_hoy'] !== null)
+                                <div class="metric-card h-100">
+                                    <div class="metric-lbl">Ingresos de hoy</div>
+                                    <div class="metric-value">{{ money($m['ingresos_hoy']) }}</div>
+                                    @php
+                                        // **Contra ayer, con el signo a la vista.** Un número
+                                        // solo no dice si el día viene bien o mal; el de ayer
+                                        // es la vara que todo el mundo tiene en la cabeza.
+                                        $sgpHoy = (float) $m['ingresos_hoy'];
+                                        $sgpAyer = (float) ($m['ingresos_ayer'] ?? 0);
+                                        $sgpPct = $sgpAyer > 0 ? (int) round(($sgpHoy - $sgpAyer) / $sgpAyer * 100) : null;
+                                    @endphp
+                                    <div class="metric-comparado">
+                                        @if ($sgpPct === null)
+                                            @if ($sgpHoy > 0)
+                                                <span class="txt-ok"><i class="bi bi-arrow-up-right"></i> ayer no se cobró nada</span>
+                                            @else
+                                                <span class="text-muted-warm">sin cobros hoy ni ayer</span>
+                                            @endif
+                                        @elseif ($sgpPct > 0)
+                                            <span class="txt-ok"><i class="bi bi-arrow-up-right"></i> {{ $sgpPct }} % vs ayer</span>
+                                        @elseif ($sgpPct < 0)
+                                            <span class="txt-no"><i class="bi bi-arrow-down-right"></i> {{ abs($sgpPct) }} % vs ayer</span>
+                                        @else
+                                            <span class="text-muted-warm"><i class="bi bi-dash"></i> igual que ayer</span>
+                                        @endif
+                                        <span class="text-muted-warm"> · ayer {{ money($sgpAyer) }}</span>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
 
-        {{-- COLUMNA DERECHA: Módulos (Grid) --}}
-        <div class="col-lg-4 col-12">
-            <div class="panel-box d-flex flex-column h-100">
-                <div class="row g-3 justify-content-center align-content-start h-100">
+        {{-- DERECHA: los módulos, tres por fila --}}
+        <div class="col-lg-4">
+            <div class="panel-box h-100 d-flex flex-column">
+                <div class="row g-3 justify-content-center align-content-start flex-grow-1">
                     @foreach (config('navegacion.modulos') as $mod)
                         @continue (! Permisos::puede($mod['mod']))
                         @php $url = Navegacion::url($mod['ruta']); @endphp
@@ -124,112 +236,4 @@
             </div>
         </div>
     </div>
-
-    {{-- FILA INFERIOR: Avisos y Resumen movido --}}
-    <div class="row mt-2">
-        <div class="col-12">
-            <div class="panel-box">
-                <h2 class="text-center mb-2" style="font-size: 1.05rem; font-weight: 500;">
-                    Avisos y Estado General
-                </h2>
-                <div class="panel-box-inner p-2">
-                    
-                    {{-- Métricas reubicadas (Caja, Citas, Stock) --}}
-                    <div class="row g-2 mb-3">
-                        @if ($verCaja)
-                            {{-- **La clase `sgp-caja-barra` no es decorativa: es el
-                                 gancho.** La prueba del panel recorta desde acá hasta
-                                 `sgp-metrics` para comprobar que se listen TODAS las
-                                 cajas abiertas del local y las mismas para todos —el
-                                 defecto de la 7.115.1, donde cada administrador veía
-                                 sólo la suya—. Un rediseño que la renombre deja la
-                                 guardia mirando al vacío y no da ningún error: es el
-                                 patrón que este proyecto persigue. --}}
-                            <div class="col-md-4 sgp-caja-barra">
-                                <div class="metric-card mb-0 h-100 d-flex flex-column justify-content-center">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <i class="bi bi-safe txt-oro"></i>
-                                        {{-- **Cuántas hay abiertas, no sólo cuáles.** Con dos
-                                             cajones el número es lo que dice de un vistazo si
-                                             falta cerrar alguno; sin él hay que contar los
-                                             renglones. --}}
-                                        <strong style="font-size:.85rem">
-                                            @if ($cajas)
-                                                {{ count($cajas) }} {{ count($cajas) === 1 ? 'caja abierta' : 'cajas abiertas' }}
-                                            @else
-                                                Estado de Caja
-                                            @endif
-                                        </strong>
-                                    </div>
-                                    @if ($cajas)
-                                        <div style="font-size:.75rem">
-                                            @foreach ($cajas as $c)
-                                                @php
-                                                    // **El título se arma acá y no con `@if` dentro del
-                                                    // atributo.** `@endif@if` pegados no los compila
-                                                    // Blade —su patrón lleva `\B` delante de la arroba—
-                                                    // así que el segundo deja de ser una directiva y el
-                                                    // `@endif` queda huérfano: la pantalla entera
-                                                    // revienta con 500. Es la trampa que este proyecto
-                                                    // ya pagó con el correo del comprobante.
-                                                    $sgpTit = $c->nombre
-                                                        . ($c->responsable ? ' · abierta por ' . $c->responsable : '')
-                                                        . ($c->fecha_apertura ? ' · el ' . fecha($c->fecha_apertura) : '');
-                                                @endphp
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span class="text-truncate" style="max-width: 90px;"
-                                                          title="{{ $sgpTit }}">{{ $c->nombre }}</span>
-                                                    <strong>{{ money($c->saldo) }}</strong>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <div style="font-size:.75rem" class="text-muted-warm">Ninguna abierta.</div>
-                                    @endif
-                                </div>
-                            </div>
-                        @endif
-
-                        {{-- `sgp-metrics` marca dónde termina la caja: la prueba
-                             recorta entre las dos clases. --}}
-                        <div class="col-md-4 sgp-metrics">
-                            <div class="metric-card mb-0 h-100 d-flex flex-column justify-content-center">
-                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: .85rem;">
-                                    <span class="text-muted-warm">{{ $verTodo ? 'Citas hoy' : 'Mis citas hoy' }}</span>
-                                    <strong>{{ $m['citas_hoy'] }}</strong>
-                                </div>
-                                @if ($m['clientes'] !== null)
-                                    <div class="d-flex justify-content-between align-items-center" style="font-size: .85rem;">
-                                        <span class="text-muted-warm">Clientes activos</span>
-                                        <strong>{{ $m['clientes'] }}</strong>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-
-                        @if ($m['bajo_stock'] !== null)
-                            <div class="col-md-4">
-                                <div class="metric-card mb-0 h-100 d-flex flex-column justify-content-center">
-                                    <div class="d-flex justify-content-between align-items-center" style="font-size: .85rem;">
-                                        <span class="text-muted-warm">Falta stock</span>
-                                        <strong class="{{ $m['bajo_stock'] > 0 ? 'txt-no' : '' }}">{{ $m['bajo_stock'] }}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-
-                    {{-- **Lo que falta cargar se fue a la campanita** (pedido
-                         del usuario, 7.117.0). Estaba acá como bloque y ahora
-                         vive dentro de la bandeja de la barra, junto con lo
-                         que está pasando ahora: son dos avisos, y lo que los
-                         separa —si se resuelven una vez o todos los días— se
-                         dice agrupándolos adentro, no con dos lugares
-                         distintos. Y así se ven desde cualquier pantalla, no
-                         sólo desde el inicio. --}}
-                </div>
-            </div>
-        </div>
-    </div>
-
 @endsection

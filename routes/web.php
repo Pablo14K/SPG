@@ -119,6 +119,12 @@ Route::get('mi-cita', [CitaTokenController::class, 'ver'])->name('cita.token');
 Route::post('mi-cita', [CitaTokenController::class, 'guardar'])
     ->name('cita.token.guardar')->middleware('throttle:20,1');
 Route::get('mi-cita/calendario', [CitaTokenController::class, 'calendario'])->name('cita.calendario');
+// Los horarios libres para reprogramar desde el enlace. **También sin sesión**:
+// la pantalla los pedía a `portal.disponibilidad`, que exige sesión, así que
+// a la clienta del correo le llegaba una redirección al ingreso en vez de los
+// días, el calendario quedaba vacío y el botón nunca se habilitaba.
+Route::get('mi-cita/disponibilidad', [CitaTokenController::class, 'disponibilidad'])
+    ->name('cita.disponibilidad')->middleware('throttle:60,1');
 
 // --- Portal de la clienta -------------------------------------------------
 // No lleva el middleware `personal`: acá entra quien NO es personal. Cada
