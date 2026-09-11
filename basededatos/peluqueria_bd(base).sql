@@ -567,8 +567,6 @@ BEGIN
   DECLARE v_dia      DATE DEFAULT NULL;
   DECLARE v_otra     TINYINT DEFAULT 0;
   DECLARE v_para     VARCHAR(120) DEFAULT '';
-  
-  
   DECLARE v_para_txt VARCHAR(120) DEFAULT '';
   DECLARE v_repetido INT DEFAULT 0;
   DECLARE v_nombre   VARCHAR(100) DEFAULT '';
@@ -580,12 +578,11 @@ BEGIN
     INTO v_usuario, v_cliente, v_dia, v_otra, v_para, v_para_txt
     FROM cita c WHERE c.id_cita = NEW.id_cita;
 
-  IF fn_puede_realizar(v_usuario, NEW.id_servicio) = 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El profesional de la cita no esta habilitado para ese servicio.';
+  
+  IF fn_puede_realizar(COALESCE(NEW.id_usuario, v_usuario), NEW.id_servicio) = 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Quien hace ese servicio en la cita no esta habilitado para el.';
   END IF;
 
-  
-  
   
   SELECT COUNT(*) INTO v_repetido
     FROM cita_servicio cs
@@ -6655,4 +6652,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-10 13:38:09
+-- Dump completed on 2026-09-11  0:15:54

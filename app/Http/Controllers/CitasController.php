@@ -112,10 +112,11 @@ class CitasController extends Controller
                     'motivo' => 'Ese profesional no trabaja el ' . fecha($fecha, 'd/m/Y') . '. Elegí otra persona o fecha.',
                 ]);
             }
-            return response()->json([
-                'ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::slots($idUsuario, $fecha, $duracion, null, $idSucursal, $servicios, $personas, $pedidos),
-            ]);
+            // Con su duración y con quién, y el porqué si no hay ninguna: es el
+            // mismo bloque que el portal, para que las dos pantallas digan lo
+            // mismo de la misma agenda.
+            return response()->json(['ok' => true, 'duracion' => $duracion]
+                + Agenda::horasDelDia($idUsuario, $fecha, $duracion, $idSucursal, $servicios, $personas, $pedidos, null));
         }
 
         // **Los días en que esa clienta ya tiene esos servicios no se
@@ -124,14 +125,20 @@ class CitasController extends Controller
         // rechazo deja de poder ocurrir. La clienta se elige en esta misma
         // pantalla, así que viaja en la consulta.
         $idCliente = (int) $request->query('id_cliente', 0);
+        $dias = array_values(array_diff(
+            Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas, $pedidos),
+            Agenda::diasYaTomados($idCliente, $servicios)
+        ));
 
         return response()->json([
             'ok' => true, 'duracion' => $duracion,
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios, $personas, $pedidos),
-            'dias' => array_values(array_diff(
-                Agenda::diasConCupo($idUsuario, date('Y-m-d'), (int) config('spg.agenda.dias_vista', 60), $duracion, $idSucursal, $servicios, $personas, $pedidos),
-                Agenda::diasYaTomados($idCliente, $servicios)
-            )),
+            'duracion_fija' => (bool) $idUsuario || count($pedidos) >= count(array_unique($servicios)),
+            // Vacío, se dice por qué: lo que no entra en ningún turno, o quién
+            // de las pedidas es la que no coincide con las demás.
+            'motivo' => $dias ? null
+                : (Agenda::motivoSinCupo($duracion, $idUsuario, $idSucursal, $servicios, $personas, $pedidos)
+                    ?? Agenda::porQueNoHayDia($servicios, $personas, $pedidos, $idSucursal)),
+            'dias' => $dias,
         ]);
     }
 
@@ -708,67 +715,6 @@ class CitasController extends Controller
             return redirect()->route('citas.form')->with("spg_form_error", true)->withInput();
         }
 
-        // Sin nadie elegido se asigna el primero libre por el bloque que le va
-        // a tocar (los servicios que quedaron en «quien esté libre»).
-        if (! $idUsuario) {
-            $delPrincipal = Agenda::duracion(array_keys(array_filter($asignacion, fn ($p) => $p === 0)));
-
-            if (! $delPrincipal) {
-                // **Todos los servicios se repartieron**: al principal no le
-                // queda nada que hacer, así que no se busca a nadie de afuera
-                // —eso metía a la propietaria en citas en las que no atendía—.
-                // La cita queda a nombre de quien más trabajo tiene adentro.
-                $idUsuario = Agenda::principalDelReparto($asignacion);
-            } else {
-                // Con los servicios: sin eso podía tocar alguien que no los
-                // hace, y el rechazo llegaba después nombrando a una persona
-                // que nadie había elegido para eso.
-                $sinDuenio = array_keys(array_filter($asignacion, fn ($p) => (int) $p === 0));
-                $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal, null, $sinDuenio) ?? 0;
-            }
-
-            if (! $idUsuario) {
-                flash('A esa hora no queda ningún profesional libre. Elegí otro horario.', 'warning');
-
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
-            }
-        }
-
-        // Un profesional puede hacer todos los servicios, pero no todos los
-        // días. Se comprueba el turno de cada integrante del reparto antes de
-        // llegar al procedimiento, para que el formulario nunca confirme una
-        // cita fuera de su jornada y el mensaje explique qué debe corregirse.
-        $idSucursal = Sucursales::activa();
-
-        // Lo que quedó en «quien esté libre» se resuelve acá: un 0 quiere decir
-        // que lo hace el dueño de la cita, así que si él no lo hace hay que
-        // darle otra persona en vez de rechazar.
-        $asignacion = Agenda::completarReparto($asignacion, $idUsuario, $fecha, $idSucursal);
-
-        $aRevisar = array_values(array_unique(array_filter(
-            array_merge([$idUsuario], array_map('intval', array_values($asignacion)))
-        )));
-        foreach ($aRevisar as $idProf) {
-            if (! Agenda::trabajaEseDia($idProf, substr($fecha, 0, 10), $idSucursal)) {
-                $nombreProf = (string) DB::scalar(
-                    'SELECT CONCAT(pe.nombre,\' \',pe.apellido)
-                       FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
-                      WHERE u.id_usuario = ?', [$idProf]
-                );
-                flash($nombreProf . ' no trabaja ese día. Elegí otra fecha o profesional.', 'warning');
-
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
-            }
-        }
-
-        foreach (array_unique(array_values($asignacion)) as $idAyuda) {
-            if ($idAyuda > 0 && ! $this->esPersonalActivo((int) $idAyuda)) {
-                flash('Uno de los profesionales elegidos ya no está activo.', 'error');
-
-                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
-            }
-        }
-
         // Exclusividad + hueco de CADA profesional. Se vuelve a preguntar acá
         // porque entre que se dibujó la pantalla y se apretó el botón, otro
         // pudo tomar el horario.
@@ -797,6 +743,62 @@ class CitasController extends Controller
             flash($aviso, 'error');
 
             return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
+        }
+
+        $idSucursal = Sucursales::activa();
+
+        // **Lo que quedó en «quien esté libre» se resuelve con el MISMO criterio
+        // con que la pantalla ofreció la hora.** Antes se buscaba a UNA persona
+        // libre que hiciera TODO lo que quedó sin dueño, por la SUMA de esos
+        // servicios: la pantalla ofrecía una hora con dos profesionales
+        // repartiéndose el trabajo y al guardar el sistema contestaba «no queda
+        // ningún profesional libre» — el genérico que se pidió sacar. Ver
+        // `Agenda::repartoPara()`; si no hay reparto, se explica con nombres.
+        if (in_array(0, $asignacion, true)) {
+            $r = Agenda::repartoPara($servicios, $asignacion, $fecha, $personas, $idSucursal, $idUsuario);
+            if ($r === null) {
+                flash(Agenda::porQueNoHayHora(substr($fecha, 0, 10), $servicios, $personas,
+                        Agenda::pedidosDe($asignacion), $idSucursal)
+                    ?? 'A esa hora no queda ningún profesional libre para lo que elegiste. Elegí otro horario.', 'warning');
+
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            }
+            $asignacion = $r['reparto'];
+        }
+        if (! $idUsuario) {
+            // **Todos los servicios tienen dueño**: la cita queda a nombre de
+            // quien más trabajo tiene adentro, y no se busca a nadie de afuera
+            // —eso metía a la propietaria en citas en las que no atendía—.
+            $idUsuario = Agenda::principalDelReparto($asignacion);
+        }
+
+        // Un profesional puede hacer todos los servicios, pero no todos los
+        // días. Se comprueba el turno de cada integrante del reparto antes de
+        // llegar al procedimiento, para que el formulario nunca confirme una
+        // cita fuera de su jornada y el mensaje explique qué debe corregirse.
+
+        $aRevisar = array_values(array_unique(array_filter(
+            array_merge([$idUsuario], array_map('intval', array_values($asignacion)))
+        )));
+        foreach ($aRevisar as $idProf) {
+            if (! Agenda::trabajaEseDia($idProf, substr($fecha, 0, 10), $idSucursal)) {
+                $nombreProf = (string) DB::scalar(
+                    'SELECT CONCAT(pe.nombre,\' \',pe.apellido)
+                       FROM usuario u JOIN persona pe ON pe.id_persona = u.id_persona
+                      WHERE u.id_usuario = ?', [$idProf]
+                );
+                flash($nombreProf . ' no trabaja ese día. Elegí otra fecha o profesional.', 'warning');
+
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            }
+        }
+
+        foreach (array_unique(array_values($asignacion)) as $idAyuda) {
+            if ($idAyuda > 0 && ! $this->esPersonalActivo((int) $idAyuda)) {
+                flash('Uno de los profesionales elegidos ya no está activo.', 'error');
+
+                return redirect()->route('citas.form', ['cliente' => $idCliente])->with("spg_form_error", true)->withInput();
+            }
         }
 
         if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {

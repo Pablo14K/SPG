@@ -331,6 +331,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | Versión | Fecha | Cambio |
 |---|---|---|
 
+| 7.115.0 | 11/09/2026 | **Los horarios que se ofrecen son la INTERSECCIÓN de las agendas de quienes atienden, y cuando no hay, el sistema dice quién es la que no coincide.** Lo pidió el usuario con su ejemplo: turno de 8 a 12, Marta ocupada de 8 a 8:45, Josefina de 8:30 a 9, Fabio de 11 a 12; eligiendo a las tres para tres servicios, lo que se tiene que ver es sólo lo que las tres pueden a la vez, en las dos pantallas. **Probado antes de tocar nada, y ese caso ya salía bien** —de 9:00 hasta donde la cita termina antes de las 11—; lo que estaba mal era todo lo de alrededor, y se vio armando los casos vecinos. **Uno**: con dos profesionales que se turnan sobre la misma cabeza, la segunda tenía que estar libre desde el principio de la cita, cuando recién entra cuando la primera termina — se escondían horas que el guardado sí aceptaba. **Dos, el grave**: en «quien me atienda» la hora se aceptaba sólo si el reparto entre las libres entraba en la duración PREVISTA —el mejor caso con todo el equipo—, así que con dos profesionales libres para tres servicios el día salía **vacío** aunque las dos pudieran hacerlo en hora y media. **Tres**: el guardado buscaba a UNA persona que hiciera TODO lo que quedó sin dueño, por la SUMA: la pantalla ofrecía las 08:00 con Lucía y Gloria repartiéndose el trabajo y al confirmar salía «no quedó nadie libre que haga todo lo que elegiste» — el genérico que se pidió sacar. **Y cuatro, en la base**: `trg_citaserv_bi` comprobaba la habilitación del DUEÑO de la cita para cada servicio, ignorando `cita_servicio.id_usuario`, así que una cita repartida entre dos oficios distintos se rechazaba **siempre**, fuera quien fuera la dueña — apareció confirmando desde el navegador la primera reserva repartida de verdad, con «el profesional no está habilitado para alguno de esos servicios» sobre un reparto en que cada una hace exactamente lo suyo. No se notaba porque el tres impedía que esa cita llegara al disparador. **`Agenda::slots()` se rehace**: por cada hora de la grilla arma el reparto y comprueba a cada profesional **en su propio tramo** —el que le da `turnos()`—, y devuelve cada hora con **su duración y su reparto**. En «quien me atienda» el reparto lo elige `mejorReparto()` con la regla que dio el usuario: **el que termina antes, y a igual tiempo el que ocupa a menos gente** — zonas distintas a personas distintas porque van a la vez, lo de la misma zona a la misma persona porque va en serie igual y repartirlo ocupa a una de más, y con varias personas atendidas dos de la misma zona sí van a la vez. Se arman tres candidatos y gana el mejor medido con `turnos()`, la cuenta de la base. **Pedida es pedida**: si la elegida no llega en su tramo, a esa hora no hay cita, no se la reemplaza en silencio. **El guardado usa el mismo cálculo** (`repartoPara()`), en las dos pantallas, así que no puede ofrecer lo que después rechaza; comprobado de punta a punta en el navegador: las 09:00 ofrecidas con «Gloria Garay: Pedicura y Manicura · Lucía Benítez: Corte de dama · 90 minutos», el repaso diciendo «con Gloria Garay (asignada para ese horario)» y «1 h 30 min» en vez de «con quien esté disponible» y la suma, y la cita guardada con Gloria de dueña, Lucía en el corte y `fn_cita_duracion` = 90. **Y los mensajes dicen cuál es la variable que no cierra**, que era el punto: «ese día ya no tiene horarios libres» pasa a *«El 15/09 no hay un horario en que Lucía, Carmen y Gloria estén libres a la vez. Lucía puede hacer Corte de dama de 08:45 a 12:30. Carmen puede hacer Pedicura de 08:00 a 10:50 y de 13:30 a 18:50. Gloria no tiene lugar el 15/09 para Manicura (ya está ocupada). Quien no coincide es Gloria: sin Manicura, el resto entra de 08:45 a 10:50. Podés dejar Manicura en «quien me atienda», reservarlo aparte otro día, o elegir a otra persona»* — y cuando la que no coincide sí tiene lugar aparte, lo dice con sus franjas: *«si querés hacerte Coloración con Marta aparte, ese día puede de 13:30 a 19:00»*. Sin gente pedida se dice qué servicio es el que no entra ese día y dónde sí hay lugar para cada uno; sin ningún día en dos meses, con gente pedida, quién atiende cuándo y desde qué día tiene lugar cada una; y si lo que vació el día fue el filtro de turno, se dice eso. **Las duraciones y zonas se leen una vez por petición** (`infoServicios()`): `turnos()` las pedía a la base en cada llamada y ahora se llama miles de veces por consulta — medido, el calendario de 60 días para tres servicios pasa de **6,0 s a 2,5–4 s**. **La base cambia** —el disparador mira a quien hace cada servicio, `COALESCE(NEW.id_usuario, dueño)`, como `fn_cita_duracion_de` y compañía— y va en `basededatos/actualizaciones/2026-09-11_7.115.0.sql`, re-ejecutable y sin tocar datos; los dos `.sql` regenerados. **197 pruebas · 1520 aserciones**, tres nuevas que **garantizan su premisa** —tres profesionales del mismo turno, cada una con un servicio de una zona distinta, en un día en que no tienen nada, y con los otros turnos del día ocupados a propósito, que la primera versión medía la agenda de la mañana en vez de la del turno— y comprobadas en las dos direcciones: con el reparto optimista de antes, la de «misma zona, misma persona» falla · **código y base** |
 | 7.114.0 | 10/09/2026 | **Cinco cosas reportadas usando el sistema en el celular y en el mostrador, y el rediseño móvil de las listas entra en esta misma tanda.** **Las tablas en el celular**: se reportó *«la información un poco ambigua y muy saturada»*, y la causa era que cuarenta pantallas de gestión dibujaban en 375 px la misma tabla de siete columnas que en la computadora. **El rediseño lo hizo otra IA en paralelo** —treinta vistas, más el bloque de `app.css`— y viaja en este commit: cada `<tr>` pasa a tarjeta con `data-label` por celda, lo secundario va plegado en una fila de detalle y los filtros arrancan cerrados. Sobre eso se corrigieron **cinco cosas que ese rediseño dejó mal o a medias, y las cinco se vieron probándolo a 375 px y no leyéndolo**: los valores salían alineados a la derecha, lejos de su rótulo; el nombre de la clienta llevaba «CLIENTE» encima, que sobre el único nombre grande de la tarjeta no aclara nada (`spg-movil-sujeto`); **seis botones de sólo ícono eran seis adivinanzas** —en el celular no hay mouse que muestre el `title`—, así que ahora lo escriben al lado (`spg-btn-ico[title]::after`, del mismo `title`, o sea que no se puede desfasar del tooltip); **en la agenda quedaron dos botones que decían «Detalle»** —el desplegable nuevo y el ojo que abre la atención— y el segundo pasa a **«Atención»**, que es lo que abre; y **la fila plegada se dibujaba como una tarjeta vacía** entre dos citas, porque la regla general la volvía tarjeta como a cualquier `<tr>`: ahora se pega a la de arriba como su pie. **Y lo que ADVIERTE volvió a la fila**: el rediseño se había llevado la seña entera detrás del desplegable, y con ella que la reserva **no está confirmada** y que hay una seña **esperando confirmación** — es la regla de la ayuda contextual aplicada a la tabla; lo ya cobrado sí puede esperar un toque. De paso el aviso «sin confirmar · falta seña» deja de salir sobre una cita Cancelada, Ausente o Atendida, donde contradecía al badge de al lado. **El `<x-filtros>` se pliega sin JavaScript** —una casilla escondida y su etiqueta, con el conteo de los activos y abierto si hay alguno puesto—, porque en el celular el panel de filtros ocupaba la pantalla entera antes de la primera fila. **Y una de las treinta vistas reventaba**: Auditoría usaba `id_auditoria` como ancla del desplegable y la consulta no lo traía — 500 al abrirla, que **lo encontró la batería** (`las_pantallas_de_seguridad_se_dibujan_enteras`) y no una persona, que es para lo que esa prueba existe. **La caja deja de ser doble paso.** *«Al presionar el botón de arqueo te lleva a una pantalla donde vuelven a aparecer los mismos botones»*: la tarjeta de Cajas mandaba a la pantalla de la caja, y esa pantalla no tenía más que el arqueo y el formulario de abrir. Ahora **Arqueo y Abrir se despliegan desde la tarjeta, igual que Movimientos**, y al terminar se vuelve a la lista con el estado nuevo a la vista. **Son dos partials** (`_arqueo_modal`, `_abrir_modal`) compartidos con la pantalla de la caja, que queda para quien llegue por enlace directo: escrito dos veces, el desglose de un lado se desfasa del otro y el arqueo deja de cerrar contra el mismo número. **Y los ids llevan sufijo**: en la lista hay un modal por caja, y `app.js` buscaba `#arqueoDif` y `#bloqueMotivo` por id, así que con dos cajas abiertas sólo la primera se enteraba de la diferencia y el motivo obligatorio no aparecía en la otra. El controlador trae el desglose de cada sesión abierta de `vw_caja_resumen` —la misma fila que usa la pantalla de la caja—. Comprobado de punta a punta con un cajón de prueba: abrir desde la tarjeta con Gs. 50.000, la tarjeta pasa a «Arqueo y cierre» con Gs. 50.000 esperados, cerrar contando 50.000 y «la caja cuadra». **La foto de perfil dejaba de parpadear al entrar.** *«Se muestra por un segundo el ícono predeterminado y luego carga la foto»*: es el mismo defecto que el logo tuvo en la 7.112.0, en el avatar. `.spg-avatar` pinta el oro **debajo** de la imagen —ese oro es el fondo de las iniciales—, y la foto se pedía recién al dibujar la barra, después de bajar y aplicar el CSS. Tres cosas, y ninguna sola alcanza: la clase `tiene-img` apaga el fondo, así mientras la foto llega no se ve *otro* avatar; un `<link rel="preload" as="image">` en el `<head>` la pide **junto con el CSS** —medido: la imagen arranca a los 1723 ms y el CSS a los 1722, contra después de la barra—; y **Caddy manda `Cache-Control: immutable` de un año para `/assets/*`**, que no mandaba ninguna, así que en el servidor el navegador volvía a pedir la foto en cada pantalla. **La caché larga es segura porque todo lo de `/assets` va con `?v=`**: `recurso()` le pega la fecha del archivo a la URL y cada foto se guarda con nombre nuevo, así que cambia el archivo, cambia la URL. Validado con `caddy validate` y comprobado con un Caddy levantado sobre esa configuración: la cabecera sale para `/assets/x.txt` y **no** para la raíz. No hay miniatura y se dice por qué: el contenedor no trae GD ni Imagick. **El asistente de reserva no avanza a medias.** *«Que no pase a la siguiente fase sin haber completado todo en la fase actual»*: los pasos Cliente, Servicios y Fecha ya frenaban, y **Detalles era el que no** — el motor valida con `checkValidity()`, así que lo que no lleve `required` pasa aunque esté en blanco. Comprobado en el navegador antes de tocar nada: dejaba seguir con «cuántas personas» vacío, o en 0, y con «3 personas» sin ningún nombre. Ahora `personas` es `required` y acotado a 1–20 en las dos pantallas, y **el nombre de cada acompañante se dibuja con `required` y `minlength`** desde `app.js`, que es quien lo dibuja; el apellido y la alergia siguen siendo opcionales. Comprobado en las cuatro direcciones: vacío frena, 0 frena, «3 sin nombres» frena, «3 con nombres» pasa al repaso y el formulario sigue enviándose —`required` se saca del paso escondido, como manda el aviso de la 7.67.0—. **Y el servidor lo vuelve a pedir, ANTES de agendar**: esconder un paso no es el control. Entra `Acompanantes::avisoFaltantes()`, que dice **qué nombre falta**; y `personas` **se valida en vez de acomodarse** — el portal lo leía con `max(1, min(20, …))`, así que un campo vacío se volvía 1 en silencio, y `guardar()` descartaba sin decir nada al acompañante sin nombre: «van 3» entraba a la agenda con una sola persona nombrada. Se comprueba antes de `sp_agendar_cita` para que el horario no quede tomado por una reserva que se va a rechazar. **Sin el campo en el POST sigue valiendo 1**, que es como lo mandan los guiones de simulación. **El dominio en la autorización por huella vuelve a preguntarse, y la respuesta es la misma que en la 7.112.0**: `spg.columbiatcc.online` es el `rpId`, que por especificación es el dominio efectivo —no admite texto libre— y el navegador lo escribe en su propia burbuja; el nombre del salón ya va en `rp.name` y en el `displayName`, y quien registró la huella antes de esa versión la vuelve a activar desde Mi cuenta para verlo. No hay nada más que el sistema pueda decidir ahí. **194 pruebas · 1487 aserciones**, una nueva y dos extendidas, **todas comprobadas en las dos direcciones** —sacando el modal de la tarjeta, la clase del avatar, el `required` de la pantalla y el control del servidor, cada una falla—. **Y una que se salteaba sin que nadie lo viera**: `una_sucursal_que_no_existe_no_ofrece_horarios` medía sobre `+3 days` fijo, que hoy cayó domingo, así que se salteaba en silencio — es el defecto de la 7.103.1 con otra fecha; ahora busca el primer día de la semana con huecos. Quedan las 2 salteadas legítimas · **sólo código: la base no se tocó** |
 | 7.113.0 | 10/09/2026 | **La cita anotaba UNA alergia, y una cita puede ser de tres personas.** `cliente.alergias` (7.108.0) alcanza mientras la cita sea de una sola persona **y esa persona tenga ficha**, y ninguna de las dos cosas es siempre cierta: la cita puede ser **para otra persona** —cuyo nombre va como texto en `cita.nombre_para`, porque el salón no la registró— y pueden venir varias, que viven en `cita_acompanante` desde la 7.97.0. Así que en una cita de tres el sistema podía anotar **una sola** alergia, y en una «para otra persona» la única que la agenda mostraba era **la de alguien que ese día ni viene**. Es el único dato de la ficha que puede lastimar a alguien si nadie lo mira, así que media advertencia es peor que ninguna: «maní» a secas en una cita de tres no dice a quién no se le puede dar. **Ahora cada una lleva la suya, y cada una va donde va su NOMBRE**, que es lo que la hace consistente con el modelo que ya estaba: la titular en `cliente.alergias` —su ficha—, la de quien se atiende en su lugar en `cita.alergias_para`, y la de cada acompañante en `cita_acompanante.alergias`. **Las dos últimas son un dato de la VISITA y no de una persona, y por eso no van a `persona`**: quien acompaña no tiene ficha, y crearle una sería inventar a alguien que el salón no registró —la regla que este proyecto sostiene desde la 7.97.0—; la de la titular sí es de su ficha, así que le queda para la próxima. No rompe la 3FN: ninguna columna es copia de nada ni se deduce de ninguna otra. **Se cargan al AGENDAR, en las dos pantallas** —el portal y Nueva cita—, que es cuando la clienta las cuenta: mandar a quien atiende a otra pantalla a anotarlas es pedirle que se acuerde después. **Y el campo de la titular viene con lo que ya tiene cargado**, que no es una comodidad sino el arreglo de un defecto que este cambio podía introducir: en Nueva cita la clienta se elige en esa misma pantalla, así que el campo arrancaría vacío y **agendarle una cita le borraría las alergias, en silencio**. El formulario manda además el valor con el que se dibujó (`alergias_titular_base`) y el guardado **sólo escribe si cambió** — vacío contra vacío no toca nada, y borrarlas a propósito sigue funcionando. **Y NULL no es una cadena vacía**: quiere decir «sin registrar», que es distinto de «no tiene ninguna» y es lo que las pantallas dicen con esas palabras. **En la agenda se ven discriminadas, y en la fila y no en el modal**: un badge rojo por persona, con su nombre adelante cuando la cita es de varias —con una sola el nombre sobra, es la de la fila, y el badge queda exactamente como estaba—. El detalle las abre **todas, incluidas las que no declararon ninguna**, porque ahí «sin registrar» ES una respuesta y un renglón en blanco se leería como que está todo bien. **Y la clienta las vuelve a ver en «Mis citas»**, que es donde comprueba que quedaron bien anotadas y a nombre de quién. **De paso, `dejar_lista.sql` no vaciaba `cita_acompanante`**: faltaba desde la 7.97.0 y no se notaba porque `TRUNCATE cita` **no dispara el `ON DELETE CASCADE`** y con `FOREIGN_KEY_CHECKS` en 0 tampoco se queja — las filas quedaban huérfanas y viajaban en el `.sql` que se entrega, ahora con el nombre de alguien **y con a qué es alérgica**. **Y el rótulo del bloque de acompañantes lo declara la pantalla** (`data-acomp-titulo`): en el mostrador decía «¿Quiénes vienen con vos?», y quien carga la cita no es la que viene. **192 pruebas · 1461 aserciones**, cuatro nuevas y **las cuatro comprobadas en las dos direcciones** — y la del andamiaje **no medía nada en su primera versión**: buscaba el nombre del campo suelto, así que renombrarlo a `alergias_paraX` seguía conteniéndolo y pasaba en verde; busca el `name=` entero · 84 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 
@@ -637,7 +638,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 194 pruebas
+tests/Feature/             Las 197 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -2436,6 +2437,97 @@ Cuando alguien elige un horario que la pantalla mostraba libre y al guardar ya n
 («Ese horario lo tomó otra persona mientras completabas la reserva»), si hay una ausencia
 cargada, o si el profesional no atiende a esa hora. Sin eso, el cliente solo veía «no
 disponible» y no sabía si cambiar de hora o de profesional.
+
+### Los horarios son la INTERSECCIÓN de las agendas de quienes atienden
+
+Con más de un servicio, la hora que se ofrece es una en la que **cada
+profesional del reparto está libre en su propio tramo** de la cita. Es lo que
+pidió el usuario con su ejemplo —turno de 8 a 12, Marta ocupada de 8 a 8:45,
+Josefina de 8:30 a 9, Fabio de 11 a 12; eligiendo a las tres, se ve sólo lo
+que las tres pueden a la vez— y vale para las dos pantallas, el portal y
+Nueva cita, porque las dos consumen el mismo `Agenda::slots()`.
+
+| Pieza | Qué hace |
+|---|---|
+| `Agenda::slots()` | por cada hora de la grilla del día, arma el reparto y comprueba a cada uno en **su** tramo; devuelve `{hora, profesionales, duracion, reparto}` |
+| `Agenda::mejorReparto()` | en «quien me atienda», el reparto que **termina antes**; a igual tiempo, el que ocupa a **menos** gente |
+| `Agenda::repartoPara()` | el mismo cálculo, para el guardado: así no se ofrece lo que después se rechaza |
+| `Agenda::porQueNoHayHora()` | cuando el día no tiene ni una hora: **quién no coincide**, cuándo puede aparte, y qué hacer |
+| `Agenda::porQueNoHayDia()` | lo mismo cuando no hay ni un día en dos meses, con gente pedida |
+| `Agenda::horasDelDia()` | lo que los dos endpoints devuelven: las horas con su duración y con quién, o el porqué |
+
+**Lo que había, y por qué se rehízo.** La hora se aceptaba si la gente pedida
+estaba libre por la duración *prevista* entera —el mejor caso, repartiendo
+entre todo el equipo— y el reparto entre las libres a esa hora tenía que
+entrar en esa misma cuenta. Dos cosas fallaban:
+
+- Con dos profesionales que se turnan sobre la misma cabeza, la segunda tenía
+  que estar libre **desde el principio**, cuando recién entra cuando la
+  primera termina: se escondían horas que el guardado sí aceptaba.
+- En «quien me atienda», si a esa hora las libres no eran las del mejor caso
+  —dos personas en vez de tres— el reparto real duraba más que el previsto y
+  la hora **no se ofrecía aunque entrara en el turno**: un día sin horarios con
+  dos profesionales libres toda la mañana.
+
+**Y el guardado decía otra cosa que la pantalla.** Buscaba a UNA persona que
+hiciera TODO lo que quedó en «quien me atienda», por la SUMA: la pantalla
+ofrecía las 08:00 con Lucía y Gloria repartiéndose el trabajo, y al confirmar
+salía «no quedó nadie libre que haga todo lo que elegiste» — el genérico que
+se pidió sacar. Ahora los dos usan `repartoPara()`.
+
+Cuatro decisiones que conviene no revertir:
+
+- **Cada hora lleva SU duración y SU reparto.** En «quien me atienda» la cita
+  puede durar 50 minutos a las 9 con tres libres y 90 a las 11 con dos: el
+  combo de horas lo dice cuando varía, y al elegir una el aviso dice cuánto
+  dura y quién hace cada cosa. El repaso del asistente muestra eso mismo —«con
+  Gloria Garay (asignada para ese horario)»— en vez de «con quien esté
+  disponible» y la suma.
+- **El reparto busca el tiempo MENOR, y a igual tiempo a MENOS gente**
+  (regla del usuario). Zonas distintas a personas distintas, porque van a la
+  vez; lo de la misma zona a la misma persona, porque va en serie igual y
+  repartirlo ocupa a una de más. Con varias personas atendidas, dos de la
+  misma zona sí van a la vez, y ahí vuelven a ser dos. Se arman tres
+  candidatos —por zona, el optimista de siempre, todo a una— y gana el mejor
+  medido con `turnos()`, que es la cuenta de la base.
+- **Pedida es pedida.** Si la persona que la clienta eligió no llega en su
+  tramo, a esa hora no hay cita: no se la reemplaza en silencio por otra.
+- **Las duraciones y zonas se leen una vez por petición** (`infoServicios()`).
+  `turnos()` las pedía a la base en cada llamada, y el calendario la llama
+  miles de veces por consulta: con eso el calendario de 60 días tarda **menos**
+  que antes, no más.
+
+> **`trg_citaserv_bi` comprobaba la habilitación del DUEÑO de la cita para
+> cada servicio**, ignorando `cita_servicio.id_usuario`. Una cita repartida
+> entre dos oficios distintos —Lucía el corte, Gloria la manicura— se rechazaba
+> **siempre**, fuera quien fuera la dueña: «el profesional no está habilitado
+> para alguno de esos servicios». No se notaba porque el guardado buscaba a una
+> sola persona que hiciera todo, así que esa cita nunca llegaba al disparador.
+> Desde la 7.115.0 mira a quien hace ese servicio —`COALESCE(NEW.id_usuario,
+> dueño)`—, que es como lo resuelven `fn_cita_duracion_de` y compañía.
+
+#### Y cuando no hay hora, se dice cuál es la variable que no cierra
+
+«Ese día ya no tiene horarios libres» no decía cuál de las decisiones de la
+clienta es la que no cierra. Ahora, con gente pedida, se mira a cada una
+**sola con lo suyo** y se dice:
+
+- quién **no tiene lugar** ese día (ya está ocupada, o ese día no trabaja);
+- quién **no coincide**: sacando sus servicios, el resto sí entra, y desde
+  cuándo — *«Quien no coincide es Gloria Garay: sin Manicura, el resto entra
+  de 08:45 a 10:50»*;
+- **qué hacer**: hacerse ese servicio con esa persona aparte, con sus franjas
+  de ese día —*«ese día puede de 14:30 a 18:55»*—, dejarlo en «quien me
+  atienda», o elegir a otra.
+
+Sin gente pedida se dice **qué servicio** es el que no entra ese día y dónde
+sí hay lugar para cada uno. Si lo que vació el día fue el **filtro de turno**,
+se dice eso, que se arregla de otra forma. Lo fijan
+`ReglasDeNegocioTest::el_calendario_ofrece_la_interseccion_de_las_agendas_pedidas_y_dice_quien_no_coincide`,
+`…sin_preferencia_se_reparte_entre_las_libres_y_el_guardado_dice_lo_mismo_que_la_pantalla`
+y `…el_reparto_sin_preferencia_acorta_el_tiempo_y_no_ocupa_gente_de_mas`, las
+tres garantizando su premisa: tres profesionales del mismo turno, cada una
+con un servicio de una zona distinta, en un día en que no tienen nada.
 
 ### La clienta reprograma UNA vez, y con motivo
 
@@ -4976,7 +5068,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 194 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 197 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5130,7 +5222,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**194 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**197 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

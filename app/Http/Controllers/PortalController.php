@@ -132,28 +132,36 @@ class PortalController extends Controller
 
         $fecha = (string) $request->query('fecha', '');
         if ($fecha !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-            return response()->json(['ok' => true, 'duracion' => $duracion,
-                'horas' => Agenda::soloDelTurno(
-                    Agenda::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios, $personas, $pedidos), $turno, $duracion)]);
+            return response()->json(['ok' => true, 'duracion' => $duracion]
+                + Agenda::horasDelDia($idUsuario, $fecha, $duracion, $suc, $servicios, $personas, $pedidos, $turno));
         }
 
+        $dias = array_values(array_diff(
+            Agenda::diasDelTurno(
+                Agenda::diasConCupo($idUsuario, date('Y-m-d'),
+                                    (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, $pedidos),
+                $turno),
+            Agenda::diasYaTomados($idCliente, $servicios)
+        ));
+
         return response()->json(['ok' => true, 'duracion' => $duracion,
+            // **La duración es fija cuando se sabe quién hace todo.** En «quien
+            // me atienda» cada hora lleva la suya, según quién esté libre.
+            'duracion_fija' => (bool) $idUsuario || count($pedidos) >= count(array_unique($servicios)),
             // **Los días en que ya tiene esos servicios no se ofrecen.** La
             // regla es de la 7.14.0 y la hacía cumplir el disparador al
             // guardar, o sea con la clienta habiendo elegido todo. Sacándolos
             // de la lista, el rechazo deja de poder ocurrir.
-            'dias' => array_values(array_diff(
-                Agenda::diasDelTurno(
-                    Agenda::diasConCupo($idUsuario, date('Y-m-d'),
-                                        (int) config('spg.agenda.dias_vista', 60), $duracion, $suc, $servicios, $personas, $pedidos),
-                    $turno),
-                Agenda::diasYaTomados($idCliente, $servicios)
-            )),
-            // Si el calendario sale vacío porque lo elegido no entra en ningún
-            // turno, hay que decirlo: «probá con otro profesional» manda a
-            // recorrer uno por uno algo que ninguno puede dar.
-            'motivo' => Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas, $pedidos)]);
+            'dias' => $dias,
+            // Si el calendario sale vacío hay que decir POR QUÉ: «probá con
+            // otro profesional» manda a recorrer uno por uno algo que ninguno
+            // puede dar. Primero lo que no entra en ningún turno; si no, quién
+            // de las pedidas es la que no coincide con las demás.
+            'motivo' => $dias ? null
+                : (Agenda::motivoSinCupo($duracion, $idUsuario, $suc, $servicios, $personas, $pedidos)
+                    ?? Agenda::porQueNoHayDia($servicios, $personas, $pedidos, $suc))]);
     }
+
 
     public function reservar(Request $request): View
     {
@@ -323,75 +331,6 @@ class PortalController extends Controller
             $asignacion[$sid] = (int) ($porServicio[$sid] ?? 0);
         }
 
-        if (! $idUsuario) {
-            // **Si la clienta eligió a alguien, la cita es de esa persona.**
-            //
-            // Este bloque asignaba «cualquiera que esté libre» sin mirar el
-            // reparto, así que eligiendo profesional para su único servicio la
-            // cita quedaba a nombre de OTRA: `cita_servicio.id_usuario` tenía
-            // al elegido y `cita.id_usuario` a un tercero — y la agenda muestra
-            // el de la cita. Desde afuera, el sistema le cambiaba el
-            // profesional sin decir nada.
-            //
-            // `principalDelReparto()` devuelve quien más minutos pone, que es
-            // el criterio con el que la cita tiene dueño desde la 5.3.0.
-            $idUsuario = Agenda::principalDelReparto($asignacion);
-        }
-
-        if (! $idUsuario) {
-            // Nadie elegido en ningún servicio: recién ahí decide el sistema.
-            // **Se le pasan los servicios**: sin eso podía tocar alguien que no
-            // los hace, y el rechazo llegaba después nombrando a una persona que
-            // la clienta ni había elegido.
-            $sinDuenio = array_keys(array_filter($asignacion, fn ($p) => $p === 0));
-            $delPrincipal = Agenda::duracion($sinDuenio);
-            $idUsuario = Agenda::profesionalLibre($fecha, $delPrincipal ?: $dur, $idSucursal, $sinDuenio) ?? 0;
-            if (! $idUsuario) {
-                flash('No quedó nadie libre a esa hora que haga todo lo que elegiste. '
-                    . 'Probá con otro horario, o pedí una persona en particular para cada servicio.', 'warning');
-
-                return $volver;
-            }
-        }
-
-        // **Lo que quedó en «que me atienda cualquiera» se resuelve acá.** Un 0
-        // quiere decir «lo hace el dueño de la cita», así que si el principal no
-        // hace ese servicio hay que darle otra persona — no rechazar la reserva
-        // por algo que la clienta dejó justamente a criterio del salón.
-        $asignacion = Agenda::completarReparto($asignacion, $idUsuario, $fecha, $idSucursal);
-
-        foreach (array_unique(array_values($asignacion)) as $idAyuda) {
-            if ($idAyuda > 0 && ! $this->personalActivo((int) $idAyuda, $idSucursal)) {
-                flash('Uno de los profesionales que elegiste ya no está disponible.', 'error');
-
-                return $volver;
-            }
-        }
-
-        // **El turno se vuelve a comprobar acá.** La pantalla esconde a quien
-        // no trabaja en la franja elegida, pero esconder no es el control: el
-        // `id_turno` viaja en el POST y se puede cambiar. Sin esto, la clienta
-        // podría mandar exactamente la combinación que el filtro existe para
-        // impedir — alguien de la mañana y alguien de la tarde.
-        $idTurno = (int) $request->input('id_turno', 0);
-        if ($idTurno > 0 && ($turno = Agenda::turnoPorId($idTurno, $idSucursal))) {
-            $hora = substr($fecha, 11, 5);
-            if ($hora < $turno->desde || $hora >= $turno->hasta) {
-                flash('Ese horario no entra en el turno que elegiste (' . $turno->nombre . ', '
-                    . $turno->desde . ' a ' . $turno->hasta . '). Elegí otro, o sacá el filtro de turno.', 'warning');
-
-                return $volver;
-            }
-            foreach (array_unique(array_filter(array_values($asignacion))) as $idProf) {
-                if (! Agenda::trabajaEnTurno((int) $idProf, $idTurno)) {
-                    flash('Uno de los profesionales que elegiste no trabaja en ese turno. '
-                        . 'Elegí a otra persona, o cambiá el turno.', 'warning');
-
-                    return $volver;
-                }
-            }
-        }
-
         // **Cuántas personas van se lee ACÁ y no más abajo.** Es lo que decide
         // si dos servicios de la misma zona van a la vez o uno después del
         // otro, así que el reparto y la duración dependen de él: leyéndolo
@@ -427,6 +366,78 @@ class PortalController extends Controller
             flash($aviso, 'error');
 
             return $volver;
+        }
+
+        if (! $idUsuario) {
+            // **Si la clienta eligió a alguien, la cita es de esa persona.**
+            //
+            // Este bloque asignaba «cualquiera que esté libre» sin mirar el
+            // reparto, así que eligiendo profesional para su único servicio la
+            // cita quedaba a nombre de OTRA: `cita_servicio.id_usuario` tenía
+            // al elegido y `cita.id_usuario` a un tercero — y la agenda muestra
+            // el de la cita. Desde afuera, el sistema le cambiaba el
+            // profesional sin decir nada.
+            //
+            // `principalDelReparto()` devuelve quien más minutos pone, que es
+            // el criterio con el que la cita tiene dueño desde la 5.3.0.
+            $idUsuario = Agenda::principalDelReparto($asignacion);
+        }
+
+        // **Lo que quedó en «quien me atienda» se resuelve con el MISMO criterio
+        // con que la pantalla ofreció la hora.** Antes se buscaba a UNA persona
+        // libre que hiciera TODO lo que quedó sin dueño, por la SUMA de esos
+        // servicios: la pantalla ofrecía las 08:00 con Lucía y Gloria
+        // repartiéndose el trabajo y al confirmar el sistema contestaba «no
+        // quedó nadie libre que haga todo lo que elegiste» — el mensaje genérico
+        // que se pidió sacar. `repartoPara()` elige el reparto que termina antes
+        // entre quienes están libres a esa hora, y si no hay ninguno lo explica
+        // con nombres, como la pantalla.
+        if (in_array(0, $asignacion, true)) {
+            $r = Agenda::repartoPara($servicios, $asignacion, $fecha, $personas, $idSucursal, $idUsuario);
+            if ($r === null) {
+                flash(Agenda::porQueNoHayHora(substr($fecha, 0, 10), $servicios, $personas,
+                        Agenda::pedidosDe($asignacion), $idSucursal)
+                    ?? 'A esa hora no queda nadie libre para lo que elegiste. Elegí otro horario.', 'warning');
+
+                return $volver;
+            }
+            $asignacion = $r['reparto'];
+        }
+        if (! $idUsuario) {
+            // La cita queda a nombre de quien más minutos pone.
+            $idUsuario = Agenda::principalDelReparto($asignacion);
+        }
+
+        foreach (array_unique(array_values($asignacion)) as $idAyuda) {
+            if ($idAyuda > 0 && ! $this->personalActivo((int) $idAyuda, $idSucursal)) {
+                flash('Uno de los profesionales que elegiste ya no está disponible.', 'error');
+
+                return $volver;
+            }
+        }
+
+        // **El turno se vuelve a comprobar acá.** La pantalla esconde a quien
+        // no trabaja en la franja elegida, pero esconder no es el control: el
+        // `id_turno` viaja en el POST y se puede cambiar. Sin esto, la clienta
+        // podría mandar exactamente la combinación que el filtro existe para
+        // impedir — alguien de la mañana y alguien de la tarde.
+        $idTurno = (int) $request->input('id_turno', 0);
+        if ($idTurno > 0 && ($turno = Agenda::turnoPorId($idTurno, $idSucursal))) {
+            $hora = substr($fecha, 11, 5);
+            if ($hora < $turno->desde || $hora >= $turno->hasta) {
+                flash('Ese horario no entra en el turno que elegiste (' . $turno->nombre . ', '
+                    . $turno->desde . ' a ' . $turno->hasta . '). Elegí otro, o sacá el filtro de turno.', 'warning');
+
+                return $volver;
+            }
+            foreach (array_unique(array_filter(array_values($asignacion))) as $idProf) {
+                if (! Agenda::trabajaEnTurno((int) $idProf, $idTurno)) {
+                    flash('Uno de los profesionales que elegiste no trabaja en ese turno. '
+                        . 'Elegí a otra persona, o cambiá el turno.', 'warning');
+
+                    return $volver;
+                }
+            }
         }
 
         if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {

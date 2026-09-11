@@ -421,7 +421,11 @@ window.SPGCarga = (function () {
               + 'Probá con otro profesional o con menos servicios.');
         return;
       }
-      aviso.textContent = sujeto + ' dura ' + d.duracion + ' minutos.';
+      // **En «quien me atienda» cada hora dura lo suyo**, según quién esté
+      // libre a esa hora: se dice al elegirla, y acá sólo el piso.
+      aviso.textContent = d.duracion_fija === false
+        ? sujeto + ' dura desde ' + d.duracion + ' minutos, según quién la atienda: al elegir la hora te decimos cuánto y con quién.'
+        : sujeto + ' dura ' + d.duracion + ' minutos.';
       dibujarDias(d.dias);
     }).catch(function () { aviso.textContent = 'No se pudo consultar la agenda.'; });
   }
@@ -553,8 +557,16 @@ window.SPGCarga = (function () {
     pedir({ fecha: f }, horasEl).then(function (d) {
       if (mia !== consulta || miEleccion !== eleccion) { return; }
       horasEl.innerHTML = '';
+      delete cont.dataset.spgEleccion;
       if (!d.ok || !d.horas || !d.horas.length) {
-        horasEl.textContent = 'Ese día ya no tiene horarios libres.';
+        // **Se dice POR QUÉ, con nombres.** «Ese día ya no tiene horarios
+        // libres» no decía cuál de las decisiones es la que no cierra: el
+        // servidor manda quién no coincide, cuándo puede aparte y qué hacer.
+        var porque = document.createElement('div');
+        porque.className = 'alert alert-warning py-2 mb-0';
+        porque.style.fontSize = '.86rem';
+        porque.textContent = d.motivo || 'Ese día ya no tiene horarios libres.';
+        horasEl.appendChild(porque);
         return;
       }
 
@@ -564,18 +576,34 @@ window.SPGCarga = (function () {
       fila.appendChild(hora.caja);
       horasEl.appendChild(fila);
 
+      // La duración va al lado de la hora sólo si cambia entre horas: con
+      // gente pedida es siempre la misma y repetirla cuarenta veces es ruido.
+      var varia = d.horas.some(function (h) { return h.duracion !== d.horas[0].duracion; });
       opcion(hora.sel, '', 'Elegí la hora…');
-      d.horas.forEach(function (h) { opcion(hora.sel, h.hora, h.hora); });
+      d.horas.forEach(function (h) {
+        opcion(hora.sel, h.hora, h.hora + (varia && h.duracion ? ' · ' + h.duracion + ' min' : ''));
+      });
 
       hora.sel.addEventListener('change', function () {
         if (!hora.sel.value) {
           if (campo) campo.value = '';
           if (btn) btn.disabled = true;
+          delete cont.dataset.spgEleccion;
 
           return;
         }
         if (campo) campo.value = diaElegido + ' ' + hora.sel.value + ':00';
         if (btn) btn.disabled = false;
+
+        // **Lo que se eligió, dicho entero**: cuánto dura a esa hora y quién
+        // atiende cada cosa. Es lo que el repaso muestra después, así el
+        // «con quien esté disponible» pasa a tener nombre antes de confirmar.
+        var h = d.horas.filter(function (x) { return x.hora === hora.sel.value; })[0];
+        if (h) {
+          cont.dataset.spgEleccion = JSON.stringify({ duracion: h.duracion, quienes: h.quienes || '', nombres: h.nombres || {} });
+          aviso.textContent = 'A las ' + h.hora + ' ' + sujeto.toLowerCase() + ' dura ' + h.duracion + ' minutos'
+            + (h.quienes ? ' · ' + h.quienes : '') + '.';
+        }
       });
 
       if (previo && previo.slice(0, 10) === diaElegido) {
@@ -2428,6 +2456,17 @@ document.addEventListener('spg:asistente-paso', function (e) {
   caja.appendChild(dia);
 
   // --- Un renglón por servicio, con quién lo hace ---
+  //
+  // **Lo que el selector de horario ya decidió, manda.** A esa hora el
+  // servidor dijo cuánto dura y quién atiende cada cosa (`spgEleccion`), así
+  // que «con quien esté disponible» pasa a tener nombre y la duración deja de
+  // ser la suma —que es el peor caso— para ser la de verdad.
+  var eleccion = null;
+  try {
+    var ag = document.querySelector('[data-agenda]');
+    eleccion = ag && ag.dataset.spgEleccion ? JSON.parse(ag.dataset.spgEleccion) : null;
+  } catch (e) { eleccion = null; }
+
   var total = 0, min = 0, cuantos = 0;
   document.querySelectorAll('.srv:checked').forEach(function (c) {
     var card = c.closest('.spg-srv-card');
@@ -2457,8 +2496,9 @@ document.addEventListener('spg:asistente-paso', function (e) {
     var elegido = sel && sel.value && sel.value !== '0';
     var quien = elegido && sel.options[sel.selectedIndex]
       ? sel.options[sel.selectedIndex].textContent.trim().split('·')[0].trim() : '';
+    var asignada = !quien && eleccion && eleccion.nombres && eleccion.nombres[c.value];
     cuerpo.appendChild(txt('div', 'spg-wiz-linea-quien',
-      quien ? quien : 'con quien esté disponible'));
+      quien ? quien : (asignada ? 'con ' + asignada + ' (asignada para ese horario)' : 'con quien esté disponible')));
 
     fila.appendChild(ic);
     fila.appendChild(cuerpo);
@@ -2475,6 +2515,7 @@ document.addEventListener('spg:asistente-paso', function (e) {
   var cifras = document.createElement('div');
   cifras.className = 'spg-wiz-cifras';
 
+  if (eleccion && eleccion.duracion) { min = parseInt(eleccion.duracion, 10) || min; }
   var c1 = document.createElement('div');
   c1.className = 'spg-wiz-cifra';
   c1.appendChild(txt('span', 'r', 'Duración total'));

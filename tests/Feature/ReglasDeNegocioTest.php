@@ -6184,6 +6184,296 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * Tres profesionales que atienden el mismo turno, cada una con un servicio
+     * de una zona distinta, y un día en que ninguna tiene nada: la premisa de
+     * las pruebas de la intersección de agendas.
+     *
+     * Se GARANTIZA, no se espera: a cada una se le deja cargado sólo su
+     * servicio —que es lo que la saca del criterio permisivo— y el día se
+     * busca entre los que vienen hasta encontrar uno sin citas ni ausencias
+     * para las tres.
+     *
+     * @return array{0: array<int>, 1: array<int>, 2: string, 3: int, 4: int}
+     *         [usuarios, servicios, día, inicio del turno (ts), fin del turno (ts)]
+     */
+    private function tresConElMismoTurno(): array
+    {
+        $turno = DB::selectOne(
+            'SELECT t.id_turno, t.hora_inicio, t.hora_fin, COUNT(*) AS n
+               FROM turno_laboral t
+               JOIN usuario_turno ut ON ut.id_turno = t.id_turno
+               JOIN usuario u ON u.id_usuario = ut.id_usuario AND u.activo = 1
+               JOIN rol r ON r.id_rol = u.id_rol AND r.es_personal = 1
+              WHERE t.activo = 1 AND t.id_sucursal = 1
+              GROUP BY t.id_turno, t.hora_inicio, t.hora_fin
+             HAVING n >= 3
+              ORDER BY n DESC LIMIT 1'
+        );
+        if (! $turno) {
+            $this->markTestSkipped('Hacen falta tres profesionales con el mismo turno.');
+        }
+        $equipo = array_map(fn ($r) => (int) $r->id_usuario, DB::select(
+            'SELECT ut.id_usuario FROM usuario_turno ut
+               JOIN usuario u ON u.id_usuario = ut.id_usuario AND u.activo = 1
+               JOIN rol r ON r.id_rol = u.id_rol AND r.es_personal = 1
+              WHERE ut.id_turno = ? ORDER BY ut.id_usuario', [(int) $turno->id_turno]
+        ));
+        $dias = array_map(fn ($r) => (int) $r->dia_semana,
+            DB::select('SELECT dia_semana FROM turno_dia WHERE id_turno = ?', [(int) $turno->id_turno]));
+
+        // Tres servicios de tres zonas distintas: van a la vez, así que la
+        // cita dura el más largo y la intersección se mide limpia.
+        $porZona = [];
+        foreach (DB::select('SELECT id_servicio, id_zona, duracion_min FROM servicio
+                              WHERE activo = 1 AND id_zona IS NOT NULL ORDER BY duracion_min, id_servicio') as $x) {
+            $porZona[(int) $x->id_zona] ??= (int) $x->id_servicio;
+        }
+        if (count($porZona) < 3) {
+            $this->markTestSkipped('Hacen falta servicios de tres zonas distintas.');
+        }
+        $servicios = array_slice(array_values($porZona), 0, 3);
+
+        // Un día del turno en que las tres estén libres del todo.
+        $profs = null;
+        $dia = null;
+        for ($i = 2; $i <= 60 && ! $dia; $i++) {
+            $f = date('Y-m-d', strtotime("+$i day"));
+            if (! in_array((int) date('N', strtotime($f)), $dias, true)) {
+                continue;
+            }
+            $libres = [];
+            foreach ($equipo as $id) {
+                if (Agenda::datosProfesional($id, $f, $f, 1)['ocupado'] === []) {
+                    $libres[] = $id;
+                }
+                if (count($libres) === 3) {
+                    break;
+                }
+            }
+            if (count($libres) === 3) {
+                $profs = $libres;
+                $dia = $f;
+            }
+        }
+        if (! $dia) {
+            $this->markTestSkipped('No hay un día en que tres del mismo turno estén libres.');
+        }
+
+        $ini = strtotime($dia . ' ' . $turno->hora_inicio);
+        $fin = strtotime($dia . ' ' . $turno->hora_fin);
+        foreach ($profs as $i => $id) {
+            $per = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$id]);
+            DB::delete('DELETE FROM persona_servicio WHERE id_persona = ?', [$per]);
+            DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?,?)', [$per, $servicios[$i]]);
+            // **Sólo cuenta ESE turno.** Quien además tiene el otro turno del
+            // día seguiría con lugar a la mañana, y la prueba mediría la
+            // agenda de otro momento en vez de la intersección de éste.
+            $this->ocupar($id, strtotime($dia . ' 00:00:00'), $ini);
+            $this->ocupar($id, $fin, strtotime($dia . ' 23:59:59'));
+        }
+        Agenda::olvidarQuienHace();
+
+        return [$profs, $servicios, $dia, $ini, $fin];
+    }
+
+    /** Una ausencia puntual, para ocupar a alguien un rato. */
+    private function ocupar(int $idUsuario, int $desde, int $hasta): void
+    {
+        DB::insert(
+            'INSERT INTO ausencia_agenda (id_usuario, id_tipo_ausencia, fecha_inicio, fecha_fin, motivo, activo)
+             VALUES (?, (SELECT MIN(id_tipo_ausencia) FROM tipo_ausencia), ?, ?, ?, 1)',
+            [$idUsuario, date('Y-m-d H:i:s', $desde), date('Y-m-d H:i:s', $hasta), 'prueba intersección']
+        );
+    }
+
+    /**
+     * Con varias profesionales pedidas, el calendario ofrece la INTERSECCIÓN
+     * de sus agendas — y cuando no hay, dice quién es la que no coincide.
+     *
+     * Es el ejemplo que dio el usuario: turno de 8 a 12, Marta ocupada de 8 a
+     * 8:45, Josefina de 8:30 a 9, Fabio de 11 a 12; eligiendo a las tres, lo
+     * que se tiene que ver es sólo lo que las tres pueden a la vez: de 9 hasta
+     * donde la cita todavía termina antes de las 11.
+     *
+     * Y si una no coincide, en vez de «ese día ya no tiene horarios libres»
+     * —que no dice cuál de las decisiones es la que no cierra— el sistema la
+     * nombra, dice desde cuándo entra el resto sin ella, y qué hacer.
+     */
+    #[Test]
+    public function el_calendario_ofrece_la_interseccion_de_las_agendas_pedidas_y_dice_quien_no_coincide(): void
+    {
+        [[$a, $b, $c], $srv, $dia, $ini, $fin] = $this->tresConElMismoTurno();
+        [$sa, $sb, $sc] = $srv;
+
+        $this->ocupar($a, $ini, $ini + 45 * 60);          // Marta: 8:00–8:45
+        $this->ocupar($b, $ini + 30 * 60, $ini + 60 * 60); // Josefina: 8:30–9:00
+        $this->ocupar($c, $fin - 60 * 60, $fin);           // Fabio: 11:00–12:00
+
+        $pedidos = [$sa => $a, $sb => $b, $sc => $c];
+        $dur = Agenda::duracionPrevista($srv, 1, 1, null, $pedidos);
+        $horas = Agenda::slots(null, $dia, $dur, null, 1, $srv, 1, $pedidos);
+
+        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $esperado = [];
+        for ($m = $ini + 60 * 60; $m + $dur * 60 <= $fin - 60 * 60; $m += $paso) {
+            $esperado[] = date('H:i', $m);
+        }
+        $this->assertNotEmpty($esperado, 'La premisa: el turno tiene que dejar lugar entre las 9 y las 11.');
+        $this->assertSame($esperado, array_column($horas, 'hora'),
+            'Se ofrecen exactamente las horas en que las TRES están libres a la vez, y ninguna más.');
+        foreach ($horas as $h) {
+            $this->assertSame($dur, $h['duracion']);
+            $this->assertSame($pedidos, array_intersect_key($h['reparto'], $pedidos),
+                'Cada hora lleva el reparto pedido tal cual.');
+        }
+
+        // Ahora la tercera queda ocupada toda la mañana: no hay intersección, y
+        // el sistema tiene que decir que es ELLA, y desde cuándo entra el resto.
+        $this->ocupar($c, $ini, $fin - 60 * 60);
+        $this->assertSame([], Agenda::slots(null, $dia, $dur, null, 1, $srv, 1, $pedidos),
+            'Con una de las pedidas ocupada todo el día no puede ofrecerse ninguna hora.');
+
+        $motivo = (string) Agenda::porQueNoHayHora($dia, $srv, 1, $pedidos, 1);
+        $this->assertStringContainsString('Quien no coincide es ' . Agenda::nombreDe($c), $motivo,
+            'El aviso tiene que nombrar a la profesional que no coincide con las demás.');
+        $this->assertStringContainsString('el resto entra de ' . date('H:i', $ini + 60 * 60), $motivo,
+            'Y decir desde cuándo entra el resto sin ella: es la salida que orienta.');
+        $this->assertStringContainsString('quien me atienda', $motivo,
+            'Y qué hacer: dejar ese servicio en «quien me atienda» o elegir a otra persona.');
+    }
+
+    /**
+     * En «quien me atienda» se reparte entre las que están libres buscando el
+     * tiempo MENOR, y el guardado usa exactamente el mismo reparto.
+     *
+     * **El defecto que esto fija era de verdad, y tenía dos mitades.** La
+     * pantalla ofrecía la hora sólo si el reparto entre las libres entraba en
+     * la duración PREVISTA —el mejor caso con todo el equipo—, así que con dos
+     * profesionales libres para tres servicios el día salía vacío aunque las
+     * dos pudieran hacerlo en hora y media. Y el guardado buscaba a UNA persona
+     * que hiciera TODO por la SUMA: si nadie lo hace todo, «no quedó nadie
+     * libre que haga todo lo que elegiste», con la pantalla habiéndolo
+     * ofrecido — el genérico que se pidió sacar.
+     *
+     * Y un tercer defecto, en la base: `trg_citaserv_bi` comprobaba la
+     * habilitación del DUEÑO de la cita para cada servicio, así que una cita
+     * repartida entre dos oficios distintos se rechazaba siempre. Se comprueba
+     * agendando de verdad.
+     */
+    #[Test]
+    public function sin_preferencia_se_reparte_entre_las_libres_y_el_guardado_dice_lo_mismo_que_la_pantalla(): void
+    {
+        [[$a, $b, $c], $srv, $dia, $ini, $fin] = $this->tresConElMismoTurno();
+        [$sa, $sb, $sc] = $srv;
+
+        // Sólo A y B trabajan ese día: el resto del local, ocupado el día entero.
+        foreach (Agenda::profesionales(1) as $p) {
+            $id = (int) $p->id_usuario;
+            if ($id !== $a && $id !== $b) {
+                $this->ocupar($id, strtotime($dia . ' 00:00:00'), strtotime($dia . ' 23:59:59'));
+            }
+        }
+        // B hace lo de C además de lo suyo: dos zonas distintas, pero es UNA
+        // persona, así que lo suyo va en serie.
+        $perB = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [$b]);
+        DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?,?)', [$perB, $sc]);
+        Agenda::olvidarQuienHace();
+        $info = Agenda::infoServicios($srv);
+        $esperada = max($info[$sa]['min'], $info[$sb]['min'] + $info[$sc]['min']);
+
+        $dur = Agenda::duracionPrevista($srv, 1, 1, null, []);
+        $horas = Agenda::slots(null, $dia, $dur, null, 1, $srv, 1, []);
+        $this->assertNotEmpty($horas,
+            'Con dos profesionales libres que entre las dos hacen todo, el día tiene que ofrecer horas.');
+        $primera = $horas[0];
+        $this->assertSame($esperada, $primera['duracion'],
+            'La hora dice cuánto dura con ESE reparto: A en paralelo con B, que hace dos cosas en serie.');
+        $reparto = array_intersect_key($primera['reparto'], array_flip($srv));
+        ksort($reparto);
+        $esperado = [$sa => $a, $sb => $b, $sc => $b];
+        ksort($esperado);
+        $this->assertSame($esperado, $reparto,
+            'El reparto le da a cada una lo suyo: A no puede hacer lo de B, y lo de C lo toma B.');
+
+        // **El guardado dice lo mismo.** Antes buscaba a una persona que
+        // hiciera todo, y acá no la hay.
+        $cuando = $dia . ' ' . $primera['hora'] . ':00';
+        $this->assertNull(Agenda::profesionalLibre($cuando, Agenda::duracion($srv), 1, $srv),
+            'La premisa: nadie hace los tres servicios, así que el criterio viejo no encontraba a nadie.');
+        $r = Agenda::repartoPara($srv, [$sa => 0, $sb => 0, $sc => 0], $cuando, 1, 1);
+        $this->assertNotNull($r, 'El guardado tiene que encontrar el mismo reparto que ofreció la pantalla.');
+        $this->assertSame($primera['reparto'], $r['reparto']);
+
+        // **Y la base lo acepta**: el disparador mira a quien hace cada
+        // servicio, no al dueño de la cita.
+        $idCliente = $this->clienteLibreHoy();
+        $duenio = Agenda::principalDelReparto($r['reparto']);
+        $this->assertSame($b, $duenio, 'La cita queda a nombre de quien más minutos pone.');
+        $idCita = Agenda::agendar($idCliente, $duenio, $cuando, $r['duracion'], null, $r['reparto'], 1);
+        $this->assertGreaterThan(0, $idCita);
+        $this->assertSame($a, (int) DB::scalar(
+            'SELECT id_usuario FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sa]),
+            'El servicio de A queda a nombre de A aunque la dueña de la cita sea B, que no lo hace.');
+        $this->assertSame($esperada, (int) DB::scalar('SELECT fn_cita_duracion(?)', [$idCita]),
+            'La base calcula la misma duración que anunció la pantalla.');
+    }
+
+    /**
+     * El reparto de «quien me atienda» busca el tiempo MENOR, y a igual tiempo
+     * ocupa a MENOS gente.
+     *
+     * Es la regla que pidió el usuario: si otra profesional libre puede tomar
+     * un servicio de otra zona del cuerpo, se lo lleva y van a la vez; si dos
+     * servicios son de la misma zona van en serie hagan lo que hagan, así que
+     * los hace la misma persona en vez de ocupar a dos. Y con dos personas
+     * atendidas, dos de la misma zona SÍ van a la vez, y ahí vuelven a ser dos.
+     */
+    #[Test]
+    public function el_reparto_sin_preferencia_acorta_el_tiempo_y_no_ocupa_gente_de_mas(): void
+    {
+        $dos = DB::select('SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+                            WHERE u.activo = 1 AND r.es_personal = 1 ORDER BY u.id_usuario LIMIT 2');
+        $zonas = DB::select('SELECT id_servicio, id_zona FROM servicio WHERE activo = 1 AND id_zona IS NOT NULL
+                              ORDER BY id_zona, id_servicio');
+        if (count($dos) < 2 || count($zonas) < 3) {
+            $this->markTestSkipped('Hacen falta dos profesionales y servicios de dos zonas.');
+        }
+        [$a, $b] = array_map(fn ($u) => (int) $u->id_usuario, $dos);
+
+        $porZona = [];
+        foreach ($zonas as $z) {
+            $porZona[(int) $z->id_zona][] = (int) $z->id_servicio;
+        }
+        $mismaZona = null;
+        foreach ($porZona as $lista) {
+            if (count($lista) >= 2) {
+                $mismaZona = array_slice($lista, 0, 2);
+                break;
+            }
+        }
+        $distintas = array_map(fn ($l) => $l[0], array_slice(array_values($porZona), 0, 2));
+        if (! $mismaZona || count($distintas) < 2) {
+            $this->markTestSkipped('Hacen falta dos servicios de la misma zona y dos de zonas distintas.');
+        }
+
+        // Zonas distintas: las dos libres y las dos hacen todo → una cada una.
+        $hace = [$distintas[0] => [$a, $b], $distintas[1] => [$a, $b]];
+        $r = Agenda::mejorReparto($hace, [$a, $b], 1);
+        $this->assertSame(2, count(array_unique($r)),
+            'Dos servicios de zonas distintas se reparten entre dos personas: van a la vez y la cita termina antes.');
+
+        // Misma zona: van en serie hagan lo que hagan → la misma persona.
+        $hace = [$mismaZona[0] => [$a, $b], $mismaZona[1] => [$a, $b]];
+        $r = Agenda::mejorReparto($hace, [$a, $b], 1);
+        $this->assertSame(1, count(array_unique($r)),
+            'Dos servicios de la misma zona los hace la misma persona: repartirlos no acorta nada y ocupa a una de más.');
+
+        // …salvo que vengan dos personas: ahí sí van a la vez, y son dos.
+        $r = Agenda::mejorReparto($hace, [$a, $b], 2);
+        $this->assertSame(2, count(array_unique($r)),
+            'Con dos personas atendidas, dos servicios de la misma zona van a la vez con dos profesionales.');
+    }
+    /**
      * Reprogramar desde el panel no deja escribir la fecha a mano.
      *
      * **Es el defecto reportado**: el modal tenía un `datetime-local` suelto,

@@ -335,73 +335,874 @@ class Agenda
     }
 
     /**
-     * Huecos del día. Con $idUsuario en null junta los de todo el equipo: el
-     * cliente que no tiene profesional de preferencia ve todos los horarios y
-     * el sistema le asigna a quien esté libre.
+     * Huecos del día: `[{hora, profesionales, duracion, reparto}]`.
+     *
+     * Con `$idUsuario` es la agenda de esa persona para todo. Sin él, **es la
+     * INTERSECCIÓN de las agendas de quienes van a atender**: cada servicio
+     * con quien la clienta pidió —o, en «quien me atienda», con quien mejor
+     * reparta el tiempo— y la hora se ofrece sólo si **cada uno está libre en
+     * su propio tramo** de la cita.
+     *
+     * **Lo que había, y por qué se rehízo.** La hora se aceptaba si la gente
+     * pedida estaba libre por la duración *prevista* entera —el mejor caso,
+     * repartiendo entre todo el equipo— y el reparto entre las que quedaban
+     * libres a esa hora tenía que entrar en esa misma cuenta. Dos cosas
+     * fallaban con eso. Con dos profesionales que se turnan sobre la misma
+     * cabeza, la segunda tenía que estar libre desde el principio de la cita,
+     * cuando recién entra cuando la primera termina: se escondían horas que el
+     * guardado sí aceptaba. Y en «quien me atienda», si a esa hora las libres
+     * no eran las del mejor caso —dos personas en vez de tres— el reparto
+     * real duraba más que el previsto y la hora **no se ofrecía aunque
+     * entrara perfectamente en el turno**: la clienta veía un día sin horarios
+     * con dos profesionales libres toda la mañana.
+     *
+     * Ahora cada hora lleva **su** reparto y **su** duración, que es lo que la
+     * pantalla muestra al elegirla. Y el guardado usa el mismo cálculo
+     * (`repartoPara()`), así que no puede ofrecer lo que después rechaza.
      */
     public static function slots(?int $idUsuario, string $fecha, int $duracion, ?array $cache = null,
                                 ?int $idSucursal = null, array $servicios = [], int $personas = 1,
                                 array $pedidos = []): array
     {
-        // La sucursal viaja por toda la cadena: sin ella, cada eslabón caería
-        // en `Sucursales::activa()`, que para la clienta del portal no es la
-        // que eligió sino la de su sesión.
-        $profs = $idUsuario ? [(object) ['id_usuario' => $idUsuario]] : self::profesionales($idSucursal);
-        $porHora = [];
-        foreach ($profs as $p) {
-            $idp = (int) $p->id_usuario;
-            foreach (self::slotsProfesional($idp, $fecha, $duracion, $cache[$idp] ?? null, $idSucursal) as $h) {
-                $porHora[$h][] = $idp;
+        $sids = array_values(array_unique(array_filter(array_map('intval', $servicios))));
+
+        // Una sola persona para todo: su agenda, con la suma de lo suyo.
+        if ($idUsuario) {
+            $out = [];
+            foreach (self::slotsProfesional($idUsuario, $fecha, $duracion, $cache[$idUsuario] ?? null, $idSucursal) as $h) {
+                $out[] = ['hora' => $h, 'profesionales' => [$idUsuario], 'duracion' => $duracion,
+                          'reparto' => array_fill_keys($sids, $idUsuario)];
             }
+
+            return $out;
         }
-        ksort($porHora);
 
-        // **Y el hueco sólo sirve si cada servicio tiene ahí quién lo haga.**
-        //
-        // Sin esto, «que me atienda cualquiera» juntaba los huecos del equipo
-        // ENTERO sin mirar quién hace qué: si la coloración la hace una sola
-        // persona y esa persona está ocupada de 10 a 12, esas horas seguían
-        // ofreciéndose porque las demás estaban libres — y al guardar el
-        // sistema rechazaba, que es enterarse después de haber elegido todo.
-        //
-        // La condición es **por servicio y no «alguien que haga todos»**: la
-        // clienta puede pedir dos cosas que hacen dos personas distintas, y
-        // eso el reparto lo resuelve. Lo que no puede pasar es que un servicio
-        // se quede sin nadie.
-        $hace = $idUsuario ? [] : self::acotarPedidos(self::quienHace($servicios, $idSucursal), $pedidos);
-
-        $out = [];
-        foreach ($porHora as $hora => $ids) {
-            foreach ($hace as $quienes) {
-                if (! array_intersect($ids, $quienes)) {
-                    continue 2;
+        // Sin servicios no hay a quién repartir: es la agenda del equipo entero
+        // por la duración que pidan (lo usa la reprogramación, que ya tiene
+        // decidido quién atiende).
+        $hace = $sids ? self::acotarPedidos(self::quienHace($sids, $idSucursal), $pedidos) : [];
+        if (! $hace) {
+            $porHora = [];
+            foreach (self::profesionales($idSucursal) as $p) {
+                $idp = (int) $p->id_usuario;
+                foreach (self::slotsProfesional($idp, $fecha, $duracion, $cache[$idp] ?? null, $idSucursal) as $h) {
+                    $porHora[$h][] = $idp;
                 }
             }
-
-            // **Y el reparto que de verdad se puede hacer a esta hora tiene que
-            // ENTRAR en la ventana que se acaba de comprobar.**
-            //
-            // `$duracion` es el mejor caso —lo que sale de `duracionPrevista()`
-            // repartiendo entre todas las que hacen cada servicio—, y a las 10
-            // de la mañana puede que la mitad de ellas esté ocupada. Si con las
-            // que quedan libres los servicios caen en serie, la cita dura más
-            // que la ventana y el guardado la rechazaría: esa hora no se
-            // ofrece, en vez de prometerla y decir que no después.
-            //
-            // Al revés no hace falta comprobar nada: todas las de `$ids` están
-            // libres por `$duracion` completa, así que cualquier bloque que
-            // entre en esa ventana les cae en un rato que ya está libre.
-            if ($hace && self::duracionReparto(
-                    self::repartoOptimista($hace, $ids), (int) $ids[0], $personas) > $duracion) {
-                continue;
+            ksort($porHora);
+            $out = [];
+            foreach ($porHora as $hora => $ids) {
+                $out[] = ['hora' => $hora, 'profesionales' => $ids, 'duracion' => $duracion, 'reparto' => []];
             }
 
-            $out[] = ['hora' => $hora, 'profesionales' => $ids];
+            return $out;
+        }
+
+        // **Y el hueco sólo sirve si cada servicio tiene ahí quién lo haga.**
+        // Sin esto, «que me atienda cualquiera» juntaba los huecos del equipo
+        // entero sin mirar quién hace qué, y el «no» llegaba al guardar.
+        $candidatos = [];
+        foreach ($hace as $quienes) {
+            if (! $quienes) {
+                return [];   // nadie de acá hace ese servicio: lo explica porQueNoHayHora()
+            }
+            foreach ($quienes as $idp) {
+                $candidatos[(int) $idp] = true;
+            }
+        }
+
+        $datos = [];
+        foreach (array_keys($candidatos) as $idp) {
+            $datos[$idp] = $cache[$idp] ?? self::datosProfesional($idp, $fecha, $fecha, $idSucursal);
+        }
+
+        $out = [];
+        foreach (self::gridDelDia($datos, $fecha) as $m) {
+            $r = self::repartoEn($hace, $datos, $fecha, $m, $personas, $pedidos);
+            if ($r === null) {
+                continue;
+            }
+            $out[] = [
+                'hora' => date('H:i', $m),
+                'profesionales' => array_values(array_unique(array_values($r['reparto']))),
+                'duracion' => $r['duracion'],
+                'reparto' => $r['reparto'],
+            ];
         }
 
         return $out;
     }
 
+    /**
+     * Todas las horas en que ALGUIEN de estos empieza un turno ese día: la
+     * grilla sobre la que se prueba cada reparto.
+     *
+     * @param  array<int, array>  $datos  lo de `datosProfesional()`, por id
+     * @return array<int>  marcas de tiempo, ordenadas
+     */
+    private static function gridDelDia(array $datos, string $fecha): array
+    {
+        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $ahora = time();
+        $grid = [];
+        foreach ($datos as $d) {
+            foreach (self::segmentosDe($d, $fecha) as [$ini, $fin]) {
+                for ($m = $ini; $m < $fin; $m += $paso) {
+                    if ($m > $ahora) {
+                        $grid[$m] = true;
+                    }
+                }
+            }
+        }
+        $grid = array_keys($grid);
+        sort($grid);
+
+        return $grid;
+    }
+
+    /**
+     * Los tramos del día en que esa persona atiende, como marcas de tiempo.
+     * Sin turno ese día no atiende — salvo que el salón no use turnos, y ahí
+     * vale la jornada por defecto, como en `slotsProfesional()`.
+     *
+     * @return array<int, array{0:int,1:int}>
+     */
+    private static function segmentosDe(array $d, string $fecha): array
+    {
+        $turnos = $d['turnos'][(int) date('N', strtotime($fecha))] ?? [];
+        if (! $turnos) {
+            if ($d['usaTurnos']) {
+                return [];
+            }
+            $turnos = [[
+                (string) config('spg.agenda.abre', '08:00:00'),
+                (string) config('spg.agenda.cierra', '20:00:00'),
+            ]];
+        }
+        $out = [];
+        foreach ($turnos as [$hIni, $hFin]) {
+            $out[] = [strtotime($fecha . ' ' . $hIni), strtotime($fecha . ' ' . $hFin)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * ¿Está libre esa persona en TODO el tramo [desde, hasta)?
+     *
+     * Libre es: dentro de un mismo turno suyo —empezar en franja y terminar
+     * fuera no vale— y sin ninguna cita ni ausencia que se le cruce. Es la
+     * misma cuenta que hace `slotsProfesional()` hueco por hueco, sólo que
+     * sobre un tramo cualquiera: el de la parte que a esa persona le toca.
+     */
+    private static function libreEn(array $d, string $fecha, int $desde, int $hasta): bool
+    {
+        $dentro = false;
+        foreach (self::segmentosDe($d, $fecha) as [$ini, $fin]) {
+            if ($desde >= $ini && $hasta <= $fin) {
+                $dentro = true;
+                break;
+            }
+        }
+        if (! $dentro) {
+            return false;
+        }
+        foreach ($d['ocupado'] as [$oIni, $oFin]) {
+            if ($oIni < $hasta && $desde < $oFin) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * El reparto que se puede hacer a esa hora exacta, o null si no hay.
+     *
+     * Empieza con quienes están libres en ese instante, elige el mejor reparto
+     * entre ellos (`mejorReparto()`), y comprueba que **cada uno esté libre en
+     * SU tramo** —el que le da `turnos()`: quien va segundo sobre la misma
+     * cabeza entra recién cuando la primera termina—. Si alguien no llega, se
+     * lo saca de las libres y se vuelve a repartir; si quien no llega es una
+     * persona PEDIDA, a esa hora no hay cita: pedida es pedida.
+     *
+     * @param  array<int, array<int>>  $hace     `[id_servicio => [ids]]`, ya acotado a lo pedido
+     * @param  array<int, array>       $datos    lo de `datosProfesional()`, por id
+     * @param  array<int, int>         $pedidos  `[id_servicio => id_usuario]`
+     * @return array{reparto: array<int,int>, duracion: int}|null
+     */
+    private static function repartoEn(array $hace, array $datos, string $fecha, int $m,
+                                      int $personas, array $pedidos): ?array
+    {
+        // **Todos son candidatos, los libres en este instante primero.** Quien
+        // está ocupada ahora puede entrar igual en un turno posterior de la
+        // misma cita —la segunda sobre la misma cabeza arranca cuando termina
+        // la primera—, así que no se la descarta de entrada: el reparto la
+        // prueba, y si su tramo no le cierra, se la saca y se vuelve a
+        // repartir. El orden importa porque `mejorReparto()` elige al primero
+        // que sirve: las libres ahora van adelante para que el reparto normal
+        // salga a la primera.
+        $libres = [];
+        $despues = [];
+        foreach ($datos as $idp => $d) {
+            if (self::libreEn($d, $fecha, $m, $m + 60)) {
+                $libres[] = (int) $idp;
+            } else {
+                $despues[] = (int) $idp;
+            }
+        }
+        $libres = array_merge($libres, $despues);
+        $fijos = array_map('intval', array_values($pedidos));
+
+        $excluidos = [];
+        for ($vuelta = 0; $vuelta < 8; $vuelta++) {
+            $reparto = self::mejorReparto($hace, array_values(array_diff($libres, $excluidos)), $personas, $pedidos);
+            if ($reparto === null) {
+                return null;
+            }
+
+            $fallan = [];
+            foreach (self::turnos($reparto, 0, $personas) as $idp => $t) {
+                if ($t['minutos'] <= 0) {
+                    continue;
+                }
+                $desde = $m + $t['inicio'] * 60;
+                if (! isset($datos[$idp]) || ! self::libreEn($datos[$idp], $fecha, $desde, $desde + $t['minutos'] * 60)) {
+                    $fallan[] = (int) $idp;
+                }
+            }
+            if (! $fallan) {
+                return ['reparto' => $reparto, 'duracion' => self::duracionReparto($reparto, 0, $personas)];
+            }
+            if (array_intersect($fallan, $fijos)) {
+                return null;
+            }
+            $excluidos = array_merge($excluidos, $fallan);
+        }
+
+        return null;
+    }
+
+    /**
+     * El reparto que termina ANTES, entre quienes están libres.
+     *
+     * Es la regla que pidió el usuario para «quien me atienda»: *siempre la
+     * alternativa que lleve a la clienta a un tiempo menor* —si otra
+     * profesional libre puede hacer un servicio de otra zona del cuerpo, se
+     * lo lleva ella y las dos trabajan a la vez—, y *si la misma puede hacer
+     * dos o todos sin que tarde más, la misma*: no se ocupa a dos personas
+     * para lo que una hace en el mismo tiempo.
+     *
+     * Se arman tres candidatos y gana el de menor duración; a igual duración,
+     * el que ocupa a MENOS gente; y a igual gente, siempre el mismo, para que
+     * el resultado no dependa del orden del formulario:
+     *
+     *  1. **por zona**: lo de la misma zona a la misma persona —va en serie
+     *     igual—, zonas distintas a personas distintas —van a la vez—;
+     *  2. **el optimista de siempre**: cada servicio a una persona distinta,
+     *     el más restringido primero — es el que gana cuando vienen varias
+     *     personas y dos coloraciones sí pueden ir en paralelo;
+     *  3. **todo a una sola**, si alguna libre hace todo.
+     *
+     * La duración de cada uno la dice `turnos()`, que es la misma cuenta que
+     * hace la base al guardar.
+     *
+     * @param  array<int, array<int>>  $hace
+     * @param  array<int>              $libres
+     * @param  array<int, int>         $pedidos  los fijos, que no se reparten
+     * @return array<int, int>|null  `[id_servicio => id_usuario]`, o null si alguien queda sin nadie
+     */
+    public static function mejorReparto(array $hace, array $libres, int $personas = 1, array $pedidos = []): ?array
+    {
+        $cand = [];
+        foreach ($hace as $sid => $quienes) {
+            $sid = (int) $sid;
+            $cand[$sid] = isset($pedidos[$sid])
+                ? [(int) $pedidos[$sid]]
+                : array_values(array_intersect(array_map('intval', $quienes), $libres));
+            if (! $cand[$sid]) {
+                return null;
+            }
+        }
+        if (! $cand) {
+            return null;
+        }
+        $info = self::infoServicios(array_keys($cand));
+
+        $opciones = [self::repartoPorZona($cand, $info, $pedidos)];
+
+        $todos = [];
+        foreach ($cand as $ids) {
+            foreach ($ids as $id) {
+                $todos[$id] = true;
+            }
+        }
+        $opciones[] = self::repartoOptimista($cand, array_keys($todos));
+
+        $comunes = null;
+        foreach ($cand as $ids) {
+            $comunes = $comunes === null ? $ids : array_values(array_intersect($comunes, $ids));
+        }
+        foreach (array_slice((array) $comunes, 0, 3) as $uno) {
+            $opciones[] = array_fill_keys(array_keys($cand), (int) $uno);
+        }
+
+        $mejor = null;
+        $clave = null;
+        foreach ($opciones as $op) {
+            if (in_array(0, $op, true)) {
+                continue;
+            }
+            $k = [self::duracionReparto($op, 0, $personas), count(array_unique($op)), implode(',', $op)];
+            if ($clave === null || $k < $clave) {
+                $clave = $k;
+                $mejor = $op;
+            }
+        }
+
+        return $mejor;
+    }
+
+    /**
+     * Lo de la misma zona a la misma persona; zonas distintas, a distintas.
+     *
+     * Dos servicios sobre el mismo pelo van en serie hagan lo que hagan, así
+     * que dárselos a dos personas no acorta nada y ocupa a una de más. Dos de
+     * zonas distintas sí se acortan repartiéndolos, y por eso a cada zona se
+     * le busca alguien que todavía no tenga otra.
+     *
+     * @param  array<int, array<int>>  $cand   candidatos por servicio
+     * @param  array<int, array>       $info   de `infoServicios()`
+     * @return array<int, int>
+     */
+    private static function repartoPorZona(array $cand, array $info, array $pedidos): array
+    {
+        $grupos = [];
+        foreach ($cand as $sid => $ids) {
+            $z = $info[$sid]['zona'] ?? ('s' . $sid);
+            $grupos[$z]['sids'][] = $sid;
+            $grupos[$z]['min'] = ($grupos[$z]['min'] ?? 0) + ($info[$sid]['min'] ?? 0);
+        }
+        uasort($grupos, fn ($a, $b) => $b['min'] <=> $a['min']);
+
+        $out = [];
+        $usados = [];
+        foreach ($grupos as $g) {
+            $sueltos = [];
+            foreach ($g['sids'] as $sid) {
+                if (isset($pedidos[$sid])) {
+                    $out[$sid] = (int) $pedidos[$sid];
+                    $usados[$out[$sid]] = true;
+                } else {
+                    $sueltos[] = $sid;
+                }
+            }
+            if (! $sueltos) {
+                continue;
+            }
+            // Alguien libre que haga TODO lo suelto de esta zona. Se prefiere a
+            // quien ya está en la zona por un pedido —va en serie igual— y
+            // después a quien no tenga otra zona a cargo.
+            $comunes = null;
+            foreach ($sueltos as $sid) {
+                $comunes = $comunes === null ? $cand[$sid] : array_values(array_intersect($comunes, $cand[$sid]));
+            }
+            $enZona = array_map(fn ($sid) => $out[$sid] ?? 0, $g['sids']);
+            $pick = null;
+            foreach ((array) $comunes as $id) {
+                if (in_array($id, $enZona, true)) {
+                    $pick = $id;
+                    break;
+                }
+            }
+            if ($pick === null) {
+                foreach ((array) $comunes as $id) {
+                    if (! isset($usados[$id])) {
+                        $pick = $id;
+                        break;
+                    }
+                }
+            }
+            if ($pick === null && $comunes) {
+                $pick = $comunes[0];
+            }
+            if ($pick !== null) {
+                foreach ($sueltos as $sid) {
+                    $out[$sid] = (int) $pick;
+                }
+                $usados[$pick] = true;
+                continue;
+            }
+            // Nadie hace todo lo de la zona: uno por uno, sin repetir gente
+            // mientras se pueda.
+            foreach ($sueltos as $sid) {
+                $pick = null;
+                foreach ($cand[$sid] as $id) {
+                    if (! isset($usados[$id])) {
+                        $pick = $id;
+                        break;
+                    }
+                }
+                $out[$sid] = (int) ($pick ?? $cand[$sid][0]);
+                $usados[$out[$sid]] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Duración, zona y nombre de cada servicio, leídos UNA vez por petición.
+     *
+     * `turnos()` los pedía a la base en cada llamada, y desde que cada hora
+     * lleva su propio reparto el calendario la llama miles de veces por
+     * consulta: sesenta días por cuarenta horas por tres candidatos.
+     *
+     * @return array<int, array{min:int, zona:string, nombre:string}>
+     */
+    public static function infoServicios(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        $faltan = array_values(array_diff($ids, array_keys(self::$infoMemo)));
+        if ($faltan) {
+            $in = implode(',', array_fill(0, count($faltan), '?'));
+            foreach (DB::select(
+                "SELECT id_servicio, nombre, duracion_min, id_zona FROM servicio WHERE id_servicio IN ($in)", $faltan
+            ) as $x) {
+                self::$infoMemo[(int) $x->id_servicio] = [
+                    'min' => (int) $x->duracion_min,
+                    // Sin zona cargada no comparte con nadie: es el criterio
+                    // permisivo de siempre, para el catálogo que todavía no se
+                    // clasificó. Se usa una clave irrepetible por servicio.
+                    'zona' => $x->id_zona !== null ? 'z' . (int) $x->id_zona : 's' . (int) $x->id_servicio,
+                    'nombre' => (string) $x->nombre,
+                ];
+            }
+        }
+        $out = [];
+        foreach ($ids as $sid) {
+            if (isset(self::$infoMemo[$sid])) {
+                $out[$sid] = self::$infoMemo[$sid];
+            }
+        }
+
+        return $out;
+    }
+
+    /** @var array<int, array{min:int, zona:string, nombre:string}> */
+    private static array $infoMemo = [];
+
+    /**
+     * El reparto para guardar una cita a esa hora: lo pedido tal cual y lo
+     * que quedó en «quien me atienda» resuelto con el MISMO criterio con el
+     * que la pantalla ofreció la hora. Null si a esa hora no hay reparto.
+     *
+     * **Es lo que hace que la pantalla y el guardado digan lo mismo.** El
+     * guardado buscaba a UNA persona libre que hiciera TODO lo que quedó sin
+     * dueño, y por la SUMA de esos servicios: la pantalla ofrecía las 08:00
+     * con Lucía y Gloria repartiéndose el trabajo, y al confirmar el sistema
+     * contestaba «no quedó nadie libre que haga todo lo que elegiste» —el
+     * mensaje genérico que se pidió sacar—.
+     *
+     * @param  array<int>       $servicios
+     * @param  array<int, int>  $asignacion  `[id_servicio => id_usuario]`, 0 = sin preferencia
+     * @return array{reparto: array<int,int>, duracion: int}|null
+     */
+    public static function repartoPara(array $servicios, array $asignacion, string $fechaHora,
+                                       int $personas = 1, ?int $idSucursal = null, int $idPrincipal = 0): ?array
+    {
+        $sids = array_values(array_unique(array_filter(array_map('intval', $servicios))));
+        // Un 0 con dueño de cita elegido quiere decir «lo hace ella» —así lo
+        // guarda `cita_servicio`— mientras ella lo haga; si no lo hace, queda
+        // libre para que lo tome otra persona, que es lo que la clienta pidió.
+        if ($idPrincipal > 0) {
+            foreach ($asignacion as $sid => $quien) {
+                if ((int) $quien === 0 && self::haceTodos($idPrincipal, [(int) $sid])) {
+                    $asignacion[$sid] = $idPrincipal;
+                }
+            }
+        }
+        $pedidos = self::pedidosDe($asignacion);
+        $hace = self::acotarPedidos(self::quienHace($sids, $idSucursal), $pedidos);
+        if (! $hace) {
+            return null;
+        }
+        $candidatos = [];
+        foreach ($hace as $quienes) {
+            if (! $quienes) {
+                return null;
+            }
+            foreach ($quienes as $idp) {
+                $candidatos[(int) $idp] = true;
+            }
+        }
+        $fecha = substr($fechaHora, 0, 10);
+        $datos = [];
+        foreach (array_keys($candidatos) as $idp) {
+            $datos[$idp] = self::datosProfesional($idp, $fecha, $fecha, $idSucursal);
+        }
+
+        return self::repartoEn($hace, $datos, $fecha, (int) strtotime($fechaHora), max(1, $personas), $pedidos);
+    }
+
+    /**
+     * Las horas de un día, cada una con su duración y con quién la atiende, y
+     * el porqué cuando no hay ninguna.
+     *
+     * **El «ese día ya no tiene horarios libres» se va.** No decía cuál de las
+     * decisiones de la clienta es la que no cierra —qué profesional, qué
+     * servicio— ni qué puede hacer con eso: `self::porQueNoHayHora()` lo dice
+     * con nombres y con la salida. Y si lo que vació el día fue el filtro de
+     * turno, se dice eso, que se arregla de otra forma.
+     *
+     * @return array{horas: array, motivo: ?string}
+     */
+    public static function horasDelDia(?int $idUsuario, string $fecha, int $duracion, ?int $suc, array $servicios,
+                                       int $personas, array $pedidos, ?object $turno): array
+    {
+        $todas = self::slots($idUsuario, $fecha, $duracion, null, $suc, $servicios, $personas, $pedidos);
+        $horas = self::soloDelTurno($todas, $turno, $duracion);
+        foreach ($horas as &$h) {
+            if (! empty($h['reparto'])) {
+                $d = self::describirReparto($h['reparto']);
+                $h['quienes'] = $d['texto'];
+                $h['nombres'] = $d['nombres'];
+            }
+            unset($h['reparto']);
+        }
+        unset($h);
+
+        $motivo = null;
+        if (! $horas) {
+            if ($todas && $turno) {
+                $ult = end($todas);
+                $motivo = 'En el ' . $turno->nombre . ' (' . $turno->desde . ' a ' . $turno->hasta . ') no queda lugar el '
+                    . fecha($fecha, 'd/m') . '. Sin el filtro de turno hay de ' . $todas[0]['hora'] . ' a '
+                    . date('H:i', strtotime($fecha . ' ' . $ult['hora']) + (int) $ult['duracion'] * 60) . '.';
+            } elseif ($idUsuario) {
+                $motivo = self::nombreDe($idUsuario) . ' no tiene lugar el ' . fecha($fecha, 'd/m')
+                    . ' para lo que elegiste. Elegí otro día, o dejá algún servicio en «quien me atienda».';
+            } else {
+                $motivo = self::porQueNoHayHora($fecha, $servicios, $personas, $pedidos, $suc);
+            }
+        }
+
+        return ['horas' => $horas, 'motivo' => $motivo];
+    }
+
+    /**
+     * El reparto dicho con nombres, para la pantalla: «Lucía Benítez: Corte de
+     * dama · Gloria Garay: Manicura y Pedicura».
+     *
+     * @param  array<int, int>  $reparto
+     * @return array{texto: string, nombres: array<int, string>}
+     */
+    public static function describirReparto(array $reparto): array
+    {
+        $info = self::infoServicios(array_keys($reparto));
+        $porProf = [];
+        $nombres = [];
+        foreach ($reparto as $sid => $idp) {
+            $idp = (int) $idp;
+            if ($idp <= 0) {
+                continue;
+            }
+            $nombres[(int) $sid] = self::nombreDe($idp);
+            $porProf[$idp][] = $info[(int) $sid]['nombre'] ?? ('servicio ' . (int) $sid);
+        }
+        $partes = [];
+        foreach ($porProf as $idp => $srvs) {
+            $partes[] = self::nombreDe($idp) . ': ' . self::enumerar($srvs);
+        }
+
+        return ['texto' => implode(' · ', $partes), 'nombres' => $nombres];
+    }
+
+    /** «a», «a y b», «a, b y c». */
+    private static function enumerar(array $partes): string
+    {
+        $partes = array_values($partes);
+        if (count($partes) <= 1) {
+            return (string) ($partes[0] ?? '');
+        }
+        $ultimo = array_pop($partes);
+
+        return implode(', ', $partes) . ' y ' . $ultimo;
+    }
+
+    /** El nombre de una persona del equipo, leído una vez por petición. */
+    public static function nombreDe(int $idUsuario): string
+    {
+        if (! isset(self::$nombreMemo[$idUsuario])) {
+            self::$nombreMemo[$idUsuario] = (string) (DB::scalar(
+                "SELECT CONCAT(pe.nombre,' ',pe.apellido) FROM usuario u
+                   JOIN persona pe ON pe.id_persona = u.id_persona WHERE u.id_usuario = ?", [$idUsuario]
+            ) ?: ('la persona ' . $idUsuario));
+        }
+
+        return self::$nombreMemo[$idUsuario];
+    }
+
+    /** @var array<int, string> */
+    private static array $nombreMemo = [];
+
+    /**
+     * Las franjas del día en que esa persona puede hacer algo que dura
+     * `$duracion`, como texto: `['08:45 a 12:30', '14:00 a 16:30']`.
+     *
+     * Sale de los mismos huecos que dibuja la pantalla, agrupando los
+     * consecutivos: el último hueco de cada grupo más la duración es hasta
+     * cuándo llega esa franja.
+     *
+     * @return array<int, string>
+     */
+    public static function franjasDe(int $idUsuario, string $fecha, int $duracion, ?array $datos = null,
+                                     ?int $idSucursal = null): array
+    {
+        $paso = (int) config('spg.agenda.paso_min', 15) * 60;
+        $out = [];
+        $ini = null;
+        $ult = null;
+        foreach (self::slotsProfesional($idUsuario, $fecha, $duracion, $datos, $idSucursal) as $h) {
+            $m = strtotime($fecha . ' ' . $h);
+            if ($ini === null || $m - $ult > $paso) {
+                if ($ini !== null) {
+                    $out[] = date('H:i', $ini) . ' a ' . date('H:i', $ult + $duracion * 60);
+                }
+                $ini = $m;
+            }
+            $ult = $m;
+        }
+        if ($ini !== null) {
+            $out[] = date('H:i', $ini) . ' a ' . date('H:i', $ult + $duracion * 60);
+        }
+
+        return $out;
+    }
+
+    /**
+     * ¿Por qué ese día no hay ni una hora? Dicho con nombres, y con la salida.
+     *
+     * Reemplaza al «ese día ya no tiene horarios libres», que no decía cuál de
+     * las decisiones de la clienta es la que no cierra. Lo pidió el usuario
+     * así: *«se debe mandar un mensaje de que X profesional no está disponible
+     * para el turno completo, y si tiene un horario aparte fuera de la
+     * intersección aclarar que si desea hacerse X servicio con X profesional
+     * de forma individual está disponible de X a X»*.
+     *
+     * Con gente pedida, se mira a cada una **sola con lo suyo**: si alguna no
+     * tiene lugar ese día, es ella; si todas tienen pero no coinciden, se
+     * busca a la que **no coincide** —sacando sus servicios, el resto sí
+     * entra— y se dice cuándo puede aparte. Sin gente pedida, se dice qué
+     * servicio es el que no entra ese día.
+     *
+     * @param  array<int>       $servicios
+     * @param  array<int, int>  $pedidos  `[id_servicio => id_usuario]`
+     */
+    public static function porQueNoHayHora(string $fecha, array $servicios, int $personas = 1,
+                                          array $pedidos = [], ?int $idSucursal = null,
+                                          ?array $cache = null): ?string
+    {
+        $sids = array_values(array_unique(array_filter(array_map('intval', $servicios))));
+        if (! $sids) {
+            return null;
+        }
+        $hace = self::acotarPedidos(self::quienHace($sids, $idSucursal), $pedidos);
+        $info = self::infoServicios($sids);
+        foreach ($hace as $sid => $quienes) {
+            if (! $quienes) {
+                return 'Por ahora nadie de esta sucursal hace «' . ($info[$sid]['nombre'] ?? '') . '». '
+                    . 'Sacalo de la lista, o probá en otra sucursal.';
+            }
+        }
+        $dia = fecha($fecha, 'd/m');
+        $nombreSrv = fn (array $ids) => self::enumerar(array_map(fn ($sid) => $info[$sid]['nombre'] ?? '', $ids));
+
+        // ------------------------------------------------ con gente pedida
+        $porProf = [];
+        foreach ($pedidos as $sid => $idp) {
+            if (in_array((int) $sid, $sids, true)) {
+                $porProf[(int) $idp][] = (int) $sid;
+            }
+        }
+        if ($porProf) {
+            $lineas = [];
+            $sinLugar = [];
+            $franjasDe = [];
+            foreach ($porProf as $idp => $suyos) {
+                $dur = array_sum(array_map(fn ($sid) => $info[$sid]['min'] ?? 0, $suyos));
+                $d = $cache[$idp] ?? self::datosProfesional($idp, $fecha, $fecha, $idSucursal);
+                $franjas = self::franjasDe($idp, $fecha, $dur, $d, $idSucursal);
+                $franjasDe[$idp] = $franjas;
+                $nombre = self::nombreDe($idp);
+                if (! $franjas) {
+                    $sinLugar[] = $idp;
+                    $trabaja = self::segmentosDe($d, $fecha) !== [];
+                    $lineas[] = $nombre . ' no tiene lugar el ' . $dia . ' para ' . $nombreSrv($suyos)
+                        . ($trabaja ? ' (ya está ocupada)' : ' (ese día no trabaja)');
+                } else {
+                    $lineas[] = $nombre . ' puede hacer ' . $nombreSrv($suyos) . ' de ' . implode(' y de ', $franjas);
+                }
+            }
+
+            $nombres = self::enumerar(array_map(fn ($idp) => self::nombreDe($idp), array_keys($porProf)));
+            if (count($porProf) === 1 && $sinLugar) {
+                $idp = array_key_first($porProf);
+
+                return $lineas[0] . '. Elegí otro día, o dejá '
+                    . (count($porProf[$idp]) > 1 ? 'esos servicios' : 'ese servicio')
+                    . ' en «quien me atienda» para ver quién sí puede.';
+            }
+
+            $cab = count($porProf) > 1
+                ? 'El ' . $dia . ' no hay un horario en que ' . $nombres . ' estén libres a la vez'
+                    . (count($sids) > count($pedidos) ? ' junto con el resto de lo que elegiste' : '') . '.'
+                : 'El ' . $dia . ' no hay un horario que le cierre a ' . $nombres . ' junto con el resto de lo que elegiste.';
+
+            // ¿Quién es la que no coincide? La que, sacando lo suyo, deja que
+            // el resto entre — y desde cuándo entra, que es lo que orienta.
+            $entraSin = function (int $idp) use ($sids, $porProf, $pedidos, $personas, $idSucursal, $cache, $fecha): ?string {
+                $resto = array_values(array_diff($sids, $porProf[$idp]));
+                if (! $resto) {
+                    return null;
+                }
+                $pedResto = array_diff_key($pedidos, array_flip($porProf[$idp]));
+                $h = self::slots(null, $fecha, self::duracionPrevista($resto, $personas, $idSucursal, null, $pedResto),
+                                 $cache, $idSucursal, $resto, $personas, $pedResto);
+                if (! $h) {
+                    return null;
+                }
+                $ult = end($h);
+
+                return $h[0]['hora'] . ' a ' . date('H:i', strtotime($fecha . ' ' . $ult['hora']) + (int) $ult['duracion'] * 60);
+            };
+            $culpa = null;
+            $restoDesde = null;
+            if (count($porProf) > 1) {
+                // Primero la que directamente no tiene lugar; si todas tienen,
+                // la que sacándola deja entrar al resto.
+                foreach (array_merge($sinLugar, array_keys($porProf)) as $idp) {
+                    $desde = $entraSin($idp);
+                    if ($desde !== null || in_array($idp, $sinLugar, true)) {
+                        $culpa = $idp;
+                        $restoDesde = $desde;
+                        break;
+                    }
+                }
+            }
+
+            $texto = $cab . ' ' . implode('. ', $lineas) . '.';
+            if ($culpa !== null) {
+                $nc = self::nombreDe($culpa);
+                $sc = $nombreSrv($porProf[$culpa]);
+                $texto .= ' Quien no coincide es ' . $nc
+                    . ($restoDesde ? ': sin ' . $sc . ', el resto entra de ' . $restoDesde : '') . '.';
+                $texto .= $franjasDe[$culpa]
+                    ? ' Si querés hacerte ' . $sc . ' con ' . $nc . ' aparte, ese día puede de '
+                        . implode(' y de ', $franjasDe[$culpa]) . '; o dejalo en «quien me atienda» y te lo hace otra persona.'
+                    : ' Podés dejar ' . $sc . ' en «quien me atienda», reservarlo aparte otro día, o elegir a otra persona.';
+            } else {
+                $texto .= ' Podés reservar cada servicio por separado con su profesional, elegir otro día, o dejar alguno en «quien me atienda».';
+            }
+
+            return $texto;
+        }
+
+        // ------------------------------------------------ sin preferencia
+        $lineas = [];
+        foreach ($sids as $sid) {
+            $franjas = [];
+            foreach ($hace[$sid] as $idp) {
+                $d = $cache[$idp] ?? self::datosProfesional((int) $idp, $fecha, $fecha, $idSucursal);
+                foreach (self::franjasDe((int) $idp, $fecha, $info[$sid]['min'] ?? 0, $d, $idSucursal) as $fr) {
+                    $franjas[$fr . '|' . $idp] = $fr . ' (' . self::nombreDe((int) $idp) . ')';
+                }
+            }
+            $lineas[] = ($info[$sid]['nombre'] ?? '') . ': '
+                . ($franjas ? 'hay lugar de ' . implode(', de ', $franjas) : 'no queda lugar ese día');
+        }
+
+        return 'El ' . $dia . ' no hay un horario en que entre todo lo que elegiste junto. '
+            . implode('. ', $lineas) . '. Sacá un servicio y reservalo aparte, o probá otro día.';
+    }
+
+    /**
+     * ¿Por qué no hay ni un DÍA con lugar? Sólo para cuando hay gente pedida:
+     * lo demás lo explica `motivoSinCupo()`, y sin pedidos «todo tomado por
+     * dos meses» es lo que la pantalla ya dice.
+     *
+     * Mira a cada persona pedida sola con lo suyo en los dos meses: si alguna
+     * no tiene ningún día, es ella; si todas tienen y no coinciden nunca —una
+     * de mañana y otra de tarde—, se dice cuándo atiende cada una y desde
+     * qué día tiene lugar.
+     *
+     * @param  array<int>       $servicios
+     * @param  array<int, int>  $pedidos
+     */
+    public static function porQueNoHayDia(array $servicios, int $personas = 1, array $pedidos = [],
+                                         ?int $idSucursal = null): ?string
+    {
+        $sids = array_values(array_unique(array_filter(array_map('intval', $servicios))));
+        $porProf = [];
+        foreach ($pedidos as $sid => $idp) {
+            if (in_array((int) $sid, $sids, true)) {
+                $porProf[(int) $idp][] = (int) $sid;
+            }
+        }
+        if (! $porProf) {
+            return null;
+        }
+        $info = self::infoServicios($sids);
+        $nombreSrv = fn (array $ids) => self::enumerar(array_map(fn ($sid) => $info[$sid]['nombre'] ?? '', $ids));
+        $dias = (int) config('spg.agenda.dias_vista', 60);
+        $hoy = date('Y-m-d');
+
+        $lineas = [];
+        $sinDia = [];
+        foreach ($porProf as $idp => $suyos) {
+            $dur = array_sum(array_map(fn ($sid) => $info[$sid]['min'] ?? 0, $suyos));
+            $conCupo = self::diasConCupo($idp, $hoy, $dias, $dur, $idSucursal);
+            $nombre = self::nombreDe($idp);
+            if (! $conCupo) {
+                $sinDia[] = $idp;
+                $lineas[] = $nombre . ' no tiene ningún día con lugar para ' . $nombreSrv($suyos) . ' en los próximos dos meses';
+                continue;
+            }
+            $lineas[] = $nombre . ' puede hacer ' . $nombreSrv($suyos) . ' desde el ' . fecha($conCupo[0], 'd/m')
+                . self::turnosEnTexto($idp, $idSucursal);
+        }
+        $nombres = self::enumerar(array_map(fn ($idp) => self::nombreDe($idp), array_keys($porProf)));
+
+        if (count($porProf) === 1) {
+            return $lineas[0] . '. Elegí a otra persona, o dejá el servicio en «quien me atienda».';
+        }
+
+        $texto = 'En los próximos dos meses no hay ningún día en que ' . $nombres . ' coincidan'
+            . (count($sids) > count($pedidos) ? ' junto con el resto de lo que elegiste' : '') . '. '
+            . implode('. ', $lineas) . '.';
+        $texto .= $sinDia
+            ? ' Elegí a otra persona para lo que hace ' . self::enumerar(array_map(fn ($i) => self::nombreDe($i), $sinDia)) . ', o dejalo en «quien me atienda».'
+            : ' Podés reservar cada servicio por separado, cada uno con su profesional el día que puede, o dejar alguno en «quien me atienda».';
+
+        return $texto;
+    }
+
+    /** « (atiende de 08:00 a 12:30)», o nada si no tiene turnos cargados. */
+    private static function turnosEnTexto(int $idUsuario, ?int $idSucursal): string
+    {
+        $suc = (int) ($idSucursal ?? Sucursales::activa());
+        $franjas = [];
+        foreach (DB::select(
+            "SELECT DISTINCT TIME_FORMAT(t.hora_inicio, '%H:%i') AS d, TIME_FORMAT(t.hora_fin, '%H:%i') AS h
+               FROM usuario_turno ut JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+              WHERE ut.id_usuario = ? AND (? = 0 OR t.id_sucursal = ?) ORDER BY t.hora_inicio",
+            [$idUsuario, $suc, $suc]
+        ) as $t) {
+            $franjas[] = $t->d . ' a ' . $t->h;
+        }
+
+        return $franjas ? ' (atiende de ' . implode(' y de ', $franjas) . ')' : '';
+    }
     /**
      * Quién hace cada uno de estos servicios, entre quienes atienden acá.
      *
@@ -652,6 +1453,8 @@ class Agenda
     public static function olvidarQuienHace(): void
     {
         self::$quienHaceMemo = [];
+        self::$infoMemo = [];
+        self::$nombreMemo = [];
     }
 
     /**
@@ -1052,8 +1855,11 @@ class Agenda
             if ($i === false) {
                 return false;
             }
+            // Cada hora puede durar distinto según quién la atienda: si lo
+            // trae, manda lo suyo.
+            $d = is_array($h) && isset($h['duracion']) ? (int) $h['duracion'] : $duracion;
 
-            return $i >= $desde && ($i + $duracion * 60) <= $hasta;
+            return $i >= $desde && ($i + $d * 60) <= $hasta;
         }));
     }
 
@@ -1281,11 +2087,9 @@ class Agenda
         // —«requiere atención exclusiva»— y con eso no se podía expresar el
         // caso normal: coloración y lavado suman aunque el lavado no sea
         // «exclusivo», porque las dos son sobre la misma cabeza.
-        $in = implode(',', array_fill(0, count($ids), '?'));
-        $srv = DB::select(
-            "SELECT s.id_servicio, s.duracion_min, s.id_zona
-               FROM servicio s WHERE s.id_servicio IN ($in)", $ids
-        );
+        // Leídos una vez por petición (`infoServicios()`): desde que cada hora
+        // del calendario lleva su propio reparto, esto se llama miles de veces.
+        $srv = self::infoServicios($ids);
 
         // Cada servicio ocupa dos cosas a la vez: **la zona de la clienta** y
         // **al profesional**. Dos servicios chocan si comparten cualquiera de
@@ -1295,15 +2099,12 @@ class Agenda
         // largo total, así que poniéndolo primero lo demás entra adentro y la
         // cita termina antes.
         $items = [];
-        foreach ($srv as $x) {
-            $prof = (int) ($asignacion[(int) $x->id_servicio] ?? 0) ?: $idPrincipal;
+        foreach ($srv as $sid => $x) {
+            $prof = (int) ($asignacion[$sid] ?? 0) ?: $idPrincipal;
             $items[] = [
-                'srv' => (int) $x->id_servicio,
-                'min' => (int) $x->duracion_min,
-                // Sin zona cargada no comparte con nadie: es el criterio
-                // permisivo de siempre, para el catálogo que todavía no se
-                // clasificó. Se usa una clave irrepetible por servicio.
-                'zona' => $x->id_zona !== null ? 'z' . (int) $x->id_zona : 's' . (int) $x->id_servicio,
+                'srv' => $sid,
+                'min' => $x['min'],
+                'zona' => $x['zona'],
                 'prof' => $prof,
             ];
         }
