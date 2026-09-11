@@ -8,7 +8,10 @@
     <x-encabezado sub="La fecha no se escribe a mano: se eligen los servicios y el sistema muestra los horarios que quedan libres de verdad." />
 
     <div class="sgp-panel" style="max-width:900px">
-        <form method="post" action="{{ route('citas.guardar') }}" id="formCita">
+        {{-- `data-para-titular`: cómo se rotula a la persona 1 en los «¿para
+             quién?» de cada servicio mientras no haya clienta elegida. Con una
+             elegida, `app.js` toma su nombre del combo. --}}
+        <form method="post" action="{{ route('citas.guardar') }}" id="formCita" data-para-titular="La clienta">
             @csrf
 
             {{-- **El mismo asistente que el portal**, por pedido del usuario:
@@ -36,6 +39,7 @@
                         @foreach ($clientes as $c)
                             <option value="{{ $c->id_cliente }}"
                                 data-alergias="{{ $c->alergias }}"
+                                data-nombre="{{ $c->nombre }} {{ $c->apellido }}"
                                 @selected((int) old('id_cliente', $sel_cliente) === (int) $c->id_cliente)>
                                 {{ $c->apellido }}, {{ $c->nombre }}
                                 @if ($c->cedula) · {{ $c->cedula }} @endif
@@ -68,6 +72,93 @@
             </div>
             </div>
 
+            {{-- **Primero, para cuántas personas es.** Ordena todo lo que sigue:
+                 con más de una, cada servicio pregunta para quién es, y al final
+                 cada una puede cobrar y facturar lo suyo por separado. Antes
+                 esto se preguntaba en «Detalles», después de los servicios,
+                 cuando ya no se podía decir de quién era cada uno. --}}
+            <div data-paso="Personas" data-paso-requiere="#personas"
+                 data-paso-error="Indicá para cuántas personas es la cita.">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="personas">¿Cuántas personas se atienden? *</label><x-ayuda>Entre 1 y 20. Con más de una, cada servicio pregunta para quién es.</x-ayuda>
+                    <input class="form-control" id="personas" name="personas"
+                           value="{{ old('personas', 1) }}" style="max-width:140px"
+                           data-solo="numeros" inputmode="numeric" maxlength="2" required pattern="([1-9]|1[0-9]|20)" title="Un número entre 1 y 20"
+                           data-acomp="#bloqueAcompCita">
+                </div>
+
+                {{-- Quiénes vienen, no sólo cuántas. La primera no se pide: es
+                     la clienta de la cita, que ya está elegida en el paso anterior. --}}
+                <div class="col-12" id="bloqueAcompCita"
+                     data-acomp-titulo="¿Quién más viene?|¿Quiénes más vienen?"
+                     data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
+                         'nombre' => $v,
+                         'apellido' => old('acomp_apellido.' . $k, ''),
+                         'alergias' => old('acomp_alergias.' . $k, ''),
+                     ]])) }}"></div>
+
+                {{-- **La cita puede ser para otra persona, también acá.** El
+                     portal lo pregunta desde la 7.57.0 y el mostrador no, así que
+                     la clienta que llama por teléfono para reservarle a su hija
+                     quedaba cargada como si fuera para ella: la agenda esperaba a
+                     una y venía otra, y el control de solape lo tomaba por error
+                     —esas citas SÍ se superponen a propósito, son dos personas—.
+
+                     No se crea una ficha de cliente para quien se atiende: sería
+                     inventar una persona que el salón no registró. El nombre va
+                     como texto en la cita, igual que en el portal. --}}
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
+                               id="paraOtro" @checked(old('para_otra_persona'))>
+                        <label class="form-check-label" for="paraOtro">
+                            La cita es para otra persona
+                        </label>
+                    </div>
+                    {{-- Arranca visible y lo esconde el JS: sin `app.js` se ven
+                         los dos campos y se agenda igual. --}}
+                    <div id="bloqueParaQuien" class="mt-2">
+                        <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda>Con el nombre completo: es lo que ve quien atiende ese día.</x-ayuda>
+                        <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
+                               placeholder="Nombre y apellido de quien se atiende"
+                               value="{{ old('nombre_para') }}">
+
+                        {{-- **Sus alergias, que no son las de quien reservó.** La
+                             que se sienta en el sillón es ella, así que la alergia
+                             de la ficha de al lado no dice nada de lo que se le
+                             puede poner. Queda en la cita: no se le abre una ficha
+                             a alguien que el salón no registró. --}}
+                        <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
+                        <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
+                                  maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
+                    </div>
+                </div>
+
+                {{-- **Las alergias de la clienta, acá y no sólo en su ficha.**
+
+                     Al agendar es cuando la clienta las cuenta por teléfono, y
+                     mandar a quien atiende a otra pantalla para anotarlas es
+                     pedirle que se acuerde después. Es el único dato de la ficha
+                     que puede lastimar a alguien si nadie lo mira.
+
+                     **Éstas van a la FICHA y no a la cita**, al revés que las de
+                     los demás: la clienta está registrada, así que le quedan para
+                     la próxima. El campo se llena solo con lo que ya tiene
+                     cargado al elegirla — ver el script del pie. --}}
+                <div class="col-md-6">
+                    <label class="form-label" for="alergias_titular">Alergias de la clienta</label><x-ayuda campo="alergias_titular" />
+                    <textarea class="form-control" id="alergias_titular" name="alergias_titular" rows="2"
+                              maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_titular') }}</textarea>
+                    {{-- Con qué se dibujó el campo. El guardado sólo escribe si
+                         cambió: sin esto, agendarle una cita sin tocar el campo le
+                         borraría las alergias que ya tenía —y en silencio—. --}}
+                    <input type="hidden" name="alergias_titular_base" id="alergias_titular_base"
+                           value="{{ old('alergias_titular_base', '') }}">
+                </div>
+            </div>
+            </div>
+
             <div data-paso="Servicios" data-paso-requiere="servicios"
                  data-paso-error="Elegí al menos un servicio para seguir.">
             <div class="row g-3">
@@ -90,7 +181,7 @@
                          resultado. --}}
                     <div class="sgp-srv-grid" id="listaServicios" data-canjes="#bloqueCanjes">
                         @foreach ($servicios as $s)
-                            <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio"
+                            <x-servicio-tarjeta :s="$s" :id="'srv' . $s->id_servicio" :para-quien="true"
                                 :marcado="in_array($s->id_servicio, old('servicios', []), false)">
 
                                 @php $profSel = (int) (old('prof_servicio', [])[$s->id_servicio] ?? 0); @endphp
@@ -210,83 +301,8 @@
                     </div>
                 @endif
 
-                {{-- **La cita puede ser para otra persona, también acá.** El
-                     portal lo pregunta desde la 7.57.0 y el mostrador no, así que
-                     la clienta que llama por teléfono para reservarle a su hija
-                     quedaba cargada como si fuera para ella: la agenda esperaba a
-                     una y venía otra, y el control de solape lo tomaba por error
-                     —esas citas SÍ se superponen a propósito, son dos personas—.
-
-                     No se crea una ficha de cliente para quien se atiende: sería
-                     inventar una persona que el salón no registró. El nombre va
-                     como texto en la cita, igual que en el portal. --}}
-                <div class="col-md-6">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
-                               id="paraOtro" @checked(old('para_otra_persona'))>
-                        <label class="form-check-label" for="paraOtro">
-                            La cita es para otra persona
-                        </label>
-                    </div>
-                    {{-- Arranca visible y lo esconde el JS: sin `app.js` se ven
-                         los dos campos y se agenda igual. --}}
-                    <div id="bloqueParaQuien" class="mt-2">
-                        <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda>Con el nombre completo: es lo que ve quien atiende ese día.</x-ayuda>
-                        <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
-                               placeholder="Nombre y apellido de quien se atiende"
-                               value="{{ old('nombre_para') }}">
-
-                        {{-- **Sus alergias, que no son las de quien reservó.** La
-                             que se sienta en el sillón es ella, así que la alergia
-                             de la ficha de al lado no dice nada de lo que se le
-                             puede poner. Queda en la cita: no se le abre una ficha
-                             a alguien que el salón no registró. --}}
-                        <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
-                        <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
-                                  maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
-                    </div>
-                </div>
-
-                {{-- **Las alergias de la clienta, acá y no sólo en su ficha.**
-
-                     Al agendar es cuando la clienta las cuenta por teléfono, y
-                     mandar a quien atiende a otra pantalla para anotarlas es
-                     pedirle que se acuerde después. Es el único dato de la ficha
-                     que puede lastimar a alguien si nadie lo mira.
-
-                     **Éstas van a la FICHA y no a la cita**, al revés que las de
-                     los demás: la clienta está registrada, así que le quedan para
-                     la próxima. El campo se llena solo con lo que ya tiene
-                     cargado al elegirla — ver el script del pie. --}}
-                <div class="col-12">
-                    <label class="form-label" for="alergias_titular">Alergias de la clienta</label><x-ayuda campo="alergias_titular" />
-                    <textarea class="form-control" id="alergias_titular" name="alergias_titular" rows="2"
-                              maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_titular') }}</textarea>
-                    {{-- Con qué se dibujó el campo. El guardado sólo escribe si
-                         cambió: sin esto, agendarle una cita sin tocar el campo le
-                         borraría las alergias que ya tenía —y en silencio—. --}}
-                    <input type="hidden" name="alergias_titular_base" id="alergias_titular_base"
-                           value="{{ old('alergias_titular_base', '') }}">
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda>Entre 1 y 20.</x-ayuda>
-                    <input class="form-control" id="personas" name="personas"
-                           value="{{ old('personas', 1) }}" style="max-width:140px"
-                           data-solo="numeros" inputmode="numeric" maxlength="2" required pattern="([1-9]|1[0-9]|20)" title="Un número entre 1 y 20"
-                           data-acomp="#bloqueAcompCita">
-                </div>
-
-                {{-- Quiénes vienen, no sólo cuántas. La primera no se pide: es
-                     la clienta de la cita, que ya está elegida arriba. --}}
-                <div class="col-12" id="bloqueAcompCita"
-                     data-acomp-titulo="¿Quién más viene?|¿Quiénes más vienen?"
-                     data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
-                         'nombre' => $v,
-                         'apellido' => old('acomp_apellido.' . $k, ''),
-                         'alergias' => old('acomp_alergias.' . $k, ''),
-                     ]])) }}"></div>
-
+                {{-- Para quién es, cuántas van y las alergias se preguntan en el
+                     paso «Personas»: acá queda lo que no es de nadie en particular. --}}
                 <div class="col-12">
                     <label class="form-label" for="observaciones">Observaciones</label><x-ayuda campo="observaciones" />
                     <textarea class="form-control" id="observaciones" name="observaciones"

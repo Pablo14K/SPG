@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Alertas;
 use App\Servicios\Pendientes;
 use App\Servicios\Sucursales;
 use Illuminate\Http\JsonResponse;
@@ -55,7 +56,8 @@ class VivoController extends Controller
         $huella = match ($seccion) {
             'agenda' => $this->agenda($request, $suc),
             'cajas' => $this->cajas($suc),
-            'panel' => $this->agenda($request, $suc) . '|' . $this->cajas($suc) . '|' . $this->pendientes(),
+            'panel' => $this->agenda($request, $suc) . '|' . $this->cajas($suc) . '|' . $this->pendientes()
+                . '|' . $this->alertas(),
             default => null,
         };
 
@@ -102,11 +104,33 @@ class VivoController extends Controller
     }
 
     /**
+     * La campanita: lo que está pasando ahora. Misma idea que los pendientes,
+     * hasheando lo que se dibuja y no un contador.
+     */
+    private function alertas(): string
+    {
+        $puntos = array_map(
+            static fn (array $a): string => $a['nivel'] . '·' . $a['que'],
+            Alertas::mias()
+        );
+
+        return 'al:' . count($puntos) . ':' . md5(implode('|', $puntos));
+    }
+
+    /**
      * La agenda de un día: cuántas citas hay, cuál es la última y en qué
      * estados están.
      *
      * La suma de estados es lo que detecta lo que más pasa y no cambia el
      * conteo: que alguien marque una cita En proceso, la atienda o la cancele.
+     *
+     * **Y lo que se cobró y se facturó de esas citas.** Sin eso, dos
+     * administradores sobre la misma agenda podían cobrar dos veces: uno
+     * cobraba la atención, y en la pantalla del otro —una foto de hace un
+     * minuto— seguía el botón «Cobrar». La base lo topa igual (el cobro no
+     * puede superar lo que vale la cita), pero el rechazo llegaba después del
+     * clic y con un mensaje que no decía que ya estaba cobrada. Con el cobro
+     * en la huella, la pantalla del otro se entera sola.
      */
     private function agenda(Request $request, int $suc): string
     {
@@ -123,7 +147,23 @@ class VivoController extends Controller
             [$dia, $suc, $suc]
         );
 
-        return 'a:' . $dia . ':' . $r->n . ':' . $r->ult . ':' . $r->est;
+        $plata = DB::selectOne(
+            'SELECT COUNT(*) AS n, COALESCE(SUM(co.monto),0) AS monto
+               FROM cobro co
+               JOIN cita c ON c.id_cita = co.id_cita
+              WHERE DATE(c.fecha_hora) = ? AND (? = 0 OR c.id_sucursal = ?)',
+            [$dia, $suc, $suc]
+        );
+        $facturas = DB::selectOne(
+            'SELECT COUNT(*) AS n, COALESCE(MAX(f.id_factura),0) AS ult
+               FROM factura f
+               JOIN cita c ON c.id_cita = f.id_cita
+              WHERE DATE(c.fecha_hora) = ? AND (? = 0 OR c.id_sucursal = ?)',
+            [$dia, $suc, $suc]
+        );
+
+        return 'a:' . $dia . ':' . $r->n . ':' . $r->ult . ':' . $r->est
+            . ':' . $plata->n . ':' . $plata->monto . ':' . $facturas->n . ':' . $facturas->ult;
     }
 
     /**

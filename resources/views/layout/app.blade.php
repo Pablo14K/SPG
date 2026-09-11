@@ -33,8 +33,31 @@
     // no tiene ninguna — elige el local al agendar.
     $sgpSucursal = $sgpCliente ? '' : (string) session('sucursal_nom', '');
     $sgpMenu     = $sgpSesion && ! $sgpCliente ? Navegacion::modulos() : [];
-    $sgpRapidos  = $sgpSesion && ! $sgpCliente ? Navegacion::accesosRapidos($sgpRuta) : [];
     $sgpPortal   = $sgpCliente ? Navegacion::portal() : [];
+    // **La campanita: lo que está pasando AHORA.** No es `Pendientes` —eso
+    // dice qué falta CARGAR y se resuelve una vez—: esto es la operación del
+    // día y se corrige en el momento, así que va en la barra, donde se ve
+    // desde cualquier pantalla. Ya viene filtrada por permiso y por local.
+    $sgpAlertas  = $sgpSesion && ! $sgpCliente ? \App\Servicios\Alertas::mias() : [];
+    // **Y lo que falta CARGAR, que desde la 7.117.0 vive acá adentro.** Estaba
+    // en un bloque del panel y el usuario lo mudó a la campanita: son dos
+    // avisos, y lo que los separa —si se resuelven una vez o todos los días—
+    // se dice adentro, agrupándolos, en vez de con dos lugares distintos.
+    $sgpPend     = $sgpSesion && ! $sgpCliente ? \App\Servicios\Pendientes::mios() : [];
+    // **El numerito cuenta lo que NO se vio.** Los pendientes cuentan siempre
+    // —verlos no los resuelve, y ésa es la excepción que pidió el usuario—;
+    // las alertas dejan de contar al abrir la campanita, como cualquier
+    // bandeja de correo. El renglón se queda igual: sigue pasando.
+    $sgpSinVer   = count($sgpPend) + count(array_filter($sgpAlertas, fn ($a) => ! $a['visto']));
+    // Lo que hay que marcar al abrirla: sólo alertas, y sólo las no vistas.
+    $sgpPorVer   = array_values(array_column(
+        array_filter($sgpAlertas, fn ($a) => ! $a['visto']), 'clave'));
+    // **Los locales a los que entra esta persona.** Cambiar de sucursal vivía
+    // en Mi cuenta, o sea a dos pantallas de distancia de todo lo que depende
+    // de ella —la agenda, la caja, el stock—; por pedido del usuario pasa a la
+    // barra, en el mismo lugar donde ya se leía en cuál se está parado.
+    $sgpSucs     = $sgpSesion && ! $sgpCliente ? \App\Servicios\Sucursales::delUsuario() : [];
+    $sgpSucId    = $sgpCliente ? 0 : \App\Servicios\Sucursales::activa();
     $sgpContacto = Navegacion::contactos();
 @endphp
 <!DOCTYPE html>
@@ -47,6 +70,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- A donde avisa la campanita que ya se la miro. Va como meta y no
+         escrita en el JS porque las rutas las arma Laravel, y una URL a mano
+         en `app.js` se queda vieja el dia que cambie el prefijo. --}}
+    @if ($sgpSesion && ! $sgpCliente)
+        <meta name="sgp-alertas-vistas" content="{{ route('alertas.vistas') }}">
+    @endif
     <title>@yield('titulo', config('app.name')) · {{ config('app.name') }}</title>
     @include('layout._favicon')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -92,34 +121,140 @@
     <label for="sgpCajon" class="sgp-cajon-fondo" aria-hidden="true"></label>
 @endif
 
-<header class="sgp-topbar">
-    {{-- **También en el portal.** La clienta se quedaba con la barra
-         horizontal —una SEGUNDA barra bajo la cabecera, en un teléfono donde
-         el alto es lo que falta— mientras el personal ya tenía el cajón. Y el
-         botón se dibujaba igual, así que abría algo que no existía. --}}
-    @if ($sgpSesion && $sgpRuta !== 'panel' && $sgpRuta !== 'portal.index'
-         && ($sgpMenu || $sgpPortal))
-        <label for="sgpCajon" class="sgp-cajon-btn" role="button" tabindex="0"
-               aria-label="Abrir el menú">
-            <i class="bi bi-list"></i>
-        </label>
-    @endif
-    <a class="sgp-brand" href="{{ Navegacion::url($sgpCliente ? 'portal.index' : 'panel') ?? url('/') }}">
-        {{-- El logo del salón si lo cargó; si no, la tijera de siempre. Lo
-             dibuja el partial, que es donde se decide sacarle el fondo dorado
-             —el del ícono por defecto— cuando hay imagen. --}}
-        @include('layout._marca', ['modo' => 'barra'])
-        <span class="sgp-brand-txt">
-            <span class="sgp-brand-name">{{ config('app.name') }}</span>
-            <span class="sgp-brand-sub">Sistema de gestión</span>
-        </span>
-    </a>
+<header class="sgp-topbar position-relative d-flex align-items-center justify-content-between w-100">
+
+    {{-- Izquierda: el cajón, la marca y la campanita --}}
+    <div class="d-flex align-items-center gap-3">
+        {{-- **También en el portal.** La clienta se quedaba con la barra
+             horizontal —una SEGUNDA barra bajo la cabecera, en un teléfono
+             donde el alto es lo que falta— mientras el personal ya tenía el
+             cajón. Y el botón se dibujaba igual, así que abría algo que no
+             existía. --}}
+        @if ($sgpSesion && $sgpRuta !== 'panel' && $sgpRuta !== 'portal.index'
+             && ($sgpMenu || $sgpPortal))
+            <label for="sgpCajon" class="sgp-cajon-btn mb-0" role="button" tabindex="0"
+                   aria-label="Abrir el menú">
+                <i class="bi bi-list"></i>
+            </label>
+        @endif
+
+        <a class="sgp-brand mb-0" href="{{ Navegacion::url($sgpCliente ? 'portal.index' : 'panel') ?? url('/') }}">
+            {{-- El logo del salón si lo cargó; si no, la tijera de siempre. Lo
+                 dibuja el partial, que es donde se decide sacarle el fondo
+                 dorado —el del ícono por defecto— cuando hay imagen. --}}
+            @include('layout._marca', ['modo' => 'barra'])
+            <span class="sgp-brand-txt d-none d-sm-flex">
+                <span class="sgp-brand-name">{{ config('app.name') }}</span>
+            </span>
+        </a>
+
+        {{-- **La campanita es la bandeja del sistema.** Lleva las dos cosas
+             que alguien tiene que mirar —lo que falta cargar y lo que está
+             pasando ahora— agrupadas adentro, en vez de repartidas entre un
+             bloque del panel y un ícono de la barra. Se dibuja para el
+             personal y no para la clienta: lo que lista son cosas del salón,
+             y una campana que nunca va a sonar es marcado de más.
+
+             El numerito rojo cuenta lo que todavía no se vio. Baja al abrirla
+             —lo pidió el usuario— salvo para lo que falta cargar, que sigue
+             contando hasta que alguien lo cargue: verlo no lo resuelve. --}}
+        @if ($sgpSesion && ! $sgpCliente)
+            <div class="dropdown">
+                <button class="sgp-user-link sgp-campana @if ($sgpSinVer) tiene-aviso @endif" type="button"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                        {{-- `{{ }}` ya escapa para el atributo: con un `e()` adentro se escapa
+                             dos veces y el JSON llega con `&quot;` literales. --}}
+                        data-sgp-bandeja="{{ json_encode($sgpPorVer) }}"
+                        title="{{ $sgpSinVer ? $sgpSinVer . ' sin ver' : 'Nada sin ver' }}">
+                    <i class="bi bi-bell-fill"></i>
+                    @if ($sgpSinVer)
+                        <span class="sgp-campana-n">{{ $sgpSinVer }}</span>
+                    @endif
+                </button>
+                <ul class="dropdown-menu dropdown-menu-start sgp-campana-lista">
+                    {{-- **Lo que está pasando ahora va PRIMERO.** Se resuelve
+                         hoy; lo otro es una decisión sin tomar que puede
+                         esperar a la tarde. --}}
+                    @if ($sgpAlertas)
+                        <li><h6 class="dropdown-header">Ahora mismo</h6></li>
+                        @foreach ($sgpAlertas as $sgpA)
+                            <li>
+                                <div class="sgp-alerta @unless ($sgpA['visto']) sin-ver @endunless">
+                                    <div class="sgp-alerta-que">{{ $sgpA['que'] }}</div>
+                                    @if ($sgpA['ruta'] && $sgpUrlA = Navegacion::url($sgpA['ruta']))
+                                        <a class="sgp-alerta-ir" href="{{ $sgpUrlA }}">{{ $sgpA['donde'] }} &rarr;</a>
+                                    @else
+                                        <span class="sgp-alerta-ir">{{ $sgpA['donde'] }}</span>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    @endif
+
+                    @if ($sgpPend)
+                        @if ($sgpAlertas)<li><hr class="dropdown-divider"></li>@endif
+                        <li><h6 class="dropdown-header">Falta cargar</h6></li>
+                        @foreach ($sgpPend as $sgpP)
+                            <li>
+                                <div class="sgp-alerta sin-ver">
+                                    <span class="sgp-pend-nivel n-{{ strtolower($sgpP['nivel']) }}">{{ $sgpP['nivel'] }}</span>
+                                    <div class="sgp-alerta-que">{{ $sgpP['que'] }}</div>
+                                    @if ($sgpP['ruta'] && $sgpUrlP = Navegacion::url($sgpP['ruta']))
+                                        <a class="sgp-alerta-ir" href="{{ $sgpUrlP }}">{{ $sgpP['donde'] }} &rarr;</a>
+                                    @else
+                                        <span class="sgp-alerta-ir">{{ $sgpP['donde'] }}</span>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    @endif
+
+                    @unless ($sgpAlertas || $sgpPend)
+                        <li><div class="sgp-alerta text-muted-warm">Nada para resolver ahora.</div></li>
+                    @endunless
+                </ul>
+            </div>
+        @endif
+    </div>
 
     @if ($sgpSesion)
+        {{-- Derecha: en qué local se trabaja, y la cuenta --}}
         <div class="sgp-user">
+            {{-- **Dónde se está parado y cómo se cambia: una sola cosa.** Eran
+                 dos —un chip que lo decía en la barra y unos botones en Mi
+                 cuenta que lo cambiaban—, así que mover el sistema entero de
+                 local obligaba a salir de la pantalla en la que se estaba.
+                 Pasa acá por pedido del usuario.
+
+                 **Se dibuja con un solo local también**, aunque no haya nada
+                 que elegir: de esta sucursal dependen la agenda que se ve, la
+                 caja que se cierra y el stock que se descuenta, y quien
+                 atiende tiene que poder contestar «¿dónde estoy parado?» sin
+                 abrir nada. --}}
+            @if ($sgpSucs)
+                <form method="post" action="{{ route('sucursal.entrar') }}"
+                      class="sgp-suc-form d-none d-md-flex align-items-center gap-1">
+                    @csrf
+                    <select class="sgp-suc-chip sgp-suc-combo" name="id_sucursal"
+                            aria-label="Sucursal en la que estás trabajando"
+                            title="La agenda, la caja y el stock que ves son los de este local"
+                            data-sgp-envia="#sgpSucIr">
+                        @foreach ($sgpSucs as $sgpS)
+                            <option value="{{ $sgpS->id_sucursal }}"
+                                @selected((int) $sgpS->id_sucursal === (int) $sgpSucId)>{{ $sgpS->nombre }}</option>
+                        @endforeach
+                    </select>
+                    {{-- El botón arranca VISIBLE y lo esconde `app.js` al
+                         enganchar el envío automático: sin JavaScript, cambiar
+                         de local tiene que seguir funcionando. --}}
+                    <button class="sgp-suc-ir" id="sgpSucIr" type="submit" title="Cambiar de local">
+                        <i class="bi bi-arrow-right-short"></i></button>
+                </form>
+            @endif
+
             <div class="dropdown">
-                <button class="sgp-user-link" type="button" data-bs-toggle="dropdown" aria-expanded="false"
-                        title="Mi cuenta">
+                <button class="sgp-user-link d-flex align-items-center gap-2" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Mi cuenta">
                     {{-- **La foto de perfil, si la cargó.** Un monigote igual
                          para todos no distingue a nadie; sin foto van las
                          iniciales, que sí. --}}
@@ -129,17 +264,21 @@
                     @else
                         <span class="sgp-avatar">{{ \App\Servicios\Perfil::iniciales() }}</span>
                     @endif
-                    <span class="sgp-user-nombre">{{ $sgpSesion['nombre'] }}</span>
-                    <i class="bi bi-chevron-down" style="font-size:.65rem"></i>
+                    <div class="d-none d-md-flex flex-column text-start" style="line-height:1.1">
+                        <span class="sgp-user-nombre" style="margin:0">{{ $sgpSesion['nombre'] }}</span>
+                        <span style="font-size:.7rem;opacity:.8">{{ $sgpSesion['rol_nom'] }}</span>
+                    </div>
+                    <i class="bi bi-caret-down-fill d-none d-md-inline" style="font-size:.65rem"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end sgp-dropdown">
                     <li><span class="dropdown-item-text sgp-drop-cabecera">
                         <strong>{{ $sgpSesion['nombre'] }}</strong>
                         <span>{{ $sgpSesion['rol_nom'] }}</span>
-                        {{-- En pantalla chica la ficha de arriba no se dibuja,
-                             así que acá es el único lugar donde se ve. --}}
+                        {{-- En pantalla chica ni el combo ni la ficha de
+                             arriba se dibujan, así que acá es el único lugar
+                             donde se ve en qué local se está. --}}
                         @if ($sgpSucursal)
-                            <span class="txt-oro"><i class="bi bi-shop"></i> {{ $sgpSucursal }}</span>
+                            <span class="txt-oro d-md-none mt-1"><i class="bi bi-shop"></i> {{ $sgpSucursal }}</span>
                         @endif
                     </span></li>
                     <li><hr class="dropdown-divider"></li>
@@ -149,7 +288,8 @@
                             <li><form method="post" action="{{ route('cuenta.cambiar_rol') }}">
                                 @csrf
                                 <input type="hidden" name="id_rol" value="{{ $sgpRol['id_rol'] }}">
-                                <button class="dropdown-item {{ (int) $sgpRol['id_rol'] === (int) session('rol') ? 'active' : '' }}" @disabled((int) $sgpRol['id_rol'] === (int) session('rol'))>
+                                <button class="dropdown-item {{ (int) $sgpRol['id_rol'] === (int) session('rol') ? 'active' : '' }}"
+                                        @disabled((int) $sgpRol['id_rol'] === (int) session('rol'))>
                                     <i class="bi bi-person-badge"></i> {{ $sgpRol['nombre'] }}
                                 </button>
                             </form></li>
@@ -165,8 +305,8 @@
                             <i class="bi bi-bell"></i> Mis recordatorios</a></li>
                     @endif
                     <li><hr class="dropdown-divider"></li>
+                    {{-- Salir es un POST: un GET lo dispararía cualquier enlace o precarga --}}
                     <li>
-                        {{-- Salir es un POST: un GET lo dispararía cualquier enlace o precarga --}}
                         <form method="post" action="{{ route('salir') }}" class="d-inline w-100">
                             @csrf
                             <button type="submit" class="dropdown-item" data-confirmar="¿Cerrar la sesión?">
@@ -176,16 +316,6 @@
                     </li>
                 </ul>
             </div>
-            {{-- La sucursal va ANTES del rol y en relleno, no en contorno: es
-                 lo que cambia entre una sesión y otra, y lo que hay que poder
-                 leer de un vistazo antes de cobrar o descontar stock. El rol
-                 queda en contorno, que es información de fondo. --}}
-            @if ($sgpSucursal)
-                <span class="sgp-suc-chip d-none d-md-inline" title="Estás trabajando en esta sucursal">
-                    <i class="bi bi-shop"></i> {{ $sgpSucursal }}</span>
-            @endif
-            <span class="sgp-rol-chip d-none d-md-inline">{{ $sgpSesion['rol_nom'] }}</span>
-
         </div>
     @endif
 </header>
@@ -448,7 +578,9 @@
 
          La maquinaria sigue en `Navegacion::accesosRapidos()` y en
          `config/navegacion.php` por si se la quiere devolver en otro lugar —
-         un pie de pantalla, por ejemplo— pero hoy no la dibuja nadie. --}}
+         un pie de pantalla, por ejemplo— pero hoy no la dibuja nadie, y por
+         eso **el layout dejó de calcularla**: quedaba armándose en cada
+         pantalla para nadie. --}}
 
     @yield('contenido')
 </main>

@@ -434,11 +434,24 @@ class CitasController extends Controller
                     CASE WHEN f.id_factura IS NULL THEN NULL
                          ELSE fn_factura_nro(f.id_factura) END AS nro_comprobante,
                     CASE WHEN f.id_factura IS NULL THEN NULL
-                         ELSE fn_factura_saldo(f.id_factura) END AS saldo
+                         ELSE fn_factura_saldo(f.id_factura) END AS saldo,
+                    -- **Los comprobantes POR PERSONA de la cita de varias.** Cada
+                    -- una puede irse con el suyo (`factura.persona`, 7.117.0), así
+                    -- que la fila tiene que saber cuántos hay y cuánto deben entre
+                    -- todos; el detalle por persona lo trae `Acompanantes::cuenta()`.
+                    (SELECT COUNT(*) FROM factura fi
+                      WHERE fi.id_cita = v.id_cita AND fi.id_estado_factura = 1
+                        AND fi.persona IS NOT NULL) AS facturas_ind,
+                    (SELECT COALESCE(SUM(fn_factura_saldo(fi2.id_factura)), 0) FROM factura fi2
+                      WHERE fi2.id_cita = v.id_cita AND fi2.id_estado_factura = 1
+                        AND fi2.persona IS NOT NULL) AS saldo_ind
                FROM vw_agenda_citas v
                JOIN cita c ON c.id_cita = v.id_cita
                JOIN estado_cita ec ON ec.id_estado_cita = c.id_estado_cita
-               LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1
+               -- El comprobante de TODA la cita. Los de una persona sola van en
+               -- las subconsultas de arriba: unidos acá, una cita con tres
+               -- comprobantes saldría tres veces en la agenda.
+               LEFT JOIN factura f ON f.id_cita = v.id_cita AND f.id_estado_factura = 1 AND f.persona IS NULL
               WHERE $rangoSql $soloMias
               -- **Primero lo que falta hacer, y dentro por hora.** El peso sale
               -- de lo que la cita todavía pide del salón: lo que ocupa la
@@ -524,9 +537,33 @@ class CitasController extends Controller
             'desglosesSena' => $this->desglosesDeSena($rows),
             // Quiénes vienen con la clienta. Se piden para TODAS las filas de
             // una vez: una consulta por renglón sería una por cada cita del día.
-            'acompanantes' => Acompanantes::deCitas(array_map(fn ($r) => (int) $r->id_cita, $rows)),
+            'acompanantes' => $acompanantes = Acompanantes::deCitas(array_map(fn ($r) => (int) $r->id_cita, $rows)),
+            // **La cuenta de cada persona, en las citas de varias.** Es lo que
+            // deja cobrar y facturar junto o por separado, y decir en la fila
+            // qué servicio es de quién. Sólo para las que lo necesitan: en una
+            // cita de una sola persona no hay nada que repartir.
+            'cuentas' => $this->cuentasPorPersona($rows, $acompanantes),
             'f' => $f,
         ]);
+    }
+
+    /**
+     * La cuenta por persona de cada cita de varias que haya en la pantalla.
+     *
+     * @param  array<int,object>  $rows
+     * @param  array<int,array<int,object>>  $acompanantes
+     * @return array<int,array<int,array<string,mixed>>>  [id_cita => [persona => cuenta]]
+     */
+    private function cuentasPorPersona(array $rows, array $acompanantes): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            if ((int) ($r->personas ?? 1) > 1) {
+                $out[(int) $r->id_cita] = Acompanantes::cuenta($r, $acompanantes[(int) $r->id_cita] ?? []);
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -830,7 +867,11 @@ class CitasController extends Controller
         }
 
         try {
-            $idCita = Agenda::agendar($idCliente, $idUsuario, $fecha, $dur, $obs, $asignacion);
+            // Para quién es cada servicio: con la cita de varias, cada tarjeta
+            // lo pregunta. Con una sola persona es todo de ella.
+            $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
+
+            $idCita = Agenda::agendar($idCliente, $idUsuario, $fecha, $dur, $obs, $asignacion, null, $personaDe);
             $equipo = count(array_filter(array_values($asignacion))) > 0;
 
             // Va aparte del `sp_agendar_cita` por el mismo motivo que en el
@@ -1758,12 +1799,22 @@ class CitasController extends Controller
                           WHERE x2.id_cita = :c5 AND x2.id_servicio = s.id_servicio LIMIT 1) AS id_usuario,
                         -- Cuándo se cerró esa parte. NULL es «todavía no».
                         (SELECT x3.terminado_en FROM cita_servicio x3
-                          WHERE x3.id_cita = :c6 AND x3.id_servicio = s.id_servicio LIMIT 1) AS terminado_en
+                          WHERE x3.id_cita = :c6 AND x3.id_servicio = s.id_servicio LIMIT 1) AS terminado_en,
+                        -- **¿Lo hace quien está atendiendo?** La lista de «se
+                        -- agrega en el sillón» ofrecía el catálogo entero, así
+                        -- que una peluquera veía quince servicios para elegir y
+                        -- entre ellos los que no hace — y agregando uno la
+                        -- comisión le quedaba a ella. Es la misma autoridad del
+                        -- reparto (`fn_usuario_hace_servicio`), con su criterio
+                        -- permisivo: quien no tiene ninguno cargado los hace
+                        -- todos, así que un salón que no administre esto sigue
+                        -- viendo la lista igual que antes.
+                        fn_usuario_hace_servicio(:yo, s.id_servicio) AS hace
                    FROM servicio s
                    JOIN categoria_servicio cs ON cs.id_categoria_servicio = s.id_categoria_servicio
                   WHERE s.activo = 1 ORDER BY cs.nombre, s.nombre'
                 . ($soloLectura ? ') t WHERE t.ya > 0' : ''),
-                ['c1' => $id, 'c2' => $id, 'c5' => $id, 'c6' => $id]
+                ['c1' => $id, 'c2' => $id, 'c5' => $id, 'c6' => $id, 'yo' => (int) session('uid')]
             ),
             // **A qué servicio se le imputa el producto: sólo a los de ESTA
             // cita.** El selector ofrecía el catálogo entero, así que se podía

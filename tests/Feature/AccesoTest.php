@@ -466,14 +466,26 @@ class AccesoTest extends TestCase
         $this->get(route('cuenta.index'))->assertOk()->assertSee('Tus datos');
     }
 
+    /**
+     * El número que el panel muestra es el que da la base, no uno escrito.
+     *
+     * **Medía «clientes activos», y ese número salió del panel en la 7.117.0**
+     * por decisión del usuario: cuántas fichas hay no pide ninguna acción, y el
+     * panel es para lo que hay que hacer hoy. Así que la prueba pasa a medir
+     * las citas de hoy, que es un número de la misma clase —sale de una
+     * consulta— y sigue estando: lo que se guarda es la regla, no la métrica
+     * que la ilustraba.
+     */
     #[Test]
     public function el_panel_muestra_los_numeros_que_da_la_base(): void
     {
         $this->entrarComo(self::ADMIN, self::CLAVE);
 
-        $clientes = (int) DB::scalar('SELECT COUNT(*) FROM cliente WHERE activo = 1');
+        $citas = (int) DB::scalar(
+            'SELECT COUNT(*) FROM cita WHERE DATE(fecha_hora) = CURDATE() AND id_estado_cita NOT IN (3,6)'
+        );
 
-        $this->get(route('panel'))->assertOk()->assertSee((string) $clientes);
+        $this->get(route('panel'))->assertOk()->assertSee((string) $citas);
     }
 
     /**
@@ -551,12 +563,18 @@ class AccesoTest extends TestCase
     }
 
     /**
-     * El panel dice qué falta cargar, y sólo a quien puede cargarlo.
+     * La campanita dice qué falta cargar, y sólo a quien puede cargarlo.
      *
      * **Es el motivo de existir del bloque**: la misma pregunta la contesta
      * `sgp:pendientes`, pero quien configura el salón no abre una terminal, así
      * que un aviso que sólo vive ahí es un aviso que nadie lee — la función
      * apagada en silencio de siempre.
+     *
+     * **Desde la 7.117.0 no está en el panel sino dentro de la campanita**
+     * (pedido del usuario), así que se ve desde cualquier pantalla y no sólo
+     * desde el inicio. Lo que la prueba cuida no cambió — que los renglones
+     * estén y que sólo los vea quien puede resolverlos—: lo que cambió es
+     * dónde se los busca.
      *
      * Se comprueba en las dos direcciones, que es lo que le da valor: el
      * Administrador ve los renglones **y** el Profesional no ve ninguno,
@@ -564,7 +582,7 @@ class AccesoTest extends TestCase
      * segunda mitad, un bloque que se dibujara siempre pasaría igual.
      */
     #[Test]
-    public function el_panel_dice_que_falta_cargar_y_solo_a_quien_puede_hacerlo(): void
+    public function la_campanita_dice_que_falta_cargar_y_solo_a_quien_puede_hacerlo(): void
     {
         // Se fabrica algo pendiente para no depender de cómo esté la base: un
         // profesional con turno y sin comisión vigente. `DatabaseTransactions`
@@ -585,9 +603,10 @@ class AccesoTest extends TestCase
         $this->entrarComo(self::ADMIN, self::CLAVE);
         $panel = $this->get(route('panel'))->assertOk()->getContent();
 
+        // El grupo de la bandeja y el nivel de cada renglón, que son el gancho.
         $this->assertStringContainsString('Falta cargar', $panel,
-            'El panel del Administrador no muestra lo que falta cargar.');
-        $this->assertStringContainsString('sgp-falta-nivel', $panel);
+            'La campanita del Administrador no muestra lo que falta cargar.');
+        $this->assertStringContainsString('sgp-pend-nivel', $panel);
 
         // Y la otra mitad, que es la que le da valor: quien no puede resolver
         // nada, no ve nada. **La sesión se arma a mano y no se ingresa con
@@ -605,7 +624,7 @@ class AccesoTest extends TestCase
         $this->conMarcaDeSesion();
 
         $suyo = (string) $this->get(route('panel'))->assertOk()->getContent();
-        $this->assertStringNotContainsString('sgp-falta-nivel', $suyo,
+        $this->assertStringNotContainsString('sgp-pend-nivel', $suyo,
             'El Profesional ve pendientes que no tiene permiso para resolver.');
     }
 

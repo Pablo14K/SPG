@@ -17,6 +17,21 @@
              && ! in_array((int) $s->id_servicio, $mias ?? [], true);
     $trabado = (bool) ($factura ?? null) || $cerrado || $ajeno;
 @endphp
+{{-- **Con la cita cerrada esto se LEE, no se elige.** «Ver atención» dibujaba
+     las mismas casillas —marcadas y deshabilitadas—, y una casilla es una
+     invitación: se lee como que ahí se decide algo, cuando lo que hay es lo que
+     ya pasó. Se reportó junto con el buscador. Los datos son los mismos; lo que
+     cambia es que dejan de parecer un formulario. --}}
+@if ($soloLectura ?? false)
+    <div class="sgp-lista-hecho">
+        <i class="bi bi-check2 txt-ok"></i>
+        {{ $s->nombre }}
+        <span class="text-muted-warm">· {{ money($s->precio) }} · {{ $s->categoria }}</span>
+        @if (! empty($s->terminado_en))
+            <span class="badge-estado e-ok">cerrado {{ fecha($s->terminado_en, 'H:i') }}</span>
+        @endif
+    </div>
+@else
 <div class="form-check">
     <input class="form-check-input srvAt" type="checkbox" name="servicios[]"
            value="{{ $s->id_servicio }}" id="sa{{ $s->id_servicio }}"
@@ -40,14 +55,22 @@
         @endif
     </label>
 
-    {{-- **Quién lo hace.** Un servicio agregado en el sillón lo puede atender
-         otra persona —la manicura mientras siguen con el color—, y sin esto
-         quedaba a nombre de quien figura en la cita: la comisión se le
-         atribuía a quien no lo hizo, que es el hallazgo AG-02 otra vez.
+    {{-- **Quién lo hace, y SÓLO en lo que se agrega en el sillón.** Lo
+         agendado ya trae su profesional decidido al reservar —el paso
+         «Profesionales» del asistente—, así que acá el combo no preguntaba
+         nada nuevo: repetía una decisión ya tomada y encima invitaba a
+         cambiarla desde una pantalla que es para registrar lo que pasó, no
+         para rehacer el reparto. Se reportó como «es innecesario el combo
+         para el servicio agendado».
+
+         En el agregado sí hace falta: la manicura la puede hacer otra
+         persona mientras siguen con el color, y sin esto quedaba a nombre de
+         quien figura en la cita — la comisión se le atribuía a quien no lo
+         hizo, que es el hallazgo AG-02 otra vez.
 
          Vacío = lo hace quien ya lo tenía asignado, o el profesional de la
          cita. Aparece con su casilla, como en Nueva cita. --}}
-    @if (! $trabado && ($profs ?? []))
+    @if (! $trabado && ! $s->agendado && ($profs ?? []))
         <select class="form-select form-select-sm mt-1" style="max-width:230px"
                 name="prof_realiza[{{ $s->id_servicio }}]"
                 data-prof-de="#sa{{ $s->id_servicio }}">
@@ -59,3 +82,4 @@
         </select>
     @endif
 </div>
+@endif

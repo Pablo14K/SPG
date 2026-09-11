@@ -1180,6 +1180,25 @@ window.SGPCarga = (function () {
       cont.addEventListener('input', calcularVuelto);
     }
 
+    // **El tope puede cambiar después de dibujado.** En la agenda, el cobro
+    // de una cita de varias personas pasa de «todo el grupo junto» a «lo de
+    // una sola», y ahí el saldo contra el que se compara es otro: lo que le
+    // falta a ESA persona. La vista lo avisa con `sgp:cobro-saldo` y acá se
+    // toma — la primera línea se rehace con el monto propuesto y el resumen
+    // vuelve a decir cuánto queda, contra el número nuevo.
+    caja.addEventListener('sgp:cobro-saldo', function (ev) {
+      var d = ev.detail || {};
+      var nuevo = parseFloat(d.saldo);
+      if (isNaN(nuevo)) return;
+      saldo = nuevo;
+      caja.setAttribute('data-saldo', String(nuevo));
+      var primera = cont.querySelector('.sgp-cobro-monto');
+      var prop = parseFloat(d.sugerido);
+      if (primera && !isNaN(prop)) primera.value = prop > 0 ? miles(prop) : '';
+      recalcular();
+      calcularVuelto();
+    });
+
     // Arranca con una sola línea por el saldo completo: el caso más común
     nuevaLinea(sugerido);
     // El vuelto depende del medio elegido, y el primero ya esta puesto: se
@@ -1202,6 +1221,66 @@ window.SGPCarga = (function () {
 //  casillas de los submódulos, que son las claves que acepta el POST.
 // ---------------------------------------------------------------------
 (function () {
+  // ---- La campanita: abrirla marca lo visto -------------------------
+  // Baja el numerito rojo sin recargar. **No resuelve nada**: el renglon se
+  // queda en la bandeja, la caja sigue abierta. Es lo que hace cualquier
+  // bandeja de correo al abrirse.
+  //
+  // Lo que se manda son SOLO las claves de las alertas sin ver, que el
+  // servidor vuelve a validar contra la campanita de quien llama: los
+  // pendientes —lo que falta cargar— no entran, siguen contando hasta que
+  // alguien los cargue.
+  //
+  // Sin JavaScript la bandeja se abre igual y se lee igual; lo unico que no
+  // pasa es que el numero baje, que es una comodidad y no el aviso.
+  document.querySelectorAll('[data-sgp-bandeja]').forEach(function (campana) {
+    var claves;
+    try { claves = JSON.parse(campana.getAttribute('data-sgp-bandeja') || '[]'); }
+    catch (e) { claves = []; }
+    if (!claves.length) { return; }
+
+    var ruta = document.querySelector('meta[name="sgp-alertas-vistas"]');
+    var token = document.querySelector('meta[name="csrf-token"]');
+    if (!ruta || !token) { return; }
+
+    campana.addEventListener('shown.bs.dropdown', function alUsar() {
+      campana.removeEventListener('shown.bs.dropdown', alUsar);
+      fetch(ruta.getAttribute('content'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': token.getAttribute('content'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ claves: claves })
+      }).then(function () {
+        var n = campana.querySelector('.sgp-campana-n');
+        // Quedan los pendientes, que no dejan de contar nunca.
+        var quedan = campana.parentNode.querySelectorAll('.sgp-alerta.sin-ver').length - claves.length;
+        campana.parentNode.querySelectorAll('.sgp-alerta.sin-ver').forEach(function (fila, i) {
+          if (i < claves.length) { fila.classList.remove('sin-ver'); }
+        });
+        if (n && quedan > 0) { n.textContent = String(quedan); }
+        else if (n) { n.remove(); campana.classList.remove('tiene-aviso'); }
+      }).catch(function () { /* el aviso ya se leyo: que falle no rompe nada */ });
+    });
+  });
+
+  // ---- Un combo que manda su formulario al elegir -------------------
+  // Hoy lo usa el de sucursal de la barra: cambiar de local es una sola
+  // decision, asi que pedir ademas un boton de confirmar es un clic de mas.
+  //
+  // **El boton de respaldo se dibuja SIEMPRE y lo escondemos aca.** Al reves
+  // —dibujarlo desde el JS— quien tenga `app.js` caido se queda sin forma de
+  // cambiar de local: la regla de siempre, lo que adorna puede faltar.
+  document.querySelectorAll('[data-sgp-envia]').forEach(function (combo) {
+    var boton = document.querySelector(combo.getAttribute('data-sgp-envia'));
+    if (boton) { boton.hidden = true; }
+    combo.addEventListener('change', function () {
+      if (combo.form) { combo.form.submit(); }
+    });
+  });
+
   var maestras = document.querySelectorAll('[data-marca-todo]');
   if (!maestras.length) return;
 
@@ -1782,6 +1861,12 @@ window.SGPCarga = (function () {
   var elCobrar = caja.querySelector('[data-suma="cobrar"]');
   var casillas = document.querySelectorAll('.srvAt');
 
+  // **Sin casillas no hay nada que sumar, y sumar cero MIENTE.** En «Ver
+  // atención» la lista pasó a ser de sólo lectura —lo que se hizo, sin
+  // casillas—, así que este bloque ponía «Gs. 0» encima del número que el
+  // servidor ya había calculado bien. El que vale ahí es el del servidor.
+  if (!casillas.length) return;
+
   function gs(n) {
     return 'Gs. ' + Math.round(n).toLocaleString('es-PY', { maximumFractionDigits: 0 });
   }
@@ -1915,6 +2000,110 @@ window.SGPCarga = (function () {
     campo.addEventListener('change', dibujar);
     dibujar();
   });
+})();
+
+/* ------------------------------------------------------------------
+   ¿Para quién es cada servicio? — la cita de varias personas
+
+   Con tres amigas en la misma cita, «corte, mechas, manicura» no decía
+   de quién era cada cosa: no se le podía cobrar a cada una lo suyo ni
+   hacerle su propio comprobante. Ahora cada tarjeta de servicio trae un
+   «¿para quién?» (`[data-para-select]`, ver el componente
+   `servicio-tarjeta`) y este bloque lo llena con los nombres que se
+   cargaron en el paso «Personas».
+
+   Quién es cada número del grupo, que es la misma regla que usa el
+   servidor (`Acompanantes::nombres()`):
+
+     1     la titular — quien reserva, o `nombre_para` si la cita es para
+           otra persona. El rótulo lo declara el formulario
+           (`data-para-titular`); en Nueva cita se toma del combo de
+           clienta, que es donde se la elige.
+     2..N  cada acompañante, por el orden de sus campos de nombre.
+
+   **El bloque sólo se ve con más de una persona y con el servicio
+   marcado**: con una sola no hay nada que preguntar. Sin JavaScript
+   queda escondido y el servidor lo toma como de la titular, que es lo
+   que siempre fue.
+
+   Lo elegido se conserva al rehacer las opciones —subir el número de
+   personas o corregir un nombre no vuelve todo a la persona 1—.
+   ------------------------------------------------------------------ */
+(function () {
+  'use strict';
+  var selects = document.querySelectorAll('[data-para-select]');
+  if (!selects.length) return;
+
+  var personas = document.getElementById('personas');
+  var form = selects[0].closest('form');
+
+  function titular() {
+    var otro = document.getElementById('paraOtro');
+    var nombrePara = document.getElementById('nombre_para');
+    if (otro && otro.checked && nombrePara && nombrePara.value.trim()) {
+      return nombrePara.value.trim();
+    }
+    var cli = document.getElementById('id_cliente');
+    if (cli && cli.value) {
+      var op = cli.options[cli.selectedIndex];
+      if (op && op.getAttribute('data-nombre')) return op.getAttribute('data-nombre');
+    }
+    return (form && form.getAttribute('data-para-titular')) || 'Persona 1';
+  }
+
+  function nombres() {
+    var n = parseInt(personas ? personas.value : '1', 10);
+    if (!(n >= 1)) n = 1;
+    if (n > 20) n = 20;
+    var lista = { 1: titular() };
+    for (var i = 2; i <= n; i++) {
+      var campo = document.querySelector('[name="acomp_nombre[' + i + ']"]');
+      var ape = document.querySelector('[name="acomp_apellido[' + i + ']"]');
+      var nom = campo ? campo.value.trim() : '';
+      if (nom && ape && ape.value.trim()) nom += ' ' + ape.value.trim();
+      lista[i] = nom || ('Persona ' + i);
+    }
+    return { n: n, lista: lista };
+  }
+
+  function rehacer() {
+    var datos = nombres();
+    selects.forEach(function (sel) {
+      var actual = sel.value || sel.getAttribute('data-elegido') || '1';
+      sel.removeAttribute('data-elegido');
+      sel.innerHTML = '';
+      for (var i = 1; i <= datos.n; i++) {
+        var op = document.createElement('option');
+        op.value = String(i);
+        // El nombre lo escribe una persona: va como texto, nunca como HTML.
+        op.textContent = i + ' · ' + datos.lista[i];
+        sel.appendChild(op);
+      }
+      sel.value = (parseInt(actual, 10) >= 1 && parseInt(actual, 10) <= datos.n) ? actual : '1';
+
+      var caja = sel.closest('.sgp-srv-para');
+      var chk = caja && document.querySelector(caja.getAttribute('data-para-de'));
+      if (caja) caja.hidden = !(datos.n > 1 && chk && chk.checked);
+    });
+  }
+
+  // Todo lo que puede cambiar quién es quién, o si hay que preguntarlo.
+  if (personas) {
+    personas.addEventListener('input', rehacer);
+    personas.addEventListener('change', rehacer);
+  }
+  document.addEventListener('input', function (ev) {
+    var n = ev.target && ev.target.name;
+    if (n && (n.indexOf('acomp_nombre[') === 0 || n.indexOf('acomp_apellido[') === 0)) rehacer();
+    if (ev.target && ev.target.id === 'nombre_para') rehacer();
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (!t) return;
+    if (t.id === 'paraOtro' || t.id === 'id_cliente' || (t.classList && t.classList.contains('srv'))) rehacer();
+  });
+
+  rehacer();
 })();
 
 /* ------------------------------------------------------------------
@@ -2499,6 +2688,16 @@ document.addEventListener('sgp:asistente-paso', function (e) {
     var asignada = !quien && eleccion && eleccion.nombres && eleccion.nombres[c.value];
     cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
       quien ? quien : (asignada ? 'con ' + asignada + ' (asignada para ese horario)' : 'con quien esté disponible')));
+
+    // **Para quién es, cuando la cita es de varias.** Con una sola persona el
+    // combo tiene una opción y no se dice nada: sería repetir el nombre de
+    // quien reserva en cada renglón.
+    var paraSel = document.querySelector('select[name="para[' + c.value + ']"]');
+    if (paraSel && paraSel.options.length > 1) {
+      var opPara = paraSel.options[paraSel.selectedIndex];
+      cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
+        'para ' + (opPara ? opPara.textContent.replace(/^\d+ · /, '') : 'la persona ' + paraSel.value)));
+    }
 
     fila.appendChild(ic);
     fila.appendChild(cuerpo);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Mail\ComprobanteCliente;
+use App\Servicios\Acompanantes;
 use App\Servicios\Auditoria;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
@@ -1787,27 +1788,68 @@ class FacturacionController extends Controller
         $ref = $lineas[0]['ref'] ?? null;
 
         $cita = DB::selectOne(
-            "SELECT c.id_cita, c.id_estado_cita, CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente
+            "SELECT c.id_cita, c.id_estado_cita, c.personas, c.para_otra_persona, c.nombre_para,
+                    CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente
                FROM cita c JOIN cliente cl ON cl.id_cliente = c.id_cliente
                JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona WHERE c.id_cita = ?", [$idCita]
         );
 
-        // ¿Ya tiene comprobante emitido? Es lo que decide si esto es un cobro
-        // contra la cita o hay que ir por la factura.
-        $yaFacturada = (bool) DB::scalar(
-            'SELECT COUNT(*) FROM factura WHERE id_cita = ? AND id_estado_factura = 1', [$idCita]
-        );
+        // **¿De quién es este pago?** En la cita de varias personas cada una
+        // puede pagar lo suyo y llevarse su comprobante, o pagar todo junto.
+        // `modo_pago` lo dice; `persona` (1 = titular, 2..N acompañantes) sale
+        // del selector, que la pantalla deshabilita —o sea, no manda— cuando
+        // pagan juntas. Cero es el cobro de la cita entera, lo de siempre.
+        $modo = (string) $request->input('modo_pago', 'junto');
+        $persona = $modo === 'persona' ? (int) $request->input('persona', 0) : 0;
 
+        // ¿Ya tiene comprobante emitido? Es lo que decide si esto es un cobro
+        // contra la cita o hay que ir por la factura. **Y son dos preguntas
+        // desde que hay comprobante por persona**: uno de toda la cita cierra
+        // el cobro contra ella; el de UNA persona cierra sólo el suyo.
+        $facturaGrupal = (bool) DB::scalar(
+            'SELECT COUNT(*) FROM factura WHERE id_cita = ? AND id_estado_factura = 1 AND persona IS NULL',
+            [$idCita]
+        );
+        $facturadas = array_map('intval', array_column(DB::select(
+            'SELECT persona FROM factura WHERE id_cita = ? AND id_estado_factura = 1 AND persona IS NOT NULL',
+            [$idCita]
+        ), 'persona'));
+
+        $cuenta = null;
         $error = null;
         if (! $cita) {
             $error = 'Esa cita no existe.';
         } elseif (in_array((int) $cita->id_estado_cita, [3, 6], true)) {
             $error = 'No se puede cobrar una cita cancelada o marcada como ausente.';
-        } elseif ($yaFacturada) {
+        } elseif ($facturaGrupal) {
             // Con comprobante emitido el cobro va contra ÉL, que es donde la
             // numeración de la DNIT lo puede rastrear.
             $error = 'Esa cita ya tiene comprobante emitido: cobralo desde Facturas.';
-        } elseif ($monto <= 0) {
+        } elseif ($persona > 0 && $persona > max(1, (int) $cita->personas)) {
+            $error = 'Esa cita es de ' . max(1, (int) $cita->personas) . ' persona(s): no hay a quién cobrarle eso.';
+        } elseif ($persona > 0 && in_array($persona, $facturadas, true)) {
+            $error = 'Esa persona ya tiene su comprobante: cobralo desde Facturas.';
+        } elseif ($persona === 0 && $facturadas) {
+            // Alguien del grupo ya se fue con el suyo: lo que queda se cobra
+            // por persona, o el cobro «de todas» le pisa lo ya facturado.
+            $error = 'Alguna de las personas de esta cita ya tiene su comprobante: '
+                . 'cobrá eligiendo «Cada una lo suyo».';
+        } elseif ($persona > 0) {
+            // **Lo que le falta a ESA persona**, con la misma cuenta que
+            // muestra la agenda: su parte proporcional del total de la cita,
+            // menos lo que ya pagó a su nombre. La base topa contra la cita
+            // entera, así que sin esto se le podría cobrar a una lo de la otra.
+            $cuenta = Acompanantes::cuenta($cita, Acompanantes::deCitas([$idCita])[$idCita] ?? []);
+            $suya = $cuenta[$persona] ?? null;
+            if (! $suya || ! $suya['servicios']) {
+                $error = ($suya['nombre'] ?? 'Esa persona') . ' no tiene servicios en esta cita: no hay nada que cobrarle.';
+            } elseif ($monto > $suya['falta'] + 0.5) {
+                $error = 'A ' . $suya['nombre'] . ' le faltan ' . money($suya['falta'])
+                    . ($suya['cobrado'] > 0 ? ' (ya pagó ' . money($suya['cobrado']) . ')' : '')
+                    . ', así que no se le puede cobrar ' . money($monto) . '.';
+            }
+        }
+        if (! $error && $monto <= 0) {
             $error = 'Ingresá un monto mayor a cero.';
         } elseif (! $idMetodo || ! DB::scalar('SELECT COUNT(*) FROM metodo_pago WHERE id_metodo_pago = ? AND activo = 1', [$idMetodo])) {
             $error = 'Elegí un método de pago válido.';
@@ -1836,10 +1878,11 @@ class FacturacionController extends Controller
             // pago de la cita. Si una línea falla no queda media cita cobrada.
             $idCobro = 0;
             $cobrados = [];
-            Bd::enTransaccion(function () use ($lineas, $idCita, $idCaja, &$idCobro, &$cobrados) {
+            Bd::enTransaccion(function () use ($lineas, $idCita, $idCaja, $persona, &$idCobro, &$cobrados) {
                 foreach ($lineas as $l) {
                     $nuevo = Facturacion::sena($idCita, (int) $l['metodo'], (int) session('uid'),
-                        (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), $idCaja);
+                        (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), $idCaja,
+                        $persona > 0 ? $persona : null);
                     $idCobro = $idCobro ?: $nuevo;
                     $cobrados[] = $nuevo;
                     if (! empty($l['detalle'])) {
@@ -1873,9 +1916,10 @@ class FacturacionController extends Controller
                     . ' WHERE id_cobro IN (' . implode(',', array_map('intval', $cobrados)) . ')');
             }
 
+            $deQuien = $persona > 0 && $cuenta ? ' — de ' . $cuenta[$persona]['nombre'] : '';
             Auditoria::registrar('SENA', 'Facturacion', 'cobro', $idCobro,
                 ($atendida ? 'Cobro de ' : 'Seña de ') . money($monto) . ' por la cita #' . $idCita
-                . ' (' . $cita->cliente . ')'
+                . ' (' . $cita->cliente . ')' . $deQuien
                 . ($idSolicitud > 0 ? ' — confirma la que registró la clienta desde el portal' : ''));
 
             // **Cobrado; ahora el comprobante que la clienta pida.**
@@ -1887,10 +1931,13 @@ class FacturacionController extends Controller
             // y `fn_factura_saldo` ya descuenta esos cobros: al emitir después,
             // el comprobante sale saldado solo.
             if ($atendida) {
-                flash('Cobrado ' . money($monto) . ' a ' . $cita->cliente
+                flash('Cobrado ' . money($monto) . ' a ' . ($persona > 0 && $cuenta ? $cuenta[$persona]['nombre'] : $cita->cliente)
                     . '. Ahora elegí el comprobante que pida: se descuenta solo del total.');
 
-                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+                // Cobrado por persona, el comprobante que sigue es el de ESA
+                // persona: la pantalla de emitir lo deja elegido.
+                return redirect()->route('facturacion.emitir',
+                    ['cita' => $idCita] + ($persona > 0 ? ['persona' => $persona] : []));
             }
 
             flash('Seña de ' . money($monto) . ' registrada para ' . $cita->cliente

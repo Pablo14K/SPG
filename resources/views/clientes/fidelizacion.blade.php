@@ -30,8 +30,15 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
+                        {{-- **Sin teléfono, y lo demás como columnas.** El
+                             teléfono ya está en Clientes y acá no contesta
+                             ninguna pregunta de esta pantalla —quién junta
+                             cuántos puntos—: era un dato repetido detrás de un
+                             clic. Visitas y el descuento del nivel sí son de
+                             acá, así que vuelven al renglón. --}}
                         <th>Cliente</th>
-                        <th class="text-end">Puntos</th><th>Nivel</th>
+                        <th class="text-end">Visitas</th><th class="text-end">Puntos</th>
+                        <th>Nivel</th><th>Descuento</th>
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -39,15 +46,12 @@
                     @forelse ($rows as $r)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="sgp-movil-titulo" data-label="Cliente">{{ $r->cliente }}</td>
+                            <td class="sgp-movil-titulo sgp-movil-sujeto" data-label="Cliente">{{ $r->cliente }}</td>
+                            <td class="text-end" data-label="Visitas">{{ (int) $r->visitas }}</td>
                             <td class="text-end" data-label="Puntos">{{ (int) $r->puntos }}</td>
                             <td data-label="Nivel"><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>
+                            <td data-label="Descuento">{{ $r->descuento_del_nivel ?: '—' }}</td>
                             <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
-                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
-                                        data-bs-target="#detFid{{ $r->id_cliente }}" aria-expanded="false"
-                                        aria-controls="detFid{{ $r->id_cliente }}">
-                                    <i class="bi bi-chevron-down"></i> Detalle
-                                </button>
                                 {{-- Canjear desde el mostrador: la clienta viene al local y
                                      pide gastar sus puntos. La mayoría ni tiene cuenta en el
                                      portal, así que sin esto no podría canjear nunca.
@@ -68,32 +72,9 @@
                                     <i class="bi bi-clock-history"></i></a>
                             </td>
                         </tr>
-                        {{-- Expandable detail row --}}
-                        <tr class="sgp-fila-detalle">
-                            <td colspan="4">
-                                <div class="collapse" id="detFid{{ $r->id_cliente }}">
-                                    <div class="sgp-det-cuerpo">
-                                        <div class="sgp-det-grid">
-                                            <div>
-                                                <dt>Teléfono</dt>
-                                                <dd>{{ $r->telefono ?: '—' }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt>Visitas</dt>
-                                                <dd>{{ (int) $r->visitas }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt>Descuento del nivel</dt>
-                                                <dd>{{ $r->descuento_del_nivel ?: '—' }}</dd>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
                     @empty
                         <tr>
-                            <td colspan="4">
+                            <td colspan="6">
                                 <div class="sgp-vacio">
                                     <i class="bi bi-award"></i>
                                     <div class="t">

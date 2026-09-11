@@ -2360,8 +2360,12 @@ class Agenda
      * simultáneas reciben las dos «está libre» y se quedan con el mismo hueco.
      *
      * @param  array  $asignacion  [id_servicio => id_usuario] (0 = el principal)
+     * @param  array  $personaDe   [id_servicio => persona] para quién es cada
+     *                             servicio cuando la cita es de varias: 1 es la
+     *                             titular, 2..N los acompañantes por su `orden`.
+     *                             Lo que no venga es de la titular.
      */
-    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion, ?int $idSucursal = null): int
+    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion, ?int $idSucursal = null, array $personaDe = []): int
     {
         // Sin sucursal explícita se usa la activa de la sesión, que es el caso
         // del panel. El portal SÍ la pasa: la clienta elige el local al
@@ -2376,7 +2380,7 @@ class Agenda
             $idSucursal = (int) DB::scalar('SELECT id_sucursal FROM usuario WHERE id_usuario = ?', [$idUsuario]);
         }
 
-        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion, $idSucursal) {
+        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion, $idSucursal, $personaDe) {
             $idCita = Bd::idDe('sp_agendar_cita',
                 [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $idSucursal]);
 
@@ -2395,10 +2399,17 @@ class Agenda
             foreach ($asignacion as $idServicio => $idProf) {
                 $otro = (int) $idProf;
                 $de = ($otro && $otro !== $idUsuario) ? $otro : $idUsuario;
+                // **Para quién es.** Con tres amigas en una cita, «corte,
+                // mechas, manicura» no dice de quién es cada cosa: sin esto no
+                // se le puede cobrar a cada una lo suyo ni hacerle su factura.
+                // Fuera de rango cae en 1 —la titular—, que es lo que siempre
+                // fue: el CHECK de la base rechazaría el resto igual.
+                $persona = (int) ($personaDe[(int) $idServicio] ?? 1);
                 DB::insert(
-                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden) VALUES (?,?,?,?)',
+                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden, persona) VALUES (?,?,?,?,?)',
                     [$idCita, (int) $idServicio, $de === $idUsuario ? null : $de,
-                     (int) ($orden[(int) $idServicio] ?? 0)]
+                     (int) ($orden[(int) $idServicio] ?? 0),
+                     $persona >= 1 && $persona <= 20 ? $persona : 1]
                 );
             }
 

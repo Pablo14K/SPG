@@ -16,6 +16,33 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `alerta_vista`
+--
+
+DROP TABLE IF EXISTS `alerta_vista`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `alerta_vista` (
+  `id_alerta_vista` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_usuario` int(10) unsigned NOT NULL,
+  `clave` varchar(80) NOT NULL COMMENT 'Identidad del aviso, p. ej. caja:12',
+  `visto_en` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_alerta_vista`),
+  UNIQUE KEY `uq_alerta_vista` (`id_usuario`,`clave`),
+  CONSTRAINT `fk_alertavista_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `alerta_vista`
+--
+
+LOCK TABLES `alerta_vista` WRITE;
+/*!40000 ALTER TABLE `alerta_vista` DISABLE KEYS */;
+/*!40000 ALTER TABLE `alerta_vista` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `asistencia`
 --
 
@@ -531,6 +558,7 @@ CREATE TABLE `cita_servicio` (
   `id_servicio` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `persona` tinyint(3) unsigned NOT NULL DEFAULT 1 COMMENT 'Para quién es: 1 = la titular (o nombre_para), 2..N = cita_acompanante.orden',
   `terminado_en` datetime DEFAULT NULL,
   PRIMARY KEY (`id_cita_servicio`),
   UNIQUE KEY `uq_cita_servicio` (`id_cita`,`id_servicio`),
@@ -538,7 +566,8 @@ CREATE TABLE `cita_servicio` (
   KEY `fk_citaserv_usuario` (`id_usuario`),
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cs_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE
+  CONSTRAINT `fk_cs_servicio` FOREIGN KEY (`id_servicio`) REFERENCES `servicio` (`id_servicio`) ON UPDATE CASCADE,
+  CONSTRAINT `chk_cs_persona` CHECK (`persona` between 1 and 20)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -656,6 +685,7 @@ CREATE TABLE `cobro` (
   `id_cobro` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_factura` int(10) unsigned DEFAULT NULL,
   `id_cita` int(10) unsigned DEFAULT NULL,
+  `persona` tinyint(3) unsigned DEFAULT NULL COMMENT 'De quién es este cobro cuando la cita es de varias. NULL = de toda la cita',
   `id_metodo_pago` int(10) unsigned NOT NULL,
   `id_estado_cobro` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
@@ -679,7 +709,8 @@ CREATE TABLE `cobro` (
   CONSTRAINT `fk_cobro_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cobro_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `chk_cobro_monto` CHECK (`monto` >= 0),
-  CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null)
+  CONSTRAINT `chk_cobro_destino` CHECK (`id_factura` is not null and `id_cita` is null or `id_factura` is null and `id_cita` is not null),
+  CONSTRAINT `chk_cobro_persona` CHECK (`persona` is null or `persona` between 1 and 20 and `id_cita` is not null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1492,6 +1523,7 @@ CREATE TABLE `factura` (
   `id_factura` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_cliente` int(10) unsigned NOT NULL,
   `id_cita` int(10) unsigned DEFAULT NULL,
+  `persona` tinyint(3) unsigned DEFAULT NULL COMMENT 'Para quién es: NULL = toda la cita, N = esa persona del grupo',
   `id_sucursal` int(10) unsigned DEFAULT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_tipo_comprobante` int(10) unsigned NOT NULL,
@@ -1522,7 +1554,8 @@ CREATE TABLE `factura` (
   CONSTRAINT `fk_factura_timbrado` FOREIGN KEY (`id_timbrado`) REFERENCES `timbrado` (`id_timbrado`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_tipo` FOREIGN KEY (`id_tipo_comprobante`) REFERENCES `tipo_comprobante` (`id_tipo_comprobante`) ON UPDATE CASCADE,
   CONSTRAINT `fk_factura_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
-  CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0)
+  CONSTRAINT `chk_factura_correlativo` CHECK (`nro_correlativo` > 0),
+  CONSTRAINT `chk_factura_persona` CHECK (`persona` is null or `persona` between 1 and 20 and `id_cita` is not null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -3124,6 +3157,32 @@ INSERT INTO `usuario` VALUES (1,1,1,'admin','$2y$10$aXqyrTtSHIcE7N.sPEA6xuI64h/J
 UNLOCK TABLES;
 
 --
+-- Table structure for table `usuario_rol`
+--
+
+DROP TABLE IF EXISTS `usuario_rol`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `usuario_rol` (
+  `id_usuario` int(10) unsigned NOT NULL,
+  `id_rol` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id_usuario`,`id_rol`),
+  KEY `fk_usuario_rol_rol` (`id_rol`),
+  CONSTRAINT `fk_usuario_rol_rol` FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`) ON DELETE CASCADE,
+  CONSTRAINT `fk_usuario_rol_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `usuario_rol`
+--
+
+LOCK TABLES `usuario_rol` WRITE;
+/*!40000 ALTER TABLE `usuario_rol` DISABLE KEYS */;
+/*!40000 ALTER TABLE `usuario_rol` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `usuario_sucursal`
 --
 
@@ -4564,7 +4623,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'NO_ZERO_IN_DATE,NO_ZERO_DATE,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_factura_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4579,13 +4638,20 @@ BEGIN
   DECLARE v_cobrado DECIMAL(14,2) DEFAULT 0;
   DECLARE v_sena    DECIMAL(14,2) DEFAULT 0;
 
+  
   SELECT COALESCE(SUM(monto), 0) INTO v_cobrado
   FROM cobro WHERE id_factura = p_id_factura AND id_estado_cobro = 1;
 
   
+  
+  
+  
+  
   SELECT COALESCE(SUM(co.monto), 0) INTO v_sena
   FROM factura f
   JOIN cobro co ON co.id_cita = f.id_cita AND co.id_estado_cobro = 1
+              AND co.id_factura IS NULL
+              AND (f.persona IS NULL OR co.persona = f.persona)
   WHERE f.id_factura = p_id_factura AND f.id_cita IS NOT NULL;
 
   RETURN fn_factura_total(p_id_factura) - v_cobrado - v_sena;
@@ -5641,16 +5707,14 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_emitir_factura`(
   IN  p_id_tipo_comprobante  INT UNSIGNED,
   IN  p_id_condicion_venta   INT UNSIGNED,
   IN  p_id_sucursal          INT UNSIGNED,
+  IN  p_persona              TINYINT UNSIGNED,
   OUT p_id_factura           INT UNSIGNED
 )
 BEGIN
   DECLARE v_timbrado  INT UNSIGNED DEFAULT NULL;
   DECLARE v_nro       INT UNSIGNED DEFAULT 0;
   DECLARE v_nivel     INT UNSIGNED DEFAULT NULL;
-  DECLARE v_promo     INT UNSIGNED DEFAULT NULL;
   DECLARE v_suc       INT UNSIGNED DEFAULT NULL;
-  DECLARE v_m_nivel   DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_m_promo   DECIMAL(14,2) DEFAULT 0;
 
   
   
@@ -5665,17 +5729,33 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No hay timbrado vigente para ese tipo de comprobante.';
   END IF;
 
+  
+  
+  
+  IF p_persona IS NOT NULL THEN
+    IF p_id_cita IS NULL THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un comprobante por persona necesita una cita.';
+    END IF;
+    IF p_persona > (SELECT personas FROM cita WHERE id_cita = p_id_cita) THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa persona no esta en la cita.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM cita_servicio
+                    WHERE id_cita = p_id_cita AND persona = p_persona) THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Esa persona no tiene servicios en la cita.';
+    END IF;
+  END IF;
+
   SET v_nro = fn_siguiente_correlativo(v_timbrado);
 
-  INSERT INTO factura (id_cliente, id_cita, id_usuario, id_tipo_comprobante, id_condicion_venta,
+  INSERT INTO factura (id_cliente, id_cita, persona, id_usuario, id_tipo_comprobante, id_condicion_venta,
                        id_sucursal, id_timbrado, id_estado_factura, nro_correlativo)
-  VALUES (p_id_cliente, p_id_cita, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
-          
-          
-          
+  VALUES (p_id_cliente, p_id_cita, p_persona, p_id_usuario, p_id_tipo_comprobante, p_id_condicion_venta,
           v_suc, v_timbrado, 1, v_nro);
   SET p_id_factura = LAST_INSERT_ID();
 
+  
+  
+  
   IF p_id_cita IS NOT NULL THEN
     INSERT INTO detalle_factura (id_factura, id_servicio, cantidad, precio_unitario, tasa_iva)
     SELECT p_id_factura, s.id_servicio, 1,
@@ -5686,7 +5766,8 @@ BEGIN
            s.tasa_iva
     FROM cita_servicio cs
     JOIN servicio s ON s.id_servicio = cs.id_servicio
-    WHERE cs.id_cita = p_id_cita;
+    WHERE cs.id_cita = p_id_cita
+      AND (p_persona IS NULL OR cs.persona = p_persona);
 
     UPDATE servicio_realizado sr
       JOIN detalle_factura df
@@ -5695,11 +5776,6 @@ BEGIN
      WHERE sr.id_cita = p_id_cita AND sr.id_detalle_factura IS NULL;
   END IF;
 
-  
-  
-  
-  
-  
   
   
   SET v_nivel = fn_cliente_descuento(p_id_cliente);
@@ -6652,4 +6728,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-11  0:15:54
+-- Dump completed on 2026-09-11 14:10:25

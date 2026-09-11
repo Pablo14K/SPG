@@ -87,7 +87,7 @@ class ClientesController extends Controller
         // salen de `fn_cliente_*`, o sea una llamada por fila, y se miran donde
         // significan algo: Clientes → Visitas y puntos.
         $cols = 'c.id_cliente, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, '
-              . 'pe.direccion, c.alergias, c.observaciones, c.activo';
+              . 'pe.direccion, pe.foto, c.alergias, c.observaciones, c.activo';
         $orden = 'ORDER BY pe.apellido, pe.nombre';
 
         if (Listado::pideExport()) {
@@ -607,8 +607,8 @@ class ClientesController extends Controller
 
         if (Listado::pideExport()) {
             return Listado::exportar('fidelizacion',
-                ['Cliente', 'Teléfono', 'Visitas', 'Puntos', 'Nivel', 'Descuento del nivel'],
-                array_map(fn ($r) => [$r->cliente, $r->telefono, $r->visitas, $r->puntos, $r->nivel, $r->descuento_del_nivel],
+                ['Cliente', 'Visitas', 'Puntos', 'Nivel', 'Descuento del nivel'],
+                array_map(fn ($r) => [$r->cliente, $r->visitas, $r->puntos, $r->nivel, $r->descuento_del_nivel],
                     DB::select("SELECT * $desde $orden", $par)),
                 $f, 'Fidelización'
             );

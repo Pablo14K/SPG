@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Caja;
-use App\Servicios\Pendientes;
 use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use Illuminate\Support\Facades\DB;
@@ -49,9 +48,12 @@ class PanelController extends Controller
                 "SELECT COUNT(*) FROM cita
                   WHERE DATE(fecha_hora) = :d AND id_estado_cita NOT IN (3,6) $soloMias", $par
             ),
-            'clientes' => Permisos::puede('clientes.registro')
-                ? (int) DB::scalar('SELECT COUNT(*) FROM cliente WHERE activo = 1')
-                : null,
+            // **«Clientes activos» salió del panel** (pedido del usuario, 7.117.0).
+            // Era un número que no pedía ninguna acción: cuántas fichas hay no
+            // dice qué hacer hoy, y el panel es para eso. La clave se conserva
+            // en NULL —que la vista lee como «esto no se dibuja»— para no tocar
+            // el contrato con la pantalla, que la administra otra persona.
+            'clientes' => null,
             'bajo_stock' => Permisos::puede('inventario.stock') ? $this->bajoStock() : null,
             // **Los ingresos son los de ESTE local, no los del negocio entero.**
             // Era la única métrica del panel que no filtraba por sucursal: las
@@ -162,17 +164,10 @@ class PanelController extends Controller
         $cajas = $verCaja ? Caja::abiertasDe() : [];
         usort($cajas, static fn ($a, $b) => strcmp((string) $a->nombre, (string) $b->nombre));
 
-        // **Lo que falta CARGAR se ve acá, no en una terminal.**
-        // `sgp:pendientes` contesta la misma pregunta, pero quien configura el
-        // salón es la dueña en el navegador: un comando que nunca va a correr
-        // es lo mismo que no tenerlo — la función apagada en silencio de
-        // siempre.
-        //
-        // **Sale del mismo servicio que el comando**, así que los dos no se
-        // pueden desfasar, y **se filtra por permiso**: mostrarle a la
-        // recepcionista que faltan timbrados no sirve de nada y le tapa lo que
-        // sí es suyo.
-        $pendientes = Pendientes::mios();
+        // **Lo que falta CARGAR ya no se arma acá**: desde la 7.117.0 vive
+        // dentro de la campanita de la barra, por pedido del usuario, así que
+        // lo pide el layout —`Pendientes::mios()`— y se ve desde cualquier
+        // pantalla y no sólo desde el inicio.
 
         return view('panel', [
             'm' => $metricas,
@@ -182,7 +177,6 @@ class PanelController extends Controller
             'verTodo' => $todaLaAgenda,
             'cajas' => $cajas,
             'verCaja' => $verCaja,
-            'pendientes' => $pendientes,
         ]);
     }
 

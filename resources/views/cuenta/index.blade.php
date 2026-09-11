@@ -72,26 +72,6 @@
                 </table>
             </div>
 
-            {{-- Cambiar de local sin volver a entrar. Sólo aparece si la
-                 persona tiene más de una asignada: con una sola no hay nada
-                 que elegir, y un selector de una opción es ruido. --}}
-            @if (count($misSucursales) > 1)
-                <div class="sgp-panel mt-3">
-                    <h2 class="sgp-form-titulo mb-1"><i class="bi bi-shop"></i> Sucursal<x-ayuda>La agenda, la caja y el stock que ves son los de este local. Al cambiar, cambia todo el sistema — no hace falta cerrar sesión.</x-ayuda></h2>
-                    <div class="d-flex flex-wrap gap-2">
-                        @foreach ($misSucursales as $s)
-                            <form method="post" action="{{ route('sucursal.entrar') }}">
-                                @csrf
-                                <input type="hidden" name="id_sucursal" value="{{ $s->id_sucursal }}">
-                                <button class="btn btn-sm {{ (int) $s->id_sucursal === $idSucursalActiva ? 'btn-oro' : 'btn-rapido' }}"
-                                        @disabled((int) $s->id_sucursal === $idSucursalActiva)>
-                                    <i class="bi bi-shop"></i> {{ $s->nombre }}
-                                </button>
-                            </form>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
 
             {{-- Tema de la interfaz. Es una preferencia de cada persona, no del
                  salón: dos que comparten la computadora pueden tener uno cada

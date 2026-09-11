@@ -16,7 +16,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Cliente</th><th>Teléfono</th>
+                        <th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Email</th>
                         {{-- **Las visitas salieron de acá.** Contaban lo mismo
                              que la pantalla de fidelización —hoy Promociones →
                              Visitas y puntos— y ahí van con su nivel y sus
@@ -30,11 +30,28 @@
                     @forelse ($clientes as $c)
                         {{-- Main row: only essential columns --}}
                         <tr>
-                            <td class="sgp-movil-titulo" data-label="Cliente">
-                                <a class="link-oro" href="{{ route('clientes.historial', $c->id_cliente) }}">
-                                    {{ $c->apellido . ', ' . $c->nombre }}</a>
+                            {{-- **La cara al lado del nombre.** En una lista de
+                                 treinta renglones de texto, reconocer a alguien es
+                                 leer apellido por apellido; la foto se encuentra de
+                                 un vistazo. Sin foto van las iniciales, que siguen
+                                 distinguiendo — un monigote igual para todos no. --}}
+                            <td class="sgp-movil-titulo sgp-movil-sujeto" data-label="Cliente">
+                                <span class="sgp-celda-persona">
+                                    <x-avatar :foto="$c->foto" :nombre="$c->nombre" :apellido="$c->apellido" />
+                                    <a class="link-oro" href="{{ route('clientes.historial', $c->id_cliente) }}">
+                                        {{ $c->apellido . ', ' . $c->nombre }}</a>
+                                </span>
                             </td>
+                            {{-- **Cédula y email vuelven a ser columnas.** Estaban
+                                 plegadas detrás de un «Detalle», y eran dos datos
+                                 que entran de sobra en el renglón: el desplegable
+                                 obligaba a un clic por fila para leer una cédula, y
+                                 al lado quedaba OTRO botón —«Ver la ficha»— que
+                                 muestra lo mismo y más. Dos botones para la misma
+                                 pregunta hacen elegir sin motivo. --}}
+                            <td data-label="Cédula">{{ $c->cedula ?: '—' }}</td>
                             <td data-label="Teléfono">{{ $c->telefono ?: '—' }}</td>
+                            <td data-label="Email">{{ $c->email ?: '—' }}</td>
                             <td data-label="Estado">
                                 @if ($c->activo)
                                     <span class="badge-estado e-ok">Activo</span>
@@ -43,11 +60,6 @@
                                 @endif
                             </td>
                             <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
-                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
-                                        data-bs-target="#detCli{{ $c->id_cliente }}" aria-expanded="false"
-                                        aria-controls="detCli{{ $c->id_cliente }}">
-                                    <i class="bi bi-chevron-down"></i> Detalle
-                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Historial"
                                    href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     <i class="bi bi-clock-history"></i></a>
@@ -81,28 +93,9 @@
                                 </form>
                             </td>
                         </tr>
-                        {{-- Expandable detail row --}}
-                        <tr class="sgp-fila-detalle">
-                            <td colspan="4">
-                                <div class="collapse" id="detCli{{ $c->id_cliente }}">
-                                    <div class="sgp-det-cuerpo">
-                                        <div class="sgp-det-grid">
-                                            <div>
-                                                <dt>Cédula</dt>
-                                                <dd>{{ $c->cedula ?: '—' }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt>Email</dt>
-                                                <dd>{{ $c->email ?: '—' }}</dd>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
                     @empty
                         <tr>
-                            <td colspan="4">
+                            <td colspan="6">
                                 <div class="sgp-vacio">
                                     <i class="bi bi-people"></i>
                                     <div class="t">

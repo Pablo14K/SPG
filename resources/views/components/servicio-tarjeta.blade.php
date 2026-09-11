@@ -21,6 +21,7 @@
     'marcado' => false,
     'nombreCampo' => 'servicios[]',
     'badge' => null,           // texto de un badge extra (ej. «canjeado»)
+    'paraQuien' => false,      // ¿preguntar para quién del grupo es este servicio?
 ])
 
 @php
@@ -117,5 +118,27 @@
          comentario de arriba. --}}
     @if (trim($slot) !== '')
         <div class="sgp-srv-extra">{{ $slot }}</div>
+    @endif
+
+    {{-- **Para quién es este servicio, cuando vienen varias.** Con tres amigas
+         en la misma cita, «corte, mechas, manicura» no decía de quién era cada
+         cosa, así que no se podía cobrar a cada una lo suyo ni hacerle su
+         propio comprobante.
+
+         Las opciones las escribe `app.js` con los nombres que se cargaron en
+         el paso «Personas», y el bloque sólo aparece con más de una persona y
+         con el servicio marcado. **Va FUERA de `sgp-srv-extra`**: ese nodo se
+         muda entero al paso «Profesionales», y esta pregunta es del paso de
+         los servicios. Sin JavaScript queda escondido y el servidor lo toma
+         como de la titular, que es lo que siempre fue. --}}
+    @if ($paraQuien)
+        <div class="sgp-srv-para" data-para-de="#{{ $id }}" hidden>
+            <label class="form-label mb-1" for="para{{ $id }}">¿Para quién?</label>
+            <select class="form-select form-select-sm" name="para[{{ $s->id_servicio }}]"
+                    id="para{{ $id }}" data-para-select
+                    data-elegido="{{ (int) old('para.' . $s->id_servicio, 1) }}">
+                <option value="1">Persona 1</option>
+            </select>
+        </div>
     @endif
 </div>

@@ -58,8 +58,6 @@ class CuentaController extends Controller
             // En qué local está trabajando y a cuáles puede pasarse. La
             // clienta no tiene ninguno: elige al agendar, no al entrar.
             'sucursalActiva' => Sucursales::nombreActiva(),
-            'misSucursales' => Sesion::esCliente() ? [] : Sucursales::delUsuario(),
-            'idSucursalActiva' => Sucursales::activa(),
         ]);
     }
 

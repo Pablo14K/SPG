@@ -49,7 +49,15 @@
                 <tbody>
                     @forelse ($rows as $u)
                         <tr>
-                            <td class="sgp-movil-titulo" data-label="Nombre">{{ $u->nombre }} {{ $u->apellido }}</td>
+                            {{-- La cara al lado del nombre: en una lista de nombres
+                                 parecidos, reconocer a alguien se hace de un vistazo
+                                 y no leyendo apellido por apellido. --}}
+                            <td class="sgp-movil-titulo sgp-movil-sujeto" data-label="Nombre">
+                                <span class="sgp-celda-persona">
+                                    <x-avatar :foto="$u->foto" :nombre="$u->nombre" :apellido="$u->apellido" />
+                                    {{ $u->nombre }} {{ $u->apellido }}
+                                </span>
+                            </td>
 
                             @if ($comoPersonal)
                                 <td class="text-muted-warm" style="font-size:.82rem" data-label="Servicios que hace">

@@ -29,7 +29,15 @@
             <tbody>
                 @forelse ($rows as $r)
                     <tr>
-                        <td class="sgp-movil-titulo" data-label="Nombre">{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
+                        {{-- La cara al lado del nombre: en una lista de nombres
+                             parecidos, reconocer a alguien se hace de un vistazo
+                             y no leyendo apellido por apellido. --}}
+                        <td class="sgp-movil-titulo sgp-movil-sujeto" data-label="Nombre">
+                            <span class="sgp-celda-persona">
+                                <x-avatar :foto="$r->foto" :nombre="$r->nombre" :apellido="$r->apellido" />
+                                {{ trim($r->nombre . ' ' . $r->apellido) }}
+                            </span>
+                        </td>
                         <td data-label="Cuenta del sistema">
                             {{-- **«Sin cuenta» no es un error y hay que decirlo así.**
                                  Es alguien que atiende y no entra al sistema, que es

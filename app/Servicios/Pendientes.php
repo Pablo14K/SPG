@@ -104,7 +104,14 @@ class Pendientes
 
     private static function anotar(string $nivel, string $que, string $donde, ?string $ruta, string $permiso): void
     {
-        self::$puntos[] = compact('nivel', 'que', 'donde', 'ruta', 'permiso');
+        // **`clave` y `visto` son para la bandeja.** Desde la 7.117.0 esto se
+        // dibuja en la campanita junto con las alertas, y ahí cada renglón
+        // dice si ya se lo miró. Un pendiente **nunca** queda visto, y es la
+        // excepción que pidió el usuario: un timbrado sin cargar sigue
+        // contando hasta que alguien lo cargue, por más veces que se lo haya
+        // mirado — verlo no lo resuelve.
+        self::$puntos[] = compact('nivel', 'que', 'donde', 'ruta', 'permiso')
+            + ['clave' => 'pend:' . substr(md5($nivel . '|' . $que), 0, 12), 'visto' => false];
     }
 
     /** Sin timbrado propio, el establecimiento impreso dice otra sede. */

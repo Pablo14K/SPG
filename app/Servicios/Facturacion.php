@@ -25,8 +25,15 @@ use Throwable;
  */
 class Facturacion
 {
-    /** Emite el comprobante de una cita ya atendida. Devuelve su id. */
-    public static function emitir(int $idCliente, int $idCita, int $idUsuario, int $idTipo, int $idCondicion): int
+    /**
+     * Emite el comprobante de una cita ya atendida. Devuelve su id.
+     *
+     * `$persona` es PARA QUIÉN del grupo: null es toda la cita —como se
+     * facturó siempre—, y un número es sólo lo de esa persona
+     * (`cita_servicio.persona`). Con tres amigas en la misma cita, cada una
+     * puede irse con su propio comprobante.
+     */
+    public static function emitir(int $idCliente, int $idCita, int $idUsuario, int $idTipo, int $idCondicion, ?int $persona = null): int
     {
         // **La sucursal va al procedimiento**, que la necesita para elegir el
         // timbrado: el número impreso lleva el establecimiento del local, y con
@@ -34,7 +41,7 @@ class Facturacion
         // factura cuelga de una cita, la del procedimiento manda — el hecho
         // ocurrió donde ocurrió.
         return Bd::idDe('sp_emitir_factura',
-            [$idCliente, $idCita, $idUsuario, $idTipo, $idCondicion, Sucursales::activa()]);
+            [$idCliente, $idCita, $idUsuario, $idTipo, $idCondicion, Sucursales::activa(), $persona]);
     }
 
     public static function numero(int $idFactura): string
@@ -162,10 +169,23 @@ class Facturacion
      * descuenta los cobros de la cita además de los de la factura. Si se la
      * vinculara, se contaría dos veces y el saldo saldría de menos.
      */
-    public static function sena(int $idCita, int $idMetodo, int $idUsuario, float $monto, ?string $ref, int $idCaja): int
+    /**
+     * Un cobro contra la cita: la seña, o el cobro de la atención.
+     *
+     * `$persona` dice DE QUIÉN es cuando la cita es de varias: null es de
+     * toda la cita (el grupo paga junto). El procedimiento no lo conoce
+     * —topea contra el total de la cita, que sigue valiendo— así que se
+     * escribe después, sobre el cobro recién creado.
+     */
+    public static function sena(int $idCita, int $idMetodo, int $idUsuario, float $monto, ?string $ref, int $idCaja, ?int $persona = null): int
     {
-        return Bd::idDe('sp_registrar_sena',
+        $id = Bd::idDe('sp_registrar_sena',
             [$idCita, $idMetodo, $idUsuario, $monto, $ref, $idCaja ?: null]);
+        if ($persona !== null && $persona > 0) {
+            DB::update('UPDATE cobro SET persona = ? WHERE id_cobro = ?', [$persona, $id]);
+        }
+
+        return $id;
     }
 
     public static function anularFactura(int $idFactura, int $idUsuario): void

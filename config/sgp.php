@@ -22,7 +22,7 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.116.1',
+    'version' => '7.117.0',
     'version_fecha' => '2026-09-11',
 
     'moneda' => 'Gs.',
@@ -67,6 +67,16 @@ return [
         // avisa. Sin plazo, un sillón queda bloqueado para siempre por alguien
         // que nunca pagó.
         'sena_horas' => 24,
+    ],
+
+    // --- Caja -------------------------------------------------------------
+    // A partir de cuántas horas abierta la caja pasa a ser un aviso en la
+    // campanita del panel. Una caja se abre a la mañana y se cierra a la
+    // noche con su arqueo: la que sigue abierta al día siguiente es una que
+    // nadie contó, y los cobros de dos días caen en el mismo arqueo. Se avisa
+    // también si la apertura fue otro día, aunque no llegue a estas horas.
+    'caja' => [
+        'horas_abierta_aviso' => 12,
     ],
 
     // --- Listados ---------------------------------------------------------

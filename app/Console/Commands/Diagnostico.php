@@ -38,7 +38,7 @@ class Diagnostico extends Command
      * tendría que detectar. **Al agregar un CHECK, actualizalo acá en la misma
      * tanda.**
      */
-    private const CHECKS = 84;
+    private const CHECKS = 87;
 
     /**
      * Cuánto se aparta de UTC la hora de Paraguay, en segundos.

@@ -74,7 +74,22 @@
 
          En Compras el resumen es otro —lo comprado y lo que se debe— y lo pone
          su propia sección; repetir acá las citas sería ruido. --}}
-    @if (! in_array($seccion, ['compras'], true))
+    {{-- **Las cifras son el RESUMEN, así que van sólo en el Resumen.**
+
+         Se dibujaban en todas las secciones menos Compras, con lo cual las
+         mismas ocho tarjetas —citas del período, atendidas, pendientes,
+         canceladas, no vino, cobrado, neto, ticket— encabezaban Citas,
+         Servicios, Profesionales, Ingresos y Por sucursal. Se reportó como
+         «en resumen se repiten las tarjetas en cada opción».
+
+         Y no es sólo ruido: repetido en cinco lugares, el bloque deja de
+         leerse, y quien entra a Servicios para ver qué se hace más tiene que
+         pasar por encima de ocho números de citas que no está buscando. Cada
+         sección ya trae el suyo cuando lo necesita.
+
+         **«Todos» las sigue mostrando** porque incluye el Resumen entero: es
+         para leer el informe de un tirón. --}}
+    @if (in_array($seccion, ['resumen', 'todos'], true))
         <div class="sgp-metrics sgp-metrics-compacto mb-3">
             {{-- **Las cuatro cifras de citas tienen que sumar el total.**
                  Antes eran «100 citas · 20 atendidas · 7 canceladas · 0 no

@@ -239,6 +239,10 @@ class PortalController extends Controller
             // cambió. Ver `Alergias::guardarDelTitular()`.
             'misAlergias' => (string) (DB::scalar(
                 'SELECT alergias FROM cliente WHERE id_cliente = ?', [$this->cliente()]) ?? ''),
+            // Cómo se la nombra en los «¿para quién?» de cada servicio: es la
+            // persona 1 del grupo. Su nombre y no «vos» porque la lista mezcla
+            // a las demás por su nombre, y «vos» entre nombres se lee raro.
+            'nombreTitular' => (string) (session('nombre') ?: 'Vos'),
         ]);
     }
 
@@ -461,7 +465,11 @@ class PortalController extends Controller
         }
 
         try {
-            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null);
+            // Para quién es cada servicio: con la cita de varias, cada tarjeta
+            // lo pregunta. Con una sola persona es todo de ella.
+            $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
+
+            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null, $personaDe);
 
             // Los canjes que eligió quedan atados a esta cita, y con eso el
             // servicio va **a cero** en el comprobante. Se comprueban contra

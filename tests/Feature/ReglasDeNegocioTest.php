@@ -7,11 +7,13 @@ namespace Tests\Feature;
 use App\Mail\AvisoInterno;
 use App\Servicios\Acompanantes;
 use App\Servicios\Agenda;
+use App\Servicios\Alertas;
 use App\Servicios\Alergias;
 use App\Servicios\Bd;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
 use App\Servicios\Cuenta;
+use App\Servicios\Facturacion;
 use App\Servicios\Calendario;
 use App\Servicios\Navegacion;
 use App\Servicios\Notificaciones;
@@ -1068,7 +1070,7 @@ class ReglasDeNegocioTest extends TestCase
         // Emitiendo la cita —que es del local 1— el timbrado tiene que ser el
         // de ESE local, no el que acabamos de crear en el otro.
         $idFactura = Bd::idDe('sp_emitir_factura',
-            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra]);
+            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra, null]);
 
         $usado = (int) DB::scalar('SELECT id_timbrado FROM factura WHERE id_factura = ?', [$idFactura]);
         $sucUsada = (int) DB::scalar('SELECT id_sucursal FROM timbrado WHERE id_timbrado = ?', [$usado]);
@@ -1634,16 +1636,22 @@ class ReglasDeNegocioTest extends TestCase
 
         // Y lo que sí es suyo se sigue viendo, con el rótulo que corresponde:
         // no son «las citas de hoy», son las suyas.
-        $panel->assertSee('Mis citas de hoy');
+        // El rediseño de la 7.117.0 acortó el rótulo a «Mis citas hoy». Lo que
+        // la regla pide es el posesivo —no son «las citas de hoy», son las
+        // suyas—, y eso se conserva.
+        $panel->assertSee('Mis citas hoy');
 
         // El Administrador ve todo, que es el otro lado de la misma regla.
         $admin = (int) DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = ? AND activo = 1 ORDER BY id_usuario LIMIT 1',
             [(int) config('permisos.rol_admin', 1)]);
         session(['uid' => $admin, 'rol' => (int) config('permisos.rol_admin', 1),
                  'es_personal' => true, 'es_cliente' => false]); $this->conSucursal();
+        // Los dos rótulos que el rediseño acortó. Lo que se mide sigue siendo
+        // lo mismo: el Administrador ve la plata del día, y sus citas se
+        // nombran sin el posesivo porque son las del salón.
         $this->get(route('panel'))->assertOk()
-             ->assertSee('Ingresos de hoy')
-             ->assertSee('Citas de hoy');
+             ->assertSee('Ingresos de Hoy')
+             ->assertSee('Citas hoy');
     }
 
     /**
@@ -1933,7 +1941,7 @@ class ReglasDeNegocioTest extends TestCase
         // …y el comprobante lo NOMBRA pero no lo cobra.
         // El sexto parámetro es la sucursal, para elegir el timbrado del local. Con
         // una cita cargada manda la de la cita, así que el 0 acá es sólo la red.
-        $idFactura = Bd::idDe('sp_emitir_factura', [$cliente, $idCita, $prof, 1, 1, 0]);
+        $idFactura = Bd::idDe('sp_emitir_factura', [$cliente, $idCita, $prof, 1, 1, 0, null]);
         $renglones = DB::select(
             'SELECT df.id_servicio, df.precio_unitario FROM detalle_factura df WHERE df.id_factura = ?', [$idFactura]
         );
@@ -3916,7 +3924,7 @@ class ReglasDeNegocioTest extends TestCase
               WHERE activo = 1 AND CURDATE() BETWEEN fecha_inicio AND fecha_fin LIMIT 1'
         );
         $idFactura = Bd::idDe('sp_emitir_factura',
-            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra]);
+            [(int) $cita->id_cliente, (int) $cita->id_cita, (int) $cita->id_usuario, $tipo, 1, $otra, null]);
 
         // El timbrado es prestado —el local no tiene el suyo— y eso está bien:
         // dejar de facturar sería peor. Lo que NO puede pasar es que la plata
@@ -7613,6 +7621,465 @@ class ReglasDeNegocioTest extends TestCase
             DB::update('UPDATE configuracion SET logo = ? WHERE id_configuracion = 1', [$antes]);
             Config::olvidar();
         }
+    }
+
+    // -----------------------------------------------------------------
+    //  La cita de varias se cobra y se factura junta O por persona
+    // -----------------------------------------------------------------
+
+    /**
+     * Cada persona de la cita se lleva SU comprobante, con lo suyo adentro.
+     *
+     * `cita.personas` dice cuántas vienen desde la 7.57.0 y `cita_acompanante`
+     * quiénes desde la 7.97.0; lo que faltaba era **qué servicio es de cuál**.
+     * Sin eso la cita era una bolsa —«tres personas: corte, mechas,
+     * manicura»— y no había forma de cobrarle a una sólo lo suyo ni de hacerle
+     * su factura: el mostrador terminaba dividiendo a mano.
+     *
+     * Se mide en las dos direcciones que importan: el comprobante de una
+     * persona trae **sólo** sus servicios, y el de la otra los suyos. Con una
+     * sola de las dos, un `p_persona` ignorado pasaría igual.
+     */
+    #[Test]
+    public function la_cita_de_varias_se_factura_por_persona(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+
+        // La cita pasa a ser de dos, con un servicio de cada una. El segundo
+        // se agrega a mano: `sp_agendar_cita` arma la cita de la titular.
+        $otro = (int) DB::scalar(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1 AND s.precio > 0
+                AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = ? AND cs.id_servicio = s.id_servicio)
+              ORDER BY s.id_servicio LIMIT 1', [(int) $cita->id_cita]
+        );
+        $this->assertGreaterThan(0, $otro, 'Premisa: hace falta un segundo servicio con precio.');
+
+        DB::update('UPDATE cita SET personas = 2, id_estado_cita = 4 WHERE id_cita = ?', [(int) $cita->id_cita]);
+        DB::update('UPDATE cita_servicio SET persona = 1 WHERE id_cita = ?', [(int) $cita->id_cita]);
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio, persona) VALUES (?, ?, 2)',
+            [(int) $cita->id_cita, $otro]);
+
+        $mio = (int) DB::scalar('SELECT id_servicio FROM cita_servicio WHERE id_cita = ? AND persona = 1',
+            [(int) $cita->id_cita]);
+        $tipo = (int) config('sifen.tipo_defecto', 1);
+
+        // El comprobante de la persona 2: sólo su servicio.
+        $f2 = Facturacion::emitir((int) $cita->id_cliente, (int) $cita->id_cita,
+            (int) $cita->id_usuario, $tipo, 1, 2);
+        $this->assertGreaterThan(0, $f2, 'No se pudo emitir el comprobante de la segunda persona.');
+
+        $deF2 = array_map('intval', array_column(
+            DB::select('SELECT id_servicio FROM detalle_factura WHERE id_factura = ?', [$f2]), 'id_servicio'));
+
+        $this->assertSame([$otro], $deF2,
+            'El comprobante de una persona tiene que traer SÓLO los servicios de esa persona.');
+        $this->assertSame(2, (int) DB::scalar('SELECT persona FROM factura WHERE id_factura = ?', [$f2]),
+            'El comprobante tiene que quedar marcado como de esa persona.');
+
+        // Y el de la persona 1, el suyo: son dos comprobantes distintos.
+        $f1 = Facturacion::emitir((int) $cita->id_cliente, (int) $cita->id_cita,
+            (int) $cita->id_usuario, $tipo, 1, 1);
+        $deF1 = array_map('intval', array_column(
+            DB::select('SELECT id_servicio FROM detalle_factura WHERE id_factura = ?', [$f1]), 'id_servicio'));
+
+        $this->assertSame([$mio], $deF1,
+            'Cada persona se lleva su comprobante con lo suyo, no con lo de la otra.');
+
+        // **Y el saldo de cada uno mira sólo los cobros de SU persona.** Si no,
+        // pagando una se daría por saldada la otra — que es lo que hace
+        // `fn_factura_saldo` con todo lo cobrado contra la cita.
+        $totalF2 = (float) DB::scalar('SELECT fn_factura_total(?)', [$f2]);
+        $this->assertGreaterThan(0, $totalF2, 'Premisa: el servicio de la segunda tiene que valer algo.');
+
+        $metodo = (int) DB::scalar('SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1');
+        Facturacion::sena((int) $cita->id_cita, $metodo, (int) $cita->id_usuario,
+            $totalF2, 'TEST-PERSONA-2', 0, 2);
+
+        $this->assertEqualsWithDelta(0, (float) DB::scalar('SELECT fn_factura_saldo(?)', [$f2]), 0.01,
+            'El cobro de esa persona tiene que saldar SU comprobante.');
+        $this->assertGreaterThan(0.01, (float) DB::scalar('SELECT fn_factura_saldo(?)', [$f1]),
+            'Y no puede saldar el de la otra: cada una paga lo suyo.');
+    }
+
+    // -----------------------------------------------------------------
+    //  La atención ya cobrada no se vuelve a cobrar
+    // -----------------------------------------------------------------
+
+    /**
+     * Cobrada, la fila deja de ofrecer «Cobrar»: lo que falta es emitir.
+     *
+     * **Dos administradores sobre la misma agenda.** Uno cobra la atención y
+     * al otro le sigue apareciendo el botón —su pantalla es una foto de un
+     * minuto antes—, así que puede volver a cobrarle a la misma clienta. La
+     * base lo rechaza, pero después del clic y con un mensaje que no dice que
+     * ya estaba cobrada. Se reportó así: *«esto abre a la posibilidad de que
+     * se le cobre doble a un cliente, no debe pasar»*.
+     *
+     * Se mide en las dos direcciones: sin cobrar ofrece «Cobrar», y cobrada
+     * ofrece «Emitir». Con una sola mitad, una fila que nunca ofreciera nada
+     * pasaría igual.
+     */
+    #[Test]
+    public function la_cita_ya_cobrada_no_vuelve_a_ofrecer_cobrar(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        // Hace falta caja abierta: sin eso la agenda no dibuja ningún botón de
+        // cobro y la prueba mediría el caso equivocado.
+        $cajon = $this->cajonDe($suc);
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$cajon])) {
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+        }
+        Caja::olvidar();
+
+        $cita = $this->citaFuturaAgendada($suc);
+        // La observacion no es decorado: el desplegable de la fila —y con el
+        // su ancla `detAge`, que es por donde esta prueba encuentra el
+        // renglon— solo se dibuja cuando hay algo que mostrar ahi.
+        DB::update('UPDATE cita SET id_estado_cita = 4, observaciones = ? WHERE id_cita = ?',
+            ['Prueba del doble cobro', (int) $cita->id_cita]);
+
+        $fila = function () use ($cita): string {
+            $html = (string) $this->get(route('citas.agenda', ['dia' => $cita->dia]))->assertOk()->getContent();
+            $ini = strpos($html, '#detAge' . (int) $cita->id_cita . '"');
+            $this->assertNotFalse($ini, 'La cita tiene que aparecer en la agenda de su día.');
+            $fin = strpos($html, 'id="detAge' . (int) $cita->id_cita . '"', (int) $ini);
+
+            return substr($html, (int) $ini, ($fin ?: strlen($html)) - (int) $ini);
+        };
+
+        $this->assertStringContainsString('Cobrar', $fila(),
+            'Atendida y sin cobrar: la fila tiene que ofrecer cobrar.');
+
+        // Se cobra todo lo que vale la cita, que es lo que hace el otro admin.
+        $total = (float) DB::scalar('SELECT fn_cita_total(?)', [(int) $cita->id_cita]);
+        $this->assertGreaterThan(0, $total, 'Premisa: la cita tiene que valer algo.');
+        Facturacion::sena((int) $cita->id_cita,
+            (int) DB::scalar('SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1'),
+            1, $total, 'TEST-DOBLE-COBRO', 0);
+
+        $ahora = $fila();
+        $this->assertStringNotContainsString('Cobrar', $ahora,
+            'Ya cobrada, la fila NO puede volver a ofrecer cobrar: ahí se le cobra dos veces a la clienta.');
+        $this->assertStringContainsString('Emitir', $ahora,
+            'Lo que falta es el comprobante, y la fila tiene que decirlo.');
+    }
+
+    // -----------------------------------------------------------------
+    //  Registrar atención: lo que se elige y lo que ya está decidido
+    // -----------------------------------------------------------------
+
+    /**
+     * «Ver atención» muestra lo que pasó; no ofrece elegir nada.
+     *
+     * Se reportó así: *«Ver atención debe dejar de mostrar el buscador y la
+     * selección»*. Con la cita ya cerrada la lista son los tres o cuatro
+     * servicios que se hicieron, y ahí las dos piezas informan mal: un campo
+     * para filtrar cuatro renglones no filtra nada —y se lee como que hay algo
+     * más que buscar—, y una casilla es una invitación, se lee como que ahí se
+     * decide algo cuando lo que hay es lo que ya ocurrió.
+     *
+     * **Los datos no se sacan, cambia cómo se dibujan**: por eso la prueba
+     * exige que el servicio hecho siga apareciendo. Se mide en las dos
+     * direcciones, que es lo que la vuelve una prueba: con la cita abierta las
+     * dos piezas tienen que estar.
+     */
+    #[Test]
+    public function ver_atencion_no_ofrece_el_buscador_ni_la_seleccion(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $cita = $this->citaFuturaAgendada((int) session('id_sucursal'));
+        $srv = (int) DB::scalar('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [(int) $cita->id_cita]);
+
+        // Abierta: se elige, así que el buscador y las casillas van.
+        $abierta = (string) $this->get(route('citas.atender', ['id' => (int) $cita->id_cita]))
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('data-filtra="#listaServiciosAt"', $abierta,
+            'Con la cita abierta el buscador sirve: la lista es el catálogo entero.');
+        $this->assertStringContainsString('id="sa' . $srv . '"', $abierta,
+            'Y el servicio se marca con una casilla, que es lo que lo agrega.');
+
+        // Cerrada: se mira. La atencion queda REGISTRADA, que es lo que esa
+        // pantalla lista —lo que se hizo, no lo que se habia reservado—.
+        DB::insert('INSERT INTO servicio_realizado (id_cita, id_servicio, id_usuario) VALUES (?,?,?)',
+            [(int) $cita->id_cita, $srv, (int) $cita->id_usuario]);
+        DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [(int) $cita->id_cita]);
+        $cerrada = (string) $this->get(route('citas.atender', ['id' => (int) $cita->id_cita]))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('data-filtra="#listaServiciosAt"', $cerrada,
+            'Con la cita cerrada el buscador promete algo más para buscar, y no hay nada.');
+        $this->assertStringNotContainsString('id="sa' . $srv . '"', $cerrada,
+            'Y la casilla se lee como que ahí se decide algo: lo que hay es lo que ya pasó.');
+        $this->assertStringContainsString('sgp-lista-hecho', $cerrada,
+            'Lo hecho se sigue viendo: lo que cambia es que deja de parecer un formulario.');
+    }
+
+    /**
+     * La lista de «se agrega en el sillón» sólo ofrece lo que esa persona hace.
+     *
+     * Se reportó junto con lo anterior: *«la lista de más servicios sólo puede
+     * mostrar los servicios que el profesional hace»*. Ofrecía el catálogo
+     * entero, así que una peluquera veía quince renglones para elegir entre
+     * ellos los tres que sabe hacer — y marcando otro, el rechazo llegaba
+     * después de guardar.
+     *
+     * **Y lo que no hace no desaparece: se guarda detrás de «con otra
+     * profesional»**, que es el otro pedido de la misma tanda —*«antes de
+     * finalizar debe haber una opción de poner un servicio adicional con otro
+     * profesional»*—. La clienta está en el sillón, pide las uñas, y eso lo
+     * hace otra persona: hasta acá la única salida era agendarle una cita
+     * aparte.
+     *
+     * Se mide en las dos direcciones sobre la MISMA pantalla: lo suyo tiene
+     * que estar en la lista de arriba y no en el bloque plegado, y lo ajeno al
+     * revés. Con una sola mitad, una lista vacía pasaría igual.
+     */
+    #[Test]
+    public function en_la_atencion_los_servicios_de_otra_profesional_van_aparte(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $cita = $this->citaFuturaAgendada((int) session('id_sucursal'));
+
+        // Dos servicios que no están en la cita: uno lo hace quien atiende y el
+        // otro no. **La premisa se GARANTIZA**: sin ninguna fila cargada,
+        // `fn_usuario_hace_servicio` es permisiva y los hace todos, así que la
+        // prueba mediría una pantalla sin nada aparte.
+        $fuera = array_map('intval', array_column(DB::select(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = ? AND cs.id_servicio = s.id_servicio)
+              ORDER BY s.id_servicio LIMIT 2', [(int) $cita->id_cita]), 'id_servicio'));
+        $this->assertCount(2, $fuera, 'Premisa: hacen falta dos servicios fuera de la cita.');
+        [$mio, $ajeno] = $fuera;
+
+        $persona = (int) DB::scalar('SELECT id_persona FROM usuario WHERE id_usuario = ?', [(int) session('uid')]);
+        DB::delete('DELETE FROM persona_servicio WHERE id_persona = ?', [$persona]);
+        DB::insert('INSERT INTO persona_servicio (id_persona, id_servicio) VALUES (?, ?)', [$persona, $mio]);
+
+        $html = (string) $this->get(route('citas.atender', ['id' => (int) $cita->id_cita]))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="otraProf"', $html,
+            'Lo que esa persona no hace no se esconde: se ofrece con quién hacerlo.');
+
+        // El bloque de arriba es lo que ella puede sumar sola; el de abajo, lo
+        // que necesita a otra. Se leen por separado porque son dos decisiones.
+        $ini = strpos($html, 'Se agrega durante la atención');
+        $fin = strpos($html, 'Sumar un servicio con otra profesional');
+        $this->assertNotFalse($ini, 'Tiene que haber lista de «se agrega en el sillón».');
+        $this->assertNotFalse($fin, 'Y el bloque de la otra profesional.');
+        $suyos = substr($html, (int) $ini, (int) $fin - (int) $ini);
+        $deOtra = substr($html, (int) $fin);
+
+        $this->assertStringContainsString('id="sa' . $mio . '"', $suyos,
+            'Lo que ella hace se marca ahí mismo.');
+        $this->assertStringNotContainsString('id="sa' . $ajeno . '"', $suyos,
+            'Y lo que no hace no puede ofrecérsele como si pudiera: el «no» llegaría al guardar.');
+        $this->assertStringContainsString('id="sa' . $ajeno . '"', $deOtra,
+            'Lo ajeno va en el bloque de «con otra profesional», que es donde se elige con quién.');
+    }
+
+    // -----------------------------------------------------------------
+    //  En qué local se trabaja: se dice y se cambia en el mismo lugar
+    // -----------------------------------------------------------------
+
+    /**
+     * El local se cambia desde la barra, no desde Mi cuenta.
+     *
+     * Lo pidió el usuario: *«el botón que permite cambiar entre sucursales
+     * que está ubicado en MI CUENTA se eliminará y se desplazará la lógica de
+     * cambio de sucursal al panel principal e irá como combo»*. Eran dos
+     * piezas para una sola cosa —un chip que decía en qué local se estaba y
+     * unos botones, dos pantallas más allá, que lo cambiaban—, así que mover
+     * el sistema entero de sucursal obligaba a salir de la pantalla en la que
+     * se estaba trabajando.
+     *
+     * Se mide en las tres direcciones que importan: la barra lo **ofrece** con
+     * los locales de esa persona, Mi cuenta ya **no** lo ofrece, y lo elegido
+     * es lo que **queda** — con las dos primeras solas, un combo decorativo
+     * pasaría igual, que es exactamente lo que le pasó a la campanita.
+     */
+    #[Test]
+    public function el_local_se_cambia_desde_la_barra_y_no_desde_mi_cuenta(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $uid = (int) session('uid');
+        $antes = (int) session('id_sucursal');
+
+        // Hace falta un segundo local asignado: con uno solo el combo no tiene
+        // nada que elegir y la prueba mediría media pantalla.
+        DB::insert('INSERT INTO sucursal (nombre, activo) VALUES (?, 1)', ['Prueba Barra']);
+        $otra = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT IGNORE INTO usuario_sucursal (id_usuario, id_sucursal) VALUES (?,?)', [$uid, $antes]);
+        DB::insert('INSERT IGNORE INTO usuario_sucursal (id_usuario, id_sucursal) VALUES (?,?)', [$uid, $otra]);
+
+        $panel = (string) $this->get(route('panel'))->assertOk()->getContent();
+        $this->assertStringContainsString('class="sgp-suc-chip sgp-suc-combo"', $panel,
+            'La barra tiene que ofrecer el combo de local.');
+        $this->assertStringContainsString('<option value="' . $otra . '"', $panel,
+            'Y tiene que ofrecer los locales de esa persona, no uno solo.');
+        $this->assertStringContainsString('id="sgpSucIr"', $panel,
+            'Con el respaldo sin JavaScript: `app.js` lo esconde, pero tiene que estar dibujado.');
+
+        // En Mi cuenta el unico que queda es el de la barra, que la envuelve:
+        // por eso se CUENTA en vez de buscarlo: dos veces serian dos lugares
+        // para lo mismo, que es lo que se vino a sacar.
+        $cuenta = (string) $this->get(route('cuenta.index'))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($cuenta, 'action="' . route('sucursal.entrar') . '"'),
+            'Mi cuenta ya no cambia de local: el unico formulario es el de la barra.');
+
+        // Y lo elegido es lo que queda.
+        $this->post(route('sucursal.entrar'), ['id_sucursal' => $otra]);
+        $this->assertSame($otra, (int) session('id_sucursal'),
+            'El combo tiene que cambiar de verdad el local en el que se trabaja.');
+    }
+
+    // -----------------------------------------------------------------
+    //  La campanita: lo que está pasando AHORA
+    // -----------------------------------------------------------------
+
+    /**
+     * La caja que quedó abierta suena en la campanita, y sólo para quien la cierra.
+     *
+     * Lo pidió el usuario: *«se agregó una campanita de alertas, allí se dirá
+     * si la caja está mucho tiempo abierta»*. Una caja que sigue abierta al
+     * día siguiente es una que nadie contó: los cobros del día nuevo entran al
+     * mismo arqueo que los de ayer, y cuando alguien la cierre la diferencia
+     * ya no dice de qué día vino.
+     *
+     * Se mide en las dos direcciones, y la segunda es la que importa: **a
+     * quien no maneja la caja no se le dice nada**, que es la misma regla que
+     * `Pendientes` — un aviso que no aplica enseña a ignorar los que sí. Y se
+     * comprueba que la barra lo DIBUJE: el servicio existía y la campanita era
+     * un enlace a `#`, o sea la función apagada en silencio de siempre.
+     */
+    #[Test]
+    public function la_campanita_avisa_la_caja_que_quedo_abierta_y_solo_a_quien_la_cierra(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+        $cajon = $this->cajonDe($suc);
+
+        // Sin ninguna abierta de más, la campanita no dice nada de cajas.
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
+                     WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
+        Caja::olvidar();
+        $this->assertSame([], array_values(array_filter(Alertas::todas(),
+            fn ($a) => $a['nivel'] === 'CAJA')),
+            'Sin ninguna caja vieja abierta, la campanita no tiene por qué sonar.');
+
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja,
+                                      monto_inicial, fecha_apertura)
+                    VALUES (1, ?, ?, 1, 0, DATE_SUB(NOW(), INTERVAL 2 DAY))', [$suc, $cajon]);
+        Caja::olvidar();
+
+        $mias = Alertas::mias();
+        $this->assertNotEmpty($mias, 'La caja abierta desde anteayer tiene que aparecer en la campanita.');
+        $this->assertSame('facturacion.caja', $mias[0]['permiso'],
+            'El aviso tiene que decir con qué permiso se resuelve, como los pendientes.');
+        $this->assertStringContainsString('días', $mias[0]['que'],
+            'Y desde cuándo: «hace mucho» no dice si hay que correr o no.');
+
+        // **Y la barra lo dibuja.** El servicio andaba y la campanita era un
+        // enlace muerto: sin esto, el aviso existe y no lo lee nadie.
+        $html = (string) $this->get(route('panel'))->assertOk()->getContent();
+        $this->assertStringContainsString('sgp-campana-n', $html,
+            'La campanita tiene que mostrar cuántas cosas hay para resolver.');
+        $this->assertStringContainsString('sgp-alerta-que', $html,
+            'Y el aviso entero, que es lo que dice qué hacer.');
+        $this->assertStringContainsString('Ahora mismo', $html,
+            'La bandeja agrupa: lo que pasa hoy va aparte de lo que falta cargar.');
+
+        // A quien no maneja la caja, nada: no puede cerrarla.
+        DB::update('UPDATE usuario SET id_rol = 2 WHERE id_usuario = 1');
+        session(['rol' => 2]);
+        Permisos::olvidar();
+
+        $this->assertSame([], array_values(array_filter(Alertas::mias(),
+            fn ($a) => $a['permiso'] === 'facturacion.caja')),
+            'El Profesional no cierra cajas: avisarle es ruido que le tapa lo que sí es suyo.');
+    }
+
+    /**
+     * Abrir la campanita baja el número; lo que falta cargar sigue contando.
+     *
+     * Lo pidió el usuario con esas dos mitades: *«el número que indica las
+     * notificaciones se eliminará/bajará según se haya visto o abierto nada
+     * más desde la campana (excepción de los contenidos del FALTA CARGAR, para
+     * ellos el número seguirá presente hasta ser atendidos)»*.
+     *
+     * La distinción no es caprichosa y es la misma que separa a `Alertas` de
+     * `Pendientes`: una caja abierta desde ayer **ya se la leyó** —queda en la
+     * bandeja, sigue pasando, pero no hace falta que siga gritando—; un
+     * timbrado sin cargar **no se resuelve mirándolo**, así que apagarle el
+     * número sería apagarle el aviso al salón.
+     *
+     * Se mide en las dos direcciones sobre la misma cuenta: después de verlas,
+     * la alerta deja de contar y el pendiente **no**.
+     */
+    #[Test]
+    public function la_campanita_baja_el_numero_al_verla_y_lo_que_falta_cargar_no(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+        $cajon = $this->cajonDe($suc);
+
+        // Una caja vieja abierta —la alerta— y algo sin cargar —el pendiente—.
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
+                     WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja,
+                                      monto_inicial, fecha_apertura)
+                    VALUES (1, ?, ?, 1, 0, DATE_SUB(NOW(), INTERVAL 2 DAY))', [$suc, $cajon]);
+        Caja::olvidar();
+
+        $prof = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u
+               JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1
+                AND EXISTS (SELECT 1 FROM usuario_turno t WHERE t.id_usuario = u.id_usuario)
+              LIMIT 1');
+        $this->assertGreaterThan(0, $prof, 'Premisa: hace falta alguien con turno.');
+        DB::update('UPDATE comision SET activo = 0 WHERE id_usuario = ?', [$prof]);
+
+        $alertas = Alertas::mias();
+        $pendientes = \App\Servicios\Pendientes::mios();
+        $this->assertNotEmpty($alertas, 'Premisa: tiene que haber una alerta.');
+        $this->assertNotEmpty($pendientes, 'Premisa: tiene que faltar algo por cargar.');
+        $this->assertSame([], array_values(array_filter($alertas, fn ($a) => $a['visto'])),
+            'Recién aparecida, la alerta todavía no se vio.');
+
+        $sinVerAntes = count($pendientes) + count(array_filter($alertas, fn ($a) => ! $a['visto']));
+
+        // Abrir la campanita es esto: marcar lo que se mostró.
+        $this->post(route('alertas.vistas'), ['claves' => array_column($alertas, 'clave')])
+            ->assertOk();
+
+        $despues = Alertas::mias();
+        $this->assertSame([], array_values(array_filter($despues, fn ($a) => ! $a['visto'])),
+            'Vista una vez, la alerta deja de contar.');
+        $this->assertCount(count($alertas), $despues,
+            'Pero NO desaparece: la caja sigue abierta, así que el renglón se queda en la bandeja.');
+
+        // **Y lo que falta cargar sigue contando**, que es la excepción.
+        $pendDespues = \App\Servicios\Pendientes::mios();
+        $this->assertSame([], array_values(array_filter($pendDespues, fn ($p) => $p['visto'])),
+            'Un pendiente no se puede marcar como visto: mirarlo no lo resuelve.');
+
+        $sinVerDespues = count($pendDespues)
+            + count(array_filter($despues, fn ($a) => ! $a['visto']));
+        $this->assertLessThan($sinVerAntes, $sinVerDespues, 'El número tiene que bajar.');
+        $this->assertSame(count($pendDespues), $sinVerDespues,
+            'Y lo que queda contando es exactamente lo que falta cargar.');
+
+        // Un POST armado a mano no marca cualquier cosa.
+        $this->assertSame(0, Alertas::marcarVistas(['caja:999999', 'pend:loquesea']),
+            'Sólo se marca lo que hoy está en la campanita de quien llama.');
     }
 
     // -----------------------------------------------------------------

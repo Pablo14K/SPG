@@ -43,7 +43,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
-más **84 restricciones `CHECK`**.
+más **87 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -360,6 +360,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.117.0 | 11/09/2026 | **Doce cosas reportadas usando el sistema, y la que las ordena es que la cita de varias personas ahora sabe QUÉ SERVICIO ES DE CUÁL.** `cita.personas` decía cuántas vienen desde la 7.57.0 y `cita_acompanante` quiénes desde la 7.97.0; faltaba lo de en medio, así que la cita era una bolsa —«tres personas: corte, mechas, manicura»— y no había forma de cobrarle a una sólo lo suyo ni de hacerle **su** factura: el mostrador dividía a mano. Entran tres columnas con el mismo criterio —**el lugar que ocupa la persona en el grupo**, como `cita_acompanante.orden` ya la nombra—: `cita_servicio.persona`, `cobro.persona` (NULL = el grupo paga junto) y `factura.persona` (NULL = toda la cita). **No son copias ni derivados** y no rompen la 1FN: un número por fila. `sp_emitir_factura` gana `p_persona` —con un número, el detalle sale sólo de los servicios de esa persona— y **`fn_factura_saldo` descuenta sólo los cobros de ESA persona**, que es lo que impide que pagando una se dé por saldada la otra. **Lo que queda igual a propósito es `uq_cita_servicio`**: el mismo servicio dos veces en la misma cita —dos cortes para dos amigas— sigue sin entrar, porque la atención, la factura y la comisión están escritas sobre «un servicio por cita» en treinta lugares; para ese caso se reservan citas aparte. Al reservar se pregunta primero para cuántas personas es y cada tarjeta dice de quién es ese servicio; al cobrar, si son dos o más, se discrimina **grupal o individual**, y el individual muestra lo que le falta a esa persona con la misma cuenta que muestra la agenda. **Un administrador ya no puede cobrarle dos veces a la misma clienta.** Se reportó tal cual —*«un administrador ya cobró pero aún no se emitió factura, y al otro admin aún le aparece la opción cobrar»*—: la pantalla del segundo es una foto de un minuto antes, y la base rechazaba el segundo cobro **después del clic** y con un mensaje que no decía que ya estaba cobrada. Ahora la fila ofrece **Emitir** en cuanto no falta plata, y **la huella de actualización en vivo incluye lo cobrado y lo facturado del día**, así que la pantalla del otro se entera sola. **En «Registrar atención» se elige menos y se decide mejor.** El combo de profesional desaparece del servicio ya agendado —eso está decidido—, la lista de lo que se suma en el sillón ofrece **sólo lo que esa persona hace** (`fn_usuario_hace_servicio`, que ahí no miraba nadie) y lo que no hace pasa a un bloque plegado **«Sumar un servicio con otra profesional»**, que es el caso real: la clienta está en el sillón, pide las uñas y eso lo hace otra — hasta acá la única salida era agendarle una cita aparte. Los productos usados se agrupan **por servicio**, con el servicio fijado en un `hidden` en vez de un combo por fila: el POST no cambia, `producto[]`, `cantidad[]` y `servicio_de[]` siguen alineados por posición. **Y «Ver atención» deja de parecer un formulario**: sin buscador y sin casillas, que sobre lo que ya pasó se leen como que ahí se decide algo. **La campanita pasa a ser la bandeja del sistema.** Entra `App\Servicios\Alertas` —lo que está **pasando**: hoy, una caja abierta desde ayer, que es una que nadie contó y con la que dos días caen en el mismo arqueo— y **el bloque «Falta cargar» del panel se muda adentro** (pedido del usuario), así que se ve desde cualquier pantalla y no sólo desde el inicio. El numerito rojo cuenta **lo que no se vio** y baja al abrirla; **lo que falta cargar es la excepción y sigue contando** hasta que alguien lo cargue, porque verlo no lo resuelve. Ver tampoco es resolver: el renglón se queda en la bandeja —la caja sigue abierta— y pierde el punto rojo, como cualquier bandeja de correo. Qué vio cada uno se guarda en **`alerta_vista`**, por persona —que la dueña la abra no significa que la recepcionista se enteró— y con una **clave estable** (`caja:12`), no con el texto: mañana el mismo aviso dice «hace 3 días» y sigue siendo el mismo. **En las tablas de Clientes, Personal y Usuarios va la foto de perfil al lado del nombre** —o sus iniciales—, con un `<x-avatar>` para las tres; **y el botón «Detalle» se va de esas tablas**, que ya tienen el suyo para ver la ficha entera: lo que se escondía ahí vuelve a ser columna, salvo el teléfono en Visitas y puntos, que es un dato de Clientes y ahí no hacía falta. **Cliente inactivo sale del panel** (pedido del usuario): cuántas fichas hay no dice qué hacer hoy. **Y en Reportes las tarjetas dejan de repetirse**: el bloque de métricas salía en las seis secciones, así que Citas, Servicios, Profesionales e Ingresos abrían con los mismos ocho números de Resumen — queda en Resumen y en Todos. **El cambio de sucursal se muda de Mi cuenta a la barra**, como combo y a la derecha (pedido del usuario): eran dos piezas para una sola cosa —un chip que decía dónde se estaba y unos botones dos pantallas más allá que lo cambiaban—, así que mover el sistema entero de local obligaba a salir de la pantalla en la que se estaba trabajando; el botón de respaldo se dibuja siempre y lo esconde `app.js`, que sin JavaScript hay que poder cambiar igual. **Y regenerar los dos volcados destapó un defecto viejo: `usuario_rol` no estaba en la base que se entrega.** Es la tabla del cambio de perspectiva, y la leen `Sesion::roles()`, `Pendientes` y la ficha de Usuarios: un salón instalado desde cero se encontraba con el ingreso y la lista de usuarios reventando por una tabla que no está — **y acá no se notaba** porque las pruebas corren contra `peluqueria_test`, que sí la tenía. El guion de actualización la crea con `IF NOT EXISTS`, y queda escrito el `diff` de tablas entre los dos `.sql` como parte de regenerarlos: lo que cambia entre ellos son los datos, nunca el esquema. **207 pruebas · 1695 aserciones**, siete nuevas y **las siete comprobadas en las dos direcciones** — sacando el `p_persona`, el tope de lo cobrado, el filtro por `hace`, la campanita de la barra o el combo, cada una falla. Y una encontró la mitad que faltaba: el servicio de alertas, su filtro por permiso y su huella en vivo estaban escritos **y la campanita era un `<a href="#">`**, o sea la función apagada en silencio de siempre, esta vez con el interruptor del lado de la vista · 83 tablas · 87 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-11_7.117.0.sql` · **código y base** |
 
 | 7.116.1 | 11/09/2026 | **El proyecto de Compose del servidor pasa a llamarse `sgp`, porque el usuario lo volvió a armar así y los volúmenes viejos ya no existen.** La 7.116.0 dejó `-p spg` a propósito —de ese nombre salen los volúmenes— y ese mismo día el proyecto del servidor se dio de baja y se levantó de nuevo como `sgp`: `docker volume ls` mostró sólo `sgp_*`, ningún `spg_*`, y el sistema arrancó con la base limpia. **La operación se recuperó del respaldo** `/var/respaldos/spg/peluqueria_bd_2026-09-11_0419.sql`, posterior a los dos guiones aplicados esa madrugada, así que no hubo nada que reaplicar. Las fotos —de perfil, de servicios y el logo— no viajan en el `.sql` y se vuelven a subir a mano; las copias locales del KuDE y el XML tampoco, y en `mock` no tienen valor fiscal. Los tres documentos pasan a **`-p sgp`** y a los volúmenes `sgp_*`, con el aviso de que **volver a `-p spg` sería repetir el accidente** · **sólo documentación** |
 | 7.116.0 | 11/09/2026 | **El sistema pasa a llamarse SGP —Sistema de Gestión para Peluquería— en todos lados.** Pedido del usuario, que ya había cambiado el subdominio a `sgp.columbiatcc.online`: se escribía «SPG» con las letras cambiadas desde el primer día. Son **2.808 menciones en 187 archivos**, renombradas de una con el mismo criterio para las tres grafías —`SPG`, `spg`, `Spg`—: pantallas, CSS (`.sgp-*`), JS (`SGPCarga`, `SGPConfirmar`, `SGPBio`, `data-sgp-*`), los cuatro comandos (`sgp:diagnostico`, `sgp:pendientes`, `sgp:notificaciones`, `sgp:preparar-sql`), `config/sgp.php` y `config('sgp.…')`, las claves de sesión, la cabecera `X-SGP-Correo` **en los dos proyectos** —que `AndamiajeTest` exige iguales—, las variables `SGP_DOMINIO` y `SGP_SIFEN_PATH`, los contenedores (`sgp_app`, `sgp_bd`, `sgp_web`, `sgp_cron`, `sgp_sifen`), las imágenes, el router de Traefik con el subdominio nuevo, `APP_URL`, y los cuatro documentos. **Cuatro cosas quedan con la grafía vieja a propósito**, y están en la tabla del principio de este documento: `-p spg` —el nombre del proyecto de Compose, del que salen los volúmenes del servidor: con otro nombre la base y las fotos del salón quedan huérfanas—, `/docker/spg`, la URL del repositorio y `spg_migracion` en el historial. **Lo que hay que rehacer en el servidor por el cambio de nombre de los contenedores**: el guion de respaldo de `/usr/local/bin` y la línea del cron, que nombran `spg_bd`. Comprobado en el navegador y con la batería entera: `AndamiajeTest` es justo la guardia para esto —toda clase del CSS y todo lo que busca el JS tiene que seguir existiendo en el marcado— y las **201 pruebas** siguen en verde · **sólo código: la base no se tocó** |
@@ -574,7 +575,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **214 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **217 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -616,6 +617,7 @@ app/
     Borrador.php           No perder lo escrito al usar un alta rápida
     Sifen.php              Arma el TXT del comprobante y lo manda al Automatizador
     Pendientes.php         Qué le falta CARGAR al salón: el panel y sgp:pendientes
+    Alertas.php            Qué está pasando AHORA: lo de «Ahora mismo» de la campanita
     Navegacion.php         Migas, módulos y catálogo de pantallas
     Auditoria.php          registrar() registrarComo() anotarMotivo()
     Contacto.php           Centro de Ayuda y Soporte
@@ -628,8 +630,8 @@ app/
     Pagos.php              Los tipos de alias del SIPAP, que miran el salón y la clienta
     Perfil.php             La foto de perfil de quien está en sesión, o sus iniciales
   Http/Controllers/        Uno por módulo, más Auth, Cuenta, Panel, Portal, CitaToken,
-                           Sucursal (elegir local), Vivo (la huella de actualización)
-                           y Webauthn.
+                           Sucursal (elegir local), Vivo (la huella de actualización),
+                           Alertas (la campanita: marcar lo visto) y Webauthn.
                            La excepción es Seguridad: son 1500 líneas y no gana nada
                            juntarlas, así que SeguridadController tiene sólo el landing y
                            las pantallas siguen repartidas entre PersonalController
@@ -650,12 +652,13 @@ resources/views/
                            <x-ayuda>          el ícono que guarda la explicación hasta que la piden
                            <x-servicio-tarjeta> el servicio al reservar, con su imagen
                            <x-ciudad>        el combo de ciudad, con la salida de «Otra»
+                           <x-avatar>        la cara de alguien al lado de su nombre, en una tabla
   <modulo>/                Una carpeta por módulo
   reportes/                index + un partial por informe (`_resumen`, `_citas`…):
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 214 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 216 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -999,11 +1002,12 @@ y dice la causa probable y cómo recuperarlas. Comprobado en las dos direcciones
   > pedido del usuario.** Contestaban «¿qué suelo hacer después de esto?», una pregunta que
   > las tarjetas del módulo ya contestaban unos centímetros más arriba.
   >
-  > **Ya no queda nada de eso en el código**, aunque este documento dijo hasta la 7.108.0 que
-  > el arreglo `rapidos` de `config/navegacion.php` y `Navegacion::accesosRapidos()` seguían
-  > ahí: los dos se borraron en algún momento posterior y el párrafo se quedó describiendo
-  > código inexistente. Es exactamente el patrón que la lista de abajo persigue —algo apunta
-  > a lo que ya no está y nada avisa— sólo que esta vez el que apuntaba mal era el documento.
+  > **La maquinaria sigue ahí y no la dibuja nadie**: el arreglo `rapidos` de
+  > `config/navegacion.php` y `Navegacion::accesosRapidos()` quedaron a propósito, por si se
+  > la quiere devolver en otro lugar. Lo que se sacó en la 7.117.0 es que el layout la
+  > **calculara** en cada pantalla para nadie. Entre la 7.108.0 y la 7.116.1 este documento
+  > dijo lo contrario —que las dos piezas se habían borrado—, y era falso: el patrón que la
+  > lista de abajo persigue, sólo que el que apuntaba mal era el documento.
 
   > **El desplegable es un ATAJO, no un reemplazo.** El enlace del módulo sigue llevando a su
   > tarjeta, así que nada depende de que funcione. Tres cosas que conviene no perder al
@@ -1080,6 +1084,21 @@ nada**:
 | `<tr class="sgp-fila-detalle">` + `.sgp-btn-detalle` | lo secundario, plegado con el `collapse` de Bootstrap: se pega a la tarjeta de arriba como su pie, en vez de salir como una tarjeta vacía |
 | `.sgp-movil-oculto` + el botón «Más» de `app.js` | columnas que sobran en la tarjeta; aparecen con el botón |
 | `<x-filtros>` plegado | los filtros arrancan cerrados detrás de «Filtros», con el conteo de los activos; **abiertos si hay alguno puesto**, y **sin JavaScript**: es una casilla escondida y su etiqueta |
+
+> **El desplegable es para lo que NO entra, no para todo lo secundario.** En
+> Clientes plegaba la cédula y el email —dos datos que entran de sobra en el
+> renglón— y al lado quedaba otro botón, «Ver la ficha», que muestra lo mismo y
+> más: dos botones para la misma pregunta hacen elegir sin motivo. Y en Visitas
+> y puntos plegaba el teléfono, que ya está en Clientes y no contesta ninguna
+> pregunta de esa pantalla. En las dos vuelve a ser columna, y el «Detalle» se
+> retira: queda donde de verdad no entra, como la agenda.
+
+> **Y en las listas de personas, la cara al lado del nombre** (`<x-avatar>`):
+> Clientes, Profesionales y Usuarios. En treinta renglones de texto, reconocer a
+> alguien es leer apellido por apellido. **Sin foto van las iniciales**, que
+> siguen distinguiendo — un monigote igual para todos no, que es la misma
+> decisión de la 7.112.0. Es un componente y no tres copias porque son tres
+> listas: escrito tres veces terminan dibujando tres cosas parecidas.
 
 Tres decisiones que conviene no revertir:
 
@@ -2952,6 +2971,117 @@ Lo fija `ReglasDeNegocioTest::las_dos_pantallas_de_reserva_usan_el_mismo_asisten
 que mide el andamiaje —no el aspecto— en las dos pantallas: si alguno de esos
 atributos se renombra, el asistente deja de armarse **y no da ningún error**.
 
+### La campanita: la bandeja del sistema
+
+**Es UN solo lugar, y hasta la 7.117.0 eran dos.** Lo que falta cargar vivía en
+un bloque del Panel y lo que está pasando ahora en un ícono de la barra, así que
+había que mirar dos sitios —y el primero, sólo desde el inicio—. El usuario los
+juntó adentro de la campanita: *«los AVISOS se eliminarán de la vista principal
+e irá a parar dentro de la campana su contenido»*.
+
+**Lo que NO se juntó es el modelo.** Siguen siendo dos servicios y dos preguntas,
+porque de eso depende cómo se cuentan:
+
+| | `Pendientes` | `Alertas` |
+|---|---|---|
+| Qué dice | lo que falta **configurar** | lo que está **pasando** ahora |
+| Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta desde ayer |
+| Cada cuánto cambia | una vez y no vuelve | todos los días |
+| En la bandeja | grupo **«Falta cargar»** | grupo **«Ahora mismo»**, primero |
+| ¿Deja de contar al verlo? | **nunca** | sí |
+
+- **El numerito rojo cuenta lo que no se vio**, y baja al abrir la campanita.
+  **Los pendientes son la excepción y la pidió el usuario**: un timbrado sin
+  cargar sigue contando hasta que alguien lo cargue — *verlo no lo resuelve*,
+  así que apagarle el número sería apagarle el aviso al salón.
+- **Ver no es resolver, así que el renglón se queda.** La caja sigue abierta:
+  lo que cambia es que deja de contar y pierde el punto rojo, como cualquier
+  bandeja de correo. Uno que desapareciera al mirarlo escondería el problema.
+- **Qué vio cada uno se guarda** en `alerta_vista` (`id_usuario`, `clave`). Va
+  por persona porque leerlo es de cada uno: que la dueña abra la campanita no
+  significa que la recepcionista se enteró. Es un hecho nuevo —no se deduce de
+  ninguna otra tabla— así que se guarda sin romper la 3FN.
+- **La `clave` es la identidad del aviso, no su texto**: `caja:12` sigue siendo
+  el mismo aviso aunque mañana diga «hace 3 días» en vez de «hace 2». Si esa
+  sesión se cierra y se abre otra, la clave es otra y **vuelve a contar**, que
+  es lo correcto. Al agregar una alerta nueva, **elegí una clave estable**: con
+  el texto adentro, el aviso se volvería a contar solo cada vez que cambie una
+  palabra.
+- **El servidor vuelve a validar lo que se marca.** `Alertas::marcarVistas()`
+  sólo acepta claves que hoy estén en la campanita de quien llama: el navegador
+  manda una lista, y sin eso un POST armado a mano marcaría cualquier cosa o
+  llenaría la tabla de basura.
+- **Cada renglón lleva su permiso**, igual que antes: la campanita de quien no
+  maneja la caja no tiene por qué sonar por una caja.
+- **La dibuja el layout, no el panel**, y por eso se ve desde cualquier
+  pantalla: lo que lista hay que resolverlo ahora, no cuando alguien vuelva al
+  inicio. Sólo para el personal — una campana que nunca va a sonar es marcado
+  de más en la pantalla de la clienta.
+- **Sin JavaScript la bandeja se abre y se lee igual.** Lo único que no pasa es
+  que el número baje, que es una comodidad y no el aviso.
+- **Y entra en la huella de actualización en vivo** (`vivo`), así que en el
+  panel se apaga sola cuando otro cierra el cajón.
+
+> **El precio, dicho:** el layout llama a `Pendientes::mios()` en **cada
+> pantalla** y eso son unas dieciséis consultas chicas e indexadas, contra las
+> tablas de configuración. Antes corrían sólo en el Panel. Se aceptó a cambio
+> de que el aviso se vea donde sea que esté trabajando la persona, que es lo que
+> se pidió; si algún día pesa, el lugar de arreglarlo es una caché corta por
+> usuario y sucursal, **no** devolver el bloque al Panel.
+
+> **Ojo con la mitad que se olvida.** El servicio, el filtro por permiso y la
+> huella en vivo se escribieron juntos y **la campanita quedó como un
+> `<a href="#">`**: la función existía entera y no la veía nadie — la función
+> apagada en silencio de siempre, esta vez con el interruptor del lado de la
+> vista. Por eso la prueba no mide sólo `Alertas::mias()`: exige que el HTML
+> traiga el conteo (`sgp-campana-n`), el texto del aviso (`sgp-alerta-que`) y
+> los dos grupos.
+
+> **Y ojo con `e()` dentro de `{{ }}`.** El atributo con la lista de claves se
+> escribió `data-sgp-bandeja="{{ e(json_encode(…)) }}"` y llegó al navegador con
+> `&quot;` literales: `{{ }}` **ya escapa**, así que el `e()` escapa dos veces y
+> el JSON no parsea. No da ningún error — el `JSON.parse` falla, la lista queda
+> vacía y el número simplemente no baja.
+
+### En qué local se trabaja: se dice y se cambia en el mismo lugar
+
+**Eran dos piezas para una sola cosa.** Un chip en la barra decía en qué
+sucursal se estaba parado, y unos botones en **Mi cuenta** —dos pantallas más
+allá— la cambiaban: mover el sistema entero de local obligaba a salir de la
+pantalla en la que se estaba trabajando. Por pedido del usuario se juntan en la
+barra, como **combo**.
+
+| | |
+|---|---|
+| Dónde | la barra superior, a la derecha, antes de la ficha de la cuenta |
+| Qué ofrece | `Sucursales::delUsuario()` — los locales de **esa** persona |
+| Qué guarda | nada: manda `sucursal.entrar`, el mismo POST de siempre |
+| Sin JavaScript | el botón `#sgpSucIr` queda visible y lo envía a mano |
+
+- **Se dibuja con un solo local también.** No hay nada que elegir, pero de esa
+  sucursal dependen la agenda que se ve, la caja que se cierra y el stock que
+  se descuenta: quien atiende tiene que poder contestar «¿dónde estoy parado?»
+  sin abrir nada. Es la misma razón por la que el chip existía.
+- **El botón de respaldo arranca VISIBLE y lo esconde `app.js`**
+  (`data-sgp-envia`), nunca al revés: dibujado desde el JS, quien lo tenga
+  caído se queda sin forma de cambiar de local.
+- **En pantalla chica el combo no se dibuja** y el local se lee en la cabecera
+  del desplegable de la cuenta, que ahí es el único lugar donde aparece.
+- **No se toca `sucursal.elegir`**: esa pantalla se sigue metiendo entre el
+  ingreso y el panel cuando la persona tiene varios locales y todavía no
+  eligió ninguno.
+- **Y al cambiar se cae en el Panel, no en la pantalla de antes.** Es lo que
+  ya hacía desde Mi cuenta y conviene conservarlo: la pantalla en la que se
+  estaba puede ser la de un registro del local viejo —una cita, una compra—,
+  así que volver ahí sería mandar a alguien a mirar algo que ya no le
+  corresponde. El Panel es donde uno se vuelve a orientar.
+
+Lo fija `ReglasDeNegocioTest::el_local_se_cambia_desde_la_barra_y_no_desde_mi_cuenta`
+en las tres direcciones: la barra lo ofrece con los locales de esa persona, Mi
+cuenta **cuenta uno solo** —el que la envuelve, no uno propio— y lo elegido es
+lo que queda. Con las dos primeras solas, un combo decorativo pasaría igual,
+que es exactamente lo que le pasó a la campanita.
+
 ## Cambio de contraseña: segundo factor
 
 **Cambiar la contraseña desde Mi cuenta pide dos cosas: la contraseña actual y un código
@@ -3320,6 +3450,16 @@ Las pestañas son **enlaces de verdad** (`<a href>` con `?r=`), no pestañas de
 JavaScript: así cada informe tiene su URL, se puede compartir y anda con
 `app.js` caído. La sección viaja escondida en el formulario de filtros, para
 que cambiar el período no te devuelva al Resumen.
+
+> **Las ocho cifras de arriba son el Resumen, así que van sólo ahí.** Se
+> dibujaban en todas las secciones menos Compras, con lo cual las mismas
+> tarjetas —citas del período, atendidas, pendientes, canceladas, no vino,
+> cobrado, neto, ticket— encabezaban Citas, Servicios, Profesionales, Ingresos
+> y Por sucursal. Se reportó como «en resumen se repiten las tarjetas en cada
+> opción», y no es sólo ruido: repetido en cinco lugares el bloque deja de
+> leerse, y quien entra a Servicios para ver qué se hace más tiene que pasar por
+> encima de ocho números de citas que no está buscando. **«Todos» las conserva**,
+> porque incluye el Resumen entero.
 
 > **Los filtros tienen que llegar a TODAS las consultas, y ahí estaba el
 > defecto.** El de sucursal se aplicaba a las citas y **no a los cobros**, así
@@ -3784,6 +3924,42 @@ URL no hace daño. Emitir sigue pidiendo `facturacion.facturas`, que es un permi
 > iba el bloque entero, con la lista adentro. Ahora esa rama tiene la suya, que
 > lista lo consumido sin ningún campo, y dice «no se registró ninguno» cuando no
 > hubo — que es distinto de no mostrar nada.
+
+#### Registrar atención: lo que se elige y lo que ya está decidido
+
+Cuatro cosas que la pantalla pedía de más, todas reportadas juntas:
+
+| Pedía | Por qué sobraba |
+|---|---|
+| Un combo de profesional **en lo agendado** | quién lo hace se decidió al reservar, en el paso «Profesionales» del asistente: acá repetía una decisión tomada e invitaba a rehacerla desde una pantalla de registro |
+| El catálogo **entero** en «se agrega en el sillón» | una peluquera veía entre sus opciones la pedicura, y marcándola el servicio —y la comisión— quedaban a su nombre |
+| Un combo «¿en qué servicio?» **por cada fila de producto** | quien atiende no carga «shampoo» y después decide a qué imputarlo: está haciendo la coloración y usó shampoo EN la coloración |
+| El buscador y las casillas **en «Ver atención»** | la cita está cerrada: ahí no se elige nada, y una casilla se lee como que sí |
+
+Lo que queda en su lugar:
+
+- **Lo que se agrega en el sillón son SUS servicios**, con el criterio
+  permisivo de siempre (`fn_usuario_hace_servicio`): quien no tiene ninguno
+  cargado los hace todos, así que un salón que no administra esto ve la lista
+  igual que antes.
+- **Y aparte, «Sumar un servicio con otra profesional»**, que es el caso que
+  faltaba: la clienta está en el sillón, pide las uñas, y eso lo hace otra
+  persona. Antes la única salida era agendarle una cita aparte. Va plegado:
+  no es lo de todos los días y abierto compite con la lista de arriba.
+- **Los productos van agrupados por servicio**, con el servicio fijo en un
+  campo escondido. **El POST no cambió**: `producto[]`, `cantidad[]` y
+  `servicio_de[]` siguen siendo los mismos tres arreglos posicionales, así que
+  el guardado no se tocó — lo único que cambió es quién contesta el tercero.
+
+> **«Otra fila» clona dentro de SU grupo.** Clonando la primera del documento,
+> la fila nueva se llevaría el `servicio_de` de otro servicio y el producto
+> terminaría imputado donde no va. Y ningún grupo se queda sin ninguna fila: la
+> última se vacía en vez de irse, que es la regla de siempre.
+
+> **Y sin casillas no hay nada que sumar, así que el resumen no se toca.** El
+> bloque de «cuánto va sumando» se recalcula con `.srvAt:checked`; en «Ver
+> atención» ya no hay ninguna, así que ponía «Gs. 0» encima del número que el
+> servidor había calculado bien. Ahí el que vale es el del servidor.
 
 **Y «Registrar atención» dice cuánto va sumando**, que es el paso de antes. Listaba el
 precio de cada servicio y **no sumaba ninguno**: se agregaba una manicura en el sillón y
@@ -5050,6 +5226,22 @@ docker compose cp bd:/tmp/base.sql "basededatos/peluqueria_bd(base).sql"
 Antes de regenerarlo, comprobá que la base esté **vacía de operación** (la tabla de arriba dice
 qué queda y qué se borra); si tiene datos de prueba, pasale primero `basededatos/dejar_lista.sql`.
 
+> **Y comparalo con el otro volcado: las dos bases tienen que tener las MISMAS tablas.**
+>
+> ```bash
+> for f in "basededatos/peluqueria_bd(base).sql" basededatos/1mes_simulacion.sql; do >   grep -o 'CREATE TABLE `[a-z_]*`' "$f" | sort > "/tmp/$(basename "$f").tablas"; done
+> diff /tmp/*.tablas
+> ```
+>
+> Lo que cambia entre las dos son **los datos**, nunca el esquema. Así apareció que
+> **`usuario_rol` no estaba en la base que se entrega** —la tabla del cambio de perspectiva,
+> que leen `Sesion::roles()`, `Pendientes` y la ficha de Usuarios—: un salón instalado desde
+> cero se encontraba con el ingreso y la lista de usuarios reventando por una tabla que no
+> está, **y acá no se notaba** porque las pruebas corren contra `peluqueria_test`, que sí la
+> tenía. Es el defecto de siempre —algo apunta a lo que no existe y nada avisa— con la
+> particularidad de que el entorno de desarrollo lo tapaba. Se reparó en la 7.117.0 y el
+> guion de actualización la crea con `IF NOT EXISTS`, por si algún servidor está igual.
+
 ### Una sola carpeta, y qué NO se sube al servidor
 
 **El proyecto vive en una sola carpeta y se edita ahí.** No hay copia a `htdocs`: eso era del
@@ -5183,7 +5375,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan sgp:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
-   17 triggers, 17 vistas y 84 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 87 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,

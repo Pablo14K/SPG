@@ -55,6 +55,21 @@
         </div>
     @endif
 
+    {{-- **La fila dice lo suyo de una, y el detalle es UNO.**
+
+         Había dos botones en la misma fila y ninguno decía lo que abría: uno
+         rotulado «vienen 2 · alergias» que repetía lo que la fila ya mostraba
+         arriba —cuántas van y con qué son alérgicas— y abría un modal, y otro
+         «Detalle» que desplegaba una fila con la duración y poco más. Se
+         reportó como ambiguo, y lo era: la misma información en tres lugares
+         y el desplegable sin contenido propio.
+
+         Ahora la duración va debajo de la hora, el profesional tiene su columna
+         cuando se ve la agenda entera, y queda **un solo «Detalle»** —el
+         desplegable de la fila— con lo que no cabe en la fila: para quién es,
+         quiénes vienen y sus alergias, lo que dejó dicho, y lo ya cobrado. Si
+         la cita no tiene nada de eso, el botón no se dibuja. --}}
+    @php $sgpColumnas = $verTodo ? 6 : 5; @endphp
     <div class="sgp-panel">
         <div class="table-responsive sgp-tabla-movil">
             <table class="table align-middle mb-0">
@@ -62,13 +77,46 @@
                     <tr>
                         <th>Hora</th><th>Cliente</th>
                         <th>Servicios</th>
+                        @if ($verTodo)<th>Profesional</th>@endif
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $c)
+                        @php
+                            $sgpAcomp = $acompanantes[$c->id_cita] ?? [];
+                            // **Quiénes se atienden en esta cita, y con qué es
+                            // alérgica CADA una.** La fila mostraba una sola
+                            // alergia —la de la ficha de quien reservó— así que
+                            // en una cita de tres, dos personas se sentaban sin
+                            // que nadie supiera con qué no se las puede tocar. Y
+                            // en una «para otra persona» la única que salía era
+                            // la de alguien que ese día ni viene.
+                            $sgpGente = \App\Servicios\Alergias::deLaCita($c, $sgpAcomp);
+                            $sgpAlergicas = array_values(array_filter($sgpGente, fn ($p) => $p->alergias !== null));
+                            $sgpVarias = count($sgpGente) > 1;
+                            // La cuenta por persona, sólo en la cita de varias.
+                            $sgpCuenta = $cuentas[$c->id_cita] ?? null;
+                            $sgpCobrado = (float) ($c->cobrado_cita ?? 0);
+                            $sgpTotal = (float) ($c->total_cita ?? 0);
+                            $sgpFalta = max(0, $sgpTotal - $sgpCobrado);
+
+                            // Qué hay para el desplegable. Sin nada, no hay botón:
+                            // un «Detalle» que abre una fila vacía es peor que ninguno.
+                            $sgpHayDetalle = trim((string) $c->observaciones) !== ''
+                                || $c->para_otra_persona
+                                || (int) $c->personas > 1
+                                || $sgpAlergicas
+                                || (float) $c->sena > 0 || $sgpCobrado > 0
+                                || (! $verTodo && $c->otros_profesionales);
+                        @endphp
                         <tr>
-                            <td class="sgp-movil-titulo" data-label="Hora" style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
+                            <td class="sgp-movil-titulo" data-label="Hora" style="white-space:nowrap">
+                                <strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong>
+                                {{-- La duración va acá y no detrás de un botón: es lo
+                                     que dice hasta cuándo ocupa el sillón. --}}
+                                <div class="text-muted-warm" style="font-size:.76rem">{{ (int) $c->duracion_min }} min</div>
+                            </td>
                             {{-- `sgp-movil-sujeto`: en el celular este renglón va sin el
                                  rótulo «CLIENTE» y en negrita, que es lo que deja leer la
                                  tarjeta de un vistazo — hora, quién, y abajo el resto con
@@ -79,12 +127,7 @@
                                      nombre de la clienta, el renglón tenía dos nombres del
                                      mismo tamaño y había que leer la etiqueta para saber
                                      cuál era cuál — y el que importa ese día es a quién
-                                     hay que sentar en el sillón.
-
-                                     Invertirlo no agrega píxeles: son las mismas dos
-                                     líneas, con la jerarquía al derecho. El resto —cuántas
-                                     van, qué dejó dicho— sigue en el modal, que es donde
-                                     se mira una vez al preparar el turno. --}}
+                                     hay que sentar en el sillón. --}}
                                 @if ($c->para_otra_persona)
                                     {{ $c->nombre_para ?: 'Otra persona' }}
                                     <div class="text-muted-warm" style="font-size:.78rem">
@@ -97,52 +140,13 @@
                                         <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
                                     @endif
                                 @endif
-                                {{-- **El botón dice QUÉ hay adentro.**
 
-                                     Era una «i» gris de doce píxeles, sin
-                                     rótulo y del mismo color que el resto de la
-                                     fila: se reportó como «el tesoro
-                                     escondido», y con razón — quien no sabe que
-                                     está no lo busca, así que lo que la clienta
-                                     dejó dicho no lo leía nadie.
-
-                                     Ahora nombra su contenido —«dejó dicho»,
-                                     «vienen 3»— y va en el oro secundario, que
-                                     es el nivel de los atajos. No aparece
-                                     cuando no hay nada que mostrar: un botón
-                                     que abre una ventana vacía es peor que
-                                     ninguno. --}}
-                                @php
-                                    $sgpAcomp = $acompanantes[$c->id_cita] ?? [];
-                                    // **Quiénes se atienden en esta cita, y con qué es
-                                    // alérgica CADA una.** La fila mostraba una sola
-                                    // alergia —la de la ficha de quien reservó— así que
-                                    // en una cita de tres, dos personas se sentaban sin
-                                    // que nadie supiera con qué no se las puede tocar. Y
-                                    // en una «para otra persona» la única que salía era
-                                    // la de alguien que ese día ni viene.
-                                    $sgpGente = \App\Servicios\Alergias::deLaCita($c, $sgpAcomp);
-                                    $sgpAlergicas = array_values(array_filter($sgpGente, fn ($p) => $p->alergias !== null));
-                                    $sgpVarias = count($sgpGente) > 1;
-
-                                    $sgpDet = [];
-                                    if (trim((string) $c->observaciones) !== '') { $sgpDet[] = 'dejó dicho'; }
-                                    if ($c->para_otra_persona) { $sgpDet[] = 'para otra persona'; }
-                                    if ((int) $c->personas > 1) { $sgpDet[] = 'vienen ' . (int) $c->personas; }
-                                    if ($sgpAlergicas) { $sgpDet[] = 'alergias'; }
-                                @endphp
-
-                                {{-- **La alergia se ve en la fila, no escondida en el modal.**
-                                     Todo lo demás de esta celda se guarda detrás del botón
-                                     porque se mira una vez al preparar el turno; una alergia
-                                     hay que verla sin abrir nada, y por eso va en rojo y con
-                                     su texto puesto. Es la excepción que la regla de la ayuda
-                                     contextual ya declara: lo que ADVIERTE no se esconde. --}}
-                                {{-- **Y una por persona, con su nombre cuando hay varias.**
-                                     «Maní» a secas en una cita de tres no dice a quién no se
-                                     le puede dar: es media advertencia. Con una sola persona
-                                     el nombre sobra —es la de la fila— y el badge queda
-                                     exactamente como estaba. --}}
+                                {{-- **La alergia se ve en la fila, no escondida en el detalle.**
+                                     Es lo único de la ficha que puede lastimar a alguien, así
+                                     que va en rojo y con su texto puesto: lo que ADVIERTE no se
+                                     esconde. Y una por persona, con su nombre cuando hay
+                                     varias: «maní» a secas en una cita de tres no dice a quién
+                                     no se le puede dar. --}}
                                 @foreach ($sgpAlergicas as $sgpA)
                                     <div class="mb-1">
                                         <span class="badge-estado e-no d-inline-flex align-items-center gap-1"
@@ -152,16 +156,22 @@
                                         </span>
                                     </div>
                                 @endforeach
-
-                                @if ($sgpDet)
-                                    <button type="button" class="btn btn-sm btn-rapido sgp-btn-det"
-                                            data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}">
-                                        <i class="bi bi-chat-left-text"></i>
-                                        {{ ucfirst(implode(' · ', $sgpDet)) }}</button>
-                                @endif
                             </td>
                             <td class="text-muted-warm" data-label="Servicios">
-                                @if ($verTodo || ! $c->mis_servicios)
+                                @if ($sgpCuenta)
+                                    {{-- **De quién es cada servicio.** Con tres amigas en la
+                                         cita, «corte, mechas, manicura» no decía nada de
+                                         quién se hace qué; ahora cada servicio tiene su
+                                         persona (`cita_servicio.persona`) y la fila lo lista
+                                         por nombre. --}}
+                                    @foreach ($sgpCuenta as $sgpP => $sgpX)
+                                        @continue ($sgpP === 0 || ! $sgpX['servicios'])
+                                        <div style="font-size:.85rem">
+                                            <strong class="text-body">{{ $sgpX['nombre'] }}:</strong>
+                                            {{ implode(', ', $sgpX['servicios']) }}
+                                        </div>
+                                    @endforeach
+                                @elseif ($verTodo || ! $c->mis_servicios)
                                     {{ $c->servicios ?: '—' }}
                                 @else
                                     {{-- **Lo que le pidieron A ELLA, primero.** De los
@@ -176,16 +186,21 @@
                                     @endif
                                 @endif
                             </td>
+                            @if ($verTodo)
+                                {{-- Quién atiende, en su columna: era lo único que el
+                                     desplegable tenía de propio, y es lo que quien mira
+                                     la agenda entera necesita ver sin abrir nada. --}}
+                                <td data-label="Profesional" style="font-size:.88rem">
+                                    {{ $c->profesionales ?: $c->profesional }}
+                                </td>
+                            @endif
                             <td data-label="Estado">
                                 {!! estado_badge($c->estado) !!}
                                 {{-- **Lo que ADVIERTE se queda en la fila; lo que informa
-                                     va al desplegable.** El rediseño móvil se llevó la seña
-                                     entera detrás de «Detalle», y con ella dos cosas que
-                                     quien atiende tiene que ver sin abrir nada: que la
-                                     reserva **no está confirmada** —el sistema le guarda el
-                                     horario un plazo y después lo suelta solo— y que hay
-                                     una seña **esperando confirmación** desde el portal. Lo
-                                     ya cobrado sí puede esperar un toque. --}}
+                                     va al desplegable.** Que la reserva **no está
+                                     confirmada** y que hay una seña **esperando
+                                     confirmación** hay que verlo sin abrir nada; lo ya
+                                     cobrado sí puede esperar un toque. --}}
                                 @if ((float) ($c->sena_pedida ?? 0) > 0)
                                     <span class="badge-estado e-warn" title="La clienta la registró desde el portal">
                                         seña {{ money($c->sena_pedida) }} a confirmar</span>
@@ -197,37 +212,23 @@
                                 @endif
                             </td>
                             <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
-                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
-                                        data-bs-target="#detAge{{ $c->id_cita }}" aria-expanded="false"
-                                        aria-controls="detAge{{ $c->id_cita }}">
-                                    <i class="bi bi-chevron-down"></i> Detalle
-                                </button>
+                                @if ($sgpHayDetalle)
+                                    <button class="sgp-btn-detalle" data-bs-toggle="collapse"
+                                            data-bs-target="#detAge{{ $c->id_cita }}" aria-expanded="false"
+                                            aria-controls="detAge{{ $c->id_cita }}">
+                                        <i class="bi bi-chevron-down"></i> Detalle
+                                    </button>
+                                @endif
                                 {{-- **Ausente cierra la fila, igual que Cancelada.** La
                                      clienta no vino: no hay nada que marcar en proceso, ni
-                                     que atender, ni que reprogramar. Los botones seguían
-                                     ahí y eran seis promesas que el servidor rechaza una
-                                     por una — y encima invitaban a «arreglarlo» tocando
-                                     cosas sobre una cita que ya terminó.
-
-                                     Lo único que sobrevive es cobrar lo que haya quedado
-                                     debiendo, que sí puede pasar con una seña ya cobrada:
-                                     eso está en la rama de abajo. --}}
+                                     que atender, ni que reprogramar. Lo único que sobrevive
+                                     es cobrar lo que haya quedado debiendo: está en la rama
+                                     de abajo. --}}
                                 @if (! in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
-                                    {{-- **Con la cita ya en proceso, tres botones dejan de tener
-                                         sentido y molestan.** Marcarla en proceso otra vez no hace
-                                         nada; marcarla ausente contradice lo que se está viendo
-                                         —la clienta está en el sillón—; y reprogramar una atención
-                                         que ya empezó es mover a otro día algo que está pasando.
-                                         Lo que queda es lo que sí se hace desde ahí: registrar la
-                                         atención, y cancelar por si se cortó a mitad de camino. --}}
                                     @php
                                         $enCurso = $c->estado === 'En proceso';
                                         // **Atender y marcar en proceso son del DÍA de la
-                                        // cita.** Mirando la agenda de mañana se podían
-                                        // apretar igual, y una cita queda «en proceso» un
-                                        // día en que nadie la está atendiendo. Cancelar y
-                                        // reprogramar sí se hacen antes: son justamente
-                                        // para lo que todavía no pasó.
+                                        // cita.** Cancelar y reprogramar sí se hacen antes.
                                         $esHoy = fecha($c->fecha_hora, 'Y-m-d') === fecha(ahora_bd(), 'Y-m-d');
                                     @endphp
 
@@ -242,13 +243,9 @@
                                                     <i class="bi bi-play-fill"></i></button>
                                             </form>
                                         @elseif ($c->prof_ausente ?? false)
-                                            {{-- **«Falta fichaje» acá informaba mal.** Cuando a
-                                                 esa persona ya se la marcó ausente, el problema
-                                                 no es que todavía no fichó —no va a fichar— sino
-                                                 que la cita se quedó sin quién la atienda. Decir
-                                                 «falta fichaje» manda a esperar algo que no va a
-                                                 pasar; lo que hay que hacer es cambiar el
-                                                 profesional. --}}
+                                            {{-- Cuando a esa persona ya se la marcó ausente el
+                                                 problema no es que falte fichar —no va a fichar—:
+                                                 la cita se quedó sin quién la atienda. --}}
                                             <span class="badge-estado e-no"
                                                   title="Ya está marcado como ausente hoy: hay que asignarle la cita a otra persona">
                                                 <i class="bi bi-person-x"></i> profesional ausente</span>
@@ -258,11 +255,9 @@
                                         @endif
                                     @endunless
 
-                                    {{-- **Sin fichaje tampoco se registra la atención.**
-                                         El servidor lo rechaza igual, así que ofrecer el
-                                         botón es prometer algo que no va a cumplir: se
-                                         aprieta, se carga la pantalla entera y el «no»
-                                         llega al guardar. --}}
+                                    {{-- Sin fichaje tampoco se registra la atención: el
+                                         servidor lo rechaza igual, y ofrecer el botón es
+                                         prometer algo que no va a cumplir. --}}
                                     @if ($esHoy && ($c->fichaje_ok ?? true)
                                          && $urlAtender = Navegacion::url('citas.atender'))
                                         <a class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Registrar atención"
@@ -282,9 +277,8 @@
                                     </form>
                                     @endunless
 
-                                    {{-- **Cancelar una cita en curso no es cancelar.** La
-                                         clienta está en el sillón: lo que corresponde es
-                                         terminar de atenderla o registrar lo que se hizo. --}}
+                                    {{-- Cancelar una cita en curso no es cancelar: la
+                                         clienta está en el sillón. --}}
                                     @unless ($enCurso)
                                     <form method="post" action="{{ route('citas.cancelar') }}" class="d-inline">
                                         @csrf
@@ -302,12 +296,9 @@
                                             <i class="bi bi-calendar-event"></i></button>
                                     @endunless
 
-                                    {{-- **El ícono cambió.** `person-gear` al lado de
-                                         `person-x` —marcar ausente— son dos monigotes
-                                         casi iguales, y las dos acciones no se parecen
-                                         en nada: una anota que la clienta no vino y la
-                                         otra le cambia quién la atiende. Las flechas
-                                         dicen «pasa de uno a otro». --}}
+                                    {{-- Las flechas dicen «pasa de uno a otro»: `person-gear`
+                                         al lado de `person-x` eran dos monigotes iguales
+                                         para dos acciones que no se parecen en nada. --}}
                                     @if ($puedeReasignar && ! $enCurso)
                                         <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Cambiar profesional"
                                                 data-bs-toggle="modal" data-bs-target="#modalReasignar{{ $c->id_cita }}">
@@ -315,50 +306,88 @@
                                     @endif
 
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
-                                         la caja abierta. Con la caja cerrada el aviso de arriba
-                                         explica por qué no está el botón.
-
-                                         **Y no va si ya se cobró ni con la cita en proceso.**
-                                         La seña garantiza una reserva: con la clienta ya en el
-                                         sillón no hay nada que garantizar, y una vez cobrada el
-                                         botón ofrece cobrarla de nuevo. Lo que falte se cobra al
-                                         terminar, desde «Cobrar». --}}
+                                         la caja abierta. **Y no va si ya se cobró ni con la cita
+                                         en proceso**: la seña garantiza una reserva. --}}
                                     @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
-                                         && ! $enCurso && (float) ($c->cobrado_cita ?? 0) <= 0)
+                                         && ! $enCurso && $sgpCobrado <= 0)
                                         <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Cobrar una seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
                                     @endif
                                 @elseif ($c->estado === 'Atendida')
-                                    {{-- Atender y cobrar son dos pasos, y entre uno y
-                                         otro la plata se olvidaba: la cita quedaba
-                                         Atendida, acá no había más que un guión, y como
-                                         la clienta no siempre pide factura nadie se
-                                         acordaba de pasar por Facturación. Ahora el
-                                         estado del cobro se ve y se resuelve desde acá.
-
-                                         Son TRES situaciones distintas y cada una dice
-                                         lo suyo: sin comprobante, con saldo, y saldada. --}}
-                                    {{-- Se llama «Atención» y no «Detalle»: al lado del
-                                         desplegable «˅ Detalle» de la fila eran dos botones
-                                         con la misma palabra para dos cosas distintas — uno
-                                         abre los datos de la fila, éste la pantalla de lo que
-                                         se le hizo. Se reportó como ambiguo en el celular. --}}
+                                    {{-- Atender y cobrar son dos pasos, y entre uno y otro la
+                                         plata se olvidaba: acá el estado del cobro se ve y se
+                                         resuelve. Se llama «Atención» y no «Detalle», que es
+                                         el desplegable de la fila. --}}
                                     <a class="btn btn-sm btn-outline-neutro" title="Ver la atención registrada"
                                        href="{{ route('citas.atender', ['id' => $c->id_cita]) }}">
                                         <i class="bi bi-eye"></i> Atención</a>
-                                    @if (! $c->id_factura)
-                                        {{-- **Primero se cobra, después el comprobante.**
-                                             Es el orden del mostrador: la clienta paga y recién
-                                             ahí dice si quiere factura o comprobante de pago.
-                                             Antes el botón llevaba a Emitir, o sea que obligaba
-                                             a elegir el documento antes de tocar la plata.
-                                             Se puede porque el cobro cuelga de la CITA y
-                                             `fn_factura_saldo` ya lo descuenta al emitir. --}}
-                                        @if ($puedeCobrar && $caja)
+
+                                    @if ($c->id_factura)
+                                        {{-- Un comprobante de toda la cita. --}}
+                                        @if ((float) $c->saldo > 0.01)
+                                            <a class="btn btn-sm btn-oro"
+                                               title="{{ $c->nro_comprobante }} · queda {{ money($c->saldo) }} por cobrar"
+                                               href="{{ route('facturacion.facturas', ['q' => $c->nro_comprobante]) }}">
+                                                <i class="bi bi-cash-coin"></i> Debe {{ money($c->saldo) }}</a>
+                                        @else
+                                            <a class="btn btn-sm btn-outline-neutro"
+                                               title="Ver el comprobante {{ $c->nro_comprobante }}"
+                                               href="{{ route('facturacion.factura_ver', ['id' => $c->id_factura]) }}">
+                                                <i class="bi bi-check2-circle"></i> Cobrada</a>
+                                        @endif
+                                    @else
+                                        @php
+                                            // **Cuántas de las personas ya tienen SU comprobante.**
+                                            // En la cita de varias cada una puede irse con el
+                                            // suyo, así que «facturada» es cuando no queda
+                                            // ninguna sin él.
+                                            $sgpConServ = $sgpCuenta
+                                                ? array_filter($sgpCuenta, fn ($x, $p) => $p > 0 && $x['servicios'], ARRAY_FILTER_USE_BOTH)
+                                                : [];
+                                            $sgpConFact = array_filter($sgpConServ, fn ($x) => $x['id_factura']);
+                                            $sgpTodasFacturadas = $sgpConServ && count($sgpConFact) === count($sgpConServ);
+                                        @endphp
+                                        @if ($sgpTodasFacturadas)
+                                            @if ((float) $c->saldo_ind > 0.01)
+                                                <a class="btn btn-sm btn-oro"
+                                                   title="{{ (int) $c->facturas_ind }} comprobantes · queda {{ money($c->saldo_ind) }} por cobrar"
+                                                   href="{{ route('facturacion.facturas', ['q' => $c->cliente]) }}">
+                                                    <i class="bi bi-cash-coin"></i> Deben {{ money($c->saldo_ind) }}</a>
+                                            @else
+                                                <a class="btn btn-sm btn-outline-neutro"
+                                                   title="{{ (int) $c->facturas_ind }} comprobantes, uno por persona"
+                                                   href="{{ route('facturacion.facturas', ['q' => $c->cliente]) }}">
+                                                    <i class="bi bi-check2-circle"></i> Cobrada · {{ (int) $c->facturas_ind }} comp.</a>
+                                            @endif
+                                        @elseif ($puedeCobrar && $caja && $sgpFalta > 0.5)
+                                            {{-- **Primero se cobra, después el comprobante.** Es el
+                                                 orden del mostrador: la clienta paga y recién ahí
+                                                 dice si quiere factura. --}}
                                             <button class="btn btn-sm btn-oro" title="Cobrar esta atención"
                                                     data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
-                                                <i class="bi bi-cash-coin"></i> Cobrar</button>
+                                                <i class="bi bi-cash-coin"></i> Cobrar
+                                                @if ($sgpCobrado > 0) <span style="font-size:.75rem">(falta {{ money($sgpFalta) }})</span>@endif</button>
+                                        @elseif ($sgpFalta <= 0.5 && $sgpCobrado > 0)
+                                            {{-- **Ya está cobrada: el botón que queda es EMITIR, no
+                                                 «Cobrar».** Dos administradores sobre la misma
+                                                 agenda: uno cobraba la atención y al otro le seguía
+                                                 apareciendo «Cobrar» —una foto de un minuto antes—,
+                                                 y ahí se le podía cobrar dos veces a la clienta. La
+                                                 base lo rechaza igual, pero después del clic y con
+                                                 un mensaje que no decía que ya estaba cobrada. Ahora
+                                                 la fila dice lo que hay, y la agenda se recarga sola
+                                                 cuando el otro cobra (`vivo`). --}}
+                                            @if ($puedeFacturar)
+                                                <a class="btn btn-sm btn-oro"
+                                                   title="Ya se cobró {{ money($sgpCobrado) }}: falta emitir el comprobante"
+                                                   href="{{ route('facturacion.emitir', ['cita' => $c->id_cita]) }}">
+                                                    <i class="bi bi-receipt-cutoff"></i> Emitir
+                                                    @if ($sgpConFact) <span style="font-size:.75rem">(faltan {{ count($sgpConServ) - count($sgpConFact) }})</span>@endif</a>
+                                            @else
+                                                <span class="badge-estado e-ok" title="Se cobró {{ money($sgpCobrado) }}; falta que alguien emita el comprobante">
+                                                    cobrada · sin comprobante</span>
+                                            @endif
                                         @elseif ($puedeFacturar)
                                             <a class="btn btn-sm btn-outline-neutro"
                                                title="Emitir el comprobante de esta atención"
@@ -368,63 +397,142 @@
                                             <span class="badge-estado e-warn" title="Todavía no se le emitió comprobante">
                                                 sin cobrar</span>
                                         @endif
-                                    @elseif ((float) $c->saldo > 0.01)
-                                        <a class="btn btn-sm btn-oro"
-                                           title="{{ $c->nro_comprobante }} · queda {{ money($c->saldo) }} por cobrar"
-                                           href="{{ route('facturacion.facturas', ['q' => $c->nro_comprobante]) }}">
-                                            <i class="bi bi-cash-coin"></i> Debe {{ money($c->saldo) }}</a>
-                                    @else
-                                        <a class="btn btn-sm btn-outline-neutro"
-                                           title="Ver el comprobante {{ $c->nro_comprobante }}"
-                                           href="{{ route('facturacion.factura_ver', ['id' => $c->id_factura]) }}">
-                                            <i class="bi bi-check2-circle"></i> Cobrada</a>
                                     @endif
                                 @else
                                     <span class="text-muted-warm" style="font-size:.8rem">—</span>
                                 @endif
                             </td>
                         </tr>
-                        {{-- Expandable detail row --}}
+                        @if ($sgpHayDetalle)
+                        {{-- **El único desplegable de la fila**, con lo que no cabe en
+                             ella: para quién es, quiénes vienen, sus alergias completas,
+                             lo que dejó dicho y lo ya cobrado. Es la fila plegada del
+                             patrón móvil de la 7.114.0; en escritorio funciona igual. --}}
                         <tr class="sgp-fila-detalle">
-                            <td colspan="5">
+                            <td colspan="{{ $sgpColumnas }}">
                                 <div class="collapse" id="detAge{{ $c->id_cita }}">
                                     <div class="sgp-det-cuerpo">
                                         <div class="sgp-det-grid">
-                                            @if ($verTodo)
-                                                <div>
-                                                    <dt>Profesional</dt>
-                                                    <dd>{{ $c->profesionales ?: $c->profesional }}</dd>
-                                                </div>
-                                            @else
+                                            @if (! $verTodo && $c->otros_profesionales)
                                                 <div>
                                                     <dt>Colabora con</dt>
+                                                    <dd>{{ $c->otros_profesionales }}</dd>
+                                                </div>
+                                            @endif
+
+                                            @if ($c->para_otra_persona)
+                                                <div>
+                                                    <dt>Es para</dt>
                                                     <dd>
-                                                        @if ($c->otros_profesionales)
-                                                            {{ $c->otros_profesionales }}
-                                                        @else
-                                                            <span class="text-muted-warm">sola</span>
+                                                        <strong>{{ $c->nombre_para ?: 'otra persona' }}</strong>
+                                                        <div class="text-muted-warm" style="font-size:.8rem">
+                                                            La reservó {{ $c->cliente }}.
+                                                        </div>
+                                                        {{-- Con ficha, lo que hace falta es su HISTORIAL;
+                                                             sin ficha, crearla con el nombre ya puesto —no
+                                                             sola, que sería inventar una persona—. --}}
+                                                        @if ($c->nombre_para && $c->id_cliente_para)
+                                                            <a class="btn btn-sm btn-rapido py-0 mt-1"
+                                                               href="{{ route('clientes.historial', $c->id_cliente_para) }}">
+                                                                <i class="bi bi-clock-history"></i> Su historial</a>
+                                                        @elseif ($c->nombre_para && Permisos::puede('clientes.registro'))
+                                                            @php $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2); @endphp
+                                                            <a class="btn btn-sm btn-rapido py-0 mt-1"
+                                                               href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
+                                                                                                'apellido' => $partes[1] ?? '']) }}">
+                                                                <i class="bi bi-person-plus"></i> Crear su ficha</a>
                                                         @endif
                                                     </dd>
                                                 </div>
                                             @endif
-                                            <div>
-                                                <dt>Duración</dt>
-                                                <dd>{{ (int) $c->duracion_min }} min</dd>
-                                            </div>
+
+                                            @if ((int) $c->personas > 1)
+                                                <div>
+                                                    <dt>Vienen</dt>
+                                                    <dd>
+                                                        {{ (int) $c->personas }} personas
+                                                        @if ($sgpAcomp)
+                                                            <ul class="list-unstyled mb-0" style="font-size:.85rem">
+                                                                @foreach ($sgpAcomp as $ac)
+                                                                    <li class="mb-1">
+                                                                        {{ $ac->completo }}
+                                                                        @if ($ac->id_cliente)
+                                                                            <a class="btn btn-sm btn-outline-neutro py-0"
+                                                                               href="{{ route('clientes.historial', $ac->id_cliente) }}">
+                                                                                <i class="bi bi-clock-history"></i> Su historial</a>
+                                                                        @elseif (Permisos::puede('clientes.registro'))
+                                                                            <a class="btn btn-sm btn-rapido py-0"
+                                                                               href="{{ route('clientes.form', ['nombre' => $ac->nombre,
+                                                                                                                'apellido' => $ac->apellido]) }}">
+                                                                                <i class="bi bi-person-plus"></i> Crear su ficha</a>
+                                                                        @endif
+                                                                    </li>
+                                                                @endforeach
+                                                            </ul>
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                            @endif
+
+                                            {{-- **Persona por persona, incluidas las que no
+                                                 declararon ninguna.** Acá «sin registrar» ES una
+                                                 respuesta: quiere decir que nadie lo preguntó. --}}
+                                            @if ($sgpAlergicas || $sgpVarias)
+                                                <div>
+                                                    <dt class="txt-no">Alergias</dt>
+                                                    <dd>
+                                                        <ul class="list-unstyled mb-0">
+                                                            @foreach ($sgpGente as $sgpP)
+                                                                <li class="mb-1">
+                                                                    <span class="text-muted-warm">{{ $sgpP->quien }}:</span>
+                                                                    @if ($sgpP->alergias !== null)
+                                                                        <strong class="txt-no">{{ $sgpP->alergias }}</strong>
+                                                                    @else
+                                                                        <span class="text-muted-warm">sin registrar</span>
+                                                                    @endif
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    </dd>
+                                                </div>
+                                            @endif
+
+                                            @if (trim((string) $c->observaciones) !== '')
+                                                <div>
+                                                    <dt>Dejó dicho</dt>
+                                                    <dd>{{ $c->observaciones }}</dd>
+                                                </div>
+                                            @endif
+
                                             {{-- Lo ya cobrado contra la cita: informa, no
-                                                 advierte, así que puede esperar un toque. Las
-                                                 dos advertencias —«a confirmar» y «sin
-                                                 confirmar»— van en la fila, en Estado. --}}
-                                            @if ((float) $c->sena > 0 || ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0))
+                                                 advierte, así que puede esperar un toque. --}}
+                                            @if ((float) $c->sena > 0 || $sgpCobrado - (float) $c->sena > 0)
                                             <div>
                                                 <dt>Seña / Cobrado</dt>
                                                 <dd>
                                                     @if ((float) $c->sena > 0)
                                                         <span class="badge-estado e-ok" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
                                                     @endif
-                                                    @if ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0)
+                                                    @if ($sgpCobrado - (float) $c->sena > 0)
                                                         <span class="badge-estado e-ok" title="Se cobró contra la cita, sin comprobante todavía">
-                                                            cobrado {{ money((float) $c->cobrado_cita - (float) $c->sena) }}</span>
+                                                            cobrado {{ money($sgpCobrado - (float) $c->sena) }}</span>
+                                                    @endif
+                                                    {{-- De quién es cada cobro y cada comprobante,
+                                                         cuando pagan por separado. --}}
+                                                    @if ($sgpCuenta)
+                                                        <ul class="list-unstyled mb-0 mt-1" style="font-size:.82rem">
+                                                            @foreach ($sgpCuenta as $sgpP => $sgpX)
+                                                                @continue ($sgpX['cobrado'] <= 0 && ! $sgpX['id_factura'])
+                                                                <li>
+                                                                    {{ $sgpX['nombre'] }}:
+                                                                    @if ($sgpX['cobrado'] > 0) cobrado {{ money($sgpX['cobrado']) }} @endif
+                                                                    @if ($sgpX['id_factura'])
+                                                                        · <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $sgpX['id_factura']]) }}">{{ $sgpX['nro'] }}</a>
+                                                                        @if ($sgpX['saldo'] > 0.01)<span class="txt-no">debe {{ money($sgpX['saldo']) }}</span>@endif
+                                                                    @endif
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
                                                     @endif
                                                 </dd>
                                             </div>
@@ -434,10 +542,11 @@
                                 </div>
                             </td>
                         </tr>
+                        @endif
 
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="{{ $sgpColumnas }}">
                                 <div class="sgp-vacio">
                                     <i class="bi bi-calendar-week"></i>
                                     <div class="t">
@@ -464,176 +573,9 @@
             {{-- El día viaja con la paginación por lo mismo que con los filtros:
                  sin él, pasar de página te devolvía a hoy. --}}
             <x-paginacion :pag="$pag" :f="$f" :ocultos="['dia' => $dia]" />
-
-        @foreach ($rows as $c)
-                        {{-- **Lo que la clienta dejó dicho al reservar.** Se guardaba
-                             desde el portal y no se mostraba en ninguna pantalla: quien
-                             atiende no sabía que la cita era para la hija, ni cuánta
-                             gente esperar, ni lo que la clienta pidió por escrito.
-
-                             Va en un modal y no en la fila porque es lo que se mira
-                             una vez, al preparar el turno; la fila tiene que seguir
-                             leyéndose de un vistazo.
-
-                             **Y va FUERA de la tabla, que es lo que lo tenía roto.**
-                             Estaba dentro de un `<tr class="d-none">`, y un ancestro
-                             con `display:none` gana siempre: el modal no podía hacerse
-                             visible ni con Bootstrap haciendo su trabajo. Se veía el
-                             fondo gris y nada más. --}}
-                        @php
-                            $sgpAcompM = $acompanantes[$c->id_cita] ?? [];
-                            $sgpGenteM = \App\Servicios\Alergias::deLaCita($c, $sgpAcompM);
-                            $sgpHayAlergiaM = (bool) array_filter($sgpGenteM, fn ($p) => $p->alergias !== null);
-                        @endphp
-                        @if ($c->observaciones || $c->para_otra_persona || (int) $c->personas > 1 || $sgpHayAlergiaM)
-                            <div class="modal fade" id="detCita{{ $c->id_cita }}" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" style="font-size:1rem">
-                                                <i class="bi bi-info-circle"></i>
-                                                {{ fecha($c->fecha_hora, 'H:i') }} · {{ $c->cliente }}</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                    aria-label="Cerrar"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <dl class="sgp-ficha">
-                                                @if ($c->para_otra_persona)
-                                                    <dt>Es para</dt>
-                                                    <dd>
-                                                        <strong>{{ $c->nombre_para ?: 'otra persona' }}</strong>
-                                                        <div class="text-muted-warm" style="font-size:.8rem">
-                                                            La reservó {{ $c->cliente }}.
-                                                        </div>
-                                                    </dd>
-                                                @endif
-                                                @if ((int) $c->personas > 1)
-                                                    <dt>Van</dt>
-                                                    <dd>
-                                                        {{ (int) $c->personas }} personas
-                                                        {{-- **Quiénes, no sólo cuántas.** El número decía
-                                                             que iban a llegar tres y quien atiende no sabía
-                                                             a quién esperar. La primera es la clienta, así
-                                                             que acá van las otras. --}}
-                                                        @if (! empty($acompanantes[$c->id_cita]))
-                                                            <div class="text-muted-warm mb-1" style="font-size:.85rem">
-                                                                Con {{ $c->cliente }} vienen:
-                                                            </div>
-                                                            {{-- **Cada acompañante puede tener su ficha.** El
-                                                                 salón la va a atender igual que a quien reservó,
-                                                                 y sin ficha propia no hay dónde anotarle sus
-                                                                 preferencias: el día que quiera abrir su cuenta
-                                                                 arranca de cero. No se le crea sola —sería
-                                                                 inventar una persona con un nombre a medias—:
-                                                                 se ofrece, con el nombre ya puesto. --}}
-                                                            <ul class="list-unstyled mb-0" style="font-size:.85rem">
-                                                                @foreach ($acompanantes[$c->id_cita] as $ac)
-                                                                    <li class="mb-1">
-                                                                        {{ $ac->completo }}
-                                                                        @if ($ac->id_cliente)
-                                                                            <a class="btn btn-sm btn-outline-neutro py-0"
-                                                                               href="{{ route('clientes.historial', $ac->id_cliente) }}">
-                                                                                <i class="bi bi-clock-history"></i> Su historial</a>
-                                                                        @elseif (Permisos::puede('clientes.registro'))
-                                                                            <a class="btn btn-sm btn-rapido py-0"
-                                                                               href="{{ route('clientes.form', ['nombre' => $ac->nombre,
-                                                                                                                'apellido' => $ac->apellido]) }}">
-                                                                                <i class="bi bi-person-plus"></i> Crear su ficha</a>
-                                                                        @endif
-                                                                    </li>
-                                                                @endforeach
-                                                            </ul>
-                                                        @endif
-                                                    </dd>
-                                                @endif
-                                                {{-- **Persona por persona, incluidas las que no
-                                                     declararon ninguna.**
-
-                                                     Acá «sin registrar» ES una respuesta, y hay que
-                                                     distinguirla de «no tiene»: quiere decir que
-                                                     nadie se lo preguntó. Un renglón en blanco se
-                                                     leería como que está todo bien, que es justo lo
-                                                     contrario. --}}
-                                                @if ($sgpHayAlergiaM || count($sgpGenteM) > 1)
-                                                    <dt class="txt-no">Alergias</dt>
-                                                    <dd>
-                                                        <ul class="list-unstyled mb-0">
-                                                            @foreach ($sgpGenteM as $sgpP)
-                                                                <li class="mb-1">
-                                                                    <span class="text-muted-warm">{{ $sgpP->quien }}:</span>
-                                                                    @if ($sgpP->alergias !== null)
-                                                                        <strong class="txt-no">{{ $sgpP->alergias }}</strong>
-                                                                    @else
-                                                                        <span class="text-muted-warm">sin registrar</span>
-                                                                    @endif
-                                                                </li>
-                                                            @endforeach
-                                                        </ul>
-                                                    </dd>
-                                                @endif
-                                                {{-- **Quién más trabaja en esta cita.** La fila lo dice en
-                                                     su columna, pero el detalle es lo que se abre para
-                                                     preparar el turno y ahí hace falta el nombre completo:
-                                                     la columna lo recorta. --}}
-                                                @if (! $verTodo && $c->otros_profesionales)
-                                                    <dt>Colabora con</dt>
-                                                    <dd>{{ $c->otros_profesionales }}</dd>
-                                                @endif
-                                                @if ($c->observaciones)
-                                                    <dt>Dejó dicho</dt>
-                                                    <dd>{{ $c->observaciones }}</dd>
-                                                @endif
-                                                <dt>Servicios</dt>
-                                                <dd>{{ $c->servicios ?: '—' }}</dd>
-                                            </dl>
-
-                                            {{-- **Si es para otra persona, se le puede abrir su
-                                                 ficha.** Quien vino no es la que reservó, y sin
-                                                 ficha propia no hay dónde anotarle las
-                                                 preferencias ni queda su historial. El nombre va
-                                                 precargado; el resto lo completa quien atiende. --}}
-                                            @if ($c->para_otra_persona && $c->nombre_para)
-                                                @if ($c->id_cliente_para)
-                                                    {{-- **Ya tiene ficha: lo que hace falta es su
-                                                         HISTORIAL.** Quien la atiende necesita saber
-                                                         qué le hicieron la vez pasada y con qué
-                                                         color, y eso vive en su ficha, no en la de
-                                                         quien reservó. Ofrecer «crear» otra vez
-                                                         dejaría dos fichas de la misma persona y el
-                                                         historial partido al medio. --}}
-                                                    <a class="btn btn-sm btn-rapido"
-                                                       href="{{ route('clientes.historial', $c->id_cliente_para) }}">
-                                                        <i class="bi bi-clock-history"></i>
-                                                        Ver el historial de {{ $c->nombre_para }}</a>
-                                                    <div class="text-muted-warm mt-2" style="font-size:.8rem">
-                                                        Qué se le hizo antes y qué prefiere.
-                                                    </div>
-                                                @elseif (Permisos::puede('clientes.registro'))
-                                                    @php
-                                                        $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2);
-                                                    @endphp
-                                                    <a class="btn btn-sm btn-rapido"
-                                                       href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
-                                                                                        'apellido' => $partes[1] ?? '']) }}">
-                                                        <i class="bi bi-person-plus"></i>
-                                                        Crear la ficha de {{ $c->nombre_para }}</a>
-                                                    <div class="text-muted-warm mt-2" style="font-size:.8rem">
-                                                        Para guardarle sus preferencias y que tenga su propio historial.
-                                                    </div>
-                                                @endif
-                                            @endif
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-outline-neutro"
-                                                    data-bs-dismiss="modal">Cerrar</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-        @endforeach
         </div>
     </div>
+
 
     {{-- Un modal de reprogramación por cita --}}
     @foreach ($rows as $c)
@@ -788,10 +730,18 @@
          cobros de la cita, y vinculándola se restaría dos veces. --}}
     @if ($puedeCobrar && $caja)
         @foreach ($rows as $c)
+            @php
+                $sgpCuenta = $cuentas[$c->id_cita] ?? null;
+                $sgpCobrado = (float) ($c->cobrado_cita ?? $c->sena);
+                $sgpTotal = (float) ($c->total_cita ?? 0);
+                $sgpFalta = max(0, $sgpTotal - $sgpCobrado);
+            @endphp
             {{-- Atendida SÍ entra —es el cobro de la atención, el caso normal—
-                 salvo que ya tenga comprobante: ahí el cobro va contra él. --}}
+                 salvo que ya tenga comprobante: ahí el cobro va contra él. **Y
+                 salvo que ya esté cobrada entera**: la fila ya no ofrece
+                 «Cobrar», y un modal que nadie puede abrir es marcado de más. --}}
             @continue (in_array($c->estado, ['Cancelada', 'Ausente'], true)
-                       || ($c->estado === 'Atendida' && $c->id_factura))
+                       || ($c->estado === 'Atendida' && ($c->id_factura || $sgpFalta <= 0.5)))
             <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -833,13 +783,13 @@
                                 // de la cita, así que hasta ahora la única forma de
                                 // enterarse del número era mandar uno de más y leer el
                                 // rechazo. Se calcula acá con la misma cuenta.
-                                $totalCita = (float) ($c->total_cita ?? 0);
+                                $totalCita = $sgpTotal;
                                 // **Contra todo lo cobrado, no sólo contra la seña.**
                                 // Con la atención cobrada en parte, restando sólo la seña
                                 // el saldo salía de más y el modal proponía cobrar dos
                                 // veces lo mismo.
-                                $cobrado = (float) ($c->cobrado_cita ?? $c->sena);
-                                $falta = max(0, $totalCita - $cobrado);
+                                $cobrado = $sgpCobrado;
+                                $falta = $sgpFalta;
 
                                 // **Lo que se propone es la SEÑA, no la cita entera.**
                                 // El modal venía con el total y con eso se cobraba de
@@ -864,6 +814,14 @@
                                 $sugerido = (float) ($c->sena_pedida ?? 0) > 0
                                     ? (float) $c->sena_pedida
                                     : (! $yaSeno && $pide > 0 ? min($pide, $falta) : $falta);
+
+                                // **Grupal o por persona.** En la cita de varias, cada
+                                // una puede pagar lo suyo y llevarse su comprobante, o
+                                // pagar todo junto. Se pregunta sólo ahí, y no al
+                                // confirmar una seña del portal, que ya vino como grupo.
+                                $sgpPorPersona = $sgpCuenta && ! $c->id_solicitud;
+                                $sgpAlguienConFactura = $sgpPorPersona
+                                    && (bool) array_filter($sgpCuenta, fn ($x, $p) => $p > 0 && $x['id_factura'], ARRAY_FILTER_USE_BOTH);
                             @endphp
                             <div class="modal-body">
                                 <p class="text-muted-warm" style="font-size:.85rem">
@@ -928,7 +886,7 @@
                                          lee como un error de la pantalla. --}}
                                     <table class="table table-sm align-middle mb-2" style="font-size:.86rem">
                                         <tbody>
-                                            @unless ($sgpHayDesglose)
+                                            @unless ($sgpHayDesglose || $sgpPorPersona)
                                                 @foreach (($dg['filas'] ?? []) as $fl)
                                                     <tr>
                                                         <td>
@@ -945,6 +903,38 @@
                                                     <td class="text-end">{{ money($lista) }}</td>
                                                 </tr>
                                             @endunless
+                                            @if ($sgpPorPersona)
+                                                {{-- **Lo de cada una.** Con tres amigas en la cita,
+                                                     «total Gs. 480.000» no dice cuánto le toca a
+                                                     cada una: acá va persona por persona, con sus
+                                                     servicios, lo que ya pagó y lo que le falta.
+                                                     La parte de cada una sale del precio de lista
+                                                     de lo suyo, con el descuento de la cita
+                                                     repartido en proporción. --}}
+                                                @foreach ($sgpCuenta as $sgpP => $sgpX)
+                                                    @continue ($sgpP === 0 || ! $sgpX['servicios'])
+                                                    <tr>
+                                                        <td>
+                                                            <strong>{{ $sgpX['nombre'] }}</strong>
+                                                            <div class="text-muted-warm" style="font-size:.78rem">
+                                                                {{ implode(', ', $sgpX['servicios']) }}
+                                                                @if ($sgpX['id_factura'])
+                                                                    · <span class="txt-ok">ya tiene {{ $sgpX['nro'] }}</span>
+                                                                @elseif ($sgpX['cobrado'] > 0)
+                                                                    · pagó {{ money($sgpX['cobrado']) }}
+                                                                @endif
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end">{{ money($sgpX['total']) }}</td>
+                                                    </tr>
+                                                @endforeach
+                                                @if (! empty($sgpCuenta[0]) && $sgpCuenta[0]['cobrado'] > 0)
+                                                    <tr>
+                                                        <td class="text-muted-warm">Pagado por el grupo, sin decir de quién</td>
+                                                        <td class="text-end text-muted-warm">− {{ money($sgpCuenta[0]['cobrado']) }}</td>
+                                                    </tr>
+                                                @endif
+                                            @endif
                                             @if ($lista > $totalCita)
                                                 <tr class="txt-ok">
                                                     <td>
@@ -960,6 +950,7 @@
                                                             @elseif (! empty($dg['nivel']))
                                                                 por su nivel {{ $dg['nivel'] }}
                                                             @endif
+                                                            @if ($sgpPorPersona) · ya repartido arriba @endif
                                                         </span>
                                                     </td>
                                                     <td class="text-end">− {{ money($lista - $totalCita) }}</td>
@@ -998,7 +989,7 @@
                                                     <th class="text-end txt-oro">{{ money($pide) }}</th>
                                                 @else
                                                     <th>A cobrar</th>
-                                                    <th class="text-end txt-oro">{{ money($falta) }}</th>
+                                                    <th class="text-end txt-oro" data-cobro-falta>{{ money($falta) }}</th>
                                                 @endif
                                             </tr>
                                         </tbody>
@@ -1022,6 +1013,65 @@
                                         'desglose' => $desglosesSena[$c->id_cita],
                                         'yaPuesta' => (float) $c->sena,
                                     ])
+                                @endif
+
+                                @if ($sgpPorPersona && $totalCita > 0)
+                                    {{-- **¿Paga todo el grupo, o cada una lo suyo?** Dos amigas
+                                         que se atienden juntas no siempre pagan juntas, y si
+                                         pagan aparte cada una quiere SU comprobante. Con el
+                                         cobro «de la cita» a secas no se podía: el sistema
+                                         sumaba todo y hacía una factura sola.
+
+                                         «Por persona» acota el cobro a lo que le falta a ésa
+                                         (`cobro.persona`), y la factura de esa persona sale
+                                         después con sólo sus servicios. «Todo junto» es lo de
+                                         siempre. Cuando alguna ya tiene su comprobante, lo
+                                         junto deja de tener sentido y se arranca por persona. --}}
+                                    <div class="mb-2 sgp-cobro-modo" data-cobro-modo data-moneda="{{ config('sgp.moneda') }}">
+                                        <div class="form-label mb-1">¿Cómo pagan?</div>
+                                        <div class="d-flex gap-3 flex-wrap" style="font-size:.88rem">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="modo_pago"
+                                                       id="modoJunto{{ $c->id_cita }}" value="junto"
+                                                       data-falta="{{ (float) $falta }}"
+                                                       @checked(! $sgpAlguienConFactura)
+                                                       @disabled($sgpAlguienConFactura)>
+                                                <label class="form-check-label" for="modoJunto{{ $c->id_cita }}">
+                                                    Todo el grupo junto
+                                                    @if ($sgpAlguienConFactura)
+                                                        <span class="text-muted-warm">(alguna ya tiene su comprobante)</span>
+                                                    @endif
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="modo_pago"
+                                                       id="modoPersona{{ $c->id_cita }}" value="persona"
+                                                       @checked($sgpAlguienConFactura)>
+                                                <label class="form-check-label" for="modoPersona{{ $c->id_cita }}">
+                                                    Cada una lo suyo
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <select class="form-select form-select-sm mt-2" name="persona"
+                                                id="personaCobro{{ $c->id_cita }}" data-persona-select
+                                                aria-label="¿De quién es este pago?"
+                                                @disabled(! $sgpAlguienConFactura)>
+                                            @foreach ($sgpCuenta as $sgpP => $sgpX)
+                                                @continue ($sgpP === 0 || ! $sgpX['servicios'])
+                                                @php $sgpTapada = $sgpX['id_factura'] || $sgpX['falta'] <= 0.5; @endphp
+                                                <option value="{{ $sgpP }}" data-falta="{{ (float) $sgpX['falta'] }}"
+                                                        @disabled($sgpTapada)>
+                                                    {{ $sgpX['nombre'] }} ·
+                                                    @if ($sgpX['id_factura']) ya tiene su comprobante
+                                                    @elseif ($sgpX['falta'] <= 0.5) ya pagó lo suyo
+                                                    @else le faltan {{ money($sgpX['falta']) }} @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <div class="form-text">
+                                            Por persona, el comprobante de cada una sale después con sólo lo suyo.
+                                        </div>
+                                    </div>
                                 @endif
 
                                 {{-- **Las mismas líneas que en Facturas.** Acá había un
@@ -1080,8 +1130,8 @@
                                     Entra en la caja de <strong>{{ session('sucursal_nom') ?: 'esta sucursal' }}</strong>
                                     (la abrió {{ $caja->responsable }})
                                     @if ($c->estado === 'Atendida')
-                                        y después elegís el comprobante: factura o comprobante de pago,
-                                        lo que pida la clienta. Sale saldado solo.
+                                        y después elegís el comprobante: factura declarada o sin
+                                        nombre, lo que pida la clienta. Sale saldado solo.
                                     @else
                                         y se descuenta sola del total cuando se facture la cita.
                                     @endif
@@ -1110,3 +1160,56 @@
         @endforeach
     @endif
 @endsection
+
+@push('scripts')
+<script>
+/* **Grupal o por persona: el tope del cobro sigue a la elección.** El bloque
+   de líneas (`.sgp-cobro`) nació con el saldo de la cita entera; al pasar a
+   «cada una lo suyo» lo que se puede cobrar es lo que le falta a ESA persona,
+   y el resumen de abajo tiene que decirlo con ese número. Se le avisa con un
+   evento —`sgp:cobro-saldo`— que `app.js` escucha, en vez de tocar sus
+   variables desde acá. Sin JavaScript el radio queda en «junto» y el
+   selector deshabilitado, o sea el cobro grupal de siempre. */
+(function () {
+  'use strict';
+  document.querySelectorAll('[data-cobro-modo]').forEach(function (bloque) {
+    var form = bloque.closest('form');
+    var caja = form && form.querySelector('.sgp-cobro');
+    var sel = bloque.querySelector('[data-persona-select]');
+    var junto = bloque.querySelector('input[value="junto"]');
+    var persona = bloque.querySelector('input[value="persona"]');
+    var celda = form && form.querySelector('[data-cobro-falta]');
+    if (!sel || !junto || !persona) return;
+
+    function miles(n) { return n.toLocaleString('es-PY', { maximumFractionDigits: 0 }); }
+
+    function aplicar() {
+      var porPersona = persona.checked;
+      sel.disabled = !porPersona;
+      var saldo;
+      if (porPersona) {
+        var op = sel.options[sel.selectedIndex];
+        if (op && op.disabled) {
+          // La primera que todavía deba algo: una tapada no se puede elegir.
+          for (var i = 0; i < sel.options.length; i++) {
+            if (!sel.options[i].disabled) { sel.selectedIndex = i; break; }
+          }
+          op = sel.options[sel.selectedIndex];
+        }
+        saldo = op ? parseFloat(op.getAttribute('data-falta') || '0') : 0;
+      } else {
+        saldo = parseFloat(junto.getAttribute('data-falta') || '0');
+      }
+      if (celda) celda.textContent = (bloque.getAttribute('data-moneda') || 'Gs.') + ' ' + miles(saldo);
+      if (caja) {
+        caja.dispatchEvent(new CustomEvent('sgp:cobro-saldo', { detail: { saldo: saldo, sugerido: saldo } }));
+      }
+    }
+    junto.addEventListener('change', aplicar);
+    persona.addEventListener('change', aplicar);
+    sel.addEventListener('change', aplicar);
+    if (persona.checked) aplicar();
+  });
+})();
+</script>
+@endpush

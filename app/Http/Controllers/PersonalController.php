@@ -94,7 +94,7 @@ class PersonalController extends Controller
         }
 
         $desde = 'FROM persona pe WHERE ' . implode(' AND ', $w);
-        $cols = "pe.id_persona, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, pe.direccion,
+        $cols = "pe.id_persona, pe.nombre, pe.apellido, pe.cedula, pe.telefono, pe.email, pe.direccion, pe.foto,
                  (SELECT u.id_usuario FROM usuario u WHERE u.id_persona = pe.id_persona LIMIT 1) AS id_usuario,
                  (SELECT u.username FROM usuario u WHERE u.id_persona = pe.id_persona LIMIT 1) AS username,
                  (SELECT r.nombre FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
@@ -246,7 +246,7 @@ class PersonalController extends Controller
                   JOIN persona pe_u ON pe_u.id_persona = u.id_persona
                   JOIN rol r ON r.id_rol = u.id_rol
                   WHERE ' . implode(' AND ', $w);
-        $cols = "u.id_usuario, pe_u.nombre, pe_u.apellido, u.username, pe_u.email, pe_u.telefono, u.activo,
+        $cols = "u.id_usuario, pe_u.nombre, pe_u.apellido, pe_u.foto, u.username, pe_u.email, pe_u.telefono, u.activo,
                  (SELECT GROUP_CONCAT(DISTINCT rr.nombre ORDER BY rr.nombre SEPARATOR ' · ')
                     FROM rol rr
                    WHERE rr.id_rol = u.id_rol

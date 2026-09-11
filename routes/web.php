@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AlertasController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CitasController;
 use App\Http\Controllers\CitaTokenController;
@@ -102,6 +103,13 @@ Route::middleware('sesion')->prefix('cuenta')->name('cuenta.')->group(function (
 // que se llevó al dibujarse y avisa si hay novedades. Pide sesión —la huella
 // se calcula sobre la sucursal activa— y nada más: no expone ni un dato.
 Route::get('vivo', [VivoController::class, 'estado'])->middleware('sesion')->name('vivo');
+
+// --- La campanita: marcar lo ya visto -------------------------------------
+// Baja el numerito rojo al abrirla. No resuelve nada ni devuelve datos: el
+// renglon se queda en la bandeja, lo que cambia es que deja de contar. Los
+// pendientes —lo que falta cargar— no entran acá a proposito.
+Route::post('alertas/vistas', [AlertasController::class, 'vistas'])
+    ->middleware('sesion')->name('alertas.vistas');
 
 // --- La cita desde el enlace del correo (SIN sesión) ----------------------
 // La credencial es el token: la mayoría de las clientas que agendan en el

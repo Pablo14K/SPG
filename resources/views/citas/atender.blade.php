@@ -113,18 +113,43 @@
         <div class="sgp-panel mb-3">
             <h2 class="sgp-form-titulo mb-1"><i class="bi bi-scissors"></i> ¿Qué se le hizo?<x-ayuda>Vienen marcados los que se habían agendado. Lo que quede sin marcar y no se haya realizado antes se saca de la cita, así no se le cobra a la clienta un servicio que no recibió.</x-ayuda></h2>
 
-            <input class="form-control form-control-sm mb-2" data-filtra="#listaServiciosAt"
-                   placeholder="Buscar un servicio…" autocomplete="off">
+            {{-- **El buscador es para elegir, así que con la cita cerrada no
+                 va.** En «Ver atención» la lista son los tres o cuatro
+                 servicios que se hicieron: un campo para filtrar cuatro
+                 renglones no filtra nada, y encima se lee como que hay algo
+                 más que buscar. Se reportó junto con la selección. --}}
+            @unless ($soloLectura)
+                <input class="form-control form-control-sm mb-2" data-filtra="#listaServiciosAt"
+                       placeholder="Buscar un servicio…" autocomplete="off">
+            @endunless
 
-            {{-- **Lo que la clienta pidio, separado de lo que se le suma en el
-                 sillon.** Estaban todos en una sola lista, asi que para saber que
+            {{-- **Lo que la clienta pidió, separado de lo que se le suma en el
+                 sillón.** Estaban todos en una sola lista, asi que para saber que
                  se habia agendado habia que leer los badges uno por uno. Son dos
-                 cosas distintas: lo agendado es lo que se acordo, lo demas es un
-                 agregado que se decide en el momento y que la clienta no esta
+                 cosas distintas: lo agendado es lo que se acordó, lo demás es un
+                 agregado que se decide en el momento y que la clienta no está
                  esperando pagar. --}}
             @php
                 $pedidos = collect($servicios)->filter(fn ($x) => $x->agendado || $x->ya);
                 $extras  = collect($servicios)->reject(fn ($x) => $x->agendado || $x->ya);
+
+                // **Lo que se agrega en el sillón, separado por quién lo hace.**
+                // La lista ofrecía el catálogo entero, así que una peluquera
+                // veía entre sus opciones la depilación y la pedicura: marcando
+                // una, el servicio quedaba a su nombre y la comisión también.
+                //
+                // Arriba va lo suyo, que es el caso de todos los días —la
+                // clienta pide algo más y lo hace la misma persona—; lo demás
+                // baja al bloque de «con otra profesional», que es el pedido
+                // que faltaba: poder sumar un servicio adicional atendido por
+                // otra antes de cerrar.
+                //
+                // `fn_usuario_hace_servicio` es permisiva: quien no tiene
+                // ninguno cargado los hace todos, así que en un salón que no
+                // administra esto los dos grupos no se parten y se ve lo mismo
+                // que antes.
+                $extrasMios = $extras->filter(fn ($x) => (int) ($x->hace ?? 1) === 1);
+                $extrasOtra = $extras->reject(fn ($x) => (int) ($x->hace ?? 1) === 1);
             @endphp
 
             {{-- **Cada profesional cierra SU parte.** Una cita de dos horas
@@ -170,19 +195,49 @@
 
             <div class="sgp-check-lista" id="listaServiciosAt">
                 @if ($pedidos->isNotEmpty())
-                    <div class="sgp-grupo-rotulo">Lo que se agendo</div>
+                    <div class="sgp-grupo-rotulo">Lo que se agendó</div>
                     @foreach ($pedidos as $s)
                         @include('citas._servicio_check')
                     @endforeach
                 @endif
 
-                @if ($extras->isNotEmpty())
-                    <div class="sgp-grupo-rotulo mt-2">Se agrega durante la atencion</div>
-                    @foreach ($extras as $s)
+                @if ($extrasMios->isNotEmpty())
+                    <div class="sgp-grupo-rotulo mt-2">Se agrega durante la atención</div>
+                    @foreach ($extrasMios as $s)
                         @include('citas._servicio_check')
                     @endforeach
                 @endif
             </div>
+
+            {{-- **Un servicio adicional con OTRA profesional, antes de cerrar.**
+                 Lo pidió el usuario y es el caso real: la clienta está en el
+                 sillón, pide las uñas, y eso lo hace otra persona. Hasta acá la
+                 única salida era agendarle una cita aparte.
+
+                 Va en su propio bloque y plegado: no es lo que se hace todos
+                 los días, y abierto compite con la lista de arriba —que es lo
+                 único que la mayoría viene a marcar—. Adentro, cada servicio
+                 trae su combo de profesional, que es justamente lo que lo
+                 distingue del grupo anterior. --}}
+            @if (! $soloLectura && $extrasOtra->isNotEmpty())
+                <button type="button" class="sgp-btn-detalle mt-2" data-bs-toggle="collapse"
+                        data-bs-target="#otraProf" aria-expanded="false" aria-controls="otraProf">
+                    <i class="bi bi-person-plus"></i> Sumar un servicio con otra profesional
+                </button>
+                <div class="collapse" id="otraProf">
+                    <div class="sgp-check-lista mt-2">
+                        <div class="sgp-grupo-rotulo">Lo hace otra profesional</div>
+                        <p class="text-muted-warm mb-2" style="font-size:.8rem">
+                            Elegí el servicio y con quién: queda a su nombre, así la comisión
+                            le toca a quien lo hizo. La cita no se cierra hasta que ella
+                            también marque su parte.
+                        </p>
+                        @foreach ($extrasOtra as $s)
+                            @include('citas._servicio_check')
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             {{-- **Cuánto va sumando.**
 
@@ -299,69 +354,82 @@
                 </div>
             @endif
 
+            {{-- **Un bloque por servicio, con el servicio FIJO.**
+
+                 Antes cada fila preguntaba «¿en qué servicio se usó?» con un
+                 combo, y eso está al revés de cómo se trabaja: quien atiende no
+                 carga «shampoo» y después decide a qué imputarlo — está haciendo
+                 la coloración y usó shampoo EN la coloración. El combo obligaba
+                 a contestar en cada fila algo que el contexto ya sabía, y
+                 contestarlo mal era fácil: quince renglones iguales con un
+                 desplegable cada uno.
+
+                 Ahora la pregunta se hace una vez, en el rótulo del grupo, y el
+                 servicio viaja como campo escondido. **El POST no cambia**:
+                 `producto[]`, `cantidad[]` y `servicio_de[]` siguen siendo los
+                 mismos tres arreglos posicionales, así que el guardado no se
+                 tocó — lo único que cambió es quién contesta el tercero.
+
+                 Los servicios son los de ESTA cita (`$servDeLaCita`): lo que se
+                 pidió más lo que ya se registró. Uno que no quede como
+                 realizado hace que su producto se rechace con su nombre, que es
+                 lo que ya hacía el guardado. --}}
+            @if (! count($servDeLaCita))
+                <div class="alert alert-warning" style="font-size:.85rem">
+                    Esta cita todavía no tiene ningún servicio, así que no hay a qué
+                    cargarle un producto. Marcá arriba lo que se hizo.
+                </div>
+            @endif
+
             <div id="filasProductos">
-                @for ($i = 0; $i < 3; $i++)
-                    <div class="row g-2 mb-2 filaProducto">
-                        <div class="col-md-5">
-                            <select class="form-select form-select-sm" name="producto[]" @disabled((bool) $factura)>
-                                <option value="0">— sin producto —</option>
-                                @foreach ($productos as $p)
-                                    <option value="{{ $p->id_producto }}" data-unidad="{{ unidad_consumo((array) $p) }}">
-                                        {{ $p->nombre }}
-                                        (quedan {{ cant(stock_a_consumo((array) $p, (float) $p->stock)) }}
-                                        {{ unidad_consumo((array) $p) }})
-                                    </option>
-                                @endforeach
-                            </select>
+                @foreach ($servDeLaCita as $sv)
+                    <div class="sgp-prod-grupo" data-prod-grupo="{{ $sv->id_servicio }}">
+                        <div class="sgp-grupo-rotulo">En {{ $sv->nombre }}</div>
+                        <div class="sgp-prod-filas">
+                            @for ($i = 0; $i < 2; $i++)
+                                <div class="row g-2 mb-2 filaProducto">
+                                    {{-- El servicio ya está decidido por el grupo. --}}
+                                    <input type="hidden" name="servicio_de[]" value="{{ $sv->id_servicio }}">
+                                    <div class="col-md-7">
+                                        <select class="form-select form-select-sm" name="producto[]" @disabled((bool) $factura)>
+                                            <option value="0">— sin producto —</option>
+                                            @foreach ($productos as $p)
+                                                <option value="{{ $p->id_producto }}" data-unidad="{{ unidad_consumo((array) $p) }}">
+                                                    {{ $p->nombre }}
+                                                    (quedan {{ cant(stock_a_consumo((array) $p, (float) $p->stock)) }}
+                                                    {{ unidad_consumo((array) $p) }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{-- La unidad se muestra al lado del campo: sin eso no se sabe
+                                             si «30» son 30 ml o 30 frascos, y el número depende del
+                                             producto elegido. --}}
+                                        <div class="input-group input-group-sm">
+                                            <input class="form-control input-miles" name="cantidad[]"
+                                                   data-decimales="2" data-min="0" placeholder="Cantidad" @disabled((bool) $factura)>
+                                            <span class="input-group-text unidadProducto">unidad</span>
+                                        </div>
+                                    </div>
+                                    {{-- **Había para agregar y no para quitar.** Una fila cargada por
+                                         error sólo se deshacía volviendo el combo a «sin producto» y
+                                         borrando la cantidad a mano, y con la fila ya elegida eso no
+                                         se lee como «borrar». --}}
+                                    <div class="col-md-1 d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm btn-outline-neutro quitaProducto w-100"
+                                                title="Quitar este producto" @disabled((bool) $factura)><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                </div>
+                            @endfor
                         </div>
-                        <div class="col-md-3">
-                            {{-- La unidad se muestra al lado del campo: sin eso no se sabe si «30»
-                                 son 30 ml o 30 frascos, y el número depende del producto elegido. --}}
-                            <div class="input-group input-group-sm">
-                                <input class="form-control input-miles" name="cantidad[]"
-                                       data-decimales="2" data-min="0" placeholder="Cantidad" @disabled((bool) $factura)>
-                                <span class="input-group-text unidadProducto">unidad</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <select class="form-select form-select-sm" name="servicio_de[]" @disabled((bool) $factura)>
-                                {{-- **Sólo los servicios MARCADOS.** Salía el catálogo
-                                     entero —quince opciones— y eso deja imputar un producto
-                                     a un servicio que la clienta no recibió: el consumo
-                                     queda colgado de algo que no ocurrió, y el servidor lo
-                                     rechaza al guardar con un mensaje que manda a mirar el
-                                     lugar equivocado.
-
-                                     Entran los dos casos: lo que se agendó y lo que se
-                                     agrega en el sillón. El comentario de antes decía que
-                                     `app.js` los escondía y **no lo hacía nadie** — la lista
-                                     se dibujaba completa. Ahora lo hace el bloque de abajo,
-                                     que además reacciona al marcar y desmarcar.
-
-                                     Sin JavaScript se ven todos y se puede imputar igual:
-                                     es una ayuda, no el control. --}}
-                                <option value="0">— imputar al primer servicio —</option>
-                                @foreach ($servicios as $sc)
-                                    <option value="{{ $sc->id_servicio }}" data-srv="{{ $sc->id_servicio }}">
-                                        en {{ $sc->nombre }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        {{-- **Había para agregar y no para quitar.** Una fila cargada por
-                             error sólo se deshacía volviendo el combo a «sin producto» y
-                             borrando la cantidad a mano, y con la fila ya elegida eso no
-                             se lee como «borrar». --}}
-                        <div class="col-md-1 d-flex align-items-center">
-                            <button type="button" class="btn btn-sm btn-outline-neutro quitaProducto w-100"
-                                    title="Quitar este producto" @disabled((bool) $factura)><i class="bi bi-x-lg"></i></button>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-rapido masProductos" @disabled((bool) $factura)>
+                            <i class="bi bi-plus-lg"></i> Otra fila en {{ $sv->nombre }}
+                        </button>
                     </div>
-                @endfor
+                @endforeach
             </div>
 
-            <button type="button" class="btn btn-sm btn-rapido" id="masProductos" @disabled((bool) $factura)>
-                <i class="bi bi-plus-lg"></i> Otra fila
-            </button>
         </div>
         @endif
 
@@ -411,52 +479,12 @@
 
 @push('scripts')
 <script>
-// ---------------------------------------------------------------------------
-// «¿En qué servicio se usó?» ofrece sólo los servicios marcados
-// ---------------------------------------------------------------------------
-// El catálogo entero deja imputar un producto a un servicio que la clienta no
-// recibió, y ahí el consumo queda colgado de algo que no ocurrió.
-//
-// Se recalcula al marcar y desmarcar, y también sobre las filas que agrega el
-// botón «Otra fila»: por eso se recorre el documento cada vez en vez de
-// guardarse la lista.
-(function () {
-    function refrescarServiciosDe() {
-        var marcados = {};
-        document.querySelectorAll('.srvAt').forEach(function (chk) {
-            if (chk.checked) marcados[chk.value] = true;
-        });
-
-        document.querySelectorAll('[name="servicio_de[]"]').forEach(function (sel) {
-            var visibles = 0;
-            sel.querySelectorAll('option[data-srv]').forEach(function (op) {
-                var ok = !!marcados[op.dataset.srv];
-                op.hidden = !ok;
-                op.disabled = !ok;
-                if (ok) visibles++;
-                // Si la opción elegida deja de estar marcada, se vuelve al
-                // primer servicio: dejarla seleccionada y escondida mandaría
-                // el id igual y el servidor lo rechazaría al guardar.
-                if (!ok && sel.value === op.value) sel.value = '0';
-            });
-            // Sin ningún servicio marcado no hay nada que imputar: el combo
-            // queda con su única opción y no engaña.
-            sel.disabled = sel.disabled || visibles === 0 ? sel.disabled : false;
-        });
-    }
-
-    document.addEventListener('change', function (ev) {
-        if (ev.target.classList && ev.target.classList.contains('srvAt')) refrescarServiciosDe();
-    });
-    document.addEventListener('click', function (ev) {
-        if (ev.target.closest && ev.target.closest('#masProductos')) {
-            // La fila nueva se clona después del clic.
-            setTimeout(refrescarServiciosDe, 0);
-        }
-    });
-
-    refrescarServiciosDe();
-})();
+// **El combo de «¿en qué servicio?» se fue, y con él este bloque.**
+// Refrescaba las opciones al marcar y desmarcar servicios; ahora el servicio lo
+// fija el grupo al que pertenece la fila y viaja como campo escondido, así que
+// no hay nada que refrescar. Lo que sigue valiendo es lo de siempre: imputar un
+// producto a un servicio que no quedó como realizado lo rechaza el guardado,
+// nombrando el producto.
 
 // La unidad del campo depende del producto elegido: «ml» para los fraccionados
 // y la unidad de compra para el resto. Se actualiza sola al cambiar el select.
@@ -472,25 +500,34 @@ document.getElementById('filasProductos')?.addEventListener('change', function (
     if (e.target.name === 'producto[]') { sgpUnidad(e.target.closest('.filaProducto')); }
 });
 
-// **Nunca se queda sin ninguna fila**: con cero, «Otra fila» clona algo que ya
-// no existe y el botón deja de funcionar. La última se vacía en vez de irse.
+// **Quitar y agregar trabajan DENTRO de su grupo.** Cada servicio tiene sus
+// filas, así que «Otra fila» tiene que clonar una de ESE bloque: clonando la
+// primera del documento, la fila nueva se llevaría el `servicio_de` de otro
+// servicio y el producto terminaría imputado donde no va.
+//
+// **Y ningún grupo se queda sin ninguna fila**: con cero, el botón clona algo
+// que ya no existe y deja de funcionar. La última se vacía en vez de irse.
 document.getElementById('filasProductos')?.addEventListener('click', function (e) {
     var b = e.target.closest('.quitaProducto');
-    if (!b) { return; }
-    var cont = document.getElementById('filasProductos');
-    var fila = b.closest('.filaProducto');
-    if (cont.querySelectorAll('.filaProducto').length > 1) { fila.remove(); return; }
-    fila.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
-    fila.querySelectorAll('input').forEach(function (i) { i.value = ''; });
-    sgpUnidad(fila);
-});
+    if (b) {
+        var filas = b.closest('.sgp-prod-filas');
+        var fila = b.closest('.filaProducto');
+        if (filas.querySelectorAll('.filaProducto').length > 1) { fila.remove(); return; }
+        fila.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+        fila.querySelectorAll('input[name="cantidad[]"]').forEach(function (i) { i.value = ''; });
+        sgpUnidad(fila);
 
-// Una fila más para cargar productos, clonando la última vacía
-document.getElementById('masProductos')?.addEventListener('click', function () {
-    var cont = document.getElementById('filasProductos');
+        return;
+    }
+
+    var mas = e.target.closest('.masProductos');
+    if (!mas) { return; }
+    var cont = mas.closest('.sgp-prod-grupo').querySelector('.sgp-prod-filas');
     var copia = cont.querySelector('.filaProducto').cloneNode(true);
     copia.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
-    copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    // El escondido NO se limpia: es el servicio del grupo, que es justamente
+    // lo que la fila nueva tiene que heredar.
+    copia.querySelectorAll('input[name="cantidad[]"]').forEach(function (i) { i.value = ''; });
     cont.appendChild(copia);
     sgpUnidad(copia);
 });
