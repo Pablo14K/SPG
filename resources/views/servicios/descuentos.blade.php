@@ -179,8 +179,8 @@
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Promoción</th><th class="text-end">Valor</th><th>Vigencia</th>
-                        <th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Promoción</th><th class="text-end">Valor</th>
+                        <th>Estado</th><th class="text-end"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -199,15 +199,6 @@
                             <td class="text-end" data-label="Valor">
                                 {{ $d->tipo === 'PORCENTAJE' ? cant($d->valor) . ' %' : money($d->valor) }}
                             </td>
-                            <td class="text-muted-warm" data-label="Vigencia">
-                                @if ($d->fecha_inicio || $d->fecha_fin)
-                                    {{ $d->fecha_inicio ? fecha($d->fecha_inicio, 'd/m/Y') : 'siempre' }}
-                                    –
-                                    {{ $d->fecha_fin ? fecha($d->fecha_fin, 'd/m/Y') : 'sin fin' }}
-                                @else
-                                    Sin límite de fechas
-                                @endif
-                            </td>
                             <td data-label="Estado">
                                 @if (! $d->activo)
                                     <span class="badge-estado e-muted">Inactivo</span>
@@ -218,6 +209,10 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detDesc{{ $d->id_descuento }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.descuento_form', $d->id_descuento) }}">
                                     <i class="bi bi-pencil"></i></a>
@@ -231,9 +226,31 @@
                                 </form>
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detDesc{{ $d->id_descuento }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Vigencia</dt>
+                                                <dd>
+                                                    @if ($d->fecha_inicio || $d->fecha_fin)
+                                                        {{ $d->fecha_inicio ? fecha($d->fecha_inicio, 'd/m/Y') : 'siempre' }}
+                                                        –
+                                                        {{ $d->fecha_fin ? fecha($d->fecha_fin, 'd/m/Y') : 'sin fin' }}
+                                                    @else
+                                                        Sin límite de fechas
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-percent"></i>
                                     <div class="t">Todavía no hay promociones cargados.</div>

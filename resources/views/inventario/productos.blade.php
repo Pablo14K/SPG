@@ -48,9 +48,8 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Producto</th><th>Categoría</th><th class="text-end">Stock</th>
-                        <th class="text-end d-none d-md-table-cell">Mínimo</th><th class="text-end">Costo</th>
-                        {{-- <th class="text-end">Venta</th> --}}<th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Producto</th><th class="text-end">Stock</th>
+                        <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,7 +70,6 @@
                                         {{ cant($p->contenido) }} {{ $p->unidad_consumo }} por {{ $p->unidad_medida }}</span>
                                 @endif
                             </td>
-                            <td class="text-muted-warm" data-label="Categoría">{{ $p->categoria }}</td>
                             <td class="text-end" data-label="Stock">
                                 @if ($mio)
                                     <strong class="{{ $bajo ? 'txt-no' : '' }}">{{ cant($p->stock_actual) }}</strong>
@@ -86,11 +84,6 @@
                                     <span class="text-muted-warm">—</span>
                                 @endif
                             </td>
-                            <td class="text-end text-muted-warm d-none d-md-table-cell" data-label="Mínimo">{{ $mio ? cant($p->stock_minimo) : '—' }}</td>
-                            <td class="text-end" data-label="Costo">{{ money($p->precio_costo) }}</td>
-                            {{-- Precio de venta: fuera de alcance (ver el formulario del producto).
-                            <td class="text-end">{{ money($p->precio_venta) }}</td>
-                            --}}
                             <td data-label="Estado">
                                 @if (! $mio)
                                     <span class="badge-estado e-muted">En otra sucursal</span>
@@ -102,40 +95,66 @@
                                     <span class="badge-estado e-ok">Activo</span>
                                 @endif
                             </td>
-                            @if (! $mio)
-                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detProd{{ $p->id_producto }}" aria-expanded="false"
+                                        aria-controls="detProd{{ $p->id_producto }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
+                                @if (! $mio)
                                     <form method="post" action="{{ route('inventario.producto.traer') }}" class="d-inline">
                                         @csrf
                                         <input type="hidden" name="id_producto" value="{{ $p->id_producto }}">
                                         <button class="btn btn-sm btn-rapido" title="Manejarlo también en esta sucursal">
                                              <i class="bi bi-plus-lg"></i> Traer acá</button>
                                     </form>
-                                </td>
-                            @else
-                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
-                                <a class="btn btn-sm btn-outline-neutro" title="Cargar stock"
-                                   href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
-                                    <i class="bi bi-plus-slash-minus"></i></a>
-                                <a class="btn btn-sm btn-outline-neutro" title="Movimientos"
-                                   href="{{ route('inventario.movimientos', ['producto' => $p->id_producto]) }}">
-                                    <i class="bi bi-arrow-left-right"></i></a>
-                                <a class="btn btn-sm btn-outline-neutro" title="Editar"
-                                   href="{{ route('inventario.producto_form', $p->id_producto) }}">
-                                    <i class="bi bi-pencil"></i></a>
-                                <form method="post" action="{{ route('inventario.producto.baja') }}" class="d-inline">
-                                    @csrf
-                                    <input type="hidden" name="id_producto" value="{{ $p->id_producto }}">
-                                    <button class="btn btn-sm btn-outline-neutro"
-                                            title="{{ $p->activo ? 'Desactivar' : 'Activar' }}"
-                                            data-confirmar="¿{{ $p->activo ? 'Desactivar' : 'Activar' }} «{{ $p->nombre }}»?">
-                                        <i class="bi bi-toggle-{{ $p->activo ? 'on' : 'off' }}"></i></button>
-                                </form>
+                                @else
+                                    <a class="btn btn-sm btn-outline-neutro" title="Cargar stock"
+                                       href="{{ route('inventario.ajuste', ['producto' => $p->id_producto]) }}">
+                                        <i class="bi bi-plus-slash-minus"></i></a>
+                                    <a class="btn btn-sm btn-outline-neutro" title="Movimientos"
+                                       href="{{ route('inventario.movimientos', ['producto' => $p->id_producto]) }}">
+                                        <i class="bi bi-arrow-left-right"></i></a>
+                                    <a class="btn btn-sm btn-outline-neutro" title="Editar"
+                                       href="{{ route('inventario.producto_form', $p->id_producto) }}">
+                                        <i class="bi bi-pencil"></i></a>
+                                    <form method="post" action="{{ route('inventario.producto.baja') }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="id_producto" value="{{ $p->id_producto }}">
+                                        <button class="btn btn-sm btn-outline-neutro"
+                                                title="{{ $p->activo ? 'Desactivar' : 'Activar' }}"
+                                                data-confirmar="¿{{ $p->activo ? 'Desactivar' : 'Activar' }} «{{ $p->nombre }}»?">
+                                            <i class="bi bi-toggle-{{ $p->activo ? 'on' : 'off' }}"></i></button>
+                                    </form>
+                                @endif
                             </td>
-                            @endif
+                        </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detProd{{ $p->id_producto }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Categoría</dt>
+                                                <dd>{{ $p->categoria }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Mínimo</dt>
+                                                <dd>{{ $mio ? cant($p->stock_minimo) : '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Costo</dt>
+                                                <dd>{{ money($p->precio_costo) }}</dd>
+                                            </div>
+                                            {{-- Precio de venta: fuera de alcance (ver el formulario del producto). --}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">{{-- eran 8 con «Venta», que quedó fuera de alcance --}}
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-box-seam"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún producto coincide con esos filtros.' : 'Todavía no hay productos cargados.' }}</div>

@@ -48,6 +48,15 @@
 
 	file_server
 
+	# **Lo que hay bajo /assets se guarda en el navegador un año.** Todo lo
+	# que el sistema enlaza ahí lleva `?v=<fecha del archivo>` (`recurso()`),
+	# así que la URL cambia cuando cambia el archivo y una caché larga no
+	# puede servir nada viejo. Sin esto Caddy no mandaba `Cache-Control`, y
+	# el navegador volvía a pedir la foto de perfil en cada pantalla — que es
+	# el segundo de avatar vacío que se reportó al entrar.
+	@estatico path /assets/*
+	header @estatico Cache-Control "public, max-age=31536000, immutable"
+
 	header {
 		# HSTS lo manda igual: quien lo lee es el navegador, y la conexión que
 		# ve el navegador SÍ es HTTPS —la que termina en Traefik—.

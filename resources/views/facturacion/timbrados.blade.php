@@ -104,8 +104,8 @@
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>Timbrado</th><th>Comprobante</th><th>Vigencia</th>
-                                <th class="text-end">Emitidos</th><th>Estado</th><th class="text-end">Acciones</th>
+                                <th>Timbrado</th><th>Vigencia</th>
+                                <th>Estado</th><th class="text-end">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -117,15 +117,8 @@
                                             {{ $t->establecimiento }}-{{ $t->punto_expedicion }} · {{ $t->sucursal }}
                                         </div>
                                     </td>
-                                    <td class="text-muted-warm" data-label="Comprobante">{{ $t->comprobante }}</td>
                                     <td class="text-muted-warm" style="font-size:.82rem" data-label="Vigencia">
                                         {{ fecha($t->fecha_inicio, 'd/m/Y') }} – {{ fecha($t->fecha_fin, 'd/m/Y') }}
-                                    </td>
-                                    <td class="text-end" data-label="Emitidos">
-                                        {{ (int) $t->emitidos }}
-                                        <div class="text-muted-warm" style="font-size:.72rem">
-                                            último {{ (int) $t->ultimo }}/{{ (int) $t->nro_hasta }}
-                                        </div>
                                     </td>
                                     <td data-label="Estado">
                                         @if (! $t->activo)
@@ -137,6 +130,10 @@
                                         @endif
                                     </td>
                                     <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                                data-bs-target="#detTimb{{ $t->id_timbrado }}" aria-expanded="false">
+                                            <i class="bi bi-chevron-down"></i> Detalle
+                                        </button>
                                         <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                            href="{{ route('facturacion.timbrados', ['editar' => $t->id_timbrado]) }}">
                                             <i class="bi bi-pencil"></i></a>
@@ -150,9 +147,27 @@
                                         </form>
                                     </td>
                                 </tr>
+                                <tr class="spg-fila-detalle">
+                                    <td colspan="4">
+                                        <div class="collapse" id="detTimb{{ $t->id_timbrado }}">
+                                            <div class="spg-det-cuerpo">
+                                                <div class="spg-det-grid">
+                                                    <div>
+                                                        <dt>Comprobante</dt>
+                                                        <dd>{{ $t->comprobante }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt>Emitidos</dt>
+                                                        <dd>{{ (int) $t->emitidos }} — último {{ (int) $t->ultimo }}/{{ (int) $t->nro_hasta }}</dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="4">
                                         <div class="spg-vacio">
                                             <i class="bi bi-file-earmark-text"></i>
                                             <div class="t">No hay timbrados cargados.</div>

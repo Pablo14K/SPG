@@ -154,8 +154,7 @@
             <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
-                        <tr><th>Cuándo</th><th>Clienta</th><th>Servicio</th>
-                            <th class="text-end">Puntos</th><th>Vence</th><th>Estado</th></tr>
+                        <tr><th>Cuándo</th><th>Clienta</th><th>Servicio</th><th>Estado</th><th class="text-end"></th></tr>
                     </thead>
                     <tbody>
                         @foreach ($canjeados as $c)
@@ -163,8 +162,6 @@
                                 <td class="spg-movil-titulo" data-label="Cuándo" style="white-space:nowrap">{{ fecha($c->fecha, 'd/m/Y') }}</td>
                                 <td data-label="Clienta">{{ $c->cliente }}</td>
                                 <td data-label="Servicio">{{ $c->servicio }}</td>
-                                <td class="text-end" data-label="Puntos">{{ (int) $c->puntos }}</td>
-                                <td data-label="Vence" style="white-space:nowrap">{{ fecha($c->vence_en, 'd/m/Y') }}</td>
                                 <td data-label="Estado">
                                     @switch($c->estado)
                                         @case('USADO')
@@ -174,6 +171,30 @@
                                         @default
                                             <span class="badge-estado e-warn">Sin usar</span>
                                     @endswitch
+                                </td>
+                                <td class="text-end" style="white-space:nowrap">
+                                    <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                            data-bs-target="#detCanjeH{{ $loop->index }}" aria-expanded="false">
+                                        <i class="bi bi-chevron-down"></i> Detalle
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="spg-fila-detalle">
+                                <td colspan="5">
+                                    <div class="collapse" id="detCanjeH{{ $loop->index }}">
+                                        <div class="spg-det-cuerpo">
+                                            <div class="spg-det-grid">
+                                                <div>
+                                                    <dt>Puntos</dt>
+                                                    <dd>{{ (int) $c->puntos }}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt>Vence</dt>
+                                                    <dd>{{ fecha($c->vence_en, 'd/m/Y') }}</dd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

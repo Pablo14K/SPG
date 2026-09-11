@@ -18,7 +18,7 @@
                 <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Turno</th><th>Horario</th><th class="spg-movil-oculto">Entrada</th><th>Días</th><th>Quiénes lo trabajan</th>
+                            <tr><th>Turno</th><th>Horario</th><th>Días</th>
                                 <th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
@@ -32,16 +32,12 @@
                                         {{ substr((string) $t->hora_inicio, 0, 5) }}
                                         a {{ substr((string) $t->hora_fin, 0, 5) }}
                                     </td>
-                                    <td class="spg-movil-oculto" data-label="Entrada">{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min</td>
                                     <td class="text-muted-warm" style="font-size:.82rem" data-label="Días">{{ $t->dias_texto }}</td>
-                                    <td class="text-muted-warm" style="font-size:.82rem" data-label="Quiénes lo trabajan">
-                                        @if (! empty($gente[$t->id_turno]))
-                                            {{ implode(', ', $gente[$t->id_turno]) }}
-                                        @else
-                                            <span class="txt-no">nadie todavía</span>
-                                        @endif
-                                    </td>
                                     <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                                data-bs-target="#detTurno{{ $t->id_turno }}" aria-expanded="false">
+                                            <i class="bi bi-chevron-down"></i> Detalle
+                                        </button>
                                         {{-- Abre el modal en vez de recargar: asi el formulario
                                              de «Nuevo turno» sigue a la vista. --}}
                                         <button type="button" class="btn btn-sm btn-outline-neutro" title="Editar"
@@ -56,9 +52,33 @@
                                         </form>
                                     </td>
                                 </tr>
+                                <tr class="spg-fila-detalle">
+                                    <td colspan="4">
+                                        <div class="collapse" id="detTurno{{ $t->id_turno }}">
+                                            <div class="spg-det-cuerpo">
+                                                <div class="spg-det-grid">
+                                                    <div>
+                                                        <dt>Entrada</dt>
+                                                        <dd>{{ (int) ($t->flexibilidad_entrada_min ?? 15) }} min de tolerancia</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt>Quiénes lo trabajan</dt>
+                                                        <dd>
+                                                            @if (! empty($gente[$t->id_turno]))
+                                                                {{ implode(', ', $gente[$t->id_turno]) }}
+                                                            @else
+                                                                <span class="txt-no">nadie todavía</span>
+                                                            @endif
+                                                        </dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="4">
                                         <div class="spg-vacio">
                                             <i class="bi bi-clock"></i>
                                             <div class="t">Todavía no hay turnos cargados.</div>

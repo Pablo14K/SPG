@@ -331,6 +331,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 | Versión | Fecha | Cambio |
 |---|---|---|
 
+| 7.114.0 | 10/09/2026 | **Cinco cosas reportadas usando el sistema en el celular y en el mostrador, y el rediseño móvil de las listas entra en esta misma tanda.** **Las tablas en el celular**: se reportó *«la información un poco ambigua y muy saturada»*, y la causa era que cuarenta pantallas de gestión dibujaban en 375 px la misma tabla de siete columnas que en la computadora. **El rediseño lo hizo otra IA en paralelo** —treinta vistas, más el bloque de `app.css`— y viaja en este commit: cada `<tr>` pasa a tarjeta con `data-label` por celda, lo secundario va plegado en una fila de detalle y los filtros arrancan cerrados. Sobre eso se corrigieron **cinco cosas que ese rediseño dejó mal o a medias, y las cinco se vieron probándolo a 375 px y no leyéndolo**: los valores salían alineados a la derecha, lejos de su rótulo; el nombre de la clienta llevaba «CLIENTE» encima, que sobre el único nombre grande de la tarjeta no aclara nada (`spg-movil-sujeto`); **seis botones de sólo ícono eran seis adivinanzas** —en el celular no hay mouse que muestre el `title`—, así que ahora lo escriben al lado (`spg-btn-ico[title]::after`, del mismo `title`, o sea que no se puede desfasar del tooltip); **en la agenda quedaron dos botones que decían «Detalle»** —el desplegable nuevo y el ojo que abre la atención— y el segundo pasa a **«Atención»**, que es lo que abre; y **la fila plegada se dibujaba como una tarjeta vacía** entre dos citas, porque la regla general la volvía tarjeta como a cualquier `<tr>`: ahora se pega a la de arriba como su pie. **Y lo que ADVIERTE volvió a la fila**: el rediseño se había llevado la seña entera detrás del desplegable, y con ella que la reserva **no está confirmada** y que hay una seña **esperando confirmación** — es la regla de la ayuda contextual aplicada a la tabla; lo ya cobrado sí puede esperar un toque. De paso el aviso «sin confirmar · falta seña» deja de salir sobre una cita Cancelada, Ausente o Atendida, donde contradecía al badge de al lado. **El `<x-filtros>` se pliega sin JavaScript** —una casilla escondida y su etiqueta, con el conteo de los activos y abierto si hay alguno puesto—, porque en el celular el panel de filtros ocupaba la pantalla entera antes de la primera fila. **Y una de las treinta vistas reventaba**: Auditoría usaba `id_auditoria` como ancla del desplegable y la consulta no lo traía — 500 al abrirla, que **lo encontró la batería** (`las_pantallas_de_seguridad_se_dibujan_enteras`) y no una persona, que es para lo que esa prueba existe. **La caja deja de ser doble paso.** *«Al presionar el botón de arqueo te lleva a una pantalla donde vuelven a aparecer los mismos botones»*: la tarjeta de Cajas mandaba a la pantalla de la caja, y esa pantalla no tenía más que el arqueo y el formulario de abrir. Ahora **Arqueo y Abrir se despliegan desde la tarjeta, igual que Movimientos**, y al terminar se vuelve a la lista con el estado nuevo a la vista. **Son dos partials** (`_arqueo_modal`, `_abrir_modal`) compartidos con la pantalla de la caja, que queda para quien llegue por enlace directo: escrito dos veces, el desglose de un lado se desfasa del otro y el arqueo deja de cerrar contra el mismo número. **Y los ids llevan sufijo**: en la lista hay un modal por caja, y `app.js` buscaba `#arqueoDif` y `#bloqueMotivo` por id, así que con dos cajas abiertas sólo la primera se enteraba de la diferencia y el motivo obligatorio no aparecía en la otra. El controlador trae el desglose de cada sesión abierta de `vw_caja_resumen` —la misma fila que usa la pantalla de la caja—. Comprobado de punta a punta con un cajón de prueba: abrir desde la tarjeta con Gs. 50.000, la tarjeta pasa a «Arqueo y cierre» con Gs. 50.000 esperados, cerrar contando 50.000 y «la caja cuadra». **La foto de perfil dejaba de parpadear al entrar.** *«Se muestra por un segundo el ícono predeterminado y luego carga la foto»*: es el mismo defecto que el logo tuvo en la 7.112.0, en el avatar. `.spg-avatar` pinta el oro **debajo** de la imagen —ese oro es el fondo de las iniciales—, y la foto se pedía recién al dibujar la barra, después de bajar y aplicar el CSS. Tres cosas, y ninguna sola alcanza: la clase `tiene-img` apaga el fondo, así mientras la foto llega no se ve *otro* avatar; un `<link rel="preload" as="image">` en el `<head>` la pide **junto con el CSS** —medido: la imagen arranca a los 1723 ms y el CSS a los 1722, contra después de la barra—; y **Caddy manda `Cache-Control: immutable` de un año para `/assets/*`**, que no mandaba ninguna, así que en el servidor el navegador volvía a pedir la foto en cada pantalla. **La caché larga es segura porque todo lo de `/assets` va con `?v=`**: `recurso()` le pega la fecha del archivo a la URL y cada foto se guarda con nombre nuevo, así que cambia el archivo, cambia la URL. Validado con `caddy validate` y comprobado con un Caddy levantado sobre esa configuración: la cabecera sale para `/assets/x.txt` y **no** para la raíz. No hay miniatura y se dice por qué: el contenedor no trae GD ni Imagick. **El asistente de reserva no avanza a medias.** *«Que no pase a la siguiente fase sin haber completado todo en la fase actual»*: los pasos Cliente, Servicios y Fecha ya frenaban, y **Detalles era el que no** — el motor valida con `checkValidity()`, así que lo que no lleve `required` pasa aunque esté en blanco. Comprobado en el navegador antes de tocar nada: dejaba seguir con «cuántas personas» vacío, o en 0, y con «3 personas» sin ningún nombre. Ahora `personas` es `required` y acotado a 1–20 en las dos pantallas, y **el nombre de cada acompañante se dibuja con `required` y `minlength`** desde `app.js`, que es quien lo dibuja; el apellido y la alergia siguen siendo opcionales. Comprobado en las cuatro direcciones: vacío frena, 0 frena, «3 sin nombres» frena, «3 con nombres» pasa al repaso y el formulario sigue enviándose —`required` se saca del paso escondido, como manda el aviso de la 7.67.0—. **Y el servidor lo vuelve a pedir, ANTES de agendar**: esconder un paso no es el control. Entra `Acompanantes::avisoFaltantes()`, que dice **qué nombre falta**; y `personas` **se valida en vez de acomodarse** — el portal lo leía con `max(1, min(20, …))`, así que un campo vacío se volvía 1 en silencio, y `guardar()` descartaba sin decir nada al acompañante sin nombre: «van 3» entraba a la agenda con una sola persona nombrada. Se comprueba antes de `sp_agendar_cita` para que el horario no quede tomado por una reserva que se va a rechazar. **Sin el campo en el POST sigue valiendo 1**, que es como lo mandan los guiones de simulación. **El dominio en la autorización por huella vuelve a preguntarse, y la respuesta es la misma que en la 7.112.0**: `spg.columbiatcc.online` es el `rpId`, que por especificación es el dominio efectivo —no admite texto libre— y el navegador lo escribe en su propia burbuja; el nombre del salón ya va en `rp.name` y en el `displayName`, y quien registró la huella antes de esa versión la vuelve a activar desde Mi cuenta para verlo. No hay nada más que el sistema pueda decidir ahí. **194 pruebas · 1487 aserciones**, una nueva y dos extendidas, **todas comprobadas en las dos direcciones** —sacando el modal de la tarjeta, la clase del avatar, el `required` de la pantalla y el control del servidor, cada una falla—. **Y una que se salteaba sin que nadie lo viera**: `una_sucursal_que_no_existe_no_ofrece_horarios` medía sobre `+3 days` fijo, que hoy cayó domingo, así que se salteaba en silencio — es el defecto de la 7.103.1 con otra fecha; ahora busca el primer día de la semana con huecos. Quedan las 2 salteadas legítimas · **sólo código: la base no se tocó** |
 | 7.113.0 | 10/09/2026 | **La cita anotaba UNA alergia, y una cita puede ser de tres personas.** `cliente.alergias` (7.108.0) alcanza mientras la cita sea de una sola persona **y esa persona tenga ficha**, y ninguna de las dos cosas es siempre cierta: la cita puede ser **para otra persona** —cuyo nombre va como texto en `cita.nombre_para`, porque el salón no la registró— y pueden venir varias, que viven en `cita_acompanante` desde la 7.97.0. Así que en una cita de tres el sistema podía anotar **una sola** alergia, y en una «para otra persona» la única que la agenda mostraba era **la de alguien que ese día ni viene**. Es el único dato de la ficha que puede lastimar a alguien si nadie lo mira, así que media advertencia es peor que ninguna: «maní» a secas en una cita de tres no dice a quién no se le puede dar. **Ahora cada una lleva la suya, y cada una va donde va su NOMBRE**, que es lo que la hace consistente con el modelo que ya estaba: la titular en `cliente.alergias` —su ficha—, la de quien se atiende en su lugar en `cita.alergias_para`, y la de cada acompañante en `cita_acompanante.alergias`. **Las dos últimas son un dato de la VISITA y no de una persona, y por eso no van a `persona`**: quien acompaña no tiene ficha, y crearle una sería inventar a alguien que el salón no registró —la regla que este proyecto sostiene desde la 7.97.0—; la de la titular sí es de su ficha, así que le queda para la próxima. No rompe la 3FN: ninguna columna es copia de nada ni se deduce de ninguna otra. **Se cargan al AGENDAR, en las dos pantallas** —el portal y Nueva cita—, que es cuando la clienta las cuenta: mandar a quien atiende a otra pantalla a anotarlas es pedirle que se acuerde después. **Y el campo de la titular viene con lo que ya tiene cargado**, que no es una comodidad sino el arreglo de un defecto que este cambio podía introducir: en Nueva cita la clienta se elige en esa misma pantalla, así que el campo arrancaría vacío y **agendarle una cita le borraría las alergias, en silencio**. El formulario manda además el valor con el que se dibujó (`alergias_titular_base`) y el guardado **sólo escribe si cambió** — vacío contra vacío no toca nada, y borrarlas a propósito sigue funcionando. **Y NULL no es una cadena vacía**: quiere decir «sin registrar», que es distinto de «no tiene ninguna» y es lo que las pantallas dicen con esas palabras. **En la agenda se ven discriminadas, y en la fila y no en el modal**: un badge rojo por persona, con su nombre adelante cuando la cita es de varias —con una sola el nombre sobra, es la de la fila, y el badge queda exactamente como estaba—. El detalle las abre **todas, incluidas las que no declararon ninguna**, porque ahí «sin registrar» ES una respuesta y un renglón en blanco se leería como que está todo bien. **Y la clienta las vuelve a ver en «Mis citas»**, que es donde comprueba que quedaron bien anotadas y a nombre de quién. **De paso, `dejar_lista.sql` no vaciaba `cita_acompanante`**: faltaba desde la 7.97.0 y no se notaba porque `TRUNCATE cita` **no dispara el `ON DELETE CASCADE`** y con `FOREIGN_KEY_CHECKS` en 0 tampoco se queja — las filas quedaban huérfanas y viajaban en el `.sql` que se entrega, ahora con el nombre de alguien **y con a qué es alérgica**. **Y el rótulo del bloque de acompañantes lo declara la pantalla** (`data-acomp-titulo`): en el mostrador decía «¿Quiénes vienen con vos?», y quien carga la cita no es la que viene. **192 pruebas · 1461 aserciones**, cuatro nuevas y **las cuatro comprobadas en las dos direcciones** — y la del andamiaje **no medía nada en su primera versión**: buscaba el nombre del campo suelto, así que renombrarlo a `alergias_paraX` seguía conteniéndolo y pasaba en verde; busca el `name=` entero · 84 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
 
 | 7.112.0 | 10/09/2026 | **Seis cosas de pantalla reportadas usando el sistema, y la mitad eran funciones escondidas donde nadie las buscaba.** **La foto de perfil**, que es lo nuevo: entra `persona.foto` y cada uno carga la suya desde Mi cuenta. **Va en `persona` y no en `usuario`**, que es donde la regla número dos manda los datos de alguien — colgada de la cuenta, quien trabaja en el salón **sin cuenta de sistema** (existe desde la 7.68.0) no podría tener foto, y una persona con dos cuentas tendría dos caras para la misma cara. **Se guarda el nombre del archivo, no el archivo**, el criterio del logo y de la imagen del servicio. **Sin foto van las INICIALES y no un monigote genérico**: un avatar igual para todos no distingue a nadie, que es lo único que un avatar tiene que hacer; y se toma la primera letra del nombre y la del apellido —«Ana Propietaria» es AP y no AN— porque dos personas que se llaman igual de nombre se distinguen por el apellido. **Y al quitarla el archivo se borra**, que si no el disco del servidor se llena de caras de gente que pidió que se las sacaran. Va en su propio volumen y con su propio `.gitignore`: **las fotos de los servicios y el logo son del salón, una cara es un dato personal**, así que ni al repositorio ni al ZIP, y `dejar_lista.sql` la vacía antes de generar el `.sql` que se entrega. **Las alergias aparecen también en Mi cuenta.** Existían —desde la 7.110.0, en «Mi ficha»— y se reportó que no están: las dos son pantallas legítimas para buscarlas, y Mi cuenta es donde uno mira lo suyo. Se dibujan en las dos con **un solo partial y un solo POST**, porque copiado se desfasa; el destino viaja en el formulario (`volver`), que si no guardar desde Mi cuenta dejaba a la clienta en una pantalla a la que no iba. **El logo cargado deja de tener el ícono viejo de fondo.** `.spg-logo` y `.logo-big` son **pastillas doradas, y ese oro es el fondo de la tijera** —el ícono por defecto—, no un marco de la marca: al cargar un logo la imagen se dibujaba encima con `object-fit:contain` y un logo apaisado —los que traen el nombre del salón adentro lo son casi siempre— quedaba con **dos bandas doradas a los costados**, o sea el ícono de antes asomando. Medido: de un cuadrado de 34 px con fondo `#C9A84C` a 119 px de ancho **sin fondo**. Y **quitando el logo vuelve solo**, que es lo que se pidió explícitamente, porque la clase depende de que haya imagen. **El contenedor pasa a dibujarlo `layout/_marca`**: escrita en cada vista, la condición habría quedado en cinco lugares — el patrón que este documento persigue. De paso, al lado de un texto el logo conserva su proporción: encerrado en 1,1 em de ancho quedaba reducido a un puntito. **La seña dice cuánto es el mínimo y de dónde sale.** En el modal de «Dejar una seña» el mínimo estaba **detrás del ícono de ayuda**, o sea escondido hasta que alguien lo tocara: es la regla que este documento ya tiene escrita —*lo que EXPLICA se guarda, lo que ADVIERTE se queda a la vista*— aplicada al revés. Y al reservar no había desglose: con un servicio «Gs. 140.000» se explica solo, con dos «Gs. 315.000» es una cifra que la clienta no puede comprobar. Ahora el resumen lo abre servicio por servicio, y **la seña de cada uno viaja como DATO** (`data-sena`, `data-sena-pct`) en vez de raspar el texto del badge: eso andaba de casualidad —cambiar la redacción o un precio con decimales daba otro número **sin que nada avisara**— y sobre todo no alcanzaba, porque el porcentaje no estaba en ningún lado. **El servicio sin seña declara cero y no omite el atributo**, que omitido el JS sumaría `NaN`. Comprobado en las cuatro direcciones en el navegador: dos con seña desglosa, uno solo no —repetiría el número de arriba—, uno con y uno sin sigue sin desglosar, y ninguno esconde el aviso entero. **El alias dice de qué tipo es en su propio rótulo**: «Alias (Cédula)». Iba abajo del número, como una instrucción suelta —«buscalo por cédula»— y en un bloque donde los otros cuatro datos son rótulo + valor ése era el único con un renglón colgando. El nombre se muda a **`App\Servicios\Pagos`**, que es el mismo que usa la pantalla donde el salón lo carga: escritas aparte, las dos listas ya se habían desfasado —una decía «Celular» y la otra «celular»—. **Y la huella se registra a nombre del salón**: `rp.name` sale ahora de `Config::nombreSalon()` y el `displayName` de la credencial lleva el salón al lado del nombre de la persona. **El dominio que igual aparece NO se puede cambiar y conviene tenerlo escrito**: el `rpId` es el dominio efectivo por especificación —no admite texto libre ni una IP— y varios navegadores lo escriben tal cual en su propia burbuja; lo único que el sistema decide son esos dos nombres. **Y no toca las credenciales ya registradas**: el nombre queda guardado en el autenticador el día que se creó la clave, así que quien ya tenía la huella activa la vuelve a activar desde Mi cuenta. **188 pruebas · 1426 aserciones**, seis nuevas y **las seis comprobadas en las dos direcciones** — sacando cada arreglo a propósito, cada una falla · 82 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/` |
@@ -636,7 +637,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SPG le habla sólo por HTTP
-tests/Feature/             Las 192 pruebas
+tests/Feature/             Las 194 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1009,6 +1010,41 @@ y dice la causa probable y cómo recuperarlas. Comprobado en las dos direcciones
   **Centro de Ayuda y Soporte** y la **versión**. Se dice «Secciones» y no «Módulos» porque
   módulo es la palabra del desarrollo, no la de quien usa el sistema.
 
+### En el celular las tablas son tarjetas
+
+Una tabla de siete columnas no entra en 375 px, y se reportó como *«la
+información un poco ambigua y muy saturada en la versión móvil»*. Desde la
+7.114.0 **toda lista de gestión** se dibuja con el mismo patrón, que vive en la
+media query `max-width:575.98px` de `app.css` y **en escritorio no cambia
+nada**:
+
+| Pieza | Qué hace |
+|---|---|
+| `.spg-tabla-movil` en el `table-responsive` | cada `<tr>` pasa a tarjeta |
+| `data-label="…"` en cada `<td>` | el rótulo de cada valor, sin `<thead>` |
+| `.spg-movil-titulo` | el dato principal de la tarjeta, sin rótulo |
+| `.spg-movil-sujeto` | **quién**: la clienta en la agenda, quién pagó en Cobros — en negrita y sin rótulo, que «CLIENTE» sobre el único nombre grande no aclara nada |
+| `.spg-movil-acciones` | la botonera al pie; los botones de sólo ícono con `.spg-btn-ico` **escriben su `title`** al lado, porque en el celular no hay mouse que lo muestre |
+| `<tr class="spg-fila-detalle">` + `.spg-btn-detalle` | lo secundario, plegado con el `collapse` de Bootstrap: se pega a la tarjeta de arriba como su pie, en vez de salir como una tarjeta vacía |
+| `.spg-movil-oculto` + el botón «Más» de `app.js` | columnas que sobran en la tarjeta; aparecen con el botón |
+| `<x-filtros>` plegado | los filtros arrancan cerrados detrás de «Filtros», con el conteo de los activos; **abiertos si hay alguno puesto**, y **sin JavaScript**: es una casilla escondida y su etiqueta |
+
+Tres decisiones que conviene no revertir:
+
+- **Lo que ADVIERTE se queda en la fila; lo que informa va al desplegable.** El
+  rediseño se llevó la seña entera detrás de «Detalle», y con ella dos cosas
+  que quien atiende tiene que ver sin abrir nada: que la reserva **no está
+  confirmada** y que hay una seña **esperando confirmación**. Volvieron a la
+  celda de Estado; lo ya cobrado sí puede esperar un toque. Es la regla de la
+  ayuda contextual aplicada a la tabla.
+- **Dos botones no pueden decir casi lo mismo.** En la agenda, «⌄ Detalle» —el
+  desplegable— quedó al lado del ojo que abre la atención registrada, que
+  también decía «Detalle»: el segundo pasa a **«Atención»**, que es lo que
+  abre. Y el botón de «Más» se llama así y no «Detalles» por lo mismo.
+- **El aviso contradictorio no se dibuja.** «Sin confirmar · falta seña» sobre
+  una cita Cancelada, Ausente o Atendida es ruido: se acota a los estados en
+  que todavía significa algo.
+
 
 ### La sesión se cierra sola a los 30 minutos, y dice por qué
 
@@ -1114,6 +1150,35 @@ exactamente así.
 - **Y el logo deja de ser cuadrado.** Aplastado en 34 px, un logo ancho no se
   lee: se le fija el alto y el ancho sale solo, con un tope para que no empuje
   la barra.
+
+#### Y con foto, el avatar no parpadea al entrar
+
+Se reportó **«un segundo con el ícono predeterminado y después carga la
+foto»**. Era el mismo defecto del logo, en el avatar: `.spg-avatar` pinta el
+oro **debajo** de la imagen —ese oro es el fondo de las iniciales— y el
+navegador pedía la foto recién al dibujar la barra, después de bajar y aplicar
+el CSS. Hasta que llegaba, se veía el disco dorado del avatar por defecto.
+
+| Qué | Dónde | Para qué |
+|---|---|---|
+| `spg-avatar tiene-img` | el layout y Mi cuenta, cuando hay foto | apaga el fondo: mientras la foto llega no se ve *otro* avatar |
+| `<link rel="preload" as="image">` | el `<head>` del layout | la foto se pide **junto con el CSS**, no después de dibujar la barra |
+| `width`/`height` + `decoding="sync"` + `fetchpriority="high"` | el `<img>` | el hueco no cambia de tamaño y la foto se dibuja en cuanto llega |
+| `Cache-Control: public, max-age=31536000, immutable` para `/assets/*` | `docker/caddy/Caddyfile` | en el servidor la foto se pide **una vez**, no en cada pantalla |
+
+> **La caché larga es segura porque todo lo de `/assets` va con `?v=`.**
+> `recurso()` le pega la fecha del archivo a la URL, y `Imagen::guardar()`
+> le pone a cada foto un nombre nuevo: cambia el archivo, cambia la URL, y una
+> caché de un año no puede servir nada viejo. Sin la cabecera Caddy no mandaba
+> ninguna, y el navegador volvía a pedir la foto en cada navegación.
+>
+> **No hay miniatura, y conviene saber por qué**: el contenedor no trae GD ni
+> Imagick, así que la foto se sirve del tamaño en que se subió (tope de 512 KB
+> en `Imagen::guardar()`). Si algún día entra una librería de imágenes, el
+> lugar de achicarla es ahí, al subir.
+
+Lo fija `ReglasDeNegocioTest::la_foto_de_perfil_se_carga_y_se_saca` en las dos
+direcciones: sin foto no hay `tiene-img` ni `preload`; con foto están los dos.
 
 ### Centro de Ayuda y Soporte
 
@@ -2696,6 +2761,23 @@ Cuatro cosas que **no** hay que romper al tocarlo:
   `name` mandarían dos valores para el mismo servicio y ganaría el último.
 - **Cambiar de paso no navega.** Es la misma página: si empezara a recargar se
   perdería lo cargado, que es lo que `data-borrador` ya resolvió una vez.
+- **Ningún paso avanza a medias, y «Detalles» era el que sí lo hacía.** El
+  motor valida cada paso con `checkValidity()` sobre sus campos visibles más lo
+  que `data-paso-requiere` declare, así que lo que no lleve `required` en el
+  marcado pasa aunque esté en blanco: se reportó que dejaba seguir sin decir
+  cuántas van —el campo vacío o en 0— y con «3 personas» sin ningún nombre.
+  Ahora `personas` es `required` con `pattern="([1-9]|1[0-9]|20)"` en las dos
+  pantallas, y **el nombre de cada acompañante se dibuja con `required` y
+  `minlength="2"`** desde `app.js`, que es quien lo dibuja. El apellido y la
+  alergia siguen siendo opcionales; «para otra persona» ya exigía el nombre.
+  > **Y el servidor lo vuelve a pedir, ANTES de agendar.** Esconder un paso no
+  > es el control: `Acompanantes::avisoFaltantes()` dice qué nombre falta y
+  > `personas` se valida en vez de acomodarse — el portal lo leía con
+  > `max(1, min(20, …))`, así que un campo vacío se volvía 1 en silencio. Se
+  > comprueba antes de `sp_agendar_cita` para que el horario no quede tomado
+  > por una reserva que se va a rechazar. **Sin el campo en el POST sigue
+  > valiendo 1**: lo mandan así los guiones de simulación; mandado y vacío se
+  > rechaza. Lo fija `ReglasDeNegocioTest::la_reserva_del_portal_pide_los_nombres_de_quienes_vienen`.
 
 > **El repaso se arma con lo que la pantalla ya tiene** —los `data-precio` y
 > `data-duracion` de las tarjetas y el valor que el selector de disponibilidad
@@ -3991,13 +4073,32 @@ Dos confusiones concretas que esto evita:
   leer como el último movimiento, el cierre previsto o cualquier otra cosa: es
   la apertura, y la tarjeta lo dice con todas las letras. Vale igual para la
   cabecera de la caja individual.
-- **El botón abre un modal, no manda a otra pantalla.** «¿Qué pasó hoy con esta
-  caja?» es la pregunta del mostrador, y el listado general la obligaba a volver
-  a filtrar por la caja en la que ya estaba parada. La historia entera sigue
-  estando allá, con sus filtros — el modal la enlaza.
-- **La caja individual es a propósito casi vacía**: efectivo esperado, monto de
-  apertura, cobrado en efectivo, y los botones. Ahí no se listan las otras
-  cajas — la lista sirve para elegir, esta pantalla para operar la elegida.
+- **Los tres botones de la tarjeta abren un modal, ninguno manda a otra
+  pantalla.** «¿Qué pasó hoy con esta caja?» es la pregunta del mostrador, y el
+  listado general la obligaba a volver a filtrar por la caja en la que ya
+  estaba parada. La historia entera sigue estando allá, con sus filtros — el
+  modal la enlaza.
+  > **Arqueo y Abrir se despliegan igual que Movimientos, desde la 7.114.0.**
+  > «Arqueo y cierre» llevaba a la pantalla de la caja, y esa pantalla volvía a
+  > ofrecer los mismos botones: *«te lleva a una pantalla donde vuelven a
+  > aparecer los mismos botones, y eso es doble paso»*, se reportó. Ahora cada
+  > tarjeta trae **su** arqueo —con el desglose de su sesión, sacado de
+  > `vw_caja_resumen` por el controlador (`$resumen`)— o **su** formulario de
+  > apertura, y al terminar se vuelve a la lista, donde la tarjeta ya muestra
+  > el estado nuevo.
+  >
+  > **Es UN partial por modal** (`facturacion/_arqueo_modal`,
+  > `facturacion/_abrir_modal`) y lo comparten la tarjeta y la pantalla de la
+  > caja: escrito dos veces, el desglose de un lado se desfasa del otro y el
+  > arqueo deja de cerrar contra el mismo número. **Y los ids llevan sufijo**
+  > (`#modalArqueo{{ id }}`, `#arqueoDif{{ id }}`): en la lista hay un modal
+  > por caja, y `app.js` buscaba `#arqueoDif` y `#bloqueMotivo` por id, así que
+  > con dos cajas abiertas sólo la primera se enteraba de la diferencia. El
+  > campo declara los suyos con `data-arqueo-salida` y `data-arqueo-motivo`.
+- **La caja individual queda para quien llegue por enlace directo**, y es a
+  propósito casi vacía: efectivo esperado, monto de apertura, cobrado en
+  efectivo, y los botones. La lista ya no enlaza a ella —sería el doble paso
+  otra vez—; sigue en `config/navegacion.php` como pantalla de detalle.
 - **Y NO repite el modal de movimientos.** Estaba, y era el mismo botón dos
   veces: la tarjeta de la lista lo abre, y desde esa misma tarjeta se entra
   acá. Esta pantalla **es** el arqueo, así que lo que ofrece es *su* arqueo
@@ -4875,7 +4976,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 192 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 194 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5029,7 +5130,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**192 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**194 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

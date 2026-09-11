@@ -1175,7 +1175,9 @@ class ConfiguracionController extends Controller
                   JOIN persona pe ON pe.id_persona = u.id_persona
                   LEFT JOIN sucursal su ON su.id_sucursal = a.id_sucursal
                   WHERE ' . implode(' AND ', $w);
-        $cols = "a.fecha_hora AS fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
+        // `id_auditoria` es el ancla del desplegable de cada fila en el celular:
+        // sin él la vista revienta al dibujar (7.114.0).
+        $cols = "a.id_auditoria, a.fecha_hora AS fecha, a.accion, a.modulo, a.tabla_afectada, a.id_registro, a.detalle,
                  CONCAT(pe.nombre,' ',pe.apellido) AS usuario,
                  COALESCE(su.nombre,'—') AS sucursal";
 

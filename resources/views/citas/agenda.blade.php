@@ -61,15 +61,7 @@
                 <thead>
                     <tr>
                         <th>Hora</th><th>Cliente</th>
-                        {{-- Para quien ve la agenda del salón, quién atiende; para
-                             quien ve la suya, con quién comparte esa cita. --}}
-                        {{-- **«Con quién» no decía con quién QUÉ.** En una agenda,
-                             al lado del nombre de la clienta, se leía como «con
-                             quién viene» o «con quién se atiende» —que es la
-                             columna de al lado—. Lo que muestra es la otra punta:
-                             quién más trabaja en esa misma cita. --}}
-                        <th>{{ $verTodo ? 'Profesional' : 'Colabora con' }}</th>
-                        <th>Servicios</th><th class="text-end spg-movil-oculto">Duración</th>
+                        <th>Servicios</th>
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -77,7 +69,11 @@
                     @forelse ($rows as $c)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Hora" style="white-space:nowrap"><strong>{{ fecha($c->fecha_hora, 'H:i') }}</strong></td>
-                            <td data-label="Cliente">
+                            {{-- `spg-movil-sujeto`: en el celular este renglón va sin el
+                                 rótulo «CLIENTE» y en negrita, que es lo que deja leer la
+                                 tarjeta de un vistazo — hora, quién, y abajo el resto con
+                                 su rótulo. En escritorio no cambia nada. --}}
+                            <td data-label="Cliente" class="spg-movil-sujeto">
                                 {{-- **Arriba va quien SE ATIENDE; abajo y en chico, quien
                                      la pidió.** Con el badge «para Josefina» al lado del
                                      nombre de la clienta, el renglón tenía dos nombres del
@@ -164,25 +160,6 @@
                                         {{ ucfirst(implode(' · ', $spgDet)) }}</button>
                                 @endif
                             </td>
-                            @if ($verTodo)
-                                <td class="text-muted-warm" data-label="Profesional">{{ $c->profesionales ?: $c->profesional }}</td>
-                            @else
-                                {{-- **Con quién más se atiende esta cita.** La columna
-                                     entera se dibujaba sólo para quien ve la agenda del
-                                     salón, así que la profesional que comparte una cita
-                                     no sabía que iba a haber alguien más en el sillón de
-                                     al lado — ni a quién preguntarle. --}}
-                                <td class="text-muted-warm" data-label="Colabora con">
-                                    @if ($c->otros_profesionales)
-                                        {{ $c->otros_profesionales }}
-                                    @else
-                                        {{-- «Sola» y no una raya: la raya se lee como
-                                             que el dato falta, y acá el dato ES que no
-                                             hay nadie más en esa cita. --}}
-                                        <span class="text-muted-warm">sola</span>
-                                    @endif
-                                </td>
-                            @endif
                             <td class="text-muted-warm" data-label="Servicios">
                                 @if ($verTodo || ! $c->mis_servicios)
                                     {{ $c->servicios ?: '—' }}
@@ -199,39 +176,32 @@
                                     @endif
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-oculto" data-label="Duración">{{ (int) $c->duracion_min }} min</td>
                             <td data-label="Estado">
                                 {!! estado_badge($c->estado) !!}
-                                {{-- **Seña y cobro de la atención son dos badges, no uno.**
-                                     `fn_cita_sena` suma todo lo que entró contra la cita, y
-                                     desde la 7.19.0 eso incluye el cobro de la atención: una
-                                     atención cobrada entera salía acá como «seña Gs. 280.000»,
-                                     o sea el TOTAL de la cita presentado como adelanto. --}}
-                                @if ((float) $c->sena > 0)
-                                    <span class="badge-estado e-ok" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
-                                @endif
-                                @if ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0)
-                                    <span class="badge-estado e-ok" title="Se cobró contra la cita, sin comprobante todavía">
-                                        cobrado {{ money((float) $c->cobrado_cita - (float) $c->sena) }}</span>
-                                @endif
-                                {{-- Lo que la clienta registró desde el portal y todavía nadie
-                                     confirmó. NO es plata que entró: no toca la caja hasta que
-                                     alguien la confirme acá, cuando recibe el dinero. --}}
+                                {{-- **Lo que ADVIERTE se queda en la fila; lo que informa
+                                     va al desplegable.** El rediseño móvil se llevó la seña
+                                     entera detrás de «Detalle», y con ella dos cosas que
+                                     quien atiende tiene que ver sin abrir nada: que la
+                                     reserva **no está confirmada** —el sistema le guarda el
+                                     horario un plazo y después lo suelta solo— y que hay
+                                     una seña **esperando confirmación** desde el portal. Lo
+                                     ya cobrado sí puede esperar un toque. --}}
                                 @if ((float) ($c->sena_pedida ?? 0) > 0)
                                     <span class="badge-estado e-warn" title="La clienta la registró desde el portal">
                                         seña {{ money($c->sena_pedida) }} a confirmar</span>
-                                @elseif ((float) $c->sena <= 0 && (float) ($c->sena_requerida ?? 0) > 0)
-                                    {{-- **La reserva no está confirmada**, y quien atiende
-                                         tiene que verlo: el sistema le guarda el horario a
-                                         la clienta por un plazo y después lo suelta solo.
-                                         Sin esto, el salón la trata como cualquier otra
-                                         cita y se entera el día que no aparece. --}}
+                                @elseif ((float) $c->sena <= 0 && (float) ($c->sena_requerida ?? 0) > 0
+                                         && ! in_array($c->estado, ['Cancelada', 'Ausente', 'Atendida'], true))
                                     <span class="badge-estado e-no"
                                           title="Se le guarda el horario, pero se suelta si no confirma la seña">
                                         sin confirmar · falta seña {{ money($c->sena_requerida) }}</span>
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detAge{{ $c->id_cita }}" aria-expanded="false"
+                                        aria-controls="detAge{{ $c->id_cita }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 {{-- **Ausente cierra la fila, igual que Cancelada.** La
                                      clienta no vino: no hay nada que marcar en proceso, ni
                                      que atender, ni que reprogramar. Los botones seguían
@@ -268,7 +238,7 @@
                                                 <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                                 <input type="hidden" name="dia" value="{{ $dia }}">
                                                 <input type="hidden" name="id_estado_cita" value="5">
-                                                <button class="btn btn-sm btn-outline-neutro" title="Marcar en proceso">
+                                                <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Marcar en proceso">
                                                     <i class="bi bi-play-fill"></i></button>
                                             </form>
                                         @elseif ($c->prof_ausente ?? false)
@@ -295,7 +265,7 @@
                                          llega al guardar. --}}
                                     @if ($esHoy && ($c->fichaje_ok ?? true)
                                          && $urlAtender = Navegacion::url('citas.atender'))
-                                        <a class="btn btn-sm btn-outline-neutro" title="Registrar atención"
+                                        <a class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Registrar atención"
                                            href="{{ $urlAtender . '?id=' . $c->id_cita }}">
                                             <i class="bi bi-clipboard-check"></i></a>
                                     @endif
@@ -306,7 +276,7 @@
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                         <input type="hidden" name="dia" value="{{ $dia }}">
                                         <input type="hidden" name="id_estado_cita" value="6">
-                                        <button class="btn btn-sm btn-outline-neutro" title="Marcar ausente"
+                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Marcar ausente"
                                                 data-confirmar="¿Marcar como ausente a {{ $c->cliente }}?">
                                             <i class="bi bi-person-x"></i></button>
                                     </form>
@@ -320,14 +290,14 @@
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
                                         <input type="hidden" name="dia" value="{{ $dia }}">
-                                        <button class="btn btn-sm btn-outline-neutro" title="Cancelar"
+                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cancelar"
                                                 data-confirmar="¿Cancelar la cita de {{ $c->cliente }} de las {{ fecha($c->fecha_hora, 'H:i') }}?">
                                             <i class="bi bi-x-lg"></i></button>
                                     </form>
                                     @endunless
 
                                     @unless ($enCurso)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Reprogramar"
+                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Reprogramar"
                                                 data-bs-toggle="modal" data-bs-target="#modalRepro{{ $c->id_cita }}">
                                             <i class="bi bi-calendar-event"></i></button>
                                     @endunless
@@ -339,7 +309,7 @@
                                          otra le cambia quién la atiende. Las flechas
                                          dicen «pasa de uno a otro». --}}
                                     @if ($puedeReasignar && ! $enCurso)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Cambiar profesional"
+                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cambiar profesional"
                                                 data-bs-toggle="modal" data-bs-target="#modalReasignar{{ $c->id_cita }}">
                                             <i class="bi bi-arrow-left-right"></i></button>
                                     @endif
@@ -355,7 +325,7 @@
                                          terminar, desde «Cobrar». --}}
                                     @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
                                          && ! $enCurso && (float) ($c->cobrado_cita ?? 0) <= 0)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Cobrar una seña"
+                                        <button class="btn btn-sm btn-outline-neutro spg-btn-ico" title="Cobrar una seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
                                             <i class="bi bi-cash-coin"></i></button>
                                     @endif
@@ -369,9 +339,14 @@
 
                                          Son TRES situaciones distintas y cada una dice
                                          lo suyo: sin comprobante, con saldo, y saldada. --}}
-                                    <a class="btn btn-sm btn-outline-neutro" title="Ver detalle de la atención"
+                                    {{-- Se llama «Atención» y no «Detalle»: al lado del
+                                         desplegable «˅ Detalle» de la fila eran dos botones
+                                         con la misma palabra para dos cosas distintas — uno
+                                         abre los datos de la fila, éste la pantalla de lo que
+                                         se le hizo. Se reportó como ambiguo en el celular. --}}
+                                    <a class="btn btn-sm btn-outline-neutro" title="Ver la atención registrada"
                                        href="{{ route('citas.atender', ['id' => $c->id_cita]) }}">
-                                        <i class="bi bi-eye"></i> Detalle</a>
+                                        <i class="bi bi-eye"></i> Atención</a>
                                     @if (! $c->id_factura)
                                         {{-- **Primero se cobra, después el comprobante.**
                                              Es el orden del mostrador: la clienta paga y recién
@@ -409,10 +384,60 @@
                                 @endif
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detAge{{ $c->id_cita }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            @if ($verTodo)
+                                                <div>
+                                                    <dt>Profesional</dt>
+                                                    <dd>{{ $c->profesionales ?: $c->profesional }}</dd>
+                                                </div>
+                                            @else
+                                                <div>
+                                                    <dt>Colabora con</dt>
+                                                    <dd>
+                                                        @if ($c->otros_profesionales)
+                                                            {{ $c->otros_profesionales }}
+                                                        @else
+                                                            <span class="text-muted-warm">sola</span>
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                            @endif
+                                            <div>
+                                                <dt>Duración</dt>
+                                                <dd>{{ (int) $c->duracion_min }} min</dd>
+                                            </div>
+                                            {{-- Lo ya cobrado contra la cita: informa, no
+                                                 advierte, así que puede esperar un toque. Las
+                                                 dos advertencias —«a confirmar» y «sin
+                                                 confirmar»— van en la fila, en Estado. --}}
+                                            @if ((float) $c->sena > 0 || ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0))
+                                            <div>
+                                                <dt>Seña / Cobrado</dt>
+                                                <dd>
+                                                    @if ((float) $c->sena > 0)
+                                                        <span class="badge-estado e-ok" title="Ya dejó una seña">seña {{ money($c->sena) }}</span>
+                                                    @endif
+                                                    @if ((float) ($c->cobrado_cita ?? 0) - (float) $c->sena > 0)
+                                                        <span class="badge-estado e-ok" title="Se cobró contra la cita, sin comprobante todavía">
+                                                            cobrado {{ money((float) $c->cobrado_cita - (float) $c->sena) }}</span>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
 
                     @empty
                         <tr>
-                            <td colspan="{{ $verTodo ? 7 : 6 }}">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-calendar-week"></i>
                                     <div class="t">

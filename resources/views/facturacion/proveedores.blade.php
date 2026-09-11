@@ -64,37 +64,21 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Fecha</th><th>Proveedor</th><th class="spg-movil-oculto">Compra que pagó</th><th>Medio</th><th class="d-none d-md-table-cell">Referencia</th>
-                        <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Anular</th></tr>
+                    <tr><th>Fecha</th><th>Proveedor</th>
+                        <th class="text-end">Monto</th><th>Estado</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($pagos as $p)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($p->fecha) }}</td>
                             <td data-label="Proveedor">{{ $p->proveedor }}</td>
-                            {{-- **Qué compra pagó.** El pago SÍ queda ligado a la
-                                 compra —`sp_pagar_compra` escribe el detalle— pero acá
-                                 no se veía: con el mismo proveedor repetido no había
-                                 forma de saber cuál de las cuatro compras se pagó.
-                                 Un pago puede cubrir varias, y por eso salen todas. --}}
-                            <td class="text-muted-warm spg-movil-oculto" style="font-size:.83rem" data-label="Compra que pagó">
-                                {{ $p->compras ?: '—' }}
-                                {{-- **El papel que llega después del pago.** La compra
-                                     saldada ya no está en «Cuentas por pagar», así que
-                                     éste es el único lugar desde donde se la puede
-                                     alcanzar. --}}
-                                @if ($p->compra_sin_factura && $p->estado !== 'Anulado')
-                                    <button type="button" class="btn btn-sm btn-rapido mt-1"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalNroFac{{ $p->compra_sin_factura }}">
-                                        <i class="bi bi-receipt"></i> Cargar la factura</button>
-                                @endif
-                            </td>
-                            <td data-label="Medio">{{ $p->metodo }}</td>
-                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Referencia">{{ $p->referencia ?: '—' }}</td>
                             <td class="text-end" data-label="Monto">{{ money($p->monto) }}</td>
                             <td data-label="Estado">{!! estado_badge($p->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detPagP{{ $p->id_pago_proveedor }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 @if ($p->estado !== 'Anulado')
                                     <button class="btn btn-sm btn-outline-neutro" title="Anular"
                                             data-bs-toggle="modal"
@@ -103,8 +87,47 @@
                                 @endif
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detPagP{{ $p->id_pago_proveedor }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            {{-- **Qué compra pagó.** El pago SÍ queda ligado a la
+                                                 compra —`sp_pagar_compra` escribe el detalle— pero acá
+                                                 no se veía: con el mismo proveedor repetido no había
+                                                 forma de saber cuál de las cuatro compras se pagó.
+                                                 Un pago puede cubrir varias, y por eso salen todas. --}}
+                                            <div>
+                                                <dt>Compra que pagó</dt>
+                                                <dd>
+                                                    {{ $p->compras ?: '—' }}
+                                                    {{-- **El papel que llega después del pago.** La compra
+                                                         saldada ya no está en «Cuentas por pagar», así que
+                                                         éste es el único lugar desde donde se la puede
+                                                         alcanzar. --}}
+                                                    @if ($p->compra_sin_factura && $p->estado !== 'Anulado')
+                                                        <button type="button" class="btn btn-sm btn-rapido mt-1"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalNroFac{{ $p->compra_sin_factura }}">
+                                                            <i class="bi bi-receipt"></i> Cargar la factura</button>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt>Medio</dt>
+                                                <dd>{{ $p->metodo }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Referencia</dt>
+                                                <dd>{{ $p->referencia ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-muted-warm py-3">Todavía no hay pagos registrados.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted-warm py-3">Todavía no hay pagos registrados.</td></tr>
                     @endforelse
                 </tbody>
             </table>

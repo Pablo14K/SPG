@@ -24,7 +24,7 @@
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Profesional</th><th>Turno</th><th>Entrada</th><th>Salida</th>
+                        <th>Profesional</th><th>Entrada</th><th>Salida</th>
                         <th>Estado</th><th class="text-end">Fichar</th>
                     </tr>
                 </thead>
@@ -32,14 +32,6 @@
                     @forelse ($filas as $f)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Profesional">{{ $f->profesional }}</td>
-                            <td data-label="Turno">
-                                {{ $f->turno }}
-                                <div class="text-muted-warm" style="font-size:.76rem">
-                                    {{ substr((string) $f->hora_inicio, 0, 5) }} a {{ substr((string) $f->hora_fin, 0, 5) }}
-                                    · tolerancia {{ (int) ($f->flexibilidad_entrada_min ?? 15) }} min
-                                    · {{ $f->sucursal }}
-                                </div>
-                            </td>
                             <td data-label="Entrada">{{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
                             <td data-label="Salida">
                                 {{ $f->hora_salida ? substr((string) $f->hora_salida, 0, 5) : '—' }}
@@ -67,6 +59,10 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 @php
                                     $mio = (int) $f->id_usuario === $yo;
                                     // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
@@ -159,9 +155,26 @@
                                 @endif
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Turno y Sucursal</dt>
+                                                <dd>
+                                                    {{ $f->turno }} · {{ $f->sucursal }}<br>
+                                                    {{ substr((string) $f->hora_inicio, 0, 5) }} a {{ substr((string) $f->hora_fin, 0, 5) }} (tolerancia {{ (int) ($f->flexibilidad_entrada_min ?? 15) }} min)
+                                                </dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-calendar-check"></i>
                                     <div class="t">Ese día no trabaja nadie.</div>
@@ -321,14 +334,13 @@
             <div class="table-responsive spg-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
-                        <tr><th>Fecha</th><th>Profesional</th><th class="spg-movil-oculto">Turno</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr>
+                        <tr><th>Fecha</th><th>Profesional</th><th>Entrada</th><th>Salida</th><th>Estado</th><th class="text-end"></th></tr>
                     </thead>
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
                                 <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
                                 <td data-label="Profesional">{{ $r->profesional }}</td>
-                                <td class="text-muted-warm spg-movil-oculto" data-label="Turno">{{ $r->turno }}</td>
                                 <td data-label="Entrada">{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
                                 <td data-label="Salida">{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
                                 <td data-label="Estado">
@@ -339,6 +351,26 @@
                                     @else
                                         <span class="badge-estado e-no">Sin aviso</span>
                                     @endif
+                                </td>
+                                <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                    <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                            data-bs-target="#detUltAsis{{ $loop->index }}" aria-expanded="false">
+                                        <i class="bi bi-chevron-down"></i> Detalle
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="spg-fila-detalle">
+                                <td colspan="6">
+                                    <div class="collapse" id="detUltAsis{{ $loop->index }}">
+                                        <div class="spg-det-cuerpo">
+                                            <div class="spg-det-grid">
+                                                <div>
+                                                    <dt>Turno</dt>
+                                                    <dd>{{ $r->turno }}</dd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

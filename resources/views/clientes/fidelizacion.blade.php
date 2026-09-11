@@ -30,21 +30,24 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Cliente</th><th class="spg-movil-oculto">Teléfono</th><th class="text-end">Visitas</th>
+                        <th>Cliente</th>
                         <th class="text-end">Puntos</th><th>Nivel</th>
-                        <th>Descuento del nivel</th><th class="text-end">Ver</th>
+                        <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" data-label="Cliente">{{ $r->cliente }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Teléfono">{{ $r->telefono ?: '—' }}</td>
-                            <td class="text-end" data-label="Visitas">{{ (int) $r->visitas }}</td>
                             <td class="text-end" data-label="Puntos">{{ (int) $r->puntos }}</td>
                             <td data-label="Nivel"><span class="badge-estado e-prog">{{ $r->nivel ?: 'Bronce' }}</span></td>
-                            <td class="text-muted-warm" data-label="Descuento del nivel">{{ $r->descuento_del_nivel ?: '—' }}</td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detFid{{ $r->id_cliente }}" aria-expanded="false"
+                                        aria-controls="detFid{{ $r->id_cliente }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 {{-- Canjear desde el mostrador: la clienta viene al local y
                                      pide gastar sus puntos. La mayoría ni tiene cuenta en el
                                      portal, así que sin esto no podría canjear nunca.
@@ -65,9 +68,32 @@
                                     <i class="bi bi-clock-history"></i></a>
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detFid{{ $r->id_cliente }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Teléfono</dt>
+                                                <dd>{{ $r->telefono ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Visitas</dt>
+                                                <dd>{{ (int) $r->visitas }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Descuento del nivel</dt>
+                                                <dd>{{ $r->descuento_del_nivel ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-award"></i>
                                     <div class="t">

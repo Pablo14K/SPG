@@ -96,15 +96,13 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Nombre</th><th class="spg-movil-oculto">RUC</th><th class="spg-movil-oculto">Ciudad</th><th>Teléfono</th>
+                    <tr><th>Nombre</th><th>Teléfono</th>
                         <th class="text-end">Personal</th><th>Estado</th><th class="text-end">Acciones</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $s)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Nombre">{{ $s->nombre }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="RUC">{{ $s->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Ciudad">{{ $s->ciudad ?: '—' }}</td>
                             <td data-label="Teléfono">{{ $s->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Personal">{{ (int) $s->personal }}</td>
                             <td data-label="Estado">
@@ -115,6 +113,10 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detSuc{{ $s->id_sucursal }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('seguridad.sucursal_form', $s->id_sucursal) }}">
                                     <i class="bi bi-pencil"></i></a>
@@ -128,9 +130,27 @@
                                 </form>
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detSuc{{ $s->id_sucursal }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>RUC</dt>
+                                                <dd>{{ $s->ruc ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Ciudad</dt>
+                                                <dd>{{ $s->ciudad ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-shop"></i>
                                     <div class="t">No hay sucursales cargadas.</div>

@@ -163,14 +163,13 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table table-sm align-middle mb-0">
                 <thead>
-                    <tr><th>Cuándo</th><th class="d-none d-md-table-cell">Caja</th><th>Qué pasó</th><th>Medio</th>
-                        <th class="spg-movil-oculto">Quién</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
+                    <tr><th>Cuándo</th><th>Qué pasó</th><th class="text-end">Monto</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @foreach ($movimientos as $m)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Cuándo">{{ fecha($m->cuando, 'd/m H:i') }}</td>
-                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Caja">{{ $m->caja_nombre }}</td>
                             <td data-label="Qué pasó">
                                 {{-- El color dice el signo y el texto dice qué es:
                                      un cobro y una liquidación son los dos
@@ -182,13 +181,16 @@
                                     <div class="text-muted-warm" style="font-size:.75rem">{{ $m->motivo }}</div>
                                 @endunless
                             </td>
-                            <td class="text-muted-warm" style="font-size:.84rem" data-label="Medio">{{ $m->medio }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" style="font-size:.84rem" data-label="Quién">{{ $m->quien ?: '—' }}</td>
                             <td class="text-end {{ $m->activo ? ((int) $m->signo > 0 ? 'txt-ok' : 'txt-no') : 'text-muted-warm' }}"
                                 style="white-space:nowrap;{{ $m->activo ? '' : 'text-decoration:line-through' }}"
                                 data-label="Monto">
                                 {{ (int) $m->signo > 0 ? '+' : '−' }} {{ money($m->monto) }}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detMov{{ $m->id_ref }}" aria-expanded="false"
+                                        aria-controls="detMov{{ $m->id_ref }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 {{-- **Sólo se anula lo cargado a mano**, y sólo
                                      mientras su caja siga abierta: un cobro se
                                      anula desde el comprobante, que es donde la
@@ -198,6 +200,29 @@
                                             data-bs-toggle="modal" data-bs-target="#anularMov{{ $m->id_ref }}">
                                         <i class="bi bi-x-lg"></i></button>
                                 @endif
+                            </td>
+                        </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detMov{{ $m->id_ref }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Caja</dt>
+                                                <dd>{{ $m->caja_nombre }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Medio</dt>
+                                                <dd>{{ $m->medio }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Quién</dt>
+                                                <dd>{{ $m->quien ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     @endforeach

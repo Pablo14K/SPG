@@ -396,7 +396,38 @@ class PortalController extends Controller
         // si dos servicios de la misma zona van a la vez o uno después del
         // otro, así que el reparto y la duración dependen de él: leyéndolo
         // después, se validaba la cita contra un tiempo que no era el suyo.
-        $personas = max(1, min(20, (int) $request->input('personas', 1)));
+        //
+        // **Y se valida, no se acomoda.** Se leía con `max(1, min(20, …))`, así
+        // que un campo vacío o un 0 se volvía 1 en silencio: la clienta que
+        // no contestó cuántas van quedaba reservando para una. El asistente
+        // no deja avanzar sin ese número; el servidor lo vuelve a pedir.
+        // Sin el campo en el POST vale 1, como siempre —lo mandan los guiones de
+        // simulación—; mandado y vacío, o en 0, o en 25, se rechaza.
+        $personasCrudo = trim((string) $request->input('personas', '1'));
+        $personas = (int) $personasCrudo;
+        if (! ctype_digit($personasCrudo) || $personas < 1 || $personas > 20) {
+            flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
+
+            return $volver;
+        }
+
+        // **Lo que el asistente exige en «Detalles», el servidor lo vuelve a
+        // exigir**: esconder un paso no es el control. Para otra persona sin
+        // decir quién es una cita que no dice a quién sentar en el sillón; y
+        // «van 3» sin los nombres es lo que la 7.97.0 vino a evitar. Se
+        // pregunta ANTES de agendar, así el horario no queda tomado por una
+        // reserva que se va a rechazar.
+        $paraOtro = (bool) $request->input('para_otra_persona', 0);
+        if ($paraOtro && mb_strlen(trim((string) $request->input('nombre_para', ''))) < 2) {
+            flash('Marcaste que la cita es para otra persona: decinos su nombre, que es lo que ve quien la atiende.', 'error');
+
+            return $volver;
+        }
+        if ($aviso = Acompanantes::avisoFaltantes((array) $request->input('acomp_nombre', []), $personas)) {
+            flash($aviso, 'error');
+
+            return $volver;
+        }
 
         if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {
             flash($problema, 'warning');
@@ -410,8 +441,8 @@ class PortalController extends Controller
         // con gente distinta: el día de la cita hay que estar en dos sillones.
         //
         // Reservar PARA OTRA PERSONA sí puede superponerse —son dos personas—
-        // y es lo que la casilla del formulario declara.
-        $paraOtro = (bool) $request->input('para_otra_persona', 0);
+        // y es lo que la casilla del formulario declara (`$paraOtro`, leído y
+        // validado más arriba).
         if ($choque = Agenda::citaDelClienteSePisa($idc, $fecha, $dur, 0, $paraOtro)) {
             flash($choque, 'error');
 

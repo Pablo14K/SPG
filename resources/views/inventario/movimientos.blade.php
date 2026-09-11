@@ -30,8 +30,7 @@
                 <thead>
                     <tr>
                         <th>Fecha</th><th>Producto</th><th>Tipo</th>
-                        <th class="text-end">Cantidad</th><th class="text-end spg-movil-oculto">Precio</th>
-                        <th>Referencia</th><th class="spg-movil-oculto">Quién</th>
+                        <th class="text-end">Cantidad</th><th class="text-end"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,18 +54,43 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-end spg-movil-oculto" data-label="Precio">{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</td>
-                            <td class="text-muted-warm" data-label="Referencia">
-                                {{ $m->referencia ?: '—' }}
-                                @if ($m->observaciones)
-                                    <div style="font-size:.72rem">{{ $m->observaciones }}</div>
-                                @endif
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detMov{{ $loop->index }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                             </td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Quién">{{ $m->usuario }}</td>
+                        </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detMov{{ $loop->index }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Precio</dt>
+                                                <dd>{{ $m->precio_unitario ? money($m->precio_unitario) : '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Referencia</dt>
+                                                <dd>
+                                                    {{ $m->referencia ?: '—' }}
+                                                    @if ($m->observaciones)
+                                                        <div style="font-size:.82rem" class="text-muted-warm">{{ $m->observaciones }}</div>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt>Quién</dt>
+                                                <dd>{{ $m->usuario }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-arrow-left-right"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún movimiento con esos filtros.' : 'Todavía no hay movimientos de stock.' }}</div>

@@ -29,7 +29,7 @@
                      que un avatar tiene que hacer. --}}
                 @php $spgFoto = \App\Servicios\Imagen::url($perfil->foto ?? null, 'personas'); @endphp
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="spg-avatar spg-avatar-lg">
+                    <span class="spg-avatar spg-avatar-lg {{ $spgFoto ? 'tiene-img' : '' }}">
                         @if ($spgFoto)
                             <img src="{{ $spgFoto }}" alt="Tu foto de perfil">
                         @else

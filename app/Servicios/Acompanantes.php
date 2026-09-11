@@ -141,4 +141,39 @@ class Acompanantes
 
         return $out;
     }
+
+    /**
+     * Qué falta para que el grupo esté completo, dicho para la pantalla.
+     *
+     * **El asistente no deja avanzar sin los nombres, y el servidor lo vuelve
+     * a pedir.** `guardar()` descarta en silencio al que no tiene nombre —para
+     * que una reserva ya agendada no se caiga por un dato del pedido— y con
+     * eso «van 3» podía llegar a la agenda con una sola persona nombrada: el
+     * salón sabía cuántas esperar y no a quiénes. Esto se pregunta ANTES de
+     * tomar el horario, que es cuando todavía se puede corregir.
+     *
+     * @param  array<int|string, mixed>  $nombres  acomp_nombre[orden]
+     * @return string|null  el aviso, o null si no falta nadie
+     */
+    public static function avisoFaltantes(array $nombres, int $personas): ?string
+    {
+        $faltan = [];
+        for ($orden = 2; $orden <= min($personas, 20); $orden++) {
+            if (mb_strlen(trim((string) ($nombres[$orden] ?? ''))) < 2) {
+                $faltan[] = $orden;
+            }
+        }
+        if (! $faltan) {
+            return null;
+        }
+        if ($personas === 2) {
+            return 'Dijiste que van 2 personas: falta el nombre de la que viene además de la clienta.';
+        }
+        $lista = count($faltan) === 1
+            ? 'la persona ' . $faltan[0]
+            : 'las personas ' . implode(', ', array_slice($faltan, 0, -1)) . ' y ' . end($faltan);
+
+        return 'Dijiste que van ' . $personas . ' personas: falta el nombre de ' . $lista
+            . '. Cada una lleva el suyo, así el salón sabe a quién espera.';
+    }
 }

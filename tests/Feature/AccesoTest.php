@@ -303,12 +303,21 @@ class AccesoTest extends TestCase
         $cajon = (int) DB::scalar('SELECT MIN(id_caja_fisica) FROM caja_fisica WHERE activo = 1');
         $this->assertNotSame(0, $cajon, 'Sin ningún cajón cargado no se puede cobrar: el salón necesita al menos uno.');
 
-        // 1) La lista ofrece entrar a esa caja.
+        // 1) **La lista ofrece abrirla AHÍ MISMO**, en un modal de la tarjeta.
+        //    Antes el botón llevaba a la pantalla de la caja, que no tenía más
+        //    que este formulario: «doble paso», se reportó. Así que la lista
+        //    tiene que traer el formulario con el cajón puesto, y NO un enlace
+        //    a la otra pantalla para ese cajón.
         $lista = (string) $this->get(route('facturacion.cajas'))->assertOk()->getContent();
-        $this->assertStringContainsString(route('facturacion.caja_ver', $cajon), $lista,
-            'La lista de cajas tiene que llevar a la caja para poder abrirla.');
+        $this->assertStringContainsString(route('facturacion.caja.abrir'), $lista,
+            'La tarjeta del cajón cerrado tiene que ofrecer el formulario de apertura, sin pasar por otra pantalla.');
+        $this->assertStringContainsString('name="id_caja_fisica" value="' . $cajon . '"', $lista,
+            'El formulario de apertura de la tarjeta tiene que decir QUÉ cajón abre.');
+        $this->assertStringNotContainsString(route('facturacion.caja_ver', $cajon) . '"', $lista,
+            'Abrir desde la lista no puede mandar a otra pantalla: es el doble paso que se reportó.');
 
-        // 2) Y ahí está el formulario de apertura, con el cajón puesto.
+        // 2) La pantalla de la caja sigue existiendo para quien llegue por
+        //    enlace directo, y ahí también está el formulario, con el cajón puesto.
         $html = (string) $this->get(route('facturacion.caja_ver', $cajon))->assertOk()->getContent();
 
         $this->assertStringContainsString(
@@ -336,6 +345,19 @@ class AccesoTest extends TestCase
 
         $this->assertStringContainsString(route('facturacion.caja.cerrar'), $abierta,
             'Con la caja abierta, su pantalla tiene que ofrecer el arqueo.');
+
+        // **Y la lista ofrece el arqueo de ESA sesión ahí mismo**, con su
+        // desglose: es el mismo modal que la pantalla de la caja, y el motivo
+        // del cambio —«el botón de arqueo te lleva a una pantalla donde vuelven
+        // a aparecer los mismos botones».
+        $idCaja = (int) DB::scalar('SELECT MAX(id_caja) FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$cajon]);
+        $lista = (string) $this->get(route('facturacion.cajas'))->assertOk()->getContent();
+        $this->assertStringContainsString(route('facturacion.caja.cerrar'), $lista,
+            'La tarjeta de la caja abierta tiene que ofrecer el arqueo, sin pasar por otra pantalla.');
+        $this->assertStringContainsString('name="id_caja" value="' . $idCaja . '"', $lista,
+            'El arqueo de la tarjeta tiene que cerrar ESA sesión y no otra.');
+        $this->assertStringContainsString('id="modalArqueo' . $cajon . '"', $lista,
+            'Cada tarjeta lleva su propio modal de arqueo, con el id del cajón: con varios abiertos, uno solo cerraría siempre el primero.');
 
         // **Y lleva a SU arqueo, no a otro modal de movimientos.**
         //

@@ -14,22 +14,44 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
-                    <tr><th>Fecha</th><th>Cliente</th><th>Profesional</th><th>Puntaje</th><th>Comentario</th></tr>
+                    <tr><th>Fecha</th><th>Cliente</th><th>Puntaje</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
                             <td data-label="Cliente">{{ $r->cliente }}</td>
-                            <td data-label="Profesional">{{ $r->profesional }}</td>
                             <td class="txt-oro" style="white-space:nowrap" data-label="Puntaje">
                                 {{ str_repeat('★', (int) $r->puntaje) . str_repeat('☆', 5 - (int) $r->puntaje) }}
                             </td>
-                            <td class="text-muted-warm" data-label="Comentario">{{ $r->comentario ?: '—' }}</td>
+                            <td class="text-end" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detVal{{ $loop->index }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detVal{{ $loop->index }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Profesional</dt>
+                                                <dd>{{ $r->profesional }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Comentario</dt>
+                                                <dd>{{ $r->comentario ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-star"></i>
                                     <div class="t">

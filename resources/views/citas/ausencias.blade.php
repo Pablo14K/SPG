@@ -28,21 +28,20 @@
                 <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Quién</th><th class="spg-movil-oculto">Dónde</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
-                                <th class="spg-movil-oculto">Motivo</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                            <tr><th>Quién</th><th>Tipo</th><th>Desde</th><th>Hasta</th>
+                                <th>Estado</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             @forelse ($rows as $a)
                                 {{-- **La dada de baja sigue en la lista.** Si al
                                      apagarla desapareciera, el botón se leería como
                                      «borrar» y no habría desde dónde deshacerlo. --}}
+                                {{-- Main row: only essential columns --}}
                                 <tr @class(['text-muted-warm' => ! $a->activo])>
                                     <td class="spg-movil-titulo" data-label="Quién">{{ $a->quien }}</td>
-                                    <td class="text-muted-warm spg-movil-oculto" data-label="Dónde">{{ $a->donde }}</td>
                                     <td data-label="Tipo"><span class="badge-estado {{ $a->activo ? 'e-prog' : 'e-muted' }}">{{ $a->tipo }}</span></td>
                                     <td data-label="Desde">{{ fecha($a->fecha_inicio) }}</td>
                                     <td data-label="Hasta">{{ fecha($a->fecha_fin) }}</td>
-                                    <td class="text-muted-warm spg-movil-oculto" data-label="Motivo">{{ $a->motivo ?: '—' }}</td>
                                     <td data-label="Estado">
                                         @if ($a->activo)
                                             <span class="badge-estado e-ok">Vigente</span>
@@ -51,6 +50,11 @@
                                         @endif
                                     </td>
                                     <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                                data-bs-target="#detAus{{ $a->id_ausencia }}" aria-expanded="false"
+                                                aria-controls="detAus{{ $a->id_ausencia }}">
+                                            <i class="bi bi-chevron-down"></i> Detalle
+                                        </button>
                                         {{-- **Editar sólo mientras no haya empezado.**
                                              Una excepción que ya arrancó dejó de ser un
                                              plan: la agenda no ofreció esos horarios,
@@ -82,9 +86,28 @@
                                         </form>
                                     </td>
                                 </tr>
+                                {{-- Expandable detail row --}}
+                                <tr class="spg-fila-detalle">
+                                    <td colspan="6">
+                                        <div class="collapse" id="detAus{{ $a->id_ausencia }}">
+                                            <div class="spg-det-cuerpo">
+                                                <div class="spg-det-grid">
+                                                    <div>
+                                                        <dt>Dónde</dt>
+                                                        <dd>{{ $a->donde }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt>Motivo</dt>
+                                                        <dd>{{ $a->motivo ?: '—' }}</dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8">
+                                    <td colspan="6">
                                         <div class="spg-vacio">
                                             <i class="bi bi-calendar-x"></i>
                                             <div class="t">No hay excepciones cargadas.</div>

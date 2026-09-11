@@ -59,23 +59,21 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Nº</th><th>Fecha</th><th>Cliente</th><th class="spg-movil-oculto">Comprobante</th>
-                        <th class="text-end">Total</th><th class="text-end d-none d-md-table-cell">Cobrado</th>
-                        <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
+                        <th>Nº</th><th>Cliente</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Saldo</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Nº">
                                 <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     {{ $r->nro_comprobante }}</a>
                             </td>
-                            <td data-label="Fecha">{{ fecha($r->fecha_emision) }}</td>
                             <td data-label="Cliente">{{ $r->cliente }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Comprobante">{{ $r->tipo_comprobante }}</td>
                             <td class="text-end" data-label="Total">{{ money($r->total) }}</td>
-                            <td class="text-end d-none d-md-table-cell" data-label="Cobrado">{{ money($r->cobrado) }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $r->saldo > 0.01)
                                     <strong class="txt-no">{{ money($r->saldo) }}</strong>
@@ -83,16 +81,12 @@
                                     <span class="txt-ok">saldada</span>
                                 @endif
                             </td>
-                            <td data-label="Estado">
-                                {!! estado_badge($r->estado) !!}
-                                {{-- Una venta acreditada se ve igual que cualquier otra —«Emitida»,
-                                     saldo 0—, así que sin este sello no había forma de saber que
-                                     se había devuelto sin entrar al comprobante. --}}
-                                @if ((int) $r->acreditada)
-                                    <span class="badge-estado e-no" title="Tiene una nota de crédito emitida">acreditada</span>
-                                @endif
-                            </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detFac{{ $r->id_factura }}" aria-expanded="false"
+                                        aria-controls="detFac{{ $r->id_factura }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Ver el comprobante"
                                    href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     <i class="bi bi-file-earmark-text"></i></a>
@@ -107,9 +101,44 @@
                                 @endif
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detFac{{ $r->id_factura }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Fecha</dt>
+                                                <dd>{{ fecha($r->fecha_emision) }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Comprobante</dt>
+                                                <dd>{{ $r->tipo_comprobante }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Cobrado</dt>
+                                                <dd>{{ money($r->cobrado) }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Estado</dt>
+                                                <dd>
+                                                    {!! estado_badge($r->estado) !!}
+                                                    {{-- Una venta acreditada se ve igual que cualquier otra —«Emitida»,
+                                                         saldo 0—, así que sin este sello no había forma de saber que
+                                                         se había devuelto sin entrar al comprobante. --}}
+                                                    @if ((int) $r->acreditada)
+                                                        <span class="badge-estado e-no" title="Tiene una nota de crédito emitida">acreditada</span>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="9">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-receipt"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún comprobante coincide con esos filtros.' : 'Todavía no se emitió ningún comprobante.' }}</div>

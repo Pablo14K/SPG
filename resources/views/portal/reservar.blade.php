@@ -334,7 +334,7 @@
                     <div class="mb-3" style="max-width:180px">
                         <label class="form-label" for="personas">¿Cuántas personas van?</label><x-ayuda campo="personas" />
                         <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}"
-                               data-solo="numeros" inputmode="numeric" maxlength="2"
+                               data-solo="numeros" inputmode="numeric" maxlength="2" required pattern="([1-9]|1[0-9]|20)" title="Un número entre 1 y 20"
                                data-acomp="#bloqueAcomp">
                     </div>
 

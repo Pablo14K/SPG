@@ -13,36 +13,26 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Fecha</th><th>Cliente</th><th>Comprobante</th><th class="spg-movil-oculto">Medio</th>
-                        <th class="text-end">Monto</th><th class="d-none d-md-table-cell">Referencia</th><th>Estado</th><th class="text-end">Anular</th>
+                        <th>Fecha</th><th>Cliente</th>
+                        <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Anular</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $r)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha) }}</td>
                             <td data-label="Cliente">
                                 {{ $r->cliente ?: '—' }}
-                                @if ($r->es_sena)<span class="badge-estado e-warn">seña</span>@endif
                             </td>
-                            {{-- El número abre el comprobante. El Comprobante de
-                                 pago NO es una factura, así que buscarlo bajo
-                                 «Facturas» no se le ocurre a nadie: se lo busca
-                                 acá, en Cobros, y desde acá se llega. --}}
-                            <td data-label="Comprobante">
-                                @if ($r->id_factura)
-                                    <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}"
-                                       title="Ver el comprobante">{{ $r->nro_comprobante }}</a>
-                                    <div class="text-muted-warm" style="font-size:.75rem">{{ $r->tipo_comprobante }}</div>
-                                @else
-                                    <span class="text-muted-warm">—</span>
-                                @endif
-                            </td>
-                            <td class="spg-movil-oculto" data-label="Medio">{{ $r->metodo }}</td>
                             <td class="text-end" data-label="Monto">{{ money($r->monto) }}</td>
-                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Referencia">{{ $r->referencia ?: '—' }}</td>
                             <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detCob{{ $r->id_cobro }}" aria-expanded="false"
+                                        aria-controls="detCob{{ $r->id_cobro }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 @if ($r->estado !== 'Anulado')
                                     <button class="btn btn-sm btn-outline-neutro" title="Anular"
                                             data-bs-toggle="modal" data-bs-target="#modalAnular{{ $r->id_cobro }}">
@@ -50,9 +40,50 @@
                                 @endif
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detCob{{ $r->id_cobro }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            @if ($r->es_sena)
+                                            <div>
+                                                <dt>Tipo</dt>
+                                                <dd><span class="badge-estado e-warn">seña</span></dd>
+                                            </div>
+                                            @endif
+                                            <div>
+                                                <dt>Comprobante</dt>
+                                                <dd>
+                                                    {{-- El número abre el comprobante. El Comprobante de
+                                                         pago NO es una factura, así que buscarlo bajo
+                                                         «Facturas» no se le ocurre a nadie: se lo busca
+                                                         acá, en Cobros, y desde acá se llega. --}}
+                                                    @if ($r->id_factura)
+                                                        <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}"
+                                                           title="Ver el comprobante">{{ $r->nro_comprobante }}</a>
+                                                        <div class="text-muted-warm" style="font-size:.75rem">{{ $r->tipo_comprobante }}</div>
+                                                    @else
+                                                        <span class="text-muted-warm">—</span>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt>Medio</dt>
+                                                <dd>{{ $r->metodo }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Referencia</dt>
+                                                <dd>{{ $r->referencia ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-cash-coin"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún cobro coincide con esos filtros.' : 'Todavía no hay cobros registrados.' }}</div>

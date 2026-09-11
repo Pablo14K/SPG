@@ -2214,9 +2214,24 @@ class FacturacionController extends Controller
             }
         }
 
+        // **El desglose del arqueo de cada caja abierta**, para el modal que
+        // abre la tarjeta. Sale de `vw_caja_resumen`, la misma fila que usa la
+        // pantalla de la caja: así el modal de acá y el de allá no pueden
+        // decir números distintos. Sólo de las abiertas de esta página.
+        $resumen = [];
+        foreach ($rows as $c) {
+            if ($c->id_caja) {
+                $fila = DB::selectOne('SELECT * FROM vw_caja_resumen WHERE id_caja = ?', [(int) $c->id_caja]);
+                if ($fila) {
+                    $resumen[(int) $c->id_caja_fisica] = $fila;
+                }
+            }
+        }
+
         return view('facturacion.cajas', [
             'rows' => $rows,
             'movs' => $movs,
+            'resumen' => $resumen,
             'f' => $f,
             'pag' => $pag,
             'sucursales' => $mias,
@@ -2807,9 +2822,11 @@ class FacturacionController extends Controller
     public function abrirCaja(Request $request): RedirectResponse
     {
         $idCajon = (int) $request->input('id_caja_fisica', 0);
-        $volver = $idCajon
-            ? redirect()->route('facturacion.caja_ver', $idCajon)
-            : redirect()->route('facturacion.cajas');
+        // Se vuelve a la LISTA: la apertura se hace desde la tarjeta desde que
+        // el formulario vive en un modal, y la tarjeta ya muestra la caja
+        // abierta con su saldo. Mandar a la pantalla de la caja era el «doble
+        // paso» que se reportó.
+        $volver = redirect()->route('facturacion.cajas');
 
         // **Ya no se pregunta «¿hay alguna caja abierta?»**: con varios cajones
         // eso no impide nada — lo que importa es si ESTE está abierto, y de eso

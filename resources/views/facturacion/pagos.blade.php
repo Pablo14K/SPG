@@ -125,18 +125,20 @@
                 <div class="table-responsive spg-tabla-movil">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Fecha</th><th>Profesional</th><th>Período</th>
-                                <th class="text-end">Monto</th><th>Estado</th><th class="text-end">Revertir</th></tr>
+                            <tr><th>Fecha</th><th>Profesional</th>
+                                <th class="text-end">Monto</th><th class="text-end"></th></tr>
                         </thead>
                         <tbody>
                             @forelse ($rows as $r)
                                 <tr>
                                     <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
                                     <td data-label="Profesional">{{ $r->beneficiario ?? $r->profesional ?? '—' }}</td>
-                                    <td class="text-muted-warm" data-label="Período">{{ $r->periodo }}</td>
                                     <td class="text-end" data-label="Monto">{{ money($r->monto ?? 0) }}</td>
-                                    <td data-label="Estado">{!! estado_badge($r->estado) !!}</td>
-                                    <td class="text-end spg-movil-acciones">
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                        <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                                data-bs-target="#detLiq{{ $r->id_pago_personal }}" aria-expanded="false">
+                                            <i class="bi bi-chevron-down"></i> Detalle
+                                        </button>
                                         @if ($r->estado !== 'Revertido' && $r->estado !== 'Anulado')
                                             <button class="btn btn-sm btn-outline-neutro" title="Revertir"
                                                     data-bs-toggle="modal"
@@ -145,9 +147,27 @@
                                         @endif
                                     </td>
                                 </tr>
+                                <tr class="spg-fila-detalle">
+                                    <td colspan="4">
+                                        <div class="collapse" id="detLiq{{ $r->id_pago_personal }}">
+                                            <div class="spg-det-cuerpo">
+                                                <div class="spg-det-grid">
+                                                    <div>
+                                                        <dt>Período</dt>
+                                                        <dd>{{ $r->periodo }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt>Estado</dt>
+                                                        <dd>{!! estado_badge($r->estado) !!}</dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="4">
                                         <div class="spg-vacio">
                                             <i class="bi bi-wallet2"></i>
                                             <div class="t">Todavía no se liquidó ningún pago.</div>

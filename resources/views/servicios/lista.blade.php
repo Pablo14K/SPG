@@ -14,15 +14,14 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Servicio</th><th>Categoría</th><th class="text-end">Precio</th>
-                        <th class="text-end">Duración</th><th class="text-end">IVA</th>
+                        <th>Servicio</th><th class="text-end">Precio</th>
                         <th>Estado</th>
-                        @if ($varias)<th>Disponible acá</th>@endif
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $s)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" data-label="Servicio">
                                 {{ $s->nombre }}
@@ -40,10 +39,7 @@
                                     <div class="text-muted-warm" style="font-size:.76rem">{{ $s->descripcion }}</div>
                                 @endif
                             </td>
-                            <td class="text-muted-warm" data-label="Categoría">{{ $s->categoria }}</td>
                             <td class="text-end" data-label="Precio">{{ money($s->precio) }}</td>
-                            <td class="text-end" data-label="Duración">{{ (int) $s->duracion_min }} min</td>
-                            <td class="text-end" data-label="IVA">{{ (int) $s->tasa_iva }}%</td>
                             <td data-label="Estado">
                                 @if ($s->activo)
                                     <span class="badge-estado e-ok">Activo</span>
@@ -51,23 +47,12 @@
                                     <span class="badge-estado e-muted">Inactivo</span>
                                 @endif
                             </td>
-
-                            {{-- **Se ve si este local lo ofrece.** Antes no se
-                                 veía en ningún lado: la lista mostraba sólo lo de
-                                 acá, así que sacar un servicio lo hacía
-                                 **desaparecer de la pantalla** y no había forma
-                                 de volver a ofrecerlo — parecía que el botón lo
-                                 borraba. --}}
-                            @if ($varias)
-                                <td data-label="Disponible acá">
-                                    @if ($s->aqui)
-                                        <span class="badge-estado e-ok">Sí</span>
-                                    @else
-                                        <span class="badge-estado e-muted">No</span>
-                                    @endif
-                                </td>
-                            @endif
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detSrv{{ $s->id_servicio }}" aria-expanded="false"
+                                        aria-controls="detSrv{{ $s->id_servicio }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                    href="{{ route('servicios.form', $s->id_servicio) }}"><i class="bi bi-pencil"></i></a>
                                 <form method="post" action="{{ route('servicios.baja') }}" class="d-inline">
@@ -99,9 +84,50 @@
                                 @endif
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detSrv{{ $s->id_servicio }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Categoría</dt>
+                                                <dd>{{ $s->categoria }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Duración</dt>
+                                                <dd>{{ (int) $s->duracion_min }} min</dd>
+                                            </div>
+                                            <div>
+                                                <dt>IVA</dt>
+                                                <dd>{{ (int) $s->tasa_iva }}%</dd>
+                                            </div>
+                                            {{-- **Se ve si este local lo ofrece.** Antes no se
+                                                 veía en ningún lado: la lista mostraba sólo lo de
+                                                 acá, así que sacar un servicio lo hacía
+                                                 **desaparecer de la pantalla** y no había forma
+                                                 de volver a ofrecerlo — parecía que el botón lo
+                                                 borraba. --}}
+                                            @if ($varias)
+                                                <div>
+                                                    <dt>Disponible acá</dt>
+                                                    <dd>
+                                                        @if ($s->aqui)
+                                                            <span class="badge-estado e-ok">Sí</span>
+                                                        @else
+                                                            <span class="badge-estado e-muted">No</span>
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $varias ? 8 : 7 }}">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-scissors"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún servicio coincide con esos filtros.' : 'Todavía no hay servicios cargados.' }}</div>

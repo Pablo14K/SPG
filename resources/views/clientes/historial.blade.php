@@ -169,20 +169,45 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Fecha</th><th>Servicio</th><th>Profesional</th><th>Comprobante</th><th>Puntaje</th></tr>
+                    <tr><th>Fecha</th><th>Servicio</th><th class="text-end"></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($hist as $h)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($h->fecha_hora) }}</td>
                             <td data-label="Servicio">{{ $h->servicio }}</td>
-                            <td data-label="Profesional">{{ $h->profesional }}</td>
-                            <td class="text-muted-warm" data-label="Comprobante">{{ $h->nro_comprobante ?: '—' }}</td>
-                            <td class="txt-oro" data-label="Puntaje">{{ $h->puntaje ? str_repeat('★', (int) $h->puntaje) : '—' }}</td>
+                            <td class="text-end" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detHist{{ $loop->index }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="3">
+                                <div class="collapse" id="detHist{{ $loop->index }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Profesional</dt>
+                                                <dd>{{ $h->profesional }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Comprobante</dt>
+                                                <dd>{{ $h->nro_comprobante ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Puntaje</dt>
+                                                <dd class="txt-oro">{{ $h->puntaje ? str_repeat('★', (int) $h->puntaje) : '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted-warm py-4">
+                            <td colspan="3" class="text-center text-muted-warm py-4">
                                 {{ $pag['total'] ? 'Ningún servicio coincide con lo que buscaste.' : 'Sin servicios registrados.' }}
                             </td>
                         </tr>

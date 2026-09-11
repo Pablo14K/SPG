@@ -11,25 +11,51 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 <thead>
-                    <tr><th>Fecha</th><th>Usuario</th><th class="spg-movil-oculto">Sucursal</th><th>Acción</th><th>Módulo</th>
-                        <th class="spg-movil-oculto">Registro</th><th>Detalle</th></tr>
+                    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Módulo</th>
+                        <th></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $a)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" style="white-space:nowrap" data-label="Fecha">{{ fecha($a->fecha) }}</td>
                             <td data-label="Usuario">{{ $a->usuario }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Sucursal">{{ $a->sucursal }}</td>
                             <td data-label="Acción"><span class="badge-estado e-prog">{{ $a->accion }}</span></td>
                             <td class="text-muted-warm" data-label="Módulo">{{ $a->modulo }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" style="font-size:.8rem" data-label="Registro">
-                                {{ $a->tabla_afectada }}{{ $a->id_registro ? ' #' . $a->id_registro : '' }}
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detAud{{ $a->id_auditoria }}" aria-expanded="false"
+                                        aria-controls="detAud{{ $a->id_auditoria }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                             </td>
-                            <td class="text-muted-warm" style="font-size:.82rem" data-label="Detalle">{{ $a->detalle ?: '—' }}</td>
+                        </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detAud{{ $a->id_auditoria }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Sucursal</dt>
+                                                <dd>{{ $a->sucursal }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Registro</dt>
+                                                <dd>{{ $a->tabla_afectada }}{{ $a->id_registro ? ' #' . $a->id_registro : '' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Detalle</dt>
+                                                <dd>{{ $a->detalle ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-journal-text"></i>
                                     <div class="t">{{ $f['activos'] ? 'Nada coincide con esos filtros.' : 'Todavía no hay registros de auditoría.' }}</div>

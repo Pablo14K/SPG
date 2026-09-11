@@ -2498,6 +2498,97 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * «Van 3» sin los nombres no reserva, y tampoco «van» en blanco.
+     *
+     * Es la mitad del servidor de la validación del asistente: el paso
+     * «Detalles» no deja avanzar sin esos datos, pero esconder un paso no es
+     * el control. Hasta acá `personas` vacío se acomodaba a 1 en silencio y
+     * `Acompanantes::guardar()` descartaba al que no tenía nombre, así que
+     * una reserva «para 3» entraba con una sola persona nombrada y la agenda
+     * no decía a quién esperar.
+     *
+     * **Se rechaza ANTES de agendar**: si no, el horario queda tomado por una
+     * reserva que después se va a corregir.
+     */
+    #[Test]
+    public function la_reserva_del_portal_pide_los_nombres_de_quienes_vienen(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
+        $srv = (int) DB::scalar('SELECT id_servicio FROM servicio WHERE activo = 1 ORDER BY id_servicio LIMIT 1');
+        if (! $u || ! $suc || ! $srv) {
+            $this->markTestSkipped('Falta catálogo para armar la reserva.');
+        }
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+        $this->conMarcaDeSesion();
+        $this->conSucursal();
+
+        // Un horario que la pantalla ofrece de verdad: lo que se mide es el
+        // rechazo por los nombres, no por el horario.
+        $cuando = null;
+        for ($d = 2; $d <= 45 && ! $cuando; $d++) {
+            $dia = date('Y-m-d', strtotime("+$d days"));
+            $j = $this->getJson(route('portal.disponibilidad') . '?' . http_build_query([
+                'id_usuario' => 0, 'servicios' => [$srv], 'fecha' => $dia, 'id_sucursal' => $suc, 'personas' => 3,
+            ]))->json();
+            if (! empty($j['horas'])) {
+                $cuando = $dia . ' ' . $j['horas'][0]['hora'] . ':00';
+            }
+        }
+        if (! $cuando) {
+            $this->markTestSkipped('No hay ningún hueco libre para probar la reserva.');
+        }
+
+        $antes = (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [(int) $u->id_cliente]);
+        $base = ['id_usuario' => 0, 'id_sucursal' => $suc, 'servicios' => [$srv], 'fecha_hora' => $cuando];
+        // El último: la cola de avisos se acumula de una petición a la otra.
+        $ultimoAviso = function (): string {
+            $msgs = array_column((array) session('spg_flash', []), 'msg');
+
+            return (string) ($msgs ? end($msgs) : '');
+        };
+
+        // 1) «Van 3» y ningún nombre: no entra, y dice qué falta.
+        $this->post(route('portal.guardar_reserva'), $base + ['personas' => 3])
+            ->assertRedirectContains(route('portal.reservar'));
+        $this->assertSame($antes, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [(int) $u->id_cliente]),
+            'Con los nombres sin cargar la reserva no puede entrar: el horario quedaría tomado por una cita a medias.');
+        $this->assertStringContainsString('falta el nombre', $ultimoAviso(),
+            'El rechazo tiene que decir qué falta, no un genérico.');
+
+        // 2) Cuántas van en blanco: tampoco, y tampoco se acomoda a 1.
+        $this->post(route('portal.guardar_reserva'), $base + ['personas' => ''])
+            ->assertRedirectContains(route('portal.reservar'));
+        $this->assertSame($antes, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [(int) $u->id_cliente]),
+            '«Cuántas van» vacío se acomodaba a 1 en silencio: ahora se pregunta.');
+        $this->assertStringContainsString('entre 1 y 20', $ultimoAviso());
+
+        // 3) Con los nombres puestos, entra — y entran los dos acompañantes.
+        //    Es la mitad que impide que un control demasiado estricto apague
+        //    la reserva de varias personas, que hoy funciona.
+        $this->post(route('portal.guardar_reserva'), $base + [
+            'personas' => 3,
+            'acomp_nombre' => [2 => 'Josefina', 3 => 'Marta'],
+            'acomp_apellido' => [2 => 'Villalba', 3 => 'Duarte'],
+        ]);
+        $idCita = (int) DB::scalar(
+            'SELECT id_cita FROM cita WHERE id_cliente = ? ORDER BY id_cita DESC LIMIT 1', [(int) $u->id_cliente]
+        );
+        $this->assertSame($antes + 1, (int) DB::scalar('SELECT COUNT(*) FROM cita WHERE id_cliente = ?', [(int) $u->id_cliente]),
+            'Con todo cargado la reserva tiene que entrar: ' . $ultimoAviso());
+        $this->assertSame(2, (int) DB::scalar('SELECT COUNT(*) FROM cita_acompanante WHERE id_cita = ?', [$idCita]),
+            'Los dos acompañantes tienen que quedar anotados con la cita.');
+    }
+
+    /**
      * La cita que la clienta reserva queda en la sucursal que ELIGIÓ.
      *
      * El formulario manda `id_sucursal` desde que existe el selector, y el
@@ -4415,12 +4506,19 @@ class ReglasDeNegocioTest extends TestCase
             $this->markTestSkipped('Hace falta alguien con turno y una sucursal activa.');
         }
 
-        $dia = date('Y-m-d', strtotime('+3 days'));
-
-        // La sucursal de verdad sí ofrece huecos: si no, la prueba no mide nada.
-        $reales = Agenda::slotsProfesional($prof, $dia, 30, null, $suc);
-        if ($reales === []) {
-            $this->markTestSkipped('Ese día no hay huecos ni en la sucursal real.');
+        // **La premisa se garantiza, no se espera.** Con `+3 days` fijo, la
+        // prueba se salteaba cada vez que ese día caía en domingo —o en un día
+        // en que esa persona no trabaja— y una prueba salteada no se ve. Se
+        // busca el primer día de la semana que viene con huecos de verdad.
+        $dia = null;
+        for ($d = 2; $d <= 9 && ! $dia; $d++) {
+            $cand = date('Y-m-d', strtotime("+$d days"));
+            if (Agenda::slotsProfesional($prof, $cand, 30, null, $suc) !== []) {
+                $dia = $cand;
+            }
+        }
+        if (! $dia) {
+            $this->markTestSkipped('En toda la semana no hay huecos ni en la sucursal real.');
         }
 
         foreach ([999999, -1] as $inventada) {
@@ -5081,7 +5179,23 @@ class ReglasDeNegocioTest extends TestCase
 
             $this->assertStringContainsString('data-wiz-repaso', $html,
                 "En $donde no hay dónde dibujar el repaso, que es lo que se mira antes de confirmar.");
+
+            // **El paso «Detalles» no deja avanzar vacío.** El asistente valida
+            // cada paso con `checkValidity()`, así que lo que no lleve
+            // `required` en el marcado pasa aunque esté en blanco: se reportó
+            // que dejaba seguir sin decir cuántas van, y con «3 personas» y
+            // ningún nombre. Se mide el atributo, que es lo que el motor lee.
+            $this->assertMatchesRegularExpression(
+                '/<input[^>]*name="personas"[^>]*\brequired\b[^>]*pattern="\(\[1-9\]\|1\[0-9\]\|20\)"/s', $html,
+                "En $donde «cuántas personas van» tiene que ser obligatorio y estar acotado a 1–20: sin eso el asistente avanza con el campo vacío o en 0."
+            );
         }
+
+        // Y los nombres de quienes vienen los dibuja `app.js`: el `required`
+        // tiene que ir en el molde, o el paso pasa con los renglones en blanco.
+        $js = (string) file_get_contents(public_path('assets/js/app.js'));
+        $this->assertMatchesRegularExpression('/required minlength="2"[^\n]*\n[^\n]*name="acomp_nombre\[/', $js,
+            'El nombre de cada acompañante tiene que dibujarse con `required`: sin eso «3 personas» pasa el paso sin ningún nombre.');
 
         // **El paso de profesionales no COPIA los combos, los mueve**, así que
         // el marcado sólo declara dónde van. Copiarlos mandaría dos valores
@@ -6947,7 +7061,13 @@ class ReglasDeNegocioTest extends TestCase
         Perfil::olvidar();
 
         // --- Sin foto: van las iniciales, no un monigote genérico ---
-        $this->get(route('cuenta.index'))->assertOk()->assertSee('spg-avatar', false);
+        $sinFoto = (string) $this->get(route('cuenta.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('spg-avatar', $sinFoto);
+        // Y el oro de las iniciales se pinta: la clase que lo apaga no está.
+        $this->assertStringNotContainsString('tiene-img', $sinFoto,
+            'Sin foto el avatar lleva su fondo de oro: `tiene-img` es sólo para cuando hay imagen.');
+        $this->assertStringNotContainsString('rel="preload" as="image"', $sinFoto,
+            'Sin foto no hay nada que precargar.');
 
         // **Un PNG de verdad, no un `fake()`.** `Imagen::guardar()` mira el
         // CONTENIDO con `getimagesize` y no la extensión, que es su defensa
@@ -6972,7 +7092,19 @@ class ReglasDeNegocioTest extends TestCase
                 'El archivo se escribe antes de tocar la base: si la fila lo nombra, tiene que estar.');
 
             Perfil::olvidar();
-            $this->get(route('cuenta.index'))->assertOk()->assertSee($nombre, false);
+            $conFoto = (string) $this->get(route('cuenta.index'))->assertOk()->getContent();
+            $this->assertStringContainsString($nombre, $conFoto);
+
+            // **Con foto, ni el oro debajo ni la foto pedida tarde.** Se reportó
+            // un parpadeo al entrar: un segundo con el disco dorado del avatar
+            // por defecto y recién después la cara. Dos cosas lo evitan y las
+            // dos se miden: la clase que apaga el fondo y el `preload` en el
+            // `<head>`, que pide la imagen junto con el CSS y no después de
+            // dibujar la barra.
+            $this->assertStringContainsString('spg-avatar tiene-img', $conFoto,
+                'Con foto, el avatar de la barra apaga el fondo de oro: si no, se ve debajo mientras la foto carga.');
+            $this->assertMatchesRegularExpression('/<link rel="preload" as="image" href="[^"]*' . preg_quote($nombre, '/') . '/', $conFoto,
+                'La foto de perfil se precarga desde el <head>, para que esté antes de que haya que dibujarla.');
 
             // --- Y se saca: vuelve a NULL y el archivo se borra ---
             $this->post(route('cuenta.foto_quitar'))->assertRedirect(route('cuenta.index'));

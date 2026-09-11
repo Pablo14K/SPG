@@ -16,7 +16,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Cliente</th><th>Cédula</th><th>Teléfono</th><th class="d-none d-md-table-cell">Email</th>
+                        <th>Cliente</th><th>Teléfono</th>
                         {{-- **Las visitas salieron de acá.** Contaban lo mismo
                              que la pantalla de fidelización —hoy Promociones →
                              Visitas y puntos— y ahí van con su nivel y sus
@@ -28,14 +28,13 @@
                 </thead>
                 <tbody>
                     @forelse ($clientes as $c)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" data-label="Cliente">
                                 <a class="link-oro" href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     {{ $c->apellido . ', ' . $c->nombre }}</a>
                             </td>
-                            <td data-label="Cédula">{{ $c->cedula ?: '—' }}</td>
                             <td data-label="Teléfono">{{ $c->telefono ?: '—' }}</td>
-                            <td class="text-muted-warm d-none d-md-table-cell" data-label="Email">{{ $c->email ?: '—' }}</td>
                             <td data-label="Estado">
                                 @if ($c->activo)
                                     <span class="badge-estado e-ok">Activo</span>
@@ -44,6 +43,11 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detCli{{ $c->id_cliente }}" aria-expanded="false"
+                                        aria-controls="detCli{{ $c->id_cliente }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro" title="Historial"
                                    href="{{ route('clientes.historial', $c->id_cliente) }}">
                                     <i class="bi bi-clock-history"></i></a>
@@ -77,9 +81,28 @@
                                 </form>
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detCli{{ $c->id_cliente }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Cédula</dt>
+                                                <dd>{{ $c->cedula ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Email</dt>
+                                                <dd>{{ $c->email ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-people"></i>
                                     <div class="t">

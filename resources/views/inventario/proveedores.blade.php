@@ -16,7 +16,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Proveedor</th><th class="spg-movil-oculto">RUC</th><th class="spg-movil-oculto">Contacto</th><th>Teléfono</th>
+                        <th>Proveedor</th>
                         <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
                 </thead>
@@ -24,9 +24,6 @@
                     @forelse ($rows as $p)
                         <tr>
                             <td class="spg-movil-titulo" data-label="Proveedor">{{ $p->nombre }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="RUC">{{ $p->ruc ?: '—' }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Contacto">{{ $p->contacto ?: '—' }}</td>
-                            <td data-label="Teléfono">{{ $p->telefono ?: '—' }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $p->saldo > 0.01)
                                     <strong class="txt-no">{{ money($p->saldo) }}</strong>
@@ -42,6 +39,10 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detProv{{ $p->id_proveedor }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 @if ($urlCompra = Navegacion::url('inventario.compra_form'))
                                     <a class="btn btn-sm btn-outline-neutro" title="Nueva compra"
                                        href="{{ $urlCompra . '?proveedor=' . $p->id_proveedor }}">
@@ -71,9 +72,31 @@
                                 </form>
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detProv{{ $p->id_proveedor }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>RUC</dt>
+                                                <dd>{{ $p->ruc ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Contacto</dt>
+                                                <dd>{{ $p->contacto ?: '—' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Teléfono</dt>
+                                                <dd>{{ $p->telefono ?: '—' }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-truck"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún proveedor coincide con esos filtros.' : 'Todavía no hay proveedores cargados.' }}</div>

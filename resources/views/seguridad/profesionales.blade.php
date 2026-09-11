@@ -23,21 +23,13 @@
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Nombre</th><th>Cédula</th><th>Contacto</th>
-                    <th>Cuenta del sistema</th><th></th>
+                    <th>Nombre</th><th>Cuenta del sistema</th><th class="text-end">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($rows as $r)
                     <tr>
                         <td class="spg-movil-titulo" data-label="Nombre">{{ trim($r->nombre . ' ' . $r->apellido) }}</td>
-                        <td class="text-muted-warm" data-label="Cédula">{{ $r->cedula ?: '—' }}</td>
-                        <td class="text-muted-warm" style="font-size:.85rem" data-label="Contacto">
-                            <div>{{ $r->telefono ?: '—' }}</div>
-                            @if ($r->email)
-                                <div>{{ $r->email }}</div>
-                            @endif
-                        </td>
                         <td data-label="Cuenta del sistema">
                             {{-- **«Sin cuenta» no es un error y hay que decirlo así.**
                                  Es alguien que atiende y no entra al sistema, que es
@@ -54,15 +46,43 @@
                                 @endif
                             @endif
                         </td>
-                        <td class="text-end spg-movil-acciones">
+                        <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                            <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                    data-bs-target="#detProf{{ $r->id_persona }}" aria-expanded="false"
+                                    aria-controls="detProf{{ $r->id_persona }}">
+                                <i class="bi bi-chevron-down"></i> Detalle
+                            </button>
                             <a class="btn btn-sm btn-outline-neutro" title="Editar sus datos"
                                href="{{ route('seguridad.profesional_form', $r->id_persona) }}">
                                 <i class="bi bi-pencil"></i></a>
                         </td>
                     </tr>
+                    <tr class="spg-fila-detalle">
+                        <td colspan="3">
+                            <div class="collapse" id="detProf{{ $r->id_persona }}">
+                                <div class="spg-det-cuerpo">
+                                    <div class="spg-det-grid">
+                                        <div>
+                                            <dt>Cédula</dt>
+                                            <dd>{{ $r->cedula ?: '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Contacto</dt>
+                                            <dd>
+                                                <div>{{ $r->telefono ?: '—' }}</div>
+                                                @if ($r->email)
+                                                    <div>{{ $r->email }}</div>
+                                                @endif
+                                            </dd>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                 @empty
                     <tr>
-                        <td colspan="5">
+                        <td colspan="3">
                             <div class="spg-vacio">
                                 <i class="bi bi-people"></i>
                                 <div class="t">No hay profesionales cargados</div>

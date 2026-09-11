@@ -1563,17 +1563,25 @@ window.SPGCarga = (function () {
 
 // El motivo de la diferencia aparece cuando hay diferencia: pedirlo siempre
 // haría escribir «ok» todos los días y con eso deja de significar algo.
+//
+// **Uno por arqueo, no uno por página.** Buscaba `#arqueoDif` y `#bloqueMotivo`
+// por id, y desde que la lista de Cajas abre el arqueo de cada tarjeta en su
+// propio modal hay varios: con el id repetido sólo el primero se enteraba de
+// la diferencia. El campo declara los suyos con `data-arqueo-salida` y
+// `data-arqueo-motivo`, así que cada modal escucha su propia salida.
 (function () {
-  var dif = document.getElementById('arqueoDif'),
-      bloque = document.getElementById('bloqueMotivo');
-  if (!dif || !bloque) return;
+  document.querySelectorAll('[data-arqueo-motivo]').forEach(function (campo) {
+    var dif = document.querySelector(campo.getAttribute('data-arqueo-salida') || ''),
+        bloque = document.querySelector(campo.getAttribute('data-arqueo-motivo'));
+    if (!dif || !bloque) return;
 
-  new MutationObserver(function () {
-    var hay = /Sobran|Faltan/.test(dif.textContent || '');
-    bloque.style.display = hay ? '' : 'none';
-    var campo = bloque.querySelector('input');
-    if (campo) { campo.required = hay; if (!hay) { campo.value = ''; } }
-  }).observe(dif, { childList: true, characterData: true, subtree: true });
+    new MutationObserver(function () {
+      var hay = /Sobran|Faltan/.test(dif.textContent || '');
+      bloque.style.display = hay ? '' : 'none';
+      var motivo = bloque.querySelector('input');
+      if (motivo) { motivo.required = hay; if (!hay) { motivo.value = ''; } }
+    }).observe(dif, { childList: true, characterData: true, subtree: true });
+  });
 })();
 
 // «¿Para quién?» aparece con la casilla de «la cita es para otra persona»:
@@ -1856,9 +1864,14 @@ window.SPGCarga = (function () {
         // se atendían sin que nadie supiera con qué no se las puede tocar.
         // El valor NO va en el `innerHTML`: lo escribe una persona, y
         // pegado ahí unas comillas cierran el atributo.
+        // **El nombre es obligatorio** (`required` + `minlength`): el asistente
+        // valida el paso con `checkValidity()`, así que sin esto «Siguiente»
+        // dejaba pasar «3 personas» con los tres renglones en blanco — y el
+        // servidor, que descarta al que no tiene nombre, agendaba la cita con
+        // una sola. El apellido y la alergia siguen siendo opcionales.
         fila.innerHTML =
-          '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
-          ' name="acomp_nombre[' + i + ']" placeholder="Nombre" value=""></div>' +
+          '<div class="col-6"><input class="form-control form-control-sm" maxlength="60" required minlength="2"' +
+          ' name="acomp_nombre[' + i + ']" placeholder="Nombre *" value=""></div>' +
           '<div class="col-6"><input class="form-control form-control-sm" maxlength="60"' +
           ' name="acomp_apellido[' + i + ']" placeholder="Apellido" value=""></div>' +
           '<div class="col-12"><input class="form-control form-control-sm" maxlength="300"' +
@@ -2519,43 +2532,47 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // ---------------------------------------------------------------------
-//  Tarjetas mÃ³viles: BotÃ³n de expandir detalles
-//  Inserta automÃ¡ticamente un botÃ³n 'Detalles' en las filas que tienen
-//  columnas ocultas con .spg-movil-oculto, permitiendo ver esa info.
+//  Tarjetas móviles: el botón que muestra las columnas secundarias.
+//
+//  Una tabla con siete columnas no entra en un celular, así que las que
+//  aportan menos —el medio de pago, la flexibilidad de entrada— van con
+//  `.spg-movil-oculto` y aparecen con este botón.
+//
+//  **Se llama «Más», no «Detalles».** En la agenda, al lado de «Detalle»
+//  —el botón que abre la atención— quedaban dos botones con casi la misma
+//  palabra para dos cosas distintas, y se reportó como ambiguo. «Más»
+//  dice lo que hace: hay más datos de esta misma fila.
 // ---------------------------------------------------------------------
-document.addEventListener('DOMContentLoaded', function() {
-    if (window.innerWidth > 576) return; // Solo importa en mÃ³vil
-    
-    document.querySelectorAll('.spg-tabla-movil tbody tr').forEach(tr => {
-        // Â¿Tiene columnas ocultas?
-        if (tr.querySelectorAll('.spg-movil-oculto').length > 0) {
-            let celdaAcciones = tr.querySelector('.spg-movil-acciones');
-            
-            // Si no tiene celda de acciones, le creamos una (aunque el 99% la tiene)
-            if (!celdaAcciones) {
-                celdaAcciones = document.createElement('td');
-                celdaAcciones.className = 'spg-movil-acciones';
-                tr.appendChild(celdaAcciones);
-            }
-            
-            let btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-sm btn-outline-neutro spg-btn-detalles';
-            btn.style.marginRight = 'auto'; // Para que quede a la izquierda de los demÃ¡s botones
-            btn.innerHTML = '<i class="bi bi-chevron-down" style="transition:transform 0.2s; display:inline-block;"></i> Detalles';
-            
-            btn.addEventListener('click', function() {
-                tr.classList.toggle('spg-movil-expandido');
-                let icono = btn.querySelector('i');
-                if (tr.classList.contains('spg-movil-expandido')) {
-                    icono.style.transform = 'rotate(180deg)';
-                } else {
-                    icono.style.transform = 'rotate(0deg)';
-                }
-            });
-            
-            // Lo insertamos primero en la botonera
-            celdaAcciones.insertBefore(btn, celdaAcciones.firstChild);
-        }
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.innerWidth > 576) return;   // sólo importa en el celular
+
+  document.querySelectorAll('.spg-tabla-movil tbody tr').forEach(function (tr) {
+    if (!tr.querySelectorAll('.spg-movil-oculto').length) return;
+
+    var celda = tr.querySelector('.spg-movil-acciones');
+    if (!celda) {
+      celda = document.createElement('td');
+      celda.className = 'spg-movil-acciones';
+      tr.appendChild(celda);
+    }
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline-neutro spg-btn-detalles';
+    btn.setAttribute('aria-expanded', 'false');
+    var ic = document.createElement('i');
+    ic.className = 'bi bi-chevron-down';
+    ic.style.transition = 'transform .2s';
+    ic.style.display = 'inline-block';
+    btn.appendChild(ic);
+    btn.appendChild(document.createTextNode(' Más'));
+
+    btn.addEventListener('click', function () {
+      var abierto = tr.classList.toggle('spg-movil-expandido');
+      ic.style.transform = abierto ? 'rotate(180deg)' : 'rotate(0deg)';
+      btn.setAttribute('aria-expanded', abierto ? 'true' : 'false');
     });
+
+    celda.insertBefore(btn, celda.firstChild);
+  });
 });

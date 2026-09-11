@@ -15,9 +15,34 @@
 @props(['f' => null, 'ocultos' => []])
 
 @if ($f)
-    @php $hayFiltros = $f['activos'] > 0; @endphp
+    @php
+        $hayFiltros = $f['activos'] > 0;
+        // Un id por barra: Reportes dibuja más de una en la misma página.
+        $idPlegar = 'fltPlegar' . substr(md5(implode(',', array_keys($f['campos']))), 0, 6);
+    @endphp
 
     <form class="spg-filtros" method="get" action="{{ url()->current() }}">
+        {{-- **En el celular la barra arranca PLEGADA.** Con cinco campos y el
+             botón, los filtros ocupaban la primera pantalla entera y la lista
+             —que es lo que se vino a ver— quedaba dos pantallas más abajo. Se
+             reportó como «información saturada en la versión móvil».
+
+             Es la misma pieza que el cajón de módulos: una casilla escondida y
+             su etiqueta, así que **abre con CSS y funciona con `app.js` caído**.
+             Con algún filtro puesto arranca abierta, que si no la persona no ve
+             por qué la lista está recortada. En escritorio no cambia nada: la
+             etiqueta no se dibuja y los campos se ven siempre. --}}
+        <input type="checkbox" id="{{ $idPlegar }}" class="spg-filtros-int" aria-hidden="true"
+               @checked($hayFiltros)>
+        <label for="{{ $idPlegar }}" class="spg-filtros-plegar" role="button" tabindex="0">
+            <i class="bi bi-funnel"></i>
+            Filtros
+            {{-- El espacio antes de la arroba no es cosmético: «Filtros@if» pegado
+                 NO es una directiva para Blade (su patrón lleva \B delante), así
+                 que compilaba el @endif suelto y reventaba con ParseError. --}}
+            @if ($hayFiltros) <span class="badge-estado e-proc">{{ $f['activos'] }}</span> @endif
+            <i class="bi bi-chevron-down spg-filtros-flecha"></i>
+        </label>
         @foreach ($ocultos as $ok => $ov)
             <input type="hidden" name="{{ $ok }}" value="{{ $ov }}">
         @endforeach

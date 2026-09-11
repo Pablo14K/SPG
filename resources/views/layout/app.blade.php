@@ -52,6 +52,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="{{ recurso('css/app.css') }}" rel="stylesheet">
+    {{-- **La foto de perfil se pide ANTES de que el navegador llegue a la
+         barra.** Se reportó un parpadeo al entrar: un segundo con el disco
+         dorado del avatar por defecto y recién después la cara. Es que la
+         imagen se pedía cuando el navegador ya había dibujado la barra —después
+         de bajar y aplicar el CSS—, y hasta que llegaba se veía el fondo del
+         avatar. Con el `preload` la pide junto con el CSS, así que casi siempre
+         está antes de que haya que dibujarla. El fondo, además, ya no se pinta
+         debajo de una foto (`tiene-img`), así que si igual tarda no se ve el
+         avatar de otro. --}}
+    @if ($spgFotoPerfil)
+        <link rel="preload" as="image" href="{{ $spgFotoPerfil }}" fetchpriority="high">
+    @endif
     @stack('estilos')
 </head>
 {{-- **Las pantallas que se miran entre varios avisan si algo cambió.**
@@ -112,7 +124,8 @@
                          para todos no distingue a nadie; sin foto van las
                          iniciales, que sí. --}}
                     @if ($spgFotoPerfil)
-                        <span class="spg-avatar"><img src="{{ $spgFotoPerfil }}" alt=""></span>
+                        <span class="spg-avatar tiene-img"><img src="{{ $spgFotoPerfil }}" alt=""
+                            width="26" height="26" decoding="sync" fetchpriority="high"></span>
                     @else
                         <span class="spg-avatar">{{ \App\Servicios\Perfil::iniciales() }}</span>
                     @endif

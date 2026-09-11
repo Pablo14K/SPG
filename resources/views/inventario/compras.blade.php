@@ -14,9 +14,8 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Fecha</th><th>Proveedor</th><th>Nº factura</th>
-                        <th class="text-end spg-movil-oculto">Ítems</th><th class="text-end">Total</th>
-                        <th class="text-end">Saldo</th><th>Estado</th><th class="text-end">Detalle</th>
+                        <th>Fecha</th><th>Proveedor</th><th class="text-end">Total</th>
+                        <th>Estado</th><th class="text-end">Detalle</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -24,47 +23,71 @@
                         <tr>
                             <td class="spg-movil-titulo" data-label="Fecha">{{ fecha($c->fecha, 'd/m/Y') }}</td>
                             <td data-label="Proveedor">{{ $c->proveedor }}</td>
-                            {{-- **Sin número se dice y se puede cargar de una.** El papel
-                                 del proveedor no siempre llega con la mercadería, así que
-                                 la compra entra sin él y después hay que anotarlo. Con un
-                                 guión y nada más, la única forma de saber cuáles faltan era
-                                 abrirlas una por una. --}}
-                            <td data-label="Nº factura">
-                                @if ($c->nro_factura_proveedor)
-                                    <span class="text-muted-warm">{{ $c->nro_factura_proveedor }}</span>
-                                @else
-                                    <button type="button" class="btn btn-sm btn-rapido"
-                                            data-bs-toggle="modal" data-bs-target="#facCompra"
-                                            data-id="{{ $c->id_compra }}"
-                                            data-prov="{{ $c->proveedor }}"
-                                            data-fecha="{{ fecha($c->fecha, 'd/m/Y') }}"
-                                            data-total="{{ money($c->total) }}">
-                                        <i class="bi bi-paperclip"></i> Cargar factura</button>
-                                @endif
-                            </td>
-                            <td class="text-end spg-movil-oculto" data-label="Ítems">{{ (int) $c->items }}</td>
                             <td class="text-end" data-label="Total">{{ money($c->total) }}</td>
-                            <td class="text-end" data-label="Saldo">
-                                @if ((float) $c->saldo > 0.01)
-                                    <strong class="txt-no">{{ money($c->saldo) }}</strong>
-                                @else
-                                    <span class="txt-ok">pagada</span>
-                                @endif
-                            </td>
                             <td data-label="Estado">{!! estado_badge($c->estado) !!}</td>
-                            <td class="text-end spg-movil-acciones">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detComp{{ $c->id_compra }}" aria-expanded="false"
+                                        aria-controls="detComp{{ $c->id_compra }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 {{-- **El botón dice qué hay adentro.** Un ojito con
                                      «Ver el detalle» no deja adivinar que ahí también se
                                      anota la factura del proveedor. --}}
                                 <a class="btn btn-sm btn-outline-neutro"
                                    title="Renglones, vencimiento, cuotas y la factura del proveedor"
                                    href="{{ route('inventario.compra_ver', ['id' => $c->id_compra]) }}">
-                                    <i class="bi bi-eye"></i> Detalle</a>
+                                    <i class="bi bi-eye"></i></a>
+                            </td>
+                        </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="5">
+                                <div class="collapse" id="detComp{{ $c->id_compra }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                {{-- **Sin número se dice y se puede cargar de una.** El papel
+                                                     del proveedor no siempre llega con la mercadería, así que
+                                                     la compra entra sin él y después hay que anotarlo. Con un
+                                                     guión y nada más, la única forma de saber cuáles faltan era
+                                                     abrirlas una por una. --}}
+                                                <dt>Nº factura</dt>
+                                                <dd>
+                                                    @if ($c->nro_factura_proveedor)
+                                                        <span class="text-muted-warm">{{ $c->nro_factura_proveedor }}</span>
+                                                    @else
+                                                        <button type="button" class="btn btn-sm btn-rapido"
+                                                                data-bs-toggle="modal" data-bs-target="#facCompra"
+                                                                data-id="{{ $c->id_compra }}"
+                                                                data-prov="{{ $c->proveedor }}"
+                                                                data-fecha="{{ fecha($c->fecha, 'd/m/Y') }}"
+                                                                data-total="{{ money($c->total) }}">
+                                                            <i class="bi bi-paperclip"></i> Cargar factura</button>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt>Ítems</dt>
+                                                <dd>{{ (int) $c->items }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Saldo</dt>
+                                                <dd>
+                                                    @if ((float) $c->saldo > 0.01)
+                                                        <strong class="txt-no">{{ money($c->saldo) }}</strong>
+                                                    @else
+                                                        <span class="txt-ok">pagada</span>
+                                                    @endif
+                                                </dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="5">
                                 <div class="spg-vacio">
                                     <i class="bi bi-bag"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ninguna compra coincide con esos filtros.' : 'Todavía no hay compras registradas.' }}</div>

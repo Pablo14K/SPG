@@ -28,12 +28,10 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle">
                 {{-- **Dos listas, no una con todo mezclado.**
-
                      «Usuarios» contesta *¿quién entra al sistema y con qué rol?*
                      y «Profesionales» *¿quién trabaja y qué hace?*. Son las mismas
                      personas pero dos preguntas distintas, y con las columnas de
                      las dos juntas ninguna se contesta de un vistazo.
-
                      La ficha sigue siendo UNA sola —duplicarla las desfasa— y lo
                      que cambia acá es qué se lista y en qué orden. --}}
                 @php $comoPersonal = request()->query('desde') === 'personal'; @endphp
@@ -41,9 +39,9 @@
                     <tr>
                         <th>Nombre</th>
                         @if ($comoPersonal)
-                            <th>Contacto</th><th>Servicios que hace</th><th>Turnos</th>
+                            <th>Servicios que hace</th>
                         @else
-                            <th>Usuario</th><th>Rol</th><th>Sucursales</th>
+                            <th>Rol</th>
                         @endif
                         <th>Estado</th><th class="text-end">Acciones</th>
                     </tr>
@@ -54,10 +52,6 @@
                             <td class="spg-movil-titulo" data-label="Nombre">{{ $u->nombre }} {{ $u->apellido }}</td>
 
                             @if ($comoPersonal)
-                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Contacto">
-                                    {{ $u->email }}
-                                    @if ($u->telefono)<div>{{ $u->telefono }}</div>@endif
-                                </td>
                                 <td class="text-muted-warm" style="font-size:.82rem" data-label="Servicios que hace">
                                     {{-- **Sin servicios cargados los hace todos**, que es el
                                          criterio permisivo de siempre. Decir «ninguno» sería
@@ -69,22 +63,11 @@
                                         <span class="txt-no">sin cargar · se le ofrece para todo</span>
                                     @endif
                                 </td>
-                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Turnos">
-                                    @if ($u->turnos)
-                                        {{ $u->turnos }}
-                                    @else
-                                        <span class="txt-no">sin turno · no aparece en la agenda</span>
-                                    @endif
-                                </td>
                             @else
-                                <td class="text-muted-warm" data-label="Usuario">{{ $u->username }}</td>
                                 <td data-label="Rol">
                                     @foreach (array_filter(array_map('trim', explode('·', (string) $u->rol))) as $rol)
                                         <span class="badge-estado e-prog">{{ $rol }}</span>
                                     @endforeach
-                                </td>
-                                <td class="text-muted-warm" style="font-size:.82rem" data-label="Sucursales">
-                                    {{ $u->sucursales ?: 'todas' }}
                                 </td>
                             @endif
                             <td data-label="Estado">
@@ -95,6 +78,11 @@
                                 @endif
                             </td>
                             <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detUsr{{ $u->id_usuario }}" aria-expanded="false"
+                                        aria-controls="detUsr{{ $u->id_usuario }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 @if (Permisos::esAdmin())
                                     <a class="btn btn-sm btn-outline-neutro" title="Editar"
                                        {{-- El «desde» viaja para que la ficha abra en la
@@ -117,9 +105,47 @@
                                 @endif
                             </td>
                         </tr>
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detUsr{{ $u->id_usuario }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            @if ($comoPersonal)
+                                                <div>
+                                                    <dt>Contacto</dt>
+                                                    <dd>
+                                                        {{ $u->email }}
+                                                        @if ($u->telefono)<div>{{ $u->telefono }}</div>@endif
+                                                    </dd>
+                                                </div>
+                                                <div>
+                                                    <dt>Turnos</dt>
+                                                    <dd>
+                                                        @if ($u->turnos)
+                                                            {{ $u->turnos }}
+                                                        @else
+                                                            <span class="txt-no">sin turno · no aparece en la agenda</span>
+                                                        @endif
+                                                    </dd>
+                                                </div>
+                                            @else
+                                                <div>
+                                                    <dt>Usuario</dt>
+                                                    <dd>{{ $u->username }}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt>Sucursales</dt>
+                                                    <dd>{{ $u->sucursales ?: 'todas' }}</dd>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-person-badge"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún usuario coincide con esos filtros.' : 'Todavía no hay personal cargado.' }}</div>

@@ -11,21 +11,24 @@
         <div class="table-responsive spg-tabla-movil">
             <table class="table align-middle mb-0">
                 <thead>
-                    <tr><th>Profesional</th><th class="spg-movil-oculto">Sucursal</th><th>Servicio</th><th>Tipo</th>
-                        <th class="text-end">Valor</th><th>Vigente desde</th><th></th></tr>
+                    <tr><th>Profesional</th><th>Servicio</th>
+                        <th class="text-end">Valor</th><th></th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $c)
+                        {{-- Main row: only essential columns --}}
                         <tr>
                             <td class="spg-movil-titulo" data-label="Profesional">{{ $c->profesional }}</td>
-                            <td class="text-muted-warm spg-movil-oculto" data-label="Sucursal">{{ $c->donde }}</td>
                             <td class="text-muted-warm" data-label="Servicio">{{ $c->servicio }}</td>
-                            <td data-label="Tipo">{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</td>
                             <td class="text-end" data-label="Valor">
                                 <strong>{{ $c->tipo === 'PORCENTAJE' ? cant($c->valor) . ' %' : money($c->valor) }}</strong>
                             </td>
-                            <td data-label="Vigente desde">{{ fecha($c->vigente_desde, 'd/m/Y') }}</td>
-                            <td class="text-end text-nowrap spg-movil-acciones">
+                            <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                <button class="spg-btn-detalle" data-bs-toggle="collapse"
+                                        data-bs-target="#detCom{{ $c->id_comision }}" aria-expanded="false"
+                                        aria-controls="detCom{{ $c->id_comision }}">
+                                    <i class="bi bi-chevron-down"></i> Detalle
+                                </button>
                                 <a class="btn btn-sm btn-outline-neutro"
                                    href="{{ route('seguridad.comision_form', ['id' => $c->id_comision]) }}"
                                    title="Editar esta comisión"><i class="bi bi-pencil"></i></a>
@@ -42,9 +45,32 @@
                                 </form>
                             </td>
                         </tr>
+                        {{-- Expandable detail row --}}
+                        <tr class="spg-fila-detalle">
+                            <td colspan="4">
+                                <div class="collapse" id="detCom{{ $c->id_comision }}">
+                                    <div class="spg-det-cuerpo">
+                                        <div class="spg-det-grid">
+                                            <div>
+                                                <dt>Sucursal</dt>
+                                                <dd>{{ $c->donde }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Tipo</dt>
+                                                <dd>{{ $c->tipo === 'PORCENTAJE' ? 'Porcentaje' : 'Monto fijo' }}</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Vigente desde</dt>
+                                                <dd>{{ fecha($c->vigente_desde, 'd/m/Y') }}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="4">
                                 <div class="spg-vacio">
                                     <i class="bi bi-percent"></i>
                                     <div class="t">Todavía no hay comisiones cargadas.</div>

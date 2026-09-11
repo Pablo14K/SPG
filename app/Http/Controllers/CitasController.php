@@ -777,11 +777,26 @@ class CitasController extends Controller
         // otro —dos cabezas son dos cabezas—, así que el reparto y la duración
         // dependen de él: leyéndolo después, la cita se validaba contra un
         // tiempo que no era el suyo.
-        $personas = (int) $request->input('personas', 1);
-        if ($personas < 1 || $personas > 20) {
+        // Sin el campo en el POST vale 1, como siempre —lo mandan los guiones de
+        // simulación—; mandado y vacío, o en 0, o en 25, se rechaza.
+        $personasCrudo = trim((string) $request->input('personas', '1'));
+        $personas = (int) $personasCrudo;
+        if (! ctype_digit($personasCrudo) || $personas < 1 || $personas > 20) {
             flash('¿Cuántas personas van? Tiene que ser un número entre 1 y 20.', 'error');
 
-            return back()->withInput();
+            // Con la marca, que si no la pantalla vuelve en blanco (7.17.0).
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
+        }
+
+        // **Lo que el asistente exige en «Detalles», el servidor lo vuelve a
+        // exigir**: «van 3» sin los nombres es lo que la 7.97.0 vino a evitar,
+        // y `Acompanantes::guardar()` descarta en silencio al que no lo tiene.
+        // Se pregunta ANTES de agendar, así el horario no queda tomado por
+        // una cita que se va a rechazar.
+        if ($aviso = Acompanantes::avisoFaltantes((array) $request->input('acomp_nombre', []), $personas)) {
+            flash($aviso, 'error');
+
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
         }
 
         if ($problema = Agenda::validarReparto($asignacion, $idUsuario, $fecha, null, $personas)) {
@@ -809,7 +824,7 @@ class CitasController extends Controller
             flash('Si la cita es para otra persona, escribí su nombre: es lo que ve '
                 . 'quien atiende ese día.', 'error');
 
-            return back()->withInput();
+            return redirect()->route('citas.form', ['cliente' => $idCliente])->with('spg_form_error', true)->withInput();
         }
 
         try {

@@ -135,9 +135,20 @@
                                 data-bs-toggle="modal" data-bs-target="#modalMovs{{ $c->id_caja_fisica }}">
                             <i class="bi bi-list-ul"></i> Movimientos de hoy</button>
                     @endif
-                    <a class="btn btn-sm {{ $c->id_caja ? 'btn-outline-neutro' : 'btn-oro' }}"
-                       href="{{ route('facturacion.caja_ver', $c->id_caja_fisica) }}">
-                        {{ $c->id_caja ? 'Arqueo y cierre' : 'Abrir caja' }}</a>
+                    {{-- **Arqueo y Abrir se despliegan acá, como Movimientos.** El botón
+                         llevaba a la pantalla de la caja, y esa pantalla volvía a ofrecer
+                         los mismos botones: «doble paso», se reportó. Ahora cada tarjeta
+                         trae su propio modal —el arqueo con el desglose de SU sesión, o el
+                         formulario de apertura— y se vuelve a esta lista al terminar. --}}
+                    @if ($c->id_caja && isset($resumen[$c->id_caja_fisica]))
+                        <button type="button" class="btn btn-sm btn-outline-neutro"
+                                data-bs-toggle="modal" data-bs-target="#modalArqueo{{ $c->id_caja_fisica }}">
+                            <i class="bi bi-calculator"></i> Arqueo y cierre</button>
+                    @elseif (! $c->id_caja)
+                        <button type="button" class="btn btn-sm btn-oro"
+                                data-bs-toggle="modal" data-bs-target="#modalAbrir{{ $c->id_caja_fisica }}">
+                            <i class="bi bi-unlock"></i> Abrir caja</button>
+                    @endif
 
                     {{-- **Renombrar y borrar son del Administrador.**
 
@@ -205,6 +216,16 @@
                     </div>
                 </div>
             </div>
+        @endif
+
+        @if ($c->id_caja && isset($resumen[$c->id_caja_fisica]))
+            @include('facturacion._arqueo_modal', [
+                'abierta' => $resumen[$c->id_caja_fisica],
+                'sufijo' => $c->id_caja_fisica,
+                'titulo' => $c->nombre,
+            ])
+        @elseif (! $c->id_caja)
+            @include('facturacion._abrir_modal', ['cajon' => $c, 'sufijo' => $c->id_caja_fisica])
         @endif
 
         @if ($c->id_caja && Permisos::puede('facturacion.movimientos'))

@@ -54,8 +54,8 @@
                                     <input class="form-check-input" type="checkbox"
                                            data-marca-todo=".cita-check" checked aria-label="Todas">
                                 </th>
-                                <th>Cuándo</th><th>Clienta</th><th>Servicios</th>
-                                <th class="text-end">Dura</th>
+                                <th>Cuándo</th><th>Clienta</th>
+                                <th class="text-end"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -68,8 +68,30 @@
                                     </td>
                                     <td class="spg-movil-titulo" data-label="Cuándo">{{ fecha($c->fecha_hora, 'd/m/Y H:i') }}</td>
                                     <td data-label="Clienta">{{ $c->cliente }}</td>
-                                    <td class="text-muted-warm" data-label="Servicios">{{ $c->servicios ?: '—' }}</td>
-                                    <td class="text-end text-muted-warm" data-label="Dura">{{ (int) $c->dur }} min</td>
+                                    <td class="text-end spg-movil-acciones" style="white-space:nowrap">
+                                        <button type="button" class="spg-btn-detalle" data-bs-toggle="collapse"
+                                                data-bs-target="#detRea{{ $c->id_cita }}" aria-expanded="false">
+                                            <i class="bi bi-chevron-down"></i> Detalle
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="spg-fila-detalle">
+                                    <td colspan="4">
+                                        <div class="collapse" id="detRea{{ $c->id_cita }}">
+                                            <div class="spg-det-cuerpo">
+                                                <div class="spg-det-grid">
+                                                    <div>
+                                                        <dt>Servicios</dt>
+                                                        <dd>{{ $c->servicios ?: '—' }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt>Duración</dt>
+                                                        <dd>{{ (int) $c->dur }} min</dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

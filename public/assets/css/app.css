@@ -221,6 +221,13 @@ body{
   font-size:.68rem;font-weight:600;letter-spacing:.02em;flex:0 0 auto;
 }
 .spg-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+/* **Con foto, el oro NO se pinta debajo.** Ese oro es el fondo de las iniciales
+   —el avatar por defecto—, y con la imagen encima se veía justo mientras ésta
+   cargaba: un segundo de disco dorado y después la cara, que se reportó como
+   «parpadeo de la foto de perfil». Es el mismo defecto que el logo del salón
+   tuvo en la 7.112.0. Sin fondo, mientras la foto llega no se ve nada — y
+   «nada» se lee como que está cargando, no como que es otro avatar. */
+.spg-avatar.tiene-img{background:transparent;}
 .spg-avatar-lg{
   width:64px;height:64px;font-size:1.35rem;border:1px solid var(--gris-calido);
 }
@@ -352,6 +359,42 @@ body{
    que es para fondos de acción: la fila no es un botón. */
 .table tbody tr.spg-fila-elegida > td{background:var(--oro-tinte);}
 .table tbody tr.spg-fila-elegida > td:first-child{box-shadow:inset 3px 0 0 var(--oro);}
+
+/* ---- Filas de detalle expandibles ----
+   El detalle que estaba en columnas extra ahora se esconde detrás de un botón.
+   Se despliega como una fila debajo del registro, con la pieza `collapse` de
+   Bootstrap 5, sin JavaScript propio.
+
+   Reglas:
+   · El fondo es un tinte suave para separarlo visualmente de las filas normales.
+   · El `<td>` lleva `colspan` entero y `padding:0`: el padding lo pone el
+     contenido de adentro, no la celda, así el `collapse` no deja un hueco
+     cuando está cerrado.
+   · El borde superior se saca porque la fila de arriba ya lo tiene.
+   · En tema oscuro los colores se ajustan solos gracias a las variables. */
+.spg-fila-detalle > td{padding:0 !important;border-top:0 !important;background:transparent;}
+.spg-fila-detalle .spg-det-cuerpo{
+  padding:.8rem 1.2rem;background:var(--oro-tinte);border-bottom:1px solid var(--gris-calido);
+}
+.spg-fila-detalle .spg-det-cuerpo dl{margin:0;font-size:.88rem;}
+.spg-fila-detalle .spg-det-cuerpo dt{color:var(--gris-oscuro);font-weight:500;font-size:.78rem;
+  text-transform:uppercase;letter-spacing:.02em;margin-bottom:.1rem;}
+.spg-fila-detalle .spg-det-cuerpo dd{margin-bottom:.6rem;}
+.spg-fila-detalle .spg-det-cuerpo dd:last-child{margin-bottom:0;}
+/* Layout en grilla cuando hay espacio: dos o tres pares al lado */
+.spg-det-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:0 1.5rem;}
+
+/* Botón chevron que rota al expandir */
+.spg-btn-detalle{
+  display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+  background:none;border:1px solid var(--gris-calido);border-radius:var(--radius);
+  color:var(--gris-oscuro);font-size:.78rem;padding:.22rem .55rem;cursor:pointer;
+  transition:transform .2s ease,border-color .15s;white-space:nowrap;
+}
+.spg-btn-detalle:hover{border-color:var(--oro);color:var(--oro-oscuro);}
+.spg-btn-detalle .bi{transition:transform .25s ease;font-size:.65rem;}
+.spg-btn-detalle[aria-expanded="true"] .bi{transform:rotate(180deg);}
+.spg-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-oscuro);}
 
 /* ---- Botones ---- */
 .btn-oro{background:var(--oro);border:none;color:var(--negro);font-weight:500;}
@@ -733,6 +776,11 @@ html,body{max-width:100%;overflow-x:hidden;}
   background:var(--blanco-hueso);border:1px solid var(--gris-calido);
   border-radius:var(--radius);padding:.75rem .9rem;margin-bottom:1rem;
 }
+/* La casilla que pliega los filtros en el celular: nunca se dibuja. La
+   etiqueta que la acciona sólo existe en pantalla angosta (ver la media
+   query de las tarjetas móviles). */
+.spg-filtros-int{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+.spg-filtros-plegar{display:none;}
 .spg-filtros .form-label{
   font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;
   color:var(--gris-oscuro);margin-bottom:.2rem;font-weight:500;
@@ -2050,34 +2098,65 @@ html,body{max-width:100%;overflow-x:hidden;}
   }
   .spg-tabla-movil .table tbody tr:last-child{margin-bottom:0;}
 
-  /* ── Cada celda es un par clave-valor compacto ── */
+  /* ── Cada celda es un par clave-valor compacto ──
+
+     **El valor va a la IZQUIERDA, pegado a su rótulo, y no a la derecha.**
+     Con `space-between` y `text-align:right` una lista de cuatro servicios
+     quedaba alineada a la derecha, con el renglón partido y el rótulo
+     flotando a la otra punta: se leía como una tabla contable y no como
+     una ficha. Se reportó como «información ambigua y saturada». */
   .spg-tabla-movil .table tbody td{
     display:flex;
-    justify-content:space-between;
+    flex-wrap:wrap;
+    justify-content:flex-start;
     align-items:baseline;
-    gap:.4rem;
+    gap:.1rem .5rem;
     border:0;
-    padding:.15rem 0;
-    text-align:right;
-    font-size:.82rem;
+    padding:.18rem 0;
+    text-align:left;
+    font-size:.84rem;
     white-space:normal !important;
-    line-height:1.3;
+    line-height:1.35;
   }
 
   /* ── Etiqueta desde data-label: discreta, no grita ── */
   .spg-tabla-movil .table tbody td[data-label]:before{
     content:attr(data-label);
     font-weight:500;
-    font-size:.7rem;
+    font-size:.66rem;
     color:var(--gris-oscuro);
     text-transform:uppercase;
-    letter-spacing:.02em;
+    letter-spacing:.03em;
     text-align:left;
     flex-shrink:0;
-    min-width:4.5rem;
-    opacity:.75;
+    min-width:5.4rem;
+    opacity:.7;
   }
   .spg-tabla-movil .table tbody td:not([data-label]):before{display:none;}
+
+  /* ── El sujeto de la fila: sin rótulo y en negrita ──
+     En la agenda es la clienta; en Cobros, quién pagó. Un rótulo «CLIENTE»
+     sobre el único nombre grande de la tarjeta no aclara nada, y quitarlo
+     es lo que deja leer la tarjeta de un vistazo: hora, quién, y abajo
+     el resto con su rótulo. */
+  .spg-tabla-movil .table tbody td.spg-movil-sujeto{
+    display:block;
+    font-weight:600;
+    font-size:.92rem;
+    color:var(--negro);
+    padding-bottom:.25rem;
+  }
+  .spg-tabla-movil .table tbody td.spg-movil-sujeto:before{display:none;}
+
+  /* ── Los botones de sólo ícono dicen qué hacen ──
+     En escritorio el `title` sale al pasar el mouse; en el celular no hay
+     mouse, así que seis íconos seguidos eran seis adivinanzas. El texto
+     sale del mismo `title`, o sea que no se puede desfasar del tooltip. */
+  .spg-tabla-movil .table tbody td.spg-movil-acciones .btn.spg-btn-ico[title]::after{
+    content:attr(title);
+    margin-left:.3rem;
+    font-size:.78rem;
+  }
 
   /* ── Título de la tarjeta: el dato principal ── */
   .spg-tabla-movil .table tbody td.spg-movil-titulo{
@@ -2101,8 +2180,28 @@ html,body{max-width:100%;overflow-x:hidden;}
   }
   .spg-tabla-movil .table tbody td.spg-movil-acciones:before{display:none;}
 
-  /* ── Badges a la izquierda ── */
-  .spg-tabla-movil .table tbody td .badge-estado{margin-right:auto;}
+  /* ── Los badges van uno al lado del otro, sin estirarse ── */
+  .spg-tabla-movil .table tbody td .badge-estado{margin:0;}
+
+  /* ── La fila de detalle (`.spg-fila-detalle`) NO es otra tarjeta ──
+     Con la regla general de arriba cada `<tr>` pasa a tarjeta, y la fila
+     desplegable heredaba borde, relleno y margen: plegada quedaba como una
+     caja vacía entre dos citas, y desplegada como una tarjeta suelta sin
+     dueño. Acá se pega a la de arriba —sin borde propio, con el cuerpo
+     dibujado como pie de la tarjeta— y la tarjeta que la abre pierde sus
+     esquinas de abajo sólo mientras está abierta. */
+  .spg-tabla-movil .table tbody tr.spg-fila-detalle{
+    border:0;padding:0;margin:0 0 .55rem;background:transparent;border-radius:0;
+  }
+  .spg-tabla-movil .table tbody tr.spg-fila-detalle > td{display:block;padding:0 !important;}
+  .spg-tabla-movil .table tbody tr.spg-fila-detalle .spg-det-cuerpo{
+    border:1px solid var(--gris-calido);border-top:0;
+    border-radius:0 0 .45rem .45rem;padding:.6rem .65rem;
+  }
+  .spg-tabla-movil .table tbody tr:has(+ .spg-fila-detalle){margin-bottom:0;}
+  .spg-tabla-movil .table tbody tr:has(.spg-btn-detalle[aria-expanded="true"]){
+    border-bottom-left-radius:0;border-bottom-right-radius:0;
+  }
 
   /* ── Botones con touch target mínimo ── */
   .spg-tabla-movil .table .btn-sm{min-height:34px;min-width:34px;}
@@ -2117,8 +2216,21 @@ html,body{max-width:100%;overflow-x:hidden;}
   /* Animación sutil para que no sea tan brusco el salto de altura */
   .spg-tabla-movil .table tbody tr { transition: all 0.2s ease-in-out; }
 
-  /* ── Filtros apilados ── */
-  .spg-filtros{flex-direction:column;align-items:stretch;}
+  /* ── Filtros apilados, y PLEGADOS hasta que se los pida ──
+     La casilla `.spg-filtros-int` y su etiqueta son la misma pieza que el
+     cajón de módulos: CSS puro, sin JavaScript. Con un filtro aplicado la
+     casilla viene marcada desde el servidor y la barra arranca abierta. */
+  .spg-filtros{flex-direction:column;align-items:stretch;gap:.5rem;}
+  .spg-filtros-plegar{
+    display:flex;align-items:center;gap:.4rem;
+    font-weight:500;font-size:.88rem;color:var(--negro);
+    cursor:pointer;user-select:none;margin:0;
+  }
+  .spg-filtros-plegar .badge-estado{font-size:.68rem;}
+  .spg-filtros-flecha{margin-left:auto;transition:transform .2s;}
+  .spg-filtros-int:checked ~ .spg-filtros-plegar .spg-filtros-flecha{transform:rotate(180deg);}
+  .spg-filtros-int:not(:checked) ~ .spg-filtro,
+  .spg-filtros-int:not(:checked) ~ .spg-filtro-btns{display:none;}
   .spg-filtro{flex:1 1 100% !important;min-width:0 !important;}
   .spg-filtro-btns{flex-wrap:wrap;width:100%;justify-content:stretch;}
   .spg-filtro-btns .btn{flex:1 1 auto;}
