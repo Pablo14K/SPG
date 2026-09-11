@@ -152,6 +152,16 @@ class PanelController extends Controller
         // caja le seguía apareciendo la barra con el saldo del salón.
         $verCaja = Permisos::puede('facturacion.caja');
 
+        // **TODAS las cajas abiertas del local, y en el mismo orden para
+        // todos.** La barra mostraba UNA —`Caja::abierta()`, que prefiere la
+        // que abrió quien mira—, así que con dos cajones abiertos cada
+        // administrador veía una caja distinta y un saldo distinto en el mismo
+        // panel, y ninguno sabía que había otra. Se reportó así. Ahora se
+        // listan las que hay, con su responsable y su saldo, ordenadas por
+        // nombre: lo que ve una persona es lo que ve la otra.
+        $cajas = $verCaja ? Caja::abiertasDe() : [];
+        usort($cajas, static fn ($a, $b) => strcmp((string) $a->nombre, (string) $b->nombre));
+
         // **Lo que falta CARGAR se ve acá, no en una terminal.**
         // `spg:pendientes` contesta la misma pregunta, pero quien configura el
         // salón es la dueña en el navegador: un comando que nunca va a correr
@@ -170,7 +180,7 @@ class PanelController extends Controller
             'atrasadas' => $atrasadas,
             'atrasadasTotal' => $atrasadasTotal,
             'verTodo' => $todaLaAgenda,
-            'caja' => $verCaja ? Caja::abierta() : null,
+            'cajas' => $cajas,
             'verCaja' => $verCaja,
             'pendientes' => $pendientes,
         ]);

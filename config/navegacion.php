@@ -110,6 +110,17 @@ return [
         'seguridad.sucursales'      => ['Sucursales',            'shop',               'configuracion.sucursales'],
         'seguridad.contacto'        => ['Contacto',                'headset',            'configuracion.contacto'],
         'seguridad.pagos'           => ['Datos de pago',           'bank',               'configuracion.pagos'],
+        // **Correo del sistema: SÓLO el Administrador, y por eso el SEXTO
+        // valor.** No tiene submódulo propio —a propósito, para que no se
+        // pueda dar a otro rol desde Roles— y lo guarda el middleware `admin`.
+        // El permiso declarado es el módulo padre, que es lo que dice DÓNDE
+        // vive (la miga, el activo de la barra); el `true` del final es lo que
+        // dice QUIÉN la ve: `pantallasDe()` la salta si no es el Administrador.
+        //
+        // Hasta la 7.115.1 no estaba acá: la tarjeta se agregaba a mano en la
+        // landing y el desplegable de la barra no la mostraba — se reportó
+        // como «Correo del sistema no está en la barra de navegación».
+        'seguridad.correo_sistema'  => ['Correo del sistema',    'envelope-at',        'configuracion', true, '', true],
         'seguridad.auditoria'       => ['Auditoría',             'journal-text',       'seguridad.auditoria'],
     ],
 

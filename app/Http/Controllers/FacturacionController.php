@@ -104,10 +104,34 @@ class FacturacionController extends Controller
 
     public function facturas(): View|StreamedResponse
     {
+        // Estado y Comprobante ofrecen lo que HAY emitido en este local, no el
+        // catálogo: `tipo_comprobante` tiene ocho tipos y el salón usa dos, y
+        // un filtro con seis opciones que devuelven vacío no filtra nada. Van
+        // acotados como la lista de abajo —por el timbrado— para que toda
+        // opción tenga al menos una fila detrás.
+        $parOpc = [];
+        $enLocal = Sucursales::filtro('t', $parOpc);
+        $opTipo = Listado::opcionesUsadas(
+            "SELECT tc.nombre AS k, tc.nombre AS v
+               FROM factura fa
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = fa.id_tipo_comprobante
+               JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+              WHERE 1=1 $enLocal
+              GROUP BY tc.id_tipo_comprobante, tc.nombre
+              ORDER BY tc.id_tipo_comprobante", $parOpc);
+        $opEstado = Listado::opcionesUsadas(
+            "SELECT ef.nombre AS k, ef.nombre AS v
+               FROM factura fa
+               JOIN estado_factura ef ON ef.id_estado_factura = fa.id_estado_factura
+               JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+              WHERE 1=1 $enLocal
+              GROUP BY ef.id_estado_factura, ef.nombre
+              ORDER BY ef.id_estado_factura", $parOpc);
+
         $f = Listado::filtros([
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nº de comprobante o cliente', 'ancho' => '260px'],
-            'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado', 'opciones' => ['' => 'Todos'] + $this->opciones('estado_factura', 'nombre', 'nombre')],
-            'tipo' => ['tipo' => 'select', 'etiqueta' => 'Comprobante', 'opciones' => ['' => 'Todos'] + $this->opciones('tipo_comprobante', 'nombre', 'nombre')],
+            'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado', 'opciones' => ['' => 'Todos'] + $opEstado],
+            'tipo' => ['tipo' => 'select', 'etiqueta' => 'Comprobante', 'opciones' => ['' => 'Todos'] + $opTipo],
             'saldo' => ['tipo' => 'select', 'etiqueta' => 'Cobranza',
                         'opciones' => ['' => 'Todas', 'pend' => 'Con saldo', 'ok' => 'Saldadas']],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
@@ -1269,12 +1293,27 @@ class FacturacionController extends Controller
 
     public function cobros(): View|StreamedResponse
     {
+        // Medio y Estado salen de los cobros que hay, no del catálogo — ver
+        // `Listado::opcionesUsadas()`. Sin acotar por local, igual que la lista.
+        $opMetodo = Listado::opcionesUsadas(
+            'SELECT mp.id_metodo_pago AS k, mp.nombre AS v
+               FROM cobro co
+               JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+              GROUP BY mp.id_metodo_pago, mp.nombre
+              ORDER BY mp.id_metodo_pago');
+        $opEstado = Listado::opcionesUsadas(
+            'SELECT ec.id_estado_cobro AS k, ec.nombre AS v
+               FROM cobro co
+               JOIN estado_cobro ec ON ec.id_estado_cobro = co.id_estado_cobro
+              GROUP BY ec.id_estado_cobro, ec.nombre
+              ORDER BY ec.id_estado_cobro');
+
         $f = Listado::filtros([
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Cliente o referencia', 'ancho' => '240px'],
             'metodo' => ['tipo' => 'select', 'etiqueta' => 'Medio de pago',
-                         'opciones' => ['' => 'Todos'] + $this->opciones('metodo_pago', 'id_metodo_pago', 'nombre')],
+                         'opciones' => ['' => 'Todos'] + $opMetodo],
             'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado',
-                         'opciones' => ['' => 'Todos'] + $this->opciones('estado_cobro', 'id_estado_cobro', 'nombre')],
+                         'opciones' => ['' => 'Todos'] + $opEstado],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
         ]);
@@ -3636,15 +3675,4 @@ class FacturacionController extends Controller
         return redirect()->route('facturacion.timbrados');
     }
 
-    // -----------------------------------------------------------------
-
-    private function opciones(string $tabla, string $clave, string $etiqueta): array
-    {
-        $out = [];
-        foreach (DB::select("SELECT $clave AS k, $etiqueta AS v FROM $tabla ORDER BY $clave") as $r) {
-            $out[(string) $r->k] = $r->v;
-        }
-
-        return $out;
-    }
 }

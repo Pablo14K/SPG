@@ -88,7 +88,10 @@ class SeguridadController extends Controller
                 // **Correo del sistema: SÓLO el Administrador.** No tiene un
                 // submódulo propio —lo guarda el middleware `admin`—, así que la
                 // tarjeta se agrega a mano cuando corresponde. Esconderla no es
-                // el control; el control es la ruta.
+                // el control; el control es la ruta. **En el catálogo de
+                // navegación está igual**, con el sexto valor que la marca
+                // como sólo-Administrador: es lo que la pone en el desplegable
+                // de la barra, que hasta la 7.115.1 no la mostraba.
                 Permisos::esAdmin() ? [[
                     'ruta' => 'seguridad.correo_sistema', 'ic' => 'envelope-at',
                     't' => 'Correo del sistema', 'd' => 'La cuenta que envía los avisos',

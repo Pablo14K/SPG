@@ -22,6 +22,7 @@ use App\Servicios\Permisos;
 use App\Servicios\Notificaciones as NotificacionesSPG;
 use App\Servicios\Sesion;
 use App\Servicios\Sifen;
+use App\Servicios\Sucursales;
 use App\Servicios\WebAuthn;
 use App\Servicios\CitasVencidas;
 use Illuminate\Database\QueryException;
@@ -7825,4 +7826,151 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertNull($leer(), 'Borrarlas a propósito tiene que poder hacerse.');
     }
 
+
+    /**
+     * Los filtros «select» de las listas ofrecen SÓLO lo que hay.
+     *
+     * Se reportó sobre Facturas → Comprobante: el combo ofrecía los OCHO tipos
+     * del catálogo —seis dados de baja en la 7.9.0 y la 7.85.0, sin un solo
+     * comprobante emitido— y elegir cualquiera de ellos devolvía la lista
+     * vacía. «Da opciones que no hay.» Ahora las opciones salen de las filas
+     * que la pantalla lista (`Listado::opcionesUsadas()`), con el mismo
+     * alcance que la lista, así que un tipo sin comprobantes no aparece y uno
+     * que empiece a usarse aparece solo. Vale igual para Cobros → Medio de
+     * pago e Inventario → Movimientos → Tipo, que ofrecían medios sin un solo
+     * cobro y «Venta de producto», que está fuera de alcance.
+     *
+     * La premisa se garantiza y no se espera: se crea un tipo de comprobante
+     * NUEVO, activo y sin comprobantes, y un medio de pago igual, y se exige
+     * que ninguno de los dos se ofrezca. Y en la otra dirección, que lo
+     * ofrecido sea EXACTAMENTE lo que hay emitido en el local — con el
+     * catálogo entero de antes, esto falla.
+     */
+    #[Test]
+    public function los_filtros_de_las_listas_ofrecen_solo_lo_que_hay(): void
+    {
+        DB::insert("INSERT INTO tipo_comprobante (codigo, nombre, signo, activo) VALUES ('ZZ', 'Tipo de prueba', 1, 1)");
+        DB::insert("INSERT INTO metodo_pago (nombre, tipo, activo) VALUES ('Medio de prueba', 'OTRO', 1)");
+        $idMedio = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE nombre = 'Medio de prueba'");
+
+        $this->entrarComo('admin', 'admin123');
+        $suc = Sucursales::activa();
+
+        $opciones = function (string $html, string $campo): array {
+            preg_match('/<select[^>]*name="' . $campo . '"[^>]*>(.*?)<\/select>/s', $html, $m);
+            $this->assertNotEmpty($m, "No se dibujó el filtro «{$campo}».");
+            preg_match_all('/<option value="([^"]*)"/', $m[1], $ops);
+            $out = array_map('html_entity_decode', array_filter($ops[1], fn ($v) => $v !== ''));
+            sort($out);
+
+            return array_values($out);
+        };
+
+        // ---- Facturas → Comprobante: lo que hay emitido en este local ----
+        $html = (string) $this->get(route('facturacion.facturas'))->assertOk()->getContent();
+        $ofrecidos = $opciones($html, 'tipo');
+        $hay = array_map(fn ($r) => (string) $r->nombre, DB::select(
+            'SELECT DISTINCT tc.nombre
+               FROM factura fa
+               JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = fa.id_tipo_comprobante
+               JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+              WHERE t.id_sucursal = ?', [$suc]));
+        sort($hay);
+        $this->assertNotEmpty($hay, 'Premisa: el local tiene comprobantes emitidos.');
+        $this->assertSame($hay, $ofrecidos,
+            'El filtro «Comprobante» tiene que ofrecer exactamente los tipos con comprobantes en el local.');
+        $this->assertNotContains('Tipo de prueba', $ofrecidos,
+            'Un tipo activo pero sin comprobantes no es una opción: filtrar por él devuelve vacío.');
+        $this->assertGreaterThan(count($ofrecidos), (int) DB::scalar('SELECT COUNT(*) FROM tipo_comprobante'),
+            'Premisa: el catálogo tiene más tipos que los que se usan, si no la prueba no mide nada.');
+
+        // ---- Cobros → Medio de pago: lo que hay cobrado ----
+        $html = (string) $this->get(route('facturacion.cobros'))->assertOk()->getContent();
+        $ofrecidos = $opciones($html, 'metodo');
+        $hay = array_map(fn ($r) => (string) $r->id_metodo_pago,
+            DB::select('SELECT DISTINCT id_metodo_pago FROM cobro'));
+        sort($hay);
+        $this->assertNotEmpty($hay, 'Premisa: hay cobros.');
+        $this->assertSame($hay, $ofrecidos,
+            'El filtro «Medio de pago» tiene que ofrecer exactamente los medios con cobros.');
+        $this->assertNotContains((string) $idMedio, $ofrecidos,
+            'Un medio de pago activo pero sin cobros no es una opción.');
+
+        // ---- Inventario → Movimientos → Tipo: lo que hay movido ----
+        $html = (string) $this->get(route('inventario.movimientos'))->assertOk()->getContent();
+        $ofrecidos = $opciones($html, 'tipo');
+        $hay = array_map(fn ($r) => (string) $r->id_tipo_movimiento,
+            DB::select('SELECT DISTINCT id_tipo_movimiento FROM movimiento_inventario'));
+        sort($hay);
+        $this->assertNotEmpty($hay, 'Premisa: hay movimientos de stock.');
+        $this->assertSame($hay, $ofrecidos,
+            'El filtro «Tipo» de Movimientos tiene que ofrecer exactamente las clases con movimientos.');
+        $ventaDeProducto = (string) DB::scalar("SELECT id_tipo_movimiento FROM tipo_movimiento_inventario WHERE nombre = 'Venta de producto'");
+        if ($ventaDeProducto !== '' && ! in_array($ventaDeProducto, $hay, true)) {
+            $this->assertNotContains($ventaDeProducto, $ofrecidos,
+                '«Venta de producto» está fuera de alcance: no puede ofrecerse como filtro.');
+        }
+    }
+
+    /**
+     * El panel lista TODAS las cajas abiertas del local, y las mismas para todos.
+     *
+     * La barra mostraba UNA —`Caja::abierta()`, que prefiere la que abrió
+     * quien mira—, así que con dos cajones abiertos cada administrador veía
+     * una caja distinta y un saldo distinto en el mismo panel, y ninguno
+     * sabía que había otra. Se reportó así: «esa notificación muestra
+     * diferente para cada admin dependiendo qué caja haya abierto».
+     *
+     * Premisa garantizada: dos cajones nuevos del local, abiertos por DOS
+     * personas distintas y con montos distintos; el panel se mira como cada
+     * una, y tiene que decir lo mismo — las dos cajas, los dos saldos, en el
+     * mismo orden. Con la barra de antes, cada una veía sólo la suya.
+     */
+    #[Test]
+    public function el_panel_lista_todas_las_cajas_abiertas_del_local_y_las_mismas_para_todos(): void
+    {
+        $suc = 1;
+        $admin = (int) DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'admin'");
+        $otro = (int) (DB::scalar('SELECT id_usuario FROM usuario WHERE id_rol = 3 AND activo = 1 LIMIT 1') ?: 0);
+        $this->assertGreaterThan(0, $otro, 'Premisa: hace falta una segunda persona con caja.');
+
+        $nombre = 'Panel ' . uniqid();
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre . ' A']);
+        $a = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, $nombre . ' B']);
+        $b = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        Caja::abrir($admin, 111000.0, $a);
+        Caja::abrir($otro, 222000.0, $b);
+
+        $barra = function (): string {
+            Caja::olvidar();
+            $html = (string) $this->get(route('panel'))->assertOk()->getContent();
+            $ini = strpos($html, 'spg-caja-barra');
+            $fin = strpos($html, 'spg-metrics');
+            $this->assertNotFalse($ini, 'El panel no dibujó la barra de caja.');
+
+            return substr($html, $ini, $fin - $ini);
+        };
+
+        $comprobar = function (string $html, string $quien) use ($nombre): void {
+            foreach ([$nombre . ' A', $nombre . ' B', money(111000), money(222000)] as $t) {
+                $this->assertStringContainsString($t, $html,
+                    "Mirando como $quien, la barra no muestra «{$t}»: tiene que listar TODAS las cajas abiertas.");
+            }
+            $this->assertMatchesRegularExpression('/\d+ cajas abiertas/', $html,
+                "Mirando como $quien, la barra no dice cuántas cajas hay abiertas.");
+            $this->assertLessThan(strpos($html, $nombre . ' B'), strpos($html, $nombre . ' A'),
+                'Las cajas van por nombre, en el mismo orden para todos.');
+        };
+
+        // Quien abrió la A…
+        $this->entrarComo('admin', 'admin123');
+        $this->conSucursal($suc);
+        $comprobar($barra(), 'quien abrió la caja A');
+
+        // …y quien abrió la B ven exactamente lo mismo.
+        session(['uid' => $otro, 'rol' => 3, 'es_personal' => true, 'es_cliente' => false]);
+        $this->conSucursal($suc);
+        $comprobar($barra(), 'quien abrió la caja B');
+    }
 }

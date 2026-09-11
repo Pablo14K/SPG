@@ -92,6 +92,7 @@ class Caja
         return DB::select(
             "SELECT c.id_caja, cf.nombre, su.nombre AS sucursal,
                     TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS responsable,
+                    c.fecha_apertura, fn_caja_saldo(c.id_caja) AS saldo,
                     (c.id_usuario = ?) AS es_mia
                FROM caja c
                JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica

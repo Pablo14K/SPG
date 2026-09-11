@@ -385,7 +385,9 @@ class AndamiajeTest extends TestCase
                 ? ''
                 : substr($html, $desde, ($hasta !== false ? $hasta : strlen($html)) - $desde);
 
+            $enBarra = [];
             foreach (Navegacion::pantallasDe((string) $m['mod']) as $pant) {
+                $enBarra[] = (string) $pant['url'];
                 // La entrada del módulo no se anuncia a sí misma.
                 if ((string) $pant['url'] === $url) {
                     continue;
@@ -395,7 +397,74 @@ class AndamiajeTest extends TestCase
                     'El landing de ' . $m['mod'] . ' no ofrece «' . $pant['t']
                     . '», que el catálogo sí declara. La barra la muestra y la tarjeta no.');
             }
+
+            // **Y al revés: toda tarjeta del landing tiene que estar en la
+            // barra.** Es la otra mitad del mismo desfase, y se reportó con
+            // «Correo del sistema no está en la barra de navegación»: la
+            // tarjeta se había agregado a mano —sólo para el Administrador— y
+            // el catálogo no la conocía, así que el desplegable no la ofrecía.
+            // Con una sola dirección, una pantalla que sólo viva en la
+            // tarjeta pasa en verde.
+            preg_match_all('/<a class="spg-card" href="([^"#]+)/', $tarjetas, $hrefs);
+            foreach (array_unique($hrefs[1]) as $href) {
+                $this->assertContains(html_entity_decode($href), $enBarra,
+                    'La tarjeta «' . $href . '» del landing de ' . $m['mod']
+                    . ' no está en el desplegable de la barra: la tarjeta la muestra y la barra no.');
+            }
         }
+    }
+
+    /**
+     * Correo del sistema está en la barra SÓLO para el Administrador.
+     *
+     * No tiene submódulo propio —a propósito: no se puede conceder desde
+     * Roles— y lo guarda el middleware `admin`. En el catálogo va con el
+     * permiso del módulo padre, que dice dónde vive, y el sexto valor que dice
+     * quién la ve. Sin esa marca, el desplegable se la ofrecería a cualquiera
+     * con algo de Configuración y le contestaría 403 al tocarla.
+     *
+     * La premisa se garantiza: al rol Asistente se le da el módulo
+     * Configuración ENTERO dentro de la transacción, así que ve Sucursales y
+     * aun así no tiene que ver el correo.
+     */
+    #[Test]
+    public function el_correo_del_sistema_esta_en_la_barra_solo_para_el_administrador(): void
+    {
+        $url = Navegacion::url('seguridad.correo_sistema');
+        $this->assertNotNull($url);
+
+        $this->entrarComo('admin', 'admin123');
+        $this->assertContains($url, array_column(Navegacion::pantallasDe('configuracion'), 'url'),
+            'El Administrador no ve Correo del sistema en la barra.');
+        $this->assertSame('configuracion', Navegacion::moduloDe('seguridad.correo_sistema'));
+
+        // **Y la miga nombra al módulo.** Salía «Panel › Correo del sistema»
+        // —y «Panel › Datos de pago», y «Panel › Turnos»— porque el encabezado
+        // buscaba la entrada del módulo como `configuracion.index`, y Personal y
+        // Configuración no se mudaron de URL al partir Seguridad: sus entradas se
+        // llaman `seguridad.configuracion.index` y `seguridad.personal.index`.
+        $html = (string) $this->get($url)->assertOk()->getContent();
+        preg_match('/<nav class="spg-migas".*?<\/nav>/s', $html, $m);
+        $this->assertNotEmpty($m, 'La pantalla no dibujó las migas.');
+        $this->assertStringContainsString((string) Navegacion::url('seguridad.configuracion.index'), $m[0],
+            'La miga de Correo del sistema tiene que pasar por Configuración, que es donde vive.');
+        $html = (string) $this->get(Navegacion::url('seguridad.turnos'))->assertOk()->getContent();
+        preg_match('/<nav class="spg-migas".*?<\/nav>/s', $html, $m);
+        $this->assertStringContainsString((string) Navegacion::url('seguridad.personal.index'), $m[0] ?? '',
+            'La miga de Turnos tiene que pasar por Personal.');
+
+        // Un rol NO administrador con Configuración entera.
+        DB::insert("INSERT IGNORE INTO rol_modulo (id_rol, modulo) VALUES (3, 'configuracion')");
+        Permisos::olvidar(3);
+        session(['rol' => 3]);
+
+        $urls = array_column(Navegacion::pantallasDe('configuracion'), 'url');
+        $this->assertContains(Navegacion::url('seguridad.sucursales'), $urls,
+            'Premisa: con Configuración entera, el rol tiene que ver Sucursales.');
+        $this->assertNotContains($url, $urls,
+            'Correo del sistema se le ofrece a un rol que no es Administrador: al tocarlo contesta 403.');
+
+        Permisos::olvidar(3);
     }
 
     /**

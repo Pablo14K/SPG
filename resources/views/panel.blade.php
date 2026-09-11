@@ -16,13 +16,27 @@
         <div class="spg-caja-barra">
             <div class="spg-caja-estado">
                 <i class="bi bi-safe"></i>
-                @if ($caja)
-                    <span>Caja <strong class="txt-ok">abierta</strong> por {{ $caja->responsable }}
-                        · desde {{ fecha($caja->fecha_apertura, 'd/m H:i') }}</span>
-                    <span class="spg-caja-saldo">{{ money($caja->saldo) }}</span>
+                {{-- Todas las abiertas del local, no «la mía»: con dos cajones
+                     abiertos cada administrador veía una caja y un saldo
+                     distintos en el mismo panel. --}}
+                @if ($cajas)
+                    <div class="spg-caja-lista">
+                        @if (count($cajas) > 1)
+                            <span><strong class="txt-ok">{{ count($cajas) }} cajas abiertas</strong> en este local</span>
+                        @endif
+                        @foreach ($cajas as $c)
+                            <span class="spg-caja-item">
+                                <span><strong>{{ $c->nombre }}</strong>
+                                    @if (count($cajas) === 1)<strong class="txt-ok">abierta</strong>@endif
+                                    por {{ $c->responsable }}
+                                    · desde {{ fecha($c->fecha_apertura, 'd/m H:i') }}</span>
+                                <span class="spg-caja-saldo">{{ money($c->saldo) }}</span>
+                            </span>
+                        @endforeach
+                    </div>
                 @else
-                    <span>La caja está <strong class="txt-no">cerrada</strong>.
-                        Abrila para poder registrar cobros.</span>
+                    <span>No hay ninguna caja <strong class="txt-no">abierta</strong> en este local.
+                        Abrí una para poder registrar cobros.</span>
                 @endif
             </div>
             @if (Navegacion::existe('facturacion.caja'))

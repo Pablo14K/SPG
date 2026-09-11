@@ -112,6 +112,35 @@ class Listado
     }
 
     /**
+     * Las opciones de un filtro «select», sacadas de LO QUE HAY para filtrar.
+     *
+     * Un filtro que ofrece «Ticket» cuando no existe ni un ticket no filtra
+     * nada: es ruido. Y con `tipo_comprobante` era ruido casi entero — ocho
+     * tipos en el catálogo, seis dados de baja en la 7.9.0 y la 7.85.0, y el
+     * salón usando dos. Se reportó así: «el filtro da opciones que no hay».
+     *
+     * Las opciones salen de las FILAS que la pantalla lista, no del catálogo.
+     * Así es dinámico —el día que se emita una nota de crédito, aparece sola—
+     * y no hay que acordarse de mirar `activo`, que tampoco alcanza: un tipo
+     * activo sin un solo comprobante sigue siendo una opción vacía, y uno dado
+     * de baja con comprobantes viejos sigue haciendo falta para encontrarlos.
+     *
+     * `$sql` devuelve dos columnas, `k` y `v`, y va acotado IGUAL que la lista
+     * —misma sucursal, mismas uniones—: si no, una opción devolvería cero
+     * filas, que es justamente lo que se quiso evitar. Por eso recibe el
+     * SQL entero y no un nombre de tabla.
+     */
+    public static function opcionesUsadas(string $sql, array $par = []): array
+    {
+        $out = [];
+        foreach (DB::select($sql, $par) as $r) {
+            $out[(string) $r->k] = $r->v;
+        }
+
+        return $out;
+    }
+
+    /**
      * Se le pasa el total ya contado (un COUNT(*) con los MISMOS filtros que
      * la consulta de la lista) y devuelve la rebanada que hay que pedir.
      */

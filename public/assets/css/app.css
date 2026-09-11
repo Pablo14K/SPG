@@ -428,6 +428,9 @@ body{
 .spg-caja-estado > i{font-size:1.3rem;color:var(--oro-oscuro);}
 .spg-caja-saldo{font-weight:500;color:var(--oro-oscuro);background:var(--blanco-hueso);
   border-radius:20px;padding:.1rem .7rem;font-size:.85rem;}
+/* Una fila por caja abierta: con dos cajones el panel las lista a las dos. */
+.spg-caja-lista{display:flex;flex-direction:column;gap:.3rem;}
+.spg-caja-item{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
 
 /* ---- Métricas del dashboard ---- */
 .spg-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:.4rem;}

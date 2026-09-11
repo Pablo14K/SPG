@@ -576,11 +576,28 @@ class InventarioController extends Controller
 
     public function movimientos(): View|StreamedResponse
     {
+        // Producto y Tipo salen de los movimientos que hay, no del catálogo:
+        // `tipo_movimiento_inventario` tiene nueve clases y el salón mueve
+        // stock por dos —y «Venta de producto» está fuera de alcance—. Ver
+        // `Listado::opcionesUsadas()`. Sin acotar por local, igual que la lista.
+        $opProd = Listado::opcionesUsadas(
+            'SELECT p.id_producto AS k, p.nombre AS v
+               FROM movimiento_inventario m
+               JOIN producto p ON p.id_producto = m.id_producto
+              GROUP BY p.id_producto, p.nombre
+              ORDER BY p.nombre');
+        $opTipo = Listado::opcionesUsadas(
+            'SELECT tm.id_tipo_movimiento AS k, tm.nombre AS v
+               FROM movimiento_inventario m
+               JOIN tipo_movimiento_inventario tm ON tm.id_tipo_movimiento = m.id_tipo_movimiento
+              GROUP BY tm.id_tipo_movimiento, tm.nombre
+              ORDER BY tm.nombre');
+
         $f = Listado::filtros([
             'producto' => ['tipo' => 'select', 'etiqueta' => 'Producto', 'ancho' => '220px',
-                           'opciones' => ['' => 'Todos'] + $this->productosPorId()],
+                           'opciones' => ['' => 'Todos'] + $opProd],
             'tipo' => ['tipo' => 'select', 'etiqueta' => 'Tipo',
-                       'opciones' => ['' => 'Todos'] + $this->tiposMovimiento()],
+                       'opciones' => ['' => 'Todos'] + $opTipo],
             'signo' => ['tipo' => 'select', 'etiqueta' => 'Sentido',
                         'opciones' => ['' => 'Ambos', 'E' => 'Entradas', 'S' => 'Salidas']],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
@@ -1457,25 +1474,7 @@ class InventarioController extends Controller
         return $out;
     }
 
-    private function productosPorId(): array
-    {
-        $out = [];
-        foreach (DB::select('SELECT id_producto, nombre FROM producto ORDER BY nombre') as $p) {
-            $out[(string) $p->id_producto] = $p->nombre;
-        }
 
-        return $out;
-    }
-
-    private function tiposMovimiento(): array
-    {
-        $out = [];
-        foreach (DB::select('SELECT id_tipo_movimiento, nombre FROM tipo_movimiento_inventario ORDER BY nombre') as $t) {
-            $out[(string) $t->id_tipo_movimiento] = $t->nombre;
-        }
-
-        return $out;
-    }
 
     private function estadosCompra(): array
     {

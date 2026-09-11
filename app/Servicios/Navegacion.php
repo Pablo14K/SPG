@@ -147,6 +147,16 @@ class Navegacion
             if (($p[3] ?? true) === false || ! Permisos::puede((string) $permiso)) {
                 continue;
             }
+            // **El sexto valor dice «sólo el Administrador».** Es para la
+            // pantalla que no tiene submódulo propio porque no se puede
+            // conceder desde Roles —Correo del sistema, guardada por el
+            // middleware `admin`—: su permiso es el módulo padre, que dice
+            // dónde vive, y esto dice quién la ve. Sin esta línea el
+            // desplegable se la ofrecería a cualquiera con algo de
+            // Configuración, y le contestaría 403.
+            if (($p[5] ?? false) === true && ! Permisos::esAdmin()) {
+                continue;
+            }
             $url = self::url((string) $clave);
             if ($url === null) {
                 continue;   // pantalla catalogada sin ruta declarada

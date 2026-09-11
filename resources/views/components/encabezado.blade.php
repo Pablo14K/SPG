@@ -30,7 +30,20 @@
     // El módulo se saltea cuando se llama igual que la pantalla: «Clientes ›
     // Clientes» no le dice nada a nadie.
     if ($modEtiqueta && $modEtiqueta !== $tituloFinal && Permisos::puede($modClave)) {
-        $urlMod = Navegacion::url($modClave . '.index');
+        // **La entrada del módulo sale del catálogo, no de `<mod>.index`.** Personal
+        // y Configuración no se mudaron de URL al partir Seguridad (7.57.0): sus
+        // entradas se llaman `seguridad.personal.index` y
+        // `seguridad.configuracion.index`, así que `configuracion.index` no
+        // existía y la miga salía «Panel › Datos de pago», sin el módulo en el
+        // medio — en las ocho pantallas de esos dos módulos, sin dar error.
+        $urlMod = null;
+        foreach (config('navegacion.modulos', []) as $mm) {
+            if (($mm['mod'] ?? '') === $modClave) {
+                $urlMod = Navegacion::url((string) $mm['ruta']);
+                break;
+            }
+        }
+        $urlMod ??= Navegacion::url($modClave . '.index');
         if ($urlMod) {
             $migas[] = ['t' => $modEtiqueta, 'url' => $urlMod, 'ic' => null];
         }
