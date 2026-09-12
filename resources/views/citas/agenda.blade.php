@@ -151,20 +151,14 @@
                                 @endforeach
                             </td>
                             <td class="text-muted-warm" data-label="Servicios">
-                                @if ($sgpCuenta)
-                                    {{-- **De quién es cada servicio.** Con tres amigas en la
-                                         cita, «corte, mechas, manicura» no decía nada de
-                                         quién se hace qué; ahora cada servicio tiene su
-                                         persona (`cita_servicio.persona`) y la fila lo lista
-                                         por nombre. --}}
-                                    @foreach ($sgpCuenta as $sgpP => $sgpX)
-                                        @continue ($sgpP === 0 || ! $sgpX['servicios'])
-                                        <div style="font-size:.85rem">
-                                            <strong class="text-body">{{ $sgpX['nombre'] }}:</strong>
-                                            {{ implode(', ', $sgpX['servicios']) }}
-                                        </div>
-                                    @endforeach
-                                @elseif ($verTodo || ! $c->mis_servicios)
+                                {{-- **La fila es el resumen; de quién es cada servicio se
+                                     lee en la ventana.** La 7.117.0 listaba acá persona por
+                                     persona —«Andrea: Corte · Josefina: Corte, Manicura»— y
+                                     se reportó que la fila «muestra información que se
+                                     mostrará en la ventana emergente de detalle». Queda lo
+                                     que dice `vw_agenda_citas`: «Corte de dama ×2, Manicura»,
+                                     que es lo que hace falta para preparar el puesto. --}}
+                                @if ($verTodo || ! $c->mis_servicios)
                                     {{ $c->servicios ?: '—' }}
                                 @else
                                     {{-- **Lo que le pidieron A ELLA, primero.** De los
@@ -492,16 +486,9 @@
 
                                     <dt>Servicios</dt>
                                     <dd>
-                                        @if ($sgpCuenta)
-                                            {{-- De quién es cada uno, con la parte de cada una. --}}
-                                            @foreach ($sgpCuenta as $sgpP => $sgpX)
-                                                @continue ($sgpP === 0 || ! $sgpX['servicios'])
-                                                <div class="d-flex justify-content-between gap-2">
-                                                    <span><strong>{{ $sgpX['nombre'] }}:</strong> {{ implode(', ', $sgpX['servicios']) }}</span>
-                                                    <span class="text-muted-warm" style="white-space:nowrap">{{ money($sgpX['total']) }}</span>
-                                                </div>
-                                            @endforeach
-                                        @elseif ($sgpFilas)
+                                        {{-- Servicio por servicio, con su precio. De quién es
+                                             cada uno lo dice «Quién viene», al lado. --}}
+                                        @if ($sgpFilas)
                                             @foreach ($sgpFilas as $fl)
                                                 <div class="d-flex justify-content-between gap-2">
                                                     <span>{{ $fl->nombre }}
@@ -534,80 +521,80 @@
                                 </dl>
                             </section>
 
-                            {{-- ---- Quiénes vienen, y con qué son alérgicas ---- --}}
+                            {{-- ---- Quiénes vienen: UNA persona por renglón, con todo lo suyo ----
+                                 Era tres listas —«Clienta», «Vienen», «Alergias»— y cada una
+                                 volvía a nombrar a la misma gente: para saber qué se hace
+                                 Josefina y a qué es alérgica había que leerla en tres lugares.
+                                 Se reportó como «mal organizada» (7.119.0). Ahora cada
+                                 persona es un renglón: quién es y qué papel tiene, sus
+                                 servicios, su alergia —«sin registrar» ES una respuesta: nadie
+                                 lo preguntó— y su ficha, si hay que abrirla o crearla. --}}
                             <section class="sgp-cita-bloque">
-                                <h6><i class="bi bi-people"></i> Quién viene</h6>
-                                <dl>
-                                    @if ($c->para_otra_persona)
-                                        <dt>Es para</dt>
-                                        <dd>
-                                            <strong>{{ $c->nombre_para ?: 'otra persona' }}</strong>
-                                            <div class="text-muted-warm" style="font-size:.8rem">La reservó {{ $c->cliente }}.</div>
-                                            {{-- Con ficha, lo que hace falta es su HISTORIAL;
-                                                 sin ficha, crearla con el nombre ya puesto —no
-                                                 sola, que sería inventar una persona—. --}}
-                                            @if ($c->nombre_para && $c->id_cliente_para)
-                                                <a class="btn btn-sm btn-rapido py-0 mt-1"
-                                                   href="{{ route('clientes.historial', $c->id_cliente_para) }}">
-                                                    <i class="bi bi-clock-history"></i> Su historial</a>
-                                            @elseif ($c->nombre_para && Permisos::puede('clientes.registro'))
-                                                @php $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2); @endphp
-                                                <a class="btn btn-sm btn-rapido py-0 mt-1"
-                                                   href="{{ route('clientes.form', ['nombre' => $partes[0] ?? '',
-                                                                                    'apellido' => $partes[1] ?? '']) }}">
-                                                    <i class="bi bi-person-plus"></i> Crear su ficha</a>
-                                            @endif
-                                        </dd>
-                                    @else
-                                        <dt>Clienta</dt>
-                                        <dd>{{ $c->cliente }}</dd>
-                                    @endif
-
+                                <h6><i class="bi bi-people"></i> Quién viene
                                     @if ((int) $c->personas > 1)
-                                        <dt>Vienen</dt>
-                                        <dd>
-                                            {{ (int) $c->personas }} personas
-                                            @if ($sgpAcomp)
-                                                <ul class="list-unstyled mb-0 mt-1">
-                                                    @foreach ($sgpAcomp as $ac)
-                                                        <li class="mb-1">
-                                                            {{ $ac->completo }}
-                                                            @if ($ac->id_cliente)
-                                                                <a class="btn btn-sm btn-outline-neutro py-0"
-                                                                   href="{{ route('clientes.historial', $ac->id_cliente) }}">
-                                                                    <i class="bi bi-clock-history"></i> Su historial</a>
-                                                            @elseif (Permisos::puede('clientes.registro'))
-                                                                <a class="btn btn-sm btn-rapido py-0"
-                                                                   href="{{ route('clientes.form', ['nombre' => $ac->nombre,
-                                                                                                    'apellido' => $ac->apellido]) }}">
-                                                                    <i class="bi bi-person-plus"></i> Crear su ficha</a>
-                                                            @endif
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            @endif
-                                        </dd>
+                                        <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
                                     @endif
-
-                                    {{-- **Persona por persona, incluidas las que no
-                                         declararon ninguna.** Acá «sin registrar» ES una
-                                         respuesta: quiere decir que nadie lo preguntó. --}}
-                                    <dt class="{{ $sgpAlergicas ? 'txt-no' : '' }}">Alergias</dt>
-                                    <dd>
-                                        <ul class="list-unstyled mb-0">
-                                            @foreach ($sgpGente as $sgpP)
-                                                <li>
-                                                    @if ($sgpVarias)<span class="text-muted-warm">{{ $sgpP->quien }}:</span>@endif
-                                                    @if ($sgpP->alergias !== null)
-                                                        <strong class="txt-no"><i class="bi bi-exclamation-triangle-fill"></i> {{ $sgpP->alergias }}</strong>
+                                </h6>
+                                @php
+                                    // Cada persona del grupo, por su lugar (1 = quien se
+                                    // atiende en primer lugar; 2..N los acompañantes).
+                                    $sgpFicha = [];   // [persona => ['url' => …, 'crear' => bool]]
+                                    if ($c->para_otra_persona && $c->nombre_para) {
+                                        if ($c->id_cliente_para) {
+                                            $sgpFicha[1] = ['url' => route('clientes.historial', $c->id_cliente_para), 'crear' => false];
+                                        } elseif (Permisos::puede('clientes.registro')) {
+                                            $partes = preg_split('/\s+/', trim((string) $c->nombre_para), 2);
+                                            $sgpFicha[1] = ['url' => route('clientes.form', ['nombre' => $partes[0] ?? '', 'apellido' => $partes[1] ?? '']), 'crear' => true];
+                                        }
+                                    } elseif (! $c->para_otra_persona && ! empty($c->id_cliente)) {
+                                        $sgpFicha[1] = ['url' => route('clientes.historial', $c->id_cliente), 'crear' => false];
+                                    }
+                                    foreach ($sgpAcomp as $ac) {
+                                        if ($ac->id_cliente) {
+                                            $sgpFicha[(int) $ac->orden] = ['url' => route('clientes.historial', $ac->id_cliente), 'crear' => false];
+                                        } elseif (Permisos::puede('clientes.registro')) {
+                                            $sgpFicha[(int) $ac->orden] = ['url' => route('clientes.form', ['nombre' => $ac->nombre, 'apellido' => $ac->apellido]), 'crear' => true];
+                                        }
+                                    }
+                                @endphp
+                                <ul class="sgp-cita-gente">
+                                    @foreach ($sgpGente as $sgpI => $sgpP)
+                                        @php $sgpN = $sgpI + 1; $sgpX = $sgpCuenta[$sgpN] ?? null; @endphp
+                                        <li>
+                                            <div class="sgp-cita-gente-cab">
+                                                <strong>{{ $sgpP->quien }}</strong>
+                                                <span class="text-muted-warm">
+                                                    @if ($sgpN === 1 && $c->para_otra_persona)
+                                                        · es para ella; la reservó {{ $c->cliente }}
+                                                    @elseif ($sgpN === 1)
+                                                        · la clienta
                                                     @else
-                                                        <span class="text-muted-warm">sin registrar</span>
+                                                        · acompaña
                                                     @endif
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </dd>
-                                </dl>
+                                                </span>
+                                                @if (isset($sgpFicha[$sgpN]))
+                                                    <a class="btn btn-sm {{ $sgpFicha[$sgpN]['crear'] ? 'btn-rapido' : 'btn-outline-neutro' }} py-0 ms-auto"
+                                                       href="{{ $sgpFicha[$sgpN]['url'] }}">
+                                                        <i class="bi bi-{{ $sgpFicha[$sgpN]['crear'] ? 'person-plus' : 'clock-history' }}"></i>
+                                                        {{ $sgpFicha[$sgpN]['crear'] ? 'Crear su ficha' : 'Su historial' }}</a>
+                                                @endif
+                                            </div>
+                                            @if ($sgpX && $sgpX['servicios'])
+                                                <div class="sgp-cita-gente-det">
+                                                    <i class="bi bi-scissors"></i> {{ implode(', ', $sgpX['servicios']) }}
+                                                    <span class="text-muted-warm">· {{ money($sgpX['total']) }}</span>
+                                                </div>
+                                            @endif
+                                            <div class="sgp-cita-gente-det">
+                                                @if ($sgpP->alergias !== null)
+                                                    <strong class="txt-no"><i class="bi bi-exclamation-triangle-fill"></i> Alergias: {{ $sgpP->alergias }}</strong>
+                                                @else
+                                                    <span class="text-muted-warm"><i class="bi bi-shield-check"></i> Alergias: sin registrar</span>
+                                                @endif
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
                             </section>
 
                             {{-- ---- Lo que dejó dicho ---- --}}
@@ -848,8 +835,13 @@
                  «Cobrar», y un modal que nadie puede abrir es marcado de más. --}}
             @continue (in_array($c->estado, ['Cancelada', 'Ausente'], true)
                        || ($c->estado === 'Atendida' && ($c->id_factura || $sgpFalta <= 0.5)))
+            {{-- **Ancha en la computadora, y en dos columnas** (pedido del usuario,
+                 7.119.0): la cuenta a la izquierda —qué se cobra y por qué— y el
+                 pago a la derecha —cómo pagan, con qué, a qué caja—. En 500 px
+                 todo iba en una sola columna y había que scrollear el modal para
+                 llegar al botón; en el celular sigue siendo una columna. --}}
             <div class="modal fade" id="modalSena{{ $c->id_cita }}" tabindex="-1">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
                     <div class="modal-content">
                         <form method="post" action="{{ route('facturacion.sena') }}">
                             @csrf
@@ -930,6 +922,8 @@
                                     && (bool) array_filter($sgpCuenta, fn ($x, $p) => $p > 0 && $x['id_factura'], ARRAY_FILTER_USE_BOTH);
                             @endphp
                             <div class="modal-body">
+                              <div class="sgp-cobro-2col">
+                              <div class="sgp-cobro-cuenta">
                                 <p class="text-muted-warm" style="font-size:.85rem">
                                     Cita del <strong>{{ fecha($c->fecha_hora) }}</strong>.
                                     @if ((float) $c->sena > 0)
@@ -1121,6 +1115,8 @@
                                     ])
                                 @endif
 
+                              </div>
+                              <div class="sgp-cobro-pago">
                                 @if ($sgpPorPersona && $totalCita > 0)
                                     {{-- **¿Paga todo el grupo, o cada una lo suyo?** Dos amigas
                                          que se atienden juntas no siempre pagan juntas, y si
@@ -1242,6 +1238,8 @@
                                         y se descuenta sola del total cuando se facture la cita.
                                     @endif
                                 </p>
+                              </div>
+                              </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
@@ -1269,6 +1267,15 @@
 
 @push('scripts')
 <script>
+/* **Cobrar desde Cobros.** Esa pantalla lista lo que falta cobrar y su botón
+   trae acá con `?cobrar=<cita>`: la ventana de cobro de esa cita se abre
+   sola, que es lo que hace que «cobrar» sea un clic y no encontrar la fila. */
+(function () {
+    var id = new URLSearchParams(location.search).get('cobrar');
+    var m = id && document.getElementById('modalSena' + id);
+    if (m && window.bootstrap) { bootstrap.Modal.getOrCreateInstance(m).show(); }
+})();
+
 /* **Grupal o por persona: el tope del cobro sigue a la elección.** El bloque
    de líneas (`.sgp-cobro`) nació con el saldo de la cita entera; al pasar a
    «cada una lo suyo» lo que se puede cobrar es lo que le falta a ESA persona,

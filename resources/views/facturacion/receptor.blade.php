@@ -42,6 +42,8 @@
         <input type="hidden" name="id_tipo_comprobante" value="{{ $idTipo }}">
         <input type="hidden" name="id_condicion_venta" value="{{ $idCond }}">
         @if ($inn)<input type="hidden" name="inn" value="1">@endif
+        {{-- De quién es, cuando la cita es de varias y cada una se lleva el suyo. --}}
+        @if (! empty($persona))<input type="hidden" name="persona" value="{{ (int) $persona }}">@endif
 
         <div class="row g-3">
             <div class="col-lg-7">
@@ -130,10 +132,20 @@
                         <span class="text-muted-warm">Comprobante</span>
                         <strong>{{ $tipoNombre }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between mb-3" style="font-size:.9rem">
+                    <div class="d-flex justify-content-between mb-1" style="font-size:.9rem">
                         <span class="text-muted-warm">Condición</span>
                         <strong>{{ $condNombre }}</strong>
                     </div>
+                    {{-- De quién es, cuando en la cita vienen varias y ésta se lleva el suyo:
+                         los renglones de abajo son SÓLO los de ella. --}}
+                    @if (! empty($deQuien))
+                        <div class="d-flex justify-content-between mb-3" style="font-size:.9rem">
+                            <span class="text-muted-warm">De quién</span>
+                            <strong>{{ $deQuien }} <span class="text-muted-warm fw-normal">· sólo lo suyo</span></strong>
+                        </div>
+                    @else
+                        <div class="mb-3"></div>
+                    @endif
 
                     <table class="table table-sm align-middle mb-2">
                         <tbody>

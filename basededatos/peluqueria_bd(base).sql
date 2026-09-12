@@ -561,7 +561,7 @@ CREATE TABLE `cita_servicio` (
   `persona` tinyint(3) unsigned NOT NULL DEFAULT 1 COMMENT 'Para quién es: 1 = la titular (o nombre_para), 2..N = cita_acompanante.orden',
   `terminado_en` datetime DEFAULT NULL,
   PRIMARY KEY (`id_cita_servicio`),
-  UNIQUE KEY `uq_cita_servicio` (`id_cita`,`id_servicio`),
+  UNIQUE KEY `uq_cita_servicio_persona` (`id_cita`,`id_servicio`,`persona`),
   KEY `idx_cs_servicio` (`id_servicio`),
   KEY `fk_citaserv_usuario` (`id_usuario`),
   CONSTRAINT `fk_citaserv_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -6444,7 +6444,7 @@ DELIMITER ;
 /*!50001 SET collation_connection      = utf8mb4_general_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `vw_agenda_citas` AS select `c`.`id_cita` AS `id_cita`,`c`.`fecha_hora` AS `fecha_hora`,`fn_cita_duracion`(`c`.`id_cita`) AS `duracion_min`,trim(concat_ws(' ',`pc`.`nombre`,`pc`.`apellido`)) AS `cliente`,`pc`.`telefono` AS `telefono`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `profesional`,`ec`.`nombre` AS `estado`,(select group_concat(`s`.`nombre` order by `s`.`nombre` ASC separator ', ') from (`cita_servicio` `cs` join `servicio` `s` on(`s`.`id_servicio` = `cs`.`id_servicio`)) where `cs`.`id_cita` = `c`.`id_cita`) AS `servicios`,`c`.`observaciones` AS `observaciones` from (((((`cita` `c` join `cliente` `cl` on(`cl`.`id_cliente` = `c`.`id_cliente`)) join `persona` `pc` on(`pc`.`id_persona` = `cl`.`id_persona`)) join `usuario` `u` on(`u`.`id_usuario` = `c`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_cita` `ec` on(`ec`.`id_estado_cita` = `c`.`id_estado_cita`)) */;
+/*!50001 VIEW `vw_agenda_citas` AS select `c`.`id_cita` AS `id_cita`,`c`.`fecha_hora` AS `fecha_hora`,`fn_cita_duracion`(`c`.`id_cita`) AS `duracion_min`,trim(concat_ws(' ',`pc`.`nombre`,`pc`.`apellido`)) AS `cliente`,`pc`.`telefono` AS `telefono`,trim(concat_ws(' ',`pu`.`nombre`,`pu`.`apellido`)) AS `profesional`,`ec`.`nombre` AS `estado`,(select group_concat(distinct concat(`s`.`nombre`,if((select count(0) from `cita_servicio` `cs2` where `cs2`.`id_cita` = `cs`.`id_cita` and `cs2`.`id_servicio` = `cs`.`id_servicio`) > 1,concat(' ×',(select count(0) from `cita_servicio` `cs3` where `cs3`.`id_cita` = `cs`.`id_cita` and `cs3`.`id_servicio` = `cs`.`id_servicio`)),'')) order by `s`.`nombre` ASC separator ', ') from (`cita_servicio` `cs` join `servicio` `s` on(`s`.`id_servicio` = `cs`.`id_servicio`)) where `cs`.`id_cita` = `c`.`id_cita`) AS `servicios`,`c`.`observaciones` AS `observaciones` from (((((`cita` `c` join `cliente` `cl` on(`cl`.`id_cliente` = `c`.`id_cliente`)) join `persona` `pc` on(`pc`.`id_persona` = `cl`.`id_persona`)) join `usuario` `u` on(`u`.`id_usuario` = `c`.`id_usuario`)) join `persona` `pu` on(`pu`.`id_persona` = `u`.`id_persona`)) join `estado_cita` `ec` on(`ec`.`id_estado_cita` = `c`.`id_estado_cita`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -6728,4 +6728,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-11 14:10:25
+-- Dump completed on 2026-09-11 23:09:55

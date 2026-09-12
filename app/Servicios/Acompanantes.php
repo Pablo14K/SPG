@@ -182,25 +182,51 @@ class Acompanantes
     }
 
     /**
-     * Para quién es cada servicio, leído del formulario y acotado al grupo.
+     * Para quiénes es cada servicio, leído del formulario y acotado al grupo.
      *
-     * `para[id_servicio]` viene del selector de cada tarjeta. Lo que falte o
-     * no entre en 1..personas es de la titular: es el caso de la cita de una
-     * sola persona, que no pregunta nada, y de un POST armado a mano.
+     * `para[id_servicio][]` son las casillas de cada tarjeta: **un servicio
+     * puede ser para VARIAS personas** —dos amigas que vienen a cortarse el
+     * pelo marcan las dos en «Corte»— y sale una fila de `cita_servicio` por
+     * cada una. Hasta la 7.119.0 era un combo de una sola, y el único de la
+     * base rechazaba la segunda: había que reservar dos citas.
+     *
+     * Lo que falte, venga vacío o no entre en 1..personas es de la titular:
+     * es el caso de la cita de una sola persona, que no pregunta nada, y del
+     * POST armado a mano. Se acepta también el número suelto de antes.
      *
      * @param  array<int|string,mixed>  $para
      * @param  array<int>  $servicios
-     * @return array<int,int>  [id_servicio => persona]
+     * @return array<int,array<int>>  [id_servicio => [persona, …]], sin repetir y en orden
      */
     public static function personaDe(array $para, array $servicios, int $personas): array
     {
+        $tope = max(1, $personas);
         $out = [];
         foreach ($servicios as $sid) {
-            $p = (int) ($para[$sid] ?? 1);
-            $out[(int) $sid] = ($p >= 1 && $p <= max(1, $personas)) ? $p : 1;
+            $lista = [];
+            foreach ((array) ($para[$sid] ?? []) as $p) {
+                $p = (int) $p;
+                if ($p >= 1 && $p <= $tope) {
+                    $lista[$p] = $p;
+                }
+            }
+            ksort($lista);
+            $out[(int) $sid] = $lista ? array_values($lista) : [1];
         }
 
         return $out;
+    }
+
+    /**
+     * Cuántas veces va cada servicio en la cita: una por persona que lo pidió.
+     * Es lo que `Agenda::vecesPorServicio()` necesita para medir la cita.
+     *
+     * @param  array<int,array<int>>  $personaDe  lo de `personaDe()`
+     * @return array<int,int>
+     */
+    public static function vecesDe(array $personaDe): array
+    {
+        return array_map(fn ($l) => max(1, count((array) $l)), $personaDe);
     }
 
     /**

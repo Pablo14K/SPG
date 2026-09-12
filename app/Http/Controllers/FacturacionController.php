@@ -40,16 +40,22 @@ class FacturacionController extends Controller
     {
         return view('facturacion.index', [
             'subs' => Permisos::tarjetasPermitidas([
-                // **Cuatro grupos, no siete tarjetas sueltas.** Facturar,
-                // cobrar, administrar el cajón y pagar son cuatro trabajos
-                // distintos, y en una fila corrida no se ve qué va con qué.
+                // **Las tarjetas van corridas, como en los demás módulos**
+                // (pedido del usuario, 7.119.0). La 7.62.0 las había partido
+                // en cuatro grupos —Facturación, Cobros, Caja, Pagos— y se
+                // reportó que «no es necesario dividir sus submódulos en
+                // categorías»: son ocho tarjetas, y con un título por cada
+                // dos la pantalla era más rótulo que contenido. La agrupación
+                // sigue viviendo en el desplegable de la barra, donde doce
+                // renglones corridos sí se leían mal. El `<x-landing>`
+                // conserva la maquinaria (`grupo`) para quien la necesite.
                 ['p' => 'facturacion.facturas', 'ruta' => 'facturacion.facturas', 'ic' => 'receipt',
-                 't' => 'Facturas', 'd' => 'Comprobantes emitidos', 'grupo' => 'Facturación'],
+                 't' => 'Facturas', 'd' => 'Comprobantes emitidos'],
                 ['p' => 'facturacion.timbrados', 'ruta' => 'facturacion.timbrados', 'ic' => 'file-earmark-text',
-                 't' => 'Timbrados', 'd' => 'Numeración de los comprobantes', 'grupo' => 'Facturación'],
+                 't' => 'Timbrados', 'd' => 'Numeración de los comprobantes'],
 
                 ['p' => 'facturacion.cobros', 'ruta' => 'facturacion.cobros', 'ic' => 'cash-coin',
-                 't' => 'Cobros', 'd' => 'Pagos recibidos de clientes', 'grupo' => 'Cobros'],
+                 't' => 'Cobros', 'd' => 'Pagos recibidos de clientes'],
 
                 // **Las anclas se fueron y con ellas dos tarjetas rotas.**
                 // «Arqueo» apuntaba a `#arqueo` de esta misma pantalla desde
@@ -58,17 +64,16 @@ class FacturacionController extends Controller
                 // llevaban a una pantalla que las ignoraba, y nada lo decía:
                 // es el patrón de siempre — algo apunta al vacío y no da error.
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.cajas', 'ic' => 'safe',
-                 't' => 'Cajas', 'd' => 'Los cajones del salón: abrir, ver y cerrar', 'grupo' => 'Caja'],
+                 't' => 'Cajas', 'd' => 'Los cajones del salón: abrir, ver y cerrar'],
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'clipboard-check',
-                 't' => 'Arqueos', 'd' => 'Cómo cerró cada caja y si cuadró', 'grupo' => 'Caja'],
+                 't' => 'Arqueos', 'd' => 'Cómo cerró cada caja y si cuadró'],
                 ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
-                 't' => 'Movimientos de caja', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago',
-                 'grupo' => 'Caja'],
+                 't' => 'Movimientos de caja', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago'],
 
                 ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
-                 't' => 'Pagos al profesional', 'd' => 'Comisiones y liquidaciones', 'grupo' => 'Pagos'],
+                 't' => 'Pagos al profesional', 'd' => 'Comisiones y liquidaciones'],
                 ['p' => 'facturacion.proveedores', 'ruta' => 'facturacion.proveedores', 'ic' => 'truck',
-                 't' => 'Pagos a proveedores', 'd' => 'Cuentas por pagar de compras', 'grupo' => 'Pagos'],
+                 't' => 'Pagos a proveedores', 'd' => 'Cuentas por pagar de compras'],
             ]),
         ]);
     }
@@ -184,7 +189,19 @@ class FacturacionController extends Controller
         $desde = 'FROM vw_factura_resumen v
                    JOIN factura fa ON fa.id_factura = v.id_factura
                    JOIN timbrado t ON t.id_timbrado = fa.id_timbrado
+                   LEFT JOIN cita ci ON ci.id_cita = fa.id_cita
                   WHERE ' . implode(' AND ', $w);
+
+        // **De qué cita es cada comprobante, y de quién.** La lista decía sólo
+        // la clienta, y con dos comprobantes de la misma clienta —o dos de la
+        // misma cita, uno por amiga— no había forma de distinguirlos sin
+        // abrirlos; se reportó tal cual (7.119.0). Va la fecha y hora de la
+        // cita, lo que el comprobante factura —sus propios renglones, que
+        // con el de UNA persona son sólo los de ella— y de quién es.
+        $deLaCita = "fa.id_cita, fa.persona, ci.fecha_hora AS cita_fecha, ci.personas, ci.para_otra_persona, ci.nombre_para,
+                     (SELECT GROUP_CONCAT(s.nombre ORDER BY s.nombre SEPARATOR ', ')
+                        FROM detalle_factura df JOIN servicio s ON s.id_servicio = df.id_servicio
+                       WHERE df.id_factura = v.id_factura) AS servicios";
 
         if (Listado::pideExport()) {
             return Listado::exportar('facturas',
@@ -198,11 +215,20 @@ class FacturacionController extends Controller
         }
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+        $rows = DB::select("SELECT v.*, $acreditada, $deLaCita $desde ORDER BY v.fecha_emision DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par);
+
+        // El nombre de la persona del comprobante de UNA, con la misma regla
+        // que la agenda y el cobro (`Acompanantes::nombres()`).
+        $conPersona = array_filter($rows, fn ($r) => (int) ($r->persona ?? 0) > 0 && $r->id_cita);
+        $acomp = Acompanantes::deCitas(array_map(fn ($r) => (int) $r->id_cita, $conPersona));
+        foreach ($conPersona as $r) {
+            $r->de_quien = Acompanantes::nombres($r, $acomp[(int) $r->id_cita] ?? [])[(int) $r->persona] ?? ('Persona ' . (int) $r->persona);
+        }
 
         // `vw_factura_resumen` ya trae el signo: sirve para no ofrecer «Cobrar»
         // sobre una nota de crédito, que no se cobra.
         return view('facturacion.facturas', [
-            'rows' => DB::select("SELECT *, $acreditada $desde ORDER BY v.fecha_emision DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => $rows,
             // **A quién falta facturarle.** Atender y facturar son dos pasos, y
             // entre uno y otro la plata se olvida: la cita queda Atendida, la
             // clienta no siempre pide comprobante, y nadie vuelve a pasar por
@@ -221,8 +247,14 @@ class FacturacionController extends Controller
                    JOIN persona pe ON pe.id_persona = cl.id_persona
                   WHERE c.id_estado_cita = 4
                     AND c.fecha_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    -- Sin comprobante de toda la cita, y con alguna persona sin
+                    -- el suyo: la cita de varias a medio facturar sigue faltando.
                     AND NOT EXISTS (SELECT 1 FROM factura f
-                                     WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
+                                     WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1 AND f.persona IS NULL)
+                    AND EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = c.id_cita
+                                   AND NOT EXISTS (SELECT 1 FROM factura f2 WHERE f2.id_cita = c.id_cita
+                                                      AND f2.id_estado_factura = 1 AND f2.persona = cs.persona))
                     " . Sucursales::filtro('c', $parSf) . "
                   ORDER BY c.fecha_hora DESC LIMIT 20", $parSf
             ),
@@ -525,14 +557,15 @@ class FacturacionController extends Controller
               ORDER BY tc.id_tipo_comprobante', [$suc]
         );
 
-        return view('facturacion.emitir', [
-            // Se llega acá desde la agenda con la cita ya elegida: la persona
-            // termina de atender y cobra sin tener que buscar a la clienta en
-            // una lista de cien. Se valida al guardar igual, así que un id
-            // inventado en la URL no emite nada.
-            'sel_cita' => (int) $request->query('cita', 0),
-            'citas' => DB::select(
-                "SELECT c.id_cita, c.id_cliente, c.fecha_hora,
+        // **Las citas de varias que ya tienen ALGÚN comprobante siguen acá**
+        // hasta que lo tenga cada una (7.119.0). La lista excluía toda cita
+        // con una factura activa, así que después del comprobante de la
+        // primera amiga la cita desaparecía y a la segunda no había forma de
+        // hacerle el suyo — reportado como que «no se genera el comprobante
+        // de ese pago al registrarlo». Sigue excluida la que tiene el
+        // comprobante de TODA la cita, que ya cubre a todas.
+        $citas = DB::select(
+                "SELECT c.id_cita, c.id_cliente, c.fecha_hora, c.personas, c.para_otra_persona, c.nombre_para,
                         CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente,
                         (SELECT GROUP_CONCAT(s.nombre SEPARATOR ', ')
                            FROM cita_servicio cs JOIN servicio s ON s.id_servicio = cs.id_servicio
@@ -565,10 +598,37 @@ class FacturacionController extends Controller
                    JOIN cliente cl    ON cl.id_cliente = c.id_cliente
                    JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona
                   WHERE c.id_estado_cita = 4
-                    AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
+                    AND NOT EXISTS (SELECT 1 FROM factura f WHERE f.id_cita = c.id_cita
+                                       AND f.id_estado_factura = 1 AND f.persona IS NULL)
+                    AND EXISTS (SELECT 1 FROM cita_servicio cs
+                                 WHERE cs.id_cita = c.id_cita
+                                   AND NOT EXISTS (SELECT 1 FROM factura f2 WHERE f2.id_cita = c.id_cita
+                                                      AND f2.id_estado_factura = 1 AND f2.persona = cs.persona))
                   ORDER BY (c.id_cita = :sel) DESC, c.fecha_hora DESC LIMIT 100",
                 ['sel' => (int) $request->query('cita', 0)]
-            ),
+        );
+
+        // La cuenta de cada persona en las citas de varias: nombres, qué se
+        // hizo cada una, cuánto le toca y si ya tiene su comprobante. Es lo
+        // que deja elegir «¿de quién?» al emitir.
+        $cuentas = [];
+        foreach ($citas as $c) {
+            if ((int) $c->personas > 1) {
+                $cuentas[(int) $c->id_cita] = Acompanantes::cuenta($c, Acompanantes::deCitas([(int) $c->id_cita])[(int) $c->id_cita] ?? []);
+            }
+        }
+
+        return view('facturacion.emitir', [
+            // Se llega acá desde la agenda con la cita ya elegida: la persona
+            // termina de atender y cobra sin tener que buscar a la clienta en
+            // una lista de cien. Se valida al guardar igual, así que un id
+            // inventado en la URL no emite nada.
+            'sel_cita' => (int) $request->query('cita', 0),
+            // Y con la persona ya elegida cuando se cobró por persona: el
+            // comprobante que sigue es el de ELLA.
+            'sel_persona' => (int) $request->query('persona', 0),
+            'citas' => $citas,
+            'cuentas' => $cuentas,
             'tipos' => $tipos,
             'condiciones' => DB::select(
                 'SELECT id_condicion_venta, nombre, dias_credito FROM condicion_venta WHERE activo = 1
@@ -649,8 +709,11 @@ class FacturacionController extends Controller
         $innominada = str_ends_with($bruto, '-inn');
         $idTipo = (int) $bruto ?: 1;
         $idCond = (int) $request->input('id_condicion_venta', 1) ?: 1;
+        // **¿De quién es el comprobante?** 0 es de toda la cita; N, de esa
+        // persona del grupo — sale con SUS servicios y descuenta SUS cobros.
+        $persona = max(0, (int) $request->input('persona', 0));
 
-        $cita = $this->citaFacturable($idCita, $idTipo);
+        $cita = $this->citaFacturable($idCita, $idTipo, $persona);
         if ($cita instanceof RedirectResponse) {
             return $cita;
         }
@@ -659,13 +722,13 @@ class FacturacionController extends Controller
         // DNIT: a partir de Gs. 60.000.000 el comprobante tiene que decir a
         // quién se le vendió. Se avisa acá y no después de gastar el número.
         if ($innominada) {
-            $total = (float) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
+            $total = $persona > 0 ? $this->totalDe($idCita, $persona) : (float) DB::scalar('SELECT fn_cita_total(?)', [$idCita]);
             if ($total >= Sifen::TOPE_INNOMINADO) {
                 flash('Esta cita suma ' . money($total) . ' y desde ' . money(Sifen::TOPE_INNOMINADO)
                     . ' la factura tiene que llevar los datos de la clienta. '
                     . 'Elegí «Factura declarada».', 'error');
 
-                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+                return redirect()->route('facturacion.emitir', ['cita' => $idCita] + ($persona > 0 ? ['persona' => $persona] : []));
             }
         }
 
@@ -692,14 +755,15 @@ class FacturacionController extends Controller
             return redirect()->route('facturacion.receptor', array_filter([
                 'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
                 'inn' => $innominada ? 1 : null,
+                'persona' => $persona ?: null,
             ]));
         }
 
         try {
-            $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond);
+            $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond, $persona ?: null);
             $nro = Facturacion::numero($idf);
             Auditoria::registrar('EMISION', 'Facturacion', 'factura', $idf,
-                'Comprobante ' . $nro . ' de la cita #' . $idCita);
+                'Comprobante ' . $nro . ' de la cita #' . $idCita . ($persona > 0 ? ' — de la persona ' . $persona : ''));
 
             $puntos = Facturacion::acumularPuntos($idf, (int) $cita->id_cliente);
             $saldo = Facturacion::saldo($idf);
@@ -740,11 +804,11 @@ class FacturacionController extends Controller
      * entre una y otra pasa una pantalla, y en el medio alguien pudo facturar
      * esa misma cita desde otra computadora.
      */
-    private function citaFacturable(int $idCita, int $idTipo): stdClass|RedirectResponse
+    private function citaFacturable(int $idCita, int $idTipo, int $persona = 0): stdClass|RedirectResponse
     {
         // El cliente se toma de la cita, no del formulario: así nadie puede
         // facturarle a un tercero manipulando el campo oculto.
-        $cita = DB::selectOne('SELECT id_cliente, id_estado_cita FROM cita WHERE id_cita = ?', [$idCita]);
+        $cita = DB::selectOne('SELECT id_cliente, id_estado_cita, personas FROM cita WHERE id_cita = ?', [$idCita]);
         if (! $cita) {
             flash('Esa cita no existe.', 'error');
 
@@ -755,10 +819,41 @@ class FacturacionController extends Controller
 
             return redirect()->route('facturacion.emitir');
         }
-        if (DB::scalar('SELECT COUNT(*) FROM factura WHERE id_cita = ? AND id_estado_factura = 1', [$idCita])) {
+        // **Un comprobante de toda la cita cierra la cita; los de UNA persona
+        // cierran sólo la suya** (7.119.0). Con la cita de varias cada una
+        // puede llevarse el suyo, así que «ya tiene factura» son dos
+        // preguntas: si hay uno de todas, no se emite más nada; si hay de
+        // algunas, se emite el de las que faltan — y ya no el de todas, que
+        // volvería a cobrar lo de las que ya se fueron con el suyo.
+        if (DB::scalar('SELECT COUNT(*) FROM factura WHERE id_cita = ? AND id_estado_factura = 1 AND persona IS NULL', [$idCita])) {
             flash('Esa cita ya tiene una factura emitida.', 'warning');
 
             return redirect()->route('facturacion.facturas');
+        }
+        $facturadas = array_map('intval', array_column(DB::select(
+            'SELECT persona FROM factura WHERE id_cita = ? AND id_estado_factura = 1 AND persona IS NOT NULL', [$idCita]
+        ), 'persona'));
+        if ($persona === 0 && $facturadas) {
+            flash('Alguna de las personas de esta cita ya tiene su comprobante: emití el de cada una de las que faltan, eligiendo «¿de quién?».', 'warning');
+
+            return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+        }
+        if ($persona > 0) {
+            if ($persona > max(1, (int) $cita->personas)) {
+                flash('Esa cita es de ' . max(1, (int) $cita->personas) . ' persona(s): no hay a quién facturarle eso.', 'error');
+
+                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+            }
+            if (in_array($persona, $facturadas, true)) {
+                flash('Esa persona ya tiene su comprobante: cobralo desde Facturas.', 'warning');
+
+                return redirect()->route('facturacion.facturas');
+            }
+            if (! DB::scalar('SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND persona = ?', [$idCita, $persona])) {
+                flash('Esa persona no tiene servicios en la cita: no hay nada que facturarle.', 'error');
+
+                return redirect()->route('facturacion.emitir', ['cita' => $idCita]);
+            }
         }
         if (! DB::scalar('SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ?', [$idCita])) {
             flash('La cita no tiene servicios cargados, no hay nada que facturar.', 'error');
@@ -772,6 +867,18 @@ class FacturacionController extends Controller
         }
 
         return $cita;
+    }
+
+    /**
+     * Lo que le toca a UNA persona de la cita, con el descuento: su parte
+     * proporcional del total —la misma cuenta que muestra la agenda—.
+     */
+    private function totalDe(int $idCita, int $persona): float
+    {
+        $cita = DB::selectOne('SELECT * FROM cita WHERE id_cita = ?', [$idCita]);
+        $cuenta = $cita ? Acompanantes::cuenta($cita, Acompanantes::deCitas([$idCita])[$idCita] ?? []) : [];
+
+        return (float) ($cuenta[$persona]['total'] ?? 0);
     }
 
     // -----------------------------------------------------------------
@@ -791,8 +898,9 @@ class FacturacionController extends Controller
         $idCita = (int) $request->query('cita', 0);
         $idTipo = (int) $request->query('tipo', 1) ?: 1;
         $idCond = (int) $request->query('condicion', 1) ?: 1;
+        $persona = max(0, (int) $request->query('persona', 0));
 
-        $cita = $this->citaFacturable($idCita, $idTipo);
+        $cita = $this->citaFacturable($idCita, $idTipo, $persona);
         if ($cita instanceof RedirectResponse) {
             return $cita;
         }
@@ -803,8 +911,8 @@ class FacturacionController extends Controller
         // también». Es la MISMA pantalla y no una segunda: dos formularios
         // iguales se desfasan, que es un error que este proyecto ya se hizo.
         return view('facturacion.receptor', $this->datosReceptor(
-            $idCita, $idTipo, $idCond, (int) $cita->id_cliente
-        ) + ['inn' => (bool) $request->query('inn')]);
+            $idCita, $idTipo, $idCond, (int) $cita->id_cliente, $persona
+        ) + ['inn' => (bool) $request->query('inn'), 'persona' => $persona]);
     }
 
     /**
@@ -821,8 +929,9 @@ class FacturacionController extends Controller
         $idCita = (int) $request->input('id_cita', 0);
         $idTipo = (int) $request->input('id_tipo_comprobante', 1) ?: 1;
         $idCond = (int) $request->input('id_condicion_venta', 1) ?: 1;
+        $persona = max(0, (int) $request->input('persona', 0));
 
-        $cita = $this->citaFacturable($idCita, $idTipo);
+        $cita = $this->citaFacturable($idCita, $idTipo, $persona);
         if ($cita instanceof RedirectResponse) {
             return $cita;
         }
@@ -832,6 +941,7 @@ class FacturacionController extends Controller
         $volver = redirect()->route('facturacion.receptor', array_filter([
             'cita' => $idCita, 'tipo' => $idTipo, 'condicion' => $idCond,
             'inn' => $innominada ? 1 : null,
+            'persona' => $persona ?: null,
         ]));
 
         // **Sin nombre: el receptor va vacío a propósito.** No se lee del
@@ -852,10 +962,12 @@ class FacturacionController extends Controller
             ];
 
         // El total se recalcula acá: es el que decide si se puede emitir a
-        // consumidor final, y no puede salir de un campo del formulario.
+        // consumidor final, y no puede salir de un campo del formulario. El
+        // de UNA persona es el de sus servicios.
         $total = (float) DB::scalar(
             'SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
-               JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+               JOIN servicio s ON s.id_servicio = cs.id_servicio
+              WHERE cs.id_cita = ? AND (? = 0 OR cs.persona = ?)', [$idCita, $persona, $persona]
         );
 
         if ($error = Sifen::validarReceptor($rec, $total)) {
@@ -911,10 +1023,10 @@ class FacturacionController extends Controller
 
         // ---- 1. Emitir. Desde acá el comprobante ya es válido. ----
         try {
-            $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond);
+            $idf = Facturacion::emitir((int) $cita->id_cliente, $idCita, (int) session('uid'), $idTipo, $idCond, $persona ?: null);
             $nro = Facturacion::numero($idf);
             Auditoria::registrar('EMISION', 'Facturacion', 'factura', $idf,
-                'Comprobante ' . $nro . ' de la cita #' . $idCita);
+                'Comprobante ' . $nro . ' de la cita #' . $idCita . ($persona > 0 ? ' — de la persona ' . $persona : ''));
             $puntos = Facturacion::acumularPuntos($idf, (int) $cita->id_cliente);
         } catch (Throwable $ex) {
             $msg = $ex->getMessage();
@@ -958,7 +1070,7 @@ class FacturacionController extends Controller
     }
 
     /** Lo que necesita la pantalla del receptor, precargado desde la ficha. */
-    private function datosReceptor(int $idCita, int $idTipo, int $idCond, int $idCliente): array
+    private function datosReceptor(int $idCita, int $idTipo, int $idCond, int $idCliente, int $persona = 0): array
     {
         $per = DB::selectOne(
             'SELECT pe.nombre, pe.apellido, pe.cedula, pe.ruc, pe.email, pe.telefono, pe.direccion
@@ -991,16 +1103,34 @@ class FacturacionController extends Controller
             // hablando de la cédula cuando lo que había era un RUC.
             'rucFicha' => trim((string) ($per->ruc ?? '')),
             'cedulaFicha' => trim((string) ($per->cedula ?? '')),
+            // Los de toda la cita, o sólo los de ESA persona cuando el
+            // comprobante es de una.
             'items' => DB::select(
                 'SELECT s.nombre, s.precio FROM cita_servicio cs
-                   JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio
+                  WHERE cs.id_cita = ? AND (? = 0 OR cs.persona = ?)', [$idCita, $persona, $persona]
             ),
             'total' => (float) DB::scalar(
                 'SELECT COALESCE(SUM(s.precio),0) FROM cita_servicio cs
-                   JOIN servicio s ON s.id_servicio = cs.id_servicio WHERE cs.id_cita = ?', [$idCita]
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio
+                  WHERE cs.id_cita = ? AND (? = 0 OR cs.persona = ?)', [$idCita, $persona, $persona]
             ),
+            'deQuien' => $persona > 0 ? $this->nombreDe($idCita, $persona) : '',
             'topeInnominado' => Sifen::TOPE_INNOMINADO,
         ];
+    }
+
+    /** Cómo se llama la persona N de la cita, para nombrarla en pantalla. */
+    private function nombreDe(int $idCita, int $persona): string
+    {
+        $cita = DB::selectOne(
+            "SELECT c.*, CONCAT(pe.nombre,' ',pe.apellido) AS cliente FROM cita c
+               JOIN cliente cl ON cl.id_cliente = c.id_cliente
+               JOIN persona pe ON pe.id_persona = cl.id_persona WHERE c.id_cita = ?", [$idCita]);
+
+        return $cita
+            ? (string) (Acompanantes::nombres($cita, Acompanantes::deCitas([$idCita])[$idCita] ?? [])[$persona] ?? 'Persona ' . $persona)
+            : 'Persona ' . $persona;
     }
 
     // -----------------------------------------------------------------
@@ -1379,7 +1509,40 @@ class FacturacionController extends Controller
 
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
 
+        // **Lo que FALTA cobrar, arriba del historial.** Esta pantalla listaba
+        // sólo lo ya cobrado, así que la atención que la clienta debía no
+        // aparecía en ningún lado y la única forma de cobrarla era encontrar
+        // la fila en la agenda; se reportó como «Cobros sólo es un módulo
+        // historial» (7.119.0). Son las atendidas del local, de los últimos
+        // treinta días, en las que lo cobrado —contra la cita o contra sus
+        // comprobantes— no llega al total. El botón lleva a donde vive la
+        // ventana de cobro: la agenda si no hay comprobante, Facturas si ya lo
+        // hay — el cobro va contra el documento que exista.
+        $parPc = [];
+        $porCobrar = DB::select(
+            "SELECT * FROM (
+                SELECT c.id_cita, c.fecha_hora, c.personas,
+                       CONCAT(pe.nombre,' ',pe.apellido) AS cliente,
+                       fn_cita_total(c.id_cita) AS total,
+                       (SELECT COALESCE(SUM(co.monto),0) FROM cobro co
+                         WHERE co.id_estado_cobro = 1
+                           AND (co.id_cita = c.id_cita
+                                OR co.id_factura IN (SELECT f.id_factura FROM factura f
+                                                      WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1))) AS cobrado,
+                       (SELECT COUNT(*) FROM factura f WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1) AS facturas
+                  FROM cita c
+                  JOIN cliente cl ON cl.id_cliente = c.id_cliente
+                  JOIN persona pe ON pe.id_persona = cl.id_persona
+                 WHERE c.id_estado_cita = 4
+                   AND c.fecha_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                   " . Sucursales::filtro('c', $parPc) . "
+             ) x
+             WHERE x.cobrado < x.total - 0.5
+             ORDER BY x.fecha_hora DESC LIMIT 30", $parPc
+        );
+
         return view('facturacion.cobros', [
+            'porCobrar' => $porCobrar,
             'rows' => DB::select("SELECT $cols $desde ORDER BY co.fecha DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             // El total del filtro es el dato que más se mira: cuánto se cobró en
             // ese período o por ese medio. Se suma sobre TODO lo filtrado.

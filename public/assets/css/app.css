@@ -191,7 +191,15 @@ body{
   color:var(--carbon);
   font-family:-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;
   min-height:100vh;
+  /* **El pie va al fondo de la ventana, no al fondo del contenido.** El panel
+     de una profesional —una caja de citas y tres pastillas— mide media
+     pantalla, y el pie se dibujaba pegado a eso con el resto de la ventana
+     en blanco debajo (7.119.0). La página es una columna: lo que hay en
+     medio estira y el pie queda abajo. Las pantallas de acceso traen su
+     propio envoltorio a pantalla completa y no cambian. */
+  display:flex;flex-direction:column;
 }
+body > main{flex:1 0 auto;width:100%;}
 
 /* ---- Barra superior ---- */
 .sgp-topbar{
@@ -501,16 +509,43 @@ body{
    «demasiado confuso»—: van en DOS columnas, cada uno con su nombre al
    lado del ícono. El nombre sale del `title`, así que no se puede desfasar
    del tooltip; y los avisos («falta fichaje», «sin cobrar») ocupan las dos
-   columnas, que no son un botón y no tienen por qué parecerlo. */
-.sgp-acciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem;min-width:220px;text-align:left;}
+   columnas, que no son un botón y no tienen por qué parecerlo.
+   **Y chicos.** La primera versión (7.118.0) los dibujaba del alto de un
+   botón normal —30 px, 143 de ancho— y con tres renglones la fila de la
+   agenda medía 116 px: «ahora los botones son demasiado grandes». Van del
+   alto de un badge (24 px), con la letra a .7rem y la grilla acotada a 266
+   px —lo justo para «Cambiar profesional» entero—: se siguen leyendo, y la fila vuelve a medir lo que mide una cita. */
+.sgp-acciones{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.2rem .25rem;
+  min-width:200px;max-width:266px;margin-left:auto;text-align:left;
+}
 .sgp-acciones > form{margin:0;display:block;}
 .sgp-acciones .btn{
-  width:100%;display:inline-flex;align-items:center;justify-content:flex-start;gap:.4rem;
-  font-size:.76rem;padding:.3rem .55rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  width:100%;display:inline-flex;align-items:center;justify-content:flex-start;gap:.3rem;
+  font-size:.7rem;line-height:1.25;padding:.16rem .4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+.sgp-acciones .btn .bi{font-size:.8rem;}
 .sgp-acciones .btn .bi{flex-shrink:0;}
 .sgp-acciones .sgp-btn-ico[title]::after{content:attr(title);overflow:hidden;text-overflow:ellipsis;}
 .sgp-acciones .badge-estado{grid-column:1 / -1;justify-self:start;}
+
+/* «Quién viene», en la ventana de la cita: un renglón por persona, con su
+   papel, sus servicios y su alergia juntos. Eran tres listas que volvían a
+   nombrar a la misma gente. */
+/* El modal de cobro, ancho y en dos columnas en la computadora: la cuenta a
+   la izquierda, el pago a la derecha. En el celular, una columna. */
+.sgp-cobro-2col{display:grid;grid-template-columns:minmax(0,1fr);gap:.75rem 1.25rem;}
+@media (min-width:992px){
+  .sgp-cobro-2col{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  .sgp-cobro-pago{border-left:1px dashed var(--gris-calido);padding-left:1.25rem;}
+}
+.sgp-cita-gente{list-style:none;margin:0;padding:0;}
+.sgp-cita-gente > li{padding:.45rem 0;border-top:1px dashed var(--gris-calido);}
+.sgp-cita-gente > li:first-child{border-top:0;padding-top:0;}
+.sgp-cita-gente-cab{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;}
+.sgp-cita-gente-det{font-size:.84rem;margin-top:.15rem;}
+.sgp-cita-gente-det .bi{color:var(--gris-oscuro);margin-right:.15rem;}
+.sgp-cita-gente-det .txt-no .bi{color:inherit;}
 .sgp-acciones > .text-muted-warm{grid-column:1 / -1;}
 
 /* ---- La ficha de la cita, en su ventana ----
@@ -973,7 +1008,9 @@ html,body{max-width:100%;overflow-x:hidden;}
    paso de los servicios. Sólo aparece con más de una persona (app.js). */
 .sgp-srv-para{padding:0 .6rem .6rem;border-top:1px dashed var(--gris-calido);margin-top:.2rem;padding-top:.45rem;}
 .sgp-srv-para .form-label{font-size:.78rem;color:var(--gris-oscuro);}
-.sgp-srv-para .form-select{width:100%;}
+.sgp-srv-para-lista{display:flex;flex-wrap:wrap;gap:.1rem .5rem;}
+.sgp-srv-para-lista .form-check{margin-right:0;font-size:.8rem;}
+.sgp-srv-para-lista .form-check-input{margin-top:.2rem;}
 .sgp-srv-card.elegida{border-color:var(--oro);box-shadow:0 0 0 2px var(--oro-suave);}
 
 /* `aspect-ratio` y no una altura fija: así la grilla no se desalinea cuando
@@ -2381,6 +2418,9 @@ html,body{max-width:100%;overflow-x:hidden;}
   display:flex;align-items:center;gap:.45rem;
 }
 .panel-box-titulo .bi{color:var(--oro-enfasis);}
+/* El atajo del título —«ir a la agenda →»— va a la derecha, chico y sin
+   el peso del título. */
+.panel-box-atajo{margin-left:auto;font-size:.78rem;font-weight:400;white-space:nowrap;}
 
 /* Lo de adentro va un paso más al fondo, para que se lea como contenido
    y no como otra caja. */
@@ -2415,6 +2455,10 @@ html,body{max-width:100%;overflow-x:hidden;}
 .sgp-lista-cajas{font-size:.84rem;}
 .sgp-lista-cajas li{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.15rem 0;}
 .sgp-lista-cajas li > span:first-child{min-width:0;}
+/* El importe no se parte ni se achica: con tres o cuatro cajas abiertas el
+   renglón más largo empujaba «Gs. 2.148.000» a dos líneas y la columna de
+   importes dejaba de ser una columna. Lo que cede es el nombre, con «…». */
+.sgp-lista-cajas li > strong{white-space:nowrap;flex:0 0 auto;font-variant-numeric:tabular-nums;}
 
 /* La grilla de los módulos: tres columnas siempre. **En la computadora
    llena la caja entera** —las filas se reparten a lo alto y las pastillas

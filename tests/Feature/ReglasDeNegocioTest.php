@@ -2604,6 +2604,101 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
+     * El mismo servicio puede ser para VARIAS personas de la misma cita.
+     *
+     * Reportado tal cual (7.119.0): *«el sistema solo permite elegir un
+     * cliente por servicio, debe permitir que se pueda poner más de un
+     * cliente al mismo servicio»*. Dos amigas que vienen a cortarse el pelo
+     * marcan las dos en «Corte»: son **dos cortes** —dos filas de
+     * `cita_servicio`, una por persona— que la misma profesional hace una
+     * después de la otra, así que la cita dura el doble y el calendario ya lo
+     * mide así. Hasta acá el único `(id_cita, id_servicio)` rechazaba la
+     * segunda fila y había que reservar dos citas.
+     *
+     * Se comprueba en las dos direcciones: con el único viejo, el INSERT de
+     * la segunda fila falla con 1062; con el combo de una sola persona, la
+     * segunda casilla no llega.
+     */
+    #[Test]
+    public function el_mismo_servicio_puede_ser_para_varias_personas_de_la_cita(): void
+    {
+        $u = DB::selectOne(
+            'SELECT u.id_usuario, c.id_cliente FROM usuario u
+               JOIN cliente c ON c.id_persona = u.id_persona
+              WHERE u.activo = 1 LIMIT 1'
+        );
+        $suc = (int) DB::scalar('SELECT id_sucursal FROM sucursal WHERE activo = 1 ORDER BY id_sucursal LIMIT 1');
+        $srvRow = DB::selectOne('SELECT id_servicio, duracion_min FROM servicio WHERE activo = 1 ORDER BY duracion_min, id_servicio LIMIT 1');
+        if (! $u || ! $suc || ! $srvRow) {
+            $this->markTestSkipped('Falta catálogo para armar la reserva.');
+        }
+        $srv = (int) $srvRow->id_servicio;
+        $min = (int) $srvRow->duracion_min;
+
+        session([
+            'uid' => (int) $u->id_usuario, 'rol' => (int) config('permisos.rol_cliente', 4),
+            'es_personal' => false, 'es_cliente' => true, 'id_cliente' => (int) $u->id_cliente,
+        ]);
+        $this->conMarcaDeSesion();
+        $this->conSucursal();
+
+        // Un horario que el calendario ofrece PARA DOS CORTES: la consulta
+        // lleva `veces[srv]=2`, y la duración que contesta tiene que ser la de
+        // los dos, no la de uno — es lo que hace que no se prometa un horario
+        // que el guardado rechace.
+        $cuando = null;
+        $durOfrecida = 0;
+        for ($d = 2; $d <= 45 && ! $cuando; $d++) {
+            $dia = date('Y-m-d', strtotime("+$d days"));
+            $j = $this->getJson(route('portal.disponibilidad') . '?' . http_build_query([
+                'id_usuario' => 0, 'servicios' => [$srv], 'fecha' => $dia, 'sucursal' => $suc,
+                'personas' => 2, 'veces' => [$srv => 2],
+            ]))->json();
+            if (! empty($j['horas'])) {
+                $cuando = $dia . ' ' . $j['horas'][0]['hora'] . ':00';
+                $durOfrecida = (int) ($j['horas'][0]['duracion'] ?? $j['duracion'] ?? 0);
+            }
+        }
+        if (! $cuando) {
+            $this->markTestSkipped('No hay ningún hueco libre para probar la reserva.');
+        }
+        $this->assertGreaterThanOrEqual($min * 2, $durOfrecida,
+            'El calendario tiene que medir los DOS cortes: con uno solo ofrecería un hueco en el que el segundo no entra.');
+
+        $this->post(route('portal.guardar_reserva'), [
+            'id_usuario' => 0, 'id_sucursal' => $suc, 'servicios' => [$srv], 'fecha_hora' => $cuando,
+            'personas' => 2,
+            'acomp_nombre' => [2 => 'Josefina'], 'acomp_apellido' => [2 => 'Villalba'],
+            'para' => [$srv => [1, 2]],
+        ]);
+        $msgs = array_column((array) session('sgp_flash', []), 'msg');
+        $idCita = (int) DB::scalar(
+            'SELECT id_cita FROM cita WHERE id_cliente = ? AND fecha_hora = ? ORDER BY id_cita DESC LIMIT 1',
+            [(int) $u->id_cliente, $cuando]
+        );
+        $this->assertGreaterThan(0, $idCita, 'La reserva de dos amigas en «Corte» tiene que entrar: ' . (string) end($msgs));
+
+        $filas = DB::select(
+            'SELECT persona, id_usuario, orden FROM cita_servicio WHERE id_cita = ? AND id_servicio = ? ORDER BY persona',
+            [$idCita, $srv]
+        );
+        $this->assertCount(2, $filas, 'Dos personas en el mismo servicio son DOS filas: una por persona.');
+        $this->assertSame([1, 2], array_map(fn ($f) => (int) $f->persona, $filas));
+
+        // La misma profesional los hace uno después del otro: la cita dura
+        // los dos, en la base —que es la autoridad— y en `vw_agenda_citas`.
+        $this->assertSame($min * 2, (int) DB::scalar('SELECT fn_cita_duracion(?)', [$idCita]),
+            'Dos cortes con la misma persona son dos cortes de tiempo, no uno.');
+        $this->assertStringContainsString('×2', (string) DB::scalar(
+            'SELECT servicios FROM vw_agenda_citas WHERE id_cita = ?', [$idCita]),
+            'La agenda dice «Corte ×2», no «Corte, Corte».');
+
+        // Y la factura de UNA de ellas trae UN corte: la fila es de esa persona.
+        $this->assertSame(1, (int) DB::scalar(
+            'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND persona = 2', [$idCita]));
+    }
+
+    /**
      * La cita que la clienta reserva queda en la sucursal que ELIGIÓ.
      *
      * El formulario manda `id_sucursal` desde que existe el selector, y el
@@ -7698,6 +7793,142 @@ class ReglasDeNegocioTest extends TestCase
             'El cobro de esa persona tiene que saldar SU comprobante.');
         $this->assertGreaterThan(0.01, (float) DB::scalar('SELECT fn_factura_saldo(?)', [$f1]),
             'Y no puede saldar el de la otra: cada una paga lo suyo.');
+    }
+
+    /**
+     * Cobrada por persona, la factura sale por persona — y la de la otra
+     * después, desde las mismas pantallas.
+     *
+     * Reportado tal cual (7.119.0): *«aparece la opción de pago individual
+     * pero al final hace la factura por el pago grupal y deja una deuda de lo
+     * que le corresponde a la otra persona, pero luego no se genera el
+     * comprobante de ese pago al registrarlo»*. La base sabía emitir por
+     * persona desde la 7.117.0; las PANTALLAS no: `emitir` no leía `persona`
+     * y su lista excluía toda cita con alguna factura, así que la segunda
+     * amiga se quedaba sin comprobante.
+     *
+     * Recorre el camino real: el cobro de una desde la agenda, la pantalla de
+     * emitir con ELLA elegida, su factura con sólo lo suyo y saldada; la cita
+     * sigue en la lista, «toda la cita» apagada; y el cobro y la factura de la
+     * otra cierran la cita. Con el `persona` ignorado, la primera factura
+     * saldría de toda la cita y el segundo `emitir` contestaría «ya tiene una
+     * factura emitida».
+     */
+    #[Test]
+    public function la_cita_cobrada_por_persona_se_factura_por_persona_y_la_otra_despues(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+        $cajon = $this->cajonDe($suc);
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$cajon])) {
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+        }
+        Caja::olvidar();
+
+        // Una cita atendida de dos, con un servicio de cada una.
+        $cita = $this->citaFuturaAgendada();
+        $idCita = (int) $cita->id_cita;
+        $otro = (int) DB::scalar(
+            'SELECT s.id_servicio FROM servicio s
+              WHERE s.activo = 1 AND s.precio > 0
+                AND NOT EXISTS (SELECT 1 FROM cita_servicio cs WHERE cs.id_cita = ? AND cs.id_servicio = s.id_servicio)
+              ORDER BY s.id_servicio LIMIT 1', [$idCita]);
+        DB::update('UPDATE cita SET personas = 2, id_estado_cita = 4, id_sucursal = ? WHERE id_cita = ?', [$suc, $idCita]);
+        DB::update('UPDATE cita_servicio SET persona = 1 WHERE id_cita = ?', [$idCita]);
+        DB::insert('INSERT INTO cita_servicio (id_cita, id_servicio, persona) VALUES (?, ?, 2)', [$idCita, $otro]);
+        DB::insert('INSERT INTO cita_acompanante (id_cita, orden, nombre, apellido) VALUES (?, 2, ?, ?)',
+            [$idCita, 'Josefina', 'Prueba']);
+        $mio = (int) DB::scalar('SELECT id_servicio FROM cita_servicio WHERE id_cita = ? AND persona = 1', [$idCita]);
+
+        $citaObj = DB::selectOne(
+            "SELECT c.*, CONCAT(pe.nombre,' ',pe.apellido) AS cliente FROM cita c
+               JOIN cliente cl ON cl.id_cliente = c.id_cliente JOIN persona pe ON pe.id_persona = cl.id_persona
+              WHERE c.id_cita = ?", [$idCita]);
+        $cuenta = Acompanantes::cuenta($citaObj, Acompanantes::deCitas([$idCita])[$idCita] ?? []);
+        $efectivo = (int) DB::scalar("SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1 AND tipo = 'EFECTIVO'");
+
+        // 1) Josefina paga lo suyo desde la agenda: el sistema manda a emitir SU comprobante.
+        $r = $this->post(route('facturacion.sena'), [
+            'id_cita' => $idCita, 'dia' => date('Y-m-d'), 'modo_pago' => 'persona', 'persona' => 2,
+            'metodo' => [$efectivo], 'monto' => [(string) (int) $cuenta[2]['total']],
+        ]);
+        $r->assertRedirect(route('facturacion.emitir', ['cita' => $idCita, 'persona' => 2]));
+
+        // 2) La pantalla de emitir la trae ELEGIDA, y ofrece «toda la cita» todavía.
+        $html = $this->get(route('facturacion.emitir', ['cita' => $idCita, 'persona' => 2]))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<option value="2"[^>]*selected[^>]*>\s*Sólo Josefina Prueba/', $html,
+            'La pantalla de emitir tiene que venir con la persona cobrada ya elegida.');
+
+        // Emitir por las pantallas: con SIFEN prendido, `emitir.guardar` pasa
+        // por la del receptor —que tiene que arrastrar la persona— y es ésa
+        // la que emite; apagado, emite directo. El camino real en los dos casos.
+        $emitir = function (int $persona) use ($idCita): void {
+            $r = $this->post(route('facturacion.emitir.guardar'), [
+                'id_cita' => $idCita, 'persona' => $persona, 'id_tipo_comprobante' => '1', 'id_condicion_venta' => 1,
+            ]);
+            $destino = (string) $r->headers->get('Location');
+            if (str_contains($destino, 'receptor')) {
+                $this->assertStringContainsString('persona=' . $persona, $destino,
+                    'La pantalla del receptor tiene que recibir de quién es el comprobante.');
+                $this->post(route('facturacion.receptor.guardar'), [
+                    'id_cita' => $idCita, 'persona' => $persona, 'id_tipo_comprobante' => 1, 'id_condicion_venta' => 1,
+                    'tipo_doc' => 'CF', 'documento' => '', 'nombre' => '', 'email' => '', 'direccion' => '', 'telefono' => '',
+                ]);
+            }
+        };
+
+        // 3) Su factura: sólo lo suyo, marcada como suya, y saldada por SU cobro.
+        $emitir(2);
+        $f2 = DB::selectOne('SELECT id_factura, persona FROM factura WHERE id_cita = ? AND id_estado_factura = 1 ORDER BY id_factura DESC LIMIT 1', [$idCita]);
+        $msgs = array_column((array) session('sgp_flash', []), 'msg');
+        $this->assertNotNull($f2, 'La factura de Josefina tiene que emitirse: ' . (string) end($msgs));
+        $this->assertSame(2, (int) $f2->persona, 'Y tiene que ser SUYA, no de toda la cita: ése era el defecto.');
+        $this->assertSame([$otro], array_map('intval', array_column(
+            DB::select('SELECT id_servicio FROM detalle_factura WHERE id_factura = ?', [(int) $f2->id_factura]), 'id_servicio')),
+            'Con sólo sus servicios adentro.');
+        $this->assertEqualsWithDelta(0, (float) DB::scalar('SELECT fn_factura_saldo(?)', [(int) $f2->id_factura]), 0.01,
+            'Y saldada con lo que ella pagó: nada de dejarle una deuda a la otra.');
+
+        // 4) La cita sigue en la lista de emitir —falta la de Andrea— y «toda
+        //    la cita» ya no se ofrece: volvería a cobrar lo de Josefina.
+        $html = $this->get(route('facturacion.emitir', ['cita' => $idCita]))->assertOk()->getContent();
+        $this->assertStringContainsString('name="id_cita" value="' . $idCita . '"', $html,
+            'A medio facturar, la cita tiene que seguir en la lista: la segunda todavía no tiene el suyo.');
+        $this->assertMatchesRegularExpression('/<option value="0"[^>]*disabled[^>]*>\s*Toda la cita/', $html,
+            'Con una ya facturada, «toda la cita» se apaga.');
+
+        // 5) Cobrar «todo junto» ahora se rechaza: se cobra por persona.
+        $this->post(route('facturacion.sena'), [
+            'id_cita' => $idCita, 'dia' => date('Y-m-d'), 'modo_pago' => 'junto',
+            'metodo' => [$efectivo], 'monto' => [(string) (int) $cuenta[1]['total']],
+        ]);
+        $this->assertSame(1, (int) DB::scalar('SELECT COUNT(*) FROM cobro WHERE id_cita = ? AND id_estado_cobro = 1', [$idCita]),
+            'Con una ya facturada, el cobro «de todas» no entra.');
+
+        // 6) Andrea paga lo suyo y se lleva el suyo: la cita queda facturada entera.
+        $this->post(route('facturacion.sena'), [
+            'id_cita' => $idCita, 'dia' => date('Y-m-d'), 'modo_pago' => 'persona', 'persona' => 1,
+            'metodo' => [$efectivo], 'monto' => [(string) (int) $cuenta[1]['total']],
+        ])->assertRedirect(route('facturacion.emitir', ['cita' => $idCita, 'persona' => 1]));
+        $emitir(1);
+        $f1 = DB::selectOne('SELECT id_factura, persona FROM factura WHERE id_cita = ? AND id_estado_factura = 1 AND persona = 1', [$idCita]);
+        $msgs = array_column((array) session('sgp_flash', []), 'msg');
+        $this->assertNotNull($f1, 'La factura de la titular también tiene que salir: ' . (string) end($msgs));
+        $this->assertSame([$mio], array_map('intval', array_column(
+            DB::select('SELECT id_servicio FROM detalle_factura WHERE id_factura = ?', [(int) $f1->id_factura]), 'id_servicio')));
+        $this->assertEqualsWithDelta(0, (float) DB::scalar('SELECT fn_factura_saldo(?)', [(int) $f1->id_factura]), 0.01);
+
+        $html = $this->get(route('facturacion.emitir'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('name="id_cita" value="' . $idCita . '"', $html,
+            'Con las dos facturadas, la cita sale de la lista.');
+
+        // 7) Y la lista de facturas dice de qué cita es cada una, y de quién.
+        $html = $this->get(route('facturacion.facturas', ['q' => $citaObj->cliente]))->assertOk()->getContent();
+        $this->assertStringContainsString('de Josefina Prueba', $html,
+            'La lista de facturas tiene que decir de quién es el comprobante de UNA persona.');
+        $this->assertStringContainsString(fecha($citaObj->fecha_hora), $html,
+            'Y de qué cita: la fecha y hora, no sólo la clienta.');
     }
 
     // -----------------------------------------------------------------

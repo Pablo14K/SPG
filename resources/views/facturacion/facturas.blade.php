@@ -26,7 +26,7 @@
     <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
         <h2 class="sgp-form-titulo mb-2">
             <i class="bi bi-receipt"></i>
-            Falta facturar {{ count($sinFacturar) }} atención{{ count($sinFacturar) === 1 ? '' : 'es' }}
+            Falta facturar {{ count($sinFacturar) }} {{ count($sinFacturar) === 1 ? 'atención' : 'atenciones' }}
         </h2>
         <div class="table-responsive sgp-tabla-movil">
             <table class="table table-sm align-middle mb-0" style="font-size:.86rem">
@@ -59,7 +59,7 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Nº</th><th>Cliente</th>
+                        <th>Nº</th><th>Cliente</th><th>Cita</th>
                         <th class="text-end">Total</th>
                         <th class="text-end">Saldo</th><th class="text-end">Acciones</th>
                     </tr>
@@ -72,7 +72,25 @@
                                 <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $r->id_factura]) }}">
                                     {{ $r->nro_comprobante }}</a>
                             </td>
-                            <td data-label="Cliente">{{ $r->cliente }}</td>
+                            <td data-label="Cliente">
+                                {{ $r->cliente }}
+                                @if (! empty($r->de_quien))
+                                    {{-- El comprobante de UNA de las que vinieron: se dice
+                                         de quién, que el cliente de la factura es la titular. --}}
+                                    <div style="font-size:.78rem"><span class="badge-estado e-muted">de {{ $r->de_quien }}</span></div>
+                                @endif
+                            </td>
+                            {{-- **De qué cita es**: cuándo fue y qué se facturó. Con dos
+                                 comprobantes de la misma clienta el nombre solo no los
+                                 distingue. --}}
+                            <td data-label="Cita" style="font-size:.84rem">
+                                @if ($r->id_cita)
+                                    <div style="white-space:nowrap">{{ fecha($r->cita_fecha) }}</div>
+                                    <div class="text-muted-warm">{{ $r->servicios ?: '—' }}</div>
+                                @else
+                                    <span class="text-muted-warm">—</span>
+                                @endif
+                            </td>
                             <td class="text-end" data-label="Total">{{ money($r->total) }}</td>
                             <td class="text-end" data-label="Saldo">
                                 @if ((float) $r->saldo > 0.01)
@@ -103,7 +121,7 @@
                         </tr>
                         {{-- Expandable detail row --}}
                         <tr class="sgp-fila-detalle">
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="collapse" id="detFac{{ $r->id_factura }}">
                                     <div class="sgp-det-cuerpo">
                                         <div class="sgp-det-grid">
@@ -138,7 +156,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="sgp-vacio">
                                     <i class="bi bi-receipt"></i>
                                     <div class="t">{{ $f['activos'] ? 'Ningún comprobante coincide con esos filtros.' : 'Todavía no se emitió ningún comprobante.' }}</div>

@@ -76,75 +76,46 @@
                  suyo por separado. Antes esto se preguntaba en «Detalles», o
                  sea después de elegir los servicios — cuando ya no se podía
                  decir de quién era cada uno. --}}
+            {{-- **Tres preguntas, en el orden en que se contestan** (pedido del
+                 usuario, 7.119.0: «las preguntas de la primera sección están mal
+                 organizadas»). Antes iban cuántas → quiénes vienen → «no es para
+                 mí» → mis alergias: se preguntaba cuántas antes de saber quién se
+                 sienta en el sillón, y «mis alergias» aparecía al final aunque la
+                 cita fuera para otra. Ahora: **quién se atiende** —vos u otra
+                 persona, con las alergias de ESA—, y después **si viene alguien
+                 más** —cuántas en total y quiénes—. --}}
             <div class="sgp-seccion" data-paso="Personas" data-paso-requiere="#personas"
                  data-paso-error="Decinos para cuántas personas es la cita.">
                 <div class="sgp-seccion-head">
-                    <label class="form-label">¿Para quiénes es la cita? *</label>
+                    <label class="form-label">¿Para quién es la cita? *</label>
                 </div>
                 <div class="sgp-detalle-grupo">
-                    <div class="mb-3" style="max-width:220px">
-                        <label class="form-label" for="personas">¿Cuántas personas se atienden?</label><x-ayuda campo="personas" />
-                        <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}"
-                               data-solo="numeros" inputmode="numeric" maxlength="2" required pattern="([1-9]|1[0-9]|20)" title="Un número entre 1 y 20"
-                               data-acomp="#bloqueAcomp">
-                    </div>
-
-                    {{-- **Quiénes vienen, no sólo cuántas.** El número decía que iban a
-                         llegar tres y el salón no sabía a quiénes esperar. Los campos
-                         los dibuja `app.js` según el número: la primera persona NO se
-                         pide, porque es la clienta que está reservando y su nombre ya
-                         lo tiene el sistema. --}}
-                    <div class="mb-3" id="bloqueAcomp" style="max-width:420px"
-                         data-acomp-titulo="¿Quién viene con vos?|¿Quiénes vienen con vos?"
-                         data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
-                             'nombre' => $v,
-                             'apellido' => old('acomp_apellido.' . $k, ''),
-                             'alergias' => old('acomp_alergias.' . $k, ''),
-                         ]])) }}"></div>
-
-                    {{-- **La cita puede ser para otra persona.** Una clienta reserva
-                         para su hija o su madre, y esas citas SÍ se superponen con la
-                         suya a propósito: son dos personas. Sin declararlo, la
-                         validación de solape lo tomaba por un error.
-
-                         Arranca oculto el nombre y lo muestra el JS; sin `app.js` se
-                         ven los dos campos y se reserva igual. --}}
-                    <div class="mb-3">
+                    {{-- **1. Quién se atiende.** Dos opciones y no una casilla: «no
+                         es para mí» se leía como una excepción escondida, y es la
+                         primera decisión. Los dos van con el mismo `name`, así que
+                         el servidor sigue leyendo `para_otra_persona` = 0 o 1. --}}
+                    <div class="d-flex gap-3 flex-wrap mb-2">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="para_otra_persona" value="1"
-                                   id="paraOtro" @checked(old('para_otra_persona'))>
-                            <label class="form-check-label" for="paraOtro">
-                                La cita no es para mí: es para otra persona
-                            </label>
+                            <input class="form-check-input" type="radio" name="para_otra_persona" value="0"
+                                   id="paraMi" @checked((string) old('para_otra_persona', '0') !== '1')>
+                            <label class="form-check-label" for="paraMi">Para mí</label>
                         </div>
-                        <div id="bloqueParaQuien" class="mt-2" style="max-width:320px">
-                            <label class="form-label" for="nombre_para">¿Para quién?</label><x-ayuda campo="nombre_para" />
-                            <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
-                                   value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
-
-                            {{-- **Sus alergias, que no son las tuyas.** La que se
-                                 sienta en el sillón es ella, así que la alergia de
-                                 tu ficha no dice nada de lo que se le puede poner.
-                                 Queda guardada en esta cita: no le abrimos una
-                                 ficha a alguien que el salón no registró. --}}
-                            <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
-                            <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
-                                      maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="para_otra_persona" value="1"
+                                   id="paraOtro" @checked((string) old('para_otra_persona', '0') === '1')>
+                            <label class="form-check-label" for="paraOtro">Para otra persona</label>
                         </div>
                     </div>
 
-                    {{-- **Tus alergias, acá y no sólo en Mi ficha.**
-
-                         Existen desde la 7.110.0 y hay que ir a buscarlas: al
-                         reservar es cuando una se acuerda —«ojo que la tintura
-                         me irrita»— y es el único dato que puede lastimar a
-                         alguien si nadie lo mira. Viene con lo que ya está
-                         cargado, así que no se pisa sin querer.
-
-                         **Éstas van a la FICHA y no a la cita**, al revés que
-                         las de los demás: es un dato de la persona, y el salón
-                         la tiene registrada — así le queda para la próxima. --}}
-                    <div class="mb-0" style="max-width:420px">
+                    {{-- **Tus alergias, acá y no sólo en Mi ficha.** Al reservar
+                         es cuando una se acuerda —«ojo que la tintura me irrita»—
+                         y es el único dato que puede lastimar a alguien si nadie
+                         lo mira. Viene con lo que ya está cargado, así que no se
+                         pisa sin querer. **Va a la FICHA y no a la cita**: es un
+                         dato de la persona, y el salón la tiene registrada — así
+                         le queda para la próxima. Se esconde cuando la cita es
+                         para otra: la que se sienta en el sillón es ella. --}}
+                    <div class="mb-3" id="bloqueMisAlergias" style="max-width:420px">
                         <label class="form-label" for="alergias_titular">Mis alergias</label><x-ayuda campo="alergias_titular" />
                         <textarea class="form-control" id="alergias_titular" name="alergias_titular" rows="2"
                                   maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_titular', $misAlergias) }}</textarea>
@@ -153,6 +124,51 @@
                              que ya tenías. --}}
                         <input type="hidden" name="alergias_titular_base" value="{{ $misAlergias }}">
                     </div>
+
+                    {{-- **La cita para otra persona.** Una clienta reserva para su
+                         hija o su madre, y esas citas SÍ se superponen con la suya
+                         a propósito: son dos personas. Sin declararlo, la
+                         validación de solape lo tomaba por un error. Arranca
+                         visible y lo esconde el JS; sin `app.js` se ven los dos
+                         bloques y se reserva igual. --}}
+                    <div id="bloqueParaQuien" class="mb-3" style="max-width:420px">
+                        <label class="form-label" for="nombre_para">¿Quién se atiende?</label><x-ayuda campo="nombre_para" />
+                        <input class="form-control" id="nombre_para" name="nombre_para" maxlength="120"
+                               value="{{ old('nombre_para') }}" placeholder="Nombre de quien se atiende">
+
+                        {{-- **Sus alergias, que no son las tuyas.** Queda guardada
+                             en esta cita: no le abrimos una ficha a alguien que el
+                             salón no registró. --}}
+                        <label class="form-label mt-2" for="alergias_para">Sus alergias</label><x-ayuda campo="alergias_para" />
+                        <textarea class="form-control" id="alergias_para" name="alergias_para" rows="2"
+                                  maxlength="300" placeholder="Amoníaco, tinturas con PPD, látex…">{{ old('alergias_para') }}</textarea>
+                    </div>
+
+                    {{-- **2. Si viene alguien más.** Cuántas en total —contando a
+                         quien se atiende— y quiénes: con más de una, cada servicio
+                         pregunta después para quién es, y al final cada una puede
+                         cobrar y facturar lo suyo por separado. --}}
+                    <div class="sgp-seccion-head mt-2">
+                        <label class="form-label">¿Viene alguien más? *</label>
+                    </div>
+                    <div class="mb-3" style="max-width:420px">
+                        <label class="form-label" for="personas">¿Cuántas personas se atienden, en total?</label><x-ayuda campo="personas" />
+                        <input class="form-control" id="personas" name="personas" value="{{ old('personas', 1) }}" style="max-width:140px"
+                               data-solo="numeros" inputmode="numeric" maxlength="2" required pattern="([1-9]|1[0-9]|20)" title="Un número entre 1 y 20"
+                               data-acomp="#bloqueAcomp">
+                    </div>
+
+                    {{-- **Quiénes vienen, no sólo cuántas.** El número decía que iban a
+                         llegar tres y el salón no sabía a quiénes esperar. Los campos
+                         los dibuja `app.js` según el número: la primera persona NO se
+                         pide, porque es quien se atiende y ya se dijo arriba. --}}
+                    <div class="mb-0" id="bloqueAcomp" style="max-width:420px"
+                         data-acomp-titulo="¿Quién viene con vos?|¿Quiénes vienen con vos?"
+                         data-acomp-previos="{{ json_encode(collect(old('acomp_nombre', []))->mapWithKeys(fn ($v, $k) => [$k => [
+                             'nombre' => $v,
+                             'apellido' => old('acomp_apellido.' . $k, ''),
+                             'alergias' => old('acomp_alergias.' . $k, ''),
+                         ]])) }}"></div>
                 </div>
             </div>
 

@@ -112,8 +112,32 @@
                                     <div style="font-size:.78rem"><i class="bi bi-arrow-return-right"></i> la que elegiste</div>
                                 @endif
                             </td>
-                            <td>{{ $c->cliente }}</td>
-                            <td class="text-muted-warm">{{ $c->servicios ?: '—' }}</td>
+                            <td>
+                                {{ $c->cliente }}
+                                @if ((int) $c->personas > 1)
+                                    <span class="badge-estado e-muted">{{ (int) $c->personas }} personas</span>
+                                @endif
+                            </td>
+                            <td class="text-muted-warm">
+                                @php $sgpCta = $cuentas[(int) $c->id_cita] ?? null; @endphp
+                                @if ($sgpCta)
+                                    {{-- Qué se hizo cada una, y quién ya se fue con su
+                                         comprobante: es lo que hace falta para elegir de
+                                         quién es el que se emite ahora. --}}
+                                    @foreach ($sgpCta as $sgpP => $sgpX)
+                                        @continue ($sgpP === 0 || ! $sgpX['servicios'])
+                                        <div style="font-size:.84rem">
+                                            <strong class="text-body">{{ $sgpX['nombre'] }}:</strong>
+                                            {{ implode(', ', $sgpX['servicios']) }}
+                                            @if ($sgpX['id_factura'])
+                                                <span class="badge-estado e-ok" title="Ya tiene su comprobante">{{ $sgpX['nro'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                @else
+                                    {{ $c->servicios ?: '—' }}
+                                @endif
+                            </td>
                             {{-- El total con lo que ya está pago por puntos y con el
                                  descuento que la base va a aplicar sola. Antes salía la
                                  suma pelada de los servicios, que casi nunca es lo que
@@ -145,6 +169,28 @@
                                           class="d-flex gap-1 justify-content-end">
                                         @csrf
                                         <input type="hidden" name="id_cita" value="{{ $c->id_cita }}">
+                                        {{-- **¿De quién es el comprobante?** En la cita de
+                                             varias cada una puede llevarse el suyo (7.117.0),
+                                             y hasta la 7.119.0 esta pantalla no lo preguntaba:
+                                             se cobraba por persona y el comprobante salía
+                                             igual de toda la cita, dejándole una deuda a la
+                                             otra. «Toda la cita» se apaga en cuanto alguna ya
+                                             tiene el suyo: volvería a cobrar lo de ella. --}}
+                                        @if ($sgpCta)
+                                            @php
+                                                $sgpAlguna = (bool) array_filter($sgpCta, fn ($x, $p) => $p > 0 && $x['id_factura'], ARRAY_FILTER_USE_BOTH);
+                                                $sgpSel = $elegida ? $sel_persona : 0;
+                                            @endphp
+                                            <select class="form-select form-select-sm" name="persona" style="width:auto"
+                                                    title="¿De quién es el comprobante?">
+                                                <option value="0" @disabled($sgpAlguna) @selected($sgpSel === 0 && ! $sgpAlguna)>Toda la cita</option>
+                                                @foreach ($sgpCta as $sgpP => $sgpX)
+                                                    @continue ($sgpP === 0 || ! $sgpX['servicios'] || $sgpX['id_factura'])
+                                                    <option value="{{ $sgpP }}" @selected($sgpSel === $sgpP || ($sgpSel === 0 && $sgpAlguna && $loop->first))>
+                                                        Sólo {{ $sgpX['nombre'] }} · {{ money($sgpX['total']) }}</option>
+                                                @endforeach
+                                            </select>
+                                        @endif
                                         {{-- **Las dos formas de la factura, nombradas.**
                                              «Factura (se declara)» era una sola opción y
                                              dejaba fuera el caso de todos los días: la

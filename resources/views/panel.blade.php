@@ -39,9 +39,16 @@
                 {{-- El posesivo dice de quién son: quien no administra la
                      agenda ve LAS SUYAS, no las del salón, y el rótulo lo
                      tiene que decir. --}}
+                {{-- **El atajo a la agenda va en el título, siempre.** Estaba
+                     sólo en la cabecera de las atrasadas, así que un día sin
+                     ninguna se quedaba sin él; se reportó como que «el acceso
+                     rápido a agenda ya no está» (7.119.0). --}}
                 <h2 class="panel-box-titulo">
                     <i class="bi bi-calendar-check"></i>
                     {{ $verTodo ? 'Próximas citas' : 'Mis próximas citas' }}
+                    @if (Navegacion::existe('citas.agenda'))
+                        <a class="link-oro panel-box-atajo" href="{{ Navegacion::url('citas.agenda') }}">ir a la agenda &rarr;</a>
+                    @endif
                 </h2>
 
                 <div class="panel-box-inner flex-grow-1">
@@ -51,9 +58,6 @@
                                 <div class="sgp-lista-cab">
                                     <strong class="txt-no"><i class="bi bi-clock-history"></i> Atrasadas
                                         <span class="badge-estado e-no">{{ $atrasadasTotal }}</span></strong>
-                                    @if (Navegacion::existe('citas.agenda'))
-                                        <a class="link-oro" style="font-size:.78rem" href="{{ Navegacion::url('citas.agenda') }}">ir a la agenda &rarr;</a>
-                                    @endif
                                 </div>
                                 <ul class="list-unstyled mb-0 sgp-lista-citas">
                                     @foreach ($atrasadas as $c)

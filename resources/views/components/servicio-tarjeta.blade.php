@@ -120,25 +120,35 @@
         <div class="sgp-srv-extra">{{ $slot }}</div>
     @endif
 
-    {{-- **Para quién es este servicio, cuando vienen varias.** Con tres amigas
-         en la misma cita, «corte, mechas, manicura» no decía de quién era cada
-         cosa, así que no se podía cobrar a cada una lo suyo ni hacerle su
-         propio comprobante.
+    {{-- **Para quiénes es este servicio, cuando vienen varias.** Con tres
+         amigas en la misma cita, «corte, mechas, manicura» no decía de quién
+         era cada cosa, así que no se podía cobrar a cada una lo suyo ni
+         hacerle su propio comprobante.
 
-         Las opciones las escribe `app.js` con los nombres que se cargaron en
+         **Son casillas y no un combo** (7.119.0): el mismo servicio puede ser
+         para VARIAS —dos amigas que vienen a cortarse el pelo marcan las dos
+         en «Corte», y salen dos cortes—. Con el combo había que reservar dos
+         citas, y era lo reportado. Un `<select multiple>` no: el segundo se
+         marca con Ctrl+clic, que nadie adivina (7.102.0).
+
+         Las casillas las escribe `app.js` con los nombres que se cargaron en
          el paso «Personas», y el bloque sólo aparece con más de una persona y
          con el servicio marcado. **Va FUERA de `sgp-srv-extra`**: ese nodo se
          muda entero al paso «Profesionales», y esta pregunta es del paso de
          los servicios. Sin JavaScript queda escondido y el servidor lo toma
          como de la titular, que es lo que siempre fue. --}}
     @if ($paraQuien)
+        @php $sgpElegidas = array_values(array_filter(array_map('intval', (array) old('para.' . $s->id_servicio, [1])))) ?: [1]; @endphp
         <div class="sgp-srv-para" data-para-de="#{{ $id }}" hidden>
-            <label class="form-label mb-1" for="para{{ $id }}">¿Para quién?</label>
-            <select class="form-select form-select-sm" name="para[{{ $s->id_servicio }}]"
-                    id="para{{ $id }}" data-para-select
-                    data-elegido="{{ (int) old('para.' . $s->id_servicio, 1) }}">
-                <option value="1">Persona 1</option>
-            </select>
+            <div class="form-label mb-1">¿Para quién? <span class="text-muted-warm">(puede ser para más de una)</span></div>
+            <div class="sgp-srv-para-lista" data-para-lista="{{ $s->id_servicio }}"
+                 data-elegido="{{ implode(',', $sgpElegidas) }}">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="para[{{ $s->id_servicio }}][]"
+                           value="1" id="para{{ $id }}_1" data-para-check checked>
+                    <label class="form-check-label" for="para{{ $id }}_1">Persona 1</label>
+                </div>
+            </div>
         </div>
     @endif
 </div>

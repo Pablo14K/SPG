@@ -108,6 +108,10 @@ class CitaTokenController extends Controller
                FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
         );
         $servicios = array_values(array_filter(array_map('intval', explode(',', (string) ($ctx->servicios_ids ?? '')))));
+        // Un servicio pedido para dos personas es una fila por persona: la
+        // cita se mide con las dos (7.119.0).
+        Agenda::vecesPorServicio([], $servicios);
+        $servicios = array_values(array_unique($servicios));
         $idUsuario = ((int) ($ctx->id_usuario ?? 0)) ?: null;
         $suc = ((int) ($ctx->id_sucursal ?? 0)) ?: null;
         $personas = max(1, min(20, (int) ($ctx->personas ?? 1)));

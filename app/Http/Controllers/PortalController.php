@@ -120,6 +120,9 @@ class PortalController extends Controller
         // peor caso —la suma— y cerraba el calendario diciendo que no entraba
         // en el turno.
         $personas = max(1, min(20, (int) $request->query('personas', 1)));
+        // **Y cuántas veces va cada servicio**: un servicio marcado para dos
+        // personas son dos, y eso cambia la duración (7.119.0).
+        Agenda::vecesPorServicio((array) $request->query('veces', []), $servicios);
         // **Y con quién quiere atenderse CADA servicio.**
         //
         // Sin esto el calendario ofrecía horarios fuera del turno de las
@@ -401,6 +404,15 @@ class PortalController extends Controller
             return $volver;
         }
 
+        // **Para quiénes es cada servicio, y por eso cuántas veces va.** Dos
+        // amigas que marcan las dos en «Corte» son dos cortes —dos filas, dos
+        // turnos si los hace la misma persona— y eso cambia cuánto dura la
+        // cita: se fija ANTES de medir, o el reparto y la validación medirían
+        // una cita que no es la que se va a guardar (7.119.0).
+        $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
+        Agenda::vecesPorServicio(Acompanantes::vecesDe($personaDe));
+        $dur = Agenda::duracion($servicios);
+
         if (! $idUsuario) {
             // **Si la clienta eligió a alguien, la cita es de esa persona.**
             //
@@ -494,11 +506,7 @@ class PortalController extends Controller
         }
 
         try {
-            // Para quién es cada servicio: con la cita de varias, cada tarjeta
-            // lo pregunta. Con una sola persona es todo de ella.
-            $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
-
-            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null, $personaDe);
+            $idCita = Agenda::agendar($idc, $idUsuario, $fecha, $dur, $obs, $asignacion, $idSucursal ?: null, $personaDe, $personas);
 
             // Los canjes que eligió quedan atados a esta cita, y con eso el
             // servicio va **a cero** en el comprobante. Se comprueban contra

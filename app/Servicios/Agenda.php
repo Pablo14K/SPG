@@ -144,19 +144,71 @@ class Agenda
         );
     }
 
-    /** Duración total, en minutos, de una lista de servicios. */
+    /**
+     * Duración total, en minutos, de una lista de servicios — el peor caso,
+     * todo en serie. Un servicio pedido para varias personas cuenta tantas
+     * veces como personas: las que diga `vecesPorServicio()`, o las veces que
+     * el id venga repetido en la lista —que es como sale de `cita_servicio`,
+     * una fila por persona—.
+     */
     public static function duracion(array $idsServicio): int
     {
-        $ids = array_values(array_filter(array_map('intval', $idsServicio)));
+        $cuenta = array_count_values(array_filter(array_map('intval', $idsServicio)));
+        $ids = array_keys($cuenta);
         if (! $ids) {
             return 0;
         }
         $in = implode(',', array_fill(0, count($ids), '?'));
 
-        return (int) DB::scalar(
-            "SELECT COALESCE(SUM(duracion_min),0) FROM servicio WHERE activo=1 AND id_servicio IN ($in)",
-            $ids
-        );
+        $total = 0;
+        foreach (DB::select("SELECT id_servicio, duracion_min FROM servicio WHERE activo=1 AND id_servicio IN ($in)", $ids) as $s) {
+            $sid = (int) $s->id_servicio;
+            $total += (int) $s->duracion_min * max($cuenta[$sid] ?? 1, self::vecesDe($sid));
+        }
+
+        return $total;
+    }
+
+    /**
+     * Cuántas veces va cada servicio en la cita que se está armando.
+     *
+     * **El mismo servicio puede ser para varias personas** (7.119.0): dos
+     * amigas que vienen a cortarse el pelo marcan las dos en «Corte», y eso
+     * son dos cortes —dos filas de `cita_servicio`, dos turnos si los hace la
+     * misma persona—. El motor de la agenda está escrito por id de servicio
+     * y un mismo id no puede aparecer dos veces en un arreglo, así que la
+     * cantidad viaja aparte, por petición: los endpoints la leen de la
+     * consulta (`veces[id]`) y el guardado de lo que marcó la clienta.
+     *
+     * Vale hasta que se vuelva a fijar; sin fijar, cada servicio va una vez,
+     * que es lo que siempre fue.
+     *
+     * @param  array<int,int>  $veces    [id_servicio => cuántas]
+     * @param  array<int>      $lista    una lista de ids que puede venir con
+     *                                   repetidos —como sale de `cita_servicio`—:
+     *                                   cada repetido cuenta como una vez más
+     */
+    public static function vecesPorServicio(array $veces, array $lista = []): void
+    {
+        self::$veces = [];
+        foreach (array_count_values(array_filter(array_map('intval', $lista))) + [] as $sid => $n) {
+            $veces[$sid] = max((int) ($veces[$sid] ?? 1), (int) $n);
+        }
+        foreach ($veces as $sid => $n) {
+            $n = (int) $n;
+            if ((int) $sid > 0 && $n > 1) {
+                self::$veces[(int) $sid] = min(20, $n);
+            }
+        }
+    }
+
+    /** @var array<int,int> id_servicio => cuántas veces va */
+    private static array $veces = [];
+
+    /** Cuántas veces va ese servicio en la cita que se arma: 1 salvo que se haya fijado. */
+    public static function vecesDe(int $idServicio): int
+    {
+        return max(1, (int) (self::$veces[$idServicio] ?? 1));
     }
 
     /**
@@ -1778,7 +1830,8 @@ class Agenda
         $bloques = [];
         foreach ($asignacion as $idServicio => $idProf) {
             $idProf = (int) $idProf ?: $idPrincipal;
-            $bloques[$idProf] = ($bloques[$idProf] ?? 0) + ($dur[(int) $idServicio] ?? 0);
+            $bloques[$idProf] = ($bloques[$idProf] ?? 0)
+                + ($dur[(int) $idServicio] ?? 0) * self::vecesDe((int) $idServicio);
         }
 
         return $bloques;
@@ -2098,17 +2151,25 @@ class Agenda
         // Se acomodan de mayor a menor: el turno que más dura es el que fija el
         // largo total, así que poniéndolo primero lo demás entra adentro y la
         // cita termina antes.
+        // **Un servicio pedido para varias personas va tantas veces como
+        // personas** (7.119.0): dos cortes son dos ítems con la misma
+        // profesional, y el candado del profesional los pone en serie —igual
+        // que `fn_cita_duracion`, que suma lo de la misma persona—. Cada copia
+        // guarda su propio turno (`ordenDeCopias()`).
         $items = [];
         foreach ($srv as $sid => $x) {
             $prof = (int) ($asignacion[$sid] ?? 0) ?: $idPrincipal;
-            $items[] = [
-                'srv' => $sid,
-                'min' => $x['min'],
-                'zona' => $x['zona'],
-                'prof' => $prof,
-            ];
+            for ($copia = 0, $k = self::vecesDe((int) $sid); $copia < $k; $copia++) {
+                $items[] = [
+                    'srv' => $sid,
+                    'copia' => $copia,
+                    'min' => $x['min'],
+                    'zona' => $x['zona'],
+                    'prof' => $prof,
+                ];
+            }
         }
-        usort($items, fn ($a, $b) => $b['min'] <=> $a['min']);
+        usort($items, fn ($a, $b) => [$b['min'], $a['srv'], $a['copia']] <=> [$a['min'], $b['srv'], $b['copia']]);
 
         // Se busca el primer turno libre de zona y de profesional.
         //
@@ -2126,7 +2187,8 @@ class Agenda
         // dos cosas a la vez, vengan las que vengan.
         $cupoZona = max(1, $personas);
         $ocupado = [];   // [orden]['z']['z5'] => cuántas · [orden]['p'][3] => true
-        $porServicio = [];
+        $puestos = [];   // cada ítem con su turno, en el orden en que se acomodó
+        $ordenDeCopia = [];
         foreach ($items as $it) {
             $orden = 0;
             while (($ocupado[$orden]['z'][$it['zona']] ?? 0) >= $cupoZona
@@ -2135,14 +2197,15 @@ class Agenda
             }
             $ocupado[$orden]['z'][$it['zona']] = ($ocupado[$orden]['z'][$it['zona']] ?? 0) + 1;
             $ocupado[$orden]['p'][$it['prof']] = true;
-            $porServicio[$it['srv']] = ['orden' => $orden, 'min' => $it['min'], 'prof' => $it['prof']];
+            $puestos[] = ['srv' => $it['srv'], 'orden' => $orden, 'min' => $it['min'], 'prof' => $it['prof']];
+            $ordenDeCopia[$it['srv']][$it['copia']] = $orden;
         }
 
         // Cuánto dura cada turno: el servicio más largo que haya adentro. Es la
         // misma cuenta que hace `fn_cita_duracion` en la base, y tiene que
         // decir lo mismo — la base es la autoridad al guardar.
         $largoDeTurno = [];
-        foreach ($porServicio as $d) {
+        foreach ($puestos as $d) {
             $largoDeTurno[$d['orden']] = max($largoDeTurno[$d['orden']] ?? 0, $d['min']);
         }
         ksort($largoDeTurno);
@@ -2157,7 +2220,7 @@ class Agenda
         // Lo que se devuelve sigue siendo **por profesional**, porque es lo que
         // la agenda necesita: desde cuándo y por cuánto queda ocupado cada uno.
         $out = [];
-        foreach ($porServicio as $idSrv => $d) {
+        foreach ($puestos as $d) {
             $p = $d['prof'];
             $desde = $inicioDeTurno[$d['orden']];
             $hasta = $desde + $d['min'];
@@ -2176,8 +2239,14 @@ class Agenda
 
         // El orden que se guarda en `cita_servicio` es el del servicio, no el
         // del profesional: es lo que leen `fn_cita_duracion` y
-        // `fn_cita_inicio_de`.
-        self::$ordenPorServicio = array_map(fn ($d) => $d['orden'], $porServicio);
+        // `fn_cita_inicio_de`. Con el servicio pedido para varias, cada copia
+        // tiene el suyo.
+        foreach ($ordenDeCopia as $sid => $l) {
+            ksort($l);
+            $ordenDeCopia[$sid] = array_values($l);
+        }
+        self::$ordenPorCopia = $ordenDeCopia;
+        self::$ordenPorServicio = array_map(fn ($l) => $l[0], $ordenDeCopia);
 
         return $out;
     }
@@ -2185,10 +2254,19 @@ class Agenda
     /** El turno que le tocó a cada servicio en el último reparto calculado. */
     private static array $ordenPorServicio = [];
 
-    /** @return array<int,int> id_servicio => orden */
+    /** @var array<int,array<int>> id_servicio => el turno de cada copia */
+    private static array $ordenPorCopia = [];
+
+    /** @return array<int,int> id_servicio => orden (el de la primera copia) */
     public static function ordenDeServicios(): array
     {
         return self::$ordenPorServicio;
+    }
+
+    /** @return array<int,array<int>> id_servicio => [orden de cada copia] */
+    public static function ordenDeCopias(): array
+    {
+        return self::$ordenPorCopia;
     }
 
     /**
@@ -2360,12 +2438,15 @@ class Agenda
      * simultáneas reciben las dos «está libre» y se quedan con el mismo hueco.
      *
      * @param  array  $asignacion  [id_servicio => id_usuario] (0 = el principal)
-     * @param  array  $personaDe   [id_servicio => persona] para quién es cada
-     *                             servicio cuando la cita es de varias: 1 es la
-     *                             titular, 2..N los acompañantes por su `orden`.
-     *                             Lo que no venga es de la titular.
+     * @param  array  $personaDe   [id_servicio => [persona, …]] para quiénes es
+     *                             cada servicio cuando la cita es de varias: 1
+     *                             es la titular, 2..N los acompañantes por su
+     *                             `orden`. **Una fila por persona**: dos amigas
+     *                             en «Corte» son dos cortes. Lo que no venga es
+     *                             de la titular; un número suelto también vale.
+     * @param  int    $personas    cuántas vienen: decide qué puede ir a la vez
      */
-    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion, ?int $idSucursal = null, array $personaDe = []): int
+    public static function agendar(int $idCliente, int $idUsuario, string $fechaHora, int $duracion, ?string $observaciones, array $asignacion, ?int $idSucursal = null, array $personaDe = [], int $personas = 1): int
     {
         // Sin sucursal explícita se usa la activa de la sesión, que es el caso
         // del panel. El portal SÍ la pasa: la clienta elige el local al
@@ -2380,7 +2461,11 @@ class Agenda
             $idSucursal = (int) DB::scalar('SELECT id_sucursal FROM usuario WHERE id_usuario = ?', [$idUsuario]);
         }
 
-        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion, $idSucursal, $personaDe) {
+        // Cuántas veces va cada servicio: lo dice para quiénes es. Fijado acá
+        // para que `turnos()` mida lo mismo que se va a guardar.
+        self::vecesPorServicio(array_map(fn ($l) => count((array) $l), $personaDe));
+
+        return (int) Bd::enTransaccion(function () use ($idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $asignacion, $idSucursal, $personaDe, $personas) {
             $idCita = Bd::idDe('sp_agendar_cita',
                 [$idCliente, $idUsuario, $fechaHora, $duracion, $observaciones, $idSucursal]);
 
@@ -2388,29 +2473,39 @@ class Agenda
             // le dice a la agenda desde cuándo está ocupado ese profesional,
             // vía `fn_cita_inicio_de`. Sin esto, el segundo quedaría libre en la
             // franja en la que va a estar atendiendo acá.
-            self::turnos($asignacion, $idUsuario);
+            self::turnos($asignacion, $idUsuario, max(1, $personas));
             // **El turno es del SERVICIO, no del profesional.** Desde que la
             // zona del cuerpo decide, la misma persona puede tener dos servicios
             // en turnos distintos —coloración y lavado, las dos sobre el pelo—,
             // así que guardar el turno del profesional los aplastaba en uno solo
-            // y la cita salía durando el más largo en vez de la suma.
-            $orden = self::ordenDeServicios();
+            // y la cita salía durando el más largo en vez de la suma. Y con el
+            // servicio pedido para varias, cada copia lleva el suyo.
+            $orden = self::ordenDeCopias();
 
             foreach ($asignacion as $idServicio => $idProf) {
                 $otro = (int) $idProf;
                 $de = ($otro && $otro !== $idUsuario) ? $otro : $idUsuario;
-                // **Para quién es.** Con tres amigas en una cita, «corte,
+                // **Para quiénes es.** Con tres amigas en una cita, «corte,
                 // mechas, manicura» no dice de quién es cada cosa: sin esto no
                 // se le puede cobrar a cada una lo suyo ni hacerle su factura.
-                // Fuera de rango cae en 1 —la titular—, que es lo que siempre
-                // fue: el CHECK de la base rechazaría el resto igual.
-                $persona = (int) ($personaDe[(int) $idServicio] ?? 1);
-                DB::insert(
-                    'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden, persona) VALUES (?,?,?,?,?)',
-                    [$idCita, (int) $idServicio, $de === $idUsuario ? null : $de,
-                     (int) ($orden[(int) $idServicio] ?? 0),
-                     $persona >= 1 && $persona <= 20 ? $persona : 1]
-                );
+                // **Y una fila por persona**: dos amigas en «Corte» son dos
+                // cortes. Fuera de rango cae en 1 —la titular—, que es lo que
+                // siempre fue: el CHECK de la base rechazaría el resto igual.
+                $lista = [];
+                foreach ((array) ($personaDe[(int) $idServicio] ?? [1]) as $p) {
+                    $p = (int) $p;
+                    $lista[($p >= 1 && $p <= 20) ? $p : 1] = true;
+                }
+                $copia = 0;
+                foreach (array_keys($lista) as $persona) {
+                    DB::insert(
+                        'INSERT INTO cita_servicio (id_cita, id_servicio, id_usuario, orden, persona) VALUES (?,?,?,?,?)',
+                        [$idCita, (int) $idServicio, $de === $idUsuario ? null : $de,
+                         (int) ($orden[(int) $idServicio][$copia] ?? $orden[(int) $idServicio][0] ?? 0),
+                         $persona]
+                    );
+                    $copia++;
+                }
             }
 
             return $idCita;

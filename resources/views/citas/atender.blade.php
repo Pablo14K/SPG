@@ -370,10 +370,12 @@
                  mismos tres arreglos posicionales, así que el guardado no se
                  tocó — lo único que cambió es quién contesta el tercero.
 
-                 Los servicios son los de ESTA cita (`$servDeLaCita`): lo que se
-                 pidió más lo que ya se registró. Uno que no quede como
-                 realizado hace que su producto se rechace con su nombre, que es
-                 lo que ya hacía el guardado. --}}
+                 Los servicios son los de ESTA cita (`$servDeLaCita`) **y de
+                 quien está cerrando**: lo que se pidió con ella más lo que ya
+                 registró. El Administrador ve los de todas, y al elegir de
+                 quién cierra los demás grupos se esconden (`data-prod-de`).
+                 Uno que no quede como realizado hace que su producto se
+                 rechace con su nombre, que es lo que ya hacía el guardado. --}}
             @if (! count($servDeLaCita))
                 <div class="alert alert-warning" style="font-size:.85rem">
                     Esta cita todavía no tiene ningún servicio, así que no hay a qué
@@ -383,7 +385,7 @@
 
             <div id="filasProductos">
                 @foreach ($servDeLaCita as $sv)
-                    <div class="sgp-prod-grupo" data-prod-grupo="{{ $sv->id_servicio }}">
+                    <div class="sgp-prod-grupo" data-prod-grupo="{{ $sv->id_servicio }}" data-prod-de="{{ (int) ($sv->de ?? 0) }}">
                         <div class="sgp-grupo-rotulo">En {{ $sv->nombre }}</div>
                         <div class="sgp-prod-filas">
                             @for ($i = 0; $i < 2; $i++)
@@ -499,6 +501,22 @@ function sgpUnidad(fila) {
 document.getElementById('filasProductos')?.addEventListener('change', function (e) {
     if (e.target.name === 'producto[]') { sgpUnidad(e.target.closest('.filaProducto')); }
 });
+
+// **Los productos van bajo los servicios de QUIEN cierra.** El Administrador
+// ve los grupos de todas; al elegir de quién está cerrando, los de las demás
+// se esconden — lo que usó la otra lo carga la otra, con su parte.
+(function () {
+    var de = document.getElementById('cerrarDe');
+    if (!de) { return; }
+    function acotar() {
+        var quien = de.value;
+        document.querySelectorAll('[data-prod-de]').forEach(function (g) {
+            g.hidden = quien !== '0' && g.getAttribute('data-prod-de') !== quien;
+        });
+    }
+    de.addEventListener('change', acotar);
+    acotar();
+})();
 
 // **Quitar y agregar trabajan DENTRO de su grupo.** Cada servicio tiene sus
 // filas, así que «Otra fila» tiene que clonar una de ESE bloque: clonando la

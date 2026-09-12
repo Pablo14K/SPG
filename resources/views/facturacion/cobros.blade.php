@@ -6,6 +6,56 @@
     <x-encabezado :sub="'Total ' . ($f['activos'] ? 'de lo filtrado' : 'general')
                         . ': <strong class=\'txt-oro\'>' . money($totalFiltrado) . '</strong> (sin contar los anulados)'" />
 
+    {{-- **Lo que falta cobrar, arriba del historial** (pedido del usuario,
+         7.119.0). La pantalla era sólo el historial, así que la atención que
+         la clienta debía no aparecía en ningún lado. El botón abre el cobro
+         donde vive su ventana —la agenda, con la ventana ya abierta— o, si la
+         cita ya tiene comprobante, Facturas, que es contra lo que se cobra. --}}
+    @if (! empty($porCobrar))
+        <div class="sgp-panel mb-3" style="border-left:3px solid var(--oro)">
+            <h2 class="sgp-form-titulo mb-2">
+                <i class="bi bi-cash-coin"></i>
+                Falta cobrar {{ count($porCobrar) }} {{ count($porCobrar) === 1 ? 'atención' : 'atenciones' }}
+            </h2>
+            <div class="table-responsive sgp-tabla-movil">
+                <table class="table table-sm align-middle mb-0" style="font-size:.86rem">
+                    <thead>
+                        <tr><th>Cuándo</th><th>Clienta</th><th class="text-end">Total</th>
+                            <th class="text-end">Cobrado</th><th class="text-end">Falta</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($porCobrar as $pc)
+                            <tr id="porCobrar{{ (int) $pc->id_cita }}">
+                                <td class="text-muted-warm sgp-movil-titulo" style="white-space:nowrap" data-label="Cuándo">
+                                    {{ fecha($pc->fecha_hora, 'd/m H:i') }}</td>
+                                <td data-label="Clienta">
+                                    {{ $pc->cliente }}
+                                    @if ((int) $pc->personas > 1)
+                                        <span class="badge-estado e-muted">{{ (int) $pc->personas }} personas</span>
+                                    @endif
+                                </td>
+                                <td class="text-end" data-label="Total">{{ money($pc->total) }}</td>
+                                <td class="text-end text-muted-warm" data-label="Cobrado">{{ (float) $pc->cobrado > 0 ? money($pc->cobrado) : '—' }}</td>
+                                <td class="text-end" data-label="Falta"><strong class="txt-no">{{ money((float) $pc->total - (float) $pc->cobrado) }}</strong></td>
+                                <td class="text-end sgp-movil-acciones">
+                                    @if ((int) $pc->facturas > 0)
+                                        <a class="btn btn-sm btn-oro" title="Ya tiene comprobante: se cobra contra él, en Facturas"
+                                           href="{{ route('facturacion.facturas', ['q' => $pc->cliente, 'saldo' => 'pend']) }}">
+                                            <i class="bi bi-cash-coin"></i> Cobrar</a>
+                                    @else
+                                        <a class="btn btn-sm btn-oro" title="Abre la ventana de cobro de esta cita"
+                                           href="{{ route('citas.agenda', ['dia' => fecha($pc->fecha_hora, 'Y-m-d'), 'cobrar' => $pc->id_cita]) }}">
+                                            <i class="bi bi-cash-coin"></i> Cobrar</a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     <div class="sgp-panel">
         <x-filtros :f="$f" />
 

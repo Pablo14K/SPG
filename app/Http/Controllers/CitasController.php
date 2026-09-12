@@ -84,6 +84,9 @@ class CitasController extends Controller
         // peor caso y contestaba «no entra en el turno» a una cita que el salón
         // hace todos los días.
         $personas = max(1, min(20, (int) $request->query('personas', 1)));
+        // **Y cuántas veces va cada servicio**: un servicio marcado para dos
+        // personas son dos, y eso cambia la duración (7.119.0).
+        Agenda::vecesPorServicio((array) $request->query('veces', []), $servicios);
         // **Y con quién quiere atenderse CADA servicio.**
         //
         // Sin esto el calendario ofrecía horarios fuera del turno de las
@@ -782,6 +785,15 @@ class CitasController extends Controller
             return redirect()->route('citas.form', ['cliente' => $idCliente])->with('sgp_form_error', true)->withInput();
         }
 
+        // **Para quiénes es cada servicio, y por eso cuántas veces va.** Dos
+        // amigas que marcan las dos en «Corte» son dos cortes —dos filas, dos
+        // turnos si los hace la misma persona— y eso cambia cuánto dura la
+        // cita: se fija ANTES de medir, o el reparto y la validación medirían
+        // una cita que no es la que se va a guardar (7.119.0).
+        $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
+        Agenda::vecesPorServicio(Acompanantes::vecesDe($personaDe));
+        $dur = Agenda::duracion($servicios);
+
         $idSucursal = Sucursales::activa();
 
         // **Lo que quedó en «quien esté libre» se resuelve con el MISMO criterio
@@ -867,11 +879,7 @@ class CitasController extends Controller
         }
 
         try {
-            // Para quién es cada servicio: con la cita de varias, cada tarjeta
-            // lo pregunta. Con una sola persona es todo de ella.
-            $personaDe = Acompanantes::personaDe((array) $request->input('para', []), $servicios, $personas);
-
-            $idCita = Agenda::agendar($idCliente, $idUsuario, $fecha, $dur, $obs, $asignacion, null, $personaDe);
+            $idCita = Agenda::agendar($idCliente, $idUsuario, $fecha, $dur, $obs, $asignacion, null, $personaDe, $personas);
             $equipo = count(array_filter(array_values($asignacion))) > 0;
 
             // Va aparte del `sp_agendar_cita` por el mismo motivo que en el
@@ -1817,22 +1825,34 @@ class CitasController extends Controller
                 ['c1' => $id, 'c2' => $id, 'c5' => $id, 'c6' => $id, 'yo' => (int) session('uid')]
             ),
             // **A qué servicio se le imputa el producto: sólo a los de ESTA
-            // cita.** El selector ofrecía el catálogo entero, así que se podía
-            // cargar el shampoo «en Pedicura» cuando la clienta no pidió
-            // pedicura — y ahí el consumo queda colgado de un servicio que no
-            // existe en la cita, con lo que ni el costo ni la comisión salen
-            // donde corresponde. Son los que pidió más los que ya se
-            // registraron: los dos son servicios reales de esta atención.
-            'servDeLaCita' => DB::select(
-                'SELECT DISTINCT s.id_servicio, s.nombre
-                   FROM servicio s
-                  WHERE EXISTS (SELECT 1 FROM cita_servicio cs
-                                 WHERE cs.id_cita = :c3 AND cs.id_servicio = s.id_servicio)
-                     OR EXISTS (SELECT 1 FROM servicio_realizado sr
-                                 WHERE sr.id_cita = :c4 AND sr.id_servicio = s.id_servicio)
-                  ORDER BY s.nombre',
-                ['c3' => $id, 'c4' => $id]
-            ),
+            // cita, y sólo a los que se reservaron CON quien está cerrando.**
+            // El selector ofrecía el catálogo entero, así que se podía cargar
+            // el shampoo «en Pedicura» cuando la clienta no pidió pedicura — y
+            // ahí el consumo queda colgado de un servicio que no existe en la
+            // cita. Después listaba todos los de la cita, y se reportó que
+            // mostraba «los servicios que el profesional puede hacer de los que
+            // hay en la cita, pero sólo debe mostrar los servicios con los que
+            // se reservó para ese profesional» (7.119.0): quien cierra su parte
+            // imputa lo que usó en LO SUYO — el shampoo de la coloración de la
+            // otra no es suyo. El Administrador ve los de todas, cada grupo con
+            // de quién es (`de`), y la pantalla los acota al elegir de quién
+            // cierra. Son los que pidió más los que ya se registraron: los dos
+            // son servicios reales de esta atención.
+            'servDeLaCita' => self::sinRepetir(DB::select(
+                'SELECT s.id_servicio, s.nombre, COALESCE(cs.id_usuario, c.id_usuario) AS de
+                   FROM cita_servicio cs
+                   JOIN cita c ON c.id_cita = cs.id_cita
+                   JOIN servicio s ON s.id_servicio = cs.id_servicio
+                  WHERE cs.id_cita = :c3 AND (:t1 = 1 OR COALESCE(cs.id_usuario, c.id_usuario) = :y1)
+                 UNION
+                 SELECT s.id_servicio, s.nombre, sr.id_usuario AS de
+                   FROM servicio_realizado sr
+                   JOIN servicio s ON s.id_servicio = sr.id_servicio
+                  WHERE sr.id_cita = :c4 AND (:t2 = 1 OR sr.id_usuario = :y2)
+                  ORDER BY nombre',
+                ['c3' => $id, 't1' => $puedeTodo ? 1 : 0, 'y1' => (int) session('uid'),
+                 'c4' => $id, 't2' => $puedeTodo ? 1 : 0, 'y2' => (int) session('uid')]
+            ), 'id_servicio'),
             'productos' => DB::select(
                 'SELECT p.id_producto, p.nombre, p.unidad_medida, p.contenido, p.unidad_consumo,
                         fn_producto_stock(p.id_producto, ps.id_sucursal) AS stock
@@ -1875,6 +1895,17 @@ class CitasController extends Controller
             // medida — la seña no cambia, ya está cobrada.
             'senaCobrada' => (float) DB::scalar('SELECT fn_cita_sena(?)', [$id]),
         ]);
+    }
+
+    /** Las filas sin repetir por una columna, conservando la primera. */
+    private static function sinRepetir(array $filas, string $col): array
+    {
+        $out = [];
+        foreach ($filas as $f) {
+            $out[(int) $f->$col] ??= $f;
+        }
+
+        return array_values($out);
     }
 
     public function atenderGuardar(Request $request): RedirectResponse
@@ -2072,13 +2103,24 @@ class CitasController extends Controller
                         $deQuien = $elegido;
                     }
 
-                    DB::insert(
-                        'INSERT INTO servicio_realizado (id_cita,id_servicio,id_usuario,observaciones) VALUES (?,?,?,?)',
-                        [$idCita, $sid, (int) ($deQuien ?: $cita->id_usuario), $obs]
-                    );
-                    $nuevo = (int) DB::getPdo()->lastInsertId();
-                    $idsSR[] = $nuevo;
-                    $srPorServicio[$sid] = $nuevo;
+                    // **Una atención por cada persona que lo pidió** (7.119.0):
+                    // dos amigas en «Corte» son dos cortes, así que son dos
+                    // filas de `servicio_realizado` — y dos comisiones, que
+                    // `fn_comision_servicio` cuenta por fila. Con una sola, la
+                    // segunda cabeza se trabajaba gratis para quien la hizo.
+                    $copias = max(1, (int) DB::scalar(
+                        'SELECT COUNT(*) FROM cita_servicio WHERE id_cita = ? AND id_servicio = ?', [$idCita, $sid]));
+                    for ($copia = 0; $copia < $copias; $copia++) {
+                        DB::insert(
+                            'INSERT INTO servicio_realizado (id_cita,id_servicio,id_usuario,observaciones) VALUES (?,?,?,?)',
+                            [$idCita, $sid, (int) ($deQuien ?: $cita->id_usuario), $obs]
+                        );
+                        if ($copia === 0) {
+                            $nuevo = (int) DB::getPdo()->lastInsertId();
+                            $idsSR[] = $nuevo;
+                            $srPorServicio[$sid] = $nuevo;
+                        }
+                    }
                 }
 
                 // Los servicios que se agendaron pero NO se hicieron tienen que

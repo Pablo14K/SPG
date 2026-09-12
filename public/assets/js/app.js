@@ -99,6 +99,15 @@ window.SGPCarga = (function () {
   };
 })();
 
+/* Cuántas veces va un servicio: una por persona marcada en su «¿para
+   quién?». Sin la lista —cita de una sola persona— es una. Lo usan el
+   resumen, el repaso y la consulta de horarios, así que vive en `window`. */
+window.sgpVecesDe = function (casilla) {
+  var n = casilla && casilla.value
+    ? document.querySelectorAll('input[name="para[' + casilla.value + '][]"]:checked').length : 0;
+  return n > 1 ? n : 1;
+};
+
 // ---------------------------------------------------------------------
 //  Cuándo se muestra la barra
 // ---------------------------------------------------------------------
@@ -355,6 +364,17 @@ window.SGPCarga = (function () {
     var per = ambito.querySelector('[name="personas"]');
     if (fijos.personas) { p.append('personas', fijos.personas); }
     else if (per && per.value) { p.append('personas', per.value); }
+
+    // **Y cuantas veces va cada servicio.** Un servicio marcado para dos
+    // personas son dos —dos cortes, en serie si los hace la misma— y eso
+    // cambia cuanto dura la cita (7.119.0). Solo se manda cuando es mas de
+    // una: el resto es lo de siempre.
+    if (!fijos.servicios.length) {
+      elegidos().forEach(function (id) {
+        var n = document.querySelectorAll('input[name="para[' + id + '][]"]:checked').length;
+        if (n > 1) { p.append('veces[' + id + ']', n); }
+      });
+    }
 
     // La clienta, para no ofrecerle un dia en el que ya tiene ese servicio.
     // En el portal la sabe el servidor por la sesion; en Nueva cita se elige en
@@ -651,6 +671,13 @@ window.SGPCarga = (function () {
     // despues de elegir el horario y la lista seguia siendo la de una.
     var personas = ambito.querySelector('[name="personas"]');
     if (personas) { personas.addEventListener('change', cargarDias); }
+
+    // **Y para quienes es cada servicio**: marcar a la segunda amiga en
+    // «Corte» es un corte mas, o sea otra duracion y otros horarios.
+    document.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (t && t.hasAttribute && t.hasAttribute('data-para-check')) { cargarDias(); }
+    });
   }
 
   cargarDias();
@@ -1694,15 +1721,19 @@ window.SGPCarga = (function () {
   });
 })();
 
-// «¿Para quién?» aparece con la casilla de «la cita es para otra persona»:
-// preguntarlo siempre sería pedir un dato que casi nunca hace falta.
+// «¿Quién se atiende?» aparece con «para otra persona», y «mis alergias» se
+// va: la que se sienta en el sillón es la otra. Son dos radios con el mismo
+// `name` desde la 7.119.0 —antes una casilla—, así que se escucha el cambio
+// de cualquiera de los dos; el servidor sigue leyendo `para_otra_persona`.
 (function () {
   var chk = document.getElementById('paraOtro'),
-      bloque = document.getElementById('bloqueParaQuien');
+      bloque = document.getElementById('bloqueParaQuien'),
+      mias = document.getElementById('bloqueMisAlergias');
   if (!chk || !bloque) return;
 
   function reflejar() {
     bloque.style.display = chk.checked ? '' : 'none';
+    if (mias) { mias.style.display = chk.checked ? 'none' : ''; }
     // **Adentro hay más de un campo desde la 7.113.0**: el nombre y las
     // alergias de esa persona. Con `querySelector` a secas se limpiaba el
     // primero nada más, así que desmarcar la casilla dejaba una alergia
@@ -1716,7 +1747,9 @@ window.SGPCarga = (function () {
     var nom = bloque.querySelector('#nombre_para');
     if (nom) { nom.required = chk.checked; }
   }
-  chk.addEventListener('change', reflejar);
+  document.querySelectorAll('[name="para_otra_persona"]').forEach(function (r) {
+    r.addEventListener('change', reflejar);
+  });
   reflejar();
 })();
 
@@ -1769,10 +1802,13 @@ window.SGPCarga = (function () {
       if (tarjeta) { tarjeta.classList.toggle('elegida', c.checked); }
       if (!c.checked) { return; }
 
-      var precio = parseFloat(c.getAttribute('data-precio')) || 0;
+      // Un servicio para dos personas son dos: dos precios, dos señas, dos
+      // tiempos (7.119.0). Es la misma cuenta que hace la base fila por fila.
+      var veces = window.sgpVecesDe(c);
+      var precio = (parseFloat(c.getAttribute('data-precio')) || 0) * veces;
       total += precio;
-      min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
-      sena += senaDe(c);
+      min += (parseInt(c.getAttribute('data-duracion'), 10) || 0) * veces;
+      sena += senaDe(c) * veces;
       cuantos++;
     });
 
@@ -1797,7 +1833,9 @@ window.SGPCarga = (function () {
         var n = document.createElement('span');
         n.textContent = tarjeta ? (tarjeta.querySelector('.sgp-srv-nombre') || {}).textContent : '';
         var v = document.createElement('b');
-        v.textContent = gs(parseFloat(c.getAttribute('data-precio')) || 0);
+        var vecesLi = window.sgpVecesDe(c);
+        if (vecesLi > 1) { n.textContent += ' ×' + vecesLi; }
+        v.textContent = gs((parseFloat(c.getAttribute('data-precio')) || 0) * vecesLi);
         li.appendChild(n);
         li.appendChild(v);
         lista.appendChild(li);
@@ -1818,13 +1856,14 @@ window.SGPCarga = (function () {
       var conSena = 0;
       casillas.forEach(function (c) {
         if (!c.checked) { return; }
-        var s = senaDe(c);
+        var s = senaDe(c) * window.sgpVecesDe(c);
         if (s <= 0) { return; }
         conSena++;
         var pct = parseFloat(c.getAttribute('data-sena-pct')) || 0;
         var li = document.createElement('li');
         var n = document.createElement('span');
-        n.textContent = c.getAttribute('data-nombre') || '';
+        n.textContent = (c.getAttribute('data-nombre') || '')
+          + (window.sgpVecesDe(c) > 1 ? ' ×' + window.sgpVecesDe(c) : '');
         var v = document.createElement('b');
         v.textContent = gs(s) + (pct > 0 ? ' (' + pct + ' %)' : '');
         li.appendChild(n);
@@ -2011,9 +2050,11 @@ window.SGPCarga = (function () {
    Con tres amigas en la misma cita, «corte, mechas, manicura» no decía
    de quién era cada cosa: no se le podía cobrar a cada una lo suyo ni
    hacerle su propio comprobante. Ahora cada tarjeta de servicio trae un
-   «¿para quién?» (`[data-para-select]`, ver el componente
+   «¿para quién?» (`[data-para-lista]`, ver el componente
    `servicio-tarjeta`) y este bloque lo llena con los nombres que se
-   cargaron en el paso «Personas».
+   cargaron en el paso «Personas» — **una casilla por persona**, porque el
+   mismo servicio puede ser para varias (7.119.0): dos amigas en «Corte»
+   son dos cortes. Alguna tiene que quedar marcada: la última no se suelta.
 
    Quién es cada número del grupo, que es la misma regla que usa el
    servidor (`Acompanantes::nombres()`):
@@ -2034,11 +2075,11 @@ window.SGPCarga = (function () {
    ------------------------------------------------------------------ */
 (function () {
   'use strict';
-  var selects = document.querySelectorAll('[data-para-select]');
-  if (!selects.length) return;
+  var listas = document.querySelectorAll('[data-para-lista]');
+  if (!listas.length) return;
 
   var personas = document.getElementById('personas');
-  var form = selects[0].closest('form');
+  var form = listas[0].closest('form');
 
   function titular() {
     var otro = document.getElementById('paraOtro');
@@ -2069,24 +2110,58 @@ window.SGPCarga = (function () {
     return { n: n, lista: lista };
   }
 
+  // Quiénes están marcadas en una lista: lo tildado, o lo que la pantalla
+  // trajo elegido (`data-elegido`, de `old()` tras un rechazo), o la 1.
+  function elegidas(lista) {
+    var v = [];
+    lista.querySelectorAll('input[type="checkbox"]:checked').forEach(function (c) {
+      v.push(parseInt(c.value, 10));
+    });
+    if (!v.length && lista.getAttribute('data-elegido')) {
+      lista.getAttribute('data-elegido').split(',').forEach(function (x) {
+        x = parseInt(x, 10);
+        if (x >= 1) v.push(x);
+      });
+    }
+    return v.length ? v : [1];
+  }
+
   function rehacer() {
     var datos = nombres();
-    selects.forEach(function (sel) {
-      var actual = sel.value || sel.getAttribute('data-elegido') || '1';
-      sel.removeAttribute('data-elegido');
-      sel.innerHTML = '';
+    listas.forEach(function (lista) {
+      var sid = lista.getAttribute('data-para-lista');
+      var actual = elegidas(lista);
+      lista.removeAttribute('data-elegido');
+      lista.innerHTML = '';
       for (var i = 1; i <= datos.n; i++) {
-        var op = document.createElement('option');
-        op.value = String(i);
+        var wrap = document.createElement('div');
+        wrap.className = 'form-check form-check-inline';
+        var chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'form-check-input';
+        chk.name = 'para[' + sid + '][]';
+        chk.value = String(i);
+        chk.id = 'para' + sid + '_' + i;
+        chk.setAttribute('data-para-check', '');
+        chk.checked = actual.indexOf(i) >= 0;
+        var lab = document.createElement('label');
+        lab.className = 'form-check-label';
+        lab.htmlFor = chk.id;
         // El nombre lo escribe una persona: va como texto, nunca como HTML.
-        op.textContent = i + ' · ' + datos.lista[i];
-        sel.appendChild(op);
+        lab.textContent = datos.lista[i];
+        wrap.appendChild(chk);
+        wrap.appendChild(lab);
+        lista.appendChild(wrap);
       }
-      sel.value = (parseInt(actual, 10) >= 1 && parseInt(actual, 10) <= datos.n) ? actual : '1';
+      // Alguna tiene que quedar: un servicio que no es de nadie no existe.
+      if (!lista.querySelector('input:checked')) {
+        var p1 = lista.querySelector('input');
+        if (p1) p1.checked = true;
+      }
 
-      var caja = sel.closest('.sgp-srv-para');
-      var chk = caja && document.querySelector(caja.getAttribute('data-para-de'));
-      if (caja) caja.hidden = !(datos.n > 1 && chk && chk.checked);
+      var caja = lista.closest('.sgp-srv-para');
+      var srv = caja && document.querySelector(caja.getAttribute('data-para-de'));
+      if (caja) caja.hidden = !(datos.n > 1 && srv && srv.checked);
     });
   }
 
@@ -2103,7 +2178,13 @@ window.SGPCarga = (function () {
   document.addEventListener('change', function (ev) {
     var t = ev.target;
     if (!t) return;
-    if (t.id === 'paraOtro' || t.id === 'id_cliente' || (t.classList && t.classList.contains('srv'))) rehacer();
+    if (t.name === 'para_otra_persona' || t.id === 'id_cliente' || (t.classList && t.classList.contains('srv'))) rehacer();
+    // La última casilla de un servicio no se suelta: sin ninguna, el
+    // servicio no sería de nadie y el servidor lo daría a la titular igual.
+    if (t.hasAttribute && t.hasAttribute('data-para-check') && !t.checked) {
+      var lista = t.closest('[data-para-lista]');
+      if (lista && !lista.querySelector('input:checked')) t.checked = true;
+    }
   });
 
   rehacer();
@@ -2662,9 +2743,11 @@ document.addEventListener('sgp:asistente-paso', function (e) {
   var total = 0, min = 0, cuantos = 0;
   document.querySelectorAll('.srv:checked').forEach(function (c) {
     var card = c.closest('.sgp-srv-card');
-    var precio = parseFloat(c.getAttribute('data-precio')) || 0;
+    // Para dos personas son dos: el renglón lo dice («×2») y cuenta doble.
+    var veces = window.sgpVecesDe(c);
+    var precio = (parseFloat(c.getAttribute('data-precio')) || 0) * veces;
     total += precio;
-    min += parseInt(c.getAttribute('data-duracion'), 10) || 0;
+    min += (parseInt(c.getAttribute('data-duracion'), 10) || 0) * veces;
     cuantos++;
 
     var fila = document.createElement('div');
@@ -2676,7 +2759,8 @@ document.addEventListener('sgp:asistente-paso', function (e) {
     var cuerpo = document.createElement('div');
     cuerpo.className = 'sgp-wiz-linea-cuerpo';
     cuerpo.appendChild(txt('div', 'sgp-wiz-linea-nom',
-      card ? ((card.querySelector('.sgp-srv-nombre') || {}).textContent || '') : ''));
+      (card ? ((card.querySelector('.sgp-srv-nombre') || {}).textContent || '') : '')
+      + (veces > 1 ? ' ×' + veces : '')));
 
     // Quién lo hace sale del combo de esa tarjeta; el combo puede estar
     // movido al paso de profesionales, así que se lo busca por `name`.
@@ -2692,14 +2776,23 @@ document.addEventListener('sgp:asistente-paso', function (e) {
     cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
       quien ? quien : (asignada ? 'con ' + asignada + ' (asignada para ese horario)' : 'con quien esté disponible')));
 
-    // **Para quién es, cuando la cita es de varias.** Con una sola persona el
-    // combo tiene una opción y no se dice nada: sería repetir el nombre de
-    // quien reserva en cada renglón.
-    var paraSel = document.querySelector('select[name="para[' + c.value + ']"]');
-    if (paraSel && paraSel.options.length > 1) {
-      var opPara = paraSel.options[paraSel.selectedIndex];
-      cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
-        'para ' + (opPara ? opPara.textContent.replace(/^\d+ · /, '') : 'la persona ' + paraSel.value)));
+    // **Para quiénes es, cuando la cita es de varias.** Con una sola persona
+    // la lista tiene una casilla y no se dice nada: sería repetir el nombre
+    // de quien reserva en cada renglón. Con varias marcadas se nombran todas
+    // —«para Ana y Josefina»—, que es lo que hace ver que son dos cortes.
+    var paraLista = document.querySelector('[data-para-lista="' + c.value + '"]');
+    if (paraLista && paraLista.querySelectorAll('input').length > 1) {
+      var nombresPara = [];
+      paraLista.querySelectorAll('input:checked').forEach(function (ch) {
+        var lb = paraLista.querySelector('label[for="' + ch.id + '"]');
+        nombresPara.push(lb ? lb.textContent.trim() : ('la persona ' + ch.value));
+      });
+      if (nombresPara.length) {
+        var ultimo = nombresPara.pop();
+        cuerpo.appendChild(txt('div', 'sgp-wiz-linea-quien',
+          'para ' + (nombresPara.length ? nombresPara.join(', ') + ' y ' + ultimo : ultimo)
+          + (nombresPara.length ? ' (' + (nombresPara.length + 1) + ' veces)' : '')));
+      }
     }
 
     fila.appendChild(ic);
