@@ -8654,6 +8654,13 @@ class ReglasDeNegocioTest extends TestCase
         Caja::abrir($admin, 111000.0, $a);
         Caja::abrir($otro, 222000.0, $b);
 
+        // **Y la cuenta bancaria, al lado de las cajas** (7.121.1): una con
+        // saldo declarado, que tiene que salir con su número, y una sin
+        // declarar, que tiene que decirlo con palabras — NULL no es cero.
+        $conSaldo = $this->cuentaDePrueba($suc, 333000, 1, 'Banco del panel ' . $nombre);
+        $sinSaldo = $this->cuentaDePrueba($suc, 0, 0, 'Billetera del panel ' . $nombre);
+        DB::update('UPDATE cuenta_bancaria SET saldo_declarado = NULL, saldo_declarado_en = NULL WHERE id_cuenta = ?', [$sinSaldo]);
+
         $barra = function (): string {
             Caja::olvidar();
             $html = (string) $this->get(route('panel'))->assertOk()->getContent();
@@ -8673,6 +8680,16 @@ class ReglasDeNegocioTest extends TestCase
                 "Mirando como $quien, la barra no dice cuántas cajas hay abiertas.");
             $this->assertLessThan(strpos($html, $nombre . ' B'), strpos($html, $nombre . ' A'),
                 'Las cajas van por nombre, en el mismo orden para todos.');
+
+            // El estado financiero son las dos cajas: el cajón Y el banco.
+            $this->assertStringContainsString('Estado financiero', $html,
+                'El bloque se llama «Estado financiero»: cuánta plata hay son el cajón y el banco.');
+            $this->assertStringContainsString('Banco del panel ' . $nombre, $html,
+                "Mirando como $quien, el panel no muestra la cuenta bancaria del local.");
+            $this->assertStringContainsString(money(333000), $html,
+                'La cuenta tiene que salir con su saldo: es lo que hay en el banco.');
+            $this->assertStringContainsString('sin declarar', $html,
+                'La cuenta sin saldo declarado lo dice con palabras: NULL no es cero.');
         };
 
         // Quien abrió la A…

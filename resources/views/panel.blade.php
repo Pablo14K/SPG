@@ -129,14 +129,26 @@
                                  patrón que este proyecto persigue. --}}
                             <div class="col-md-6 col-lg-12 col-xl-6 sgp-caja-barra">
                                 <div class="metric-card h-100">
-                                    <div class="metric-lbl">Estado de cajas</div>
+                                    {{-- **«Estado financiero», no «de cajas»** (pedido del
+                                         usuario, 7.121.1): desde que la cuenta bancaria es la
+                                         caja del banco, cuánta plata hay son DOS cosas —el
+                                         cajón y el banco— y acá se ven las dos. El ícono es
+                                         la billetera, que es lo que abarca a las dos. --}}
+                                    <div class="metric-lbl">Estado financiero</div>
                                     <div class="d-flex align-items-center gap-2 mt-1">
-                                        <i class="bi bi-safe2 txt-oro" style="font-size:1.4rem"></i>
+                                        @if ($cajas)
+                                            <i class="bi bi-wallet2 txt-oro" style="font-size:1.4rem"></i>
+                                        @else
+                                            {{-- **Sin caja abierta se AVISA, no se informa**: en
+                                                 rojo y con el triángulo, porque es lo que hay
+                                                 que resolver antes de cobrar en efectivo. --}}
+                                            <i class="bi bi-exclamation-triangle-fill txt-no" style="font-size:1.4rem"></i>
+                                        @endif
                                         {{-- **Cuántas hay abiertas, no sólo cuáles.** Con dos
                                              cajones el número es lo que dice de un vistazo si
                                              falta cerrar alguno; sin él hay que contar los
                                              renglones. --}}
-                                        <strong style="font-size:1.05rem">
+                                        <strong style="font-size:1.05rem" class="{{ $cajas ? '' : 'txt-no' }}">
                                             @if ($cajas)
                                                 {{ count($cajas) }} {{ count($cajas) === 1 ? 'caja abierta' : 'cajas abiertas' }}
                                             @else
@@ -170,12 +182,55 @@
                                                 </li>
                                             @endforeach
                                         </ul>
-                                    @elseif (Navegacion::url('facturacion.cajas'))
-                                        <div class="text-muted-warm mt-1" style="font-size:.8rem">
-                                            Sin caja abierta no se cobra.
-                                            <a class="link-oro" href="{{ Navegacion::url('facturacion.cajas') }}">Abrir una &rarr;</a>
+                                    @else
+                                        <div class="txt-no mt-1" style="font-size:.8rem">
+                                            Sin caja abierta no se cobra en efectivo.
+                                            @if (Navegacion::url('facturacion.cajas'))
+                                                <a class="link-oro" href="{{ Navegacion::url('facturacion.cajas') }}">Abrir una &rarr;</a>
+                                            @endif
                                         </div>
                                     @endif
+
+                                    {{-- **La cuenta bancaria: cuánto hay en el banco.** Con el
+                                         saldo que da `fn_cuenta_saldo` —lo declarado más lo que
+                                         entró y menos lo que salió— o «sin declarar», que NO es
+                                         cero: es «no se sabe», y el enlace lleva a declararlo.
+                                         `sgp-lista-cuentas` es el gancho de la prueba. --}}
+                                    <div class="mt-2 pt-2 border-top sgp-lista-cuentas">
+                                        <div class="text-muted-warm" style="font-size:.76rem;text-transform:uppercase;letter-spacing:.03em">
+                                            <i class="bi bi-bank"></i> Cuenta bancaria
+                                        </div>
+                                        @if ($cuentas)
+                                            <ul class="list-unstyled mb-0 mt-1 sgp-lista-cajas">
+                                                @foreach ($cuentas as $ct)
+                                                    <li title="{{ $ct->entidad }}{{ $ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '' }} · {{ $ct->medio }}">
+                                                        <span class="text-truncate">
+                                                            {{ $ct->entidad }}
+                                                            @if ($ct->numero_cuenta)
+                                                                <span class="text-muted-warm" style="font-size:.76rem">· {{ $ct->numero_cuenta }}</span>
+                                                            @endif
+                                                        </span>
+                                                        @if ($ct->saldo !== null)
+                                                            <strong>{{ money($ct->saldo) }}</strong>
+                                                        @elseif (Permisos::puede('facturacion.cuentas') && Navegacion::url('facturacion.cuentas'))
+                                                            <a class="link-oro" style="white-space:nowrap;font-size:.8rem"
+                                                               href="{{ Navegacion::url('facturacion.cuentas') }}"
+                                                               title="Hasta que se declare cuánto dice el banco, el sistema no sabe cuánto hay">sin declarar &rarr;</a>
+                                                        @else
+                                                            <span class="text-muted-warm" style="white-space:nowrap;font-size:.8rem">sin declarar</span>
+                                                        @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            <div class="text-muted-warm mt-1" style="font-size:.8rem">
+                                                Sin cuenta cargada: lo que entra por transferencia no se suma a ninguna.
+                                                @if (Permisos::puede('facturacion.cuentas') && Navegacion::url('facturacion.cuentas'))
+                                                    <a class="link-oro" href="{{ Navegacion::url('facturacion.cuentas') }}">Cargar una &rarr;</a>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @endif
@@ -184,7 +239,12 @@
                              recorta entre las dos clases. --}}
                         <div class="col-md-6 col-lg-12 col-xl-6 sgp-metrics">
                             @if ($m['ingresos_hoy'] !== null)
-                                <div class="metric-card h-100">
+                                {{-- **Centrada en su tarjeta** (pedido del usuario, 7.121.1):
+                                     la de al lado crece con cada caja y cada cuenta, y con
+                                     el número pegado arriba quedaba media tarjeta vacía
+                                     debajo. `sgp-metric-centrada` la centra a lo alto y a
+                                     lo ancho, que es como se lee un KPI solo. --}}
+                                <div class="metric-card h-100 sgp-metric-centrada">
                                     <div class="metric-lbl">Ingresos de hoy</div>
                                     <div class="metric-value">{{ money($m['ingresos_hoy']) }}</div>
                                     @php

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Servicios\Caja;
+use App\Servicios\Cuenta;
 use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use Illuminate\Support\Facades\DB;
@@ -147,6 +148,14 @@ class PanelController extends Controller
         $cajas = $verCaja ? Caja::abiertasDe() : [];
         usort($cajas, static fn ($a, $b) => strcmp((string) $a->nombre, (string) $b->nombre));
 
+        // **Y la cuenta bancaria, al lado de las cajas** (pedido del usuario,
+        // 7.121.1): es la caja del banco desde la 7.121.0, así que el estado
+        // financiero del local son las dos cosas — cuánto hay en el cajón y
+        // cuánto hay en el banco. Va a quien ve la caja: es la misma pregunta
+        // («¿cuánta plata hay?») y no la de administrar las cuentas, que es
+        // `facturacion.cuentas` y sólo decide si se ofrece el enlace.
+        $cuentas = $verCaja ? Cuenta::deSucursal((int) Sucursales::activa()) : [];
+
         // **Lo que falta CARGAR ya no se arma acá**: desde la 7.117.0 vive
         // dentro de la campanita de la barra, por pedido del usuario, así que
         // lo pide el layout —`Pendientes::mios()`— y se ve desde cualquier
@@ -159,6 +168,7 @@ class PanelController extends Controller
             'atrasadasTotal' => $atrasadasTotal,
             'verTodo' => $todaLaAgenda,
             'cajas' => $cajas,
+            'cuentas' => $cuentas,
             'verCaja' => $verCaja,
         ]);
     }

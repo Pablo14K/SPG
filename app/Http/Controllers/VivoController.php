@@ -182,13 +182,28 @@ class VivoController extends Controller
             [$suc, $suc]
         );
 
+        // LEFT JOIN: el movimiento de una cuenta bancaria no tiene caja
+        // (7.121.0), y su local sale de la cuenta.
         $movs = (int) DB::scalar(
             'SELECT COUNT(*) FROM movimiento_caja mc
-               JOIN caja c ON c.id_caja = mc.id_caja
-              WHERE DATE(mc.fecha) = CURDATE() AND (? = 0 OR c.id_sucursal = ?)',
+               LEFT JOIN caja c ON c.id_caja = mc.id_caja
+               LEFT JOIN cuenta_bancaria cb ON cb.id_cuenta = mc.id_cuenta
+              WHERE DATE(mc.fecha) = CURDATE() AND (? = 0 OR COALESCE(cb.id_sucursal, c.id_sucursal) = ?)',
             [$suc, $suc]
         );
 
-        return 'c:' . $r->abiertas . ':' . $r->suma . ':' . $movs;
+        // **Y el saldo de las cuentas del local** (7.121.1): el panel lo
+        // muestra al lado de las cajas, así que una transferencia que entra
+        // desde el portal o un saldo recién declarado tienen que refrescarlo.
+        // Son dos o tres cuentas por local: `fn_cuenta_saldo` es barata acá.
+        $ctas = DB::selectOne(
+            'SELECT COUNT(*) AS cuantas, COALESCE(SUM(fn_cuenta_saldo(id_cuenta)), 0) AS saldo,
+                    SUM(saldo_declarado IS NULL) AS sin_declarar
+               FROM cuenta_bancaria WHERE activo = 1 AND (? = 0 OR id_sucursal = ?)',
+            [$suc, $suc]
+        );
+
+        return 'c:' . $r->abiertas . ':' . $r->suma . ':' . $movs
+            . ':' . $ctas->cuantas . ':' . $ctas->saldo . ':' . (int) $ctas->sin_declarar;
     }
 }

@@ -2505,6 +2505,11 @@ html,body{max-width:100%;overflow-x:hidden;}
 .metric-lbl{font-size:.76rem;color:var(--gris-oscuro);text-transform:uppercase;letter-spacing:.03em;}
 .metric-value{font-size:1.5rem;font-weight:600;color:var(--oro-enfasis);line-height:1.15;margin-top:.15rem;}
 .metric-comparado{font-size:.8rem;margin-top:.2rem;}
+/* La tarjeta de un solo número —Ingresos de hoy— se centra a lo alto y a lo
+   ancho: la de al lado crece con cada caja y cada cuenta bancaria, y con el
+   número pegado arriba quedaba media tarjeta vacía debajo (7.121.1). */
+.sgp-metric-centrada{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+.sgp-metric-centrada .metric-value{font-size:1.9rem;}
 .sgp-lista-cajas{font-size:.84rem;}
 .sgp-lista-cajas li{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.15rem 0;}
 .sgp-lista-cajas li > span:first-child{min-width:0;}
