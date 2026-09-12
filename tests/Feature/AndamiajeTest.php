@@ -245,6 +245,88 @@ class AndamiajeTest extends TestCase
             "Hay CSS apuntando a clases que ningún marcado usa:\n  " . implode("\n  ", $sinUso));
     }
 
+    /**
+     * La marca grande no depende de la pantalla de ingreso.
+     *
+     * `.logo-big` lo dibuja `layout/_marca` con `modo => 'grande'`, y sus
+     * reglas estaban escritas **anidadas bajo `.sgp-login`** — la tarjeta de
+     * las pantallas de acceso—. La pantalla del enlace del correo usa el mismo
+     * partial dentro de un `container` pelado, así que ahí no aplicaba
+     * ninguna: el logo del salón salía a su tamaño natural, una imagen de mil
+     * píxeles encima de la cita. Se reportó como «redimensionar la imagen de
+     * la peluquería en los links de reagendar».
+     *
+     * Es el patrón de siempre de este proyecto —código correcto apuntando a un
+     * marcado que no existe, sin dar ningún error— y por eso queda como
+     * guardia: cualquier vista nueva que dibuje la marca grande fuera del
+     * ingreso vuelve a caer en lo mismo.
+     */
+    #[Test]
+    public function la_marca_grande_no_depende_de_la_pantalla_de_ingreso(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '',
+            (string) file_get_contents(public_path('assets/css/app.css')));
+
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.logo-big\{/', $css,
+            'La regla base de `.logo-big` tiene que valer sola, sin ningún ancestro.');
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.logo-big\.tiene-img\{/', $css,
+            'Y la del logo cargado también: es la que lo redimensiona.');
+        $this->assertStringNotContainsString('.sgp-login .logo-big', $css,
+            'Scopeada bajo `.sgp-login`, la pantalla del enlace del correo se queda sin ella.');
+
+        // Y las vistas que la dibujan fuera del ingreso siguen existiendo: sin
+        // esto la guardia mediría una regla que ya no usa nadie.
+        $token = (string) file_get_contents(resource_path('views/cita_token/ver.blade.php'));
+        $this->assertStringContainsString("'modo' => 'grande'", $token,
+            'La pantalla del enlace del correo dibuja la marca grande.');
+        $this->assertStringNotContainsString('sgp-login', $token,
+            'Y no está dentro de la tarjeta del ingreso: por eso la regla no puede depender de ella.');
+    }
+
+    /**
+     * El texto no se pinta con una variable que se da vuelta con el tema.
+     *
+     * `--negro` y `--oro-oscuro` son SUPERFICIES y estados de un botón
+     * dorado: en el tema oscuro `--negro` pasa a ser el plano más profundo de
+     * la paleta y `--oro-oscuro` no se invierte en absoluto. Usadas como color
+     * de TEXTO sobre el fondo de la página, dejan el renglón ilegible — se
+     * reportó como «los nombres de clientes permanecen en negro en modo
+     * oscuro, se camuflan con el fondo».
+     *
+     * Para eso están `--carbon`, que ES el color del texto principal, y
+     * `--oro-enfasis`, que existe justamente para el oro suelto sobre el fondo
+     * (en claro el oro oscuro, en oscuro el principal).
+     *
+     * La guardia mira sólo las declaraciones de `color:`, no los bordes ni los
+     * rellenos: texto NEGRO sobre un botón dorado es correcto y tiene que
+     * seguir siendo `--negro`.
+     */
+    #[Test]
+    public function el_texto_no_se_pinta_con_una_variable_que_se_da_vuelta(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '',
+            (string) file_get_contents(public_path('assets/css/app.css')));
+
+        // `--oro-enfasis` tiene que seguir teniendo su versión oscura, o la
+        // corrección se queda sin efecto sin que nada lo diga.
+        $oscuro = strstr($css, '[data-tema="oscuro"]{');
+        $this->assertIsString($oscuro, 'El bloque del tema oscuro tiene que existir.');
+        $this->assertStringContainsString('--oro-enfasis:', (string) strstr((string) $oscuro, '}', true),
+            'El tema oscuro redefine `--oro-enfasis`: si deja de hacerlo, el oro del texto vuelve a no leerse.');
+
+        // Los dos lugares que se reportaron, por su nombre.
+        foreach ([
+            'sgp-movil-sujeto' => 'el nombre de la clienta en la tarjeta del celular',
+            'link-oro' => 'el nombre que enlaza a la ficha, en las listas',
+        ] as $clase => $que) {
+            $i = strpos($css, '.' . $clase . '{');
+            $this->assertNotFalse($i, "Falta la regla de `.$clase`.");
+            $regla = substr($css, $i, (int) strpos($css, '}', $i) - $i);
+            $this->assertDoesNotMatchRegularExpression('/color:var\(--(negro|oro-oscuro)\)/', $regla,
+                "En el tema oscuro, $que queda ilegible: usá `--carbon` o `--oro-enfasis`.");
+        }
+    }
+
     /** Los archivos de esas carpetas, para buscar dentro. */
     private function archivos(array $dirs): array
     {

@@ -47,14 +47,9 @@ class CitaTokenController extends Controller
         );
 
         // Lo que el selector de horarios necesita para preguntar por ESTA cita:
-        // sus servicios, su profesional y su local. Reprogramar no pregunta nada
-        // de eso —ya está decidido—, sólo cuándo.
-        $ctx = DB::selectOne(
-            'SELECT c.id_usuario, c.id_sucursal,
-                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
-                      WHERE cs.id_cita = c.id_cita) AS servicios_ids
-               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
-        );
+        // sus servicios, su profesional, su local y para cuántas personas es.
+        // Reprogramar no pregunta nada de eso —ya está decidido—, sólo cuándo.
+        $ctx = $this->contexto((int) $cita->id_cita);
 
         return view('cita_token.ver', [
             'cita' => $cita,
@@ -101,22 +96,13 @@ class CitaTokenController extends Controller
             return response()->json(['ok' => false, 'motivo' => 'Ese enlace ya no sirve. Pedile uno nuevo al salón.']);
         }
 
-        $ctx = DB::selectOne(
-            'SELECT c.id_usuario, c.id_sucursal, c.personas,
-                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
-                      WHERE cs.id_cita = c.id_cita) AS servicios_ids
-               FROM cita c WHERE c.id_cita = ?', [$cita->id_cita]
-        );
-        $servicios = array_values(array_filter(array_map('intval', explode(',', (string) ($ctx->servicios_ids ?? '')))));
-        // Un servicio pedido para dos personas es una fila por persona: la
-        // cita se mide con las dos (7.119.0).
-        Agenda::vecesPorServicio([], $servicios);
-        $servicios = array_values(array_unique($servicios));
-        $idUsuario = ((int) ($ctx->id_usuario ?? 0)) ?: null;
-        $suc = ((int) ($ctx->id_sucursal ?? 0)) ?: null;
-        $personas = max(1, min(20, (int) ($ctx->personas ?? 1)));
+        $ctx = $this->contexto((int) $cita->id_cita);
+        $servicios = $ctx->servicios;
+        $idUsuario = $ctx->id_usuario;
+        $suc = $ctx->id_sucursal;
+        $personas = $ctx->personas;
+        $duracion = $ctx->duracion;
 
-        $duracion = Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario, []);
         if ($duracion <= 0) {
             return response()->json(['ok' => false, 'motivo' => 'Esa cita no tiene servicios cargados: hablá con el salón.']);
         }
@@ -182,11 +168,20 @@ class CitaTokenController extends Controller
         if (strlen($nueva) === 16) {
             $nueva .= ':00';
         }
-        $idProf = (int) $request->input('id_usuario', 0) ?: (int) $cita->id_usuario;
+        // **El profesional NO se toma del POST.** La pantalla dejó de ofrecer el
+        // combo en la 7.97.0 —los horarios que muestra el selector se calculan
+        // para quien te atiende, así que cambiarlo ahí los invalidaría— y el
+        // servidor lo seguía aceptando: con el token en la mano se le podía
+        // reasignar la cita a cualquier profesional activo. Es la cita la que
+        // dice quién atiende.
+        $idProf = (int) $cita->id_usuario;
 
-        $servicios = array_map(fn ($r) => (int) $r->id_servicio,
-            DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [$cita->id_cita]));
-        $dur = Agenda::duracion($servicios) ?: 60;
+        // **La misma cuenta que usó el selector.** Las dos salen de
+        // `contexto()`: escritas aparte se separan, y ahí la pantalla ofrece un
+        // horario que el guardado rechaza — el defecto que este proyecto ya
+        // tiene anotado.
+        $ctx = $this->contexto((int) $cita->id_cita);
+        $dur = $ctx->duracion ?: 60;
 
         $error = null;
         if (in_array((int) $cita->id_estado_cita, [3, 4], true)) {
@@ -206,8 +201,15 @@ class CitaTokenController extends Controller
             $error = 'No se puede reprogramar a una fecha que ya pasó.';
         } elseif (! DB::scalar('SELECT COUNT(*) FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
                                  WHERE u.id_usuario = ? AND u.activo = 1 AND r.es_personal = 1', [$idProf])) {
-            $error = 'Ese profesional ya no está disponible. Elegí otro.';
-        } elseif (! Agenda::huecoLibre($idProf, $nueva, $dur, (int) $cita->id_cita)) {
+            $error = 'Tu profesional ya no está disponible. Escribinos y lo vemos.';
+        // **Y el local es el DE LA CITA, no el de la sesión.** `huecoLibre` cae
+        // en `Sucursales::activa()` cuando no se lo dice, y acá eso es la sesión
+        // de quien tenga el navegador abierto: la clienta del correo no tiene
+        // ninguna, y alguien del salón que abra el enlace estando parado en otro
+        // local hacía que la comprobación corriera contra los turnos de esa otra
+        // sede. El turno es del local, así que sin esto el enlace podía rechazar
+        // justo el horario que su propio calendario acababa de ofrecer.
+        } elseif (! Agenda::huecoLibre($idProf, $nueva, $dur, (int) $cita->id_cita, $ctx->id_sucursal)) {
             $error = Agenda::motivoHuecoPerdido($idProf, $nueva, $dur, (int) $cita->id_cita);
         }
         if ($error) {
@@ -217,12 +219,10 @@ class CitaTokenController extends Controller
         }
 
         try {
-            Agenda::reprogramar((int) $cita->id_cita, $nueva,
-                $idProf !== (int) $cita->id_usuario ? $idProf : null);
+            Agenda::reprogramar((int) $cita->id_cita, $nueva);
             Auditoria::registrarComo($this->auditor($cita), 'REPROGRAMACION', 'Portal', 'cita',
                 (int) $cita->id_cita,
-                'La clienta reprogramó desde el enlace del correo para ' . $nueva
-                . ($idProf !== (int) $cita->id_usuario ? ' y cambió de profesional' : ''));
+                'La clienta reprogramó desde el enlace del correo para ' . $nueva);
             flash('¡Listo! Tu cita quedó para el ' . fecha($nueva) . '.');
         } catch (Throwable) {
             flash('Ese horario se ocupó recién. Elegí otro, por favor.', 'error');
@@ -284,6 +284,51 @@ class CitaTokenController extends Controller
             'Content-Type' => 'text/calendar; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="cita-' . date('Ymd-Hi', strtotime((string) $cita->fecha_hora)) . '.ics"',
         ]);
+    }
+
+    /**
+     * Lo que ESTA cita es, para el selector y para el guardado.
+     *
+     * Los dos tienen que medir igual, que es lo que se pidió verificar: «que
+     * las fechas y horas del reagendado desde el link funcionen de la misma
+     * manera que desde el módulo de Agendamiento». Escrito dos veces se
+     * separa —uno calcula la duración con el reparto y el otro con la suma, o
+     * uno filtra por el local de la cita y el otro por el de la sesión— y el
+     * resultado es el defecto que este proyecto persigue desde siempre: la
+     * pantalla ofrece un horario que el servidor después rechaza.
+     *
+     * Nada de esto sale de la URL: todo sale de la cita. Reprogramar no
+     * pregunta qué se hace, ni con quién, ni dónde, ni para cuántas personas
+     * —eso ya está decidido—; lo único que se elige es cuándo.
+     */
+    private function contexto(int $idCita): object
+    {
+        $c = DB::selectOne(
+            'SELECT c.id_usuario, c.id_sucursal, c.personas,
+                    (SELECT GROUP_CONCAT(cs.id_servicio) FROM cita_servicio cs
+                      WHERE cs.id_cita = c.id_cita) AS servicios_ids
+               FROM cita c WHERE c.id_cita = ?', [$idCita]
+        );
+
+        $servicios = array_values(array_filter(array_map('intval', explode(',', (string) ($c->servicios_ids ?? '')))));
+        // Un servicio pedido para dos personas es una fila por persona: la
+        // cita se mide con las dos (7.119.0). Se fija ANTES de quitar los
+        // repetidos, que es de donde sale la cuenta.
+        Agenda::vecesPorServicio([], $servicios);
+        $servicios = array_values(array_unique($servicios));
+
+        $idUsuario = ((int) ($c->id_usuario ?? 0)) ?: null;
+        $suc = ((int) ($c->id_sucursal ?? 0)) ?: null;
+        $personas = max(1, min(20, (int) ($c->personas ?? 1)));
+
+        return (object) [
+            'servicios' => $servicios,
+            'servicios_ids' => (string) ($c->servicios_ids ?? ''),
+            'id_usuario' => $idUsuario,
+            'id_sucursal' => $suc,
+            'personas' => $personas,
+            'duracion' => Agenda::duracionPrevista($servicios, $personas, $suc, $idUsuario, []),
+        ];
     }
 
     /**

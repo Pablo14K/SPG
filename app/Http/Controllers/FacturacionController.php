@@ -3255,12 +3255,21 @@ class FacturacionController extends Controller
         }
         $desde = 'FROM vw_pago_personal_resumen v WHERE ' . implode(' AND ', $w);
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) $desde", $par));
+        $rows = DB::select(
+            "SELECT v.* $desde ORDER BY v.fecha DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par);
 
         return view('facturacion.pagos', [
             'f' => $f,
             'pag' => $pag,
-            'rows' => DB::select(
-                "SELECT v.* $desde ORDER BY v.fecha DESC LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'rows' => $rows,
+            // **Por qué se le pagó eso.** El detalle decía el período y el
+            // estado, o sea nada que la fila no dijera ya: un monto sin su
+            // desglose no se puede comprobar ni defender, y quien revisa la
+            // planilla tres meses después no tiene de dónde agarrarse. Ahora
+            // abre el trabajo que se está liquidando —qué servicio, de qué
+            // cita, para quién, cuándo, con qué comprobante y cuánto le tocó
+            // de cada uno—, que es lo que se pidió.
+            'detalle' => $this->detalleDeLiquidaciones($rows),
             'profs' => DB::select(
                 // **Cuánto se le debe, no sólo cuántos servicios.** La tabla
                 // decía «3 pendientes» y el botón «Liquidar», así que había
@@ -3307,6 +3316,58 @@ class FacturacionController extends Controller
             // vacía y enterarse cuando el banco rechazara la transferencia.
             'cuentasBanco' => Cuenta::deSucursal((int) Sucursales::activa()),
         ]);
+    }
+
+    /**
+     * Los servicios que entraron en cada liquidación de la página.
+     *
+     * Sale de `detalle_pago_personal`, que es lo que `sp_pagar_personal`
+     * escribe: una fila por servicio realizado, con **el monto congelado ese
+     * día**. Se muestra ése y no `fn_comision_servicio`, que es lo que se
+     * pagaría HOY: si el salón le cambia la comisión el mes que viene, la
+     * liquidación de marzo tiene que seguir diciendo lo que se pagó en marzo
+     * —el mismo criterio por el que `detalle_factura` guarda el precio.
+     *
+     * **Una consulta para toda la página**, no una por fila: con veinticinco
+     * liquidaciones serían veinticinco viajes para dibujar una tabla.
+     */
+    private function detalleDeLiquidaciones(array $rows): array
+    {
+        $ids = array_values(array_filter(array_map(fn ($r) => (int) $r->id_pago_personal, $rows)));
+        if (! $ids) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+
+        $filas = DB::select(
+            "SELECT d.id_pago_personal, d.monto,
+                    sr.fecha_hora, sr.observaciones,
+                    s.nombre AS servicio,
+                    c.id_cita, c.fecha_hora AS cita_fecha, c.personas,
+                    CONCAT(pe.nombre,' ',pe.apellido) AS cliente,
+                    NULLIF(TRIM(COALESCE(c.nombre_para,'')),'') AS para,
+                    f.id_factura, tc.nombre AS comprobante,
+                    CASE WHEN f.id_factura IS NULL THEN NULL ELSE fn_factura_nro(f.id_factura) END AS nro,
+                    df.precio_unitario, df.cantidad
+               FROM detalle_pago_personal d
+               JOIN servicio_realizado sr ON sr.id_servicio_realizado = d.id_servicio_realizado
+               JOIN servicio s  ON s.id_servicio = sr.id_servicio
+               JOIN cita c      ON c.id_cita = sr.id_cita
+               JOIN cliente cl  ON cl.id_cliente = c.id_cliente
+               JOIN persona pe  ON pe.id_persona = cl.id_persona
+               LEFT JOIN detalle_factura df ON df.id_detalle_factura = sr.id_detalle_factura
+               LEFT JOIN factura f ON f.id_factura = df.id_factura
+               LEFT JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante
+              WHERE d.id_pago_personal IN ($in)
+              ORDER BY sr.fecha_hora, s.nombre", $ids
+        );
+
+        $por = [];
+        foreach ($filas as $fila) {
+            $por[(int) $fila->id_pago_personal][] = $fila;
+        }
+
+        return $por;
     }
 
     /** Liquida los servicios realizados que todavía no se le pagaron. */

@@ -113,6 +113,11 @@
                          data-agenda-servicios="{{ $ctx->servicios_ids ?? '' }}"
                          data-agenda-profesional="{{ (int) ($ctx->id_usuario ?? 0) }}"
                          data-agenda-sucursal="{{ (int) ($ctx->id_sucursal ?? 0) }}"
+                         {{-- **Para cuántas personas es**, como en los otros dos
+                              modales de reprogramar: sin esto el selector mide el
+                              peor caso —todo en serie sobre una sola clienta— y
+                              una reserva para dos no ofrece ni un día. --}}
+                         data-agenda-personas="{{ max(1, (int) ($ctx->personas ?? 1)) }}"
                          data-agenda-boton="#btnReprog">
                         <div data-agenda-aviso class="text-muted-warm" style="font-size:.85rem"></div>
                         <div data-agenda-dias class="sgp-dias mt-2"></div>

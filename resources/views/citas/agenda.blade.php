@@ -205,7 +205,39 @@
                                      dos columnas, con el rótulo al lado del ícono, cada uno
                                      dice lo que hace. El rótulo sale del mismo `title`, así
                                      que no se puede desfasar del tooltip. --}}
+                                @php
+                                    $enCurso = $c->estado === 'En proceso';
+                                    // **Atender y marcar en proceso son del DÍA de la
+                                    // cita.** Cancelar y reprogramar sí se hacen antes.
+                                    $esHoy = fecha($c->fecha_hora, 'Y-m-d') === fecha(ahora_bd(), 'Y-m-d');
+                                    // **Ausente cierra la fila, igual que Cancelada.** La
+                                    // clienta no vino: no hay nada que marcar en proceso, ni
+                                    // que atender, ni que reprogramar. Lo único que sobrevive
+                                    // es cobrar lo que haya quedado debiendo.
+                                    $sgpAbierta = ! in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true);
+                                    // Lo que hoy IMPIDE atender: sin la entrada marcada no se
+                                    // registra la atención, y con la profesional ya dada por
+                                    // ausente no va a fichar nunca — ahí lo que hay que hacer
+                                    // es cambiarle el profesional a la cita.
+                                    $sgpTraba = $sgpAbierta && $esHoy && ! $enCurso && ! ($c->fichaje_ok ?? true)
+                                        ? (($c->prof_ausente ?? false) ? 'ausente' : 'fichaje')
+                                        : null;
+                                @endphp
                                 <div class="sgp-acciones">
+                                {{-- **Lo que TRABA la cita va primero, antes que «Detalle».**
+                                     Iba después, así que el botón quedaba encima del aviso y
+                                     se reportó al revés de como tiene que leerse: primero qué
+                                     impide atender —que es lo accionable ahora— y recién
+                                     después la ficha. Es la regla de siempre: lo que ADVIERTE
+                                     no se esconde ni se pone segundo. --}}
+                                @if ($sgpTraba === 'ausente')
+                                    <span class="badge-estado e-no"
+                                          title="Ya está marcado como ausente hoy: hay que asignarle la cita a otra persona">
+                                        <i class="bi bi-person-x"></i> profesional ausente</span>
+                                @elseif ($sgpTraba === 'fichaje')
+                                    <span class="badge-estado e-warn" title="Primero hay que marcar la entrada en Asistencia">
+                                        <i class="bi bi-person-check"></i> falta fichaje</span>
+                                @endif
                                 {{-- **Detalle abre la ficha de la cita en una ventana**, no
                                      una fila desplegable debajo (pedido del usuario): lo que
                                      no cabe en la fila —servicios con precio, quién viene y
@@ -215,19 +247,7 @@
                                 <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" type="button" title="Detalle"
                                         data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}">
                                     <i class="bi bi-card-text"></i></button>
-                                {{-- **Ausente cierra la fila, igual que Cancelada.** La
-                                     clienta no vino: no hay nada que marcar en proceso, ni
-                                     que atender, ni que reprogramar. Lo único que sobrevive
-                                     es cobrar lo que haya quedado debiendo: está en la rama
-                                     de abajo. --}}
-                                @if (! in_array($c->estado, ['Cancelada', 'Atendida', 'Ausente'], true))
-                                    @php
-                                        $enCurso = $c->estado === 'En proceso';
-                                        // **Atender y marcar en proceso son del DÍA de la
-                                        // cita.** Cancelar y reprogramar sí se hacen antes.
-                                        $esHoy = fecha($c->fecha_hora, 'Y-m-d') === fecha(ahora_bd(), 'Y-m-d');
-                                    @endphp
-
+                                @if ($sgpAbierta)
                                     @unless ($enCurso || ! $esHoy)
                                         @if ($c->fichaje_ok ?? true)
                                             <form method="post" action="{{ route('citas.estado') }}">
@@ -238,16 +258,6 @@
                                                 <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="En proceso">
                                                     <i class="bi bi-play-fill"></i></button>
                                             </form>
-                                        @elseif ($c->prof_ausente ?? false)
-                                            {{-- Cuando a esa persona ya se la marcó ausente el
-                                                 problema no es que falte fichar —no va a fichar—:
-                                                 la cita se quedó sin quién la atienda. --}}
-                                            <span class="badge-estado e-no"
-                                                  title="Ya está marcado como ausente hoy: hay que asignarle la cita a otra persona">
-                                                <i class="bi bi-person-x"></i> profesional ausente</span>
-                                        @else
-                                            <span class="badge-estado e-warn" title="Primero hay que marcar la entrada en Asistencia">
-                                                <i class="bi bi-person-check"></i> falta fichaje</span>
                                         @endif
                                     @endunless
 

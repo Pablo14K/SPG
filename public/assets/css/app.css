@@ -336,16 +336,31 @@ body > main{flex:1 0 auto;width:100%;}
 
 
 /* ---- La campanita ---- */
-/* Lo que esta pasando AHORA y alguien tiene que mirar. El numero va en el
-   rojo semantico y no en oro: el oro es accion y jerarquia, y esto es un
-   estado que salio mal —una caja sin cerrar desde ayer—. Apagada se queda
-   con el color de la barra, como cualquier otro enlace de ahi. */
-.sgp-campana{position:relative;font-size:1.1rem;}
-.sgp-campana.tiene-aviso{color:var(--oro-claro);}
+/* Lo que hay para mirar. El numero va en el rojo semantico y no en oro: el
+   oro es accion y jerarquia, y esto es un estado —una caja sin cerrar desde
+   ayer—. Apagada se queda con el color de la barra, como cualquier otro
+   enlace de ahi.
+
+   **Con avisos toma el ORO DEL SISTEMA (`--oro`), el mismo del logo y del
+   nombre del salon que tiene al lado.** Estaba en `--oro-claro`, que es el
+   oro del hover: dos dorados distintos a dos centimetros uno del otro, y se
+   reporto que el color de la campanita no es el que usa el sistema. El hover
+   sigue siendo el claro, como en todos los enlaces de la barra, asi que los
+   tres pasos del oro se mantienen. */
+.sgp-campana{position:relative;font-size:1.25rem;}
+.sgp-campana.tiene-aviso{color:var(--oro);}
+/* **El numerito no se puede comer la campana.** Con el icono en 17 px la
+   pastilla le tapaba media cara y el conjunto se leia como una mancha rosa;
+   ahora el icono es mas grande, el numero sale del glifo y un anillo del
+   color de la barra lo despega. El texto va en `--blanco`, que se invierte
+   con el tema: en claro es blanco sobre el rojo oscuro (7,9:1) y en oscuro es
+   oscuro sobre el rojo claro (7,3:1) — con `#fff` fijo, en oscuro quedaba
+   blanco sobre rosa, en 2,2:1. */
 .sgp-campana-n{
-  position:absolute;top:-.35rem;right:-.5rem;
-  background:var(--rojo);color:#fff;border-radius:20px;
-  font-size:.62rem;font-weight:700;line-height:1;padding:.15rem .3rem;min-width:1rem;text-align:center;
+  position:absolute;top:-.3rem;right:-.55rem;
+  background:var(--rojo);color:var(--blanco);border-radius:20px;
+  box-shadow:0 0 0 1.5px var(--sup-oscura);
+  font-size:.6rem;font-weight:700;line-height:1;padding:.12rem .28rem;min-width:.95rem;text-align:center;
 }
 /* El texto del aviso se lee entero, asi que la lista es ancha y el renglon
    no se corta: un aviso a medias no dice que hacer. */
@@ -360,7 +375,7 @@ body > main{flex:1 0 auto;width:100%;}
   width:.42rem;height:.42rem;border-radius:50%;background:var(--rojo);
 }
 .sgp-alerta-que{font-size:.82rem;line-height:1.35;white-space:normal;}
-.sgp-alerta-ir{display:inline-block;margin-top:.25rem;font-size:.78rem;color:var(--oro-oscuro);font-weight:600;}
+.sgp-alerta-ir{display:inline-block;margin-top:.25rem;font-size:.78rem;color:var(--oro-enfasis);font-weight:600;}
 /* Que tan grave es lo que falta cargar. Los mismos tres niveles del bloque
    que esto reemplaza: rojo semantico lo que IMPIDE trabajar, el tinte de oro
    lo que hace que el sistema decida distinto, neutro lo que solo conviene. */
@@ -375,7 +390,7 @@ body > main{flex:1 0 auto;width:100%;}
 
 /* El desplegable abierto se marca con el oro claro, igual que el hover */
 .sgp-dropdown{--bs-dropdown-link-active-bg:var(--oro);font-size:.88rem;}
-.sgp-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-oscuro);}
+.sgp-dropdown .dropdown-item i{width:1.3rem;color:var(--oro-enfasis);}
 
 /* ---- Accesos rápidos ---- */
 /* Atajos de navegación y altas rápidas. Son acción, así que van en oro, con
@@ -423,7 +438,7 @@ body > main{flex:1 0 auto;width:100%;}
 .sgp-page-head{padding:1.3rem 0 .3rem;}
 .sgp-page-head h1{font-size:1.3rem;font-weight:500;margin:0;}
 .sgp-page-head .sub{font-size:.85rem;color:var(--gris-oscuro);margin-top:.15rem;}
-.sgp-back{color:var(--oro-oscuro);text-decoration:none;font-size:.85rem;}
+.sgp-back{color:var(--oro-enfasis);text-decoration:none;font-size:.85rem;}
 .sgp-back:hover{text-decoration:underline;}
 
 /* ---- Grilla de tarjetas de módulos ---- */
@@ -437,7 +452,7 @@ body > main{flex:1 0 auto;width:100%;}
   width:42px;height:42px;border-radius:10px;background:var(--blanco-hueso);
   display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gris-oscuro);
 }
-.sgp-card:hover .ic{color:var(--oro-oscuro);}
+.sgp-card:hover .ic{color:var(--oro-enfasis);}
 .sgp-card h3{font-size:1rem;font-weight:500;margin:.8rem 0 .35rem;}
 .sgp-card p{font-size:.78rem;color:var(--gris-oscuro);margin:0;line-height:1.5;}
 /* La tarjeta oscura —Seguridad— es oscura en LOS DOS temas, por identidad, así
@@ -499,10 +514,10 @@ body > main{flex:1 0 auto;width:100%;}
   color:var(--gris-oscuro);font-size:.78rem;padding:.22rem .55rem;cursor:pointer;
   transition:transform .2s ease,border-color .15s;white-space:nowrap;
 }
-.sgp-btn-detalle:hover{border-color:var(--oro);color:var(--oro-oscuro);}
+.sgp-btn-detalle:hover{border-color:var(--oro);color:var(--oro-enfasis);}
 .sgp-btn-detalle .bi{transition:transform .25s ease;font-size:.65rem;}
 .sgp-btn-detalle[aria-expanded="true"] .bi{transform:rotate(180deg);}
-.sgp-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-oscuro);}
+.sgp-btn-detalle[aria-expanded="true"]{border-color:var(--oro);color:var(--oro-enfasis);}
 
 /* ---- Las acciones de la fila de la agenda ----
    Siete íconos en fila se leían como una adivinanza —se reportó como
@@ -515,18 +530,28 @@ body > main{flex:1 0 auto;width:100%;}
    agenda medía 116 px: «ahora los botones son demasiado grandes». Van del
    alto de un badge (24 px), con la letra a .7rem y la grilla acotada a 266
    px —lo justo para «Cambiar profesional» entero—: se siguen leyendo, y la fila vuelve a medir lo que mide una cita. */
+/* **El rótulo se lee entero, aunque tenga que partirse en dos renglones.**
+   Iba en una línea con `text-overflow:ellipsis`, así que en 133 px el más
+   largo salía como «Cambiar profes…» — se reportó como que los títulos no se
+   ven completos, en la computadora y en el celular. Un botón que no dice qué
+   hace es el problema que estas dos columnas vinieron a resolver, así que
+   antes que recortarlo se lo deja envolver: la fila crece unos píxeles y los
+   dos botones de cada renglón siguen midiendo lo mismo, porque la grilla
+   estira. El ancho sube a 300 px, que es lo que el más largo necesita para
+   entrar en dos palabras cómodas. */
 .sgp-acciones{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.2rem .25rem;
-  min-width:200px;max-width:266px;margin-left:auto;text-align:left;
+  min-width:200px;max-width:300px;margin-left:auto;text-align:left;
 }
 .sgp-acciones > form{margin:0;display:block;}
 .sgp-acciones .btn{
-  width:100%;display:inline-flex;align-items:center;justify-content:flex-start;gap:.3rem;
-  font-size:.7rem;line-height:1.25;padding:.16rem .4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  width:100%;height:100%;display:inline-flex;align-items:center;justify-content:flex-start;gap:.3rem;
+  font-size:.7rem;line-height:1.2;padding:.18rem .42rem;
+  white-space:normal;overflow:visible;text-overflow:clip;text-align:left;
 }
 .sgp-acciones .btn .bi{font-size:.8rem;}
 .sgp-acciones .btn .bi{flex-shrink:0;}
-.sgp-acciones .sgp-btn-ico[title]::after{content:attr(title);overflow:hidden;text-overflow:ellipsis;}
+.sgp-acciones .sgp-btn-ico[title]::after{content:attr(title);overflow:visible;text-overflow:clip;}
 .sgp-acciones .badge-estado{grid-column:1 / -1;justify-self:start;}
 
 /* «Quién viene», en la ventana de la cita: un renglón por persona, con su
@@ -585,9 +610,13 @@ body > main{flex:1 0 auto;width:100%;}
 .btn-outline-neutro{background:var(--bs-secondary-bg);border:1px solid var(--gris-oscuro);color:var(--carbon);font-weight:500;}
 .btn-outline-neutro:hover{background:var(--oro-suave);border-color:var(--oro);color:var(--oro-texto);}
 .btn-outline-neutro:focus-visible{box-shadow:0 0 0 .2rem rgba(201,168,76,.35);}
-/* Sirve tanto para <a> como para <button class="btn btn-link link-oro"> */
-.link-oro{color:var(--oro-oscuro);text-decoration:none;}
-.link-oro:hover,.link-oro:focus{color:var(--oro-oscuro);text-decoration:underline;}
+/* Sirve tanto para <a> como para <button class="btn btn-link link-oro">
+   **Va en `--oro-enfasis` y no en `--oro-oscuro`**: el oro oscuro es el estado
+   *pressed* de un botón dorado, pensado para fondos claros, y NO se invierte
+   con el tema — sobre el oscuro queda en 2,3:1. Es el mismo defecto que dejaba
+   los nombres de las clientas ilegibles, con otra variable. */
+.link-oro{color:var(--oro-enfasis);text-decoration:none;}
+.link-oro:hover,.link-oro:focus{color:var(--oro-enfasis);text-decoration:underline;}
 
 /* ---- Badges de estado ---- */
 .badge-estado{font-size:.72rem;font-weight:500;padding:.2rem .6rem;border-radius:20px;display:inline-block;}
@@ -597,7 +626,7 @@ body > main{flex:1 0 auto;width:100%;}
    semánticos. Así el badge dorado señala algo, en vez de ser decoración. */
 .e-ok{background:var(--verde-tinte);color:var(--verde);}
 .e-prog{background:var(--blanco-hueso);color:var(--gris-oscuro);box-shadow:inset 0 0 0 1px var(--gris-calido);}
-.e-proc{background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;}
+.e-proc{background:var(--oro-tinte);color:var(--oro-enfasis);font-weight:600;}
 /* **Un aviso no es un botón, y se tiene que ver.** El de advertencia era
    transparente con un contorno dorado: al lado de los botones de contorno
    de la fila se leía como uno más de ellos, y se reportó como que «se
@@ -655,12 +684,24 @@ body > main{flex:1 0 auto;width:100%;}
 .sgp-login{background:var(--blanco);border:1px solid var(--gris-calido);border-radius:16px;padding:2rem;width:100%;max-width:390px;}
 /* Mismo ancho que la tarjeta, para que se lean como una sola pieza. */
 .sgp-login-wrap > .alert{width:100%;max-width:390px;margin-bottom:0;}
-.sgp-login .logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
+/* La marca grande de las pantallas que no tienen barra. **Las reglas NO van
+   scopeadas bajo `.sgp-login`**, y eso era el defecto: `layout/_marca` dibuja
+   el mismo `.logo-big` en la pantalla del enlace del correo, que vive en un
+   `container` pelado y nunca tuvo esa clase — así que el logo del salón salía
+   ahí **a su tamaño natural**, una imagen de mil píxeles encima de la cita. Se
+   reportó como «redimensionar la imagen de la peluquería en los links de
+   reagendar». Es el patrón de siempre: código correcto apuntando a un marcado
+   que no existe, y sin dar ningún error. */
+.logo-big{width:56px;height:56px;border-radius:14px;background:var(--oro);display:flex;align-items:center;
   justify-content:center;color:var(--negro);font-size:1.9rem;margin:0 auto 1rem;}
 /* Igual que en la barra: con logo cargado, el fondo dorado del ícono por
    defecto se va y el logo puede ser ancho. Ver `.sgp-logo.tiene-img`. */
-.sgp-login .logo-big.tiene-img{background:none;border-radius:0;width:auto;max-width:240px;height:64px;}
-.sgp-login .logo-big.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
+.logo-big.tiene-img{background:none;border-radius:0;width:auto;max-width:240px;height:64px;}
+.logo-big.tiene-img img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;}
+/* En el celular, donde entra menos: la marca no puede comerse la pantalla. */
+@media (max-width:575.98px){
+  .logo-big.tiene-img{max-width:180px;height:52px;}
+}
 
 /* ---- Form ---- */
 .form-label{font-size:.82rem;color:var(--gris-oscuro);font-weight:500;}
@@ -685,7 +726,7 @@ body > main{flex:1 0 auto;width:100%;}
   --bs-dropdown-border-color:var(--gris-calido);
   --bs-dropdown-link-color:var(--carbon);
   --bs-dropdown-link-hover-bg:var(--blanco-hueso);
-  --bs-dropdown-link-hover-color:var(--oro-oscuro);
+  --bs-dropdown-link-hover-color:var(--oro-enfasis);
   --bs-dropdown-link-active-bg:var(--oro);
   --bs-dropdown-link-active-color:var(--negro);
   --bs-dropdown-divider-bg:var(--gris-calido);
@@ -714,7 +755,7 @@ body > main{flex:1 0 auto;width:100%;}
 .alert{border-radius:var(--radius);border-width:1px;}
 .alert-success{background:var(--verde-tinte);border-color:#CBDCC6;color:var(--verde);}
 .alert-danger{background:var(--rojo-tinte);border-color:#E8D2D2;color:var(--rojo);}
-.alert-warning{background:var(--oro-tinte);border-color:#EEDDB4;color:var(--oro-oscuro);}
+.alert-warning{background:var(--oro-tinte);border-color:#EEDDB4;color:var(--oro-enfasis);}
 .alert-info{background:var(--blanco-hueso);border-color:var(--gris-calido);color:var(--gris-oscuro);}
 
 /* Texto secundario, siempre en el gris cálido de la identidad.
@@ -907,7 +948,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   font-size:.78rem;color:var(--gris-oscuro);padding:.55rem 0 .1rem;
 }
 .sgp-migas a{color:var(--gris-oscuro);text-decoration:none;display:inline-flex;align-items:center;gap:.28rem;}
-.sgp-migas a:hover,.sgp-migas a:focus-visible{color:var(--oro-oscuro);text-decoration:underline;}
+.sgp-migas a:hover,.sgp-migas a:focus-visible{color:var(--oro-enfasis);text-decoration:underline;}
 .sgp-migas span[aria-current]{color:var(--carbon);font-weight:500;}
 .sgp-miga-sep{font-size:.62rem;color:var(--gris-calido);}
 
@@ -936,7 +977,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* El aviso va en --oro-tinte, no en --oro-suave: es información, no acción.
    (Ver la regla del oro: el tinte es para badges y avisos.) */
 .sgp-filtro-aviso{
-  flex-basis:100%;font-size:.75rem;color:var(--oro-oscuro);
+  flex-basis:100%;font-size:.75rem;color:var(--oro-enfasis);
   background:var(--oro-tinte);border-radius:6px;padding:.25rem .6rem;
   display:inline-flex;align-items:center;gap:.35rem;width:fit-content;
 }
@@ -1390,7 +1431,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 
 /* Subtítulo de una sección dentro de un formulario largo */
 .sgp-form-titulo{font-size:.95rem;font-weight:500;margin:0 0 .3rem;}
-.sgp-form-titulo i{color:var(--oro-oscuro);}
+.sgp-form-titulo i{color:var(--oro-enfasis);}
 
 /* Vista previa de cómo va a quedar el bloque del pie, dentro de Configuración.
    Repite el fondo negro para que se vea tal cual, no como una lista suelta. *
@@ -1404,7 +1445,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   border:1px solid var(--gris-calido);border-radius:10px;padding:.65rem .8rem;background:var(--blanco);
 }
 .sgp-nivel-baja{opacity:.55;border-style:dashed;}
-.sgp-nivel-nombre{font-weight:500;color:var(--oro-oscuro);font-size:.92rem;}
+.sgp-nivel-nombre{font-weight:500;color:var(--oro-enfasis);font-size:.92rem;}
 .sgp-nivel-req{font-size:.75rem;color:var(--gris-oscuro);}
 .sgp-nivel-desc{font-size:.78rem;margin-top:.25rem;}
 .sgp-nivel-clientes{
@@ -1417,7 +1458,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 .sgp-vuelto{border-top:1px dashed var(--gris-calido);padding-top:.8rem;}
 .sgp-vuelto-res{font-size:.87rem;min-height:1.2rem;}
 .sgp-vuelto-monto{
-  background:var(--oro-tinte);color:var(--oro-oscuro);font-weight:600;
+  background:var(--oro-tinte);color:var(--oro-enfasis);font-weight:600;
   border-radius:8px;padding:.35rem .7rem;display:inline-block;font-size:1rem;
 }
 
@@ -1492,7 +1533,7 @@ html,body{max-width:100%;overflow-x:hidden;}
 /* Sin ícono adentro el spinner no tiene dónde ir: se centra y se apaga
    el texto, que si no queda montado encima. */
 .btn.cargando.sin-icono{color:transparent;}
-.btn.cargando.sin-icono::after{left:50%;margin-left:-.45rem;color:var(--negro);}
+.btn.cargando.sin-icono::after{left:50%;margin-left:-.45rem;color:currentColor;}
 .btn-oro.cargando.sin-icono::after{border-color:var(--negro);border-right-color:transparent;}
 
 @keyframes sgp-giro{to{transform:rotate(360deg);}}
@@ -1655,7 +1696,7 @@ html,body{max-width:100%;overflow-x:hidden;}
     color:var(--gris-oscuro);border-bottom:2px solid transparent;
     border-radius:var(--radius) var(--radius) 0 0;white-space:nowrap;}
 .sgp-tab:hover{color:var(--oro-texto);background:var(--blanco-hueso);}
-.sgp-tab.activo{color:var(--oro-oscuro);border-bottom-color:var(--oro);font-weight:500;
+.sgp-tab.activo{color:var(--oro-enfasis);border-bottom-color:var(--oro);font-weight:500;
     background:var(--blanco);}
 .sgp-tab i{font-size:.95rem;opacity:.8;}
 .sgp-tab.activo i{opacity:1;}
@@ -2287,11 +2328,17 @@ html,body{max-width:100%;overflow-x:hidden;}
      sobre el único nombre grande de la tarjeta no aclara nada, y quitarlo
      es lo que deja leer la tarjeta de un vistazo: hora, quién, y abajo
      el resto con su rótulo. */
+  /* **El color va en `--carbon`, no en `--negro`.** `--negro` es una
+     SUPERFICIE y se da vuelta con el tema: en oscuro vale #080807, así que el
+     nombre de la clienta salía negro sobre el fondo oscuro de la tarjeta y no
+     se leía — se reportó como «los nombres de clientes permanecen en negro en
+     modo oscuro, se camuflan con el fondo». `--carbon` ES el color del texto
+     principal y se invierte al revés, que es justo lo que hace falta. */
   .sgp-tabla-movil .table tbody td.sgp-movil-sujeto{
     display:block;
     font-weight:600;
     font-size:.92rem;
-    color:var(--negro);
+    color:var(--carbon);
     padding-bottom:.25rem;
   }
   .sgp-tabla-movil .table tbody td.sgp-movil-sujeto:before{display:none;}
@@ -2316,6 +2363,12 @@ html,body{max-width:100%;overflow-x:hidden;}
     border-bottom:1px solid color-mix(in srgb, var(--gris-calido) 60%, transparent);
   }
   .sgp-tabla-movil .table tbody td.sgp-movil-titulo:before{display:none;}
+
+  /* La grilla de dos columnas ocupa el ancho de la tarjeta: en el celular
+     no hay una columna a la derecha de la que colgar. */
+  .sgp-tabla-movil .table tbody td.sgp-movil-acciones .sgp-acciones{
+    width:100%;max-width:none;margin-left:0;
+  }
 
   /* ── Acciones: fila de botones al pie ── */
   .sgp-tabla-movil .table tbody td.sgp-movil-acciones{
@@ -2373,7 +2426,7 @@ html,body{max-width:100%;overflow-x:hidden;}
   .sgp-filtros{flex-direction:column;align-items:stretch;gap:.5rem;}
   .sgp-filtros-plegar{
     display:flex;align-items:center;gap:.4rem;
-    font-weight:500;font-size:.88rem;color:var(--negro);
+    font-weight:500;font-size:.88rem;color:var(--carbon);
     cursor:pointer;user-select:none;margin:0;
   }
   .sgp-filtros-plegar .badge-estado{font-size:.68rem;}

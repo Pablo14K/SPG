@@ -9002,4 +9002,265 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertStringNotContainsString('>Inicio<', $grilla, 'Inicio es esta pantalla: no se ofrece a sí misma.');
         $this->assertStringNotContainsString('Mi cuenta', $grilla, 'Mi cuenta vive en el desplegable de la cuenta.');
     }
+
+    // -----------------------------------------------------------------
+    //  El enlace del correo mide la agenda IGUAL que el módulo
+    // -----------------------------------------------------------------
+
+    /**
+     * Lo que ofrece el enlace del correo es lo que acepta, y con el local de
+     * LA CITA.
+     *
+     * Se pidió asegurar «que las fechas y horas del reagendado desde el link
+     * funcionen de la misma manera que el reagendado desde el módulo de
+     * Agendamiento», y ahí había una diferencia de verdad: el guardado
+     * comprobaba el hueco **sin decirle la sucursal**, así que `huecoLibre()`
+     * caía en `Sucursales::activa()` — la sesión de quien tuviera el navegador
+     * abierto—. El turno es del local desde la 7.39.0, de modo que alguien del
+     * salón parado en otro local que abriera el enlace de una clienta hacía
+     * que la comprobación corriera contra los turnos de la sede equivocada: el
+     * enlace rechazaba justo el horario que su propio calendario acababa de
+     * ofrecer, y sin decir por qué.
+     *
+     * Se mide en las dos direcciones que importan: los dos endpoints
+     * devuelven las MISMAS horas, y la reprogramación entra **con una sucursal
+     * ajena puesta en la sesión** —que es lo que fallaba—.
+     */
+    #[Test]
+    public function el_enlace_del_correo_mide_la_agenda_igual_que_el_modulo(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+        $codigo = str_repeat('ab12cd34', 6);   // 48 hexadecimales, como el real
+        DB::insert('INSERT INTO token_cita (id_cita, codigo, expira_en, usado)
+                    VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), 0)', [(int) $cita->id_cita, $codigo]);
+
+        $srv = array_map(fn ($r) => (int) $r->id_servicio,
+            DB::select('SELECT id_servicio FROM cita_servicio WHERE id_cita = ?', [(int) $cita->id_cita]));
+
+        // 1) Los días que ofrece el enlace, sin ninguna sesión.
+        $porToken = $this->getJson(route('cita.disponibilidad', ['t' => $codigo]))->assertOk()->json();
+        $this->assertTrue((bool) $porToken['ok'], 'El enlace tiene que poder consultar la agenda sin sesión.');
+        $this->assertNotEmpty($porToken['dias'] ?? [], 'La premisa: tiene que quedar algún día con lugar.');
+        $dia = (string) $porToken['dias'][0];
+
+        // 2) Las horas de ese día, por el enlace y por el módulo.
+        $horasToken = $this->getJson(route('cita.disponibilidad', ['t' => $codigo, 'fecha' => $dia]))
+            ->assertOk()->json('horas');
+
+        $this->entrarComo('admin', 'admin123');
+        $horasModulo = $this->getJson(route('citas.disponibilidad', [
+            'servicios' => $srv,
+            'id_usuario' => (int) $cita->id_usuario,
+            'sucursal' => (int) $cita->id_sucursal,
+            'fecha' => $dia,
+        ]))->assertOk()->json('horas');
+
+        $soloHora = fn (array $hs) => array_map(fn ($h) => is_array($h) ? $h['hora'] : $h, $hs);
+        $this->assertSame($soloHora($horasModulo ?: []), $soloHora($horasToken ?: []),
+            'El enlace del correo y el módulo tienen que ofrecer exactamente las mismas horas.');
+        $this->assertNotEmpty($horasToken, 'La premisa: ese día tiene que tener alguna hora.');
+
+        // 3) Y lo que se ofreció, se acepta — **con OTRO local en la sesión**,
+        //    que es el caso que rechazaba.
+        //
+        //    El local tiene que existir de verdad: `fn_verificar_disponibilidad`
+        //    con una sucursal inventada se queda sin turnos que mirar y cae en
+        //    el criterio permisivo, así que con un id al azar el defecto no se
+        //    ve. Con una sucursal real donde esa persona no tiene turno, la
+        //    función contesta que no — que es exactamente lo que pasaba cuando
+        //    la comprobación se hacía contra el local de la sesión.
+        $otroLocal = $this->otraSucursal();
+        // Ese local **usa turnos** —hay uno cargado, de otra persona— pero el
+        // profesional de la cita no tiene ninguno ahí. Sin esta parte el local
+        // nuevo cae en el criterio permisivo del primer día (7.39.0) y el
+        // defecto no se vería.
+        DB::insert("INSERT INTO turno_laboral (id_sucursal, nombre, hora_inicio, hora_fin)
+                    VALUES (?, 'Turno del otro local', '08:00:00', '18:00:00')", [$otroLocal]);
+        $idTurno = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        for ($d = 1; $d <= 7; $d++) {
+            DB::insert('INSERT INTO turno_dia (id_turno, dia_semana) VALUES (?, ?)', [$idTurno, $d]);
+        }
+        $ajeno = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1 AND u.id_usuario <> ?
+              ORDER BY u.id_usuario LIMIT 1', [(int) $cita->id_usuario]);
+        DB::insert('INSERT INTO usuario_turno (id_usuario, id_turno) VALUES (?, ?)', [$ajeno, $idTurno]);
+
+        $hora = is_array($horasToken[0]) ? $horasToken[0]['hora'] : $horasToken[0];
+        $nueva = $dia . ' ' . $hora . ':00';
+        $this->assertFalse(
+            Agenda::huecoLibre((int) $cita->id_usuario, $nueva, (int) $cita->dur, (int) $cita->id_cita, $otroLocal),
+            'La premisa: en el otro local esa persona no tiene turno, así que ahí el horario NO está libre.'
+        );
+        session(['id_sucursal' => $otroLocal, 'sucursal_nom' => 'Otro local']);
+
+        $this->post(route('cita.token.guardar'), ['t' => $codigo, 'fecha_hora' => $nueva])
+            ->assertRedirect();
+
+        $quedo = (string) DB::scalar('SELECT fecha_hora FROM cita WHERE id_cita = ?', [(int) $cita->id_cita]);
+        $this->assertSame($nueva, $quedo,
+            'La cita tiene que quedar en el horario que el propio enlace ofreció, '
+            . 'aunque la sesión esté parada en otro local.');
+    }
+
+    /**
+     * Desde el enlace del correo no se le puede cambiar el profesional.
+     *
+     * La pantalla dejó de ofrecer el combo en la 7.97.0 —los horarios que
+     * muestra el selector se calculan para quien te atiende, así que cambiarlo
+     * ahí los invalidaría— y **el servidor lo seguía aceptando**: con el token
+     * en la mano se le reasignaba la cita a cualquier profesional activo.
+     * Esconder el campo no es el control.
+     */
+    #[Test]
+    public function el_enlace_del_correo_no_cambia_el_profesional(): void
+    {
+        $cita = $this->citaFuturaAgendada();
+        $codigo = str_repeat('ff00aa55', 6);
+        DB::insert('INSERT INTO token_cita (id_cita, codigo, expira_en, usado)
+                    VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), 0)', [(int) $cita->id_cita, $codigo]);
+
+        $otro = (int) DB::scalar(
+            'SELECT u.id_usuario FROM usuario u JOIN rol r ON r.id_rol = u.id_rol
+              WHERE u.activo = 1 AND r.es_personal = 1 AND u.id_usuario <> ?
+              ORDER BY u.id_usuario LIMIT 1', [(int) $cita->id_usuario]
+        );
+        $this->assertNotSame(0, $otro, 'La premisa: hace falta otro profesional.');
+
+        $porToken = $this->getJson(route('cita.disponibilidad', ['t' => $codigo]))->assertOk()->json();
+        $this->assertNotEmpty($porToken['dias'] ?? [], 'La premisa: tiene que quedar algún día con lugar.');
+        $dia = (string) $porToken['dias'][0];
+        $horas = $this->getJson(route('cita.disponibilidad', ['t' => $codigo, 'fecha' => $dia]))
+            ->assertOk()->json('horas');
+        $this->assertNotEmpty($horas, 'La premisa: ese día tiene que tener alguna hora.');
+        $hora = is_array($horas[0]) ? $horas[0]['hora'] : $horas[0];
+
+        $this->post(route('cita.token.guardar'), [
+            't' => $codigo,
+            'fecha_hora' => $dia . ' ' . $hora . ':00',
+            'id_usuario' => $otro,          // el POST forjado
+        ])->assertRedirect();
+
+        $this->assertSame((int) $cita->id_usuario,
+            (int) DB::scalar('SELECT id_usuario FROM cita WHERE id_cita = ?', [(int) $cita->id_cita]),
+            'La cita sigue con su profesional: el enlace no lo pregunta, así que tampoco lo acepta.');
+    }
+
+    // -----------------------------------------------------------------
+    //  La agenda: lo que TRABA la cita se lee antes que la ficha
+    // -----------------------------------------------------------------
+
+    /**
+     * En la fila, el aviso de lo que impide atender va ANTES que «Detalle».
+     *
+     * Se reportó al revés de como tiene que leerse: *«el botón de DETALLE se
+     * pone encima de FALTA fichaje siendo que debe ser al revés»*. Primero qué
+     * impide atender —que es lo accionable ahora mismo— y después la ficha,
+     * que es información. Es la regla que este proyecto ya tiene escrita para
+     * la ayuda contextual, aplicada al orden de la fila.
+     */
+    #[Test]
+    public function en_la_agenda_lo_que_traba_la_cita_va_antes_que_el_detalle(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        // Una cita de HOY, con su profesional sin fichar: es cuando el aviso
+        // aparece. Se arma desde una futura y se la trae, que `slots()` de hoy
+        // puede no tener ningún hueco a esta altura del día.
+        $cita = $this->citaFuturaAgendada($suc);
+        $hoy = date('Y-m-d') . ' ' . substr((string) $cita->fecha_hora, 11);
+        DB::update('UPDATE cita SET fecha_hora = ? WHERE id_cita = ?', [$hoy, (int) $cita->id_cita]);
+        DB::delete('DELETE FROM asistencia WHERE id_usuario = ? AND fecha = CURDATE()', [(int) $cita->id_usuario]);
+
+        $html = (string) $this->get(route('citas.agenda', ['dia' => date('Y-m-d')]))->assertOk()->getContent();
+
+        // **La posición, que es lo que se reportó.** El aviso puede ser
+        // «falta fichaje» o «profesional ausente» según cómo esté la planilla
+        // del día —la agenda marca sola las entradas vencidas al dibujarse—,
+        // y los dos son lo mismo para esto: lo que impide atender. Lo que se
+        // mide es que venga ANTES del botón de la ficha.
+        $detalle = strpos($html, 'detCita' . (int) $cita->id_cita);
+        $this->assertNotFalse($detalle, 'La fila de esa cita tiene que estar en la agenda.');
+        $grilla = strrpos(substr($html, 0, $detalle), 'sgp-acciones');
+        $this->assertNotFalse($grilla, 'La fila tiene que dibujar su grilla de acciones.');
+
+        $aviso = false;
+        foreach (['Primero hay que marcar la entrada', 'Ya está marcado como ausente hoy'] as $t) {
+            $p = strpos($html, $t, (int) $grilla);
+            if ($p !== false) {
+                $aviso = $p;
+                break;
+            }
+        }
+        $this->assertNotFalse($aviso,
+            'Una cita de hoy sin la entrada marcada tiene que decir por qué no se puede atender.');
+        $this->assertLessThan($detalle, $aviso,
+            'El aviso de lo que traba la cita va ARRIBA del botón «Detalle», no debajo: '
+            . 'primero lo accionable, después la ficha.');
+    }
+
+    // -----------------------------------------------------------------
+    //  La liquidación dice qué trabajo se está pagando
+    // -----------------------------------------------------------------
+
+    /**
+     * El detalle de una liquidación abre los servicios que se pagaron.
+     *
+     * Decía el período y el estado, o sea nada que la fila no dijera ya: un
+     * monto sin su desglose no se puede comprobar ni defender, y quien revisa
+     * la planilla tres meses después no tiene de dónde agarrarse. Se pidió
+     * «un botón de detalle que despliegue los servicios realizados, a quiénes,
+     * con qué número de factura está ligado cada servicio, y demás información
+     * útil del trabajo de ese profesional para ese pago».
+     *
+     * Se mide sobre una liquidación de verdad —la que arma `sp_pagar_personal`,
+     * con su `detalle_pago_personal`— y no sobre datos inventados.
+     */
+    #[Test]
+    public function la_liquidacion_dice_que_trabajo_se_esta_pagando(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        // Un servicio realizado sin liquidar, con su renglón de factura: es lo
+        // que hace que la columna del comprobante signifique algo.
+        $sr = DB::selectOne(
+            "SELECT sr.id_servicio_realizado, sr.id_usuario, s.nombre AS servicio,
+                    fn_factura_nro(f.id_factura) AS nro,
+                    CONCAT(pe.nombre,' ',pe.apellido) AS cliente
+               FROM servicio_realizado sr
+               JOIN servicio s ON s.id_servicio = sr.id_servicio
+               JOIN cita c ON c.id_cita = sr.id_cita
+               JOIN cliente cl ON cl.id_cliente = c.id_cliente
+               JOIN persona pe ON pe.id_persona = cl.id_persona
+               JOIN detalle_factura df ON df.id_detalle_factura = sr.id_detalle_factura
+               JOIN factura f ON f.id_factura = df.id_factura
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE d.id_detalle_pago IS NULL
+              LIMIT 1"
+        );
+        $this->assertNotNull($sr, 'La premisa: hace falta un servicio realizado, facturado y sin liquidar.');
+
+        // Los demás pendientes de esa persona se sacan del medio, para que la
+        // liquidación sea exactamente ese servicio y el total se pueda leer.
+        DB::insert('INSERT INTO pago_personal (id_usuario, id_usuario_registro, id_estado_pago, fecha, periodo)
+                    VALUES (?, ?, 1, NOW(), ?)', [(int) $sr->id_usuario, (int) session('uid'), 'prueba']);
+        $idPago = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO detalle_pago_personal (id_pago_personal, id_servicio_realizado, monto)
+                    VALUES (?, ?, fn_comision_servicio(?))',
+                   [$idPago, (int) $sr->id_servicio_realizado, (int) $sr->id_servicio_realizado]);
+
+        $html = (string) $this->get(route('facturacion.pagos'))->assertOk()->getContent();
+
+        $ini = strpos($html, 'id="detLiq' . $idPago . '"');
+        $this->assertNotFalse($ini, 'La liquidación tiene que traer su bloque de detalle.');
+        $det = substr($html, $ini, 6000);
+
+        $this->assertStringContainsString($sr->servicio, $det, 'El detalle dice QUÉ servicio se está pagando.');
+        $this->assertStringContainsString($sr->cliente, $det, 'Y a quién se le hizo.');
+        $this->assertStringContainsString((string) $sr->nro, $det,
+            'Y con qué comprobante está ligado ese servicio, que es lo que pidió el usuario.');
+        $this->assertStringContainsString('Total liquidado', $det);
+    }
 }

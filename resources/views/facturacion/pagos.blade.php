@@ -147,6 +147,13 @@
                                         @endif
                                     </td>
                                 </tr>
+                                {{-- **El detalle abre el TRABAJO que se está pagando.**
+                                     Decía el período y el estado, o sea nada que la fila
+                                     no dijera ya: un monto sin su desglose no se puede
+                                     comprobar ni defender, y quien revisa la planilla tres
+                                     meses después no tiene de dónde agarrarse. Ahora salen
+                                     los servicios que entraron, de qué cita, para quién,
+                                     con qué comprobante y cuánto le tocó de cada uno. --}}
                                 <tr class="sgp-fila-detalle">
                                     <td colspan="4">
                                         <div class="collapse" id="detLiq{{ $r->id_pago_personal }}">
@@ -154,13 +161,93 @@
                                                 <div class="sgp-det-grid">
                                                     <div>
                                                         <dt>Período</dt>
-                                                        <dd>{{ $r->periodo }}</dd>
+                                                        <dd>{{ $r->periodo ?: '—' }}</dd>
                                                     </div>
                                                     <div>
                                                         <dt>Estado</dt>
                                                         <dd>{!! estado_badge($r->estado) !!}</dd>
                                                     </div>
+                                                    <div>
+                                                        <dt>Servicios liquidados</dt>
+                                                        <dd>{{ (int) ($r->servicios ?? 0) }}</dd>
+                                                    </div>
                                                 </div>
+
+                                                @php $sgpLineas = $detalle[$r->id_pago_personal] ?? []; @endphp
+                                                @if ($sgpLineas)
+                                                    <div class="table-responsive mt-2">
+                                                        <table class="table table-sm align-middle mb-0" style="font-size:.82rem">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Cuándo</th><th>Servicio</th><th>A quién</th>
+                                                                    <th>Comprobante</th><th class="text-end">Le tocó</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach ($sgpLineas as $sgpL)
+                                                                    <tr>
+                                                                        <td style="white-space:nowrap">
+                                                                            {{ fecha($sgpL->fecha_hora, 'd/m/Y H:i') }}
+                                                                        </td>
+                                                                        <td>
+                                                                            {{ $sgpL->servicio }}
+                                                                            @if ($sgpL->precio_unitario !== null)
+                                                                                <div class="text-muted-warm" style="font-size:.76rem">
+                                                                                    se facturó {{ money((float) $sgpL->precio_unitario * (float) $sgpL->cantidad) }}</div>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td>
+                                                                            {{-- Quien SE ATIENDE, que en la cita para otra
+                                                                                 persona no es la que la pidió. --}}
+                                                                            {{ $sgpL->para ?: $sgpL->cliente }}
+                                                                            @if ($sgpL->para)
+                                                                                <div class="text-muted-warm" style="font-size:.76rem">
+                                                                                    la pidió {{ $sgpL->cliente }}</div>
+                                                                            @elseif ((int) $sgpL->personas > 1)
+                                                                                <div class="text-muted-warm" style="font-size:.76rem">
+                                                                                    cita de {{ (int) $sgpL->personas }} personas</div>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td>
+                                                                            @if ($sgpL->nro)
+                                                                                {{-- **Con qué número de comprobante está ligado
+                                                                                     ese servicio.** Sale del renglón de la
+                                                                                     factura que `servicio_realizado` apunta,
+                                                                                     no de la cita: en la cita de varias cada
+                                                                                     una puede irse con el suyo. --}}
+                                                                                <a class="link-oro" href="{{ route('facturacion.factura_ver', ['id' => $sgpL->id_factura]) }}">
+                                                                                    {{ $sgpL->nro }}</a>
+                                                                                <div class="text-muted-warm" style="font-size:.76rem">{{ $sgpL->comprobante }}</div>
+                                                                            @else
+                                                                                <span class="text-muted-warm"
+                                                                                      title="Se atendió, pero todavía no se le emitió el comprobante">sin comprobante</span>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-end" style="white-space:nowrap">
+                                                                            {{-- El monto de ESE día, no el que daría la comisión
+                                                                                 de hoy: si el salón la cambia, lo ya liquidado
+                                                                                 tiene que seguir diciendo lo que se pagó. --}}
+                                                                            {{ money($sgpL->monto) }}
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                            <tfoot>
+                                                                <tr>
+                                                                    <th colspan="4" class="text-end">Total liquidado</th>
+                                                                    <th class="text-end">{{ money($r->monto ?? 0) }}</th>
+                                                                </tr>
+                                                            </tfoot>
+                                                        </table>
+                                                    </div>
+                                                @else
+                                                    <p class="text-muted-warm mb-0 mt-2" style="font-size:.82rem">
+                                                        Esta liquidación no tiene servicios cargados.
+                                                        @if ($r->estado === 'Revertido')
+                                                            Se revirtió, así que volvieron a quedar pendientes.
+                                                        @endif
+                                                    </p>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>

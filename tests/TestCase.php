@@ -214,4 +214,33 @@ abstract class TestCase extends BaseTestCase
 
         return (int) DB::scalar('SELECT LAST_INSERT_ID()');
     }
+
+    /**
+     * Un SEGUNDO local, para las pruebas que miden el aislamiento.
+     *
+     * `peluqueria_test` se entrega con uno solo —es lo que tiene el salón— y
+     * media docena de reglas sólo se pueden medir con dos: el turno es del
+     * local, la caja es del local, el stock es del local. **Y tiene que ser un
+     * local de verdad, no un id inventado**: `fn_verificar_disponibilidad` con
+     * una sucursal que no existe se queda sin turnos que mirar y cae en el
+     * criterio permisivo, así que la prueba pasaría igual con el defecto
+     * puesto — que es justo lo que no puede pasar.
+     *
+     * Se crea al vuelo, dentro de la transacción de la prueba, y **sin turnos
+     * ni gente asignada**: eso es lo que lo hace útil.
+     */
+    protected function otraSucursal(): int
+    {
+        $id = DB::scalar(
+            'SELECT id_sucursal FROM sucursal WHERE activo = 1 AND id_sucursal <> ? ORDER BY id_sucursal LIMIT 1',
+            [(int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1')]
+        );
+        if ($id) {
+            return (int) $id;
+        }
+
+        DB::insert("INSERT INTO sucursal (nombre, ciudad, activo) VALUES ('Sucursal de prueba', 'Luque', 1)");
+
+        return (int) DB::scalar('SELECT LAST_INSERT_ID()');
+    }
 }
