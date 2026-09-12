@@ -1047,6 +1047,98 @@ window.sgpVecesDe = function (casilla) {
 })();
 
 // ---------------------------------------------------------------------
+//  Dónde cae la plata: la caja para el efectivo, la cuenta para el banco
+//
+//  Desde la 7.121.0 la cuenta bancaria es una caja dedicada al banco, así
+//  que cada cobro, pago o movimiento tiene que decir a dónde va: el
+//  efectivo al cajón, la transferencia a la cuenta, y un pago mixto a los
+//  dos. Este bloque muestra u oculta los combos según el medio elegido:
+//
+//    · `[data-caja-bloque]`      «¿a qué caja?»  — sólo si alguna línea es
+//                                efectivo
+//    · `.sgp-extra-cuenta-fila` «¿a qué cuenta?» — por línea, sólo si ESA
+//                                línea es transferencia, cheque o billetera
+//    · `[data-cuenta-bloque]`    «¿de qué cuenta sale?» — en los pagos,
+//                                que tienen un solo medio
+//
+//  **Arranca todo visible y lo esconde este script**: con `app.js` caído
+//  se ven los combos y se elige igual. Y esconder NO es el control: el
+//  servidor decide caja o cuenta por el TIPO del medio, no por lo que
+//  llegó en el formulario.
+//
+//  Va ANTES del bloque del cobro a propósito: ése arma sus líneas al
+//  cargar el script y llama a `window.sgpAcomodarDonde` para cada una.
+//  El combo de método se busca **dentro del mismo formulario**, no por un
+//  id: la pantalla de pagos al personal dibuja una fila por profesional y
+//  los ids se repetirían.
+// ---------------------------------------------------------------------
+(function () {
+  'use strict';
+  var BANCARIOS = ['BANCO', 'CHEQUE', 'OTRO'];
+
+  function tipoDe(sel) {
+    var op = sel && sel.options[sel.selectedIndex];
+    return op ? (op.getAttribute('data-tipo') || '') : '';
+  }
+
+  function acomodar(form) {
+    if (!form) return;
+    var medios = form.querySelectorAll('select.sgp-cobro-metodo, select[name="id_metodo_pago"]');
+    if (!medios.length) return;
+
+    var hayEfectivo = false, hayBanco = false;
+    medios.forEach(function (sel) {
+      var tipo = tipoDe(sel);
+      if (tipo === 'EFECTIVO') hayEfectivo = true;
+      if (BANCARIOS.indexOf(tipo) >= 0) hayBanco = true;
+
+      // El combo de cuenta de ESTA línea: dentro de la línea del cobro, o
+      // en el formulario cuando hay un solo medio (la seña confirmada).
+      var cont = sel.closest('.sgp-cobro-linea') || form;
+      var fila = cont.querySelector('.sgp-extra-cuenta-fila');
+      if (fila) {
+        var va = BANCARIOS.indexOf(tipo) >= 0;
+        fila.style.display = va ? '' : 'none';
+        var cta = fila.querySelector('select');
+        if (cta && va && !cta.getAttribute('data-tocado')) {
+          // Se propone la cuenta del mismo tipo: la billetera para el
+          // pago por billetera, el banco para la transferencia. Si la
+          // persona ya eligió, no se le pisa.
+          var quiero = tipo === 'OTRO' ? 'OTRO' : 'BANCO';
+          for (var i = 0; i < cta.options.length; i++) {
+            if (cta.options[i].getAttribute('data-tipo') === quiero) { cta.selectedIndex = i; break; }
+          }
+        }
+      }
+    });
+
+    form.querySelectorAll('[data-caja-bloque]').forEach(function (b) {
+      b.classList.toggle('d-none', !hayEfectivo);
+    });
+    form.querySelectorAll('[data-cuenta-bloque]').forEach(function (b) {
+      b.classList.toggle('d-none', !hayBanco);
+      // Vaciarlo al esconderlo: si no, queda mandando una cuenta que la
+      // persona ya no está viendo.
+      if (!hayBanco) { var s = b.querySelector('select'); if (s) s.value = ''; }
+    });
+  }
+
+  window.sgpAcomodarDonde = acomodar;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(function (form) {
+      if (!form.querySelector('[data-caja-bloque], [data-cuenta-bloque], .sgp-extra-cuenta-fila')) return;
+      form.addEventListener('change', function (ev) {
+        var t = ev.target;
+        if (t.matches('.sgp-extra-cuenta-fila select')) { t.setAttribute('data-tocado', '1'); return; }
+        if (t.matches('select.sgp-cobro-metodo, select[name="id_metodo_pago"]')) acomodar(form);
+      });
+      acomodar(form);
+    });
+  });
+})();
+
+// ---------------------------------------------------------------------
 //  Cobro con varios medios de pago
 //
 //  Una factura puede cobrarse en partes: algo en efectivo, algo con tarjeta,
@@ -1129,6 +1221,9 @@ window.sgpVecesDe = function (casilla) {
       if (ref) ref.placeholder = PISTA[tipo] || 'Referencia (opcional)';
 
       if (typeof ajustarVuelto === 'function') ajustarVuelto();
+      // La caja y la cuenta de cada línea: efectivo al cajón, banco a la
+      // cuenta (7.121.0). El bloque de arriba lo resuelve para el formulario.
+      if (window.sgpAcomodarDonde) window.sgpAcomodarDonde(caja.closest('form'));
     }
 
     // El vuelto es una cuenta de EFECTIVO: preguntar «¿con cuánto paga?» en una
@@ -1154,7 +1249,10 @@ window.sgpVecesDe = function (casilla) {
       linea.querySelector('.sgp-cobro-metodo').addEventListener('change', function () { ajustarExtras(linea); recalcular(); });
       linea.querySelector('.sgp-cobro-monto').addEventListener('input', recalcular);
       linea.querySelector('.sgp-cobro-quitar').addEventListener('click', function () {
-        if (cont.children.length > 1) { linea.remove(); recalcular(); }
+        if (cont.children.length > 1) {
+          linea.remove(); recalcular();
+          if (window.sgpAcomodarDonde) window.sgpAcomodarDonde(caja.closest('form'));
+        }
       });
       if (window.SGP) window.SGP.prepararCampos(linea);
       recalcular();
@@ -1433,6 +1531,40 @@ window.sgpVecesDe = function (casilla) {
   }
 
   sel.addEventListener('change', ajustar);
+  ajustar();
+})();
+
+//  De dónde sale el movimiento manual: del cajón o de una cuenta bancaria
+//  (7.121.0). El faltante de caja y la devolución en efectivo son cosas del
+//  cajón —una diferencia del arqueo, y plata que estaba ahí adentro—, así que
+//  al elegir una cuenta esas clases se esconden. Sin este script se ven todas
+//  y el servidor las rechaza igual, que es el lado seguro.
+(function () {
+  var dest = document.querySelector('[data-mc-destino]');
+  var clase = document.querySelector('#mc_clase');
+  if (!dest || !clase) { return; }
+
+  function dondeElegido() {
+    if (dest.tagName === 'SELECT') {
+      var op = dest.options[dest.selectedIndex];
+      return op ? (op.getAttribute('data-donde') || 'caja') : 'caja';
+    }
+    return dest.getAttribute('data-donde') || 'caja';
+  }
+
+  function ajustar() {
+    var banco = dondeElegido() === 'cuenta';
+    Array.prototype.forEach.call(clase.options, function (op) {
+      if (op.getAttribute('data-solo-caja') === '1') {
+        op.hidden = banco;
+        op.disabled = banco;
+        if (banco && op.selected) { clase.value = ''; }
+      }
+    });
+    if (banco) { clase.dispatchEvent(new Event('change')); }
+  }
+
+  dest.addEventListener('change', ajustar);
   ajustar();
 })();
 
@@ -2828,44 +2960,9 @@ document.addEventListener('sgp:asistente-paso', function (e) {
   destino.appendChild(cifras);
 });
 
-/* ------------------------------------------------------------------
-   «¿De qué cuenta sale?» se esconde cuando el pago es en efectivo
-   ------------------------------------------------------------------
-   El efectivo no sale de ninguna cuenta bancaria, así que preguntarlo
-   ahí es ruido — y en la fila de «Pagos al personal» son tres combos
-   en el mismo renglón.
-
-   **Arranca visible y lo esconde este script**: con `app.js` caído se
-   ve el combo y se elige igual, que es la regla de siempre. Y esconder
-   NO es el control: el servidor ignora `id_dato_pago` cuando el medio
-   es efectivo.
-
-   El combo de método se busca **dentro del mismo formulario**, no por
-   un id: la pantalla de pagos al personal dibuja una fila por
-   profesional y los ids se repetirían.
-   ------------------------------------------------------------------ */
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('[data-cuenta-bloque]').forEach(function (bloque) {
-    var form = bloque.closest('form');
-    var medio = form && form.querySelector('select[name="id_metodo_pago"]');
-    if (!medio) return;
-
-    function acomodar() {
-      var op = medio.options[medio.selectedIndex];
-      var efectivo = op && op.getAttribute('data-tipo') === 'EFECTIVO';
-      bloque.classList.toggle('d-none', !!efectivo);
-      // Vaciarlo al esconderlo: si no, queda mandando una cuenta que la
-      // persona ya no está viendo.
-      if (efectivo) {
-        var sel = bloque.querySelector('select');
-        if (sel) { sel.value = ''; }
-      }
-    }
-
-    medio.addEventListener('change', acomodar);
-    acomodar();
-  });
-});
+/* «¿De qué cuenta sale?» y «¿a qué caja entra?» los acomoda el bloque
+   «Dónde cae la plata», más arriba: un solo lugar para el cobro, la seña,
+   los pagos y el movimiento manual (7.121.0). */
 
 // ---------------------------------------------------------------------
 //  Tarjetas móviles: el botón que muestra las columnas secundarias.

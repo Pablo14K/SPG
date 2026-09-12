@@ -2,22 +2,28 @@
 
 @php use App\Servicios\Listado; @endphp
 
-@section('titulo', 'Movimientos de caja')
+@section('titulo', 'Movimientos')
 
 @section('contenido')
-    {{-- **Todo lo que movió la caja, no sólo lo manual.** Un pago a
-         proveedor es un movimiento de caja y un cobro también: antes esta
-         pantalla listaba únicamente `movimiento_caja`, así que en un salón que
-         no carga ninguno se veía vacía aunque hubiera habido setenta cobros. --}}
-    <x-encabezado
-        sub="Todo lo que entró y salió de la caja: cobros, gastos, retiros y pagos. Es lo que explica el arqueo." />
+    {{-- **Todo lo que movió plata, venga del cajón o del banco.** Un pago a
+         proveedor es un movimiento y un cobro también: antes esta pantalla
+         listaba únicamente `movimiento_caja`, así que en un salón que no carga
+         ninguno se veía vacía aunque hubiera habido setenta cobros.
 
-    @if (! $abierta)
-        {{-- Sin caja abierta no se mueve un guaraní: quedaría fuera del arqueo
-             y el cierre no cerraría. El aviso dice qué hacer, no «no se puede». --}}
+         Y desde la 7.121.0 ya no es «de caja»: la cuenta bancaria es una caja
+         dedicada al banco, así que cada fila dice DÓNDE pasó —en qué cajón o
+         en qué cuenta— y un movimiento manual puede salir de cualquiera de
+         los dos. --}}
+    <x-encabezado
+        sub="Todo lo que entró y salió, del cajón y de las cuentas bancarias: cobros, gastos, retiros y pagos. Es lo que explica los dos arqueos." />
+
+    @if (! $abierta && ! count($cuentas))
+        {{-- Sin caja abierta ni cuenta cargada no hay de dónde mover un
+             guaraní: quedaría fuera de todo arqueo. El aviso dice qué hacer,
+             no «no se puede». --}}
         <div class="alert alert-warning">
-            <strong>No hay ninguna caja abierta en esta sucursal.</strong>
-            Un movimiento sin caja quedaría fuera del arqueo.
+            <strong>No hay ninguna caja abierta en esta sucursal, ni una cuenta bancaria cargada.</strong>
+            Un movimiento sin caja ni cuenta quedaría fuera del arqueo.
             @if (\App\Servicios\Permisos::puede('facturacion.caja'))
                 <a class="link-oro" href="{{ route('facturacion.cajas') }}">Abrí la caja</a> y volvé.
             @else
@@ -26,7 +32,7 @@
         </div>
     @else
         <div class="sgp-panel mb-3">
-            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar movimiento de caja<x-ayuda>Para lo que entra o sale del cajón sin ser un cobro ni un pago: el delivery, el taxi, la plata que se saca para el cambio, un retiro. Queda en el arqueo, así que el cierre cuadra con lo que hay de verdad.</x-ayuda></h2>
+            <h2 class="sgp-form-titulo mb-2"><i class="bi bi-cash-coin"></i> Registrar un movimiento<x-ayuda>Para lo que entra o sale sin ser un cobro ni un pago: el delivery, el taxi, la plata que se saca para el cambio, un retiro. Del cajón o de una cuenta bancaria: queda en el arqueo que corresponda, así que el cierre cuadra con lo que hay de verdad.</x-ayuda></h2>
 
             <form method="post" action="{{ route('facturacion.caja.movimiento') }}"
                   class="row g-2 align-items-end" enctype="multipart/form-data">
@@ -34,6 +40,46 @@
                 @if (Listado::hay($f, 'caja'))
                     <input type="hidden" name="caja" value="{{ Listado::valor($f, 'caja') }}">
                 @endif
+                @if (Listado::hay($f, 'cuenta'))
+                    <input type="hidden" name="cuenta" value="{{ Listado::valor($f, 'cuenta') }}">
+                @endif
+
+                {{-- **De dónde sale la plata: del cajón o de una cuenta.** Es lo
+                     que decide en qué arqueo cae. Con la caja cerrada se ofrecen
+                     sólo las cuentas —por banco no hace falta caja—, y con una
+                     sola opción no se pregunta pero SÍ se dice cuál es. El
+                     faltante y la devolución son del cajón: `app.js` las
+                     esconde al elegir una cuenta, y el servidor las rechaza. --}}
+                @php
+                    $destinos = [];
+                    if ($abierta) {
+                        $destinos['caja:' . $abierta->id_caja] = ['La caja: ' . ($abierta->caja_nombre ?? 'Caja') . ' (efectivo)', 'caja'];
+                    }
+                    foreach ($cuentas as $ct) {
+                        $destinos['cuenta:' . $ct->id_cuenta] = [
+                            $ct->entidad . ($ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '')
+                                . ($ct->saldo !== null ? ' · ' . money($ct->saldo) : ''), 'cuenta'];
+                    }
+                @endphp
+                <div class="col-md-4">
+                    <label class="form-label" for="mc_destino">¿De dónde sale o a dónde entra?</label>
+                    @if (count($destinos) > 1)
+                        <select class="form-select" id="mc_destino" name="destino" required data-mc-destino>
+                            @foreach ($destinos as $k => [$txt, $tipoDest])
+                                <option value="{{ $k }}" data-donde="{{ $tipoDest }}"
+                                    @selected(old('destino', Listado::hay($f, 'cuenta') ? 'cuenta:' . Listado::valor($f, 'cuenta') : '') === $k)>{{ $txt }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        @php $unico = array_key_first($destinos); @endphp
+                        <input type="hidden" name="destino" value="{{ $unico }}" data-mc-destino
+                               data-donde="{{ $destinos[$unico][1] }}">
+                        <div class="form-control-plaintext" style="font-size:.9rem">
+                            <i class="bi bi-{{ $destinos[$unico][1] === 'caja' ? 'cash-stack' : 'bank' }}"></i>
+                            {{ $destinos[$unico][0] }}
+                        </div>
+                    @endif
+                </div>
 
                 {{-- **La clase decide el signo, y decide qué respaldo se pide.**
                      Antes había un «ingreso/egreso» suelto y un texto libre, así
@@ -51,10 +97,14 @@
                             data-exige="#mc_doc" data-nota="#mc_nota">
                         <option value="">— elegí —</option>
                         @foreach ($tipos as $t)
+                            {{-- `data-solo-caja`: el faltante es una diferencia del
+                                 arqueo del cajón y la devolución en efectivo sale
+                                 de él; contra una cuenta no significan nada. --}}
                             <option value="{{ $t->id_tipo_mov_caja }}"
                                     data-doc="{{ (int) $t->exige_documento }}"
+                                    data-solo-caja="{{ str_starts_with($t->nombre, 'Faltante') || str_starts_with($t->nombre, 'Devolución') ? 1 : 0 }}"
                                     @selected((int) old('id_tipo_mov_caja') === (int) $t->id_tipo_mov_caja)>
-                                {{ $t->nombre }} · {{ $t->signo === 'E' ? 'entra al cajón' : 'sale del cajón' }}</option>
+                                {{ $t->nombre }} · {{ $t->signo === 'E' ? 'entra' : 'sale' }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -82,7 +132,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label" for="mc_monto">Monto</label><x-ayuda campo="mc_monto" />
                     <div class="input-group">
                         <span class="input-group-text">{{ config('sgp.moneda') }}</span>
@@ -91,7 +141,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-5">
+                <div class="col-md-6">
                     <label class="form-label" for="mc_concepto">Concepto</label>
                     <input class="form-control" id="mc_concepto" name="concepto" maxlength="150"
                            value="{{ old('concepto') }}" required
@@ -142,7 +192,7 @@
 
                 <div class="col-md-3 mt-2">
                     <button class="btn btn-oro w-100"
-                            data-confirmar="Este movimiento entra al arqueo de la caja abierta. ¿Confirmás?">
+                            data-confirmar="Este movimiento entra al arqueo de la caja o de la cuenta elegida. ¿Confirmás?">
                         <i class="bi bi-plus-lg"></i> Registrar
                     </button>
                 </div>
@@ -195,7 +245,7 @@
                                      mientras su caja siga abierta: un cobro se
                                      anula desde el comprobante, que es donde la
                                      numeración de la DNIT lo puede rastrear. --}}
-                                @if ($m->clase === 'manual' && $m->activo && $abierta)
+                                @if ($m->clase === 'manual' && $m->activo && ($abierta || $m->es_banco))
                                     <button type="button" class="btn btn-sm btn-outline-neutro"
                                             data-bs-toggle="modal" data-bs-target="#anularMov{{ $m->id_ref }}">
                                         <i class="bi bi-x-lg"></i></button>
@@ -209,8 +259,13 @@
                                     <div class="sgp-det-cuerpo">
                                         <div class="sgp-det-grid">
                                             <div>
-                                                <dt>Caja</dt>
-                                                <dd>{{ $m->caja_nombre }}</dd>
+                                                {{-- La cuenta si la plata fue al banco, el
+                                                     cajón si no: un cobro por transferencia se
+                                                     registra en un puesto, pero la plata no
+                                                     está ahí. --}}
+                                                <dt>Dónde</dt>
+                                                <dd><i class="bi bi-{{ $m->es_banco ? 'bank' : 'cash-stack' }}"></i>
+                                                    {{ $m->donde ?: '—' }}</dd>
                                             </div>
                                             <div>
                                                 <dt>Medio</dt>
@@ -233,7 +288,7 @@
         {{-- Un modal por movimiento manual: el motivo es obligatorio, porque es
              lo único que explica esa anulación al cerrar la caja. --}}
         @foreach ($movimientos as $m)
-            @if ($m->clase === 'manual' && $m->activo && $abierta)
+            @if ($m->clase === 'manual' && $m->activo && ($abierta || $m->es_banco))
                 <div class="modal fade" id="anularMov{{ $m->id_ref }}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
@@ -269,7 +324,7 @@
             <div class="sgp-vacio">
                 <i class="bi bi-cash-coin"></i>
                 <div class="t">No hay movimientos con esos filtros</div>
-                <div class="d">Probá con otro rango de fechas o con otra caja.</div>
+                <div class="d">Probá con otro rango de fechas, con otra caja o con otra cuenta.</div>
             </div>
         </div>
     @endif

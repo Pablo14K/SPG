@@ -690,6 +690,7 @@ CREATE TABLE `cobro` (
   `id_estado_cobro` int(10) unsigned NOT NULL,
   `id_usuario` int(10) unsigned NOT NULL,
   `id_caja` int(10) unsigned DEFAULT NULL,
+  `id_cuenta` int(10) unsigned DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `monto` decimal(14,2) NOT NULL DEFAULT 0.00,
   `referencia` varchar(100) DEFAULT NULL,
@@ -702,8 +703,10 @@ CREATE TABLE `cobro` (
   KEY `idx_cobro_usuario` (`id_usuario`),
   KEY `idx_cobro_caja` (`id_caja`),
   KEY `idx_cobro_fecha` (`fecha`),
+  KEY `ix_cobro_cuenta` (`id_cuenta`),
   CONSTRAINT `fk_cobro_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_cobro_cita` FOREIGN KEY (`id_cita`) REFERENCES `cita` (`id_cita`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_cobro_cuenta` FOREIGN KEY (`id_cuenta`) REFERENCES `cuenta_bancaria` (`id_cuenta`) ON DELETE SET NULL,
   CONSTRAINT `fk_cobro_estado` FOREIGN KEY (`id_estado_cobro`) REFERENCES `estado_cobro` (`id_estado_cobro`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cobro_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`) ON UPDATE CASCADE,
   CONSTRAINT `fk_cobro_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`) ON UPDATE CASCADE,
@@ -1091,14 +1094,14 @@ LOCK TABLES `credencial_webauthn` WRITE;
 UNLOCK TABLES;
 
 --
--- Table structure for table `dato_pago_sucursal`
+-- Table structure for table `cuenta_bancaria`
 --
 
-DROP TABLE IF EXISTS `dato_pago_sucursal`;
+DROP TABLE IF EXISTS `cuenta_bancaria`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `dato_pago_sucursal` (
-  `id_dato_pago` int(10) unsigned NOT NULL AUTO_INCREMENT,
+CREATE TABLE `cuenta_bancaria` (
+  `id_cuenta` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `id_sucursal` int(10) unsigned NOT NULL,
   `id_metodo_pago` int(10) unsigned NOT NULL,
   `entidad` varchar(80) NOT NULL,
@@ -1113,26 +1116,27 @@ CREATE TABLE `dato_pago_sucursal` (
   `saldo_declarado_en` datetime DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
-  PRIMARY KEY (`id_dato_pago`),
-  UNIQUE KEY `uq_dpago_cuenta` (`id_sucursal`,`id_metodo_pago`,`numero_cuenta`),
-  KEY `ix_dpago_suc` (`id_sucursal`,`activo`,`orden`),
-  KEY `fk_dpago_metodo` (`id_metodo_pago`),
-  CONSTRAINT `fk_dpago_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
-  CONSTRAINT `fk_dpago_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
-  CONSTRAINT `chk_dpago_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
-  CONSTRAINT `chk_dpago_titular` CHECK (char_length(trim(`titular`)) >= 3),
-  CONSTRAINT `chk_dpago_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL')),
-  CONSTRAINT `chk_dpago_saldo` CHECK (`saldo_declarado` is null and `saldo_declarado_en` is null or `saldo_declarado` is not null and `saldo_declarado_en` is not null and `saldo_declarado` >= 0)
+  `para_senas` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id_cuenta`),
+  UNIQUE KEY `uq_cuenta_nro` (`id_sucursal`,`id_metodo_pago`,`numero_cuenta`),
+  KEY `ix_cuenta_suc` (`id_sucursal`,`activo`,`orden`),
+  KEY `ix_cuenta_metodo` (`id_metodo_pago`),
+  CONSTRAINT `fk_cuenta_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
+  CONSTRAINT `fk_cuenta_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
+  CONSTRAINT `chk_cuenta_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
+  CONSTRAINT `chk_cuenta_titular` CHECK (char_length(trim(`titular`)) >= 3),
+  CONSTRAINT `chk_cuenta_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL')),
+  CONSTRAINT `chk_cuenta_saldo` CHECK (`saldo_declarado` is null and `saldo_declarado_en` is null or `saldo_declarado` is not null and `saldo_declarado_en` is not null and `saldo_declarado` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `dato_pago_sucursal`
+-- Dumping data for table `cuenta_bancaria`
 --
 
-LOCK TABLES `dato_pago_sucursal` WRITE;
-/*!40000 ALTER TABLE `dato_pago_sucursal` DISABLE KEYS */;
-/*!40000 ALTER TABLE `dato_pago_sucursal` ENABLE KEYS */;
+LOCK TABLES `cuenta_bancaria` WRITE;
+/*!40000 ALTER TABLE `cuenta_bancaria` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cuenta_bancaria` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1751,7 +1755,8 @@ DROP TABLE IF EXISTS `movimiento_caja`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `movimiento_caja` (
   `id_movimiento_caja` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `id_caja` int(10) unsigned NOT NULL,
+  `id_caja` int(10) unsigned DEFAULT NULL,
+  `id_cuenta` int(10) unsigned DEFAULT NULL,
   `tipo` varchar(10) NOT NULL,
   `id_tipo_mov_caja` int(10) unsigned DEFAULT NULL,
   `id_factura` int(10) unsigned DEFAULT NULL,
@@ -1769,13 +1774,16 @@ CREATE TABLE `movimiento_caja` (
   KEY `idx_mc_caja` (`id_caja`),
   KEY `fk_movcaja_tipo` (`id_tipo_mov_caja`),
   KEY `fk_movcaja_usuario` (`id_usuario`),
+  KEY `ix_mc_cuenta` (`id_cuenta`),
   CONSTRAINT `fk_mc_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_mc_cuenta` FOREIGN KEY (`id_cuenta`) REFERENCES `cuenta_bancaria` (`id_cuenta`),
   CONSTRAINT `fk_movcaja_factura` FOREIGN KEY (`id_factura`) REFERENCES `factura` (`id_factura`),
   CONSTRAINT `fk_movcaja_tipo` FOREIGN KEY (`id_tipo_mov_caja`) REFERENCES `tipo_movimiento_caja` (`id_tipo_mov_caja`),
   CONSTRAINT `fk_movcaja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
   CONSTRAINT `chk_mc_tipo` CHECK (`tipo` in ('INGRESO','EGRESO')),
   CONSTRAINT `chk_mc_monto` CHECK (`monto` >= 0),
-  CONSTRAINT `chk_movcaja_concepto` CHECK (`concepto` is not null and `concepto` <> '')
+  CONSTRAINT `chk_movcaja_concepto` CHECK (`concepto` is not null and `concepto` <> ''),
+  CONSTRAINT `chk_mc_donde` CHECK (`id_caja` is not null and `id_cuenta` is null or `id_caja` is null and `id_cuenta` is not null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2067,7 +2075,7 @@ CREATE TABLE `pago_personal` (
   `id_metodo_pago` int(10) unsigned DEFAULT NULL,
   `id_estado_pago` int(10) unsigned NOT NULL,
   `id_caja` int(10) unsigned DEFAULT NULL,
-  `id_dato_pago` int(10) unsigned DEFAULT NULL,
+  `id_cuenta` int(10) unsigned DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `periodo` varchar(40) DEFAULT NULL,
   `observaciones` varchar(300) DEFAULT NULL,
@@ -2077,10 +2085,10 @@ CREATE TABLE `pago_personal` (
   KEY `idx_pp_estado` (`id_estado_pago`),
   KEY `fk_pagopers_metodo` (`id_metodo_pago`),
   KEY `fk_pagopers_caja` (`id_caja`),
-  KEY `fk_pagopers_dpago` (`id_dato_pago`),
+  KEY `ix_pp_cuenta` (`id_cuenta`),
   CONSTRAINT `fk_pagopers_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`),
-  CONSTRAINT `fk_pagopers_dpago` FOREIGN KEY (`id_dato_pago`) REFERENCES `dato_pago_sucursal` (`id_dato_pago`),
   CONSTRAINT `fk_pagopers_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`),
+  CONSTRAINT `fk_pp_cuenta` FOREIGN KEY (`id_cuenta`) REFERENCES `cuenta_bancaria` (`id_cuenta`),
   CONSTRAINT `fk_pp_estado` FOREIGN KEY (`id_estado_pago`) REFERENCES `estado_pago_personal` (`id_estado_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pp_usuario_registro` FOREIGN KEY (`id_usuario_registro`) REFERENCES `usuario` (`id_usuario`) ON UPDATE CASCADE
@@ -2134,7 +2142,7 @@ CREATE TABLE `pago_proveedor` (
   `id_metodo_pago` int(10) unsigned NOT NULL,
   `id_estado_pago_proveedor` int(10) unsigned NOT NULL,
   `id_caja` int(10) unsigned DEFAULT NULL,
-  `id_dato_pago` int(10) unsigned DEFAULT NULL,
+  `id_cuenta` int(10) unsigned DEFAULT NULL,
   `fecha` datetime NOT NULL DEFAULT current_timestamp(),
   `referencia` varchar(100) DEFAULT NULL,
   `observaciones` varchar(300) DEFAULT NULL,
@@ -2144,9 +2152,9 @@ CREATE TABLE `pago_proveedor` (
   KEY `idx_pprov_metodo` (`id_metodo_pago`),
   KEY `idx_pprov_estado` (`id_estado_pago_proveedor`),
   KEY `idx_pprov_caja` (`id_caja`),
-  KEY `fk_pagoprov_dpago` (`id_dato_pago`),
-  CONSTRAINT `fk_pagoprov_dpago` FOREIGN KEY (`id_dato_pago`) REFERENCES `dato_pago_sucursal` (`id_dato_pago`),
+  KEY `ix_pprov_cuenta` (`id_cuenta`),
   CONSTRAINT `fk_pprov_caja` FOREIGN KEY (`id_caja`) REFERENCES `caja` (`id_caja`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_pprov_cuenta` FOREIGN KEY (`id_cuenta`) REFERENCES `cuenta_bancaria` (`id_cuenta`),
   CONSTRAINT `fk_pprov_estado` FOREIGN KEY (`id_estado_pago_proveedor`) REFERENCES `estado_pago_proveedor` (`id_estado_pago_proveedor`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pprov_metodo` FOREIGN KEY (`id_metodo_pago`) REFERENCES `metodo_pago` (`id_metodo_pago`) ON UPDATE CASCADE,
   CONSTRAINT `fk_pprov_proveedor` FOREIGN KEY (`id_proveedor`) REFERENCES `proveedor` (`id_proveedor`) ON UPDATE CASCADE,
@@ -4377,35 +4385,54 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cuenta_saldo`(p_id_dato_pago INT UNSIGNED) RETURNS decimal(14,2)
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cuenta_saldo`(p_id_cuenta INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
 BEGIN
-  DECLARE v_base  DECIMAL(14,2) DEFAULT NULL;
-  DECLARE v_desde DATETIME DEFAULT NULL;
-  DECLARE v_prov  DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_pers  DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_base   DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_desde  DATETIME DEFAULT NULL;
+  DECLARE v_cobros DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_ing    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_egr    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_prov   DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_pers   DECIMAL(14,2) DEFAULT 0;
 
   SELECT saldo_declarado, saldo_declarado_en INTO v_base, v_desde
-  FROM dato_pago_sucursal WHERE id_dato_pago = p_id_dato_pago;
+  FROM cuenta_bancaria WHERE id_cuenta = p_id_cuenta;
 
   
   IF v_base IS NULL OR v_desde IS NULL THEN
     RETURN NULL;
   END IF;
 
+  
+  
+  SELECT COALESCE(SUM(co.monto), 0) INTO v_cobros
+  FROM cobro co
+  WHERE co.id_cuenta = p_id_cuenta
+    AND co.id_estado_cobro = 1
+    AND co.fecha >= v_desde;
+
+  
+  
+  SELECT COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto END), 0),
+         COALESCE(SUM(CASE WHEN tipo = 'EGRESO'  THEN monto END), 0)
+    INTO v_ing, v_egr
+  FROM movimiento_caja
+  WHERE id_cuenta = p_id_cuenta AND activo = 1 AND fecha >= v_desde;
+
   SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
   FROM pago_proveedor pp
-  WHERE pp.id_dato_pago = p_id_dato_pago
+  WHERE pp.id_cuenta = p_id_cuenta
     AND pp.id_estado_pago_proveedor = 1
     AND pp.fecha >= v_desde;
 
   SELECT COALESCE(SUM(fn_pago_personal_monto(pg.id_pago_personal)), 0) INTO v_pers
   FROM pago_personal pg
-  WHERE pg.id_dato_pago = p_id_dato_pago
+  WHERE pg.id_cuenta = p_id_cuenta
     AND pg.id_estado_pago = 1
     AND pg.fecha >= v_desde;
 
-  RETURN v_base - v_prov - v_pers;
+  RETURN v_base + v_cobros + v_ing - v_egr - v_prov - v_pers;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -6728,4 +6755,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-11 23:09:55
+-- Dump completed on 2026-09-12 15:21:30

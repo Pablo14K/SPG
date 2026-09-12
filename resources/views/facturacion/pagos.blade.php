@@ -85,15 +85,20 @@
                                                             @selected($m->tipo === 'EFECTIVO')>{{ $m->nombre }}</option>
                                                     @endforeach
                                                 </select>
+                                                {{-- **En efectivo, de qué caja; por banco, de qué
+                                                     cuenta** — y `app.js` muestra uno u otro según el
+                                                     medio (7.121.0). La liquidación ya no exige caja
+                                                     abierta cuando sale por transferencia: la caja se
+                                                     abre y se cierra cada día y el sueldo no siempre
+                                                     está en el cajón, que es lo que se reportó. --}}
+                                                <span data-caja-bloque>
                                                 @include('facturacion._caja_elegir', [
                                                     'cajas' => $cajas,
                                                     'uid' => 'Pers' . $p->id_usuario,
                                                     'rotulo' => '¿De qué caja sale la plata?',
                                                     'compacto' => true,
                                                 ])
-                                                {{-- Y si se le transfiere, de qué cuenta:
-                                                     el cajón no se toca y hasta acá nada
-                                                     miraba si en el banco había plata. --}}
+                                                </span>
                                                 @include('facturacion._cuenta_elegir', [
                                                     'cuentas' => $cuentasBanco,
                                                     'uid' => 'Pers' . $p->id_usuario,

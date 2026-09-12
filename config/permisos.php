@@ -75,7 +75,13 @@ return [
             // lo respalde, sólo un concepto escrito— así que es la parte que un
             // salón puede querer dar por separado. Es el mismo criterio que
             // separó Timbrados de Facturación en la 5.2.0.
-            'facturacion.movimientos' => 'Movimientos de caja',
+            'facturacion.movimientos' => 'Movimientos',
+            // **La cuenta bancaria es de Tesorería** (7.121.0): era «Datos de
+            // pago» en Configuración cuando sólo decía a dónde transfiere la
+            // clienta; desde que tiene saldo, movimientos y arqueo es una caja
+            // más, dedicada al banco. Lo guardado como `configuracion.pagos`
+            // se traduce abajo, en `equivalencias`.
+            'facturacion.cuentas' => 'Cuenta bancaria',
             'facturacion.pagos' => 'Pagos al personal',
             'facturacion.proveedores' => 'Pagos a proveedores',
             'facturacion.timbrados' => 'Timbrados',
@@ -99,7 +105,6 @@ return [
         'configuracion' => [
             'configuracion.sucursales' => 'Sucursales',
             'configuracion.contacto' => 'Contacto',
-            'configuracion.pagos' => 'Datos de pago',
         ],
     ],
 
@@ -128,6 +133,12 @@ return [
         'seguridad.asistencia' => ['personal.asistencia'],
         'seguridad.comisiones' => ['personal.comisiones'],
         'seguridad.sucursales' => ['configuracion.sucursales'],
+        // --- De la 7.121.0: Datos de pago pasó a ser la Cuenta bancaria -----
+        //
+        // Misma pantalla, otro módulo: quien podía cargar a dónde transfiere
+        // la clienta puede administrar la cuenta. Sin esto, el rol perdería la
+        // pantalla en silencio al actualizar.
+        'configuracion.pagos' => ['facturacion.cuentas'],
         'seguridad.contacto' => ['configuracion.contacto'],
 
         // --- De antes de la 6.2.0: Personal y Configuración eran módulos ---

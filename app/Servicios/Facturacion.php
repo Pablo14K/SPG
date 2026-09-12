@@ -97,6 +97,9 @@ class Facturacion
                 }
 
                 self::guardarDetalle($idCobro, (string) $l['tipo'], (array) ($l['detalle'] ?? []));
+                // **Y a qué CUENTA fue, si no fue al cajón** (7.121.0): es lo
+                // que hace que `fn_cuenta_saldo` sume la transferencia.
+                self::anotarCuenta($idCobro, (int) ($l['cuenta'] ?? 0));
 
                 $total += (float) $l['monto'];
                 $detalle[] = $l['nombre'] . ' ' . money($l['monto']);
@@ -177,15 +180,32 @@ class Facturacion
      * —topea contra el total de la cita, que sigue valiendo— así que se
      * escribe después, sobre el cobro recién creado.
      */
-    public static function sena(int $idCita, int $idMetodo, int $idUsuario, float $monto, ?string $ref, int $idCaja, ?int $persona = null): int
+    public static function sena(int $idCita, int $idMetodo, int $idUsuario, float $monto, ?string $ref, int $idCaja, ?int $persona = null, int $idCuenta = 0): int
     {
         $id = Bd::idDe('sp_registrar_sena',
             [$idCita, $idMetodo, $idUsuario, $monto, $ref, $idCaja ?: null]);
         if ($persona !== null && $persona > 0) {
             DB::update('UPDATE cobro SET persona = ? WHERE id_cobro = ?', [$persona, $id]);
         }
+        self::anotarCuenta($id, $idCuenta);
 
         return $id;
+    }
+
+    /**
+     * A qué cuenta bancaria del salón cayó ese cobro (7.121.0).
+     *
+     * **Los procedimientos no la conocen —su firma no cambió— así que se
+     * escribe después, sobre el cobro recién creado.** `cobro.id_caja` sigue
+     * diciendo en qué puesto se registró; `id_cuenta` dice a dónde fue la
+     * plata, y es lo que `fn_cuenta_saldo` suma. Con cero no se escribe nada:
+     * el efectivo no va a ninguna cuenta.
+     */
+    public static function anotarCuenta(int $idCobro, int $idCuenta): void
+    {
+        if ($idCobro && $idCuenta) {
+            DB::update('UPDATE cobro SET id_cuenta = ? WHERE id_cobro = ?', [$idCuenta, $idCobro]);
+        }
     }
 
     public static function anularFactura(int $idFactura, int $idUsuario): void

@@ -157,7 +157,7 @@ class AccesoTest extends TestCase
             'seguridad.roles', 'seguridad.turnos', 'seguridad.asistencia',
             'seguridad.comisiones', 'seguridad.comision_form',
             'seguridad.sucursales', 'seguridad.sucursal_form',
-            'seguridad.contacto', 'seguridad.pagos', 'seguridad.auditoria',
+            'seguridad.contacto', 'seguridad.auditoria',
             // Los dos landings que salieron de Seguridad en la 7.57.0
             'seguridad.personal.index', 'seguridad.configuracion.index',
         ];
@@ -231,6 +231,8 @@ class AccesoTest extends TestCase
             // Los datos del receptor, el paso previo a emitir un electrónico
             ['facturacion.receptor', ['cita' => $idCita, 'tipo' => 1, 'condicion' => 1]],
             ['facturacion.cajas', []],
+            // La caja del banco (7.121.0): era «Datos de pago», en Configuración
+            ['facturacion.cuentas', []],
             ['facturacion.arqueo', []],
             // **Las dos pantallas de pagos faltaban en esta lista**, y son las
             // que arman los modales con el combo de caja: un `@include` con una
@@ -815,7 +817,10 @@ class AccesoTest extends TestCase
     }
 
     /**
-     * Cargar una cuenta de pago funciona de punta a punta.
+     * Cargar una cuenta bancaria funciona de punta a punta.
+     *
+     * Era «Datos de pago», en Configuración; desde la 7.121.0 es «Cuenta
+     * bancaria», en Tesorería, y la tabla se llama `cuenta_bancaria`.
      *
      * **La prueba anterior insertaba directo en la tabla**, así que medía el
      * aislamiento por sucursal y no el camino real: el controlador llamaba a
@@ -836,8 +841,8 @@ class AccesoTest extends TestCase
         $medio = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' LIMIT 1");
 
         $cargar = function (string $doc, string $nro, array $extra = []) use ($suc, $medio) {
-            return $this->post(route('seguridad.pagos.guardar'), array_merge([
-                'id_dato_pago' => 0,
+            return $this->post(route('facturacion.cuentas.guardar'), array_merge([
+                'id_cuenta' => 0,
                 'id_sucursal' => $suc,
                 'id_metodo_pago' => $medio,
                 'entidad' => 'Banco de prueba',
@@ -857,14 +862,14 @@ class AccesoTest extends TestCase
         $cargar('4200000', 'CTA-CI-' . random_int(1000, 9999));
 
         $this->assertSame(2, (int) DB::scalar(
-            "SELECT COUNT(*) FROM dato_pago_sucursal
+            "SELECT COUNT(*) FROM cuenta_bancaria
               WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]),
             'El alta de cuentas de pago no llegó a guardar: revisá el POST, no la tabla.');
 
         // El alias se guarda: es lo que varios bancos usan para transferir, y
         // es más corto que el número.
         $guardado = DB::selectOne(
-            "SELECT alias, alias_tipo FROM dato_pago_sucursal
+            "SELECT alias, alias_tipo FROM cuenta_bancaria
               WHERE id_sucursal = ? AND titular = 'Salón de prueba' LIMIT 1", [$suc]);
         $this->assertNotNull($guardado->alias, 'El alias no se guardó.');
         $this->assertSame('CELULAR', $guardado->alias_tipo,
@@ -884,7 +889,7 @@ class AccesoTest extends TestCase
         foreach ($malos as [$doc, $extra, $porque]) {
             $cargar($doc, 'CTA-MALA-' . random_int(1000, 9999), $extra);
             $this->assertSame(2, (int) DB::scalar(
-                "SELECT COUNT(*) FROM dato_pago_sucursal
+                "SELECT COUNT(*) FROM cuenta_bancaria
                   WHERE id_sucursal = ? AND titular = 'Salón de prueba'", [$suc]), $porque);
         }
     }

@@ -82,8 +82,9 @@ class SeguridadController extends Controller
                      't' => 'Sucursales', 'd' => 'Locales del salón, nombre y logo'],
                     ['p' => 'configuracion.contacto', 'ruta' => 'seguridad.contacto', 'ic' => 'headset',
                      't' => 'Contacto', 'd' => 'Los medios que salen en el pie'],
-                    ['p' => 'configuracion.pagos', 'ruta' => 'seguridad.pagos', 'ic' => 'bank',
-                     't' => 'Datos de pago', 'd' => 'A qué cuenta transfiere la clienta la seña'],
+                    // «Datos de pago» se fue a Tesorería → Cuenta bancaria en
+                    // la 7.121.0: desde que la cuenta tiene saldo y movimientos
+                    // es una caja más, no un dato de configuración.
                 ]),
                 // **Correo del sistema: SÓLO el Administrador.** No tiene un
                 // submódulo propio —lo guarda el middleware `admin`—, así que la

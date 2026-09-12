@@ -94,7 +94,13 @@ return [
         'facturacion.cajas'         => ['Cajas',                 'safe',               'facturacion.caja', true, 'Caja'],
         'facturacion.caja_ver'      => ['Ver la caja',           'safe',               'facturacion.caja', false, 'Caja'],
         'facturacion.arqueo'        => ['Arqueos',               'clipboard-check',    'facturacion.caja', true, 'Caja'],
-        'facturacion.movimientos'   => ['Movimientos de caja', 'cash-coin',      'facturacion.movimientos', true, 'Caja'],
+        // **La cuenta bancaria es una caja dedicada al banco** (7.121.0), y
+        // por eso va en el grupo Caja: lo que entra por transferencia se suma
+        // y lo que sale se resta, con su arqueo. Era «Datos de pago», en
+        // Configuración.
+        'facturacion.cuentas'       => ['Cuenta bancaria',       'bank',               'facturacion.cuentas', true, 'Caja'],
+        // «Movimientos» a secas: lista lo del cajón Y lo de la cuenta.
+        'facturacion.movimientos'   => ['Movimientos',           'arrow-left-right',   'facturacion.movimientos', true, 'Caja'],
         'facturacion.pagos'         => ['Pagos al profesional',  'wallet2',            'facturacion.pagos', true, 'Pagos'],
         'facturacion.proveedores'   => ['Pagos a proveedores',   'truck',              'facturacion.proveedores', true, 'Pagos'],
         'reportes.index'            => ['Reportes',              'bar-chart',          'reportes'],
@@ -109,7 +115,6 @@ return [
         'seguridad.comisiones'      => ['Comisiones',            'percent',            'personal.comisiones'],
         'seguridad.sucursales'      => ['Sucursales',            'shop',               'configuracion.sucursales'],
         'seguridad.contacto'        => ['Contacto',                'headset',            'configuracion.contacto'],
-        'seguridad.pagos'           => ['Datos de pago',           'bank',               'configuracion.pagos'],
         // **Correo del sistema: SÓLO el Administrador, y por eso el SEXTO
         // valor.** No tiene submódulo propio —a propósito, para que no se
         // pueda dar a otro rol desde Roles— y lo guarda el middleware `admin`.

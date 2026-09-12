@@ -13,6 +13,7 @@ use App\Servicios\Bd;
 use App\Servicios\Calendario;
 use App\Servicios\Canje;
 use App\Servicios\Config;
+use App\Servicios\Cuenta;
 use App\Servicios\Sena;
 use App\Servicios\Listado;
 use Illuminate\Http\JsonResponse;
@@ -955,36 +956,17 @@ class PortalController extends Controller
     }
 
     /**
-     * Las cuentas de cobro de los locales donde la clienta tiene cita.
+     * Las cuentas a las que la clienta transfiere la seña, por local.
      *
      * Una sola consulta para todas: en la vista, dentro del `foreach` de
-     * citas, correría una por cita.
+     * citas, correría una por cita. **Sólo las marcadas «Usar para señas»**
+     * (7.121.0): el salón puede tener una cuenta para pagarle a proveedores
+     * que no es a la que quiere que le transfieran, y cuál se muestra se
+     * elige en Tesorería → Cuenta bancaria.
      */
     private function cuentasPorSucursal(array $citas): array
     {
-        $ids = array_values(array_unique(array_filter(
-            array_map(fn ($c) => (int) ($c->id_sucursal ?? 0), $citas)
-        )));
-        if (! $ids) {
-            return [];
-        }
-
-        $filas = DB::select(
-            'SELECT d.id_sucursal, d.entidad, d.titular, d.documento, d.tipo_cuenta,
-                    d.numero_cuenta, d.alias, d.alias_tipo, d.observacion, m.nombre AS medio
-               FROM dato_pago_sucursal d
-               JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
-              WHERE d.activo = 1 AND d.id_sucursal IN ('
-                . implode(',', array_fill(0, count($ids), '?')) . ')
-              ORDER BY d.orden, d.id_dato_pago', $ids
-        );
-
-        $por = [];
-        foreach ($filas as $f) {
-            $por[(int) $f->id_sucursal][] = $f;
-        }
-
-        return $por;
+        return Cuenta::paraSenas(array_map(fn ($c) => (int) ($c->id_sucursal ?? 0), $citas));
     }
 
     public function cancelar(Request $request): RedirectResponse

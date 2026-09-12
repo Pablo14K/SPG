@@ -8,6 +8,7 @@ use App\Http\Controllers\CitasController;
 use App\Http\Controllers\CitaTokenController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\CuentaBancariaController;
 use App\Http\Controllers\CuentaController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\FacturacionController;
@@ -321,18 +322,6 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('identidad/logo/quitar', [ConfiguracionController::class, 'identidadLogoQuitar'])->name('identidad.logo.quitar');
         });
 
-        // **A dónde le transfiere la clienta la seña.** Su propio permiso: el
-        // número de cuenta del salón se le puede dar a alguien distinto de
-        // quien administra los locales.
-        Route::middleware('modulo:configuracion.pagos')->group(function () {
-            Route::get('pagos', [ConfiguracionController::class, 'pagos'])->name('pagos');
-            Route::post('pagos', [ConfiguracionController::class, 'pagosGuardar'])->name('pagos.guardar');
-            Route::post('pagos/estado', [ConfiguracionController::class, 'pagosEstado'])->name('pagos.estado');
-            Route::post('pagos/orden', [ConfiguracionController::class, 'pagosOrden'])->name('pagos.orden');
-            // El arqueo de la cuenta: cuánta plata dice el banco que hay
-            Route::post('pagos/saldo', [ConfiguracionController::class, 'pagosSaldo'])->name('pagos.saldo');
-        });
-
         Route::middleware('modulo:configuracion.contacto')->group(function () {
             Route::get('contacto', [ConfiguracionController::class, 'contacto'])->name('contacto');
             Route::post('contacto', [ConfiguracionController::class, 'contactoGuardar'])->name('contacto.guardar');
@@ -475,8 +464,23 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::get('arqueos', [FacturacionController::class, 'arqueo'])->name('arqueo');
         });
 
-        // El movimiento de efectivo a mano: su propia clave, porque mueve plata
-        // sin un documento que la respalde.
+        // **La cuenta bancaria: una caja dedicada al banco** (7.121.0). Era
+        // «Datos de pago» en Configuración —a dónde le transfiere la clienta—
+        // y pasó a Tesorería cuando ganó saldo, movimientos y arqueo. Su
+        // propio permiso, traducido desde `configuracion.pagos`.
+        Route::middleware('modulo:facturacion.cuentas')->group(function () {
+            Route::get('cuentas', [CuentaBancariaController::class, 'index'])->name('cuentas');
+            Route::post('cuentas/guardar', [CuentaBancariaController::class, 'guardar'])->name('cuentas.guardar');
+            Route::post('cuentas/estado', [CuentaBancariaController::class, 'estado'])->name('cuentas.estado');
+            Route::post('cuentas/orden', [CuentaBancariaController::class, 'orden'])->name('cuentas.orden');
+            // Cuál se le muestra a la clienta para la seña
+            Route::post('cuentas/senas', [CuentaBancariaController::class, 'senas'])->name('cuentas.senas');
+            // El arqueo de la cuenta: cuánta plata dice el banco que hay
+            Route::post('cuentas/saldo', [CuentaBancariaController::class, 'saldo'])->name('cuentas.saldo');
+        });
+
+        // El movimiento a mano, del cajón o de la cuenta: su propia clave,
+        // porque mueve plata sin un documento que la respalde.
         Route::middleware('modulo:facturacion.movimientos')->group(function () {
             Route::get('caja/movimientos', [FacturacionController::class, 'movimientos'])->name('movimientos');
             // El gasto de caja chica, el retiro, la plata para el cambio: lo

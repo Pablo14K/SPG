@@ -30,7 +30,9 @@ class Diagnostico extends Command
     /**
      * Las restricciones CHECK, que un export de phpMyAdmin se come.
      *
-     * Son **82** desde la 7.112.0, que sumó `chk_persona_foto`. Este número se
+     * Son **88** desde la 7.121.0, que sumó `chk_mc_donde` —un movimiento
+     * manual sale del cajón o de una cuenta bancaria, nunca de los dos ni de
+     * ninguno—. Este número se
      * quedó atrás **tres veces ya**: en 54 cuando la 7.0.0 lo llevó a 56, en
      * 56 cuando la 7.2.0 lo llevó a 57, y en 78 mientras el esquema seguía
      * creciendo. Como la comparación es «menos que», quedarse corto no hace
@@ -38,7 +40,7 @@ class Diagnostico extends Command
      * tendría que detectar. **Al agregar un CHECK, actualizalo acá en la misma
      * tanda.**
      */
-    private const CHECKS = 87;
+    private const CHECKS = 88;
 
     /**
      * Cuánto se aparta de UTC la hora de Paraguay, en segundos.

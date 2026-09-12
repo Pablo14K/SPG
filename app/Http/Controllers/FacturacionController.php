@@ -12,6 +12,7 @@ use App\Servicios\Caja;
 use App\Servicios\Cuenta;
 use App\Servicios\Facturacion;
 use App\Servicios\Listado;
+use App\Servicios\Movimientos;
 use App\Servicios\Permisos;
 use App\Servicios\Sucursales;
 use App\Servicios\Persona;
@@ -67,8 +68,12 @@ class FacturacionController extends Controller
                  't' => 'Cajas', 'd' => 'Los cajones del salón: abrir, ver y cerrar'],
                 ['p' => 'facturacion.caja', 'ruta' => 'facturacion.arqueo', 'ic' => 'clipboard-check',
                  't' => 'Arqueos', 'd' => 'Cómo cerró cada caja y si cuadró'],
-                ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'cash-coin',
-                 't' => 'Movimientos de caja', 'd' => 'Lo que entra o sale sin ser un cobro ni un pago'],
+                // **La cuenta bancaria, al lado de las cajas** (7.121.0): es
+                // una caja dedicada al banco, con su saldo y su arqueo.
+                ['p' => 'facturacion.cuentas', 'ruta' => 'facturacion.cuentas', 'ic' => 'bank',
+                 't' => 'Cuenta bancaria', 'd' => 'Lo que entra y sale por el banco, y a dónde transfiere la clienta'],
+                ['p' => 'facturacion.movimientos', 'ruta' => 'facturacion.movimientos', 'ic' => 'arrow-left-right',
+                 't' => 'Movimientos', 'd' => 'Todo lo que entró y salió, del cajón y de la cuenta'],
 
                 ['p' => 'facturacion.pagos', 'ruta' => 'facturacion.pagos', 'ic' => 'wallet2',
                  't' => 'Pagos al profesional', 'd' => 'Comisiones y liquidaciones'],
@@ -1164,17 +1169,35 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('registrar un cobro');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // **Sin caja abierta no se mueve un guaraní EN EFECTIVO** (7.121.0).
+        // Lo que entra por transferencia, cheque o billetera no toca el cajón
+        // —va a la cuenta bancaria, que es su propia caja— así que un cobro
+        // que sea todo por banco se registra aunque el cajón esté cerrado. Con
+        // alguna línea en efectivo, o con tarjeta —que se pasa por el posnet
+        // del puesto—, la caja sigue haciendo falta, como siempre.
+        $idCaja = 0;
+        if ($this->tocaElCajon($lineas)) {
+            $caja = $this->exigeCaja('registrar un cobro');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
+
+            // **A qué caja entra la plata lo dice la pantalla.** Con dos cajones
+            // abiertos, dejar que el sistema elija manda el cobro al arqueo de
+            // otra persona: quien cuenta al cerrar se encuentra con plata que
+            // no cobró.
+            $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+            if ($idCaja instanceof RedirectResponse) {
+                return $idCaja;
+            }
         }
 
-        // **A qué caja entra la plata lo dice la pantalla.** Con dos cajones
-        // abiertos, dejar que el sistema elija manda el cobro al arqueo de otra
-        // persona: quien cuenta al cerrar se encuentra con plata que no cobró.
-        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
-        if ($idCaja instanceof RedirectResponse) {
-            return $idCaja;
+        // **Y a qué cuenta entra cada línea que no es en efectivo.** Es lo que
+        // hace que la cuenta bancaria sume lo que cobra el salón; las cuentas
+        // son las del local que emitió la factura, igual que el cajón.
+        $falta = $this->cuentasDeLasLineas($lineas, $this->sucursalDeFactura($idFactura), $volver);
+        if ($falta) {
+            return $falta;
         }
 
         try {
@@ -1274,10 +1297,71 @@ class FacturacionController extends Controller
                 'metodo' => $idm, 'monto' => $mto, 'tipo' => $mp->tipo, 'nombre' => $mp->nombre,
                 'referencia' => trim((string) (((array) $request->input('referencia', []))[$i] ?? '')) ?: null,
                 'detalle' => $detalle,
+                // A qué cuenta del salón entra ESTA línea (7.121.0). Viaja por
+                // posición como `metodo[]`; se valida después, contra el local.
+                'cuenta' => (int) (((array) $request->input('cuenta', []))[$i] ?? 0),
             ];
         }
 
         return $lineas;
+    }
+
+    /**
+     * ¿Alguna línea del pago toca el cajón?
+     *
+     * El efectivo, y la tarjeta —que se pasa por el posnet del puesto y se
+     * registra en su caja, aunque `fn_caja_saldo` no la cuente—. Lo que va
+     * por transferencia, cheque o billetera cae en una cuenta bancaria y no
+     * necesita caja abierta (7.121.0). Una línea sin tipo —el formato viejo
+     * de un solo monto— se toma como del cajón, que es el lado seguro.
+     */
+    private function tocaElCajon(array $lineas): bool
+    {
+        foreach ($lineas as $l) {
+            if (! in_array((string) ($l['tipo'] ?? ''), Cuenta::TIPOS_BANCARIOS, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A qué cuenta bancaria del salón entra cada línea que no es en efectivo.
+     *
+     * **El id viaja en el formulario, así que no se cree**: se comprueba que
+     * sea una cuenta activa del local —el mismo criterio que `cajaElegida()`—.
+     * Con una sola cuenta cargada se toma sin preguntar; con varias y ninguna
+     * elegida se rechaza, porque adivinar en cuál cayó la transferencia deja
+     * una cuenta sumando plata que no recibió. **Sin ninguna cuenta cargada
+     * el cobro entra igual**: la campanita ya pide cargar una, y frenar el
+     * mostrador por eso sería peor.
+     *
+     * Deja `$l['cuenta']` resuelto en cada línea, y devuelve el redirect con
+     * el aviso si alguna no cierra.
+     */
+    private function cuentasDeLasLineas(array &$lineas, int $sucursal, RedirectResponse $volver): ?RedirectResponse
+    {
+        $activas = Cuenta::deSucursal($sucursal);
+        $unica = count($activas) === 1 ? (int) $activas[0]->id_cuenta : 0;
+
+        foreach ($lineas as &$l) {
+            if (! in_array((string) ($l['tipo'] ?? ''), Cuenta::TIPOS_BANCARIOS, true)) {
+                $l['cuenta'] = 0;
+                continue;
+            }
+            $id = Cuenta::valida((int) ($l['cuenta'] ?? 0), $sucursal) ?: $unica;
+            if (! $id && count($activas) > 1) {
+                flash('Elegí a qué cuenta entra la línea de ' . ($l['nombre'] ?? 'transferencia')
+                    . ': con más de una cuenta cargada, el sistema no puede adivinar en cuál cayó la plata.', 'error');
+
+                return $volver;
+            }
+            $l['cuenta'] = $id;
+        }
+        unset($l);
+
+        return null;
     }
 
     /**
@@ -1300,9 +1384,13 @@ class FacturacionController extends Controller
         $motivo = trim((string) $request->input('motivo', ''));
         $volver = redirect()->route('facturacion.cajas');
 
+        // LEFT JOIN: el movimiento de una cuenta bancaria no tiene caja
+        // (7.121.0), y **se anula en cualquier momento** — el arqueo de la
+        // cuenta es declarar el saldo, y se rehace cuando haga falta.
         $m = DB::selectOne(
-            'SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.activo, c.id_estado_caja
-               FROM movimiento_caja mc JOIN caja c ON c.id_caja = mc.id_caja
+            'SELECT mc.id_movimiento_caja, mc.tipo, mc.monto, mc.concepto, mc.activo, mc.id_cuenta,
+                    c.id_estado_caja
+               FROM movimiento_caja mc LEFT JOIN caja c ON c.id_caja = mc.id_caja
               WHERE mc.id_movimiento_caja = ?', [$id]
         );
 
@@ -1311,7 +1399,7 @@ class FacturacionController extends Controller
             $error = 'Ese movimiento no existe.';
         } elseif (! (int) $m->activo) {
             $error = 'Ese movimiento ya estaba anulado.';
-        } elseif ((int) $m->id_estado_caja !== 1) {
+        } elseif (! $m->id_cuenta && (int) $m->id_estado_caja !== 1) {
             $error = 'Esa caja ya está cerrada, así que su arqueo no se toca. '
                 . 'Cargá el movimiento contrario en la caja de hoy y explicá el motivo en el concepto.';
         } elseif ($motivo === '') {
@@ -1329,7 +1417,7 @@ class FacturacionController extends Controller
         Auditoria::registrar('ANULACION', 'Facturacion', 'movimiento_caja', $id,
             $m->tipo . ' de ' . money($m->monto) . ' (' . $m->concepto . ') — ' . $motivo);
 
-        flash('Movimiento anulado. El saldo del cajón ya no lo cuenta.');
+        flash('Movimiento anulado. El saldo ' . ($m->id_cuenta ? 'de la cuenta' : 'del cajón') . ' ya no lo cuenta.');
 
         return $volver;
     }
@@ -1951,7 +2039,7 @@ class FacturacionController extends Controller
         $ref = $lineas[0]['ref'] ?? null;
 
         $cita = DB::selectOne(
-            "SELECT c.id_cita, c.id_estado_cita, c.personas, c.para_otra_persona, c.nombre_para,
+            "SELECT c.id_cita, c.id_estado_cita, c.id_sucursal, c.personas, c.para_otra_persona, c.nombre_para,
                     CONCAT(pe_cl.nombre,' ',pe_cl.apellido) AS cliente
                FROM cita c JOIN cliente cl ON cl.id_cliente = c.id_cliente
                JOIN persona pe_cl ON pe_cl.id_persona = cl.id_persona WHERE c.id_cita = ?", [$idCita]
@@ -2023,16 +2111,29 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('recibir una seña');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // **Sin caja abierta no se mueve un guaraní EN EFECTIVO** (7.121.0):
+        // la seña que llega por transferencia va a la cuenta bancaria y se
+        // confirma aunque el cajón esté cerrado — que es el caso normal, la
+        // clienta transfiere desde su casa. Con efectivo o tarjeta, la caja.
+        $idCaja = 0;
+        if ($this->tocaElCajon($lineas)) {
+            $caja = $this->exigeCaja('recibir una seña');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
+
+            // La caja la elige quien cobra cuando hay más de una abierta: si
+            // no, la seña entra al arqueo del cajón equivocado.
+            $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+            if ($idCaja instanceof RedirectResponse) {
+                return $idCaja;
+            }
         }
 
-        // La caja la elige quien cobra cuando hay más de una abierta: si no, la
-        // seña entra al arqueo del cajón equivocado.
-        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
-        if ($idCaja instanceof RedirectResponse) {
-            return $idCaja;
+        // Y a qué cuenta del local DE LA CITA entra lo que no es efectivo.
+        $falta = $this->cuentasDeLasLineas($lineas, (int) $cita->id_sucursal, $volver);
+        if ($falta) {
+            return $falta;
         }
 
         try {
@@ -2045,7 +2146,7 @@ class FacturacionController extends Controller
                 foreach ($lineas as $l) {
                     $nuevo = Facturacion::sena($idCita, (int) $l['metodo'], (int) session('uid'),
                         (float) $l['monto'], $l['referencia'] ?? ($l['ref'] ?? null), $idCaja,
-                        $persona > 0 ? $persona : null);
+                        $persona > 0 ? $persona : null, (int) ($l['cuenta'] ?? 0));
                     $idCobro = $idCobro ?: $nuevo;
                     $cobrados[] = $nuevo;
                     if (! empty($l['detalle'])) {
@@ -2185,20 +2286,44 @@ class FacturacionController extends Controller
                 . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
         }
 
-        $f = Listado::filtros([
+        // **Y las cuentas bancarias, que desde la 7.121.0 son cajas también**:
+        // un movimiento puede ser del cajón o del banco, y la pantalla lista
+        // los dos. Las del local activo son las que ofrece el formulario para
+        // registrar uno; el filtro ofrece las de todos los locales de esta
+        // persona, igual que el de cajas.
+        $cuentas = Cuenta::deSucursal((int) Sucursales::activa());
+        $opCuenta = ['' => 'Todas'];
+        foreach ($mias as $su) {
+            foreach (Cuenta::deSucursal((int) $su->id_sucursal) as $ct) {
+                $opCuenta[(string) $ct->id_cuenta] = $ct->entidad
+                    . ($ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '')
+                    . (count($mias) > 1 ? ' · ' . $su->nombre : '');
+            }
+        }
+
+        $campos = [
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Concepto, cliente o proveedor', 'ancho' => '230px'],
             'caja' => ['tipo' => 'select', 'etiqueta' => 'Caja', 'opciones' => $opCaja, 'ancho' => '180px'],
+        ];
+        // Sin ninguna cuenta cargada el filtro no significa nada: se saca del
+        // arreglo, no se pone en null (7.69.0).
+        if (count($opCuenta) > 1) {
+            $campos['cuenta'] = ['tipo' => 'select', 'etiqueta' => 'Cuenta', 'opciones' => $opCuenta, 'ancho' => '200px'];
+        }
+        $campos += [
             'clase' => ['tipo' => 'select', 'etiqueta' => 'Qué', 'ancho' => '190px',
                         'opciones' => ['' => 'Todo', 'cobro' => 'Cobros', 'manual' => 'Gastos y retiros',
                                        'prov' => 'Pagos a proveedores', 'pers' => 'Pagos al personal']],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
-        ]);
+        ];
+        $f = Listado::filtros($campos);
 
-        // El aislamiento por sucursal sale de la caja del movimiento, que es de
-        // dónde salió esa plata — no hace falta columna propia en cada tabla.
+        // El aislamiento por sucursal sale de la cuenta o de la caja del
+        // movimiento, que es a dónde fue esa plata — no hace falta columna
+        // propia en cada tabla.
         $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
-        $enSuc = 'c.id_sucursal IN (' . implode(',', $ids ?: [0]) . ')';
+        $enSuc = Movimientos::enSucursales($ids);
 
         $par = [];
         // **Cada fuente lleva sus PROPIOS marcadores.** La conexión abre PDO
@@ -2208,11 +2333,19 @@ class FacturacionController extends Controller
         //
         // Es el mismo error que el documento del proyecto ya anota, y por eso
         // el sufijo va por fuente: `:cf_cobro`, `:cf_manual`, …
-        $filtros = function (string $campoFecha, string $suf) use ($f, &$par, $enSuc): string {
+        //
+        // **El filtro de caja lista sólo lo que quedó en el cajón**: lo que se
+        // cobró por transferencia en ese puesto está en la cuenta a la que fue,
+        // y ahí se lista. Por eso mira `id_cuenta IS NULL` además del cajón.
+        $filtros = function (string $campoFecha, string $suf, string $alias) use ($f, &$par, $enSuc): string {
             $w = [$enSuc];
             if (Listado::hay($f, 'caja')) {
-                $w[] = "c.id_caja_fisica = :cf_$suf";
+                $w[] = "$alias.id_cuenta IS NULL AND c.id_caja_fisica = :cf_$suf";
                 $par["cf_$suf"] = (int) Listado::valor($f, 'caja');
+            }
+            if (Listado::hay($f, 'cuenta')) {
+                $w[] = "$alias.id_cuenta = :cu_$suf";
+                $par["cu_$suf"] = (int) Listado::valor($f, 'cuenta');
             }
             if (Listado::hay($f, 'desde')) {
                 $w[] = "DATE($campoFecha) >= :d_$suf";
@@ -2245,13 +2378,14 @@ class FacturacionController extends Controller
             return ' AND (' . implode(' OR ', $ors) . ')';
         };
 
-        $partes = $this->partesMovimientos($clase, $filtros, $buscar);
+        $partes = Movimientos::partes($clase, $filtros, $buscar);
 
         $union = '(' . implode(') UNION ALL (', $partes) . ')';
         $pag = Listado::paginacion((int) DB::scalar("SELECT COUNT(*) FROM ($union) t", $par));
 
         return view('facturacion.movimientos', [
             'abierta' => $abierta,
+            'cuentas' => $cuentas,
             'tipos' => DB::select('SELECT id_tipo_mov_caja, nombre, signo, exige_documento
                                      FROM tipo_movimiento_caja WHERE activo = 1 ORDER BY id_tipo_mov_caja'),
             // **Las notas de crédito que todavía no se devolvieron.** La
@@ -2266,138 +2400,6 @@ class FacturacionController extends Controller
                  LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par
             ),
         ]);
-    }
-
-    /**
-     * Las cuatro fuentes que suma `fn_caja_saldo`, como consultas sueltas.
-     *
-     * **Una consulta por fuente, unidas con UNION.** Cada tabla nombra
-     * distinto lo que pasó —un cobro tiene medio de pago, una liquidación
-     * tiene a quién se le pagó— y forzarlas a un solo JOIN daría filas
-     * duplicadas y un `CASE` de veinte líneas.
-     *
-     * Vive acá y no dentro de `movimientos()` porque la usan dos pantallas:
-     * el listado con sus filtros y el modal del día de cada caja. Escrita
-     * dos veces, una de las dos se queda atrás.
-     *
-     * @param  callable(string,string):string  $filtros  el WHERE de esa fuente
-     * @param  callable(array,string):string   $buscar   el LIKE, o cadena vacía
-     * @return string[]
-     */
-    private function partesMovimientos(string $clase, callable $filtros, callable $buscar): array
-    {
-        $partes = [];
-
-        if ($clase === '' || $clase === 'cobro') {
-            $partes[] = "SELECT 'cobro' AS clase, co.fecha AS cuando, cf.nombre AS caja_nombre,
-                                CONCAT('Cobro', COALESCE(CONCAT(' · ', pe.nombre, ' ', COALESCE(pec.apellido,'')), '')) AS detalle,
-                                mp.nombre AS medio, co.monto AS monto, 1 AS signo,
-                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
-                                1 AS activo, NULL AS motivo, co.id_cobro AS id_ref
-                           FROM cobro co
-                           JOIN caja c ON c.id_caja = co.id_caja
-                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                           JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
-                           LEFT JOIN usuario u ON u.id_usuario = co.id_usuario
-                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
-                           LEFT JOIN factura fa ON fa.id_factura = co.id_factura
-                           LEFT JOIN cita ci ON ci.id_cita = COALESCE(co.id_cita, fa.id_cita)
-                           LEFT JOIN cliente cl ON cl.id_cliente = COALESCE(ci.id_cliente, fa.id_cliente)
-                           LEFT JOIN persona pe ON pe.id_persona = cl.id_persona
-                           LEFT JOIN persona pec ON pec.id_persona = cl.id_persona
-                          WHERE co.id_estado_cobro = 1 AND " . $filtros('co.fecha', 'cobro')
-                . $buscar(['pe.nombre', 'mp.nombre'], 'co');
-        }
-
-        if ($clase === '' || $clase === 'manual') {
-            $partes[] = "SELECT 'manual' AS clase, mc.fecha AS cuando, cf.nombre AS caja_nombre,
-                                CONCAT(COALESCE(tmc.nombre, mc.tipo), ' · ', mc.concepto) AS detalle,
-                                'Efectivo' AS medio, mc.monto AS monto,
-                                IF(mc.tipo = 'INGRESO', 1, -1) AS signo,
-                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
-                                mc.activo AS activo, mc.anulado_motivo AS motivo,
-                                mc.id_movimiento_caja AS id_ref
-                           FROM movimiento_caja mc
-                           JOIN caja c ON c.id_caja = mc.id_caja
-                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                           LEFT JOIN tipo_movimiento_caja tmc ON tmc.id_tipo_mov_caja = mc.id_tipo_mov_caja
-                           LEFT JOIN usuario u ON u.id_usuario = mc.id_usuario
-                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
-                          WHERE " . $filtros('mc.fecha', 'manual')
-                . $buscar(['mc.concepto', 'mc.nro_comprobante'], 'mc');
-        }
-
-        if ($clase === '' || $clase === 'prov') {
-            $partes[] = "SELECT 'prov' AS clase, pp.fecha AS cuando, cf.nombre AS caja_nombre,
-                                CONCAT('Pago a proveedor · ', COALESCE(ppe.nombre, 'sin nombre')) AS detalle,
-                                mp.nombre AS medio, fn_pago_proveedor_monto(pp.id_pago_proveedor) AS monto,
-                                -1 AS signo,
-                                TRIM(CONCAT_WS(' ', pu.nombre, pu.apellido)) AS quien,
-                                1 AS activo, NULL AS motivo, pp.id_pago_proveedor AS id_ref
-                           FROM pago_proveedor pp
-                           JOIN caja c ON c.id_caja = pp.id_caja
-                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                           JOIN metodo_pago mp ON mp.id_metodo_pago = pp.id_metodo_pago
-                           LEFT JOIN proveedor pr ON pr.id_proveedor = pp.id_proveedor
-                           LEFT JOIN persona ppe ON ppe.id_persona = pr.id_persona
-                           LEFT JOIN usuario u ON u.id_usuario = pp.id_usuario
-                           LEFT JOIN persona pu ON pu.id_persona = u.id_persona
-                          WHERE pp.id_estado_pago_proveedor = 1 AND " . $filtros('pp.fecha', 'prov')
-                . $buscar(['ppe.nombre', 'pp.referencia'], 'pp');
-        }
-
-        if ($clase === '' || $clase === 'pers') {
-            $partes[] = "SELECT 'pers' AS clase, pl.fecha AS cuando, cf.nombre AS caja_nombre,
-                                CONCAT('Liquidación · ', TRIM(CONCAT_WS(' ', ppe.nombre, ppe.apellido))) AS detalle,
-                                COALESCE(mp.nombre, 'Efectivo') AS medio,
-                                fn_pago_personal_monto(pl.id_pago_personal) AS monto, -1 AS signo,
-                                TRIM(CONCAT_WS(' ', pur.nombre, pur.apellido)) AS quien,
-                                1 AS activo, NULL AS motivo,
-                                pl.id_pago_personal AS id_ref
-                           FROM pago_personal pl
-                           JOIN caja c ON c.id_caja = pl.id_caja
-                           JOIN caja_fisica cf ON cf.id_caja_fisica = c.id_caja_fisica
-                           LEFT JOIN metodo_pago mp ON mp.id_metodo_pago = pl.id_metodo_pago
-                           LEFT JOIN usuario u ON u.id_usuario = pl.id_usuario
-                           LEFT JOIN persona ppe ON ppe.id_persona = u.id_persona
-                           LEFT JOIN usuario ur ON ur.id_usuario = pl.id_usuario_registro
-                           LEFT JOIN persona pur ON pur.id_persona = ur.id_persona
-                          WHERE pl.id_estado_pago = 1 AND " . $filtros('pl.fecha', 'pers')
-                . $buscar(['ppe.nombre'], 'pl');
-        }
-
-        return $partes;
-    }
-
-    /**
-     * Los movimientos de HOY de un cajón, para el modal de la lista.
-     *
-     * **Es la pregunta del mostrador, no la del informe.** «¿Qué entró y salió
-     * de esta caja hoy?» se contesta de un vistazo y sin salir de la pantalla;
-     * para mirar los de la semana pasada está Movimientos, con sus filtros.
-     *
-     * Sale de las MISMAS cuatro fuentes que el listado —un pago a proveedor es
-     * un movimiento de caja, y un cobro también— así que el modal y la
-     * pantalla no pueden decir cosas distintas.
-     *
-     * @return array<int, object>
-     */
-    private function movimientosDelDia(int $idCajaFisica): array
-    {
-        $par = [];
-        // Un marcador por fuente: la conexión prepara de verdad y no admite el
-        // mismo nombre dos veces en la misma sentencia.
-        $filtros = function (string $campoFecha, string $suf) use (&$par, $idCajaFisica): string {
-            $par["cf_$suf"] = $idCajaFisica;
-
-            return "c.id_caja_fisica = :cf_$suf AND DATE($campoFecha) = CURDATE()";
-        };
-        $buscar = fn (array $campos, string $suf): string => '';
-
-        $partes = $this->partesMovimientos('', $filtros, $buscar);
-        $union = '(' . implode(') UNION ALL (', $partes) . ')';
-
-        return DB::select("SELECT * FROM ($union) t ORDER BY t.cuando DESC LIMIT 60", $par);
     }
 
     /**
@@ -2459,7 +2461,7 @@ class FacturacionController extends Controller
         $movs = [];
         if (Permisos::puede('facturacion.movimientos')) {
             foreach ($rows as $c) {
-                $movs[(int) $c->id_caja_fisica] = $this->movimientosDelDia((int) $c->id_caja_fisica);
+                $movs[(int) $c->id_caja_fisica] = Movimientos::delDia((int) $c->id_caja_fisica);
             }
         }
 
@@ -2811,18 +2813,55 @@ class FacturacionController extends Controller
     public function movimientoCaja(Request $request): RedirectResponse
     {
         $cajaFiltro = (int) $request->input('caja', 0);
+        $cuentaFiltro = (int) $request->input('cuenta', 0);
         $volver = $cajaFiltro
             ? redirect()->route('facturacion.movimientos', ['caja' => $cajaFiltro])
-            : redirect()->route('facturacion.movimientos');
+            : ($cuentaFiltro
+                ? redirect()->route('facturacion.movimientos', ['cuenta' => $cuentaFiltro])
+                : redirect()->route('facturacion.movimientos'));
         $idTipo = (int) $request->input('id_tipo_mov_caja', 0);
         $monto = num($request->input('monto'));
         $concepto = trim((string) $request->input('concepto', ''));
         $nroComp = trim((string) $request->input('nro_comprobante', ''));
         $ruc = strtoupper(trim((string) $request->input('ruc_emisor', '')));
 
-        $caja = $this->exigeCaja('cargar un movimiento de caja');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // **De dónde sale: del cajón o de una cuenta bancaria** (7.121.0). La
+        // cuenta es una caja dedicada al banco, así que el gasto que se pagó
+        // por transferencia y el retiro que la dueña se transfirió se cargan
+        // acá mismo, contra la cuenta — y **sin caja abierta**, porque no
+        // tocan el cajón. `destino` viaja como `caja:ID` o `cuenta:ID`; sin
+        // él, es el cajón de siempre.
+        $destino = (string) $request->input('destino', '');
+        $idCuenta = 0;
+        $caja = null;
+        if (str_starts_with($destino, 'cuenta:')) {
+            $idCuenta = Cuenta::valida((int) substr($destino, 7), (int) Sucursales::activa());
+            if (! $idCuenta) {
+                flash('Esa cuenta no está activa o no es de esta sucursal.', 'error');
+
+                return $volver->withInput();
+            }
+        } else {
+            $caja = $this->exigeCaja('cargar un movimiento de caja');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
+            // Y si la pantalla nombró OTRO cajón abierto del local, ése: el id
+            // no se cree, se comprueba igual que en `cajaElegida()`.
+            $idCajaPedida = str_starts_with($destino, 'caja:') ? (int) substr($destino, 5) : 0;
+            if ($idCajaPedida && $idCajaPedida !== (int) $caja->id_caja) {
+                $suyas = array_map(fn ($su) => (int) $su->id_sucursal, Sucursales::delUsuario());
+                $ok = (int) DB::scalar(
+                    'SELECT COUNT(*) FROM caja WHERE id_caja = ? AND id_estado_caja = 1
+                      AND id_sucursal IN (' . implode(',', $suyas ?: [0]) . ')', [$idCajaPedida]
+                );
+                if (! $ok) {
+                    flash('Esa caja no está abierta o no es de un local al que entres.', 'error');
+
+                    return $volver->withInput();
+                }
+                $caja = (object) ['id_caja' => $idCajaPedida];
+            }
         }
 
         $t = DB::selectOne(
@@ -2862,6 +2901,11 @@ class FacturacionController extends Controller
         $error = null;
         if (! $t) {
             $error = 'Elegí qué clase de movimiento es.';
+        } elseif ($idCuenta && ($esDevolucion || str_starts_with($t->nombre, 'Faltante'))) {
+            // Un faltante es una diferencia del ARQUEO del cajón, y la devolución
+            // en efectivo sale de él: contra el banco no significan nada.
+            $error = 'Esa clase de movimiento es del cajón, no de una cuenta bancaria. '
+                . 'Elegí la caja como origen, o cargá otra clase.';
         } elseif ($monto <= 0) {
             $error = 'El monto tiene que ser mayor a cero.';
         } elseif ($concepto === '') {
@@ -2884,8 +2928,11 @@ class FacturacionController extends Controller
         $tipo = $t->signo === 'E' ? 'INGRESO' : 'EGRESO';
 
         // **No se saca del cajón lo que no está**, la misma regla que ya tenían
-        // el pago a proveedores y la liquidación al personal.
-        if ($tipo === 'EGRESO') {
+        // el pago a proveedores y la liquidación al personal. De la cuenta se
+        // AVISA y no se frena: ese saldo puede quedarse corto —un depósito
+        // hecho por fuera no se ve— y nunca pasarse.
+        $avisoCuenta = '';
+        if ($tipo === 'EGRESO' && $caja) {
             $enCaja = Caja::saldo((int) $caja->id_caja);
             if ($monto > $enCaja + 0.01) {
                 flash('En la caja hay ' . money($enCaja) . ' en efectivo y querés sacar ' . money($monto)
@@ -2893,6 +2940,8 @@ class FacturacionController extends Controller
 
                 return $volver->withInput();
             }
+        } elseif ($tipo === 'EGRESO' && $idCuenta) {
+            $avisoCuenta = Cuenta::aviso($idCuenta, $monto);
         }
 
         // La foto del ticket. Es obligatoria para el gasto: el número suelto se
@@ -2913,12 +2962,15 @@ class FacturacionController extends Controller
         }
 
         try {
+            // `chk_mc_donde` exige exactamente uno de los dos: el cajón o la
+            // cuenta. Un movimiento con los dos diría que la plata salió de
+            // dos lados, y con ninguno no saldría de ningún arqueo.
             DB::insert(
                 'INSERT INTO movimiento_caja
-                    (id_caja, id_tipo_mov_caja, id_factura, tipo, monto, concepto,
+                    (id_caja, id_cuenta, id_tipo_mov_caja, id_factura, tipo, monto, concepto,
                      nro_comprobante, ruc_emisor, archivo, id_usuario)
-                 VALUES (?,?,?,?,?,?,?,?,?,?)',
-                [(int) $caja->id_caja, (int) $t->id_tipo_mov_caja,
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                [$caja ? (int) $caja->id_caja : null, $idCuenta ?: null, (int) $t->id_tipo_mov_caja,
                  $nota ? (int) $nota->id_factura : null,
                  $tipo, $monto, $concepto,
                  $nroComp ?: null, $ruc ?: null, $archivo, (int) session('uid')]
@@ -2927,13 +2979,25 @@ class FacturacionController extends Controller
             Auditoria::registrar('MOVIMIENTO_CAJA', 'Facturacion', 'movimiento_caja',
                 (int) DB::getPdo()->lastInsertId(),
                 $t->nombre . ' de ' . money($monto) . ' — ' . $concepto
+                . ($idCuenta ? ' · de la cuenta #' . $idCuenta : '')
                 . ($nroComp ? ' · comp. ' . $nroComp . ' (' . $ruc . ')' : ''));
 
-            flash($t->nombre . ' de ' . money($monto)
-                . ' registrado. En la caja quedan ' . money(Caja::saldo((int) $caja->id_caja)) . '.');
+            if ($caja) {
+                flash($t->nombre . ' de ' . money($monto)
+                    . ' registrado. En la caja quedan ' . money(Caja::saldo((int) $caja->id_caja)) . '.');
+            } else {
+                $queda = Cuenta::saldo($idCuenta);
+                flash($t->nombre . ' de ' . money($monto) . ' registrado en la cuenta.'
+                    . ($queda === null ? ' Esa cuenta no tiene saldo declarado, así que no se sabe cuánto queda.'
+                        : ' Según el sistema quedan ' . money($queda) . '.'));
+            }
+            if ($avisoCuenta) {
+                flash($avisoCuenta, 'warning');
+            }
         } catch (Throwable $ex) {
             flash('No se pudo registrar el movimiento. El detalle quedó registrado.', 'error');
-            Log::error('Movimiento de caja', ['caja' => (int) $caja->id_caja, 'error' => $ex->getMessage()]);
+            Log::error('Movimiento de caja', ['caja' => $caja ? (int) $caja->id_caja : null,
+                'cuenta' => $idCuenta, 'error' => $ex->getMessage()]);
         }
 
         return $volver;
@@ -3400,19 +3464,30 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('liquidarle a un profesional');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
-        }
+        // **Sin caja abierta no se mueve un guaraní EN EFECTIVO** (7.121.0).
+        // Lo que se transfiere sale de la cuenta bancaria, que es su propia
+        // caja: la liquidación por banco se registra aunque el cajón esté
+        // cerrado. Se reportó tal cual —«la caja se reinicia al cerrar y abrir
+        // y el pago no siempre puede salir de caja»—: el sueldo del mes no
+        // está en el cajón de hoy.
+        $enEfectivo = Caja::esEfectivo($idMetodo);
+        $idCaja = 0;
+        if ($enEfectivo) {
+            $caja = $this->exigeCaja('liquidarle a un profesional');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
 
-        // **De qué cajón sale la plata lo elige quien liquida.** Con dos
-        // abiertos, `Caja::abierta()` devuelve uno de los dos y el egreso caía
-        // en el arqueo de otra persona sin que nada lo dijera — se descubre al
-        // cerrar. **El id del POST no se cree**: `cajaElegida()` comprueba que
-        // esa caja esté abierta y sea de un local al que esta persona entra.
-        $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
-        if ($idCaja instanceof RedirectResponse) {
-            return $idCaja;
+            // **De qué cajón sale la plata lo elige quien liquida.** Con dos
+            // abiertos, `Caja::abierta()` devuelve uno de los dos y el egreso
+            // caía en el arqueo de otra persona sin que nada lo dijera — se
+            // descubre al cerrar. **El id del POST no se cree**: `cajaElegida()`
+            // comprueba que esa caja esté abierta y sea de un local al que
+            // esta persona entra.
+            $idCaja = $this->cajaElegida($request, (int) $caja->id_caja);
+            if ($idCaja instanceof RedirectResponse) {
+                return $idCaja;
+            }
         }
 
         // Cuánto se le va a pagar, para poder comprobarlo ANTES de registrarlo.
@@ -3428,7 +3503,7 @@ class FacturacionController extends Controller
         // liquidación no pasaba por ningún control porque **no tocaba la caja
         // en absoluto**: se liquidaron Gs. 1.868.250 en 90 días sin que el
         // arqueo registrara un solo egreso.
-        if (Caja::esEfectivo($idMetodo)) {
+        if ($enEfectivo) {
             // Contra el cajón ELEGIDO: mirar otro haría que el control no
             // signifique nada, que es el defecto que la 7.55.0 corrigió en el
             // pago a proveedores.
@@ -3443,29 +3518,41 @@ class FacturacionController extends Controller
 
         // **Y si no sale del cajón, sale de una cuenta.** El id viaja en el
         // formulario, así que se valida contra el local — la misma regla que
-        // `cajaElegida()`. En efectivo no se anota ninguna: de un cajón no sale
-        // ninguna transferencia, y guardarla diría algo falso.
-        $idCuenta = Caja::esEfectivo($idMetodo)
+        // `cajaElegida()`; con una sola cuenta cargada se toma sin preguntar.
+        // En efectivo no se anota ninguna: de un cajón no sale ninguna
+        // transferencia, y guardarla diría algo falso.
+        $idCuenta = $enEfectivo
             ? 0
-            : Cuenta::valida((int) $request->input('id_dato_pago', 0), (int) Sucursales::activa());
+            : (Cuenta::valida((int) $request->input('id_cuenta', 0), (int) Sucursales::activa())
+                ?: Cuenta::unicaDe((int) Sucursales::activa()));
+        if (! $enEfectivo && Cuenta::esBancario($idMetodo) && ! $idCuenta
+            && count(Cuenta::deSucursal((int) Sucursales::activa())) > 1) {
+            flash('Elegí de qué cuenta sale la transferencia: con más de una cuenta cargada, '
+                . 'el sistema no puede adivinar de cuál salió.', 'error');
 
-        // **Avisa, no impide.** `fn_cuenta_saldo` es un piso —el sistema conoce
-        // lo que sale del banco, no lo que entra— así que bloquear con un
-        // número que sabemos incompleto frenaría un pago legítimo. Con el
-        // efectivo es al revés: ese saldo es exacto y por eso arriba sí rechaza.
+            return $volver;
+        }
+
+        // **Avisa, no impide.** `fn_cuenta_saldo` suma lo que entró y salió
+        // desde que se declaró el saldo, pero un depósito hecho por fuera no
+        // lo ve: bloquear con un número que puede quedarse corto frenaría un
+        // pago legítimo. Con el efectivo es al revés: ese saldo es exacto y por
+        // eso arriba sí rechaza.
         $avisoCuenta = $idCuenta ? Cuenta::aviso($idCuenta, $monto) : '';
 
         try {
             $idPago = Bd::idDe('sp_registrar_pago_personal',
-                [$idProf, (int) session('uid'), $periodo, $idMetodo, $idCaja]);
+                [$idProf, (int) session('uid'), $periodo, $idMetodo, $idCaja ?: null]);
             if ($idPago && $idCuenta) {
-                DB::update('UPDATE pago_personal SET id_dato_pago = ? WHERE id_pago_personal = ?',
+                DB::update('UPDATE pago_personal SET id_cuenta = ? WHERE id_pago_personal = ?',
                     [$idCuenta, $idPago]);
             }
             Auditoria::registrar('PAGO_PERSONAL', 'Facturacion', 'pago_personal', $idPago,
-                "Liquidación $periodo ($pend servicios) por " . money($monto));
+                "Liquidación $periodo ($pend servicios) por " . money($monto)
+                . ($idCuenta ? ' desde la cuenta #' . $idCuenta : ''));
             flash('Liquidación de ' . money($monto) . ' registrada.'
-                . (Caja::esEfectivo($idMetodo) ? ' Se descontó del efectivo de la caja.' : ''));
+                . ($enEfectivo ? ' Se descontó del efectivo de la caja.'
+                    : ($idCuenta ? ' Se descontó de la cuenta bancaria.' : '')));
             if ($avisoCuenta) {
                 flash($avisoCuenta, 'warning');
             }
@@ -3489,7 +3576,7 @@ class FacturacionController extends Controller
         $volver = redirect()->route('facturacion.pagos');
 
         $p = DB::selectOne(
-            "SELECT p.id_pago_personal, p.id_estado_pago, p.periodo,
+            "SELECT p.id_pago_personal, p.id_estado_pago, p.periodo, p.id_caja,
                     CONCAT(pe_us.nombre,' ',pe_us.apellido) AS beneficiario,
                     fn_pago_personal_monto(p.id_pago_personal) AS monto,
                     (SELECT COUNT(*) FROM detalle_pago_personal d
@@ -3516,9 +3603,14 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('revertir una liquidación');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // La caja hace falta sólo si la liquidación salió del cajón: la que
+        // salió de la cuenta bancaria vuelve a la cuenta, esté o no abierta la
+        // caja de hoy (7.121.0).
+        if ($p->id_caja) {
+            $caja = $this->exigeCaja('revertir una liquidación');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
         }
 
         try {
@@ -3632,9 +3724,17 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('pagarle a un proveedor');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // **Sin caja abierta no se mueve un guaraní EN EFECTIVO** (7.121.0):
+        // la transferencia al proveedor sale de la cuenta bancaria del local
+        // de la compra y se registra aunque el cajón esté cerrado. Es una
+        // opción de pago como cualquier otra, y descuenta de donde salió.
+        $enEfectivo = Caja::esEfectivo($idMetodo);
+        $caja = null;
+        if ($enEfectivo) {
+            $caja = $this->exigeCaja('pagarle a un proveedor');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
         }
 
         // **El cajón del que sale la plata es el del LOCAL DE LA COMPRA**, no
@@ -3663,16 +3763,18 @@ class FacturacionController extends Controller
             }
         }
 
-        $idCajaPago = $idCajaElegida ?: (int) (DB::scalar(
-            'SELECT k.id_caja FROM compra c
-               JOIN caja k ON k.id_sucursal = c.id_sucursal AND k.id_estado_caja = 1
-              WHERE c.id_compra = ? ORDER BY k.id_caja DESC LIMIT 1', [$idCompra]
-        ) ?: $caja->id_caja);
+        $idCajaPago = $enEfectivo
+            ? ($idCajaElegida ?: (int) (DB::scalar(
+                'SELECT k.id_caja FROM compra c
+                   JOIN caja k ON k.id_sucursal = c.id_sucursal AND k.id_estado_caja = 1
+                  WHERE c.id_compra = ? ORDER BY k.id_caja DESC LIMIT 1', [$idCompra]
+            ) ?: $caja->id_caja))
+            : 0;
 
         // En efectivo no se puede entregar plata que no está en el cajón. Los
-        // pagos por banco o tarjeta no se frenan: no salen del cajón, salen de
-        // la cuenta (por eso `fn_caja_saldo` tampoco los resta).
-        if (Caja::esEfectivo($idMetodo)) {
+        // pagos por banco no se frenan: no salen del cajón, salen de la cuenta
+        // (por eso `fn_caja_saldo` tampoco los resta) — y de la cuenta se avisa.
+        if ($enEfectivo) {
             $enCaja = Caja::saldo($idCajaPago);
             if ($monto > $enCaja + 0.01) {
                 flash('En la caja hay ' . money($enCaja) . ' en efectivo y estás por pagar ' . money($monto)
@@ -3682,17 +3784,24 @@ class FacturacionController extends Controller
             }
         }
 
-        // **De qué CUENTA sale, cuando no sale del cajón.** El banco no tenía
-        // ningún control: el comentario de arriba lo dice —«no salen del cajón,
-        // salen de la cuenta»— y de la cuenta no se sabía nada. Se valida contra
-        // el local DE LA COMPRA, igual que el cajón.
+        // **De qué CUENTA sale, cuando no sale del cajón.** Se valida contra el
+        // local DE LA COMPRA, igual que el cajón; con una sola cuenta cargada
+        // se toma sin preguntar, y con varias hay que decir cuál —adivinar
+        // deja una cuenta descontando plata que no salió de ella—.
         $sucCompra = (int) DB::scalar('SELECT id_sucursal FROM compra WHERE id_compra = ?', [$idCompra]);
-        $idCuenta = Caja::esEfectivo($idMetodo)
+        $idCuenta = $enEfectivo
             ? 0
-            : Cuenta::valida((int) $request->input('id_dato_pago', 0), $sucCompra);
+            : (Cuenta::valida((int) $request->input('id_cuenta', 0), $sucCompra) ?: Cuenta::unicaDe($sucCompra));
+        if (! $enEfectivo && Cuenta::esBancario($idMetodo) && ! $idCuenta
+            && count(Cuenta::deSucursal($sucCompra)) > 1) {
+            flash('Elegí de qué cuenta sale la transferencia: con más de una cuenta cargada en ese '
+                . 'local, el sistema no puede adivinar de cuál salió.', 'error');
 
-        // Avisa y no impide: el saldo de la cuenta es un piso, no un dato
-        // exacto. Ver `App\Servicios\Cuenta`.
+            return $volver;
+        }
+
+        // Avisa y no impide: la cuenta es del banco y no del sistema, así que
+        // puede haber más de lo que dice. Ver `App\Servicios\Cuenta`.
         $avisoCuenta = $idCuenta ? Cuenta::aviso($idCuenta, $monto) : '';
 
         try {
@@ -3701,10 +3810,14 @@ class FacturacionController extends Controller
             $idPago = Bd::idDe('sp_pagar_compra',
                 [$idCompra, $idMetodo, (int) session('uid'), $monto, $ref, $idCajaElegida ?: null]);
             if ($idPago && $idCuenta) {
-                DB::update('UPDATE pago_proveedor SET id_dato_pago = ? WHERE id_pago_proveedor = ?',
+                // **Por banco la plata sale de la cuenta, y de ningún cajón.**
+                // El procedimiento le cuelga una caja abierta si encuentra
+                // alguna —su firma no cambió—, y eso dejaría el pago listado
+                // en el arqueo de un cajón del que no salió un guaraní.
+                DB::update('UPDATE pago_proveedor SET id_cuenta = ?, id_caja = NULL WHERE id_pago_proveedor = ?',
                     [$idCuenta, $idPago]);
             }
-            if ($idPago) {
+            if ($idPago && $enEfectivo) {
                 // Igual que en el cobro: el procedimiento busca la caja del
                 // propio usuario, y la del salón puede haberla abierto otra persona.
                 DB::update('UPDATE pago_proveedor SET id_caja = ? WHERE id_pago_proveedor = ? AND id_caja IS NULL',
@@ -3720,8 +3833,11 @@ class FacturacionController extends Controller
                     [$nroFac, $idCompra]);
             }
 
-            Auditoria::registrar('PAGO_PROVEEDOR', 'Facturacion', 'compra', $idCompra, 'Pago ' . money($monto));
-            flash('Pago al proveedor registrado por ' . money($monto) . '.');
+            Auditoria::registrar('PAGO_PROVEEDOR', 'Facturacion', 'compra', $idCompra, 'Pago ' . money($monto)
+                . ($idCuenta ? ' desde la cuenta #' . $idCuenta : ''));
+            flash('Pago al proveedor registrado por ' . money($monto) . '.'
+                . ($enEfectivo ? ' Se descontó del efectivo de la caja.'
+                    : ($idCuenta ? ' Se descontó de la cuenta bancaria.' : '')));
             if ($avisoCuenta) {
                 flash($avisoCuenta, 'warning');
             }
@@ -3771,7 +3887,7 @@ class FacturacionController extends Controller
         $volver = redirect()->route('facturacion.proveedores');
 
         $p = DB::selectOne(
-            'SELECT pp.id_pago_proveedor, pp.id_estado_pago_proveedor, pe_pr.nombre AS proveedor,
+            'SELECT pp.id_pago_proveedor, pp.id_estado_pago_proveedor, pp.id_caja, pe_pr.nombre AS proveedor,
                     fn_pago_proveedor_monto(pp.id_pago_proveedor) AS monto
                FROM pago_proveedor pp
                JOIN proveedor pr ON pr.id_proveedor = pp.id_proveedor
@@ -3793,9 +3909,13 @@ class FacturacionController extends Controller
             return $volver;
         }
 
-        $caja = $this->exigeCaja('anular un pago a proveedor');
-        if ($caja instanceof RedirectResponse) {
-            return $caja;
+        // La caja hace falta sólo si el pago salió del cajón: el que salió de
+        // la cuenta bancaria vuelve a la cuenta (7.121.0).
+        if ($p->id_caja) {
+            $caja = $this->exigeCaja('anular un pago a proveedor');
+            if ($caja instanceof RedirectResponse) {
+                return $caja;
+            }
         }
 
         try {

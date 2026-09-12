@@ -63,6 +63,7 @@ class Pendientes
             self::profesionales();
             self::comisiones();
             self::fiscales();
+            self::cuentas();
             self::correo();
         } catch (Throwable) {
             // Una consulta que falle no puede dejar el panel sin dibujarse:
@@ -379,6 +380,66 @@ class Pendientes
             self::anotar(self::CONVIENE,
                 $sinDireccion . ' sucursal(es) sin dirección. Va impresa en el comprobante.',
                 'Configuración → Sucursales', 'seguridad.sucursales', 'configuracion.sucursales');
+        }
+    }
+
+    /**
+     * La cuenta bancaria: la caja del banco (7.121.0).
+     *
+     * **Sin saldo declarado la cuenta no sabe cuánto tiene**, y ése es el
+     * aviso que pidió el usuario: «no tener declarado el monto del banco es
+     * motivo de AVISOS». NULL no es cero —es «no se sabe»— así que hasta que
+     * alguien lo declare el sistema no puede decir cuánto hay ni avisar si
+     * un pago no alcanza. Va como CONFUNDE: se cobra y se paga igual, pero
+     * la cuenta suma sobre nada.
+     *
+     * Y con cuentas cargadas, alguna tiene que ser la que ve la clienta para
+     * la seña: sin ninguna marcada, el portal le dice que se comunique con
+     * el salón, como si no hubiera cuenta.
+     */
+    private static function cuentas(): void
+    {
+        $sinSaldo = DB::select(
+            'SELECT CONCAT(d.entidad, " · ", s.nombre) AS quien
+               FROM cuenta_bancaria d JOIN sucursal s ON s.id_sucursal = d.id_sucursal
+              WHERE d.activo = 1 AND d.saldo_declarado IS NULL
+              ORDER BY s.nombre, d.orden'
+        );
+        if ($sinSaldo) {
+            self::anotar(self::CONFUNDE,
+                count($sinSaldo) . ' cuenta(s) bancaria(s) sin saldo declarado: ' . self::nombres($sinSaldo)
+                . '. Hasta que se declare cuánto dice el banco, el sistema no sabe cuánto hay en ella '
+                . 'ni puede avisar si una transferencia no alcanza.',
+                'Tesorería → Cuenta bancaria, «Declarar saldo»', 'facturacion.cuentas', 'facturacion.cuentas');
+        }
+
+        $sinSenas = DB::select(
+            'SELECT s.nombre FROM sucursal s
+              WHERE s.activo = 1
+                AND EXISTS (SELECT 1 FROM cuenta_bancaria d WHERE d.id_sucursal = s.id_sucursal AND d.activo = 1)
+                AND NOT EXISTS (SELECT 1 FROM cuenta_bancaria d
+                                 WHERE d.id_sucursal = s.id_sucursal AND d.activo = 1 AND d.para_senas = 1)
+              ORDER BY s.nombre'
+        );
+        if ($sinSenas) {
+            self::anotar(self::CONFUNDE,
+                count($sinSenas) . ' sucursal(es) con cuentas cargadas y ninguna marcada para las señas: '
+                . self::nombres($sinSenas, 'nombre') . '. A la clienta que reserva ahí se le dice que '
+                . 'se comunique con el salón, como si no hubiera cuenta a la que transferir.',
+                'Tesorería → Cuenta bancaria, «Usar para señas»', 'facturacion.cuentas', 'facturacion.cuentas');
+        }
+
+        $sinCuenta = DB::select(
+            'SELECT s.nombre FROM sucursal s
+              WHERE s.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM cuenta_bancaria d WHERE d.id_sucursal = s.id_sucursal AND d.activo = 1)
+              ORDER BY s.nombre'
+        );
+        if ($sinCuenta) {
+            self::anotar(self::CONVIENE,
+                count($sinCuenta) . ' sucursal(es) sin ninguna cuenta bancaria: ' . self::nombres($sinCuenta, 'nombre')
+                . '. Lo que se cobre por transferencia ahí no se suma a ninguna cuenta.',
+                'Tesorería → Cuenta bancaria', 'facturacion.cuentas', 'facturacion.cuentas');
         }
     }
 

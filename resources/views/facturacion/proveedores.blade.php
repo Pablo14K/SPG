@@ -214,33 +214,14 @@
                                      tomar «el último» deja el egreso en el arqueo de
                                      otra persona y se descubre al cerrar. Son los del
                                      local DE LA COMPRA, que es de donde sale. --}}
-                                @include('facturacion._caja_elegir', [
-                                    'cajas' => $cajasPorCompra[$c->id_compra] ?? [],
-                                    'uid' => 'Prov' . $c->id_compra,
-                                    'rotulo' => '¿De qué caja sale la plata?',
-                                    'ayuda' => 'El egreso entra al arqueo de esa caja. Son las abiertas en '
-                                        . $c->sucursal . ', que es el local de la compra.',
-                                ])
-
-                                {{-- **Y si NO sale del cajón, ¿de qué cuenta sale?**
-                                     Una transferencia no toca la caja —por eso
-                                     `fn_caja_saldo` no la resta— así que hasta acá
-                                     no había ningún control: se podía pagar el mes
-                                     entero contra una cuenta vacía. Son las del
-                                     local de la compra, por lo mismo que los
-                                     cajones. --}}
-                                @include('facturacion._cuenta_elegir', [
-                                    'cuentas' => $bancosPorCompra[$c->id_compra] ?? [],
-                                    'uid' => 'Prov' . $c->id_compra,
-                                ])
-
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label">Medio de pago</label>
-                                        {{-- El `data-tipo` lo lee app.js para esconder
-                                             el selector de cuenta cuando se paga en
-                                             efectivo: de un cajón no sale ninguna
-                                             transferencia. --}}
+                                        {{-- El `data-tipo` lo lee app.js: con efectivo pregunta
+                                             de qué caja sale, con transferencia de qué cuenta
+                                             (7.121.0). La transferencia es una opción como
+                                             cualquier otra y descuenta de la cuenta elegida;
+                                             no hace falta caja abierta para pagar por banco. --}}
                                         <select class="form-select" name="id_metodo_pago" required>
                                             @foreach ($metodos as $m)
                                                 <option value="{{ $m->id_metodo_pago }}"
@@ -255,6 +236,30 @@
                                             <input class="form-control input-miles" name="monto" data-min="0"
                                                    value="{{ monto_input($c->saldo) }}" required>
                                         </div>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        {{-- **De qué caja sale el efectivo.** Con dos abiertas,
+                                             tomar «el último» deja el egreso en el arqueo de
+                                             otra persona y se descubre al cerrar. Son los del
+                                             local DE LA COMPRA, que es de donde sale. --}}
+                                        <div data-caja-bloque>
+                                        @include('facturacion._caja_elegir', [
+                                            'cajas' => $cajasPorCompra[$c->id_compra] ?? [],
+                                            'uid' => 'Prov' . $c->id_compra,
+                                            'rotulo' => '¿De qué caja sale la plata?',
+                                            'ayuda' => 'El egreso entra al arqueo de esa caja. Son las abiertas en '
+                                                . $c->sucursal . ', que es el local de la compra.',
+                                        ])
+                                        </div>
+
+                                        {{-- **Y si NO sale del cajón, de qué cuenta sale.** Una
+                                             transferencia no toca la caja —por eso `fn_caja_saldo`
+                                             no la resta—: descuenta de la cuenta bancaria del
+                                             local de la compra, por lo mismo que los cajones. --}}
+                                        @include('facturacion._cuenta_elegir', [
+                                            'cuentas' => $bancosPorCompra[$c->id_compra] ?? [],
+                                            'uid' => 'Prov' . $c->id_compra,
+                                        ])
                                     </div>
                                     <div class="col-12">
                                         {{-- **No es la factura del proveedor.** Se leía

@@ -50,8 +50,17 @@
     <x-filtros :f="$f" :ocultos="['dia' => $dia]" />
 
     @if ($puedeCobrar && ! $caja)
+        {{-- Sin caja abierta, lo que llega por transferencia se registra igual:
+             va a la cuenta bancaria, que es su propia caja (7.121.0). Lo que
+             no entra es el efectivo, y el aviso lo dice así. --}}
         <div class="alert alert-warning">
-            La caja está cerrada. Para cobrar una seña hay que abrirla primero.
+            @if ($hayCuentas)
+                La caja está cerrada: se puede registrar lo que llega <strong>por transferencia</strong>
+                —entra a la cuenta bancaria—, pero para cobrar en efectivo hay que abrirla primero.
+            @else
+                La caja está cerrada y no hay ninguna cuenta bancaria cargada. Para cobrar una seña
+                hay que abrir la caja, o cargar una cuenta en Tesorería → Cuenta bancaria.
+            @endif
         </div>
     @endif
 
@@ -314,7 +323,7 @@
                                     {{-- La seña mueve plata: solo para quien maneja cobros y con
                                          la caja abierta. **Y no va si ya se cobró ni con la cita
                                          en proceso**: la seña garantiza una reserva. --}}
-                                    @if ($puedeCobrar && $caja && $c->estado !== 'Ausente'
+                                    @if ($puedeCobrar && ($caja || $hayCuentas) && $c->estado !== 'Ausente'
                                          && ! $enCurso && $sgpCobrado <= 0)
                                         <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" type="button" title="Cobrar seña"
                                                 data-bs-toggle="modal" data-bs-target="#modalSena{{ $c->id_cita }}">
@@ -366,7 +375,7 @@
                                                    href="{{ route('facturacion.facturas', ['q' => $c->cliente]) }}">
                                                     <i class="bi bi-check2-circle"></i> Cobrada · {{ (int) $c->facturas_ind }} comp.</a>
                                             @endif
-                                        @elseif ($puedeCobrar && $caja && $sgpFalta > 0.5)
+                                        @elseif ($puedeCobrar && ($caja || $hayCuentas) && $sgpFalta > 0.5)
                                             {{-- **Primero se cobra, después el comprobante.** Es el
                                                  orden del mostrador: la clienta paga y recién ahí
                                                  dice si quiere factura. --}}
@@ -831,7 +840,7 @@
          como un cobro atado a la cita, con id_factura en NULL. No hay que
          vincularla después al comprobante — `fn_factura_saldo` ya descuenta los
          cobros de la cita, y vinculándola se restaría dos veces. --}}
-    @if ($puedeCobrar && $caja)
+    @if ($puedeCobrar && ($caja || $hayCuentas))
         @foreach ($rows as $c)
             @php
                 $sgpCuenta = $cuentas[$c->id_cita] ?? null;
@@ -1215,19 +1224,35 @@
                                     <div class="val oro" style="font-size:1.25rem">{{ money($sugerido) }}</div>
                                     <input type="hidden" name="monto[]" value="{{ monto_input($sugerido) }}">
                                 </div>
+                                <div class="mb-2">
+                                    <label class="form-label" for="mpSena{{ $c->id_cita }}">¿Con qué pagó?</label>
+                                    {{-- El `data-tipo` lo lee `app.js`: con efectivo se
+                                         pregunta la caja, con transferencia la cuenta. Una
+                                         seña registrada desde el portal casi siempre es
+                                         transferencia, así que ésa viene primera. --}}
+                                    <select class="form-select form-select-sm sgp-cobro-metodo" name="metodo[]"
+                                            id="mpSena{{ $c->id_cita }}" required>
+                                        @foreach ($metodos as $m)
+                                            <option value="{{ $m->id_metodo_pago }}" data-tipo="{{ $m->tipo }}"
+                                                @selected($m->tipo === 'BANCO')>{{ $m->nombre }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div data-caja-bloque>
                                 @include('facturacion._caja_elegir', [
                                     'cajas' => \App\Servicios\Caja::abiertasDe(),
                                     'uid' => 'Sena' . $c->id_cita,
-                                    'rotulo' => '¿A qué caja entra?',
+                                    'rotulo' => '¿A qué caja entra el efectivo?',
                                 ])
-                                <div class="mb-2">
-                                    <label class="form-label" for="mpSena{{ $c->id_cita }}">¿Con qué pagó?</label>
-                                    <select class="form-select form-select-sm" name="metodo[]"
-                                            id="mpSena{{ $c->id_cita }}" required>
-                                        @foreach ($metodos as $m)
-                                            <option value="{{ $m->id_metodo_pago }}">{{ $m->nombre }}</option>
-                                        @endforeach
-                                    </select>
+                                </div>
+                                {{-- **Y a qué cuenta entró, si fue por transferencia**
+                                     (7.121.0): es lo que hace que la cuenta bancaria sume
+                                     la seña. Misma pieza que la línea del cobro. --}}
+                                <div class="row g-2 mb-2 sgp-extra-cuenta-fila">
+                                    @include('facturacion._cuenta_elegir', [
+                                        'cuentas' => \App\Servicios\Cuenta::deSucursal((int) \App\Servicios\Sucursales::activa()),
+                                        'linea' => true,
+                                    ])
                                 </div>
                             @else
                             <x-cobro-lineas :uid="$c->id_cita" :max="$falta" :metodos="$metodos"
@@ -1239,8 +1264,13 @@
                                      nombrar a la persona informaba mal: la plata entra al cajón
                                      de esta sucursal, la haya abierto quien la haya abierto. --}}
                                 <p class="text-muted-warm mt-2 mb-0" style="font-size:.78rem">
-                                    Entra en la caja de <strong>{{ session('sucursal_nom') ?: 'esta sucursal' }}</strong>
-                                    (la abrió {{ $caja->responsable }})
+                                    @if ($caja)
+                                        El efectivo entra en la caja de <strong>{{ session('sucursal_nom') ?: 'esta sucursal' }}</strong>
+                                        (la abrió {{ $caja->responsable }}) y lo que va por transferencia, a la cuenta elegida;
+                                    @else
+                                        La caja está cerrada, así que sólo entra lo que va por transferencia
+                                        —a la cuenta bancaria—;
+                                    @endif
                                     @if ($c->estado === 'Atendida')
                                         y después elegís el comprobante: factura declarada o sin
                                         nombre, lo que pida la clienta. Sale saldado solo.

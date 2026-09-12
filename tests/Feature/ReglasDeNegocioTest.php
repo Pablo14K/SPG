@@ -4907,7 +4907,7 @@ class ReglasDeNegocioTest extends TestCase
 
         $cargar = function (int $suc, string $entidad) use ($medio): void {
             DB::insert(
-                'INSERT INTO dato_pago_sucursal
+                'INSERT INTO cuenta_bancaria
                     (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta)
                  VALUES (?, ?, ?, ?, ?)',
                 [$suc, $medio, $entidad, 'Salón de prueba', 'CTA-' . $suc . '-' . $entidad]
@@ -4917,7 +4917,7 @@ class ReglasDeNegocioTest extends TestCase
         $cargar($b, 'Banco del otro local');
 
         $deLocal = fn (int $suc) => array_map(fn ($r) => $r->entidad, DB::select(
-            'SELECT entidad FROM dato_pago_sucursal WHERE id_sucursal = ? AND activo = 1', [$suc]));
+            'SELECT entidad FROM cuenta_bancaria WHERE id_sucursal = ? AND activo = 1', [$suc]));
 
         $this->assertContains('Banco de acá', $deLocal($a));
         $this->assertNotContains('Banco del otro local', $deLocal($a),
@@ -4925,13 +4925,13 @@ class ReglasDeNegocioTest extends TestCase
 
         // Sacar una cuenta la esconde, no la borra: las señas viejas siguen
         // teniendo su respaldo.
-        DB::update("UPDATE dato_pago_sucursal SET activo = 0
+        DB::update("UPDATE cuenta_bancaria SET activo = 0
                      WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]);
 
         $this->assertNotContains('Banco de acá', $deLocal($a),
             'Una cuenta desactivada no se le puede seguir ofreciendo a la clienta.');
         $this->assertSame(1, (int) DB::scalar(
-            "SELECT COUNT(*) FROM dato_pago_sucursal WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]),
+            "SELECT COUNT(*) FROM cuenta_bancaria WHERE id_sucursal = ? AND entidad = 'Banco de acá'", [$a]),
             'Desactivar una cuenta no la borra: el respaldo de las señas viejas se perdería.');
     }
 
@@ -5177,8 +5177,10 @@ class ReglasDeNegocioTest extends TestCase
                 [$suc, 'Pago ' . $letra . ' ' . uniqid()]);
             $cf = (int) DB::scalar('SELECT LAST_INSERT_ID()');
 
+            // Con plata de sobra: se liquida EN EFECTIVO y el cajón tiene que
+            // alcanzar, o el control del saldo rechazaría antes de medir nada.
             DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
-                        VALUES (1, ?, ?, 1, 500000)', [$suc, $cf]);
+                        VALUES (1, ?, ?, 1, 99000000)', [$suc, $cf]);
             $ids[$letra] = ['cajon' => $cf, 'caja' => (int) DB::scalar('SELECT LAST_INSERT_ID()')];
         }
 
@@ -5198,8 +5200,11 @@ class ReglasDeNegocioTest extends TestCase
         );
         $this->assertNotSame(0, $prof, 'Hace falta alguien con servicios sin liquidar.');
 
+        // **En efectivo, que es lo que sale de un cajón.** Desde la 7.121.0 lo
+        // que va por banco sale de la cuenta bancaria y no se anota en ninguna
+        // caja: medir la elección del cajón con una transferencia mediría nada.
         $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago
-                                     WHERE activo = 1 AND tipo <> 'EFECTIVO' LIMIT 1");
+                                     WHERE activo = 1 AND tipo = 'EFECTIVO' LIMIT 1");
 
         $this->post(route('facturacion.pagar_personal'), [
             'id_usuario' => $prof,
@@ -5332,8 +5337,9 @@ class ReglasDeNegocioTest extends TestCase
         $this->entrarComo('admin', 'admin123');
         $suc = (int) session('id_sucursal');
 
-        // Hace falta una caja abierta: liquidar la exige aunque se pague por
-        // transferencia, porque el egreso se anota igual en el arqueo.
+        // Se abre una caja igual, para que esta prueba mida el AVISO y no la
+        // regla de la caja: desde la 7.121.0 liquidar por banco no la exige,
+        // y eso lo mide `la_liquidacion_por_banco_sale_de_la_cuenta…`.
         DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)',
             [$suc, 'Cta ' . uniqid()]);
         $cajon = (int) DB::scalar('SELECT LAST_INSERT_ID()');
@@ -5348,7 +5354,7 @@ class ReglasDeNegocioTest extends TestCase
         // La cuenta se crea acá y no se toma una cargada: la base de prueba
         // puede no tener ninguna, y sobre todo el saldo declarado es lo que se
         // está midiendo — tomarlo de una existente mediría otra cosa.
-        DB::insert('INSERT INTO dato_pago_sucursal
+        DB::insert('INSERT INTO cuenta_bancaria
                     (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta, orden, activo)
                     VALUES (?, ?, ?, ?, ?, 99, 1)',
             [$suc, $metodo, 'Banco de prueba', 'Peluquería', '000-' . random_int(1000, 9999)]);
@@ -5361,8 +5367,8 @@ class ReglasDeNegocioTest extends TestCase
             'Sin saldo declarado no hay nada que avisar: avisar sería inventarlo.');
 
         // El arqueo de la cuenta, por el mismo camino que la pantalla.
-        $this->post(route('seguridad.pagos.saldo'),
-            ['id_dato_pago' => $cuenta, 'saldo' => '1.000'])->assertRedirect();
+        $this->post(route('facturacion.cuentas.saldo'),
+            ['id_cuenta' => $cuenta, 'saldo' => '1.000'])->assertRedirect();
 
         $this->assertSame(1000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
             'Recién declarado, el saldo es el declarado.');
@@ -5392,24 +5398,24 @@ class ReglasDeNegocioTest extends TestCase
             'periodo' => date('m/Y'),
             'id_metodo_pago' => $metodo,
             'id_caja' => $caja,
-            'id_dato_pago' => $cuenta,
+            'id_cuenta' => $cuenta,
         ])->assertRedirect();
 
         $pago = DB::selectOne(
-            'SELECT id_pago_personal, id_dato_pago FROM pago_personal
+            'SELECT id_pago_personal, id_cuenta FROM pago_personal
               WHERE id_usuario = ? ORDER BY id_pago_personal DESC LIMIT 1', [$prof]
         );
 
         // **NO se frenó**: es la mitad que más importa. Un control que
         // bloqueara acá apagaría algo que hoy funciona.
         $this->assertNotNull($pago, 'El pago tiene que registrarse igual: esto avisa, no impide.');
-        $this->assertSame($cuenta, (int) $pago->id_dato_pago,
+        $this->assertSame($cuenta, (int) $pago->id_cuenta,
             'Tiene que quedar anotado de qué cuenta salió, o no hay forma de saber cuál se vació.');
 
         // **Y avisó**, con el monto y el saldo nombrados: un «no alcanza» a
         // secas no dice qué comprobar.
         $avisos = array_column(session('sgp_flash', []), 'msg');
-        $this->assertNotEmpty(preg_grep('/declaró/', $avisos),
+        $this->assertNotEmpty(preg_grep('/declar/', $avisos),
             'El pago tiene que avisar que se lleva más de lo que la cuenta declara.');
 
         // El saldo baja por lo que se pagó: es lo que hace que el aviso valga
@@ -5420,7 +5426,7 @@ class ReglasDeNegocioTest extends TestCase
 
         DB::delete('DELETE FROM detalle_pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
         DB::delete('DELETE FROM pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
-        DB::delete('DELETE FROM dato_pago_sucursal WHERE id_dato_pago = ?', [$cuenta]);
+        DB::delete('DELETE FROM cuenta_bancaria WHERE id_cuenta = ?', [$cuenta]);
         DB::delete('DELETE FROM caja WHERE id_caja = ?', [$caja]);
         DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
     }
@@ -9262,5 +9268,309 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertStringContainsString((string) $sr->nro, $det,
             'Y con qué comprobante está ligado ese servicio, que es lo que pidió el usuario.');
         $this->assertStringContainsString('Total liquidado', $det);
+    }
+
+    // -----------------------------------------------------------------
+    //  7.121.0 — La cuenta bancaria es una caja dedicada al banco
+    // -----------------------------------------------------------------
+
+    /**
+     * Una cuenta bancaria del local, para las pruebas de la caja del banco.
+     * Con el saldo declarado hace un minuto, para que lo que entre y salga
+     * en la prueba cuente (`fn_cuenta_saldo` suma desde esa fecha).
+     */
+    private function cuentaDePrueba(int $suc, float $declarado, int $paraSenas = 1, string $entidad = 'Banco de la prueba'): int
+    {
+        $banco = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' AND activo = 1 LIMIT 1");
+        $this->assertNotSame(0, $banco, 'La premisa: hace falta un medio de pago bancario.');
+
+        DB::insert('INSERT INTO cuenta_bancaria
+                    (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta, orden, activo, para_senas,
+                     saldo_declarado, saldo_declarado_en)
+                    VALUES (?, ?, ?, ?, ?, 99, 1, ?, ?, DATE_SUB(NOW(), INTERVAL 1 MINUTE))',
+            [$suc, $banco, $entidad, 'Salón de prueba', 'CTA-' . random_int(100000, 999999), $paraSenas, $declarado]);
+
+        return (int) DB::scalar('SELECT LAST_INSERT_ID()');
+    }
+
+    /**
+     * El cobro mixto manda el efectivo al cajón y la transferencia a la cuenta.
+     *
+     * Es lo que pidió el usuario (7.121.0): *«al cobrar, si se coloca efectivo
+     * se despliegue un combo para elegir la caja, y si se coloca algún tipo de
+     * movimiento bancario desplegar un combo correspondiente»*, y que **todo
+     * movimiento bancario se registre en la cuenta y le sume**. Hasta acá la
+     * cuenta era un piso —el sistema veía lo que salía del banco, no lo que
+     * entraba— y una seña por transferencia no se sumaba a ningún lado.
+     *
+     * Se mide en las dos direcciones sobre el MISMO cobro: la línea en
+     * efectivo sube el saldo del cajón y no el de la cuenta; la línea por
+     * banco sube el de la cuenta y no el del cajón. Con `Facturacion::
+     * anotarCuenta()` sacada, el cobro queda sin `id_cuenta` y la cuenta no
+     * suma: falla.
+     */
+    #[Test]
+    public function el_cobro_mixto_manda_el_efectivo_al_cajon_y_la_transferencia_a_la_cuenta(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+        $cajon = $this->cajonDe($suc);
+        if (! DB::scalar('SELECT COUNT(*) FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$cajon])) {
+            DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial)
+                        VALUES (1, ?, ?, 1, 0)', [$suc, $cajon]);
+        }
+        Caja::olvidar();
+        $caja = (int) DB::scalar('SELECT id_caja FROM caja WHERE id_caja_fisica = ? AND id_estado_caja = 1', [$cajon]);
+        $cuenta = $this->cuentaDePrueba($suc, 500000);
+
+        $cita = $this->citaFuturaAgendada($suc);
+        $this->assertGreaterThanOrEqual(2000, (float) DB::scalar('SELECT fn_cita_total(?)', [$cita->id_cita]),
+            'La premisa: la cita tiene que valer al menos Gs. 2.000 para partir el cobro en dos.');
+
+        $efectivo = (int) DB::scalar("SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1 AND tipo = 'EFECTIVO'");
+        $banco = (int) DB::scalar("SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1 AND tipo = 'BANCO'");
+
+        $cajaAntes = Caja::saldo($caja);
+        $cuentaAntes = (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]);
+
+        // Mil en efectivo y mil por transferencia, en el mismo cobro. La
+        // cuenta viaja por línea y por posición, como `metodo[]`.
+        $this->post(route('facturacion.sena'), [
+            'id_cita' => $cita->id_cita, 'dia' => $cita->dia,
+            'metodo' => [$efectivo, $banco],
+            'monto' => ['1.000', '1.000'],
+            'cuenta' => [0, $cuenta],
+            'referencia' => ['', 'TRF-' . random_int(1000, 9999)],
+            'id_caja' => $caja,
+        ])->assertRedirect();
+
+        $cobros = DB::select(
+            'SELECT co.id_cobro, mp.tipo, co.id_caja, co.id_cuenta FROM cobro co
+               JOIN metodo_pago mp ON mp.id_metodo_pago = co.id_metodo_pago
+              WHERE co.id_cita = ? AND co.id_estado_cobro = 1 ORDER BY co.id_cobro', [$cita->id_cita]);
+        $this->assertCount(2, $cobros, 'Son dos líneas, así que dos cobros: uno por medio.');
+
+        $porTipo = array_column($cobros, null, 'tipo');
+        $this->assertNull($porTipo['EFECTIVO']->id_cuenta,
+            'El efectivo no va a ninguna cuenta bancaria: guardarle una diría algo falso.');
+        $this->assertSame($caja, (int) $porTipo['EFECTIVO']->id_caja,
+            'El efectivo entra al cajón elegido.');
+        $this->assertSame($cuenta, (int) $porTipo['BANCO']->id_cuenta,
+            'La transferencia tiene que decir a qué cuenta del salón cayó: es lo que hace que la cuenta sume.');
+
+        $this->assertSame(round($cajaAntes + 1000, 2), round(Caja::saldo($caja), 2),
+            'El cajón sube SÓLO por la línea en efectivo: la transferencia no está en el cajón.');
+        $this->assertSame(round($cuentaAntes + 1000, 2),
+            round((float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]), 2),
+            'La cuenta sube SÓLO por la transferencia: es la seña que hasta acá no se sumaba a ningún lado.');
+
+        // Y el movimiento se lista en la cuenta, no en el cajón: la plata está
+        // en el banco aunque se haya registrado en el puesto de una caja.
+        $enCuenta = array_column(\App\Servicios\Movimientos::delDia(null, $cuenta), 'id_ref');
+        $enCaja = array_column(\App\Servicios\Movimientos::delDia($cajon), 'id_ref');
+        $this->assertContains((int) $porTipo['BANCO']->id_cobro, array_map('intval', $enCuenta),
+            'Lo que entró por transferencia se lista en los movimientos de la cuenta.');
+        $this->assertNotContains((int) $porTipo['BANCO']->id_cobro, array_map('intval', $enCaja),
+            'Y NO en los del cajón: ahí leerlo haría creer que esa plata está en el cajón.');
+        $this->assertContains((int) $porTipo['EFECTIVO']->id_cobro, array_map('intval', $enCaja),
+            'El efectivo sí se lista en el cajón.');
+    }
+
+    /**
+     * La liquidación por banco sale de la cuenta y no necesita caja abierta;
+     * en efectivo, con la caja cerrada, se rechaza.
+     *
+     * Reportado tal cual (7.121.0): *«la caja se reinicia al cerrar y abrir,
+     * y el pago no siempre puede salir de caja»*. El sueldo del mes no está
+     * en el cajón de hoy: sale del banco, y la caja del banco es la cuenta.
+     * `exigeCaja` se acota al efectivo — «sin caja abierta no se mueve un
+     * guaraní EN EFECTIVO»— y por eso se miden las dos mitades: por banco
+     * entra con la caja cerrada y descuenta de la cuenta; en efectivo, con
+     * la caja cerrada, sigue rechazándose y manda a abrirla.
+     */
+    #[Test]
+    public function la_liquidacion_por_banco_sale_de_la_cuenta_y_no_necesita_caja_abierta(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
+                     WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
+        Caja::olvidar();
+        $this->assertNull(Caja::abierta(), 'La premisa: la caja de este local tiene que estar cerrada.');
+
+        $cuenta = $this->cuentaDePrueba($suc, 10000000);
+        $banco = (int) DB::scalar("SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1 AND tipo = 'BANCO'");
+        $efectivo = (int) DB::scalar("SELECT MIN(id_metodo_pago) FROM metodo_pago WHERE activo = 1 AND tipo = 'EFECTIVO'");
+
+        $prof = (int) DB::scalar(
+            'SELECT sr.id_usuario FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE d.id_detalle_pago IS NULL
+              GROUP BY sr.id_usuario
+             HAVING SUM(fn_comision_servicio(sr.id_servicio_realizado)) > 0 LIMIT 1'
+        );
+        if (! $prof) {
+            $this->markTestSkipped('Hace falta alguien con comisión sin liquidar.');
+        }
+        $monto = (float) DB::scalar(
+            'SELECT COALESCE(SUM(fn_comision_servicio(sr.id_servicio_realizado)), 0)
+               FROM servicio_realizado sr
+               LEFT JOIN detalle_pago_personal d ON d.id_servicio_realizado = sr.id_servicio_realizado
+              WHERE sr.id_usuario = ? AND d.id_detalle_pago IS NULL', [$prof]
+        );
+        $vigentes = fn () => (int) DB::scalar(
+            'SELECT COUNT(*) FROM pago_personal WHERE id_usuario = ? AND id_estado_pago = 1', [$prof]);
+        $antes = $vigentes();
+
+        // 1) Por banco, con la caja cerrada: entra, y sale de la cuenta.
+        $this->post(route('facturacion.pagar_personal'), [
+            'id_usuario' => $prof, 'periodo' => date('m/Y'),
+            'id_metodo_pago' => $banco, 'id_cuenta' => $cuenta,
+        ])->assertRedirect(route('facturacion.pagos'));
+
+        $this->assertSame($antes + 1, $vigentes(),
+            'La liquidación por transferencia tiene que registrarse con la caja cerrada: no sale del cajón.');
+        $pago = DB::selectOne('SELECT id_pago_personal, id_caja, id_cuenta FROM pago_personal
+                                WHERE id_usuario = ? ORDER BY id_pago_personal DESC LIMIT 1', [$prof]);
+        $this->assertSame($cuenta, (int) $pago->id_cuenta, 'Tiene que decir de qué cuenta salió.');
+        $this->assertNull($pago->id_caja, 'Y de ningún cajón: la plata no estaba ahí.');
+        $this->assertSame(round(10000000 - $monto, 2),
+            round((float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]), 2),
+            'La cuenta descuenta la liquidación.');
+
+        // 2) Se revierte para volver a tener qué liquidar, y en EFECTIVO con la
+        //    caja cerrada se rechaza: esa plata sí sale del cajón.
+        Bd::procedimiento('sp_revertir_pago_personal', [(int) $pago->id_pago_personal, 1]);
+        $this->assertSame($antes, $vigentes(), 'La premisa: la reversión dejó los servicios pendientes otra vez.');
+
+        $this->post(route('facturacion.pagar_personal'), [
+            'id_usuario' => $prof, 'periodo' => date('m/Y'), 'id_metodo_pago' => $efectivo,
+        ])->assertRedirect(route('facturacion.cajas'));
+        $this->assertSame($antes, $vigentes(),
+            'En efectivo con la caja cerrada no se liquida: quedaría fuera del arqueo.');
+        $avisos = implode(' ', array_column(session('sgp_flash', []), 'msg'));
+        $this->assertStringContainsString('Abrí la caja', $avisos,
+            'Y el aviso dice qué hacer, no «no se puede».');
+    }
+
+    /**
+     * La clienta ve SÓLO la cuenta marcada «Usar para señas», y se elige desde
+     * Cuenta bancaria.
+     *
+     * Pedido del usuario (7.121.0): en Cuenta bancaria, un botón para elegir la
+     * cuenta de las señas; el módulo Datos de pago se elimina. Hasta acá se le
+     * mostraban todas las activas del local, y una cuenta puede existir para
+     * pagarle a proveedores sin ser a la que el salón quiere que le
+     * transfieran. Se mide con dos cuentas en el mismo local: aparece la
+     * marcada y no la otra; el interruptor la marca y la desmarca; y una dada
+     * de baja no se puede marcar.
+     */
+    #[Test]
+    public function la_clienta_ve_solo_la_cuenta_marcada_para_senas(): void
+    {
+        $suc = (int) DB::scalar('SELECT MIN(id_sucursal) FROM sucursal WHERE activo = 1');
+        $paraSenas = $this->cuentaDePrueba($suc, 0, 1, 'Banco para señas');
+        $proveedores = $this->cuentaDePrueba($suc, 0, 0, 'Banco de proveedores');
+
+        $veLaClienta = fn () => array_map(fn ($c) => $c->entidad, Cuenta::paraSenas([$suc])[$suc] ?? []);
+
+        $this->assertContains('Banco para señas', $veLaClienta());
+        $this->assertNotContains('Banco de proveedores', $veLaClienta(),
+            'La cuenta que no se marcó para señas no se le muestra a la clienta: transferiría a donde el salón no espera la seña.');
+
+        // El interruptor, por el mismo camino que la pantalla.
+        $this->entrarComo('admin', 'admin123');
+        $this->post(route('facturacion.cuentas.senas'), ['id_cuenta' => $proveedores])->assertRedirect();
+        $this->assertContains('Banco de proveedores', $veLaClienta(),
+            '«Usar para señas» tiene que marcarla: puede haber varias, el banco y la billetera.');
+
+        $this->post(route('facturacion.cuentas.senas'), ['id_cuenta' => $proveedores])->assertRedirect();
+        $this->assertNotContains('Banco de proveedores', $veLaClienta(), 'Y volver a apretarlo la desmarca.');
+
+        // Una dada de baja no se ofrece aunque se la marque: no existe para cobrar.
+        DB::update('UPDATE cuenta_bancaria SET activo = 0 WHERE id_cuenta = ?', [$proveedores]);
+        $this->post(route('facturacion.cuentas.senas'), ['id_cuenta' => $proveedores])->assertRedirect();
+        $this->assertSame(0, (int) DB::scalar('SELECT para_senas FROM cuenta_bancaria WHERE id_cuenta = ?', [$proveedores]),
+            'Una cuenta dada de baja no se marca para señas: la clienta transferiría a una cuenta que el salón dejó de usar.');
+    }
+
+    /**
+     * Un movimiento manual desde la cuenta descuenta el banco y no el cajón, y
+     * no necesita caja abierta.
+     *
+     * «Movimiento de caja» pasa a ser sólo «Movimiento» (7.121.0): el gasto
+     * que se pagó por transferencia se carga contra la cuenta, con su
+     * comprobante como cualquier gasto, y el saldo del cajón no se mueve.
+     * `chk_mc_donde` es lo que impide que un movimiento diga que salió de los
+     * dos lados —o de ninguno—. Y las clases del cajón —el faltante, la
+     * devolución— no entran contra una cuenta.
+     */
+    #[Test]
+    public function el_movimiento_manual_desde_la_cuenta_descuenta_el_banco_y_no_el_cajon(): void
+    {
+        $this->entrarComo('admin', 'admin123');
+        $suc = (int) session('id_sucursal');
+
+        DB::update('UPDATE caja SET id_estado_caja = 2, fecha_cierre = NOW()
+                     WHERE id_estado_caja = 1 AND id_sucursal = ?', [$suc]);
+        Caja::olvidar();
+        $cuenta = $this->cuentaDePrueba($suc, 300000);
+
+        $gasto = (int) DB::scalar("SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+                                    WHERE exige_documento = 1 AND signo = 'S' AND activo = 1 ORDER BY id_tipo_mov_caja LIMIT 1");
+        $faltante = (int) DB::scalar("SELECT id_tipo_mov_caja FROM tipo_movimiento_caja
+                                       WHERE nombre LIKE 'Faltante%' AND activo = 1 LIMIT 1");
+        $this->assertNotSame(0, $gasto, 'La premisa: hace falta la clase «gasto con comprobante».');
+
+        $cuantos = fn () => (int) DB::scalar('SELECT COUNT(*) FROM movimiento_caja WHERE id_cuenta = ? AND activo = 1', [$cuenta]);
+        $tmp = tempnam(sys_get_temp_dir(), 'sgp') . '.png';
+        file_put_contents($tmp, base64_decode(self::PNG_MINIMO));
+
+        try {
+            // 1) El gasto por transferencia, con la caja cerrada: entra contra la cuenta.
+            $this->post(route('facturacion.caja.movimiento'), [
+                'destino' => 'cuenta:' . $cuenta,
+                'id_tipo_mov_caja' => $gasto,
+                'monto' => '45.000', 'concepto' => 'insumos pagados por transferencia',
+                'nro_comprobante' => '001-001-0001234', 'ruc_emisor' => '80012345-0',
+                'archivo' => new UploadedFile($tmp, 'ticket.png', 'image/png', null, true),
+            ])->assertRedirect(route('facturacion.movimientos'));
+
+            $this->assertSame(1, $cuantos(),
+                'El gasto por transferencia se registra contra la cuenta, y sin caja abierta: no toca el cajón.');
+            $m = DB::selectOne('SELECT id_caja, id_cuenta, tipo FROM movimiento_caja WHERE id_cuenta = ? ORDER BY id_movimiento_caja DESC LIMIT 1', [$cuenta]);
+            $this->assertNull($m->id_caja, 'De ningún cajón: `chk_mc_donde` pide uno u otro.');
+            $this->assertSame('EGRESO', $m->tipo);
+            $this->assertSame(255000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+                'La cuenta descuenta el gasto: 300.000 declarados menos 45.000.');
+
+            // 2) Un faltante de caja no se carga contra una cuenta: es una
+            //    diferencia del arqueo del cajón.
+            if ($faltante) {
+                $this->post(route('facturacion.caja.movimiento'), [
+                    'destino' => 'cuenta:' . $cuenta,
+                    'id_tipo_mov_caja' => $faltante,
+                    'monto' => '5.000', 'concepto' => 'faltante',
+                ]);
+                $this->assertSame(1, $cuantos(),
+                    'El faltante es del cajón: contra el banco no significa nada.');
+            }
+
+            // 3) Y la base tampoco deja un movimiento sin cajón ni cuenta, ni con
+            //    los dos: es la restricción que sostiene todo esto.
+            try {
+                DB::insert("INSERT INTO movimiento_caja (id_caja, id_cuenta, tipo, monto, concepto, id_usuario)
+                            VALUES (NULL, NULL, 'EGRESO', 100, 'huérfano', 1)");
+                $this->fail('Un movimiento sin cajón ni cuenta no sale de ningún arqueo: la base tiene que rechazarlo.');
+            } catch (QueryException $e) {
+                $this->assertStringContainsString('chk_mc_donde', $e->getMessage());
+            }
+        } finally {
+            @unlink($tmp);
+            foreach (DB::select('SELECT archivo FROM movimiento_caja WHERE id_cuenta = ? AND archivo IS NOT NULL', [$cuenta]) as $f) {
+                @unlink(storage_path('app/respaldos/' . $f->archivo));
+            }
+        }
     }
 }

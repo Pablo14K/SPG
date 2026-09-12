@@ -14,6 +14,7 @@ use App\Servicios\Borrador;
 use App\Servicios\Caja;
 use App\Servicios\Canje;
 use App\Servicios\CitasVencidas;
+use App\Servicios\Cuenta;
 use App\Servicios\Listado;
 use App\Servicios\Notificaciones;
 use App\Servicios\Permisos;
@@ -510,6 +511,11 @@ class CitasController extends Controller
                   WHERE activo = 1 ORDER BY (tipo = 'EFECTIVO') DESC, nombre")
                 : [],
             'caja' => $puedeCobrar ? Caja::abierta() : null,
+            // **Sin caja abierta se cobra igual lo que llega por transferencia**
+            // (7.121.0): va a la cuenta bancaria, que es su propia caja. Con
+            // alguna cuenta cargada la ventana de cobro se ofrece aunque el
+            // cajón esté cerrado; el efectivo lo rechaza el servidor.
+            'hayCuentas' => $puedeCobrar && count(Cuenta::deSucursal((int) Sucursales::activa())) > 0,
             // Emitir el comprobante es de `facturacion.facturas`, no de cobros:
             // son dos permisos distintos y quien sólo cobra no debería emitir.
             'puedeFacturar' => Permisos::puede('facturacion.facturas'),

@@ -13,18 +13,30 @@
     · $sugerido el monto que viene propuesto (por defecto, todo lo que falta)
     · $metodos los medios de pago activos
     · $cajas   las cajas abiertas del local, para elegir a cuál entra la plata
+    · $cuentas las cuentas bancarias activas del local, para la línea por transferencia
 --}}
-@php $cajasAbiertas = $cajas ?? \App\Servicios\Caja::abiertasDe(); @endphp
+@php
+    $cajasAbiertas = $cajas ?? \App\Servicios\Caja::abiertasDe();
+    $cuentasBanco = $cuentas ?? \App\Servicios\Cuenta::deSucursal((int) \App\Servicios\Sucursales::activa());
+@endphp
                             <div class="sgp-cobro" data-saldo="{{ (float) $max }}"
                                      data-sugerido="{{ (float) ($sugerido ?? $max) }}">
                                 {{-- **A qué caja entra la plata.** El bloque es el
                                      mismo que usan los pagos: escrito dos veces, uno
-                                     de los dos se queda atrás. --}}
+                                     de los dos se queda atrás.
+
+                                     **Y sólo si alguna línea es en efectivo** (7.121.0):
+                                     `app.js` lo esconde cuando todo el cobro es por
+                                     transferencia, porque ahí la plata no toca el cajón
+                                     —va a la cuenta que elige cada línea—. Arranca
+                                     visible, que es la regla de siempre. --}}
+                                <div data-caja-bloque>
                                 @include('facturacion._caja_elegir', [
                                     'cajas' => $cajasAbiertas,
                                     'uid' => 'Cobro' . $uid,
-                                    'rotulo' => '¿A qué caja entra?',
+                                    'rotulo' => '¿A qué caja entra el efectivo?',
                                 ])
+                                </div>
 
                                 <div class="sgp-cobro-lineas"></div>
 
@@ -156,6 +168,20 @@
                                             <label class="form-label sgp-fecha-banco">Fecha</label>
                                             <input class="form-control form-control-sm" name="fecha_emision[]" type="date">
                                         </div>
+                                    </div>
+
+                                    {{-- **A qué cuenta del salón entra ESTA línea** (7.121.0).
+                                         Por transferencia, cheque o billetera la plata no
+                                         va al cajón sino al banco, y con dos cuentas hay que
+                                         decir a cuál: es lo que hace que la cuenta sume lo
+                                         que entra. Va por línea y no una vez por cobro,
+                                         porque un pago puede ser mitad al banco y mitad a la
+                                         billetera. `app.js` lo muestra según el medio. --}}
+                                    <div class="row g-2 mt-1 sgp-extra-cuenta-fila">
+                                        @include('facturacion._cuenta_elegir', [
+                                            'cuentas' => $cuentasBanco,
+                                            'linea' => true,
+                                        ])
                                     </div>
                                 </div>
                             </template>

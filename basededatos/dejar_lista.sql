@@ -40,6 +40,9 @@ TRUNCATE TABLE factura_electronica;
 TRUNCATE TABLE factura;
 TRUNCATE TABLE movimiento_caja;
 TRUNCATE TABLE caja;
+--  La cuenta bancaria del salón (7.121.0): número de cuenta, alias y saldo
+--  declarado de un salón real. Son datos del negocio, no del programa.
+TRUNCATE TABLE cuenta_bancaria;
 
 -- --- Dinero que sale --------------------------------------------------
 --  **Estas siete faltaban**, y por eso el .sql se entregó con una compra

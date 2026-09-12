@@ -43,7 +43,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
 La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
-más **87 restricciones `CHECK`**.
+más **88 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
 
@@ -360,6 +360,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.121.0 | 12/09/2026 | **La cuenta bancaria pasa a ser una CAJA dedicada al banco, y «Datos de pago» se retira** (los ocho puntos que quedaban de la lista del usuario: 8 a 15). *«Un nuevo módulo Cuenta Bancaria, que se utilizará como CAJA pero dedicado a movimientos bancarios; la caja actual sólo efectivo»*, y lo que lo motivó: *«la caja se reinicia al cerrar y abrir, y el pago no siempre puede salir de caja»*. **La tabla se renombra** —`dato_pago_sucursal` → `cuenta_bancaria`, `id_dato_pago` → `id_cuenta` en las tres tablas que la nombraban, con sus CHECK, índices y claves foráneas— porque el modelo del TCC tiene que decir lo que la cosa ES: una cuenta con saldo y movimientos, no «los datos para transferir». **Lo que entra por transferencia ahora se SUMA**: `cobro.id_cuenta` dice a qué cuenta cayó cada cobro por banco —las señas incluidas, que era el punto 9—, la cuenta viaja **por línea** en el cobro (`cuenta[]`, posicional como `metodo[]`: un pago puede ser mitad banco y mitad billetera) y `fn_cuenta_saldo` deja de ser un piso: declarado + cobros + ingresos − egresos − pagos desde la fecha declarada. **Al cobrar se pregunta lo que corresponde** (punto 14): el combo de caja aparece sólo si alguna línea es efectivo, el de cuenta en cada línea que sea transferencia, cheque o billetera, y los dos a la vez si el pago es mixto — `sgpAcomodarDonde()` en `app.js`, un solo bloque para el cobro, la seña, los pagos y el movimiento; arranca todo visible. **Sin caja abierta no se mueve un guaraní EN EFECTIVO**, y nada más: `exigeCaja` se acota al efectivo y a la tarjeta, así que el cobro todo por banco, la seña transferida desde la casa de la clienta, la liquidación y el pago a proveedores por transferencia (punto 10) y sus reversiones entran con el cajón cerrado, y la agenda ofrece la ventana de cobro con la caja cerrada si hay una cuenta cargada. **Los procedimientos no cambian de firma**: la cuenta se anota después con un `UPDATE` (`Facturacion::anotarCuenta()`), y el pago a proveedor por banco se deja sin `id_caja` porque `sp_pagar_compra` le cuelga cualquier caja abierta que encuentre. **«Movimiento de caja» pasa a «Movimiento»** (punto 13): cada fila dice DÓNDE pasó —la cuenta manda sobre el cajón, porque un cobro por transferencia se registra en un puesto pero la plata no está ahí—, hay filtro por caja **y** por cuenta, el formulario pregunta de dónde sale (`destino`), y **`chk_mc_donde`** exige el cajón o la cuenta, nunca los dos ni ninguno; el faltante y la devolución son del cajón y contra una cuenta se rechazan. Las cuatro fuentes se mudan a `App\Servicios\Movimientos`, que leen el listado, el modal de cada caja y el de cada cuenta. **Tesorería → Cuenta bancaria** (`CuentaBancariaController`, permiso `facturacion.cuentas` traducido desde `configuracion.pagos`) son tarjetas como Cajas: saldo o «sin saldo declarado», movimientos de hoy, declarar el saldo, **«Usar para señas»** (punto 15: `para_senas`, y el portal muestra sólo las marcadas —`Cuenta::paraSenas()`—, la primera de un local nace marcada), editar, baja, orden y alta en modal; Configuración → Datos de pago se retira (punto 11). **La campanita pide declarar el saldo** (punto 9: `Pendientes::cuentas()`, CONFUNDE), y avisa el local con cuentas y ninguna para señas, y el local sin ninguna cuenta. **Lo que queda afuera y se dice**: la TARJETA no suma a ninguna cuenta —el posnet acredita días después y con comisión— y sigue en la caja donde se pasó. **224 pruebas · 1910 aserciones**, cuatro nuevas y **las cuatro comprobadas en las dos direcciones** —sin `anotarCuenta()`, con la caja exigida siempre, sin el filtro `para_senas` y sin el rechazo del faltante contra la cuenta, cada una falla— y tres reescritas a los nombres nuevos · 88 `CHECK` · comprobado en el navegador: el cobro de la agenda con la caja cerrada entra por transferencia con `id_caja NULL` e `id_cuenta` puesto, la cuenta pasa de 1.500.000 a 1.550.000 y Movimientos lo lista bajo la cuenta · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-12_7.121.0.sql` · **código y base** |
 | 7.120.0 | 12/09/2026 | **Siete cosas de pantalla reportadas usando el sistema, y la que más se veía era que en el tema oscuro los nombres salían NEGROS sobre el fondo oscuro.** «Los nombres de clientes permanecen en negro en modo oscuro, se camuflan con el fondo», reportado tal cual: `.sgp-movil-sujeto` —el nombre de la clienta en la tarjeta del celular— se pintaba con `--negro`, que **es una superficie y se da vuelta con el tema**: en oscuro vale `#080807`, o sea el plano más profundo de la paleta. Es el defecto que este documento ya tenía anotado para `--carbon` y `--gris-calido` en la barra, un nivel más adentro, y al buscarlo aparecieron **dieciséis lugares más con la otra mitad del mismo error**: `--oro-oscuro` usado como color de TEXTO sobre el fondo —el nombre que enlaza a la ficha en Clientes, los enlaces de la campanita, los íconos del desplegable de la cuenta, «← Panel», las migas, el badge «En proceso», la pestaña activa de Reportes—, y ése **no se invierte en absoluto**: queda en 2,3:1. Para eso existe `--oro-enfasis` desde la 7.118.0, que en claro es el oro oscuro y en oscuro el principal; el rótulo «Filtros» del celular tenía el mismo `--negro`. En claro no cambia ni un píxel. **El logo del salón salía a su tamaño natural en el enlace del correo**: `.logo-big` estaba escrito **anidado bajo `.sgp-login`**, la tarjeta de las pantallas de acceso, y `cita_token/ver` dibuja la misma marca dentro de un `container` pelado — así que ninguna de las tres reglas aplicaba y un logo de 900 px se plantaba encima de la cita. Medido: de 900×240 a **240×64**, y 180×52 en el celular. Es el patrón de siempre —código correcto apuntando a un marcado que no existe, sin dar ningún error— y queda con su guardia. **El enlace del correo mide la agenda igual que el módulo**, que es lo que se pidió verificar: los dos ofrecen exactamente los mismos días y las mismas horas —comprobado—, y lo que estaba distinto era el guardado, que llamaba a `huecoLibre()` **sin decirle la sucursal**. El turno es del local desde la 7.39.0, así que la comprobación caía en `Sucursales::activa()`, o sea la sesión de quien tuviera el navegador abierto: alguien del salón parado en otro local que abriera el enlace de una clienta hacía que el rechazo saliera de los turnos de la sede equivocada. Ahora el contexto de la cita —servicios, profesional, local, cuántas personas— sale de **un solo método**, `contexto()`, que usan el selector y el guardado: escritos aparte se separan, y ahí la pantalla ofrece lo que el servidor rechaza. **Y el profesional deja de tomarse del POST**: la pantalla dejó de ofrecer ese combo en la 7.97.0 —los horarios se calculan para quien te atiende— y el servidor lo seguía aceptando, así que con el token en la mano se le reasignaba la cita a cualquiera. **En la agenda, lo que TRABA la cita va arriba del botón «Detalle»** (pedido del usuario: «el botón de Detalle se pone encima de FALTA fichaje siendo que debe ser al revés»): primero qué impide atender —que es lo accionable ahora— y después la ficha, que es información; es la regla de la ayuda contextual aplicada al orden de la fila. **Y los botones dicen su nombre entero**: iban en una línea con `text-overflow:ellipsis`, así que en 133 px el más largo salía «Cambiar profes…» en la computadora y en el celular — un botón que no dice qué hace es justo el problema que esas dos columnas vinieron a resolver, así que antes que recortarlo se lo deja envolver, y la grilla pasa a 300 px. **La campanita toma el oro del sistema**: estaba en `--oro-claro`, el oro del *hover*, a dos centímetros del logo y del nombre del salón, que son `--oro` — dos dorados distintos uno al lado del otro. De paso el numerito dejaba de ser legible: con el ícono en 17 px la pastilla le tapaba media cara y el conjunto se leía como una mancha rosa, y su `#fff` fijo sobre el rojo claro del tema oscuro daba 2,2:1; ahora el ícono es más grande, el número sale del glifo con un anillo del color de la barra y el texto va en `--blanco`, que sí se invierte (7,9:1 y 7,3:1). **Y la liquidación dice qué trabajo se está pagando**: el detalle mostraba el período y el estado, o sea nada que la fila no dijera ya — un monto sin desglose no se puede comprobar ni defender. Ahora abre los servicios que entraron, cuándo, **a quién** —quien se atiende, que en la cita para otra persona no es la que la pidió—, cuánto se facturó, **con qué número de comprobante está ligado cada uno** y cuánto le tocó, con el total al pie. Sale de `detalle_pago_personal`, con **el monto congelado ese día** y no el que daría la comisión de hoy: si el salón la cambia el mes que viene, la liquidación de marzo tiene que seguir diciendo lo que se pagó en marzo — el mismo criterio por el que `detalle_factura` guarda el precio. Una consulta para toda la página, no una por fila. **220 pruebas · 1861 aserciones**, seis nuevas y **las seis comprobadas en las dos direcciones**: con el `huecoLibre` sin sucursal, con el `id_usuario` del POST, con el aviso debajo del botón, con el detalle viejo, con `.logo-big` scopeada o con `.link-oro` en oro oscuro, cada una falla. **Y la primera versión de dos de ellas no medía nada**: la del local ajeno usaba una sucursal inventada, y `fn_verificar_disponibilidad` con una que no existe se queda sin turnos que mirar y cae en el criterio permisivo — pasaba en verde con el defecto puesto; ahora crea un local de verdad **con un turno de otra persona**, que es lo que lo hace restrictivo (entra `TestCase::otraSucursal()`). Y la del orden de la fila esperaba «falta fichaje» cuando la agenda **marca sola las entradas vencidas al dibujarse** (`Asistencia::marcarEntradasVencidas()`), así que el aviso era «profesional ausente»: lo que se mide es la POSICIÓN, que es lo que se reportó · 2 salteadas, las legítimas · **sólo código: la base no se tocó** |
 | 7.119.0 | 12/09/2026 | **Catorce cosas reportadas usando el sistema, y la que las ordena es que el mismo servicio ya puede ser para VARIAS personas de la misma cita.** **Dos amigas que vienen a cortarse el pelo marcan las dos en «Corte»**, reportado tal cual —*«el sistema solo permite elegir un cliente por servicio, debe permitir que se pueda poner más de un cliente al mismo servicio»*—. La 7.117.0 había dejado `uq_cita_servicio (id_cita, id_servicio)` a propósito, así que había que reservar dos citas. El único pasa a **`(id_cita, id_servicio, persona)`**: son dos filas de `cita_servicio`, una por persona, y **el modelo ya estaba escrito sobre filas** —`fn_cita_duracion` suma lo de la misma profesional, `sp_emitir_factura` arma un renglón por fila, `trg_citaserv_bi` sólo mira OTRAS citas—, con lo cual la base no necesitó ninguna rutina nueva. Lo que sí cambió es el motor de PHP, que está escrito por id de servicio y un id no puede ir dos veces en un arreglo: la cantidad viaja aparte, por petición (`Agenda::vecesPorServicio()`), `turnos()` arma un ítem por copia —dos cortes con la misma persona van en serie, como en la base— y `agendar()` inserta una fila por persona con el turno de cada copia. **El orden importa en el guion**: `fk_cs_cita` se apoya en el único viejo, así que el nuevo se crea ANTES de soltarlo. La tarjeta pregunta con **casillas** y no con un combo —un `<select multiple>` pide Ctrl+clic, 7.102.0—, alguna queda marcada siempre, el repaso dice «Corte de dama ×2 · para Ana y Josefina», el calendario recibe `veces[id]` y mide los dos cortes —comprobado: «tu cita dura desde 90 minutos»—, y `vw_agenda_citas` dice «Corte ×2» en vez de «Corte, Corte». **Y en la atención salen dos filas de `servicio_realizado`**: con una sola, la segunda cabeza se trabajaba gratis para quien la hizo. **La factura por persona funciona de punta a punta**, que era el defecto más grave: *«aparece la opción de pago individual pero al final hace la factura por el pago grupal y deja una deuda de lo que le corresponde a la otra persona, pero luego no se genera el comprobante de ese pago»*. La base emitía por persona desde la 7.117.0; **las pantallas no**: `emitir` no leía `persona` —el cobro individual mandaba ahí con `?persona=2` y se emitía de toda la cita—, la pantalla del receptor tampoco la arrastraba, y la lista excluía toda cita con alguna factura, así que la segunda amiga se quedaba sin la suya. Ahora la fila de emitir pregunta **¿de quién?** —con lo que se hizo cada una y cuál ya tiene el suyo—, «toda la cita» se apaga en cuanto alguna lo tiene, el receptor sabe de quién es y lista sólo lo suyo, y **la cita a medio facturar sigue en la lista** hasta que cada una tenga el suyo. **Cobros dice qué falta cobrar**: era sólo el historial, así que la atención que la clienta debía no aparecía en ningún lado y la única forma de cobrarla era encontrar la fila en la agenda; entra **«Falta cobrar N atenciones»** arriba —total, cobrado, falta— y el botón abre la ventana de cobro de esa cita en la agenda (`?cobrar=`), o Facturas si ya tiene comprobante. **La ventana de cobro es ancha y en dos columnas en la computadora** (pedido del usuario): la cuenta a la izquierda, el pago a la derecha; en 500 px había que scrollear para llegar al botón. **La lista de facturas dice de qué cita es cada una**: la fecha y hora, lo que factura —sus propios renglones— y «de Josefina» cuando es de una persona; con dos comprobantes de la misma clienta el nombre solo no los distinguía. **El primer paso de la reserva pregunta en orden** (pedido del usuario: «las preguntas de la primera sección están mal organizadas»): iba cuántas → quiénes vienen → «no es para mí» → mis alergias. Ahora **quién se atiende** —«Para mí» o «Para otra persona», dos radios y no una casilla escondida, con las alergias de ESA persona— y después **si viene alguien más** —cuántas en total y quiénes—. Las mismas tres preguntas en Nueva cita. **En la agenda los botones vuelven a ser chicos** —30 px y 143 de ancho hacían filas de 116 px; van del alto de un badge, 25 px, y la fila mide 95—, **la fila deja el desglose por persona a la ventana** («muestra información que se mostrará en la ventana de detalle»: queda «Corte de dama ×2, Manicura»), y **«Quién viene» se reorganiza persona por persona**: eran tres listas —Clienta, Vienen, Alergias— que volvían a nombrar a la misma gente; ahora cada una es un renglón con su papel, sus servicios y su alergia, y su ficha o el botón de crearla. **En «Registrar atención» los productos van bajo los servicios reservados CON quien cierra** (pedido del usuario): listaba todos los de la cita, y lo que usó la otra lo carga la otra; el Administrador ve los de todas y la pantalla los acota al elegir de quién cierra. **En el panel**, el atajo «ir a la agenda →» va en el título de Próximas citas —estaba sólo en la cabecera de las atrasadas, así que un día sin ninguna se quedaba sin él—, el importe de cada caja abierta no se parte ni se achica —con tres o cuatro cajas el renglón más largo empujaba «Gs. 2.148.000» a dos líneas—, y **el pie va al fondo de la ventana**: el panel de una profesional mide media pantalla y el pie se dibujaba pegado a eso con el resto en blanco debajo — `body` es una columna y `main` estira, en todas las pantallas. **Y Tesorería deja los grupos** (pedido del usuario): ocho tarjetas corridas como en los demás módulos; la agrupación sigue en el desplegable de la barra, donde doce renglones corridos sí se leían mal, y `<x-landing>` conserva la maquinaria. **213 pruebas · 1805 aserciones**, dos nuevas y **las dos comprobadas en las dos direcciones**: la del servicio para varias falla con el único viejo puesto (1062) y la del comprobante por persona —que recorre el camino real, incluida la pantalla del receptor— falla con el `persona` ignorado, que es exactamente el defecto. Y 40 de las que ya estaban, verdes con el motor cambiado. 3 salteadas: las 2 legítimas y `una_cita_de_hoy_que_ya_paso…`, que corrió pasada la medianoche y hoy todavía no cabe una cita terminada · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-12_7.119.0.sql` · **código y base** |
 | 7.118.1 | 11/09/2026 | **Cuatro ajustes sobre la 7.118.0, mirándola en el navegador.** **Los módulos del panel llenan su caja en la computadora**: con la `row` de Bootstrap las nueve pastillas se apilaban arriba, del tamaño de su texto, y debajo sobraba media caja —«deben estar más espaciados para aprovechar el espacio»—. Entra `.sgp-modulos`, una grilla de tres columnas que en pantalla ancha reparte sus filas a lo alto de la caja y agranda ícono y rótulo; en el celular vuelve a ser la grilla compacta. Y entre 992 y 1200 px la columna de los módulos pasa de 4/12 a 5/12: con un tercio de 960 px la pastilla mide 75 px y «Configuración» se cortaba con «…». **La campanita queda con un solo rótulo, «Avisos»** (pedido del usuario): «Falta cargar» pasó a llamarse así, y después el usuario pidió que la caja abierta de más fuera a ese mismo grupo, así que «Ahora mismo» se retira. Lo que está pasando sigue yendo **primero**, y siguen siendo dos servicios —`Alertas` y `Pendientes`—, porque de eso depende cómo se cuentan: la caja deja de contar al verla, lo que falta cargar no. **El combo de sucursal también en el celular** (pedido del usuario): se escondía en pantalla chica y el local sólo se leía en el desplegable de la cuenta, sin forma de cambiarlo desde el teléfono; va compacto, con el nombre recortado con «…» si no entra, en el lugar que dejó el nombre del salón. **Y el inicio del portal toma la forma del panel** (pedido del usuario, «tanto celular como PC»): el saludo como título, a la izquierda **Tus próximas citas** —todas las que vienen, no sólo la primera, con su estado y el aviso de la atrasada— y debajo **Tu nivel y tus puntos** —el nivel con su descuento, las visitas, cuántas faltan para el siguiente, y los puntos con el enlace a qué canjear—, y a la derecha las seis pantallas del portal en pastillas, del mismo catálogo que la barra, sin Inicio ni Mi cuenta. Son las mismas clases del panel: escrito dos veces se desfasa. `vw_cliente_fidelizacion` trae el NOMBRE del descuento del nivel y no cuánto descuenta, así que el porcentaje se lee de `nivel` ⋈ `descuento`. **212 pruebas · 1777 aserciones**, una nueva —el inicio del portal con dos citas por venir, comprobada en las dos direcciones: con la vista anterior falla— y dos ajustadas a los rótulos nuevos. **Y una que se salteaba en silencio**: `una_clienta_no_se_pisa_a_si_misma…` tomaba «la cita más nueva que bloquea agenda», y desde que el mes simulado se quedó sin citas futuras eso es lo que haya quedado de otra corrida — hoy pasó en verde sólo porque una cita sembrada a mano para probar el panel estaba en la base, y con la base limpia se salteaba; ahora la crea con `citaFuturaAgendada()`, como las cinco de la 7.103.1. Quedan las 2 salteadas legítimas · **sólo código: la base no se tocó** |
@@ -579,7 +580,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 ## Arquitectura
 
-Laravel 13 sobre PHP 8.3, con **218 rutas declaradas una por una** en `routes/web.php` — nada
+Laravel 13 sobre PHP 8.3, con **219 rutas declaradas una por una** en `routes/web.php` — nada
 de `Route::resource`, porque las pantallas de este sistema no son un CRUD parejo.
 
 **Lo que NO se usa de Laravel, y es a propósito:**
@@ -609,7 +610,10 @@ app/
     WebAuthn.php           Huella en PHP puro (CBOR, COSE→PEM, OpenSSL)
     Facturacion.php        Emitir, cobrar, anular, nota de crédito, puntos
     Caja.php               Caja abierta y saldo
-    Cuenta.php             La cuenta BANCARIA del salón: si alcanza para pagar
+    Cuenta.php             La cuenta BANCARIA del salón: la caja del banco (deSucursal,
+                           paraSenas, valida, unicaDe, aviso)
+    Movimientos.php        Las cuatro fuentes que mueven plata, del cajón y del banco:
+                           partes(), delDia() — las leen tres pantallas
     Persona.php            El único lugar que escribe en `persona`
     Notificaciones.php     Cola de avisos: ausencias, bajas, recordatorios y los internos
     Calendario.php         Archivo .ics de la cita (hora flotante, ver su sección)
@@ -635,7 +639,8 @@ app/
     Perfil.php             La foto de perfil de quien está en sesión, o sus iniciales
   Http/Controllers/        Uno por módulo, más Auth, Cuenta, Panel, Portal, CitaToken,
                            Sucursal (elegir local), Vivo (la huella de actualización),
-                           Alertas (la campanita: marcar lo visto) y Webauthn.
+                           Alertas (la campanita: marcar lo visto), CuentaBancaria (la
+                           caja del banco, en Tesorería) y Webauthn.
                            La excepción es Seguridad: son 1500 líneas y no gana nada
                            juntarlas, así que SeguridadController tiene sólo el landing y
                            las pantallas siguen repartidas entre PersonalController
@@ -662,7 +667,7 @@ resources/views/
                            así el bloque que se ve en su pestaña y el que se ve
                            en «Todos» son el mismo y no se pueden desfasar
 routes/
-  web.php                  Las 218 rutas, agrupadas por módulo con su middleware
+  web.php                  Las 219 rutas, agrupadas por módulo con su middleware
                            Personal y Configuración salieron de Seguridad en la 7.57.0
                            pero NO se mudaron de URL: viven bajo /seguridad y sólo
                            cambia el permiso que las abre
@@ -679,7 +684,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SGP le habla sólo por HTTP
-tests/Feature/             Las 213 pruebas
+tests/Feature/             Las 224 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1850,7 +1855,7 @@ arrastra nada a otra sede** — un empleado no lleva su horario de un local al o
 | **Tesorería** | todo | — | facturas por el timbrado, cobros y pagos por la caja |
 | **Reportes** | se puede acotar | el consolidado | selector con «Todas» + bloque «Por sucursal» |
 | **Seguridad** | turnos · asistencia · comisiones | usuarios · roles · sucursales · contacto · auditoría | la auditoría se ve entera **y** se puede filtrar |
-| **Configuración** | **datos de pago** | sucursales · contacto | `dato_pago_sucursal.id_sucursal` — dos locales pueden cobrar en cuentas distintas |
+| **Configuración** | — | sucursales · contacto | las cuentas bancarias pasaron a Tesorería en la 7.121.0 (`cuenta_bancaria.id_sucursal`) — dos locales pueden cobrar en cuentas distintas |
 
 Tres decisiones que no son obvias y conviene no revertir sin pensarlas:
 
@@ -1899,11 +1904,11 @@ el Profesional ficha su asistencia sin ver las cuentas de sus compañeras. La cl
 | `clientes` | `.registro` · `.fidelizacion` · `.canjes` · `.valoraciones` |
 | `servicios` | `.catalogo` · `.categorias` —que administra también **las zonas del cuerpo**— · `.descuentos` |
 | `inventario` | `.productos` · `.stock` · `.compras` · `.proveedores` |
-| `facturacion` | `.facturas` · `.cobros` · `.caja` —que abre **Apertura y cierre** y **Arqueo**— · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
+| `facturacion` | `.facturas` · `.cobros` · `.caja` —que abre **Apertura y cierre** y **Arqueo**— · `.cuentas` —la **Cuenta bancaria**, la caja del banco— · `.movimientos` · `.pagos` · `.proveedores` · `.timbrados` |
 | `reportes` | no se divide: es una sola pantalla |
 | `seguridad` | `.usuarios` · `.roles` · `.auditoria` |
 | `personal` | `.profesionales` · `.turnos` · `.asistencia` · `.comisiones` |
-| `configuracion` | `.sucursales` · `.contacto` · `.pagos` |
+| `configuracion` | `.sucursales` · `.contacto` — `.pagos` se mudó a `facturacion.cuentas` en la 7.121.0, traducido por `equivalencias` |
 
 Todo sale de **`config/permisos.php`**: la matriz de Seguridad → Roles
 (`Permisos::matriz()`), las claves que acepta el POST (`Permisos::claves()`) y las etiquetas
@@ -2243,7 +2248,7 @@ Tres cosas que conviene no perder:
 > guarda, lo que ADVIERTE se queda a la vista.** Dejando menos, la cita queda
 > igual de sin confirmar y con un aviso que alguien tiene que ir a rechazar.
 
-### A dónde transferir: los datos de pago de cada sucursal
+### A dónde transferir: la cuenta bancaria de cada sucursal
 
 **No hay pasarela de pagos y no la va a haber.** La clienta transfiere por su
 cuenta y sube el comprobante, así que lo único que el sistema puede hacer es
@@ -2251,20 +2256,30 @@ cuenta y sube el comprobante, así que lo único que el sistema puede hacer es
 contestara el WhatsApp, o sea que una seña se podía trabar por un mensaje sin
 responder.
 
-`dato_pago_sucursal` guarda una fila por cuenta, y se administra en
-**Configuración → Datos de pago**.
+`cuenta_bancaria` guarda una fila por cuenta, y se administra en
+**Tesorería → Cuenta bancaria**. Hasta la 7.120.0 se llamaba
+`dato_pago_sucursal` y vivía en «Configuración → Datos de pago»; la 7.121.0 la
+volvió **una caja dedicada al banco** —ver la sección de abajo— y con eso el
+lugar natural pasó a ser Tesorería, al lado de Cajas.
 
 | | |
 |---|---|
-| Permiso | `configuracion.pagos` — **el suyo**, no el de sucursales |
+| Permiso | `facturacion.cuentas` — **el suyo**, no el de cajas; lo guardado como `configuracion.pagos` se traduce |
 | De quién son | **de cada sucursal**: dos locales pueden cobrar en cuentas distintas |
-| Qué ve la clienta | sólo las del local **donde reservó**, al registrar la seña |
+| Qué ve la clienta | sólo las del local **donde reservó** **marcadas «Usar para señas»**, al registrar la seña |
 | Qué medios admiten datos | los de `metodo_pago` con tipo `BANCO`, `CHEQUE` u `OTRO` |
 
-Cuatro decisiones que conviene no revertir:
+Cinco decisiones que conviene no revertir:
 
 - **El permiso es propio.** El número de cuenta del salón se le puede dar a
-  alguien distinto de quien administra los locales.
+  alguien distinto de quien administra las cajas.
+- **Cuál ve la clienta se ELIGE, con el botón «Usar para señas»**
+  (`cuenta_bancaria.para_senas`, 7.121.0, pedido del usuario). Una cuenta puede
+  existir para pagarle a proveedores sin ser a la que el salón quiere que le
+  transfieran; puede haber varias marcadas —el banco y la billetera—, y la
+  primera cuenta de un local nace marcada para que la clienta nunca se quede
+  sin ninguna. `Cuenta::paraSenas()` es lo único que lee el portal. Lo fija
+  `ReglasDeNegocioTest::la_clienta_ve_solo_la_cuenta_marcada_para_senas`.
 - **El alias es lo que de verdad se usa, y tiene TIPO.** En el SIPAP es el
   único dato necesario para transferir —reemplaza al número de cuenta, a la
   entidad y al nombre del destinatario— y no es texto libre: es **cédula, RUC,
@@ -2298,61 +2313,96 @@ Cuatro decisiones que conviene no revertir:
 Lo fija `ReglasDeNegocioTest::la_clienta_ve_las_cuentas_del_local_donde_reservo`,
 comprobada en las dos direcciones.
 
-#### Y cuánta plata hay en esa cuenta: el arqueo del banco
+#### La cuenta bancaria es una CAJA dedicada al banco
 
-**El efectivo tenía su control desde la 5.5.0 y el banco ninguno.** El propio
-código lo decía al lado del `if` —«los pagos por banco no se frenan: no salen
-del cajón, salen de la cuenta»— y **de la cuenta no se sabía nada**: se podía
-liquidar el mes entero contra una cuenta vacía y enterarse cuando el banco
-rechazara la transferencia. Es el punto 1 de la tanda de la 7.110.0, tal como lo
-pidió el usuario: *«control de pago… para verificar si hay dinero antes de pagar
-a profesionales y proveedores»*.
+**Desde la 7.121.0 hay dos cajas: el cajón, para el efectivo, y la cuenta
+bancaria, para todo lo demás.** Lo pidió el usuario con todas las letras —*«un
+nuevo módulo Cuenta Bancaria, que se utilizará como CAJA pero dedicado a
+movimientos bancarios; la caja actual sólo efectivo»*— y ordena varias cosas
+que estaban a medias:
+
+| Antes (7.110.0 – 7.120.0) | Ahora |
+|---|---|
+| la cuenta era «a dónde le decimos a la clienta que transfiera», más un saldo que era un **piso**: el sistema veía lo que salía del banco y **no lo que entraba** | **ve las dos cosas**: `cobro.id_cuenta` dice a qué cuenta cayó cada transferencia —las señas incluidas— y `fn_cuenta_saldo` la suma |
+| todo pago exigía caja abierta, también la transferencia — *«la caja se reinicia al cerrar y abrir, y el pago no siempre puede salir de caja»* | **sin caja abierta no se mueve un guaraní EN EFECTIVO**: lo que va por banco sale de la cuenta, esté o no abierto el cajón |
+| «Movimiento de caja» | «**Movimiento**», del cajón o de una cuenta: el gasto pagado por transferencia se carga contra la cuenta |
+| la cuenta de las señas eran «todas las activas» | **la que se marque «Usar para señas»** |
 
 | Qué | Dónde | ¿Se guarda? |
 |---|---|---|
-| Lo que el salón leyó en su banco | `dato_pago_sucursal.saldo_declarado` | **sí** |
-| Cuándo lo leyó | `dato_pago_sucursal.saldo_declarado_en` | **sí** |
-| De qué cuenta salió cada pago | `pago_proveedor.id_dato_pago` · `pago_personal.id_dato_pago` | **sí** |
-| **Cuánto queda** | `fn_cuenta_saldo(id)` | **NO: se calcula** |
+| Lo que el salón leyó en su banco | `cuenta_bancaria.saldo_declarado` · `saldo_declarado_en` | **sí** — es el arqueo de la cuenta |
+| A qué cuenta cayó cada cobro por banco | `cobro.id_cuenta` | **sí** — no se deduce de nada: el medio dice *que* fue al banco, no *a cuál* |
+| De qué cuenta salió cada pago o movimiento | `pago_proveedor.id_cuenta` · `pago_personal.id_cuenta` · `movimiento_caja.id_cuenta` | **sí** |
+| **Cuánto queda** | `fn_cuenta_saldo(id)` = declarado + cobros + ingresos − egresos − pagos, desde la fecha declarada | **NO: se calcula** |
 
-Cinco decisiones, y ninguna es cosmética:
+Las decisiones que sostienen esto:
 
-- **El saldo declarado es un HECHO OBSERVADO, así que se guarda.** El sistema
-  conoce lo que SALE de la cuenta —los pagos que él mismo registró— pero **no lo
-  que entra**: una transferencia de una clienta llega al banco sin pasar por
-  acá, y `cobro` no dice a qué cuenta del salón cayó. Reconstruirlo sumando
-  cobros sería inventarlo. Es exactamente el criterio de `caja.monto_contado`.
+- **`cobro.id_caja` e `id_cuenta` dicen cosas distintas.** El primero es en qué
+  puesto se registró; el segundo, a dónde fue la plata. Un cobro por
+  transferencia hecho en el mostrador tiene los dos, y **para Movimientos manda
+  la cuenta**: se lista ahí y no en el cajón, y el filtro de caja mira
+  `id_cuenta IS NULL`. `fn_caja_saldo` no cambió: sigue contando sólo efectivo.
+- **La cuenta viaja POR LÍNEA en el cobro** (`cuenta[]`, posicional como
+  `metodo[]`): un pago puede ser mitad al banco y mitad a la billetera. Con una
+  sola cuenta no se pregunta, y **el combo de caja se muestra sólo si alguna
+  línea es efectivo** —eso lo hace `sgpAcomodarDonde()` en `app.js`; arranca
+  todo visible—. Lo fija `ReglasDeNegocioTest::el_cobro_mixto_manda_el_efectivo_al_cajon_y_la_transferencia_a_la_cuenta`.
+- **Los procedimientos no cambiaron de firma.** `sp_registrar_cobro`,
+  `sp_registrar_sena`, `sp_pagar_compra` y `sp_registrar_pago_personal` siguen
+  igual; la cuenta se escribe DESPUÉS, con un `UPDATE` sobre la fila recién
+  creada (`Facturacion::anotarCuenta()`). Y como `sp_pagar_compra` le cuelga
+  una caja abierta a todo pago cuando encuentra alguna, el pago por banco se
+  deja además con `id_caja = NULL`: de ese cajón no salió nada.
+- **`exigeCaja` se acota al efectivo y a la tarjeta.** La tarjeta se pasa por
+  el posnet del puesto y sigue registrándose en su caja (aunque `fn_caja_saldo`
+  no la cuente); lo bancario no toca el cajón. Vale para el cobro, la seña, la
+  liquidación, el pago a proveedores y sus reversiones —una liquidación que
+  salió de la cuenta se revierte con el cajón cerrado— y para el movimiento
+  manual. La agenda ofrece la ventana de cobro con la caja cerrada **si hay
+  alguna cuenta cargada**, y el efectivo lo rechaza el servidor. Lo fija
+  `ReglasDeNegocioTest::la_liquidacion_por_banco_sale_de_la_cuenta_y_no_necesita_caja_abierta`,
+  en las dos mitades: por banco entra, en efectivo con la caja cerrada no.
+- **Un movimiento manual sale de UN lado**: `chk_mc_donde` exige `id_caja` o
+  `id_cuenta`, nunca los dos ni ninguno. El faltante de caja y la devolución en
+  efectivo son del cajón —una diferencia del arqueo, y plata que estaba ahí
+  adentro— y contra una cuenta se rechazan. El movimiento de una cuenta se
+  anula en cualquier momento: su arqueo es volver a declarar el saldo. Lo fija
+  `ReglasDeNegocioTest::el_movimiento_manual_desde_la_cuenta_descuenta_el_banco_y_no_el_cajon`.
+- **Sigue siendo una cuenta del banco y no del sistema**, así que puede haber
+  más de lo que dice —un depósito hecho por fuera— y **el control de los pagos
+  AVISA y no bloquea**, al revés que el efectivo, que es exacto. Lo que cambió
+  es que ya no es un piso: ahora también suma lo que entra por el sistema.
+- **NULL no es cero.** Una cuenta que nadie declaró vale «no se sabe», el
+  sistema no avisa nada, **y la campanita lo pide** (`Pendientes::cuentas()`,
+  CONFUNDE): *«no tener declarado el monto del banco es motivo de avisos»*, que
+  es lo que pidió el usuario. También avisa el local con cuentas y ninguna
+  marcada para señas, y el local sin ninguna cuenta.
 - **Y el saldo calculado NO se guarda**, por lo mismo que la diferencia del
   arqueo: es derivado, y guardarlo lo separaría del real en silencio.
-- **`fn_cuenta_saldo` es un PISO, no un saldo.** Parte de lo declarado y resta
-  lo pagado desde entonces; lo que entró no se suma. Así el número sólo puede
-  quedar **por debajo** del real, que es la única dirección segura para la
-  pregunta que contesta: *¿alcanza para pagar esto?*
-- **Por eso AVISA y no bloquea**, al revés que el efectivo. El saldo del cajón
-  es exacto y rechazar un egreso mayor es correcto; éste es aproximado por
-  abajo, y bloquear con un número que sabemos incompleto **frenaría un pago
-  legítimo** — apagar algo que hoy funciona, que es lo que la regla del proyecto
-  manda no hacer sin preguntar.
-- **NULL no es cero.** Una cuenta que nadie declaró vale «no se sabe», y
-  entonces el sistema **no dice nada**: un cero se leería como «está vacía» y el
-  aviso saldría siempre, que es lo mismo que no avisar nunca.
 
-**Dónde se ve**: el saldo se declara en Configuración → Datos de pago, con el
-botón «Declarar / Actualizar» de cada cuenta —**vaciar el campo la devuelve a
-«sin declarar»**, que es una respuesta válida—; y de qué cuenta sale la plata se
-elige en los dos modales de pago (`facturacion/_cuenta_elegir`), que es el mismo
-partial para los dos por el motivo de siempre.
-
-> **El selector se esconde cuando se paga en efectivo**, porque de un cajón no
-> sale ninguna transferencia. **Arranca visible y lo esconde `app.js`**, y
-> esconder no es el control: el servidor ignora `id_dato_pago` cuando el medio
-> es efectivo.
+**Dónde se ve**: **Tesorería → Cuenta bancaria** son tarjetas como Cajas —el
+saldo o «sin saldo declarado», cuántos movimientos hoy, el modal del día,
+«Declarar / Actualizar saldo», «Usar para señas», editar, baja y orden—; de qué
+cuenta sale o a cuál entra la plata se elige en el cobro, la seña, los dos
+modales de pago y el movimiento (`facturacion/_cuenta_elegir`, el mismo partial
+para todos); y **Movimientos** lista los del cajón y los de las cuentas, con su
+filtro «Cuenta» y la columna «Dónde». Las cuatro fuentes viven en
+`App\Servicios\Movimientos`, que leen el listado, el modal de cada caja y el de
+cada cuenta.
 
 > **Volver a declarar el saldo es, literalmente, hacer el arqueo de la cuenta**:
-> `fn_cuenta_saldo` sólo descuenta los pagos posteriores a esa fecha, así que lo
-> anterior queda cerrado.
+> `fn_cuenta_saldo` sólo mira lo posterior a esa fecha, así que lo anterior
+> queda cerrado. Vaciar el campo la devuelve a «sin declarar», que es una
+> respuesta válida.
 
-Lo fija en las tres direcciones que importan
+> **Lo que queda afuera, a propósito y conviene saberlo**: la TARJETA no suma a
+> ninguna cuenta —el posnet acredita al banco días después y con comisión, así
+> que sumarla el mismo día diría un número que el banco no muestra—; sigue en
+> la caja donde se pasó, sin contar en el efectivo, como desde la 5.5.0. Si el
+> salón quiere verla en la cuenta, es una extensión: `cuenta[]` ya viaja por
+> línea y alcanzaría con dejar que `TIPOS_BANCARIOS` la incluya.
+
+Lo fija además, en las tres direcciones que importan,
 `ReglasDeNegocioTest::la_cuenta_del_banco_avisa_cuando_no_alcanza_pero_no_frena_el_pago`:
 sin declarar no avisa, declarado avisa, y **el pago se registra igual**.
 
@@ -4812,6 +4862,15 @@ día siguiente, en el arqueo equivocado. El mensaje dice **qué se iba a hacer**
 la caja antes de pagarle a un proveedor»), no un «no se puede» a secas. **Si agregás
 otra acción que mueva dinero, llamala también.**
 
+> **Y desde la 7.121.0 la regla es «sin caja abierta no se mueve un guaraní EN
+> EFECTIVO».** Lo que va por transferencia, cheque o billetera cae en la cuenta
+> bancaria —que es su propia caja— y se registra con el cajón cerrado: el cobro
+> todo por banco, la seña que la clienta transfirió desde su casa, la
+> liquidación y el pago a proveedores por transferencia, el movimiento manual
+> contra una cuenta, y la reversión de un pago que salió de la cuenta. La
+> tarjeta sigue con el cajón. Ver *«La cuenta bancaria es una CAJA dedicada al
+> banco»*.
+
 > **Emitir una factura y emitir una nota de crédito NO lo llaman, y es a propósito.**
 > Los dos son comprobantes fiscales: numerarlos no mueve el cajón —lo mueve el cobro,
 > que va aparte desde la 7.19.0— y bloquearlos por una caja cerrada dejaría a la
@@ -4941,11 +5000,14 @@ Cuatro cosas al tocarlo:
 **Un egreso en efectivo mayor al disponible se rechaza** (`FacturacionController::pagarProveedor`), con
 un mensaje que dice cuánto hay en el cajón. Los pagos por banco no se frenan: no salen de ahí.
 
-### Movimientos: todo lo que movió la caja
+### Movimientos: todo lo que movió plata, del cajón y del banco
 
 **Un pago a proveedor es un movimiento de caja, y un cobro también.** La
-pantalla lista **las cuatro fuentes que suma `fn_caja_saldo`**, que es
-exactamente lo que explica el arqueo:
+pantalla lista **las cuatro fuentes que suman `fn_caja_saldo` y
+`fn_cuenta_saldo`**, que es exactamente lo que explica los dos arqueos. Desde
+la 7.121.0 se llama «Movimientos» a secas —ya no «de caja»—, cada fila dice
+**dónde** pasó (en qué cajón o en qué cuenta), y tiene filtro por caja **y** por
+cuenta. Las cuatro consultas viven en `App\Servicios\Movimientos`.
 
 | Fuente | Signo |
 |---|---|
@@ -4967,12 +5029,15 @@ exactamente lo que explica el arqueo:
   por uno, y el resumen dice cuánto hay de cada medio y si va al cajón o a la
   cuenta — que es la mitad de la pregunta del arqueo.
 
-### El movimiento de efectivo: nada entra ni sale de la nada
+### El movimiento manual: nada entra ni sale de la nada
 
-`movimiento_caja` guarda lo que mueve el cajón sin ser un cobro ni un pago. Es
-su **propio submódulo** desde la 7.46.0 —`facturacion.movimientos`, separado de
-`facturacion.caja`— porque abrir y cerrar el arqueo y mover plata a mano son
-cosas distintas, y la segunda es la que un salón puede querer dar aparte.
+`movimiento_caja` guarda lo que mueve el cajón **o una cuenta bancaria** sin
+ser un cobro ni un pago. Es su **propio submódulo** desde la 7.46.0
+—`facturacion.movimientos`, separado de `facturacion.caja`— porque abrir y
+cerrar el arqueo y mover plata a mano son cosas distintas, y la segunda es la
+que un salón puede querer dar aparte. Desde la 7.121.0 el formulario pregunta
+**de dónde sale**: del cajón abierto o de una cuenta del local (`destino` =
+`caja:ID` o `cuenta:ID`), y contra la cuenta no hace falta caja abierta.
 
 **Hasta la 7.47.0 pedía tipo, monto y un texto libre**, así que quien tuviera la
 clave sacaba cualquier monto escribiendo «varios». Fiscalmente no se sostiene. Y
@@ -5623,7 +5688,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 213 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 224 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5646,7 +5711,7 @@ disparador, el circuito es este:
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
 4. Comprobar con `php artisan sgp:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
-   17 triggers, 17 vistas y 87 `CHECK`, y que **la base coincide con el `.sql`**.
+   17 triggers, 17 vistas y 88 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
 > `docker/bd/10-importar.sh` lo corre MariaDB **una sola vez, cuando el volumen está vacío**,
@@ -5777,7 +5842,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**213 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**224 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

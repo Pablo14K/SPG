@@ -61,4 +61,12 @@
         Caja: <strong>{{ $lista[0]->nombre }}</strong>@if ($lista[0]->responsable) · abierta
         por {{ $lista[0]->responsable }}@endif
     </div>
+@else
+    {{-- Sin ninguna abierta se dice, no se deja el hueco (7.121.0): desde que
+         lo bancario va a la cuenta, esta pantalla se puede abrir con la caja
+         cerrada, y el efectivo es lo único que no entra hasta abrirla. --}}
+    <div class="form-text mb-3 txt-no">
+        <i class="bi bi-safe"></i> No hay ninguna caja abierta: el efectivo no se puede
+        registrar hasta abrirla. Lo que va por transferencia entra igual, a la cuenta bancaria.
+    </div>
 @endif
