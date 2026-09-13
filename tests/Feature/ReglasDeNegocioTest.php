@@ -7144,7 +7144,11 @@ class ReglasDeNegocioTest extends TestCase
                 DB::insert("INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, 'Caja de prueba')", [$suc]);
                 $libre = (int) DB::scalar('SELECT LAST_INSERT_ID()');
             }
-            $abiertas[] = (int) Bd::idDe('sp_abrir_caja', [$uid, 500000, (int) $libre, 'Prueba automatica'], 4);
+            // Por `Caja::abrir()`: se escribía `Bd::idDe(…, 4)` con un 4 en el
+            // lugar del nombre de la variable de salida, y la rama no corría
+            // nunca porque el mes simulado ya traía dos cajas abiertas. Con una
+            // base sin ninguna —la del servidor— reventaba con TypeError.
+            $abiertas[] = Caja::abrir($uid, 500000.0, (int) $libre, 'Prueba automatica');
         }
 
         // La SEGUNDA, a propósito: es la que un controlador que eligiera solo
@@ -9817,5 +9821,76 @@ class ReglasDeNegocioTest extends TestCase
         $this->assertMatchesRegularExpression('/sgp-asis-turno.{0,400}' . preg_quote(e($t->nombre), '/') . '/su', $html,
             'Cada bloque dice de qué turno es: sin eso, quien trabaja mañana y tarde aparece dos veces igual.');
         $this->assertStringContainsString('Presente', $html);
+    }
+
+    /**
+     * Cobros no reclama una deuda que la factura ya saldó, aunque la promoción
+     * haya vencido.
+     *
+     * Reportado con los datos del servidor (7.122.1): «Falta cobrar 2
+     * atenciones», Gs. 2.500 y Gs. 3.750, y el botón llevaba a Facturas a no
+     * encontrar nada. Las dos se habían facturado el 04/09 con la promoción
+     * «Día de corte» —vigente sólo ese día— y cobrado enteras. La lista medía
+     * lo cobrado contra `fn_cita_total`, que resuelve el descuento con las
+     * reglas de HOY: vencida la promo, la cita volvía a valer el precio de
+     * lista. La factura congeló el descuento el día que se emitió, y es la
+     * que manda.
+     *
+     * Premisa garantizada: una cita atendida con una promoción al 50 %
+     * vigente, facturada y cobrada por el total de la factura; después la
+     * promoción vence y se comprueba que la cuenta de hoy SÍ cambió. Se mide
+     * en las dos direcciones: saldada no aparece; con el cobro anulado sí
+     * aparece, con la falta de la factura y el botón a Facturas.
+     */
+    #[Test]
+    public function cobros_no_reclama_lo_que_la_factura_ya_saldo_aunque_la_promo_haya_vencido(): void
+    {
+        $this->entrarComoAdministrador();
+        $cita = $this->citaFuturaAgendada((int) session('id_sucursal'));
+        $tipo = (int) config('sifen.tipo_defecto', 1);
+        if (! Facturacion::hayTimbrado($tipo)) {
+            $this->markTestSkipped('Hace falta un timbrado vigente para emitir la factura.');
+        }
+
+        DB::update('UPDATE cita SET id_estado_cita = 4 WHERE id_cita = ?', [(int) $cita->id_cita]);
+        $servicio = (int) DB::scalar('SELECT id_servicio FROM cita_servicio WHERE id_cita = ? LIMIT 1', [(int) $cita->id_cita]);
+
+        DB::insert("INSERT INTO descuento (nombre, tipo, valor, fecha_inicio, fecha_fin, activo)
+                    VALUES (?, 'PORCENTAJE', 50, CURDATE(), CURDATE(), 1)", ['PRUEBA promo de un día ' . uniqid()]);
+        $promo = (int) DB::getPdo()->lastInsertId();
+        DB::insert('INSERT INTO servicio_descuento (id_descuento, id_servicio) VALUES (?, ?)', [$promo, $servicio]);
+
+        $factura = Facturacion::emitir((int) $cita->id_cliente, (int) $cita->id_cita, (int) session('uid'), $tipo, 1);
+        $total = (float) DB::scalar('SELECT fn_factura_total(?)', [$factura]);
+        $this->assertGreaterThan(0, (float) DB::scalar('SELECT fn_factura_descuento(?)', [$factura]),
+            'Premisa: la factura tiene que salir con el descuento de la promoción.');
+
+        $metodo = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE activo = 1 AND tipo = 'EFECTIVO' LIMIT 1");
+        DB::insert("INSERT INTO cobro (id_cita, id_metodo_pago, id_estado_cobro, id_usuario, monto, observaciones)
+                    VALUES (?, ?, 1, ?, ?, 'Cobro de la atencion')",
+            [(int) $cita->id_cita, $metodo, (int) session('uid'), $total]);
+        $cobro = (int) DB::getPdo()->lastInsertId();
+        $this->assertEqualsWithDelta(0, (float) DB::scalar('SELECT fn_factura_saldo(?)', [$factura]), 0.01,
+            'Premisa: la factura queda saldada.');
+
+        // Al día siguiente la promoción ya no vale, y la cuenta de HOY cambia.
+        DB::update('UPDATE descuento SET fecha_inicio = DATE_SUB(CURDATE(), INTERVAL 1 DAY),
+                                         fecha_fin = DATE_SUB(CURDATE(), INTERVAL 1 DAY) WHERE id_descuento = ?', [$promo]);
+        $this->assertGreaterThan($total + 0.5, (float) DB::scalar('SELECT fn_cita_total(?)', [(int) $cita->id_cita]),
+            'Premisa: vencida la promo, la cita recalculada vale más que la factura.');
+
+        $marca = 'id="porCobrar' . (int) $cita->id_cita . '"';
+        $html = (string) $this->get(route('facturacion.cobros'))->assertOk()->getContent();
+        $this->assertStringNotContainsString($marca, $html,
+            'Una atención facturada y saldada no puede aparecer en «Falta cobrar»: manda la factura, no la cuenta de hoy.');
+
+        // Y en la otra dirección: con el cobro anulado, la deuda es real.
+        DB::update('UPDATE cobro SET id_estado_cobro = 2 WHERE id_cobro = ?', [$cobro]);
+        $html = (string) $this->get(route('facturacion.cobros'))->assertOk()->getContent();
+        $this->assertStringContainsString($marca, $html, 'Sin cobrar, la atención tiene que aparecer.');
+        $this->assertMatchesRegularExpression(
+            '/' . preg_quote($marca, '/') . '.*?' . preg_quote(money($total), '/') . '.*?'
+            . preg_quote(route('facturacion.facturas'), '/') . '/su', $html,
+            'Falta lo que dice la factura —no el precio de lista— y el botón lleva a Facturas, donde está.');
     }
 }

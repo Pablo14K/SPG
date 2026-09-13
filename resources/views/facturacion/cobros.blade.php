@@ -34,11 +34,18 @@
                                         <span class="badge-estado e-muted">{{ (int) $pc->personas }} personas</span>
                                     @endif
                                 </td>
-                                <td class="text-end" data-label="Total">{{ money($pc->total) }}</td>
+                                {{-- El total es lo que YA SE COBRA O SE VA A COBRAR: lo
+                                     facturado vale lo que dice el comprobante y lo que
+                                     falta facturar, lo que dice la cita. Así Total −
+                                     Cobrado da la misma «Falta» que la columna. --}}
+                                <td class="text-end" data-label="Total">{{ money((float) $pc->cobrado + (float) $pc->falta) }}</td>
                                 <td class="text-end text-muted-warm" data-label="Cobrado">{{ (float) $pc->cobrado > 0 ? money($pc->cobrado) : '—' }}</td>
-                                <td class="text-end" data-label="Falta"><strong class="txt-no">{{ money((float) $pc->total - (float) $pc->cobrado) }}</strong></td>
+                                <td class="text-end" data-label="Falta"><strong class="txt-no">{{ money($pc->falta) }}</strong></td>
                                 <td class="text-end sgp-movil-acciones">
-                                    @if ((int) $pc->facturas > 0)
+                                    {{-- A donde está la deuda: si la deben sus comprobantes, a
+                                         Facturas; si es la parte sin comprobante, a la
+                                         ventana de cobro de la agenda. --}}
+                                    @if ((float) $pc->saldo_fact > 0.5)
                                         <a class="btn btn-sm btn-oro" title="Ya tiene comprobante: se cobra contra él, en Facturas"
                                            href="{{ route('facturacion.facturas', ['q' => $pc->cliente, 'saldo' => 'pend']) }}">
                                             <i class="bi bi-cash-coin"></i> Cobrar</a>

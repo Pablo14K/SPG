@@ -1606,18 +1606,56 @@ class FacturacionController extends Controller
         // comprobantes— no llega al total. El botón lleva a donde vive la
         // ventana de cobro: la agenda si no hay comprobante, Facturas si ya lo
         // hay — el cobro va contra el documento que exista.
+        //
+        // **Con comprobante, manda el COMPROBANTE, no la cuenta de hoy**
+        // (7.122.1). `fn_cita_total` resuelve el descuento con las reglas
+        // vigentes AHORA, y la factura lo congeló el día que se emitió: una
+        // promoción de un solo día —«Día de corte», el 04/09— hacía que al día
+        // siguiente la cita valiera el precio de lista y la lista reclamara
+        // una deuda que no existe, con un botón que llevaba a Facturas a no
+        // encontrar nada. El mismo criterio que ya siguen la agenda y el
+        // cobro: lo facturado se mide con `fn_factura_saldo`, y sólo lo que
+        // todavía no tiene comprobante se mide contra la cita.
+        //
+        //   · `saldo_fact` — lo que deben sus comprobantes de venta vigentes
+        //     (de toda la cita o de cada persona). Las notas de crédito no
+        //     cuentan: tienen signo −1 y no son una deuda de la clienta.
+        //   · `falta_sin` — la parte SIN comprobante: sin ninguno, la cita
+        //     entera; con los de algunas personas, lo que queda de la cita
+        //     menos lo que ya facturaron y lo cobrado a las demás.
         $parPc = [];
+        $venta = 'JOIN tipo_comprobante tc ON tc.id_tipo_comprobante = f.id_tipo_comprobante AND tc.signo = 1';
         $porCobrar = DB::select(
-            "SELECT * FROM (
+            "SELECT x.*, x.saldo_fact + x.falta_sin AS falta FROM (
                 SELECT c.id_cita, c.fecha_hora, c.personas,
                        CONCAT(pe.nombre,' ',pe.apellido) AS cliente,
-                       fn_cita_total(c.id_cita) AS total,
+                       (SELECT COUNT(*) FROM factura f $venta
+                         WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1) AS facturas,
+                       (SELECT COALESCE(SUM(GREATEST(fn_factura_saldo(f.id_factura), 0)), 0) FROM factura f $venta
+                         WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1) AS saldo_fact,
+                       (SELECT COALESCE(SUM(fn_factura_total(f.id_factura)), 0) FROM factura f $venta
+                         WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1) AS total_fact,
+                       CASE
+                         WHEN EXISTS (SELECT 1 FROM factura f $venta
+                                       WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1 AND f.persona IS NULL)
+                         THEN 0
+                         ELSE GREATEST(
+                           fn_cita_total(c.id_cita)
+                           - (SELECT COALESCE(SUM(fn_factura_total(f.id_factura)), 0) FROM factura f $venta
+                               WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1)
+                           - (SELECT COALESCE(SUM(co.monto), 0) FROM cobro co
+                               WHERE co.id_cita = c.id_cita AND co.id_estado_cobro = 1 AND co.id_factura IS NULL
+                                 AND (co.persona IS NULL
+                                      OR co.persona NOT IN (SELECT f.persona FROM factura f $venta
+                                                             WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1
+                                                               AND f.persona IS NOT NULL))),
+                           0)
+                       END AS falta_sin,
                        (SELECT COALESCE(SUM(co.monto),0) FROM cobro co
                          WHERE co.id_estado_cobro = 1
                            AND (co.id_cita = c.id_cita
                                 OR co.id_factura IN (SELECT f.id_factura FROM factura f
-                                                      WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1))) AS cobrado,
-                       (SELECT COUNT(*) FROM factura f WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1) AS facturas
+                                                      WHERE f.id_cita = c.id_cita AND f.id_estado_factura = 1))) AS cobrado
                   FROM cita c
                   JOIN cliente cl ON cl.id_cliente = c.id_cliente
                   JOIN persona pe ON pe.id_persona = cl.id_persona
@@ -1625,7 +1663,7 @@ class FacturacionController extends Controller
                    AND c.fecha_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                    " . Sucursales::filtro('c', $parPc) . "
              ) x
-             WHERE x.cobrado < x.total - 0.5
+             WHERE x.saldo_fact + x.falta_sin > 0.5
              ORDER BY x.fecha_hora DESC LIMIT 30", $parPc
         );
 
