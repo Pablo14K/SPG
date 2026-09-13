@@ -1723,7 +1723,8 @@ window.sgpVecesDe = function (casilla) {
 
       var abs = Math.abs(dif).toLocaleString('es-PY', { maximumFractionDigits: 0 });
       if (Math.abs(dif) < 0.01) {
-        out.textContent = '✓ La caja cuadra.';
+        // La cuenta bancaria usa el mismo campo (7.122.0) y dice lo suyo.
+        out.textContent = campo.getAttribute('data-arqueo-cuadra') || '✓ La caja cuadra.';
         out.className = 'txt-ok';
       } else if (dif > 0) {
         out.textContent = 'Sobran Gs. ' + abs + ' respecto de lo esperado.';

@@ -10,6 +10,8 @@
        · $abierta  la fila de `vw_caja_resumen` de la sesión abierta
        · $sufijo   lo que distingue los ids: en la lista hay un modal por caja
        · $titulo   el nombre de la caja, para el encabezado
+       · $volver   'arqueos' si se abre desde la lista de Arqueos (7.122.0); si
+                   no, al cerrar se vuelve a Cajas
 
      **Los ids llevan sufijo porque en la lista hay VARIOS.** `app.js` busca la
      salida y el bloque del motivo por selector (`data-arqueo-*`), así que dos
@@ -17,12 +19,16 @@
 @php
     $sufijo = $sufijo ?? '';
     $titulo = $titulo ?? 'Arqueo de caja';
+    $volver = $volver ?? '';
 @endphp
 <div class="modal fade" id="modalArqueo{{ $sufijo }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
     <form method="post" action="{{ route('facturacion.caja.cerrar') }}" class="modal-content">
         @csrf
         <input type="hidden" name="id_caja" value="{{ $abierta->id_caja }}">
+        @if ($volver)
+            <input type="hidden" name="volver" value="{{ $volver }}">
+        @endif
         <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-calculator"></i> Arqueo · {{ $titulo }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

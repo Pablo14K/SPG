@@ -22,7 +22,7 @@ return [
         'Itauguá', 'Areguá', 'San Antonio', 'Guarambaré', 'Ypané', 'Ypacaraí',
     ],
 
-    'version' => '7.121.1',
+    'version' => '7.122.0',
     'version_fecha' => '2026-09-12',
 
     'moneda' => 'Gs.',
@@ -71,12 +71,12 @@ return [
 
     // --- Caja -------------------------------------------------------------
     // A partir de cuántas horas abierta la caja pasa a ser un aviso en la
-    // campanita del panel. Una caja se abre a la mañana y se cierra a la
-    // noche con su arqueo: la que sigue abierta al día siguiente es una que
-    // nadie contó, y los cobros de dos días caen en el mismo arqueo. Se avisa
-    // también si la apertura fue otro día, aunque no llegue a estas horas.
+    // campanita. Una caja se abre a la mañana y se cierra a la noche con su
+    // arqueo: la que sigue abierta un día entero es una que nadie contó.
+    // 24 desde la 7.122.0 (pedido del usuario): con 12, o apenas pasada la
+    // medianoche, la bandeja se llenaba de avisos que no pedían nada.
     'caja' => [
-        'horas_abierta_aviso' => 12,
+        'horas_abierta_aviso' => 24,
     ],
 
     // --- Listados ---------------------------------------------------------

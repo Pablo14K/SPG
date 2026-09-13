@@ -386,7 +386,7 @@ class Pendientes
     /**
      * La cuenta bancaria: la caja del banco (7.121.0).
      *
-     * **Sin saldo declarado la cuenta no sabe cuánto tiene**, y ése es el
+     * **Sin ningún arqueo la cuenta no sabe cuánto tiene**, y ése es el
      * aviso que pidió el usuario: «no tener declarado el monto del banco es
      * motivo de AVISOS». NULL no es cero —es «no se sabe»— así que hasta que
      * alguien lo declare el sistema no puede decir cuánto hay ni avisar si
@@ -402,15 +402,16 @@ class Pendientes
         $sinSaldo = DB::select(
             'SELECT CONCAT(d.entidad, " · ", s.nombre) AS quien
                FROM cuenta_bancaria d JOIN sucursal s ON s.id_sucursal = d.id_sucursal
-              WHERE d.activo = 1 AND d.saldo_declarado IS NULL
+              WHERE d.activo = 1
+                AND NOT EXISTS (SELECT 1 FROM arqueo_cuenta a WHERE a.id_cuenta = d.id_cuenta)
               ORDER BY s.nombre, d.orden'
         );
         if ($sinSaldo) {
             self::anotar(self::CONFUNDE,
-                count($sinSaldo) . ' cuenta(s) bancaria(s) sin saldo declarado: ' . self::nombres($sinSaldo)
-                . '. Hasta que se declare cuánto dice el banco, el sistema no sabe cuánto hay en ella '
+                count($sinSaldo) . ' cuenta(s) bancaria(s) sin ningún arqueo: ' . self::nombres($sinSaldo)
+                . '. Hasta que alguien escriba cuánto dice el banco, el sistema no sabe cuánto hay en ella '
                 . 'ni puede avisar si una transferencia no alcanza.',
-                'Tesorería → Cuenta bancaria, «Declarar saldo»', 'facturacion.cuentas', 'facturacion.cuentas');
+                'Tesorería → Cuenta bancaria, «Primer arqueo»', 'facturacion.cuentas', 'facturacion.cuentas');
         }
 
         $sinSenas = DB::select(

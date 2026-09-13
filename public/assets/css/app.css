@@ -750,6 +750,16 @@ body > main{flex:1 0 auto;width:100%;}
   background-color:var(--blanco);border-color:var(--gris-calido);
 }
 .modal-header,.modal-footer{border-color:var(--gris-calido);}
+/* **Un modal «scrollable» con un <form> adentro no scrollea** (7.122.0,
+   reportado: «en la ventana de cobro desapareció el deslizador y no se
+   puede cobrar»). Bootstrap le pone `overflow:hidden` y `max-height:100%` al
+   `.modal-content` y el scroll al `.modal-body`, contando con que el cuerpo
+   sea hijo DIRECTO del contenido, que es una columna flex. Con el formulario
+   en el medio, el formulario crece a su alto natural, el cuerpo nunca se
+   achica y lo que no entra en la ventana —el botón «Cobrar»— queda cortado
+   sin barra para llegar. El formulario pasa a ser la columna flex. */
+.modal-dialog-scrollable .modal-content > form{display:flex;flex-direction:column;min-height:0;max-height:100%;}
+.modal-dialog-scrollable .modal-content > form > .modal-body{overflow-y:auto;}
 
 /* Avisos: los mismos tonos que los badges de estado, sin colores nuevos */
 .alert{border-radius:var(--radius);border-width:1px;}
@@ -2506,17 +2516,19 @@ html,body{max-width:100%;overflow-x:hidden;}
 .metric-value{font-size:1.5rem;font-weight:600;color:var(--oro-enfasis);line-height:1.15;margin-top:.15rem;}
 .metric-comparado{font-size:.8rem;margin-top:.2rem;}
 /* La tarjeta de un solo número —Ingresos de hoy— se centra a lo alto y a lo
-   ancho: la de al lado crece con cada caja y cada cuenta bancaria, y con el
-   número pegado arriba quedaba media tarjeta vacía debajo (7.121.1). */
+   ancho, que es como se lee un KPI solo al lado de otra tarjeta (7.121.1). */
 .sgp-metric-centrada{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
 .sgp-metric-centrada .metric-value{font-size:1.9rem;}
-.sgp-lista-cajas{font-size:.84rem;}
-.sgp-lista-cajas li{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.15rem 0;}
-.sgp-lista-cajas li > span:first-child{min-width:0;}
-/* El importe no se parte ni se achica: con tres o cuatro cajas abiertas el
-   renglón más largo empujaba «Gs. 2.148.000» a dos líneas y la columna de
-   importes dejaba de ser una columna. Lo que cede es el nombre, con «…». */
-.sgp-lista-cajas li > strong{white-space:nowrap;flex:0 0 auto;font-variant-numeric:tabular-nums;}
+/* El estado financiero: dos renglones fijos —cajas abiertas y cuentas
+   bancarias— con su número y su acceso (7.122.0). Era una lista de cada caja
+   y cada cuenta con su saldo, y crecía sin tope con el salón: ahora mide lo
+   mismo con 1 cajón que con 20. */
+.sgp-estado-fin li{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;}
+.sgp-estado-fin li + li{border-top:1px dashed var(--gris-calido);}
+.sgp-estado-fin li > .bi{font-size:1.25rem;flex:0 0 auto;}
+.sgp-estado-fin-que{flex:1 1 auto;min-width:0;font-size:.9rem;line-height:1.2;}
+.sgp-estado-fin-n{font-size:1.25rem;font-variant-numeric:tabular-nums;margin-right:.15rem;}
+.sgp-estado-fin-ir{flex:0 0 auto;white-space:nowrap;font-size:.84rem;}
 
 /* La grilla de los módulos: tres columnas siempre. **En la computadora
    llena la caja entera** —las filas se reparten a lo alto y las pastillas

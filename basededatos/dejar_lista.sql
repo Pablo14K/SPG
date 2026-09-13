@@ -40,8 +40,10 @@ TRUNCATE TABLE factura_electronica;
 TRUNCATE TABLE factura;
 TRUNCATE TABLE movimiento_caja;
 TRUNCATE TABLE caja;
---  La cuenta bancaria del salón (7.121.0): número de cuenta, alias y saldo
---  declarado de un salón real. Son datos del negocio, no del programa.
+--  La cuenta bancaria del salón (7.121.0): número de cuenta, alias y los
+--  arqueos de un salón real. Son datos del negocio, no del programa. El
+--  historial va primero: `arqueo_cuenta` cuelga de la cuenta (7.122.0).
+TRUNCATE TABLE arqueo_cuenta;
 TRUNCATE TABLE cuenta_bancaria;
 
 -- --- Dinero que sale --------------------------------------------------

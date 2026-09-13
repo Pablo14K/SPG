@@ -182,18 +182,24 @@ class Alertas
      * Una caja abierta desde hace demasiado.
      *
      * **La caja se abre a la mañana y se cierra a la noche, con su arqueo.**
-     * Una que sigue abierta al día siguiente es una que nadie contó: los
-     * cobros del día nuevo entran al mismo arqueo que los de ayer, y cuando
-     * alguien la cierre la diferencia ya no dice de qué día vino. Se avisa a
-     * partir de `sgp.caja.horas_abierta_aviso` horas, o si la apertura fue
-     * otro día —lo que pase primero—.
+     * Una que sigue abierta un día entero es una que nadie contó: los cobros
+     * del día nuevo entran al mismo arqueo que los de ayer, y cuando alguien
+     * la cierre la diferencia ya no dice de qué día vino.
+     *
+     * **Se avisa recién a las 24 horas** (`sgp.caja.horas_abierta_aviso`,
+     * 7.122.0, pedido del usuario: «poner un límite de 24 horas así no está
+     * llenando la bandeja»). Antes avisaba a las 12 horas **o apenas pasaba
+     * la medianoche**, así que una caja abierta a las 18 ya sonaba a las 00:00
+     * —con el salón cerrado, sin nada que hacer— y cada cajón de un turno
+     * noche llenaba la campanita todos los días. Un aviso que suena cuando no
+     * hay nada que resolver enseña a ignorar los que sí.
      *
      * Del local en el que se está parado: la caja del otro local no es algo
      * que esta persona pueda cerrar desde acá.
      */
     private static function cajasAbiertasDeMas(): void
     {
-        $horas = max(1, (int) config('sgp.caja.horas_abierta_aviso', 12));
+        $horas = max(1, (int) config('sgp.caja.horas_abierta_aviso', 24));
         $par = ['h' => $horas];
         $filtro = Sucursales::filtro('c', $par);
 
@@ -206,8 +212,7 @@ class Alertas
                JOIN usuario u ON u.id_usuario = c.id_usuario
                JOIN persona pe ON pe.id_persona = u.id_persona
               WHERE c.id_estado_caja = 1
-                AND (TIMESTAMPDIFF(HOUR, c.fecha_apertura, NOW()) >= :h
-                     OR DATE(c.fecha_apertura) < CURDATE())
+                AND TIMESTAMPDIFF(HOUR, c.fecha_apertura, NOW()) >= :h
                 $filtro
               ORDER BY c.fecha_apertura", $par
         );
@@ -216,7 +221,7 @@ class Alertas
             $h = (int) $c->horas;
             $desde = $h >= 48
                 ? 'hace ' . intdiv($h, 24) . ' días'
-                : ($h >= 24 ? 'desde ayer' : 'hace ' . $h . ' horas');
+                : 'hace ' . $h . ' horas';
 
             self::$puntos[] = [
                 'nivel' => 'CAJA',

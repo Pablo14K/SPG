@@ -56,6 +56,7 @@ class VivoController extends Controller
         $huella = match ($seccion) {
             'agenda' => $this->agenda($request, $suc),
             'cajas' => $this->cajas($suc),
+            'asistencia' => $this->asistencia($request, $suc),
             'panel' => $this->agenda($request, $suc) . '|' . $this->cajas($suc) . '|' . $this->pendientes()
                 . '|' . $this->alertas(),
             default => null,
@@ -167,6 +168,38 @@ class VivoController extends Controller
     }
 
     /**
+     * La asistencia de un día: quién fichó, a qué hora, y qué faltas hay.
+     *
+     * **Es la otra punta del mismo fichaje** (7.122.0). La profesional marca su
+     * entrada desde su cuenta y quien administra tiene la planilla abierta en
+     * otra computadora: sin esto la veía «Sin fichar» hasta recargar, y
+     * apretar «Falta» sobre esa foto vieja le pisaba la entrada. La huella
+     * cubre las tres cosas que cambian una fila: que aparezca, sus horas y si
+     * se justificó.
+     */
+    private function asistencia(Request $request, int $suc): string
+    {
+        $fecha = (string) $request->query('fecha', '');
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            $fecha = ahora_bd('Y-m-d');
+        }
+
+        $r = DB::selectOne(
+            "SELECT COUNT(*) AS n, COALESCE(MAX(a.id_asistencia), 0) AS ult,
+                    COALESCE(SUM(a.hora_entrada IS NOT NULL), 0) AS entradas,
+                    COALESCE(SUM(a.hora_salida IS NOT NULL), 0) AS salidas,
+                    COALESCE(SUM(COALESCE(a.justificada, 9)), 0) AS just
+               FROM asistencia a
+               JOIN turno_laboral t ON t.id_turno = a.id_turno
+              WHERE a.fecha = ? AND (? = 0 OR t.id_sucursal = ?)",
+            [$fecha, $suc, $suc]
+        );
+
+        return 'as:' . $fecha . ':' . $r->n . ':' . $r->ult . ':' . $r->entradas
+            . ':' . $r->salidas . ':' . $r->just;
+    }
+
+    /**
      * Los cajones: cuáles están abiertos y cuánto movimiento tuvieron hoy.
      *
      * Con dos puestos de cobro, que el otro abra o cierre cambia lo que esta
@@ -194,16 +227,18 @@ class VivoController extends Controller
 
         // **Y el saldo de las cuentas del local** (7.121.1): el panel lo
         // muestra al lado de las cajas, así que una transferencia que entra
-        // desde el portal o un saldo recién declarado tienen que refrescarlo.
+        // desde el portal o un arqueo recién hecho tienen que refrescarlo.
         // Son dos o tres cuentas por local: `fn_cuenta_saldo` es barata acá.
         $ctas = DB::selectOne(
             'SELECT COUNT(*) AS cuantas, COALESCE(SUM(fn_cuenta_saldo(id_cuenta)), 0) AS saldo,
-                    SUM(saldo_declarado IS NULL) AS sin_declarar
+                    COALESCE((SELECT COUNT(*) FROM arqueo_cuenta a
+                                JOIN cuenta_bancaria x ON x.id_cuenta = a.id_cuenta
+                               WHERE x.activo = 1 AND (? = 0 OR x.id_sucursal = ?)), 0) AS arqueos
                FROM cuenta_bancaria WHERE activo = 1 AND (? = 0 OR id_sucursal = ?)',
-            [$suc, $suc]
+            [$suc, $suc, $suc, $suc]
         );
 
         return 'c:' . $r->abiertas . ':' . $r->suma . ':' . $movs
-            . ':' . $ctas->cuantas . ':' . $ctas->saldo . ':' . (int) $ctas->sin_declarar;
+            . ':' . $ctas->cuantas . ':' . $ctas->saldo . ':' . (int) $ctas->arqueos;
     }
 }

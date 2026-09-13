@@ -53,9 +53,6 @@
                 <div class="d-flex justify-content-between align-items-start gap-2">
                     <div>
                         <h2 class="sgp-form-titulo mb-0"><i class="bi bi-safe"></i> {{ $c->nombre }}</h2>
-                        @if (count($sucursales) > 1)
-                            <div class="text-muted-warm" style="font-size:.82rem">{{ $c->sucursal }}</div>
-                        @endif
                     </div>
                     @if ($c->id_caja)
                         <span class="badge-estado e-ok"><i class="bi bi-unlock"></i> Abierta</span>
@@ -288,14 +285,14 @@
                             <label class="form-label" for="cf_nombre">Nombre</label><x-ayuda campo="cf_nombre" />
                             <input class="form-control" id="cf_nombre" name="nombre" required maxlength="60" placeholder="Caja 2, Mostrador…">
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label" for="cf_suc">Sucursal</label>
-                            <select class="form-select" id="cf_suc" name="id_sucursal" required>
-                                @foreach ($sucursales as $s)
-                                    <option value="{{ $s->id_sucursal }}">{{ $s->nombre }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        {{-- **Del local en el que se está parado** (7.122.0): la lista
+                             muestra sólo sus cajones, así que una caja creada para otro
+                             local desaparecería al guardarla. Se crea acá; para otro
+                             local, se cambia de local en la barra. --}}
+                        <input type="hidden" name="id_sucursal" value="{{ $sucursal }}">
+                        <p class="text-muted-warm mb-0" style="font-size:.85rem">
+                            <i class="bi bi-shop"></i> Se crea en <strong>{{ $sucursalNombre ?: 'este local' }}</strong>.
+                        </p>
                         <p class="text-muted-warm mb-0 mt-3" style="font-size:.82rem">
                             Cada caja lleva su propio arqueo y movimientos independientes.
                         </p>

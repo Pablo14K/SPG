@@ -14,8 +14,8 @@ use Illuminate\View\View;
 /**
  * El panel principal: por dónde se entra a todo lo demás.
  *
- * Muestra las próximas citas, el resumen financiero —las cajas abiertas y
- * lo cobrado hoy contra ayer— y las tarjetas de los módulos que el rol puede
+ * Muestra las próximas citas, el resumen financiero —cuántas cajas hay
+ * abiertas, cuántas cuentas bancarias y lo cobrado hoy contra ayer— y las tarjetas de los módulos que el rol puede
  * abrir. Lo que hay que resolver ahora va en la campanita, no acá.
  */
 class PanelController extends Controller
@@ -138,23 +138,24 @@ class PanelController extends Controller
         // caja le seguía apareciendo la barra con el saldo del salón.
         $verCaja = Permisos::puede('facturacion.caja');
 
-        // **TODAS las cajas abiertas del local, y en el mismo orden para
-        // todos.** La barra mostraba UNA —`Caja::abierta()`, que prefiere la
-        // que abrió quien mira—, así que con dos cajones abiertos cada
-        // administrador veía una caja distinta y un saldo distinto en el mismo
-        // panel, y ninguno sabía que había otra. Se reportó así. Ahora se
-        // listan las que hay, con su responsable y su saldo, ordenadas por
-        // nombre: lo que ve una persona es lo que ve la otra.
-        $cajas = $verCaja ? Caja::abiertasDe() : [];
-        usort($cajas, static fn ($a, $b) => strcmp((string) $a->nombre, (string) $b->nombre));
+        // **Cuántas, no cuáles** (7.122.0, pedido del usuario). La 7.115.1
+        // listaba cada caja abierta con su responsable y su saldo, y la
+        // 7.121.1 le sumó cada cuenta bancaria: con más cajones y más cuentas
+        // la tarjeta crecía sin tope y saturaba el resumen. Quedan dos
+        // números —cajas abiertas y cuentas bancarias activas— cada uno con
+        // su acceso a la pantalla que tiene el resto. **Lo que se conserva de
+        // la 7.115.1** es que el número es el mismo para todos: son TODAS las
+        // del local, no la que abrió quien mira.
+        $cajasAbiertas = $verCaja ? count(Caja::abiertasDe()) : 0;
 
-        // **Y la cuenta bancaria, al lado de las cajas** (pedido del usuario,
-        // 7.121.1): es la caja del banco desde la 7.121.0, así que el estado
-        // financiero del local son las dos cosas — cuánto hay en el cajón y
-        // cuánto hay en el banco. Va a quien ve la caja: es la misma pregunta
-        // («¿cuánta plata hay?») y no la de administrar las cuentas, que es
-        // `facturacion.cuentas` y sólo decide si se ofrece el enlace.
-        $cuentas = $verCaja ? Cuenta::deSucursal((int) Sucursales::activa()) : [];
+        // Y las cuentas bancarias activas del local: desde la 7.121.0 la
+        // cuenta es la caja del banco, así que el estado financiero son las
+        // dos cosas. Va a quien ve la caja —es la misma pregunta, «¿cuánta
+        // plata hay?»—; el enlace, a quien administra las cuentas.
+        $suc = (int) Sucursales::activa();
+        $cuentasActivas = $verCaja && $suc
+            ? (int) DB::scalar('SELECT COUNT(*) FROM cuenta_bancaria WHERE id_sucursal = ? AND activo = 1', [$suc])
+            : 0;
 
         // **Lo que falta CARGAR ya no se arma acá**: desde la 7.117.0 vive
         // dentro de la campanita de la barra, por pedido del usuario, así que
@@ -167,8 +168,8 @@ class PanelController extends Controller
             'atrasadas' => $atrasadas,
             'atrasadasTotal' => $atrasadasTotal,
             'verTodo' => $todaLaAgenda,
-            'cajas' => $cajas,
-            'cuentas' => $cuentas,
+            'cajasAbiertas' => $cajasAbiertas,
+            'cuentasActivas' => $cuentasActivas,
             'verCaja' => $verCaja,
         ]);
     }

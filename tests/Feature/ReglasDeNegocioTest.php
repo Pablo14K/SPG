@@ -5367,7 +5367,7 @@ class ReglasDeNegocioTest extends TestCase
             'Sin saldo declarado no hay nada que avisar: avisar sería inventarlo.');
 
         // El arqueo de la cuenta, por el mismo camino que la pantalla.
-        $this->post(route('facturacion.cuentas.saldo'),
+        $this->post(route('facturacion.cuentas.arqueo'),
             ['id_cuenta' => $cuenta, 'saldo' => '1.000'])->assertRedirect();
 
         $this->assertSame(1000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
@@ -5415,8 +5415,8 @@ class ReglasDeNegocioTest extends TestCase
         // **Y avisó**, con el monto y el saldo nombrados: un «no alcanza» a
         // secas no dice qué comprobar.
         $avisos = array_column(session('sgp_flash', []), 'msg');
-        $this->assertNotEmpty(preg_grep('/declar/', $avisos),
-            'El pago tiene que avisar que se lleva más de lo que la cuenta declara.');
+        $this->assertNotEmpty(preg_grep('/último arqueo/', $avisos),
+            'El pago tiene que avisar que se lleva más de lo que dice el último arqueo de la cuenta.');
 
         // El saldo baja por lo que se pagó: es lo que hace que el aviso valga
         // para el pago siguiente.
@@ -5426,6 +5426,7 @@ class ReglasDeNegocioTest extends TestCase
 
         DB::delete('DELETE FROM detalle_pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
         DB::delete('DELETE FROM pago_personal WHERE id_pago_personal = ?', [$pago->id_pago_personal]);
+        DB::delete('DELETE FROM arqueo_cuenta WHERE id_cuenta = ?', [$cuenta]);
         DB::delete('DELETE FROM cuenta_bancaria WHERE id_cuenta = ?', [$cuenta]);
         DB::delete('DELETE FROM caja WHERE id_caja = ?', [$caja]);
         DB::delete('DELETE FROM caja_fisica WHERE id_caja_fisica = ?', [$cajon]);
@@ -8442,6 +8443,19 @@ class ReglasDeNegocioTest extends TestCase
             'Cada alergia va con el nombre de quien la tiene.');
         $this->assertMatchesRegularExpression(
             '/Marta Duarte.{0,120}AlergiaDeMarta/su', $html);
+
+        // **Y con dos o más, la FILA muestra un solo aviso** (7.122.0, pedido
+        // del usuario: «en el caso de que haya muchas personas con alergias,
+        // sólo deja el ícono de alerta para que el usuario mire Detalle»). El
+        // botón abre la ventana de esa cita, que es donde se leen una por una.
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*sgp-alergias-varias[^>]*data-bs-target="#detCita' . $cita->id_cita . '"/su', $html,
+            'Con dos personas alérgicas la fila tiene que mostrar un solo aviso que abra el detalle de esa cita.');
+        $this->assertMatchesRegularExpression('/2 con alergias/u', $html,
+            'El aviso dice cuántas son, no qué tiene cada una.');
+        $this->assertDoesNotMatchRegularExpression(
+            '/<strong>Josefina Villalba:<\/strong>\s*AlergiaDeJosefina/u', $html,
+            'Con varias, la fila ya no lista la alergia de cada una: eso es lo que saturaba.');
     }
 
     /**
@@ -8625,21 +8639,23 @@ class ReglasDeNegocioTest extends TestCase
     }
 
     /**
-     * El panel lista TODAS las cajas abiertas del local, y las mismas para todos.
+     * El panel CUENTA las cajas abiertas y las cuentas activas, y no las lista.
      *
-     * La barra mostraba UNA —`Caja::abierta()`, que prefiere la que abrió
-     * quien mira—, así que con dos cajones abiertos cada administrador veía
-     * una caja distinta y un saldo distinto en el mismo panel, y ninguno
-     * sabía que había otra. Se reportó así: «esa notificación muestra
-     * diferente para cada admin dependiendo qué caja haya abierto».
+     * La 7.115.1 listó cada caja abierta —con su responsable y su saldo— para
+     * que dos administradores vieran lo mismo, y la 7.121.1 le sumó cada
+     * cuenta bancaria. El usuario lo pidió al revés en la 7.122.0: *«cuando
+     * haya más va a saturar de información ese cuadrito, mejor que muestre
+     * directamente cantidad de cajas abiertas y cantidad de cuentas bancarias
+     * activas, cada uno con un acceso directo»*.
      *
-     * Premisa garantizada: dos cajones nuevos del local, abiertos por DOS
-     * personas distintas y con montos distintos; el panel se mira como cada
-     * una, y tiene que decir lo mismo — las dos cajas, los dos saldos, en el
-     * mismo orden. Con la barra de antes, cada una veía sólo la suya.
+     * Premisa garantizada: dos cajones nuevos del local abiertos por DOS
+     * personas distintas, y una cuenta nueva. Se mide que el bloque diga los
+     * dos números que da la base, que ofrezca los accesos, que NO nombre las
+     * cajas ni sus saldos —eso es lo que saturaba— y que las dos personas
+     * vean lo mismo, que era lo que cuidaba la 7.115.1.
      */
     #[Test]
-    public function el_panel_lista_todas_las_cajas_abiertas_del_local_y_las_mismas_para_todos(): void
+    public function el_panel_cuenta_las_cajas_abiertas_y_las_cuentas_activas_sin_listarlas(): void
     {
         $suc = 1;
         $admin = (int) DB::scalar("SELECT id_usuario FROM usuario WHERE username = 'admin'");
@@ -8653,54 +8669,55 @@ class ReglasDeNegocioTest extends TestCase
         $b = (int) DB::scalar('SELECT LAST_INSERT_ID()');
         Caja::abrir($admin, 111000.0, $a);
         Caja::abrir($otro, 222000.0, $b);
+        $this->cuentaDePrueba($suc, 333000, 1, 'Banco del panel ' . $nombre);
 
-        // **Y la cuenta bancaria, al lado de las cajas** (7.121.1): una con
-        // saldo declarado, que tiene que salir con su número, y una sin
-        // declarar, que tiene que decirlo con palabras — NULL no es cero.
-        $conSaldo = $this->cuentaDePrueba($suc, 333000, 1, 'Banco del panel ' . $nombre);
-        $sinSaldo = $this->cuentaDePrueba($suc, 0, 0, 'Billetera del panel ' . $nombre);
-        DB::update('UPDATE cuenta_bancaria SET saldo_declarado = NULL, saldo_declarado_en = NULL WHERE id_cuenta = ?', [$sinSaldo]);
+        $abiertas = (int) DB::scalar("SELECT COUNT(*) FROM caja WHERE id_estado_caja = 1 AND id_sucursal = ?", [$suc]);
+        $activas = (int) DB::scalar('SELECT COUNT(*) FROM cuenta_bancaria WHERE activo = 1 AND id_sucursal = ?', [$suc]);
+        $this->assertGreaterThanOrEqual(2, $abiertas, 'Premisa: al menos las dos cajas recién abiertas.');
+        $this->assertGreaterThanOrEqual(1, $activas, 'Premisa: al menos la cuenta recién cargada.');
 
         $barra = function (): string {
             Caja::olvidar();
             $html = (string) $this->get(route('panel'))->assertOk()->getContent();
             $ini = strpos($html, 'sgp-caja-barra');
             $fin = strpos($html, 'sgp-metrics');
-            $this->assertNotFalse($ini, 'El panel no dibujó la barra de caja.');
+            $this->assertNotFalse($ini, 'El panel no dibujó el bloque del estado financiero.');
 
             return substr($html, $ini, $fin - $ini);
         };
 
-        $comprobar = function (string $html, string $quien) use ($nombre): void {
-            foreach ([$nombre . ' A', $nombre . ' B', money(111000), money(222000)] as $t) {
-                $this->assertStringContainsString($t, $html,
-                    "Mirando como $quien, la barra no muestra «{$t}»: tiene que listar TODAS las cajas abiertas.");
+        $comprobar = function (string $html, string $quien, bool $veCuentas) use ($nombre, $abiertas, $activas): void {
+            $plano = preg_replace('/\s+/', ' ', strip_tags($html));
+            $this->assertStringContainsString('Estado financiero', $html);
+            $this->assertStringContainsString("$abiertas cajas abiertas", $plano,
+                "Mirando como $quien, el panel tiene que decir CUÁNTAS cajas hay abiertas.");
+            $this->assertMatchesRegularExpression('/' . $activas . ' cuentas? bancarias? activas?/', $plano,
+                "Mirando como $quien, el panel tiene que decir cuántas cuentas bancarias están activas.");
+            $this->assertStringContainsString(route('facturacion.cajas'), $html,
+                'El número de cajas lleva su acceso directo a Cajas.');
+            if ($veCuentas) {
+                $this->assertStringContainsString(route('facturacion.cuentas'), $html,
+                    'Y el de cuentas, el suyo a Cuenta bancaria.');
             }
-            $this->assertMatchesRegularExpression('/\d+ cajas abiertas/', $html,
-                "Mirando como $quien, la barra no dice cuántas cajas hay abiertas.");
-            $this->assertLessThan(strpos($html, $nombre . ' B'), strpos($html, $nombre . ' A'),
-                'Las cajas van por nombre, en el mismo orden para todos.');
-
-            // El estado financiero son las dos cajas: el cajón Y el banco.
-            $this->assertStringContainsString('Estado financiero', $html,
-                'El bloque se llama «Estado financiero»: cuánta plata hay son el cajón y el banco.');
-            $this->assertStringContainsString('Banco del panel ' . $nombre, $html,
-                "Mirando como $quien, el panel no muestra la cuenta bancaria del local.");
-            $this->assertStringContainsString(money(333000), $html,
-                'La cuenta tiene que salir con su saldo: es lo que hay en el banco.');
-            $this->assertStringContainsString('sin declarar', $html,
-                'La cuenta sin saldo declarado lo dice con palabras: NULL no es cero.');
+            foreach ([$nombre . ' A', $nombre . ' B', 'Banco del panel ' . $nombre, money(111000), money(333000)] as $t) {
+                $this->assertStringNotContainsString($t, $html,
+                    "Mirando como $quien, el bloque no puede listar «{$t}»: eso es lo que saturaba el cuadro.");
+            }
         };
 
-        // Quien abrió la A…
         $this->entrarComo('admin', 'admin123');
         $this->conSucursal($suc);
-        $comprobar($barra(), 'quien abrió la caja A');
+        $html = $barra();
+        $comprobar($html, 'quien abrió la caja A', true);
 
-        // …y quien abrió la B ven exactamente lo mismo.
         session(['uid' => $otro, 'rol' => 3, 'es_personal' => true, 'es_cliente' => false]);
         $this->conSucursal($suc);
-        $comprobar($barra(), 'quien abrió la caja B');
+        $otroHtml = $barra();
+        Permisos::olvidar();
+        Permisos::olvidar();
+        $comprobar($otroHtml, 'quien abrió la caja B', Permisos::puede('facturacion.cuentas'));
+        $this->assertStringContainsString("$abiertas cajas abiertas", preg_replace('/\s+/', ' ', strip_tags($otroHtml)),
+            'Las dos personas ven el mismo número: es lo que cuidaba la 7.115.1.');
     }
 
     /**
@@ -9293,21 +9310,28 @@ class ReglasDeNegocioTest extends TestCase
 
     /**
      * Una cuenta bancaria del local, para las pruebas de la caja del banco.
-     * Con el saldo declarado hace un minuto, para que lo que entre y salga
-     * en la prueba cuente (`fn_cuenta_saldo` suma desde esa fecha).
+     * Con su primer arqueo hecho hace un minuto, para que lo que entre y salga
+     * en la prueba cuente (`fn_cuenta_saldo` suma desde el último arqueo).
+     * Con `$arqueada` en false queda sin ninguno, que es «no se sabe».
      */
-    private function cuentaDePrueba(int $suc, float $declarado, int $paraSenas = 1, string $entidad = 'Banco de la prueba'): int
+    private function cuentaDePrueba(int $suc, float $contado, int $paraSenas = 1,
+                                    string $entidad = 'Banco de la prueba', bool $arqueada = true): int
     {
         $banco = (int) DB::scalar("SELECT id_metodo_pago FROM metodo_pago WHERE tipo = 'BANCO' AND activo = 1 LIMIT 1");
         $this->assertNotSame(0, $banco, 'La premisa: hace falta un medio de pago bancario.');
 
         DB::insert('INSERT INTO cuenta_bancaria
-                    (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta, orden, activo, para_senas,
-                     saldo_declarado, saldo_declarado_en)
-                    VALUES (?, ?, ?, ?, ?, 99, 1, ?, ?, DATE_SUB(NOW(), INTERVAL 1 MINUTE))',
-            [$suc, $banco, $entidad, 'Salón de prueba', 'CTA-' . random_int(100000, 999999), $paraSenas, $declarado]);
+                    (id_sucursal, id_metodo_pago, entidad, titular, numero_cuenta, orden, activo, para_senas)
+                    VALUES (?, ?, ?, ?, ?, 99, 1, ?)',
+            [$suc, $banco, $entidad, 'Salón de prueba', 'CTA-' . random_int(100000, 999999), $paraSenas]);
+        $id = (int) DB::scalar('SELECT LAST_INSERT_ID()');
 
-        return (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        if ($arqueada) {
+            DB::insert('INSERT INTO arqueo_cuenta (id_cuenta, fecha, monto_contado, id_usuario)
+                        VALUES (?, DATE_SUB(NOW(), INTERVAL 1 MINUTE), ?, 1)', [$id, $contado]);
+        }
+
+        return $id;
     }
 
     /**
@@ -9589,5 +9613,209 @@ class ReglasDeNegocioTest extends TestCase
                 @unlink(storage_path('app/respaldos/' . $f->archivo));
             }
         }
+    }
+
+    // -----------------------------------------------------------------
+    //  7.122.0 — El arqueo de la cuenta, la caja de 24 h, Tesorería por
+    //  sucursal y la asistencia que no se pisa
+    // -----------------------------------------------------------------
+
+    /**
+     * La cuenta bancaria se arquea como la caja: cada arqueo queda en el
+     * historial, con lo que se esperaba y la diferencia calculados.
+     *
+     * Lo pidió el usuario: *«Arqueos también debe hacer el arqueo de la cuenta
+     * bancaria, al igual que Cajas»*. Hasta la 7.121.1 la cuenta guardaba UN
+     * saldo declarado que se pisaba: volver a declararlo borraba el anterior y
+     * no quedaba forma de saber si la cuenta había cuadrado.
+     *
+     * Premisa garantizada: una cuenta nueva, sin ningún arqueo. Se miden las
+     * cuatro cosas que hacen que sea un arqueo y no un campo: el primero no
+     * tiene esperado; lo que se movió después suma al esperado del segundo; una
+     * diferencia sin motivo se rechaza; y con motivo queda en el historial que
+     * lista Arqueos. **La diferencia no se guarda**: se comprueba cargando otro
+     * movimiento después y viendo que la función la sigue.
+     */
+    #[Test]
+    public function la_cuenta_bancaria_se_arquea_con_historial_desde_arqueos(): void
+    {
+        $this->entrarComoAdministrador();
+        $suc = (int) session('id_sucursal');
+        $nombre = 'Banco del arqueo ' . uniqid();
+        $cuenta = $this->cuentaDePrueba($suc, 0, 0, $nombre, false);
+
+        $this->assertNull(DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+            'Sin ningún arqueo, la cuenta vale «no se sabe».');
+
+        // 1) El primer arqueo, desde Arqueos: vuelve a su pestaña.
+        $this->post(route('facturacion.cuentas.arqueo'), [
+            'id_cuenta' => $cuenta, 'saldo' => '500.000', 'volver' => 'arqueos',
+        ])->assertRedirect(route('facturacion.arqueo', ['de' => 'cuentas']));
+
+        $primero = DB::selectOne('SELECT id_arqueo_cuenta, monto_contado FROM arqueo_cuenta WHERE id_cuenta = ?', [$cuenta]);
+        $this->assertNotNull($primero, 'El arqueo tiene que quedar como una fila del historial.');
+        $this->assertNull(DB::scalar('SELECT fn_arqueo_cuenta_esperado(?)', [$primero->id_arqueo_cuenta]),
+            'El primer arqueo no tiene contra qué compararse.');
+
+        // Se corre al pasado para que lo que se mueva ahora caiga entre los dos.
+        DB::update('UPDATE arqueo_cuenta SET fecha = DATE_SUB(NOW(), INTERVAL 10 MINUTE) WHERE id_arqueo_cuenta = ?',
+            [$primero->id_arqueo_cuenta]);
+        DB::insert("INSERT INTO movimiento_caja (id_caja, id_cuenta, tipo, monto, fecha, concepto, id_usuario)
+                    VALUES (NULL, ?, 'INGRESO', 50000, DATE_SUB(NOW(), INTERVAL 5 MINUTE), 'depósito de la prueba', 1)",
+            [$cuenta]);
+        $this->assertSame(550000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+            'El saldo es el último arqueo más lo que entró desde entonces.');
+
+        // 2) El banco dice 530.000 y el sistema espera 550.000: sin motivo no entra.
+        $this->post(route('facturacion.cuentas.arqueo'), [
+            'id_cuenta' => $cuenta, 'saldo' => '530.000', 'volver' => 'arqueos',
+        ])->assertRedirect();
+        $this->assertSame(1, (int) DB::scalar('SELECT COUNT(*) FROM arqueo_cuenta WHERE id_cuenta = ?', [$cuenta]),
+            'Una diferencia sin motivo no se registra: es lo único que la explica después.');
+
+        // 3) Con motivo, sí.
+        $this->post(route('facturacion.cuentas.arqueo'), [
+            'id_cuenta' => $cuenta, 'saldo' => '530.000', 'volver' => 'arqueos',
+            'motivo_diferencia' => 'comisión del banco sin cargar',
+        ])->assertRedirect();
+        $segundo = (int) DB::scalar('SELECT MAX(id_arqueo_cuenta) FROM arqueo_cuenta WHERE id_cuenta = ?', [$cuenta]);
+        $this->assertNotSame((int) $primero->id_arqueo_cuenta, $segundo, 'El segundo arqueo es otra fila, no pisa al primero.');
+        $this->assertSame(550000.0, (float) DB::scalar('SELECT fn_arqueo_cuenta_esperado(?)', [$segundo]));
+        $this->assertSame(-20000.0, (float) DB::scalar('SELECT fn_arqueo_cuenta_diferencia(?)', [$segundo]),
+            'La diferencia es lo contado menos lo esperado, y se calcula.');
+        $this->assertSame(530000.0, (float) DB::scalar('SELECT fn_cuenta_saldo(?)', [$cuenta]),
+            'Desde el segundo arqueo, el saldo arranca de lo que dijo el banco.');
+
+        // 4) Arqueos lo lista en la pestaña de cuentas, y ofrece arquearla.
+        $html = (string) $this->get(route('facturacion.arqueo', ['de' => 'cuentas']))->assertOk()->getContent();
+        $this->assertStringContainsString($nombre, $html);
+        $this->assertStringContainsString('comisión del banco sin cargar', $html,
+            'El historial muestra el motivo de la diferencia.');
+        $this->assertStringContainsString(money(20000), $html);
+        $this->assertStringContainsString('modalArqueoCta' . $cuenta, $html,
+            'Y desde Arqueos se puede hacer el arqueo de la cuenta, como el de la caja.');
+    }
+
+    /**
+     * La caja abierta de más avisa recién a las 24 horas.
+     *
+     * Pedido del usuario: *«las alertas para caja poner un límite de 24 horas
+     * así no se va llenando la bandeja»*. Contaba desde el día anterior, así
+     * que una caja abierta a las 19 ya sonaba a la medianoche, con el salón
+     * cerrado. Se mide el borde en las dos direcciones sobre la MISMA caja: a
+     * las 23 horas no suena, a las 25 sí.
+     */
+    #[Test]
+    public function la_caja_abierta_avisa_recien_a_las_24_horas(): void
+    {
+        $this->entrarComoAdministrador();
+        $suc = (int) session('id_sucursal');
+
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$suc, 'Aviso ' . uniqid()]);
+        $cajon = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial, fecha_apertura)
+                    VALUES (1, ?, ?, 1, 0, DATE_SUB(NOW(), INTERVAL 23 HOUR))', [$suc, $cajon]);
+        $caja = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+
+        $suena = fn () => in_array('caja:' . $caja, array_column(Alertas::mias(), 'clave'), true);
+
+        $this->assertFalse($suena(), 'Abierta hace 23 horas todavía no es una caja olvidada.');
+
+        DB::update('UPDATE caja SET fecha_apertura = DATE_SUB(NOW(), INTERVAL 25 HOUR) WHERE id_caja = ?', [$caja]);
+        $this->assertTrue($suena(), 'Abierta hace 25 horas ya tiene que avisar.');
+    }
+
+    /**
+     * Cajas, Arqueos y Movimientos muestran sólo el local en el que se está.
+     *
+     * Reportado: *«Cajas muestra también las cajas de la otra sucursal a pesar
+     * de estar en la otra»*. Tesorería se aísla por sucursal y las tres
+     * pantallas ofrecían «Todas» por defecto, así que el cajón del otro local
+     * aparecía en la lista, en el historial de arqueos y en el filtro de
+     * movimientos. Premisa garantizada: un cajón en otro local con una sesión
+     * cerrada —para que Arqueos tenga qué listar— y uno en el local activo,
+     * que sí tiene que verse.
+     */
+    #[Test]
+    public function cajas_arqueos_y_movimientos_muestran_solo_el_local_activo(): void
+    {
+        $this->entrarComoAdministrador();
+        $aca = (int) session('id_sucursal');
+        $otra = $this->otraSucursal();
+        $this->assertNotSame($aca, $otra, 'Premisa: hacen falta dos locales.');
+
+        $ajeno = 'Cajón ajeno ' . uniqid();
+        $propio = 'Cajón propio ' . uniqid();
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$otra, $ajeno]);
+        $cfAjeno = (int) DB::scalar('SELECT LAST_INSERT_ID()');
+        DB::insert('INSERT INTO caja_fisica (id_sucursal, nombre) VALUES (?, ?)', [$aca, $propio]);
+        DB::insert('INSERT INTO caja (id_usuario, id_sucursal, id_caja_fisica, id_estado_caja, monto_inicial,
+                                      fecha_apertura, fecha_cierre, monto_contado)
+                    VALUES (1, ?, ?, 2, 0, DATE_SUB(NOW(), INTERVAL 2 HOUR), NOW(), 0)', [$otra, $cfAjeno]);
+
+        $cajas = (string) $this->get(route('facturacion.cajas'))->assertOk()->getContent();
+        $this->assertStringContainsString($propio, $cajas, 'El cajón del local activo tiene que verse.');
+        $this->assertStringNotContainsString($ajeno, $cajas, 'Cajas no puede mostrar el cajón de otro local.');
+
+        $arqueos = (string) $this->get(route('facturacion.arqueo'))->assertOk()->getContent();
+        $this->assertStringNotContainsString($ajeno, $arqueos,
+            'Arqueos no puede listar ni ofrecer como filtro el cajón de otro local.');
+
+        $movs = (string) $this->get(route('facturacion.movimientos'))->assertOk()->getContent();
+        $this->assertStringNotContainsString($ajeno, $movs,
+            'Movimientos no puede ofrecer el cajón de otro local.');
+    }
+
+    /**
+     * Una falta no pisa una entrada ya fichada, y la lista va por turno.
+     *
+     * Reportado: *«se registró en la cuenta del personal, pero en la vista de
+     * admin no cambió… o sobrescribió la entrada»*. La pantalla de quien
+     * administra es una foto: si la profesional ficha mientras está abierta,
+     * apretar «Falta» sobre la fila vieja le borraba la entrada sin avisar.
+     * Premisa garantizada: alguien con un turno que trabaja AYER, con la
+     * entrada ya fichada; se marca la falta encima y la entrada tiene que
+     * seguir ahí. Y la pantalla de ese día la muestra presente, dentro del
+     * bloque de su turno.
+     */
+    #[Test]
+    public function una_falta_no_pisa_la_entrada_ya_fichada_y_la_lista_va_por_turno(): void
+    {
+        $ayer = date('Y-m-d', strtotime(ahora_bd('Y-m-d') . ' -1 day'));
+        $t = DB::selectOne(
+            'SELECT ut.id_usuario, t.id_turno, t.nombre, t.id_sucursal, t.hora_inicio
+               FROM usuario_turno ut
+               JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
+               JOIN turno_dia td ON td.id_turno = t.id_turno AND td.dia_semana = ?
+               JOIN usuario u ON u.id_usuario = ut.id_usuario AND u.activo = 1
+              ORDER BY t.id_sucursal, t.id_turno LIMIT 1', [(int) date('N', strtotime($ayer))]
+        );
+        if (! $t) {
+            $this->markTestSkipped('Hace falta alguien con un turno que trabaje ayer.');
+        }
+
+        DB::delete('DELETE FROM asistencia WHERE id_usuario = ? AND id_turno = ? AND fecha = ?',
+            [$t->id_usuario, $t->id_turno, $ayer]);
+        DB::insert('INSERT INTO asistencia (id_turno, id_usuario, fecha, hora_entrada, id_usuario_registro)
+                    VALUES (?, ?, ?, ?, ?)', [$t->id_turno, $t->id_usuario, $ayer, $t->hora_inicio, $t->id_usuario]);
+
+        $this->entrarComoAdministrador();
+        $this->conSucursal((int) $t->id_sucursal);
+
+        $this->post(route('seguridad.asistencia.marcar'), [
+            'accion' => 'falta_sin', 'id_turno' => $t->id_turno, 'id_usuario' => $t->id_usuario, 'fecha' => $ayer,
+        ])->assertRedirect();
+
+        $fila = DB::selectOne('SELECT hora_entrada, justificada FROM asistencia
+                                WHERE id_usuario = ? AND id_turno = ? AND fecha = ?',
+            [$t->id_usuario, $t->id_turno, $ayer]);
+        $this->assertNotNull($fila->hora_entrada, 'La falta no puede borrar una entrada ya fichada.');
+        $this->assertNull($fila->justificada, 'Y la fila sigue diciendo que vino.');
+
+        $html = (string) $this->get(route('seguridad.asistencia', ['fecha' => $ayer]))->assertOk()->getContent();
+        $this->assertStringContainsString('sgp-asis-turno', $html, 'La lista se agrupa por turno.');
+        $this->assertMatchesRegularExpression('/sgp-asis-turno.{0,400}' . preg_quote(e($t->nombre), '/') . '/su', $html,
+            'Cada bloque dice de qué turno es: sin eso, quien trabaja mañana y tarde aparece dos veces igual.');
+        $this->assertStringContainsString('Presente', $html);
     }
 }

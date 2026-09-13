@@ -121,116 +121,59 @@
                         @if ($verCaja)
                             {{-- **La clase `sgp-caja-barra` no es decorativa: es el
                                  gancho.** La prueba del panel recorta desde acá hasta
-                                 `sgp-metrics` para comprobar que se listen TODAS las
-                                 cajas abiertas del local y las mismas para todos —el
-                                 defecto de la 7.115.1, donde cada administrador veía
-                                 sólo la suya—. Un rediseño que la renombre deja la
-                                 guardia mirando al vacío y no da ningún error: es el
-                                 patrón que este proyecto persigue. --}}
+                                 `sgp-metrics` para comprobar lo que el bloque dice. Un
+                                 rediseño que la renombre deja la guardia mirando al vacío
+                                 y no da ningún error. --}}
                             <div class="col-md-6 col-lg-12 col-xl-6 sgp-caja-barra">
                                 <div class="metric-card h-100">
-                                    {{-- **«Estado financiero», no «de cajas»** (pedido del
-                                         usuario, 7.121.1): desde que la cuenta bancaria es la
-                                         caja del banco, cuánta plata hay son DOS cosas —el
-                                         cajón y el banco— y acá se ven las dos. El ícono es
-                                         la billetera, que es lo que abarca a las dos. --}}
+                                    {{-- **Dos números y dos accesos, no una lista** (7.122.0,
+                                         pedido del usuario). La 7.115.1 listaba cada caja
+                                         abierta con su responsable y su saldo, y la 7.121.1
+                                         le sumó cada cuenta bancaria: con más cajones y más
+                                         cuentas la tarjeta crecía sin tope y saturaba el
+                                         resumen. El detalle está a un clic, en Cajas y en
+                                         Cuenta bancaria. --}}
                                     <div class="metric-lbl">Estado financiero</div>
-                                    <div class="d-flex align-items-center gap-2 mt-1">
-                                        @if ($cajas)
-                                            <i class="bi bi-wallet2 txt-oro" style="font-size:1.4rem"></i>
-                                        @else
-                                            {{-- **Sin caja abierta se AVISA, no se informa**: en
-                                                 rojo y con el triángulo, porque es lo que hay
-                                                 que resolver antes de cobrar en efectivo. --}}
-                                            <i class="bi bi-exclamation-triangle-fill txt-no" style="font-size:1.4rem"></i>
-                                        @endif
-                                        {{-- **Cuántas hay abiertas, no sólo cuáles.** Con dos
-                                             cajones el número es lo que dice de un vistazo si
-                                             falta cerrar alguno; sin él hay que contar los
-                                             renglones. --}}
-                                        <strong style="font-size:1.05rem" class="{{ $cajas ? '' : 'txt-no' }}">
-                                            @if ($cajas)
-                                                {{ count($cajas) }} {{ count($cajas) === 1 ? 'caja abierta' : 'cajas abiertas' }}
+                                    <ul class="list-unstyled mb-0 mt-2 sgp-estado-fin">
+                                        <li>
+                                            @if ($cajasAbiertas)
+                                                <i class="bi bi-safe txt-oro"></i>
                                             @else
-                                                Ninguna caja abierta
+                                                {{-- **Sin caja abierta se AVISA, no se informa**:
+                                                     es lo que hay que resolver antes de cobrar
+                                                     en efectivo. --}}
+                                                <i class="bi bi-exclamation-triangle-fill txt-no"></i>
                                             @endif
-                                        </strong>
-                                    </div>
-                                    @if ($cajas)
-                                        <ul class="list-unstyled mb-0 mt-2 sgp-lista-cajas">
-                                            @foreach ($cajas as $c)
-                                                @php
-                                                    // **El título se arma acá y no con `@if` dentro del
-                                                    // atributo.** `@endif@if` pegados no los compila
-                                                    // Blade —su patrón lleva `\B` delante de la arroba—
-                                                    // así que el segundo deja de ser una directiva y el
-                                                    // `@endif` queda huérfano: la pantalla entera
-                                                    // revienta con 500. Es la trampa que este proyecto
-                                                    // ya pagó con el correo del comprobante.
-                                                    $sgpTit = $c->nombre
-                                                        . ($c->responsable ? ' · abierta por ' . $c->responsable : '')
-                                                        . ($c->fecha_apertura ? ' · el ' . fecha($c->fecha_apertura) : '');
-                                                @endphp
-                                                <li title="{{ $sgpTit }}">
-                                                    <span class="text-truncate">
-                                                        {{ $c->nombre }}
-                                                        @if ($c->responsable)
-                                                            <span class="text-muted-warm" style="font-size:.76rem">· {{ $c->responsable }}</span>
-                                                        @endif
-                                                    </span>
-                                                    <strong>{{ money($c->saldo) }}</strong>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    @else
-                                        <div class="txt-no mt-1" style="font-size:.8rem">
-                                            Sin caja abierta no se cobra en efectivo.
-                                            @if (Navegacion::url('facturacion.cajas'))
-                                                <a class="link-oro" href="{{ Navegacion::url('facturacion.cajas') }}">Abrir una &rarr;</a>
-                                            @endif
-                                        </div>
-                                    @endif
-
-                                    {{-- **La cuenta bancaria: cuánto hay en el banco.** Con el
-                                         saldo que da `fn_cuenta_saldo` —lo declarado más lo que
-                                         entró y menos lo que salió— o «sin declarar», que NO es
-                                         cero: es «no se sabe», y el enlace lleva a declararlo.
-                                         `sgp-lista-cuentas` es el gancho de la prueba. --}}
-                                    <div class="mt-2 pt-2 border-top sgp-lista-cuentas">
-                                        <div class="text-muted-warm" style="font-size:.76rem;text-transform:uppercase;letter-spacing:.03em">
-                                            <i class="bi bi-bank"></i> Cuenta bancaria
-                                        </div>
-                                        @if ($cuentas)
-                                            <ul class="list-unstyled mb-0 mt-1 sgp-lista-cajas">
-                                                @foreach ($cuentas as $ct)
-                                                    <li title="{{ $ct->entidad }}{{ $ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '' }} · {{ $ct->medio }}">
-                                                        <span class="text-truncate">
-                                                            {{ $ct->entidad }}
-                                                            @if ($ct->numero_cuenta)
-                                                                <span class="text-muted-warm" style="font-size:.76rem">· {{ $ct->numero_cuenta }}</span>
-                                                            @endif
-                                                        </span>
-                                                        @if ($ct->saldo !== null)
-                                                            <strong>{{ money($ct->saldo) }}</strong>
-                                                        @elseif (Permisos::puede('facturacion.cuentas') && Navegacion::url('facturacion.cuentas'))
-                                                            <a class="link-oro" style="white-space:nowrap;font-size:.8rem"
-                                                               href="{{ Navegacion::url('facturacion.cuentas') }}"
-                                                               title="Hasta que se declare cuánto dice el banco, el sistema no sabe cuánto hay">sin declarar &rarr;</a>
-                                                        @else
-                                                            <span class="text-muted-warm" style="white-space:nowrap;font-size:.8rem">sin declarar</span>
-                                                        @endif
-                                                    </li>
-                                                @endforeach
-                                            </ul>
-                                        @else
-                                            <div class="text-muted-warm mt-1" style="font-size:.8rem">
-                                                Sin cuenta cargada: lo que entra por transferencia no se suma a ninguna.
-                                                @if (Permisos::puede('facturacion.cuentas') && Navegacion::url('facturacion.cuentas'))
-                                                    <a class="link-oro" href="{{ Navegacion::url('facturacion.cuentas') }}">Cargar una &rarr;</a>
+                                            <span class="sgp-estado-fin-que">
+                                                @if ($cajasAbiertas)
+                                                    <strong class="sgp-estado-fin-n">{{ $cajasAbiertas }}</strong>
+                                                    {{ $cajasAbiertas === 1 ? 'caja abierta' : 'cajas abiertas' }}
+                                                @else
+                                                    <strong class="txt-no">Ninguna caja abierta</strong>
+                                                    <span class="d-block txt-no" style="font-size:.76rem">sin caja abierta no se cobra en efectivo</span>
                                                 @endif
-                                            </div>
-                                        @endif
-                                    </div>
+                                            </span>
+                                            @if (Navegacion::url('facturacion.cajas'))
+                                                <a class="link-oro sgp-estado-fin-ir" href="{{ Navegacion::url('facturacion.cajas') }}">
+                                                    {{ $cajasAbiertas ? 'Ver cajas' : 'Abrir una' }} &rarr;</a>
+                                            @endif
+                                        </li>
+                                        <li>
+                                            <i class="bi bi-bank txt-oro"></i>
+                                            <span class="sgp-estado-fin-que">
+                                                @if ($cuentasActivas)
+                                                    <strong class="sgp-estado-fin-n">{{ $cuentasActivas }}</strong>
+                                                    {{ $cuentasActivas === 1 ? 'cuenta bancaria activa' : 'cuentas bancarias activas' }}
+                                                @else
+                                                    <strong>Ninguna cuenta bancaria</strong>
+                                                @endif
+                                            </span>
+                                            @if (Permisos::puede('facturacion.cuentas') && Navegacion::url('facturacion.cuentas'))
+                                                <a class="link-oro sgp-estado-fin-ir" href="{{ Navegacion::url('facturacion.cuentas') }}">
+                                                    {{ $cuentasActivas ? 'Ver cuentas' : 'Cargar una' }} &rarr;</a>
+                                            @endif
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         @endif
@@ -240,10 +183,8 @@
                         <div class="col-md-6 col-lg-12 col-xl-6 sgp-metrics">
                             @if ($m['ingresos_hoy'] !== null)
                                 {{-- **Centrada en su tarjeta** (pedido del usuario, 7.121.1):
-                                     la de al lado crece con cada caja y cada cuenta, y con
-                                     el número pegado arriba quedaba media tarjeta vacía
-                                     debajo. `sgp-metric-centrada` la centra a lo alto y a
-                                     lo ancho, que es como se lee un KPI solo. --}}
+                                     `sgp-metric-centrada` la centra a lo alto y a lo ancho,
+                                     que es como se lee un KPI solo al lado de otra tarjeta. --}}
                                 <div class="metric-card h-100 sgp-metric-centrada">
                                     <div class="metric-lbl">Ingresos de hoy</div>
                                     <div class="metric-value">{{ money($m['ingresos_hoy']) }}</div>

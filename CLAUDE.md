@@ -42,7 +42,7 @@ Sistema web de gestión para una peluquería de Luque, Paraguay. TCC de Ingenier
 
 ## Regla número uno: la lógica de negocio vive en la base de datos
 
-La base (`peluqueria_bd`) tiene **22 procedimientos, 43 funciones, 17 triggers y 17 vistas**,
+La base (`peluqueria_bd`) tiene **22 procedimientos, 46 funciones, 17 triggers y 17 vistas**,
 más **88 restricciones `CHECK`**.
 Laravel **consume** esa lógica, no la reimplementa: nada de reescribirla en Eloquent.
 Antes de escribir un cálculo en PHP, buscá si ya existe la función o el procedimiento.
@@ -72,6 +72,7 @@ desde PDO: los parámetros de salida (`Bd::idDe()`), cerrar el cursor después d
 | Confirmar compra | `sp_confirmar_compra(...)` — genera los movimientos de stock |
 | Movimiento de stock manual | `sp_registrar_movimiento_inventario(...)` |
 | Saldo de caja | `fn_caja_saldo(id)` |
+| Saldo de una cuenta bancaria | `fn_cuenta_saldo(id)` — el último arqueo (`arqueo_cuenta`) más lo que entró y salió desde entonces; NULL sin ningún arqueo |
 | Nivel / visitas del cliente | `fn_cliente_nivel`, `fn_cliente_visitas`, `fn_cliente_puntos` |
 | Comisión de un servicio | `fn_comision_servicio(id_servicio_realizado)` |
 | Quién trabaja tal día | `turno_laboral` ⋈ `turno_dia` ⋈ `usuario_turno` — ver la sección **Turnos** |
@@ -360,6 +361,7 @@ Dos cosas que ya salieron mal y conviene no repetir:
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 7.122.0 | 12/09/2026 | **Ocho cosas de la revisión, y la que cambia el modelo es que la cuenta bancaria se ARQUEA como la caja, con historial.** *«Arqueos también debe hacer el arqueo de la cuenta bancaria, al igual que Cajas»*: la cuenta guardaba UN saldo declarado (`saldo_declarado`) que se pisaba, así que no quedaba forma de saber si había cuadrado. Entra **`arqueo_cuenta`** —una fila por arqueo, con lo que dijo el banco, quién y el motivo de la diferencia— y salen `saldo_declarado`, `saldo_declarado_en` y `chk_cuenta_saldo`; **lo que se esperaba y la diferencia se calculan** (`fn_arqueo_cuenta_esperado`, `fn_arqueo_cuenta_diferencia`, sobre `fn_cuenta_movido`), que es la regla número dos, y `fn_cuenta_saldo` pasa a ser el último arqueo más lo movido desde entonces. **El guion migra cada saldo declarado como primer arqueo.** Arqueos gana dos pestañas —Cajas y Cuentas bancarias— y **desde las dos se arquea**, con los mismos modales de las tarjetas (`_arqueo_cuenta_modal` es nuevo). **Lo que se retira y se dice**: el campo vacío ya no «des-declara» la cuenta — con historial eso sería borrar un arqueo. **El panel cuenta en vez de listar** (pedido del usuario: *«cuando haya más va a saturar ese cuadrito»*): «N cajas abiertas» y «N cuentas bancarias activas», cada uno con su acceso directo, iguales para todos. **La alerta de la caja abierta suena a las 24 horas** (`horas_abierta_aviso`), no desde «ayer»: una caja abierta a las 19 sonaba a medianoche con el salón cerrado. **La ventana de cobro volvió a scrollear**: `.modal-dialog-scrollable` sólo acota a `.modal-body` si es hijo directo de `.modal-content`, y la de cobro y la de la seña tienen un `<form>` en el medio —el botón de cobrar quedaba fuera de la pantalla, sin error—; una regla de `app.css` le devuelve el flex al formulario. **Cajas, Arqueos y Movimientos muestran sólo el local activo** (*«muestra también las cajas de la otra sucursal»*): arrancaban en «Todas»; ahora leen `sucursalDeTesoreria()` y el cajón nuevo se crea en el local activo. **Asistencia se rehace para quien administra**: un bloque por turno con su horario, tolerancia y conteos, una palabra de estado por fila, sólo el local activo, **actualización en vivo** (sección `asistencia`) —lo que la profesional ficha desde su cuenta aparece solo— y **una falta ya no pisa una entrada fichada**, que era el «sobrescribió la entrada» reportado con la pantalla de admin abierta desde antes; de paso la atención elige el turno que cubre la hora de la cita. **Y en la agenda, con dos o más personas alérgicas la fila muestra un solo «⚠ N con alergias»** que abre el detalle. **229 pruebas · 1965 aserciones**, cinco nuevas, la del panel reescrita y la de las alergias extendida, **las siete comprobadas en las dos direcciones** —con el umbral en 12 h, con el cajón sin filtrar por local, con la falta sin guardia, sin la regla del modal, con el aviso compacto apagado y con la diferencia sin motivo aceptada, cada una falla—. **Y la del arqueo destapó algo que sola no se veía**: pasaba aislada y fallaba en la batería completa, porque `ahora_bd()` guarda la hora una vez por proceso y el arqueo quedaba fechado minutos atrás, dejando afuera lo movido entre medio; el arqueo pasa a `NOW()` de la base y la trampa queda anotada en *La hora* · 2 salteadas, las legítimas · 84 tablas · 46 funciones · 88 `CHECK` · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-12_7.122.0.sql` · **código y base** |
 | 7.121.1 | 12/09/2026 | **El panel dice el estado FINANCIERO, no sólo el de las cajas** (pedido del usuario). «Estado de cajas» pasa a **«Estado financiero»** y muestra, además de las cajas abiertas con su saldo, **cada cuenta bancaria del local con lo que hay en el banco** —`fn_cuenta_saldo`, o «sin declarar» con el enlace a declararlo, porque NULL no es cero—: desde la 7.121.0 la cuenta es la caja del banco, así que cuánta plata hay son las dos cosas. **Sin ninguna caja abierta se AVISA**, en rojo y con el triángulo, y el texto dice lo que hoy es cierto —«sin caja abierta no se cobra en efectivo»—, no «no se cobra». El ícono pasa de la caja fuerte a la **billetera**, que abarca a las dos. Va a quien ve la caja (`facturacion.caja`), que es la misma pregunta; el enlace, a quien administra las cuentas. La huella de actualización en vivo del panel suma el saldo de las cuentas —y su conteo de movimientos deja de exigir caja, que el de una cuenta no la tiene—, así que una transferencia que llega desde el portal refresca el panel sola. **Y «Ingresos de hoy» se centra en su tarjeta** (`sgp-metric-centrada`, pedido del usuario): la de al lado crece con cada caja y cada cuenta, y con el número pegado arriba quedaba media tarjeta vacía debajo. La prueba del panel gana la mitad nueva: una cuenta con saldo sale con su número y una sin declarar lo dice con palabras, mirando como dos personas distintas. Comprobado en el navegador en los dos estados, con dos cajas abiertas y con ninguna, y a 1360 px con las dos tarjetas lado a lado · **224 pruebas · 1928 aserciones** · **sólo código: la base no se tocó** |
 | 7.121.0 | 12/09/2026 | **La cuenta bancaria pasa a ser una CAJA dedicada al banco, y «Datos de pago» se retira** (los ocho puntos que quedaban de la lista del usuario: 8 a 15). *«Un nuevo módulo Cuenta Bancaria, que se utilizará como CAJA pero dedicado a movimientos bancarios; la caja actual sólo efectivo»*, y lo que lo motivó: *«la caja se reinicia al cerrar y abrir, y el pago no siempre puede salir de caja»*. **La tabla se renombra** —`dato_pago_sucursal` → `cuenta_bancaria`, `id_dato_pago` → `id_cuenta` en las tres tablas que la nombraban, con sus CHECK, índices y claves foráneas— porque el modelo del TCC tiene que decir lo que la cosa ES: una cuenta con saldo y movimientos, no «los datos para transferir». **Lo que entra por transferencia ahora se SUMA**: `cobro.id_cuenta` dice a qué cuenta cayó cada cobro por banco —las señas incluidas, que era el punto 9—, la cuenta viaja **por línea** en el cobro (`cuenta[]`, posicional como `metodo[]`: un pago puede ser mitad banco y mitad billetera) y `fn_cuenta_saldo` deja de ser un piso: declarado + cobros + ingresos − egresos − pagos desde la fecha declarada. **Al cobrar se pregunta lo que corresponde** (punto 14): el combo de caja aparece sólo si alguna línea es efectivo, el de cuenta en cada línea que sea transferencia, cheque o billetera, y los dos a la vez si el pago es mixto — `sgpAcomodarDonde()` en `app.js`, un solo bloque para el cobro, la seña, los pagos y el movimiento; arranca todo visible. **Sin caja abierta no se mueve un guaraní EN EFECTIVO**, y nada más: `exigeCaja` se acota al efectivo y a la tarjeta, así que el cobro todo por banco, la seña transferida desde la casa de la clienta, la liquidación y el pago a proveedores por transferencia (punto 10) y sus reversiones entran con el cajón cerrado, y la agenda ofrece la ventana de cobro con la caja cerrada si hay una cuenta cargada. **Los procedimientos no cambian de firma**: la cuenta se anota después con un `UPDATE` (`Facturacion::anotarCuenta()`), y el pago a proveedor por banco se deja sin `id_caja` porque `sp_pagar_compra` le cuelga cualquier caja abierta que encuentre. **«Movimiento de caja» pasa a «Movimiento»** (punto 13): cada fila dice DÓNDE pasó —la cuenta manda sobre el cajón, porque un cobro por transferencia se registra en un puesto pero la plata no está ahí—, hay filtro por caja **y** por cuenta, el formulario pregunta de dónde sale (`destino`), y **`chk_mc_donde`** exige el cajón o la cuenta, nunca los dos ni ninguno; el faltante y la devolución son del cajón y contra una cuenta se rechazan. Las cuatro fuentes se mudan a `App\Servicios\Movimientos`, que leen el listado, el modal de cada caja y el de cada cuenta. **Tesorería → Cuenta bancaria** (`CuentaBancariaController`, permiso `facturacion.cuentas` traducido desde `configuracion.pagos`) son tarjetas como Cajas: saldo o «sin saldo declarado», movimientos de hoy, declarar el saldo, **«Usar para señas»** (punto 15: `para_senas`, y el portal muestra sólo las marcadas —`Cuenta::paraSenas()`—, la primera de un local nace marcada), editar, baja, orden y alta en modal; Configuración → Datos de pago se retira (punto 11). **La campanita pide declarar el saldo** (punto 9: `Pendientes::cuentas()`, CONFUNDE), y avisa el local con cuentas y ninguna para señas, y el local sin ninguna cuenta. **Lo que queda afuera y se dice**: la TARJETA no suma a ninguna cuenta —el posnet acredita días después y con comisión— y sigue en la caja donde se pasó. **224 pruebas · 1910 aserciones**, cuatro nuevas y **las cuatro comprobadas en las dos direcciones** —sin `anotarCuenta()`, con la caja exigida siempre, sin el filtro `para_senas` y sin el rechazo del faltante contra la cuenta, cada una falla— y tres reescritas a los nombres nuevos · 88 `CHECK` · comprobado en el navegador: el cobro de la agenda con la caja cerrada entra por transferencia con `id_caja NULL` e `id_cuenta` puesto, la cuenta pasa de 1.500.000 a 1.550.000 y Movimientos lo lista bajo la cuenta · los dos `.sql` regenerados y el de actualización en `basededatos/actualizaciones/2026-09-12_7.121.0.sql` · **código y base** |
 | 7.120.0 | 12/09/2026 | **Siete cosas de pantalla reportadas usando el sistema, y la que más se veía era que en el tema oscuro los nombres salían NEGROS sobre el fondo oscuro.** «Los nombres de clientes permanecen en negro en modo oscuro, se camuflan con el fondo», reportado tal cual: `.sgp-movil-sujeto` —el nombre de la clienta en la tarjeta del celular— se pintaba con `--negro`, que **es una superficie y se da vuelta con el tema**: en oscuro vale `#080807`, o sea el plano más profundo de la paleta. Es el defecto que este documento ya tenía anotado para `--carbon` y `--gris-calido` en la barra, un nivel más adentro, y al buscarlo aparecieron **dieciséis lugares más con la otra mitad del mismo error**: `--oro-oscuro` usado como color de TEXTO sobre el fondo —el nombre que enlaza a la ficha en Clientes, los enlaces de la campanita, los íconos del desplegable de la cuenta, «← Panel», las migas, el badge «En proceso», la pestaña activa de Reportes—, y ése **no se invierte en absoluto**: queda en 2,3:1. Para eso existe `--oro-enfasis` desde la 7.118.0, que en claro es el oro oscuro y en oscuro el principal; el rótulo «Filtros» del celular tenía el mismo `--negro`. En claro no cambia ni un píxel. **El logo del salón salía a su tamaño natural en el enlace del correo**: `.logo-big` estaba escrito **anidado bajo `.sgp-login`**, la tarjeta de las pantallas de acceso, y `cita_token/ver` dibuja la misma marca dentro de un `container` pelado — así que ninguna de las tres reglas aplicaba y un logo de 900 px se plantaba encima de la cita. Medido: de 900×240 a **240×64**, y 180×52 en el celular. Es el patrón de siempre —código correcto apuntando a un marcado que no existe, sin dar ningún error— y queda con su guardia. **El enlace del correo mide la agenda igual que el módulo**, que es lo que se pidió verificar: los dos ofrecen exactamente los mismos días y las mismas horas —comprobado—, y lo que estaba distinto era el guardado, que llamaba a `huecoLibre()` **sin decirle la sucursal**. El turno es del local desde la 7.39.0, así que la comprobación caía en `Sucursales::activa()`, o sea la sesión de quien tuviera el navegador abierto: alguien del salón parado en otro local que abriera el enlace de una clienta hacía que el rechazo saliera de los turnos de la sede equivocada. Ahora el contexto de la cita —servicios, profesional, local, cuántas personas— sale de **un solo método**, `contexto()`, que usan el selector y el guardado: escritos aparte se separan, y ahí la pantalla ofrece lo que el servidor rechaza. **Y el profesional deja de tomarse del POST**: la pantalla dejó de ofrecer ese combo en la 7.97.0 —los horarios se calculan para quien te atiende— y el servidor lo seguía aceptando, así que con el token en la mano se le reasignaba la cita a cualquiera. **En la agenda, lo que TRABA la cita va arriba del botón «Detalle»** (pedido del usuario: «el botón de Detalle se pone encima de FALTA fichaje siendo que debe ser al revés»): primero qué impide atender —que es lo accionable ahora— y después la ficha, que es información; es la regla de la ayuda contextual aplicada al orden de la fila. **Y los botones dicen su nombre entero**: iban en una línea con `text-overflow:ellipsis`, así que en 133 px el más largo salía «Cambiar profes…» en la computadora y en el celular — un botón que no dice qué hace es justo el problema que esas dos columnas vinieron a resolver, así que antes que recortarlo se lo deja envolver, y la grilla pasa a 300 px. **La campanita toma el oro del sistema**: estaba en `--oro-claro`, el oro del *hover*, a dos centímetros del logo y del nombre del salón, que son `--oro` — dos dorados distintos uno al lado del otro. De paso el numerito dejaba de ser legible: con el ícono en 17 px la pastilla le tapaba media cara y el conjunto se leía como una mancha rosa, y su `#fff` fijo sobre el rojo claro del tema oscuro daba 2,2:1; ahora el ícono es más grande, el número sale del glifo con un anillo del color de la barra y el texto va en `--blanco`, que sí se invierte (7,9:1 y 7,3:1). **Y la liquidación dice qué trabajo se está pagando**: el detalle mostraba el período y el estado, o sea nada que la fila no dijera ya — un monto sin desglose no se puede comprobar ni defender. Ahora abre los servicios que entraron, cuándo, **a quién** —quien se atiende, que en la cita para otra persona no es la que la pidió—, cuánto se facturó, **con qué número de comprobante está ligado cada uno** y cuánto le tocó, con el total al pie. Sale de `detalle_pago_personal`, con **el monto congelado ese día** y no el que daría la comisión de hoy: si el salón la cambia el mes que viene, la liquidación de marzo tiene que seguir diciendo lo que se pagó en marzo — el mismo criterio por el que `detalle_factura` guarda el precio. Una consulta para toda la página, no una por fila. **220 pruebas · 1861 aserciones**, seis nuevas y **las seis comprobadas en las dos direcciones**: con el `huecoLibre` sin sucursal, con el `id_usuario` del POST, con el aviso debajo del botón, con el detalle viejo, con `.logo-big` scopeada o con `.link-oro` en oro oscuro, cada una falla. **Y la primera versión de dos de ellas no medía nada**: la del local ajeno usaba una sucursal inventada, y `fn_verificar_disponibilidad` con una que no existe se queda sin turnos que mirar y cae en el criterio permisivo — pasaba en verde con el defecto puesto; ahora crea un local de verdad **con un turno de otra persona**, que es lo que lo hace restrictivo (entra `TestCase::otraSucursal()`). Y la del orden de la fila esperaba «falta fichaje» cuando la agenda **marca sola las entradas vencidas al dibujarse** (`Asistencia::marcarEntradasVencidas()`), así que el aviso era «profesional ausente»: lo que se mide es la POSICIÓN, que es lo que se reportó · 2 salteadas, las legítimas · **sólo código: la base no se tocó** |
@@ -685,7 +687,7 @@ docker/                    Los dos entornos, que son DOS y no uno:
   respaldo.sh              el mysqldump diario, que se agenda en el cron del host
 _sifen/                    El Automatizador SIFEN, versionado desde la 7.60.0.
                            Es de terceros: el SGP le habla sólo por HTTP
-tests/Feature/             Las 224 pruebas
+tests/Feature/             Las 229 pruebas
 _sim30/                    El banco de la simulación de 30 días (no es del sistema)
 ```
 
@@ -1120,7 +1122,7 @@ donde está por algo:
 |---|---|---|
 | Arriba a la izquierda, chico | **Hola, Nombre** | es un título, no un cartel: en una caja centrada gastaba un cuarto de la fila en decir «hola» |
 | Izquierda, arriba | **Próximas citas** (o **Mis próximas citas**) | las atrasadas primero, en rojo y con «hace N»; el posesivo dice de quién son |
-| Izquierda, abajo | **Resumen financiero**: **estado financiero** · ingresos de hoy | cuántas cajas hay abiertas y cuáles —las mismas para todos— **y cuánto hay en cada cuenta bancaria** (7.121.1: la cuenta es la caja del banco, así que el estado financiero son las dos), con el aviso en rojo cuando no hay ninguna caja abierta; y lo cobrado hoy **contra ayer**, con la flecha y el porcentaje: un número solo no dice si el día viene bien o mal |
+| Izquierda, abajo | **Resumen financiero**: **estado financiero** · ingresos de hoy | **cuántas cajas hay abiertas y cuántas cuentas bancarias activas**, cada número con su acceso directo —«Ver cajas», «Ver cuentas»—, con el aviso en rojo cuando no hay ninguna caja abierta; y lo cobrado hoy **contra ayer**, con la flecha y el porcentaje: un número solo no dice si el día viene bien o mal |
 | Derecha | los nueve módulos, tres por fila | con sus íconos y colores de siempre |
 
 - **«Citas hoy», «Clientes activos» y «Falta stock» se fueron** (pedido del
@@ -1131,17 +1133,20 @@ donde está por algo:
 - **Cada bloque se dibuja sólo para quien lo tiene.** El resumen financiero
   no aparece sin `facturacion.caja` ni `facturacion.cobros`: un bloque vacío
   titulado «financiero» promete algo que a esa persona no le corresponde.
+- **El estado financiero son DOS NÚMEROS, no dos listas** (7.122.0, pedido
+  del usuario: *«cuando haya más va a saturar de información ese cuadrito»*).
+  La 7.115.1 listaba cada caja abierta con su responsable y su saldo, y la
+  7.121.1 le sumó cada cuenta bancaria: el bloque crecía con el salón. Ahora
+  dice cuántas cajas hay abiertas y cuántas cuentas activas, **iguales para
+  todos** —que era lo que cuidaba la 7.115.1—, y el detalle está a un clic en
+  Cajas y en Cuenta bancaria.
 - **`sgp-caja-barra` y `sgp-metrics` no son decorativas**: son los ganchos
-  entre los que la prueba del panel recorta para comprobar que se listen
-  todas las cajas abiertas del local **y las cuentas bancarias con su saldo**
-  —o «sin declarar», que no es cero—. Un rediseño que las renombre deja la
-  guardia mirando al vacío sin dar error.
-- **La cuenta bancaria va a quien ve la caja** (`facturacion.caja`), no a
-  quien la administra: «¿cuánta plata hay?» es una sola pregunta y se
-  contesta con el cajón y el banco juntos; `facturacion.cuentas` sólo decide
-  si se ofrece el enlace a declarar el saldo. Y la huella de actualización en
-  vivo del panel incluye el saldo de las cuentas, así que una transferencia
-  que entra desde el portal lo refresca sola.
+  entre los que la prueba del panel recorta para comprobar los dos números,
+  los accesos, y que **no** se nombren las cajas ni sus saldos. Un rediseño que
+  las renombre deja la guardia mirando al vacío sin dar error.
+- **Las cuentas van a quien ve la caja** (`facturacion.caja`), no a quien las
+  administra: «¿cuánta plata hay?» es una sola pregunta; `facturacion.cuentas`
+  sólo decide si se ofrece el acceso a Cuenta bancaria.
 - **El CSS del panel vive en `app.css`.** Estaba en un `<style>` al pie de la
   vista, así que la página se pintaba una vez sin él y se reacomodaba después;
   y ese `<style>` metía `[data-tema="oscuro"]` en el HTML del panel, que es
@@ -1149,9 +1154,7 @@ donde está por algo:
   rastro.
 - **El atajo a la agenda va en el título de Próximas citas, siempre** (7.119.0).
   Estaba sólo en la cabecera de las atrasadas, así que un día sin ninguna se
-  quedaba sin él. Y el importe de cada caja abierta **no se parte ni se
-  achica** (`.sgp-lista-cajas li > strong`): con tres o cuatro cajas el renglón
-  más largo lo empujaba a dos líneas y la columna dejaba de ser una columna.
+  quedaba sin él.
 - **El pie va al fondo de la ventana, en todas las pantallas** (7.119.0): el
   panel de una profesional —una caja y tres pastillas— mide media pantalla y
   el pie se dibujaba pegado a eso con el resto en blanco debajo. `body` es una
@@ -1553,7 +1556,7 @@ portal mientras alguien mira el día.
 | Quién contesta | `VivoController::estado`, ruta `vivo`, con `sesion` de middleware |
 | Qué devuelve | **una huella** (`md5`), nunca datos |
 | Cada cuánto | `VivoController::CADA` — 20 segundos |
-| Secciones hoy | `agenda`, `cajas`, `panel` |
+| Secciones hoy | `agenda`, `cajas`, `panel`, `asistencia` — la última lee `fecha` de la URL, que el layout arrastra en `data-vivo-url` |
 
 > **La huella del panel incluye «lo que falta cargar».** Esa tabla no sale de
 > una consulta sola: la arma `Pendientes::mios()` cruzando timbrados, turnos,
@@ -1660,6 +1663,14 @@ segundos por su cuenta, y una barra parpadeando sola sería peor que el silencio
   Va en un partial porque son **siete pantallas con cabecera propia** —el layout,
   las dos de acceso, la del token, el 403 y las dos de impresión— y copiado se
   desfasan. **Si agregás otra pantalla con `<head>` propio, incluilo.**
+- **Un modal con scroll y un `<form>` adentro necesita la regla de `app.css`.**
+  `.modal-dialog-scrollable` hace scrollear a `.modal-body` sólo cuando es hijo
+  DIRECTO de `.modal-content`, que es una columna flex; con un formulario en el
+  medio —la ventana de cobro y la de la seña, porque el pie con el botón tiene
+  que estar dentro del formulario— el cuerpo deja de estar acotado y el botón
+  de cobrar queda fuera de la pantalla, sin ningún error. Se reportó como
+  *«desapareció el deslizador y no se puede cobrar»* (7.122.0). La regla le
+  devuelve el flex al formulario; la cuida `AndamiajeTest::el_modal_con_scroll_no_lo_pierde_por_tener_un_formulario`.
 - **CSS y JS se enlazan con `recurso('css/app.css')`, no con el `asset()` de Laravel.**
   `recurso()` le pega la fecha de modificación del archivo como `?v=`; sin eso el navegador se
   queda con la versión vieja en caché y los cambios de estilo no se ven.
@@ -1860,7 +1871,7 @@ arrastra nada a otra sede** — un empleado no lleva su horario de un local al o
 | **Clientes** | valoraciones · catálogo de canjes | clientes · fidelización | la valoración se deduce de la cita; el canje, de `canjeable_sucursal` |
 | **Servicios** | qué publica cada local | precios · descuentos · puntos por Gs. | catálogo único + `servicio_sucursal`; **se trae, no se recarga**, y la lista lo dice en la columna «Disponible acá» |
 | **Inventario** | stock · compras · qué maneja cada local | proveedores | ídem con `producto_sucursal`; `movimiento_inventario.id_sucursal` |
-| **Tesorería** | todo | — | facturas por el timbrado, cobros y pagos por la caja |
+| **Tesorería** | todo | — | facturas por el timbrado, cobros y pagos por la caja; **Cajas, Arqueos y Movimientos muestran sólo el local activo** (7.122.0) |
 | **Reportes** | se puede acotar | el consolidado | selector con «Todas» + bloque «Por sucursal» |
 | **Seguridad** | turnos · asistencia · comisiones | usuarios · roles · sucursales · contacto · auditoría | la auditoría se ve entera **y** se puede filtrar |
 | **Configuración** | — | sucursales · contacto | las cuentas bancarias pasaron a Tesorería en la 7.121.0 (`cuenta_bancaria.id_sucursal`) — dos locales pueden cobrar en cuentas distintas |
@@ -1876,6 +1887,14 @@ Tres decisiones que no son obvias y conviene no revertir sin pensarlas:
 - **El solape de citas NO se filtra por sucursal.** La persona es una sola: si a
   las 10 atiende en el otro local, acá no está libre. Lo que se acota es el
   turno —dónde trabaja— no la agenda ocupada.
+- **Las pantallas de Tesorería no ofrecen «Todas».** Cajas, Arqueos y
+  Movimientos traían un filtro de sucursal que arrancaba en «Todas», así que
+  el cajón del otro local aparecía en la lista —se reportó: *«muestra también
+  las cajas de la otra sucursal a pesar de estar en la otra»*—. Desde la
+  7.122.0 leen `FacturacionController::sucursalDeTesoreria()` —la activa, que
+  se cambia desde la barra— y el filtro se fue; un cajón nuevo se crea en el
+  local activo. Lo fija
+  `ReglasDeNegocioTest::cajas_arqueos_y_movimientos_muestran_solo_el_local_activo`.
 
 > **Y lo que se aísla sin columna nueva es preferible.** La valoración sale de la
 > cita, el pago del personal sale de su caja y la factura sale de su timbrado:
@@ -2094,6 +2113,14 @@ igual en el contenedor y en el servidor: no depende de qué tzdata traiga PHP.
 
 Donde importa hoy: el **fichaje de asistencia**, que registra la hora del clic. Un fichaje
 una hora corrido no sirve para nada.
+
+> **Pero `ahora_bd()` guarda la hora UNA vez por proceso**, y eso no es lo mismo que una
+> vez por petición. En la web da igual; en un proceso largo —el planificador, la batería de
+> pruebas— sigue devolviendo la hora del primer llamado minutos después. **Cuando la fecha
+> que se escribe parte la historia en «antes» y «después», va `NOW()` adentro del SQL**, que
+> es el mismo reloj sin ese atraso. Pasó con `arqueo_cuenta.fecha` (7.122.0): la batería
+> completa fechaba el arqueo minutos atrás y `fn_cuenta_movido` dejaba afuera lo que se
+> había movido entre medio; sola, la prueba pasaba.
 
 **Eso obliga a que la base tenga bien la hora, y eso cambia según dónde corra:**
 
@@ -2338,10 +2365,11 @@ que estaban a medias:
 
 | Qué | Dónde | ¿Se guarda? |
 |---|---|---|
-| Lo que el salón leyó en su banco | `cuenta_bancaria.saldo_declarado` · `saldo_declarado_en` | **sí** — es el arqueo de la cuenta |
+| Lo que el salón leyó en su banco, cada vez | `arqueo_cuenta` — una fila por arqueo: fecha, contado, quién, motivo de la diferencia | **sí** — es un hecho observado (7.122.0) |
 | A qué cuenta cayó cada cobro por banco | `cobro.id_cuenta` | **sí** — no se deduce de nada: el medio dice *que* fue al banco, no *a cuál* |
 | De qué cuenta salió cada pago o movimiento | `pago_proveedor.id_cuenta` · `pago_personal.id_cuenta` · `movimiento_caja.id_cuenta` | **sí** |
-| **Cuánto queda** | `fn_cuenta_saldo(id)` = declarado + cobros + ingresos − egresos − pagos, desde la fecha declarada | **NO: se calcula** |
+| **Cuánto queda** | `fn_cuenta_saldo(id)` = último arqueo + `fn_cuenta_movido()` desde entonces | **NO: se calcula** |
+| **Qué se esperaba en un arqueo y la diferencia** | `fn_arqueo_cuenta_esperado(id)` · `fn_arqueo_cuenta_diferencia(id)` | **NO: se calculan** |
 
 Las decisiones que sostienen esto:
 
@@ -2374,14 +2402,14 @@ Las decisiones que sostienen esto:
   `id_cuenta`, nunca los dos ni ninguno. El faltante de caja y la devolución en
   efectivo son del cajón —una diferencia del arqueo, y plata que estaba ahí
   adentro— y contra una cuenta se rechazan. El movimiento de una cuenta se
-  anula en cualquier momento: su arqueo es volver a declarar el saldo. Lo fija
+  anula en cualquier momento: lo absorbe el arqueo siguiente. Lo fija
   `ReglasDeNegocioTest::el_movimiento_manual_desde_la_cuenta_descuenta_el_banco_y_no_el_cajon`.
 - **Sigue siendo una cuenta del banco y no del sistema**, así que puede haber
   más de lo que dice —un depósito hecho por fuera— y **el control de los pagos
   AVISA y no bloquea**, al revés que el efectivo, que es exacto. Lo que cambió
   es que ya no es un piso: ahora también suma lo que entra por el sistema.
-- **NULL no es cero.** Una cuenta que nadie declaró vale «no se sabe», el
-  sistema no avisa nada, **y la campanita lo pide** (`Pendientes::cuentas()`,
+- **NULL no es cero.** Una cuenta sin ningún arqueo vale «no se sabe», el
+  sistema no avisa nada, **y la campanita pide el primero** (`Pendientes::cuentas()`,
   CONFUNDE): *«no tener declarado el monto del banco es motivo de avisos»*, que
   es lo que pidió el usuario. También avisa el local con cuentas y ninguna
   marcada para señas, y el local sin ninguna cuenta.
@@ -2389,8 +2417,8 @@ Las decisiones que sostienen esto:
   arqueo: es derivado, y guardarlo lo separaría del real en silencio.
 
 **Dónde se ve**: **Tesorería → Cuenta bancaria** son tarjetas como Cajas —el
-saldo o «sin saldo declarado», cuántos movimientos hoy, el modal del día,
-«Declarar / Actualizar saldo», «Usar para señas», editar, baja y orden—; de qué
+saldo o «sin arqueo todavía», cuántos movimientos hoy, el modal del día,
+«Primer arqueo» / «Arqueo», «Usar para señas», editar, baja y orden—; de qué
 cuenta sale o a cuál entra la plata se elige en el cobro, la seña, los dos
 modales de pago y el movimiento (`facturacion/_cuenta_elegir`, el mismo partial
 para todos); y **Movimientos** lista los del cajón y los de las cuentas, con su
@@ -2398,10 +2426,25 @@ filtro «Cuenta» y la columna «Dónde». Las cuatro fuentes viven en
 `App\Servicios\Movimientos`, que leen el listado, el modal de cada caja y el de
 cada cuenta.
 
-> **Volver a declarar el saldo es, literalmente, hacer el arqueo de la cuenta**:
-> `fn_cuenta_saldo` sólo mira lo posterior a esa fecha, así que lo anterior
-> queda cerrado. Vaciar el campo la devuelve a «sin declarar», que es una
-> respuesta válida.
+> **La cuenta se ARQUEA como la caja, y cada arqueo queda** (7.122.0, pedido
+> del usuario: *«Arqueos también debe hacer el arqueo de la cuenta bancaria, al
+> igual que Cajas»*). Hasta la 7.121.1 guardaba UN saldo declarado
+> (`saldo_declarado`) que se pisaba: volver a declararlo borraba el anterior y
+> no quedaba forma de saber si la cuenta había cuadrado. Ahora es
+> `arqueo_cuenta`, una fila por arqueo, y lo que se esperaba y la diferencia se
+> calculan —la regla número dos—. El guion de la 7.122.0 **migró cada saldo
+> declarado como primer arqueo**, sin responsable porque no se sabe quién fue.
+>
+> - **El primer arqueo no tiene esperado**: no hay contra qué compararlo.
+> - **Una diferencia pide motivo** (`Cuenta::arquear()`, 5 caracteres), igual
+>   que el cajón: sin eso es un número que nadie sabe explicar después.
+> - **Se hace desde la tarjeta o desde Arqueos**, con el mismo modal
+>   (`facturacion/_arqueo_cuenta_modal`), y vuelve a donde se hizo.
+> - **Ya no se «vacía»**: la 7.121.1 dejaba borrar el saldo declarado y volver a
+>   «sin declarar». Con historial eso sería borrar un arqueo, y un arqueo no se
+>   borra — es lo que dijo el banco ese día.
+>
+> Lo fija `ReglasDeNegocioTest::la_cuenta_bancaria_se_arquea_con_historial_desde_arqueos`.
 
 > **Lo que queda afuera, a propósito y conviene saberlo**: la TARJETA no suma a
 > ninguna cuenta —el posnet acredita al banco días después y con comisión, así
@@ -2589,10 +2632,15 @@ anotarlas es pedirle que se acuerde después.
 
 ##### Y se ven discriminadas en la tabla de citas
 
-- **En la fila de la agenda, un badge rojo por persona**, con su nombre adelante
-  **cuando la cita es de varias**. Con una sola el nombre sobra —es la de la
-  fila— y el badge queda exactamente como estaba. «Maní» a secas en una cita de
-  tres es media advertencia: no dice a quién no se le puede dar.
+- **En la fila de la agenda, con UNA persona alérgica, su badge rojo**, con su
+  nombre adelante cuando la cita es de varias. Con una sola persona en la cita
+  el nombre sobra —es la de la fila—. «Maní» a secas en una cita de tres es
+  media advertencia: no dice a quién no se le puede dar.
+- **Con DOS o más, un solo aviso: «⚠ N con alergias»** (7.122.0, pedido del
+  usuario: *«sólo deja el ícono de alerta para que el usuario mire Detalle, para
+  eso está allí»*). Es un botón que abre `#detCita{id}`, donde se leen una por
+  una; el `title` las nombra igual. La advertencia sigue en la fila —la regla
+  de la ayuda contextual—, lo que se va es el texto que saturaba.
 - **En el detalle van TODAS, incluidas las que no declararon ninguna**, porque
   ahí «sin registrar» ES una respuesta y un renglón en blanco se leería como que
   está todo bien.
@@ -2647,6 +2695,25 @@ asignados. **No se escriben horarios a mano**: se ficha con un botón y queda la
 (`ahora_bd()`, ver la sección *La hora*). El botón de Entrada se habilita solo dentro de la
 franja del turno, con una hora de gracia antes y dos después. Quien administra los turnos
 puede fichar por otro y marcar faltas; el Profesional solo ve y ficha lo suyo.
+
+**La lista va POR TURNO, y del local activo** (7.122.0, reportado: *«lo de
+asistencia es visualmente confuso en la vista de administrador»* y *«marqué
+presente desde la cuenta del profesional pero en admin no cambió de estado… o
+sobrescribió la entrada»*). Era una sola tabla con el turno escondido detrás de
+«Detalle», así que quien trabaja mañana y tarde aparecía dos veces igual y la
+entrada marcada en un turno no se veía en la fila del otro. Ahora:
+
+| | |
+|---|---|
+| Un bloque por turno (`.sgp-asis-turno`) | con su horario, su tolerancia y cuántos presentes, sin fichar, faltas y permisos |
+| Una palabra por fila | `PersonalController::estadoAsistencia()`: presente · permiso · falta · sin fichar |
+| Del local activo | la lista del día y «Últimos registros» filtran por `t.id_sucursal` |
+| Se actualiza sola | `@section('vivo', 'asistencia')`: lo que ficha la profesional desde su cuenta aparece en la pantalla de quien administra |
+| **Una falta no pisa una entrada** | si la persona ya fichó, «Falta» avisa y no escribe; para corregir está «Borrar», que es explícito |
+
+Lo fija `ReglasDeNegocioTest::una_falta_no_pisa_la_entrada_ya_fichada_y_la_lista_va_por_turno`.
+Y la atención elige el turno **que cubre la hora de la cita** (`CitasController::estadoFichaje`):
+con dos turnos el mismo día tomaba el primero, y pedía fichar el de la mañana para una cita de la tarde.
 
 ## Agenda y disponibilidad
 
@@ -3246,7 +3313,7 @@ porque de eso depende cómo se cuentan:
 | | `Pendientes` | `Alertas` |
 |---|---|---|
 | Qué dice | lo que falta **configurar** | lo que está **pasando** ahora |
-| Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta desde ayer, un producto al mínimo |
+| Ejemplo | un timbrado sin cargar, el correo del sistema | una caja abierta hace 24 horas o más, un producto al mínimo |
 | Cada cuánto cambia | una vez y no vuelve | todos los días |
 | En la bandeja | bajo **«Avisos»**, después | bajo **«Avisos»**, **primero** |
 | ¿Deja de contar al verlo? | **nunca** | sí |
@@ -4746,18 +4813,20 @@ Dos confusiones concretas que esto evita:
 - **Cada tarjeta trae los movimientos de SU caja**, del día, en un modal. Con
   dos cajones abiertos en el mismo local, leer el arqueo de uno con los
   movimientos del otro es peor que no verlos.
-- **Y la barra del Panel lista TODAS las abiertas del local, iguales para
-  todos.** Mostraba una sola —`Caja::abierta()`, que prefiere la que abrió
-  quien mira—, así que con dos cajones abiertos cada administrador veía una
-  caja distinta y un saldo distinto en el mismo panel, sin saber que había
-  otra; se reportó así. Ahora dice cuántas hay y lista cada una con su
-  responsable, desde cuándo y su saldo (`Caja::abiertasDe()`, que ganó
-  `fecha_apertura` y `saldo`), **ordenadas por nombre** y no por «la mía
-  primero»: lo que ve una persona es lo que ve la otra. La ve quien tiene
-  `facturacion.caja`, como antes. Lo fija
-  `ReglasDeNegocioTest::el_panel_lista_todas_las_cajas_abiertas_del_local_y_las_mismas_para_todos`,
+- **Y el Panel dice CUÁNTAS hay abiertas en el local, lo mismo para todos.**
+  Mostraba una sola —`Caja::abierta()`, que prefiere la que abrió quien mira—,
+  así que cada administrador veía otra caja (7.115.1 lo pasó a listarlas
+  todas); la 7.122.0 lo reduce a la cantidad con su acceso a Cajas, porque la
+  lista crecía con el salón. Lo fija
+  `ReglasDeNegocioTest::el_panel_cuenta_las_cajas_abiertas_y_las_cuentas_activas_sin_listarlas`,
   con dos cajones abiertos por dos personas distintas y el panel mirado como
   cada una.
+- **La caja abierta de más avisa a las 24 horas, no desde «ayer»**
+  (`sgp.caja.horas_abierta_aviso`, 7.122.0, pedido del usuario: *«así no se va
+  llenando la bandeja»*). Contaba desde el día anterior, así que una caja
+  abierta a las 19 ya sonaba a medianoche con el salón cerrado. Lo fija
+  `ReglasDeNegocioTest::la_caja_abierta_avisa_recien_a_las_24_horas`, en el
+  borde: a las 23 no, a las 25 sí.
 - **Toda fecha lleva su rótulo.** «26/08 09:15» al lado de un nombre se puede
   leer como el último movimiento, el cierre previsto o cualquier otra cosa: es
   la apertura, y la tarjeta lo dice con todas las letras. Vale igual para la
@@ -4998,6 +5067,15 @@ Cuatro cosas al tocarlo:
 - **El motivo se exige SÓLO cuando no cuadra.** Pedirlo siempre haría escribir
   «ok» todos los días, y con eso deja de significar algo. Una diferencia sin
   motivo es un número: al día siguiente nadie se acuerda de qué pasó.
+
+**Y Arqueos tiene dos pestañas, y desde las dos se ARQUEA** (7.122.0): **Cajas**
+—arriba, «Por arquear hoy» con las abiertas del local y su «Arqueo y cierre»— y
+**Cuentas bancarias** —las activas con «Primer arqueo» / «Hacer el arqueo», y el
+historial de `arqueo_cuenta` con esperado, lo que dijo el banco y la
+diferencia—. Los modales son **los mismos** de la tarjeta de Cajas y de la
+cuenta (`_arqueo_modal` y `_arqueo_cuenta_modal`, con `volver = arqueos`):
+escritos dos veces, un lado diría «esperado» con un número y el otro con otro.
+La pestaña de cuentas pide `facturacion.cuentas`.
 
 > **Ojo con la clase «Faltante de caja» de `movimiento_caja`.** Sigue
 > existiendo y sirve para lo que aparece **durante** el día; un faltante
@@ -5696,7 +5774,7 @@ Los dos motivos de usar siempre `mysqldump` y nunca el export de phpMyAdmin:
 Después de regenerarlo, comprobar que reproduce la base: cargarlo en una base vacía y contrastar
 tablas, vistas, rutinas, triggers y CHECKs contra `peluqueria_bd`.
 
-**Las 224 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
+**Las 229 pruebas corren contra `peluqueria_test`**, no contra una base de mentira: es la única
 forma de que signifiquen algo, porque lo que se está probando son las rutinas de la base.
 
 > **Nunca uses `RefreshDatabase`.** Borraría el esquema del TCC con sus 57 rutinas y sus 17
@@ -5718,7 +5796,7 @@ disparador, el circuito es este:
 3. **Regenerar `basededatos/peluqueria_bd(base).sql`** con `mysqldump` — en la misma tanda, no
    «después». Si queda atrás, el salón que instale el sistema arranca con un esquema que ya no
    es el que espera el código.
-4. Comprobar con `php artisan sgp:diagnostico` que siguen estando los 22 procedimientos, 43 funciones,
+4. Comprobar con `php artisan sgp:diagnostico` que siguen estando los 22 procedimientos, 46 funciones,
    17 triggers, 17 vistas y 88 `CHECK`, y que **la base coincide con el `.sql`**.
 
 > **Quien ya tenía el proyecto levantado NO recibe el esquema nuevo al actualizar.** El guion
@@ -5850,7 +5928,7 @@ Tres cosas que conviene hacer al tocar algo de esto:
 "C:/php/php.exe" artisan test          # o: docker compose exec app php artisan test
 ```
 
-**224 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
+**229 pruebas** contra `peluqueria_test`. No prueban PHP: prueban que **las reglas de la base
 se sigan cumpliendo**, que es donde vive el negocio.
 
 | Archivo | Qué cuida |

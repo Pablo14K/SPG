@@ -776,4 +776,37 @@ O el campo se renombró, o la entrada sobra.");
             . "\nAgregalas en AppServiceProvider::pasarLosSecretosAlServidorDeDesarrollo(),"
             . "\no la web va a verlas vacías mientras la consola las ve cargadas.");
     }
+
+    /**
+     * **Un modal con scroll no lo pierde por tener un formulario adentro.**
+     *
+     * Reportado en la 7.122.0: *«en cobros (ventana emergente) desapareció el
+     * deslizador y no se puede cobrar»*. `.modal-dialog-scrollable` sólo hace
+     * scrollear a `.modal-body` cuando es hijo DIRECTO de `.modal-content`,
+     * que es una columna flex; con un `<form>` en el medio, el cuerpo deja de
+     * estar acotado, la ventana crece más que la pantalla y el botón de cobrar
+     * queda fuera de alcance — sin ningún error. La ventana de cobro y la de la
+     * seña tienen justamente esa forma, porque el pie con el botón tiene que
+     * estar dentro del formulario.
+     *
+     * Se mide que la regla de `app.css` que le devuelve el flex al formulario
+     * siga ahí, y que haya al menos un modal con esa forma para que la regla
+     * signifique algo.
+     */
+    #[Test]
+    public function el_modal_con_scroll_no_lo_pierde_por_tener_un_formulario(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/app.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.modal-dialog-scrollable \.modal-content > form\{[^}]*display:flex[^}]*flex-direction:column[^}]*\}/', $css,
+            'El formulario dentro de un modal con scroll tiene que ser una columna flex, o el cuerpo no scrollea.');
+        $this->assertMatchesRegularExpression(
+            '/\.modal-dialog-scrollable \.modal-content > form > \.modal-body\{[^}]*overflow-y:auto[^}]*\}/', $css,
+            'Y el cuerpo de ese formulario es el que scrollea.');
+
+        $agenda = (string) file_get_contents(resource_path('views/citas/agenda.blade.php'));
+        $this->assertMatchesRegularExpression(
+            '/modal-dialog-scrollable">\s*<div class="modal-content">\s*<form/', $agenda,
+            'Premisa: la agenda tiene un modal con scroll y un formulario adentro — si ya no, esta guardia sobra.');
+    }
 }

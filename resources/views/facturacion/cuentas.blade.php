@@ -21,8 +21,8 @@
         <i class="bi bi-info-circle"></i>
         <strong>Acá no se cobra ni se paga nada</strong>: la plata entra con los cobros por
         transferencia y sale con los pagos y los movimientos, cada uno desde su pantalla.
-        Lo que se hace acá es cargar las cuentas, <strong>declarar cuánto dice el banco</strong>
-        —el arqueo— y elegir cuál ve la clienta al registrar su seña. No hay pasarela de
+        Lo que se hace acá es cargar las cuentas, <strong>hacer el arqueo</strong> —escribir
+        cuánto dice el banco— y elegir cuál ve la clienta al registrar su seña. No hay pasarela de
         pagos: la clienta transfiere por su cuenta y sube el comprobante.
     </p>
 </div>
@@ -98,25 +98,25 @@
                     <div><span class="text-muted-warm">A nombre de:</span> {{ $c->titular }}</div>
                 </div>
 
-                {{-- **El saldo, que es el arqueo de la cuenta.** Parte de lo que el
-                     salón declaró y suma lo que entró y resta lo que salió desde
-                     entonces. **Sin declarar NO es cero**: es «no se sabe», y la
-                     campanita lo pide. --}}
+                {{-- **El saldo, que sale del último arqueo.** Parte de lo que dijo el
+                     banco en el último arqueo y suma lo que entró y resta lo que salió
+                     desde entonces. **Sin arqueo NO es cero**: es «no se sabe», y la
+                     campanita lo pide. El historial está en Arqueos (7.122.0). --}}
                 <div class="mt-3">
                     <div class="text-muted-warm" style="font-size:.8rem">Saldo según el sistema</div>
                     @if ($c->saldo === null)
                         <div class="txt-no" style="font-size:.95rem">
-                            <i class="bi bi-exclamation-triangle"></i> Sin saldo declarado
+                            <i class="bi bi-exclamation-triangle"></i> Sin arqueo todavía
                         </div>
                         <div class="text-muted-warm" style="font-size:.78rem">
-                            Hasta que lo declares, el sistema no puede decir cuánto hay ni
+                            Hasta el primer arqueo, el sistema no puede decir cuánto hay ni
                             avisar si un pago no alcanza.
                         </div>
                     @else
                         <div class="val oro" style="font-size:1.35rem">{{ money($c->saldo) }}</div>
                         <div class="text-muted-warm" style="font-size:.78rem">
-                            Declaraste {{ money($c->saldo_declarado) }} el
-                            {{ fecha($c->saldo_declarado_en, 'd/m/Y') }} a las {{ fecha($c->saldo_declarado_en, 'H:i') }};
+                            Último arqueo: {{ money($c->ultimo_arqueo_monto) }} el
+                            {{ fecha($c->ultimo_arqueo_en, 'd/m/Y') }} a las {{ fecha($c->ultimo_arqueo_en, 'H:i') }};
                             desde ahí se suma lo que entró y se resta lo que salió.
                         </div>
                     @endif
@@ -142,8 +142,8 @@
                     @endif
                     @if ($c->activo)
                         <button type="button" class="btn btn-sm {{ $c->saldo === null ? 'btn-oro' : 'btn-outline-neutro' }}"
-                                data-bs-toggle="modal" data-bs-target="#modalSaldo{{ $c->id_cuenta }}">
-                            <i class="bi bi-cash-stack"></i> {{ $c->saldo === null ? 'Declarar saldo' : 'Actualizar saldo' }}</button>
+                                data-bs-toggle="modal" data-bs-target="#modalArqueoCta{{ $c->id_cuenta }}">
+                            <i class="bi bi-calculator"></i> {{ $c->saldo === null ? 'Primer arqueo' : 'Arqueo' }}</button>
 
                         {{-- **Usar para señas**: cuál ve la clienta. Es un interruptor
                              por cuenta, y puede haber varias marcadas —el banco y la
@@ -209,54 +209,7 @@
         </div>
 
         @if ($c->activo)
-            <div class="modal fade" id="modalSaldo{{ $c->id_cuenta }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <form method="post" action="{{ route('facturacion.cuentas.saldo') }}">
-                            @csrf
-                            <input type="hidden" name="id_cuenta" value="{{ $c->id_cuenta }}">
-                            <div class="modal-header">
-                                <h2 class="modal-title fs-5"><i class="bi bi-cash-stack"></i> El arqueo de {{ $c->entidad }}</h2>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p class="text-muted-warm" style="font-size:.88rem">
-                                    Mirá el saldo en tu banco y escribilo acá. Desde este momento el
-                                    sistema le suma los cobros por transferencia y le descuenta los
-                                    pagos, así que antes de liquidar te puede decir si alcanza.
-                                </p>
-
-                                <label class="form-label" for="saldo{{ $c->id_cuenta }}">
-                                    ¿Cuánto dice el banco que hay?</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">{{ config('sgp.moneda') }}</span>
-                                    <input class="form-control input-miles" id="saldo{{ $c->id_cuenta }}"
-                                           name="saldo" data-min="0"
-                                           value="{{ $c->saldo_declarado === null ? '' : monto_input($c->saldo_declarado) }}">
-                                </div>
-                                <div class="form-text">
-                                    Dejalo <strong>vacío</strong> si preferís no declararlo: el sistema
-                                    deja de avisar en vez de avisar con un número que nadie comprobó.
-                                </div>
-
-                                @if ($c->saldo !== null)
-                                    <div class="alert alert-warning py-2 mt-3 mb-0" style="font-size:.85rem">
-                                        Hoy el sistema calcula <strong>{{ money($c->saldo) }}</strong>:
-                                        los {{ money($c->saldo_declarado) }} que declaraste el
-                                        {{ fecha($c->saldo_declarado_en) }} más lo que entró y menos lo que
-                                        salió desde entonces. Un depósito hecho por fuera no lo ve: si el
-                                        banco dice otra cosa, escribí lo que dice el banco.
-                                    </div>
-                                @endif
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-neutro" data-bs-dismiss="modal">Cancelar</button>
-                                <button class="btn btn-oro">Guardar el saldo</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @include('facturacion._arqueo_cuenta_modal', ['c' => $c, 'volver' => 'cuentas'])
 
             @if (Permisos::puede('facturacion.movimientos'))
                 <div class="modal fade" id="modalMovsCta{{ $c->id_cuenta }}" tabindex="-1" aria-hidden="true">

@@ -2,6 +2,11 @@
 
 @section('titulo', 'Asistencia')
 
+{{-- **Se actualiza sola** (7.122.0): la profesional ficha desde su cuenta y
+     quien administra tiene esta planilla abierta en otra computadora. Sin
+     esto la seguía viendo «Sin fichar» hasta recargar. --}}
+@section('vivo', 'asistencia')
+
 @section('contenido')
     <x-encabezado sub="Quiénes trabajan hoy, según el turno que tienen asignado. <strong>No se escriben horarios a mano</strong>: se ficha con un botón y queda la hora del clic." />
 
@@ -19,177 +24,216 @@
         </form>
     </div>
 
-    <div class="sgp-panel">
-        <div class="table-responsive sgp-tabla-movil">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Profesional</th><th>Entrada</th><th>Salida</th>
-                        <th>Estado</th><th class="text-end">Fichar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($filas as $f)
+    {{-- **Cuántos vinieron, de un vistazo.** Con las filas sueltas había que
+         contar badges para saber cómo venía el día. --}}
+    @if ($filas)
+        <div class="sgp-metrics sgp-metrics-compacto mb-3">
+            <div class="sgp-metric">
+                <div class="lbl">{{ $porOtros ? 'Turnos de hoy' : 'Tus turnos' }}</div>
+                <div class="val">{{ count($filas) }}</div>
+            </div>
+            <div class="sgp-metric">
+                <div class="lbl">Presentes</div>
+                <div class="val txt-ok">{{ $cuenta['presente'] }}</div>
+            </div>
+            <div class="sgp-metric">
+                <div class="lbl">Sin fichar</div>
+                <div class="val">{{ $cuenta['sin_fichar'] }}</div>
+            </div>
+            <div class="sgp-metric">
+                <div class="lbl">Faltas</div>
+                <div class="val {{ $cuenta['falta'] ? 'txt-no' : '' }}">{{ $cuenta['falta'] }}</div>
+                @if ($cuenta['permiso'])
+                    <div class="sgp-metric-pie">+ {{ $cuenta['permiso'] }} con permiso</div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    {{-- **Un bloque por TURNO, con el turno a la vista** (7.122.0). Era una sola
+         tabla con el turno escondido detrás de «Detalle»: quien trabaja mañana y
+         tarde aparecía dos veces con el mismo nombre, y la entrada marcada en un
+         turno no se veía en la fila del otro — «en la vista de admin no cambió». --}}
+    @forelse ($turnos as $t)
+        <div class="sgp-panel mb-3 sgp-asis-turno">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <h2 class="sgp-form-titulo mb-0">
+                    <i class="bi bi-clock"></i> {{ $t->nombre }}
+                    <span class="text-muted-warm" style="font-size:.85rem;font-weight:400">
+                        {{ substr((string) $t->hora_inicio, 0, 5) }} a {{ substr((string) $t->hora_fin, 0, 5) }}
+                        · tolerancia {{ $t->tolerancia }} min</span>
+                </h2>
+                <div class="d-flex gap-1 flex-wrap" style="font-size:.78rem">
+                    <span class="badge-estado e-ok">{{ $t->cuenta['presente'] }} presente{{ $t->cuenta['presente'] === 1 ? '' : 's' }}</span>
+                    @if ($t->cuenta['sin_fichar'])
+                        <span class="badge-estado e-muted">{{ $t->cuenta['sin_fichar'] }} sin fichar</span>
+                    @endif
+                    @if ($t->cuenta['falta'])
+                        <span class="badge-estado e-no">{{ $t->cuenta['falta'] }} falta{{ $t->cuenta['falta'] === 1 ? '' : 's' }}</span>
+                    @endif
+                    @if ($t->cuenta['permiso'])
+                        <span class="badge-estado e-warn">{{ $t->cuenta['permiso'] }} con permiso</span>
+                    @endif
+                </div>
+            </div>
+
+            <div class="table-responsive sgp-tabla-movil">
+                <table class="table align-middle mb-0">
+                    <thead>
                         <tr>
-                            <td class="sgp-movil-titulo" data-label="Profesional">{{ $f->profesional }}</td>
-                            <td data-label="Entrada">{{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
-                            <td data-label="Salida">
-                                {{ $f->hora_salida ? substr((string) $f->hora_salida, 0, 5) : '—' }}
-                                @if ((float) ($f->horas_extras ?? 0) > 0)
-                                    <div class="text-muted-warm" style="font-size:.72rem">
-                                        +{{ cant($f->horas_extras) }} h extra
-                                    </div>
-                                @endif
-                            </td>
-                            <td data-label="Estado">
-                                @if ($f->justificada === null && $f->hora_entrada)
-                                    <span class="badge-estado e-ok">Presente</span>
-                                @elseif ((int) $f->justificada === 1)
-                                    <span class="badge-estado e-warn">
-                                        {{ str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:')
-                                            ? 'Llegada tardía justificada' : 'Falta con permiso' }}</span>
-                                    <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
-                                @elseif ((int) $f->justificada === 0 && $f->id_asistencia)
-                                    <span class="badge-estado e-no">Falta sin aviso</span>
-                                    @if ($f->motivo_ausencia)
-                                        <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
-                                    @endif
-                                @else
-                                    <span class="badge-estado e-muted">Sin fichar</span>
-                                @endif
-                            </td>
-                            <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
-                                <button class="sgp-btn-detalle" data-bs-toggle="collapse"
-                                        data-bs-target="#detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}" aria-expanded="false">
-                                    <i class="bi bi-chevron-down"></i> Detalle
-                                </button>
-                                @php
-                                    $mio = (int) $f->id_usuario === $yo;
-                                    // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
-                                    // la hora la pone quien corrige. La del reloj es de otro día.
-                                    $corrige = $fecha < $hoy;
-                                    // **Pasada la franja, el botón no se ofrece.** La regla
-                                    // ya la hacía cumplir el servidor, pero la pantalla lo
-                                    // mostraba igual y el rechazo llegaba después de
-                                    // apretarlo: un botón que no puede hacer nada promete
-                                    // algo que no cumple. Con un día anterior se sigue
-                                    // pudiendo corregir la planilla, que es otra cosa.
-                                    $cerrado = ! $corrige && ! empty($f->fuera);
-                                    $entradaTardiaJustificada = ! $f->hora_entrada
-                                        && (int) ($f->justificada ?? -1) === 1
-                                        && str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:');
-                                @endphp
-                                @if ($cerrado)
-                                    <span class="text-muted-warm" style="font-size:.78rem"
-                                          title="{{ $f->fuera }}">
-                                        <i class="bi bi-clock-history"></i> fuera de horario</span>
-                                @endif
-                                @if ($porOtros || $mio)
-                                    @if (! $cerrado && ! $f->hora_entrada
-                                         && ($f->justificada === null || $entradaTardiaJustificada))
-                                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
-                                            @csrf
-                                            <input type="hidden" name="accion" value="entrada">
-                                            <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
-                                            <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
-                                            <input type="hidden" name="fecha" value="{{ $fecha }}">
-                                            @if ($corrige)
-                                                <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
-                                                       style="width:105px" required
-                                                       min="{{ substr((string) $f->hora_inicio, 0, 5) }}"
-                                                       max="{{ substr((string) $f->hora_fin, 0, 5) }}"
-                                                       value="{{ substr((string) $f->hora_inicio, 0, 5) }}"
-                                                       title="Hora real de entrada de ese día">
+                            <th>Profesional</th><th>Estado</th><th>Entrada</th><th>Salida</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($t->filas as $f)
+                            @php
+                                $mio = (int) $f->id_usuario === $yo;
+                                // Un día que ya pasó no se ficha: se corrige la planilla, y ahí
+                                // la hora la pone quien corrige. La del reloj es de otro día.
+                                $corrige = $fecha < $hoy;
+                                // **Pasada la franja, el botón no se ofrece.** La regla la hace
+                                // cumplir el servidor; un botón que no puede hacer nada promete
+                                // algo que no cumple.
+                                $cerrado = ! $corrige && ! empty($f->fuera);
+                                $entradaTardiaJustificada = $f->tardia_justificada;
+                            @endphp
+                            <tr>
+                                <td class="sgp-movil-titulo" data-label="Profesional">
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <x-avatar :foto="$f->foto" :nombre="$f->pnombre" :apellido="$f->papellido" />
+                                        <span>{{ $f->profesional }}@if ($mio) <span class="text-muted-warm" style="font-size:.78rem">(vos)</span>@endif</span>
+                                    </span>
+                                </td>
+                                <td data-label="Estado">
+                                    @switch ($f->estado)
+                                        @case ('presente')
+                                            <span class="badge-estado e-ok"><i class="bi bi-check2"></i>
+                                                {{ $f->hora_salida ? 'Vino y ya salió' : 'Presente' }}</span>
+                                            @if ($entradaTardiaJustificada || str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:'))
+                                                <div class="text-muted-warm" style="font-size:.72rem">con llegada tardía justificada</div>
                                             @endif
-                                            <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i>
-                                                {{ $entradaTardiaJustificada ? 'Entrada justificada' : 'Entrada' }}</button>
-                                        </form>
-                                    @elseif (! $cerrado && $f->hora_entrada && ! $f->hora_salida)
-                                        <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
-                                            @csrf
-                                            <input type="hidden" name="accion" value="salida">
-                                            <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
-                                            <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
-                                            <input type="hidden" name="fecha" value="{{ $fecha }}">
-                                            @if ($corrige)
-                                                <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
-                                                       style="width:105px" required
-                                                       min="{{ substr((string) $f->hora_entrada, 0, 5) }}"
-                                                       max="{{ substr((string) $f->hora_fin, 0, 5) }}"
-                                                       value="{{ substr((string) $f->hora_fin, 0, 5) }}"
-                                                       title="Hora real de salida de ese día">
+                                            @break
+                                        @case ('permiso')
+                                            <span class="badge-estado e-warn">
+                                                {{ str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:')
+                                                    ? 'Llegada tardía justificada' : 'Falta con permiso' }}</span>
+                                            @if ($f->motivo_ausencia)
+                                                <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
                                             @endif
-                                            <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-right"></i> Salida</button>
-                                        </form>
+                                            @break
+                                        @case ('falta')
+                                            <span class="badge-estado e-no">Falta sin aviso</span>
+                                            @if ($f->motivo_ausencia)
+                                                <div class="text-muted-warm" style="font-size:.72rem">{{ $f->motivo_ausencia }}</div>
+                                            @endif
+                                            @break
+                                        @default
+                                            <span class="badge-estado e-muted">Sin fichar</span>
+                                            @if ($cerrado)
+                                                <div class="text-muted-warm" style="font-size:.72rem" title="{{ $f->fuera }}">
+                                                    <i class="bi bi-clock-history"></i> fuera de horario</div>
+                                            @endif
+                                    @endswitch
+                                </td>
+                                <td data-label="Entrada" style="font-variant-numeric:tabular-nums">
+                                    {{ $f->hora_entrada ? substr((string) $f->hora_entrada, 0, 5) : '—' }}</td>
+                                <td data-label="Salida" style="font-variant-numeric:tabular-nums">
+                                    {{ $f->hora_salida ? substr((string) $f->hora_salida, 0, 5) : '—' }}
+                                    @if ((float) ($f->horas_extras ?? 0) > 0)
+                                        <div class="text-muted-warm" style="font-size:.72rem">
+                                            +{{ cant($f->horas_extras) }} h extra
+                                        </div>
                                     @endif
+                                </td>
+                                <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
+                                    @if ($porOtros || $mio)
+                                        @if (! $cerrado && ! $f->hora_entrada
+                                             && ($f->justificada === null || $entradaTardiaJustificada))
+                                            <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="accion" value="entrada">
+                                                <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
+                                                <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
+                                                <input type="hidden" name="fecha" value="{{ $fecha }}">
+                                                @if ($corrige)
+                                                    <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
+                                                           style="width:105px" required
+                                                           min="{{ substr((string) $f->hora_inicio, 0, 5) }}"
+                                                           max="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                           value="{{ substr((string) $f->hora_inicio, 0, 5) }}"
+                                                           title="Hora real de entrada de ese día">
+                                                @endif
+                                                <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-in-right"></i>
+                                                    {{ $entradaTardiaJustificada ? 'Entrada justificada' : 'Marcar entrada' }}</button>
+                                            </form>
+                                        @elseif (! $cerrado && $f->hora_entrada && ! $f->hora_salida)
+                                            <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="accion" value="salida">
+                                                <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
+                                                <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
+                                                <input type="hidden" name="fecha" value="{{ $fecha }}">
+                                                @if ($corrige)
+                                                    <input type="time" name="hora" class="form-control form-control-sm d-inline-block"
+                                                           style="width:105px" required
+                                                           min="{{ substr((string) $f->hora_entrada, 0, 5) }}"
+                                                           max="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                           value="{{ substr((string) $f->hora_fin, 0, 5) }}"
+                                                           title="Hora real de salida de ese día">
+                                                @endif
+                                                <button class="btn btn-sm btn-oro"><i class="bi bi-box-arrow-right"></i> Marcar salida</button>
+                                            </form>
+                                        @endif
 
-                                    @if ($porOtros)
-                                        {{-- **Con nombre, no sólo el ícono.** Eran dos
-                                             botones neutros seguidos —un monigote y una
-                                             goma— y había que pasar el mouse por encima
-                                             para saber cuál borraba. --}}
-                                        <button class="btn btn-sm btn-outline-neutro" title="Registrar que no vino"
-                                                data-bs-toggle="modal" data-bs-target="#modalFalta{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                            <i class="bi bi-person-x"></i> Falta</button>
+                                        {{-- **Falta sólo donde todavía no hay entrada.** Sobre una
+                                             fila que ya fichó, marcar la falta borraba la entrada;
+                                             el servidor también lo rechaza. --}}
+                                        @if ($porOtros && ! $f->hora_entrada && $f->estado === 'sin_fichar')
+                                            <button class="btn btn-sm btn-outline-neutro" title="Registrar que no vino"
+                                                    data-bs-toggle="modal" data-bs-target="#modalFalta{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                                <i class="bi bi-person-x"></i> Falta</button>
+                                        @endif
 
-                                        @if ($f->id_asistencia)
+                                        @if (\App\Servicios\Permisos::esAdmin() && ! $f->hora_entrada && $f->id_asistencia
+                                             && (int) ($f->justificada ?? -1) === 0)
+                                            <button class="btn btn-sm btn-outline-neutro" title="Darle el permiso y registrar por qué"
+                                                    data-bs-toggle="modal" data-bs-target="#modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}">
+                                                <i class="bi bi-chat-square-text"></i> Justificar</button>
+                                        @endif
+
+                                        @if ($porOtros && $f->id_asistencia)
                                             <form method="post" action="{{ route('seguridad.asistencia.marcar') }}" class="d-inline">
                                                 @csrf
                                                 <input type="hidden" name="accion" value="limpiar">
                                                 <input type="hidden" name="id_usuario" value="{{ $f->id_usuario }}">
                                                 <input type="hidden" name="id_turno" value="{{ $f->id_turno }}">
                                                 <input type="hidden" name="fecha" value="{{ $fecha }}">
-                                                <button class="btn btn-sm btn-outline-neutro" title="Borrar lo registrado y dejar el turno como si nada"
-                                                        data-confirmar="¿Borrar lo registrado de {{ $f->profesional }} para ese turno?">
-                                                    <i class="bi bi-eraser txt-no"></i> Borrar</button>
+                                                <button class="btn btn-sm btn-outline-neutro sgp-btn-ico" title="Borrar lo registrado"
+                                                        data-confirmar="¿Borrar lo registrado de {{ $f->profesional }} en el {{ $t->nombre }}? El turno queda como si nada.">
+                                                    <i class="bi bi-eraser txt-no"></i></button>
                                             </form>
                                         @endif
                                     @endif
-
-                                    @if (! $f->hora_entrada && $f->id_asistencia
-                                         && (int) ($f->justificada ?? -1) === 0)
-                                        <button class="btn btn-sm btn-outline-neutro" title="Darle el permiso y registrar por qué"
-                                                data-bs-toggle="modal" data-bs-target="#modalJustificar{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                            <i class="bi bi-chat-square-text"></i> Justificar</button>
-                                    @endif
-                                @endif
-                            </td>
-                        </tr>
-                        <tr class="sgp-fila-detalle">
-                            <td colspan="5">
-                                <div class="collapse" id="detAsis{{ $f->id_usuario }}_{{ $f->id_turno }}">
-                                    <div class="sgp-det-cuerpo">
-                                        <div class="sgp-det-grid">
-                                            <div>
-                                                <dt>Turno y Sucursal</dt>
-                                                <dd>
-                                                    {{ $f->turno }} · {{ $f->sucursal }}<br>
-                                                    {{ substr((string) $f->hora_inicio, 0, 5) }} a {{ substr((string) $f->hora_fin, 0, 5) }} (tolerancia {{ (int) ($f->flexibilidad_entrada_min ?? 15) }} min)
-                                                </dd>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5">
-                                <div class="sgp-vacio">
-                                    <i class="bi bi-calendar-check"></i>
-                                    <div class="t">Ese día no trabaja nadie.</div>
-                                    <div class="d">
-                                        Depende de los turnos asignados. Si falta alguien, revisá su ficha
-                                        en Usuarios o el turno en Turnos.
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+    @empty
+        <div class="sgp-panel mb-3">
+            <div class="sgp-vacio">
+                <i class="bi bi-calendar-check"></i>
+                <div class="t">Ese día no trabaja nadie en este local.</div>
+                <div class="d">
+                    Depende de los turnos asignados. Si falta alguien, revisá su ficha
+                    en Usuarios o el turno en Turnos.
+                </div>
+            </div>
+        </div>
+    @endforelse
 
     {{-- Marcar falta: constatar que no vino. El permiso se da después. --}}
     @if ($porOtros)
@@ -334,12 +378,15 @@
             <div class="table-responsive sgp-tabla-movil">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
-                        <tr><th>Fecha</th><th>Profesional</th><th>Entrada</th><th>Salida</th><th>Estado</th><th class="text-end"></th></tr>
+                        <tr><th>Fecha</th><th>Turno</th><th>Profesional</th><th>Entrada</th><th>Salida</th><th>Estado</th></tr>
                     </thead>
                     <tbody>
                         @foreach ($rows as $r)
                             <tr>
                                 <td class="sgp-movil-titulo" data-label="Fecha">{{ fecha($r->fecha, 'd/m/Y') }}</td>
+                                {{-- El turno en su columna y no detrás de «Detalle»: con dos
+                                     turnos el mismo día, sin él las dos filas se leen iguales. --}}
+                                <td class="text-muted-warm" data-label="Turno">{{ $r->turno }}</td>
                                 <td data-label="Profesional">{{ $r->profesional }}</td>
                                 <td data-label="Entrada">{{ $r->hora_entrada ? substr((string) $r->hora_entrada, 0, 5) : '—' }}</td>
                                 <td data-label="Salida">{{ $r->hora_salida ? substr((string) $r->hora_salida, 0, 5) : '—' }}</td>
@@ -351,26 +398,6 @@
                                     @else
                                         <span class="badge-estado e-no">Sin aviso</span>
                                     @endif
-                                </td>
-                                <td class="text-end sgp-movil-acciones" style="white-space:nowrap">
-                                    <button class="sgp-btn-detalle" data-bs-toggle="collapse"
-                                            data-bs-target="#detUltAsis{{ $loop->index }}" aria-expanded="false">
-                                        <i class="bi bi-chevron-down"></i> Detalle
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr class="sgp-fila-detalle">
-                                <td colspan="6">
-                                    <div class="collapse" id="detUltAsis{{ $loop->index }}">
-                                        <div class="sgp-det-cuerpo">
-                                            <div class="sgp-det-grid">
-                                                <div>
-                                                    <dt>Turno</dt>
-                                                    <dd>{{ $r->turno }}</dd>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </td>
                             </tr>
                         @endforeach

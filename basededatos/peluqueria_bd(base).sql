@@ -43,6 +43,39 @@ LOCK TABLES `alerta_vista` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `arqueo_cuenta`
+--
+
+DROP TABLE IF EXISTS `arqueo_cuenta`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `arqueo_cuenta` (
+  `id_arqueo_cuenta` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_cuenta` int(10) unsigned NOT NULL,
+  `fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `monto_contado` decimal(14,2) NOT NULL,
+  `id_usuario` int(10) unsigned DEFAULT NULL,
+  `motivo_diferencia` varchar(255) DEFAULT NULL,
+  `observacion` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_arqueo_cuenta`),
+  KEY `ix_arqcta_cuenta` (`id_cuenta`,`fecha`),
+  KEY `ix_arqcta_usuario` (`id_usuario`),
+  CONSTRAINT `fk_arqcta_cuenta` FOREIGN KEY (`id_cuenta`) REFERENCES `cuenta_bancaria` (`id_cuenta`),
+  CONSTRAINT `fk_arqcta_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`),
+  CONSTRAINT `chk_arqcta_monto` CHECK (`monto_contado` >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `arqueo_cuenta`
+--
+
+LOCK TABLES `arqueo_cuenta` WRITE;
+/*!40000 ALTER TABLE `arqueo_cuenta` DISABLE KEYS */;
+/*!40000 ALTER TABLE `arqueo_cuenta` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `asistencia`
 --
 
@@ -1112,8 +1145,6 @@ CREATE TABLE `cuenta_bancaria` (
   `alias` varchar(60) DEFAULT NULL,
   `alias_tipo` varchar(10) DEFAULT NULL,
   `observacion` varchar(200) DEFAULT NULL,
-  `saldo_declarado` decimal(14,2) DEFAULT NULL,
-  `saldo_declarado_en` datetime DEFAULT NULL,
   `orden` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `activo` tinyint(1) NOT NULL DEFAULT 1,
   `para_senas` tinyint(1) NOT NULL DEFAULT 0,
@@ -1125,8 +1156,7 @@ CREATE TABLE `cuenta_bancaria` (
   CONSTRAINT `fk_cuenta_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursal` (`id_sucursal`),
   CONSTRAINT `chk_cuenta_entidad` CHECK (char_length(trim(`entidad`)) >= 2),
   CONSTRAINT `chk_cuenta_titular` CHECK (char_length(trim(`titular`)) >= 3),
-  CONSTRAINT `chk_cuenta_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL')),
-  CONSTRAINT `chk_cuenta_saldo` CHECK (`saldo_declarado` is null and `saldo_declarado_en` is null or `saldo_declarado` is not null and `saldo_declarado_en` is not null and `saldo_declarado` >= 0)
+  CONSTRAINT `chk_cuenta_alias_tipo` CHECK (`alias_tipo` is null or `alias_tipo` in ('CI','RUC','CELULAR','EMAIL'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -3624,6 +3654,84 @@ UNLOCK TABLES;
 --
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_arqueo_cuenta_diferencia` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_arqueo_cuenta_diferencia`(p_id_arqueo INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  
+  
+  DECLARE v_contado  DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_esperado DECIMAL(14,2) DEFAULT NULL;
+
+  SELECT monto_contado INTO v_contado FROM arqueo_cuenta WHERE id_arqueo_cuenta = p_id_arqueo;
+  SET v_esperado = fn_arqueo_cuenta_esperado(p_id_arqueo);
+
+  IF v_contado IS NULL OR v_esperado IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN v_contado - v_esperado;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_arqueo_cuenta_esperado` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_arqueo_cuenta_esperado`(p_id_arqueo INT UNSIGNED) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  
+  
+  
+  DECLARE v_cuenta INT UNSIGNED DEFAULT NULL;
+  DECLARE v_fecha  DATETIME DEFAULT NULL;
+  DECLARE v_prev   DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_pfecha DATETIME DEFAULT NULL;
+
+  SELECT id_cuenta, fecha INTO v_cuenta, v_fecha
+    FROM arqueo_cuenta WHERE id_arqueo_cuenta = p_id_arqueo;
+
+  IF v_cuenta IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT monto_contado, fecha INTO v_prev, v_pfecha
+    FROM arqueo_cuenta
+   WHERE id_cuenta = v_cuenta
+     AND (fecha < v_fecha OR (fecha = v_fecha AND id_arqueo_cuenta < p_id_arqueo))
+   ORDER BY fecha DESC, id_arqueo_cuenta DESC
+   LIMIT 1;
+
+  IF v_prev IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN v_prev + fn_cuenta_movido(v_cuenta, v_pfecha, v_fecha);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_caja_diferencia` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4377,6 +4485,58 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP FUNCTION IF EXISTS `fn_cuenta_movido` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cuenta_movido`(p_id_cuenta INT UNSIGNED, p_desde DATETIME, p_hasta DATETIME) RETURNS decimal(14,2)
+    READS SQL DATA
+BEGIN
+  
+  
+  
+  
+  DECLARE v_cobros DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_ing    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_egr    DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_prov   DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_pers   DECIMAL(14,2) DEFAULT 0;
+
+  SELECT COALESCE(SUM(co.monto), 0) INTO v_cobros
+    FROM cobro co
+   WHERE co.id_cuenta = p_id_cuenta AND co.id_estado_cobro = 1
+     AND co.fecha >= p_desde AND (p_hasta IS NULL OR co.fecha < p_hasta);
+
+  SELECT COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto END), 0),
+         COALESCE(SUM(CASE WHEN tipo = 'EGRESO'  THEN monto END), 0)
+    INTO v_ing, v_egr
+    FROM movimiento_caja
+   WHERE id_cuenta = p_id_cuenta AND activo = 1
+     AND fecha >= p_desde AND (p_hasta IS NULL OR fecha < p_hasta);
+
+  SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
+    FROM pago_proveedor pp
+   WHERE pp.id_cuenta = p_id_cuenta AND pp.id_estado_pago_proveedor = 1
+     AND pp.fecha >= p_desde AND (p_hasta IS NULL OR pp.fecha < p_hasta);
+
+  SELECT COALESCE(SUM(fn_pago_personal_monto(pg.id_pago_personal)), 0) INTO v_pers
+    FROM pago_personal pg
+   WHERE pg.id_cuenta = p_id_cuenta AND pg.id_estado_pago = 1
+     AND pg.fecha >= p_desde AND (p_hasta IS NULL OR pg.fecha < p_hasta);
+
+  RETURN v_cobros + v_ing - v_egr - v_prov - v_pers;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 /*!50003 DROP FUNCTION IF EXISTS `fn_cuenta_saldo` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -4388,51 +4548,22 @@ DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_cuenta_saldo`(p_id_cuenta INT UNSIGNED) RETURNS decimal(14,2)
     READS SQL DATA
 BEGIN
-  DECLARE v_base   DECIMAL(14,2) DEFAULT NULL;
-  DECLARE v_desde  DATETIME DEFAULT NULL;
-  DECLARE v_cobros DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_ing    DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_egr    DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_prov   DECIMAL(14,2) DEFAULT 0;
-  DECLARE v_pers   DECIMAL(14,2) DEFAULT 0;
-
-  SELECT saldo_declarado, saldo_declarado_en INTO v_base, v_desde
-  FROM cuenta_bancaria WHERE id_cuenta = p_id_cuenta;
-
   
-  IF v_base IS NULL OR v_desde IS NULL THEN
+  
+  DECLARE v_base  DECIMAL(14,2) DEFAULT NULL;
+  DECLARE v_desde DATETIME DEFAULT NULL;
+
+  SELECT monto_contado, fecha INTO v_base, v_desde
+    FROM arqueo_cuenta
+   WHERE id_cuenta = p_id_cuenta
+   ORDER BY fecha DESC, id_arqueo_cuenta DESC
+   LIMIT 1;
+
+  IF v_base IS NULL THEN
     RETURN NULL;
   END IF;
 
-  
-  
-  SELECT COALESCE(SUM(co.monto), 0) INTO v_cobros
-  FROM cobro co
-  WHERE co.id_cuenta = p_id_cuenta
-    AND co.id_estado_cobro = 1
-    AND co.fecha >= v_desde;
-
-  
-  
-  SELECT COALESCE(SUM(CASE WHEN tipo = 'INGRESO' THEN monto END), 0),
-         COALESCE(SUM(CASE WHEN tipo = 'EGRESO'  THEN monto END), 0)
-    INTO v_ing, v_egr
-  FROM movimiento_caja
-  WHERE id_cuenta = p_id_cuenta AND activo = 1 AND fecha >= v_desde;
-
-  SELECT COALESCE(SUM(fn_pago_proveedor_monto(pp.id_pago_proveedor)), 0) INTO v_prov
-  FROM pago_proveedor pp
-  WHERE pp.id_cuenta = p_id_cuenta
-    AND pp.id_estado_pago_proveedor = 1
-    AND pp.fecha >= v_desde;
-
-  SELECT COALESCE(SUM(fn_pago_personal_monto(pg.id_pago_personal)), 0) INTO v_pers
-  FROM pago_personal pg
-  WHERE pg.id_cuenta = p_id_cuenta
-    AND pg.id_estado_pago = 1
-    AND pg.fecha >= v_desde;
-
-  RETURN v_base + v_cobros + v_ing - v_egr - v_prov - v_pers;
+  RETURN v_base + fn_cuenta_movido(p_id_cuenta, v_desde, NULL);
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -6755,4 +6886,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-12 15:21:30
+-- Dump completed on 2026-09-12 20:34:08

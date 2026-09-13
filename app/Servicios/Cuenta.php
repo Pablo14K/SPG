@@ -25,9 +25,9 @@ use Illuminate\Support\Facades\DB;
  * más de lo que dice —un depósito hecho por fuera— y por eso el control de
  * los pagos **avisa y no bloquea**, al revés que el efectivo, que es exacto.
  *
- * **NULL no es cero.** Una cuenta que nadie declaró no vale «está vacía»:
+ * **NULL no es cero.** Una cuenta que nadie arqueó no vale «está vacía»:
  * vale «no se sabe», y entonces no hay nada que avisar — y la campanita dice
- * que falta declararla.
+ * que falta hacerle el arqueo.
  */
 class Cuenta
 {
@@ -47,7 +47,7 @@ class Cuenta
 
     /**
      * Las cuentas de un local, con lo que el sistema puede afirmar de cada una.
-     * `saldo` viene en NULL cuando nadie la declaró.
+     * `saldo` viene en NULL cuando nadie le hizo el arqueo.
      *
      * Con `$soloActivas` en falso trae también las dadas de baja: es lo que
      * dibuja la pantalla que las administra, donde una cuenta desactivada se
@@ -62,8 +62,16 @@ class Cuenta
         return DB::select(
             'SELECT d.id_cuenta, d.id_sucursal, d.id_metodo_pago, d.entidad, d.titular, d.documento,
                     d.tipo_cuenta, d.numero_cuenta, d.alias, d.alias_tipo, d.observacion,
-                    d.saldo_declarado, d.saldo_declarado_en, d.orden, d.activo, d.para_senas,
+                    d.orden, d.activo, d.para_senas,
                     fn_cuenta_saldo(d.id_cuenta) AS saldo,
+                    -- **El último arqueo, que es lo que antes era el saldo
+                    -- declarado** (7.122.0): el historial vive en
+                    -- `arqueo_cuenta`, y guardarlo además en la cuenta sería
+                    -- el mismo dato dos veces.
+                    (SELECT a.monto_contado FROM arqueo_cuenta a WHERE a.id_cuenta = d.id_cuenta
+                      ORDER BY a.fecha DESC, a.id_arqueo_cuenta DESC LIMIT 1) AS ultimo_arqueo_monto,
+                    (SELECT a.fecha FROM arqueo_cuenta a WHERE a.id_cuenta = d.id_cuenta
+                      ORDER BY a.fecha DESC, a.id_arqueo_cuenta DESC LIMIT 1) AS ultimo_arqueo_en,
                     m.nombre AS medio, m.tipo
                FROM cuenta_bancaria d
                JOIN metodo_pago m ON m.id_metodo_pago = d.id_metodo_pago
@@ -108,7 +116,7 @@ class Cuenta
         return $por;
     }
 
-    /** Cuánto queda, o null si nadie declaró el saldo de esa cuenta. */
+    /** Cuánto queda, o null si esa cuenta nunca se arqueó. */
     public static function saldo(int $id): ?float
     {
         if (! $id) {
@@ -118,6 +126,52 @@ class Cuenta
         $v = DB::scalar('SELECT fn_cuenta_saldo(?)', [$id]);
 
         return $v === null ? null : (float) $v;
+    }
+
+    /**
+     * El arqueo de la cuenta: lo que dice el banco, cuándo y quién lo miró.
+     *
+     * **Es un HECHO OBSERVADO y por eso se guarda**, igual que
+     * `caja.monto_contado`: el sistema ve lo que entra y sale por él, pero no
+     * un depósito hecho por fuera, así que lo que dice el banco es lo que pone
+     * el número en hora. **Y cada arqueo queda** (`arqueo_cuenta`, 7.122.0):
+     * hasta la 7.121.1 declarar pisaba lo anterior, así que no había forma de
+     * listar los arqueos de una cuenta ni de saber si cuadraron.
+     *
+     * **La diferencia no se guarda**: la calcula `fn_arqueo_cuenta_diferencia`
+     * contra el arqueo anterior y lo movido entre los dos. El motivo sí, y se
+     * exige sólo cuando no cuadra — pedirlo siempre haría escribir «ok».
+     *
+     * Devuelve el mensaje de error, o null si quedó registrado.
+     */
+    public static function arquear(int $idCuenta, float $contado, ?string $motivo, ?string $observacion, int $idUsuario): ?string
+    {
+        if ($contado < 0) {
+            return 'El saldo que muestra el banco no puede ser negativo.';
+        }
+
+        $esperado = self::saldo($idCuenta);
+        $motivo = trim((string) $motivo) ?: null;
+        if ($esperado !== null && abs($contado - $esperado) >= 0.01 && mb_strlen((string) $motivo) < 5) {
+            return 'El banco dice ' . money($contado) . ' y el sistema esperaba ' . money($esperado)
+                . ': escribí a qué se debe la diferencia. Es lo único que la explica cuando alguien la mire después.';
+        }
+
+        // **`NOW()` de la base y no `ahora_bd()`**: es el mismo reloj, pero
+        // `ahora_bd()` guarda la hora una vez por proceso. El arqueo parte la
+        // historia en «antes» y «después» —`fn_cuenta_movido` compara contra
+        // esta fecha—, así que en un proceso largo (el planificador, la
+        // batería de pruebas) una fecha vieja dejaba afuera lo que se movió
+        // entre medio.
+        DB::insert(
+            'INSERT INTO arqueo_cuenta (id_cuenta, fecha, monto_contado, id_usuario, motivo_diferencia, observacion)
+             VALUES (?, NOW(), ?, ?, ?, ?)',
+            [$idCuenta, $contado, $idUsuario ?: null,
+             $esperado !== null && abs($contado - $esperado) >= 0.01 ? $motivo : null,
+             trim((string) $observacion) ?: null]
+        );
+
+        return null;
     }
 
     /**
@@ -165,7 +219,7 @@ class Cuenta
             return '';
         }
 
-        return 'Ojo: según lo declarado y lo que entró y salió desde entonces, en esa cuenta hay '
+        return 'Ojo: según el último arqueo y lo que entró y salió desde entonces, en esa cuenta hay '
             . money($saldo) . ' y este pago es de ' . money($monto)
             . '. Puede haber un depósito que el sistema no vio — pero conviene comprobarlo'
             . ' en el banco antes de transferir.';

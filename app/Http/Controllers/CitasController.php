@@ -2439,14 +2439,26 @@ class CitasController extends Controller
 
         // Sólo se ficha el día en curso. Un día pasado se corrige desde
         // Asistencia, que es lo que ya hace `asistenciaMarcar`.
+        //
+        // **El turno que se ofrece es el de la HORA de la cita** (7.122.0).
+        // Tomaba el primero del día, así que a quien trabaja mañana y tarde
+        // la cita de las 15 le ofrecía «Marcar entrada (08:00 a 12:00)» —un
+        // turno ya pasado, que el servidor rechaza fuera de franja— y la
+        // entrada de la tarde no había forma de marcarla desde acá. Sin un
+        // turno que cubra esa hora, el más cercano que todavía no terminó, y
+        // si no el primero.
+        $horaCita = substr((string) $cita->fecha_hora, 11, 8) ?: '00:00:00';
         $turno = $dia === $hoy
             ? DB::selectOne(
                 'SELECT t.id_turno, t.nombre, t.hora_inicio, t.hora_fin
                    FROM usuario_turno ut
                    JOIN turno_laboral t ON t.id_turno = ut.id_turno AND t.activo = 1
                    JOIN turno_dia td    ON td.id_turno = t.id_turno AND td.dia_semana = ?
-                  WHERE ut.id_usuario = ? ORDER BY t.hora_inicio LIMIT 1',
-                [(int) date('N', strtotime($dia)), $idU]
+                  WHERE ut.id_usuario = ?
+                  ORDER BY (? BETWEEN t.hora_inicio AND t.hora_fin) DESC,
+                           (t.hora_fin >= ?) DESC, t.hora_inicio
+                  LIMIT 1',
+                [(int) date('N', strtotime($dia)), $idU, $horaCita, $horaCita]
             )
             : null;
 

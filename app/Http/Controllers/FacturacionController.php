@@ -2277,28 +2277,26 @@ class FacturacionController extends Controller
      */
     public function movimientos(): View
     {
-        $mias = Sucursales::delUsuario();
+        // **Del local en el que se está parado** (7.122.0): Tesorería se aísla
+        // por sucursal, y el filtro de caja y el de cuenta mezclaban los de
+        // todos los locales de esta persona — el defecto que se reportó en
+        // Cajas. El local se cambia desde la barra.
+        $suc = $this->sucursalDeTesoreria();
         $abierta = Caja::abierta();
 
         $opCaja = ['' => 'Todas'];
-        foreach (Caja::cajones(count($mias) === 1 ? (int) $mias[0]->id_sucursal : null) as $cf) {
-            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre
-                . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
+        foreach ($suc ? Caja::cajones($suc) : [] as $cf) {
+            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre;
         }
 
         // **Y las cuentas bancarias, que desde la 7.121.0 son cajas también**:
         // un movimiento puede ser del cajón o del banco, y la pantalla lista
-        // los dos. Las del local activo son las que ofrece el formulario para
-        // registrar uno; el filtro ofrece las de todos los locales de esta
-        // persona, igual que el de cajas.
-        $cuentas = Cuenta::deSucursal((int) Sucursales::activa());
+        // los dos.
+        $cuentas = Cuenta::deSucursal($suc);
         $opCuenta = ['' => 'Todas'];
-        foreach ($mias as $su) {
-            foreach (Cuenta::deSucursal((int) $su->id_sucursal) as $ct) {
-                $opCuenta[(string) $ct->id_cuenta] = $ct->entidad
-                    . ($ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '')
-                    . (count($mias) > 1 ? ' · ' . $su->nombre : '');
-            }
+        foreach ($cuentas as $ct) {
+            $opCuenta[(string) $ct->id_cuenta] = $ct->entidad
+                . ($ct->numero_cuenta ? ' · ' . $ct->numero_cuenta : '');
         }
 
         $campos = [
@@ -2322,8 +2320,7 @@ class FacturacionController extends Controller
         // El aislamiento por sucursal sale de la cuenta o de la caja del
         // movimiento, que es a dónde fue esa plata — no hace falta columna
         // propia en cada tabla.
-        $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
-        $enSuc = Movimientos::enSucursales($ids);
+        $enSuc = Movimientos::enSucursales([$suc]);
 
         $par = [];
         // **Cada fuente lleva sus PROPIOS marcadores.** La conexión abre PDO
@@ -2415,33 +2412,23 @@ class FacturacionController extends Controller
      */
     public function cajas(): View
     {
-        $mias = Sucursales::delUsuario();
-        $opciones = ['' => 'Todas'];
-        foreach ($mias as $su) {
-            $opciones[(string) $su->id_sucursal] = $su->nombre;
-        }
+        // **Sólo las cajas del local en el que se está parado** (7.122.0,
+        // reportado: «muestra también las cajas de la otra sucursal a pesar de
+        // estar en la otra»). Tenía un filtro de sucursal que arrancaba en
+        // «Todas», así que quien entra a varios locales veía mezclados los
+        // cajones de todos — y Tesorería se aísla por local. El local se cambia
+        // desde la barra, que es donde se decide en cuál se trabaja.
+        $suc = $this->sucursalDeTesoreria();
 
-        // **Un filtro que no aplica se SACA del arreglo, no se pone en null**:
-        // `Listado::filtros()` lo tomaría como uno de texto sin tipo y saldría
-        // un campo de búsqueda titulado «sucursal».
-        $campos = [
+        $f = Listado::filtros([
             'q' => ['tipo' => 'texto', 'etiqueta' => 'Buscar', 'ph' => 'Nombre de la caja', 'ancho' => '220px'],
-        ];
-        // Con un solo local el filtro no significa nada: todo lo que hay es de acá.
-        if (count($mias) > 1) {
-            $campos['sucursal'] = ['tipo' => 'select', 'etiqueta' => 'Sucursal',
-                                   'opciones' => $opciones, 'ancho' => '190px'];
-        }
-        $campos['estado'] = ['tipo' => 'select', 'etiqueta' => 'Estado', 'ancho' => '160px',
-                             'opciones' => ['' => 'Todas', '1' => 'Abiertas', '0' => 'Cerradas']];
+            'estado' => ['tipo' => 'select', 'etiqueta' => 'Estado', 'ancho' => '160px',
+                         'opciones' => ['' => 'Todas', '1' => 'Abiertas', '0' => 'Cerradas']],
+        ]);
 
-        $f = Listado::filtros($campos);
-
-        $suc = Listado::hay($f, 'sucursal')
-            ? (int) Listado::valor($f, 'sucursal')
-            : (count($mias) === 1 ? (int) $mias[0]->id_sucursal : 0);
-
-        $todas = Caja::cajones($suc ?: null, [
+        // Sin ningún local resuelto no hay cajones que mostrar: con 0,
+        // `cajones()` los traería TODOS, que es justo el defecto.
+        $todas = ! $suc ? [] : Caja::cajones($suc, [
             'q' => (string) Listado::valor($f, 'q'),
             'estado' => (string) Listado::valor($f, 'estado'),
         ]);
@@ -2485,8 +2472,9 @@ class FacturacionController extends Controller
             'resumen' => $resumen,
             'f' => $f,
             'pag' => $pag,
-            'sucursales' => $mias,
-            'puedeCrear' => Permisos::esAdmin(),
+            'sucursal' => $suc,
+            'sucursalNombre' => Sucursales::nombreActiva(),
+            'puedeCrear' => Permisos::esAdmin() && $suc > 0,
         ]);
     }
 
@@ -2672,37 +2660,66 @@ class FacturacionController extends Controller
     }
 
     /**
-     * Arqueos: cómo cerró cada caja, con filtros y paginación.
+     * Arqueos: el del cajón y el del banco, cada uno en su pestaña.
      *
      * **Es una tabla, no tarjetas.** Un salón acumula un arqueo por cajón y
      * por día, así que a los seis meses son cientos: lo que hace falta es
      * poder filtrar y paginar, no que cada uno ocupe más lugar.
      *
-     * Las cuatro cifras de arriba salen de **lo filtrado**, no del total: si
-     * se pide un local y un mes, «cuántas cuadraron» tiene que hablar de ese
-     * local y ese mes — un resumen que mide otra cosa que la tabla es peor que
-     * no tenerlo.
+     * **Y se HACE desde acá, no sólo se mira** (7.122.0, pedido del usuario:
+     * «Arqueos también debe hacer el arqueo de la cuenta bancaria, al igual
+     * que Cajas»). Arriba de cada tabla va lo que se puede arquear hoy —las
+     * cajas abiertas del local, las cuentas activas— con su botón, que abre
+     * el MISMO modal que la tarjeta de Cajas o de la cuenta: escrito dos
+     * veces, un lado diría «esperado» con un número y el otro con otro.
+     *
+     * **Del local en el que se está parado** (7.122.0): Tesorería se aísla por
+     * sucursal, y la pantalla ofrecía «Todas» por defecto — el mismo defecto
+     * que se reportó en Cajas. El local se cambia desde la barra.
+     *
+     * Las cifras de arriba salen de **lo filtrado**, no del total: un resumen
+     * que mide otra cosa que la tabla es peor que no tenerlo.
      */
-    public function arqueo(): View
+    public function arqueo(Request $request): View
     {
+        $suc = $this->sucursalDeTesoreria();
+        $verCuentas = Permisos::puede('facturacion.cuentas');
+        $de = $verCuentas && $request->query('de') === 'cuentas' ? 'cuentas' : 'cajas';
+
+        $datos = $de === 'cuentas' ? $this->arqueosDeCuentas($suc) : $this->arqueosDeCajas($suc);
+
+        return view('facturacion.arqueo', $datos + [
+            'de' => $de,
+            'verCuentas' => $verCuentas,
+            'sucursalNombre' => Sucursales::nombreActiva(),
+        ]);
+    }
+
+    /**
+     * El local de las pantallas de Tesorería: el activo, que es el que se
+     * elige en la barra. Sin local elegido —una sesión armada sin pasar por
+     * la elección— cae en el único al que entra, o en ninguno.
+     */
+    private function sucursalDeTesoreria(): int
+    {
+        $activa = Sucursales::activa();
+        if ($activa) {
+            return $activa;
+        }
         $mias = Sucursales::delUsuario();
-        $opSuc = ['' => 'Todas'];
-        foreach ($mias as $su) {
-            $opSuc[(string) $su->id_sucursal] = $su->nombre;
-        }
 
+        return count($mias) === 1 ? (int) $mias[0]->id_sucursal : 0;
+    }
+
+    /** La pestaña de las cajas: los cierres del cajón. */
+    private function arqueosDeCajas(int $suc): array
+    {
         $opCaja = ['' => 'Todas'];
-        foreach (Caja::cajones(count($mias) === 1 ? (int) $mias[0]->id_sucursal : null) as $cf) {
-            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre
-                . (count($mias) > 1 ? ' · ' . $cf->sucursal : '');
+        foreach ($suc ? Caja::cajones($suc) : [] as $cf) {
+            $opCaja[(string) $cf->id_caja_fisica] = $cf->nombre;
         }
 
-        $campos = [];
-        if (count($mias) > 1) {
-            $campos['sucursal'] = ['tipo' => 'select', 'etiqueta' => 'Sucursal',
-                                   'opciones' => $opSuc, 'ancho' => '180px'];
-        }
-        $f = Listado::filtros($campos + [
+        $f = Listado::filtros([
             'caja' => ['tipo' => 'select', 'etiqueta' => 'Caja', 'opciones' => $opCaja, 'ancho' => '180px'],
             'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
             'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
@@ -2711,21 +2728,8 @@ class FacturacionController extends Controller
                                         'no' => 'No cuadraron', 'sin' => 'Sin conteo']],
         ]);
 
-        $w = ['fecha_cierre IS NOT NULL'];
-        $par = [];
-
-        // Quien tiene un solo local no elige: se filtra solo, igual que en
-        // Reportes. Con el consolidado vería lo que el aislamiento impide.
-        if (Listado::hay($f, 'sucursal')) {
-            $w[] = 'id_sucursal = :suc';
-            $par['suc'] = (int) Listado::valor($f, 'sucursal');
-        } elseif (count($mias) === 1) {
-            $w[] = 'id_sucursal = :suc';
-            $par['suc'] = (int) $mias[0]->id_sucursal;
-        } else {
-            $ids = array_map(fn ($su) => (int) $su->id_sucursal, $mias);
-            $w[] = 'id_sucursal IN (' . implode(',', $ids ?: [0]) . ')';
-        }
+        $w = ['fecha_cierre IS NOT NULL', 'id_sucursal = :suc'];
+        $par = ['suc' => $suc];
 
         if (Listado::hay($f, 'caja')) {
             $w[] = 'id_caja_fisica = :cf';
@@ -2753,8 +2757,6 @@ class FacturacionController extends Controller
 
         $desde = 'FROM vw_caja_resumen WHERE ' . implode(' AND ', $w);
 
-        // El resumen sale de LO FILTRADO, con una consulta aparte: contarlo
-        // sobre la página daría los números de veinte filas.
         $r = DB::selectOne(
             "SELECT COUNT(*) AS cerradas,
                     SUM(monto_contado IS NULL) AS sin_conteo,
@@ -2766,16 +2768,111 @@ class FacturacionController extends Controller
 
         $pag = Listado::paginacion((int) $r->cerradas);
 
-        return view('facturacion.arqueo', [
+        // **Las abiertas de hoy, con su arqueo a mano.** Es el mismo modal de
+        // la tarjeta de Cajas, con el desglose de `vw_caja_resumen`, y sólo lo
+        // puede cerrar quien la abrió o el Administrador — el servidor lo
+        // vuelve a comprobar.
+        $abiertas = $suc ? DB::select(
+            "SELECT * FROM vw_caja_resumen WHERE estado = 'Abierta' AND id_sucursal = ?
+              ORDER BY caja_nombre", [$suc]
+        ) : [];
+
+        return [
             'rows' => DB::select("SELECT * $desde ORDER BY fecha_cierre DESC
                                   LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
             'f' => $f,
             'pag' => $pag,
+            'abiertas' => $abiertas,
             'cerradas' => (int) $r->cerradas,
             'sinConteo' => (int) $r->sin_conteo,
             'cuadran' => (int) $r->cuadran,
             'difTotal' => (float) $r->dif_total,
+        ];
+    }
+
+    /**
+     * La pestaña de las cuentas bancarias: cada arqueo de `arqueo_cuenta`, con
+     * lo que debería haber dicho el banco y la diferencia —las dos se calculan,
+     * no se guardan—.
+     */
+    private function arqueosDeCuentas(int $suc): array
+    {
+        $cuentas = $suc ? Cuenta::deSucursal($suc, false) : [];
+
+        $opCuenta = ['' => 'Todas'];
+        foreach ($cuentas as $c) {
+            $opCuenta[(string) $c->id_cuenta] = $c->entidad . ($c->numero_cuenta ? ' · ' . $c->numero_cuenta : '');
+        }
+
+        $f = Listado::filtros([
+            'cuenta' => ['tipo' => 'select', 'etiqueta' => 'Cuenta', 'opciones' => $opCuenta, 'ancho' => '210px'],
+            'desde' => ['tipo' => 'fecha', 'etiqueta' => 'Desde'],
+            'hasta' => ['tipo' => 'fecha', 'etiqueta' => 'Hasta'],
+            'estado' => ['tipo' => 'select', 'etiqueta' => 'Resultado', 'ancho' => '170px',
+                         'opciones' => ['' => 'Todos', 'ok' => 'Cuadraron',
+                                        'no' => 'No cuadraron', 'sin' => 'Primer arqueo']],
         ]);
+
+        $w = ['cb.id_sucursal = :suc'];
+        $par = ['suc' => $suc];
+        if (Listado::hay($f, 'cuenta')) {
+            $w[] = 'a.id_cuenta = :cu';
+            $par['cu'] = (int) Listado::valor($f, 'cuenta');
+        }
+        if (Listado::hay($f, 'desde')) {
+            $w[] = 'DATE(a.fecha) >= :d';
+            $par['d'] = Listado::valor($f, 'desde');
+        }
+        if (Listado::hay($f, 'hasta')) {
+            $w[] = 'DATE(a.fecha) <= :h';
+            $par['h'] = Listado::valor($f, 'hasta');
+        }
+
+        // La diferencia es una función, así que el filtro por resultado va
+        // sobre la consulta ya armada y no en su WHERE.
+        $base = "SELECT a.id_arqueo_cuenta, a.fecha, a.monto_contado, a.motivo_diferencia, a.observacion,
+                        cb.entidad, cb.numero_cuenta, m.nombre AS medio,
+                        TRIM(CONCAT_WS(' ', pe.nombre, pe.apellido)) AS quien,
+                        fn_arqueo_cuenta_esperado(a.id_arqueo_cuenta) AS esperado,
+                        fn_arqueo_cuenta_diferencia(a.id_arqueo_cuenta) AS diferencia
+                   FROM arqueo_cuenta a
+                   JOIN cuenta_bancaria cb ON cb.id_cuenta = a.id_cuenta
+                   JOIN metodo_pago m ON m.id_metodo_pago = cb.id_metodo_pago
+                   LEFT JOIN usuario u ON u.id_usuario = a.id_usuario
+                   LEFT JOIN persona pe ON pe.id_persona = u.id_persona
+                  WHERE " . implode(' AND ', $w);
+
+        $est = (string) Listado::valor($f, 'estado');
+        $filtroEst = match ($est) {
+            'ok' => ' WHERE t.diferencia IS NOT NULL AND ABS(t.diferencia) < 0.01',
+            'no' => ' WHERE t.diferencia IS NOT NULL AND ABS(t.diferencia) >= 0.01',
+            'sin' => ' WHERE t.diferencia IS NULL',
+            default => '',
+        };
+        $desde = "FROM ($base) t" . $filtroEst;
+
+        $r = DB::selectOne(
+            "SELECT COUNT(*) AS hechos,
+                    SUM(t.diferencia IS NULL) AS primeros,
+                    SUM(t.diferencia IS NOT NULL AND ABS(t.diferencia) < 0.01) AS cuadran,
+                    COALESCE(SUM(CASE WHEN t.diferencia IS NOT NULL AND ABS(t.diferencia) >= 0.01
+                                      THEN t.diferencia ELSE 0 END), 0) AS dif_total
+               $desde", $par
+        );
+
+        $pag = Listado::paginacion((int) $r->hechos);
+
+        return [
+            'rows' => DB::select("SELECT t.* $desde ORDER BY t.fecha DESC, t.id_arqueo_cuenta DESC
+                                  LIMIT {$pag['porPagina']} OFFSET {$pag['offset']}", $par),
+            'f' => $f,
+            'pag' => $pag,
+            'cuentas' => array_values(array_filter($cuentas, fn ($c) => (int) $c->activo === 1)),
+            'hechos' => (int) $r->hechos,
+            'primeros' => (int) $r->primeros,
+            'cuadran' => (int) $r->cuadran,
+            'difTotal' => (float) $r->dif_total,
+        ];
     }
 
     /**
@@ -3186,7 +3283,10 @@ class FacturacionController extends Controller
     public function cerrarCaja(Request $request): RedirectResponse
     {
         $id = (int) $request->input('id_caja', 0);
-        $volver = redirect()->route('facturacion.cajas');
+        // Vuelve a donde se hizo el arqueo: la tarjeta de Cajas o Arqueos.
+        $volver = $request->input('volver') === 'arqueos'
+            ? redirect()->route('facturacion.arqueo')
+            : redirect()->route('facturacion.cajas');
 
         $caja = DB::selectOne('SELECT id_caja, id_usuario, id_estado_caja, fn_caja_saldo(id_caja) AS saldo
                                  FROM caja WHERE id_caja = ?', [$id]);

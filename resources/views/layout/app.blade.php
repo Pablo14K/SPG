@@ -104,7 +104,7 @@
      ahí `app.js` consulta la huella; sin declararla, no se consulta nada. --}}
 @php $sgpVivo = trim($__env->yieldContent('vivo')); @endphp
 <body @if ($sgpVivo && $sgpSesion) data-vivo="{{ $sgpVivo }}"
-      data-vivo-url="{{ route('vivo', array_filter(['s' => $sgpVivo, 'dia' => request()->query('dia')])) }}" @endif>
+      data-vivo-url="{{ route('vivo', array_filter(['s' => $sgpVivo, 'dia' => request()->query('dia'), 'fecha' => request()->query('fecha')])) }}" @endif>
 
 {{-- **El cajón lateral se abre con CSS, no con JavaScript.**
 

@@ -149,15 +149,39 @@
                                      esconde. Y una por persona, con su nombre cuando hay
                                      varias: «maní» a secas en una cita de tres no dice a quién
                                      no se le puede dar. --}}
-                                @foreach ($sgpAlergicas as $sgpA)
+                                {{-- **Con varias personas alérgicas, un solo aviso** (7.122.0,
+                                     pedido del usuario). Un badge por persona con su texto
+                                     llenaba la fila con tres renglones rojos y la cita dejaba
+                                     de leerse de un vistazo. La advertencia NO se esconde —el
+                                     triángulo rojo sigue en la fila, con cuántas son—, pero lo
+                                     que dice cada una se lee en «Detalle», que es para lo que
+                                     está: el botón abre esa ventana. Con una sola persona
+                                     alérgica queda como estaba, con su texto a la vista. --}}
+                                @if (count($sgpAlergicas) > 1)
+                                    @php
+                                        $sgpTitAl = implode(' · ', array_map(
+                                            fn ($a) => $a->quien . ': ' . $a->alergias, $sgpAlergicas));
+                                    @endphp
                                     <div class="mb-1">
-                                        <span class="badge-estado e-no d-inline-flex align-items-center gap-1"
-                                              title="Alergias de {{ $sgpA->quien }}: {{ $sgpA->alergias }}">
+                                        <button type="button" class="badge-estado e-no d-inline-flex align-items-center gap-1 border-0 sgp-alergias-varias"
+                                                data-bs-toggle="modal" data-bs-target="#detCita{{ $c->id_cita }}"
+                                                title="Alergias — {{ $sgpTitAl }}"
+                                                aria-label="{{ count($sgpAlergicas) }} personas con alergias: ver el detalle">
                                             <i class="bi bi-exclamation-triangle-fill"></i>
-                                            <span>@if ($sgpVarias)<strong>{{ $sgpA->quien }}:</strong> @endif{{ \Illuminate\Support\Str::limit($sgpA->alergias, 40) }}</span>
-                                        </span>
+                                            <span>{{ count($sgpAlergicas) }} con alergias</span>
+                                        </button>
                                     </div>
-                                @endforeach
+                                @else
+                                    @foreach ($sgpAlergicas as $sgpA)
+                                        <div class="mb-1">
+                                            <span class="badge-estado e-no d-inline-flex align-items-center gap-1"
+                                                  title="Alergias de {{ $sgpA->quien }}: {{ $sgpA->alergias }}">
+                                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                                <span>@if ($sgpVarias)<strong>{{ $sgpA->quien }}:</strong> @endif{{ \Illuminate\Support\Str::limit($sgpA->alergias, 40) }}</span>
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                @endif
                             </td>
                             <td class="text-muted-warm" data-label="Servicios">
                                 {{-- **La fila es el resumen; de quién es cada servicio se

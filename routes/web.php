@@ -475,8 +475,9 @@ Route::middleware(['sesion', 'personal'])->group(function () {
             Route::post('cuentas/orden', [CuentaBancariaController::class, 'orden'])->name('cuentas.orden');
             // Cuál se le muestra a la clienta para la seña
             Route::post('cuentas/senas', [CuentaBancariaController::class, 'senas'])->name('cuentas.senas');
-            // El arqueo de la cuenta: cuánta plata dice el banco que hay
-            Route::post('cuentas/saldo', [CuentaBancariaController::class, 'saldo'])->name('cuentas.saldo');
+            // El arqueo de la cuenta: cuánta plata dice el banco que hay. Cada
+            // arqueo queda en `arqueo_cuenta` y Arqueos los lista (7.122.0).
+            Route::post('cuentas/arqueo', [CuentaBancariaController::class, 'arqueo'])->name('cuentas.arqueo');
         });
 
         // El movimiento a mano, del cajón o de la cuenta: su propia clave,

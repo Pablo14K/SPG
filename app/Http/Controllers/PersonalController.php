@@ -946,11 +946,19 @@ class PersonalController extends Controller
         }
         $dia = (int) date('N', strtotime($fecha));
 
+        // **Del local en el que se está parado** (7.122.0). El turno es de una
+        // sucursal y la asistencia se aísla con él; la lista traía los turnos
+        // de todos los locales mezclados, así que la misma persona podía
+        // aparecer por un turno que acá no trabaja.
+        $parDia = ['dia' => $dia, 'fecha' => $fecha];
+        $soloAca = Sucursales::filtro('t', $parDia);
+
         $filas = DB::select(
             "SELECT ut.id_usuario, t.id_turno, t.nombre AS turno, t.hora_inicio, t.hora_fin,
                     t.flexibilidad_entrada_min,
                     s.nombre AS sucursal,
                     CONCAT(pe.nombre,' ',pe.apellido) AS profesional,
+                    pe.foto, pe.nombre AS pnombre, pe.apellido AS papellido,
                     a.id_asistencia, a.hora_entrada, a.hora_salida, a.motivo_ausencia,
                     a.justificada, a.horas_extras, a.observaciones
                FROM usuario_turno ut
@@ -962,8 +970,9 @@ class PersonalController extends Controller
                LEFT JOIN asistencia a ON a.id_usuario = ut.id_usuario
                                      AND a.id_turno   = t.id_turno
                                      AND a.fecha      = :fecha
-              ORDER BY t.hora_inicio, pe.nombre, pe.apellido",
-            ['dia' => $dia, 'fecha' => $fecha]
+              WHERE 1=1 $soloAca
+              ORDER BY t.hora_inicio, t.nombre, pe.nombre, pe.apellido",
+            $parDia
         );
 
         // Un Profesional solo se ve a sí mismo: la asistencia de sus compañeras
@@ -984,6 +993,32 @@ class PersonalController extends Controller
                 && str_starts_with((string) ($f->observaciones ?? ''), 'Llegada tardía justificada:');
             $f->fuera = $fecha === ahora_bd('Y-m-d')
                 ? $this->fueraDeFranja($f, ($f->hora_entrada || $tardiaJustificada) ? 'salida' : 'entrada') : null;
+            $f->tardia_justificada = $tardiaJustificada;
+            $f->estado = self::estadoAsistencia($f);
+        }
+
+        // **Agrupada por TURNO, con el turno a la vista** (7.122.0, reportado:
+        // «lo de asistencia es visualmente confuso en la vista de
+        // administrador»). Era una sola tabla con el turno escondido detrás
+        // de «Detalle», así que quien trabaja mañana y tarde aparecía DOS veces
+        // con el mismo nombre y sin decir cuál era cuál: la entrada que marcó
+        // en la tarde no se veía en la fila de la mañana, y desde afuera se
+        // leía como que el fichaje no había cambiado nada. Ahora cada turno es
+        // un bloque con su horario, su tolerancia y cuántos vinieron.
+        $turnos = [];
+        foreach ($filas as $f) {
+            $t = (int) $f->id_turno;
+            $turnos[$t] ??= (object) [
+                'id_turno' => $t, 'nombre' => $f->turno, 'hora_inicio' => $f->hora_inicio,
+                'hora_fin' => $f->hora_fin, 'tolerancia' => (int) ($f->flexibilidad_entrada_min ?? 15),
+                'filas' => [], 'cuenta' => ['presente' => 0, 'sin_fichar' => 0, 'falta' => 0, 'permiso' => 0],
+            ];
+            $turnos[$t]->filas[] = $f;
+            $turnos[$t]->cuenta[$f->estado]++;
+        }
+        $cuenta = ['presente' => 0, 'sin_fichar' => 0, 'falta' => 0, 'permiso' => 0];
+        foreach ($filas as $f) {
+            $cuenta[$f->estado]++;
         }
 
         // **Los últimos registros, con filtros.** Eran sesenta filas fijas:
@@ -1017,6 +1052,10 @@ class PersonalController extends Controller
 
         $wa = [];
         $pa = [];
+        if (Sucursales::activa()) {
+            $wa[] = 't.id_sucursal = :suc';
+            $pa['suc'] = Sucursales::activa();
+        }
         if (! $porOtros) {
             $wa[] = 'a.id_usuario = ' . (int) session('uid');
         } elseif (Listado::hay($fa, 'quien')) {
@@ -1042,6 +1081,8 @@ class PersonalController extends Controller
 
         return view('seguridad.asistencia', [
             'filas' => $filas,
+            'turnos' => array_values($turnos),
+            'cuenta' => $cuenta,
             'fa' => $fa,
             'rows' => DB::select(
                 "SELECT a.*, t.nombre AS turno, t.hora_inicio, t.hora_fin,
@@ -1297,6 +1338,20 @@ class PersonalController extends Controller
                 // persona explica. Lo que cambia es que **quien ya lo sabe en el
                 // momento lo puede decir en un paso**, marcándolo, en vez de
                 // marcar y volver a entrar.
+                // **Una falta no pisa una entrada ya fichada** (7.122.0). La
+                // pantalla de quien administra es una foto: si la profesional
+                // marcó la entrada desde su cuenta mientras esa foto estaba
+                // abierta, apretar «Falta» sobre la fila vieja le borraba la
+                // entrada sin decir nada —se reportó como «o sobrescribió la
+                // entrada»—. Si ya vino, se dice; para corregirlo de verdad
+                // está «Borrar», que es explícito.
+                if ($ya && $ya->hora_entrada) {
+                    flash($quien . ' ya marcó la entrada a las ' . substr((string) $ya->hora_entrada, 0, 5)
+                        . ' en ese turno, así que no se registra la falta. Si esa entrada está mal, '
+                        . 'borrá el registro primero.', 'warning');
+
+                    return $volver;
+                }
                 $justificada = ($accion === 'falta_con' || $request->boolean('con_permiso')) ? 1 : 0;
                 // **Dar el permiso es del Administrador**, que es una decisión
                 // sobre el sueldo de alguien y no una tarea del mostrador. Si no
@@ -1345,6 +1400,32 @@ class PersonalController extends Controller
     }
 
     // -----------------------------------------------------------------
+
+    /**
+     * En qué quedó una fila de asistencia, en una sola palabra.
+     *
+     * Es la misma lectura que hacía la vista con cuatro `@if` sobre
+     * `justificada` y `hora_entrada`; sale acá para que el bloque de cada
+     * turno pueda contar cuántos vinieron sin repetir la regla.
+     */
+    private static function estadoAsistencia(object $f): string
+    {
+        if ($f->hora_entrada && $f->justificada === null) {
+            return 'presente';
+        }
+        if ($f->hora_entrada) {
+            // Una llegada tardía justificada que después fichó: vino.
+            return 'presente';
+        }
+        if ($f->id_asistencia && (int) $f->justificada === 1) {
+            return 'permiso';
+        }
+        if ($f->id_asistencia && (int) $f->justificada === 0) {
+            return 'falta';
+        }
+
+        return 'sin_fichar';
+    }
 
     /**
      * ¿Quién puede fichar por otro? Marcar la entrada de una compañera es decir

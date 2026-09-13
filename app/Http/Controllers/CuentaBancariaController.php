@@ -29,7 +29,7 @@ use Illuminate\View\View;
  * Lo que decide el salón acá:
  *   · qué cuentas tiene cada local, con sus datos para transferir;
  *   · cuál de ellas se le muestra a la clienta para la seña (`para_senas`);
- *   · cuánto dice el banco que hay (`saldo_declarado`), que es el arqueo.
+ *   · cuánto dice el banco que hay (`arqueo_cuenta`), que es el arqueo.
  *
  * Lo que NO decide: la plata no se mueve desde acá. Entra con los cobros por
  * transferencia y sale con los pagos y los movimientos, cada uno desde su
@@ -361,62 +361,65 @@ class CuentaBancariaController extends Controller
     }
 
     /**
-     * Declarar cuánta plata hay en la cuenta: el arqueo del banco.
+     * El arqueo de la cuenta: cuánta plata dice el banco que hay.
      *
-     * **Es un HECHO OBSERVADO y por eso se guarda**, igual que
-     * `caja.monto_contado`. Desde la 7.121.0 el sistema sí ve lo que entra
-     * —los cobros por transferencia dicen a qué cuenta cayeron— pero sigue sin
-     * ver un depósito hecho por fuera, así que declararlo es lo que pone el
-     * número en hora.
+     * **Cada arqueo queda** (7.122.0). Hasta la 7.121.1 esto pisaba el saldo
+     * declarado anterior, así que Arqueos no tenía nada que listar y no había
+     * forma de decir si la cuenta cuadró: ahora es una fila de
+     * `arqueo_cuenta`, igual que el cierre de una caja es una fila de `caja`.
+     * La regla —el motivo cuando no cuadra— vive en `Cuenta::arquear()`, que
+     * es lo que usan las dos pantallas que lo ofrecen.
      *
-     * **Volver a declararlo es, literalmente, hacer el arqueo de la cuenta**:
-     * `fn_cuenta_saldo` sólo cuenta lo posterior a esta fecha, así que lo
-     * anterior queda cerrado.
+     * **Vaciar el campo ya no deja la cuenta «sin declarar».** Con historial
+     * eso sería borrar arqueos que ya pasaron; un arqueo nuevo es la forma de
+     * corregir uno mal cargado.
+     *
+     * Vuelve a donde se hizo: la tarjeta de la cuenta o la lista de Arqueos.
      */
-    public function saldo(Request $request): RedirectResponse
+    public function arqueo(Request $request): RedirectResponse
     {
         $d = $this->mia($request);
         if (! $d) {
             return back();
         }
         $id = (int) $d->id_cuenta;
-        $volver = redirect()->route('facturacion.cuentas', ['sucursal' => $d->id_sucursal]);
+        $volver = $request->input('volver') === 'arqueos'
+            ? redirect()->route('facturacion.arqueo', ['de' => 'cuentas'])
+            : redirect()->route('facturacion.cuentas', ['sucursal' => $d->id_sucursal]);
 
-        // **Vaciar el campo es «no sé cuánto hay», y es una respuesta válida.**
-        // Vuelve a dejar la cuenta sin saldo declarado, con lo cual el aviso de
-        // los pagos deja de salir en vez de salir con un número inventado — y
-        // la campanita vuelve a pedir que se declare.
+        if (! (int) $d->activo) {
+            flash('Esa cuenta está dada de baja: no se arquea.', 'error');
+
+            return $volver;
+        }
         if (trim((string) $request->input('saldo', '')) === '') {
-            DB::update('UPDATE cuenta_bancaria
-                           SET saldo_declarado = NULL, saldo_declarado_en = NULL
-                         WHERE id_cuenta = ?', [$id]);
-            Auditoria::registrar('EDICION', 'Facturacion', 'cuenta_bancaria', $id,
-                'Saldo de la cuenta sin declarar (' . $d->entidad . ')');
-            flash('La cuenta queda sin saldo declarado.');
+            flash('Escribí cuánto dice el banco que hay en «' . $d->entidad . '».', 'error');
 
             return $volver;
         }
 
+        $antes = Cuenta::saldo($id);
         $saldo = num($request->input('saldo'));
-        if ($saldo < 0) {
-            flash('El saldo no puede ser negativo.', 'error');
+        $error = Cuenta::arquear($id, $saldo, (string) $request->input('motivo_diferencia', ''),
+            (string) $request->input('observacion', ''), (int) session('uid'));
+        if ($error) {
+            flash($error, 'error');
 
             return $volver;
         }
 
-        // **Los dos van juntos o ninguno**, y lo hace cumplir `chk_cuenta_saldo`:
-        // un saldo sin fecha no dice nada —¿de cuándo?— y una fecha sin saldo
-        // tampoco. La fecha sale del reloj de la base, nunca de `date()`.
-        DB::update('UPDATE cuenta_bancaria
-                       SET saldo_declarado = ?, saldo_declarado_en = ?
-                     WHERE id_cuenta = ?', [$saldo, ahora_bd(), $id]);
+        Auditoria::registrar('ARQUEO', 'Facturacion', 'cuenta_bancaria', $id,
+            'Arqueo de ' . $d->entidad . ': el banco dice ' . money($saldo)
+            . ($antes === null ? ' (primer arqueo)' : ', el sistema esperaba ' . money($antes)));
 
-        Auditoria::registrar('EDICION', 'Facturacion', 'cuenta_bancaria', $id,
-            'Saldo declarado de ' . $d->entidad . ': '
-            . ($d->saldo_declarado === null ? 'sin declarar' : money($d->saldo_declarado))
-            . ' → ' . money($saldo));
-
-        flash('Saldo declarado: ' . money($saldo) . '. Desde acá se suman los cobros y se descuentan los pagos.');
+        if ($antes === null) {
+            flash('Arqueo registrado: ' . money($saldo) . '. Desde acá se suman los cobros y se descuentan los pagos.');
+        } elseif (abs($saldo - $antes) < 0.01) {
+            flash('La cuenta cuadra: el banco dice ' . money($saldo) . ', lo mismo que el sistema.');
+        } else {
+            flash('Arqueo registrado con diferencia: el banco dice ' . money($saldo) . ' y el sistema esperaba '
+                . money($antes) . '. Queda anotada en Arqueos.', 'warning');
+        }
 
         return $volver;
     }
